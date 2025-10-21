@@ -11,6 +11,9 @@ import {
 	GridItem,
 	Modal,
 	ModalVariant,
+    Tab,
+    Tabs,
+    TabTitleText,
 	TextInput,
 	Text,
 	TextContent,
@@ -22,6 +25,12 @@ import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd, valid_dn, listsEqual, parentExists, valid_filter } from "../tools.jsx";
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { MemberOfTable } from "./pluginTables.jsx";
+import {
+    MemberOfConfigEntryModal,
+    MemberOfSpecificGroupFilterModal,
+    MemberOfFixupTaskModal,
+ } from "./memberOfModals.jsx";
 import {
     WrenchIcon,
 } from '@patternfly/react-icons';
@@ -65,15 +74,30 @@ class MemberOf extends React.Component {
         this.validateModal = this.validateModal.bind(this);
         this.validateFilterCreate = this.validateFilterCreate.bind(this);
         this.validateModalFilterCreate = this.validateModalFilterCreate.bind(this);
+        this.handleNavSelect = this.handleNavSelect.bind(this);
+        this.handleNavSelectModal = this.handleNavSelectModal.bind(this);
+        this.openSpecificGroupAddModal = this.openSpecificGroupAddModal.bind(this);
+        this.openSpecificExcludeGroupAddModal = this.openSpecificExcludeGroupAddModal.bind(this);
+        this.closeSpecificGroupAddModal = this.closeSpecificGroupAddModal.bind(this);
+        this.handleAddDelSpecificGroupFilter = this.handleAddDelSpecificGroupFilter.bind(this);
+        this.handleExcludeSpecificGroupAdd = this.handleExcludeSpecificGroupAdd.bind(this);
+        this.handleExcludeSpecificGroupDelete = this.handleExcludeSpecificGroupDelete.bind(this);
+        this.openDeleteFilterConfirmation = this.openDeleteFilterConfirmation.bind(this);
+        this.closeDeleteFilterConfirmation = this.closeDeleteFilterConfirmation.bind(this);
+        this.openDeleteExcludeFilterConfirmation = this.openDeleteExcludeFilterConfirmation.bind(this);
+        this.closeDeleteExcludeFilterConfirmation = this.closeDeleteExcludeFilterConfirmation.bind(this);
+        this.validFilterChange = this.validFilterChange.bind(this);
 
         this.state = {
+            activeTabKey: 0,
+            activeTabModalKey: 0,
             firstLoad: true,
             error: {},
             errorModal: {},
             saveBtnDisabled: true,
             saveBtnDisabledModal: true,
             showConfirmDelete: false,
-            modalCheck: false,
+            modalChecked: false,
             modalSpinning: false,
             newEntry: true,
             fixupDN: "",
@@ -113,10 +137,10 @@ class MemberOf extends React.Component {
             configGroupAttr: [],
             configEntryScope: [],
             configEntryScopeOptions: [],
-            configEntryScopeExcludeSubtree: [],
+            configEntryScopeExcludeSubtreeScope: [],
             configEntryScopeExcludeOptions: [],
-            configExcludeSpecificGroupOptions: [],
             configSpecificGroupOptions: [],
+            configExcludeSpecificGroupOptions: [],
             configAutoAddOC: "",
             configAllBackends: false,
             configSkipNested: false,
@@ -125,12 +149,17 @@ class MemberOf extends React.Component {
             configSpecificGroupOC: [],
             isConfigSubtreeScopeOpen: false,
             isConfigExcludeScopeOpen: false,
-            isConfigSpecificGroupOpen: false,
             isConfigSpecificGroupOCOpen: false,
+            isConfigSpecificGroupOpen: false,
             isConfigExcludeSpecificGroupOpen: false,
             isConfigAttrOpen: false,
             isConfigGroupAttrOpen: false,
             isConfigAutoAddOCOpen: false,
+            isSpecificGroupModalOpen: false,
+            groupFilter: "",
+            groupFilterType: "include",
+            showDeleteFilterConfirmation: false,
+            showDeleteExcludeFilterConfirmation: false,
         };
 
         // Config Attribute
@@ -228,6 +257,7 @@ class MemberOf extends React.Component {
             if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeOptions: [...this.state.memberOfEntryScopeOptions, newValue],
+                    isSubtreeScopeOpen: false,
                 }, () => { this.validateConfig() });
             }
         };
@@ -252,6 +282,7 @@ class MemberOf extends React.Component {
             if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeExcludeOptions: [...this.state.memberOfEntryScopeExcludeOptions, newValue],
+                    isExcludeScopeOpen: false,
                 }, () => { this.validateConfig() });
             }
         };
@@ -261,6 +292,7 @@ class MemberOf extends React.Component {
         this.handleConfigScopeSelect = (event, selection) => {
             this.setState({
                 configEntryScope: Array.isArray(selection) ? selection : [],
+                configEntryScopeOptions: [],
             }, () => { this.validateModal() });
         };
         this.handleConfigScopeToggle = (_event, isConfigSubtreeScopeOpen) => {
@@ -271,12 +303,14 @@ class MemberOf extends React.Component {
         this.handleConfigScopeClear = () => {
             this.setState({
                 configEntryScope: [],
+                configEntryScopeOptions: [],
             }, () => { this.validateModal() });
         };
         this.handleConfigCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) && !this.state.configEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeOptions: [...this.state.configEntryScopeOptions, newValue],
+                    isConfigSubtreeScopeOpen: false,
                 }, () => { this.validateModal() });
             }
         };
@@ -284,7 +318,7 @@ class MemberOf extends React.Component {
         // Handle Exclude Scope subtree
         this.handleConfigExcludeScopeSelect = (event, selection) => {
             this.setState({
-                configEntryScopeExcludeSubtree: Array.isArray(selection) ? selection : [],
+                configEntryScopeExcludeSubtreeScope: Array.isArray(selection) ? selection : [],
             }, () => { this.validateModal() });
         };
         this.handleConfigExcludeScopeToggle = (_event, isConfigExcludeScopeOpen) => {
@@ -294,7 +328,7 @@ class MemberOf extends React.Component {
         };
         this.handleConfigExcludeScopeClear = () => {
             this.setState({
-                configEntryScopeExcludeSubtree: [],
+                configEntryScopeExcludeSubtreeScope: [],
                 configEntryScopeExcludeOptions: [],
             }, () => { this.validateModal() });
         };
@@ -302,6 +336,7 @@ class MemberOf extends React.Component {
             if (newValue.trim() && valid_dn(newValue) &&  !this.state.configEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeExcludeOptions: [...this.state.configEntryScopeExcludeOptions, newValue],
+                    isConfigExcludeScopeOpen: false,
                 }, () => { this.validateModal() });
             }
         };
@@ -331,32 +366,6 @@ class MemberOf extends React.Component {
             }
         };
 
-        // Handle Specific Group (main)
-        this.handleSpecificGroupSelect = (event, selection) => {
-            this.setState({
-                memberOfSpecificGroup: Array.isArray(selection) ? selection : [],
-            }, () => { this.validateConfig() });
-        };
-        this.handleSpecificGroupToggle = (_event, isSpecificGroupOpen) => {
-            this.setState({
-                isSpecificGroupOpen
-            }, () => { this.validateConfig() });
-        };
-        this.handleSpecificGroupClear = () => {
-            this.setState({
-                memberOfSpecificGroup: [],
-                memberOfSpecificGroupOptions: [],
-            }, () => { this.validateConfig() });
-        };
-        this.handleSpecificGroupCreateOption = newValue => {
-            if (newValue.trim() && valid_filter(newValue) &&  !this.state.memberOfSpecificGroupOptions.includes(newValue)) {
-                this.setState({
-                    memberOfSpecificGroupOptions: [...this.state.memberOfSpecificGroupOptions, newValue],
-                    isSpecificGroupOpen: false
-                }, () => { this.validateConfig() });
-            }
-        };
-
         // Handle Exclude Specific Group (modal)
         this.handleConfigExcludeSpecificGroupSelect = (event, selection) => {
             this.setState({
@@ -379,33 +388,7 @@ class MemberOf extends React.Component {
                 this.setState({
                     configExcludeSpecificGroupOptions: [...this.state.configExcludeSpecificGroupOptions, newValue],
                     isConfigExcludeSpecificGroupOpen: false
-                }, () => { this.validateConfig() });
-            }
-        };
-
-        // Handle Exclude Specific Group (main)
-        this.handleExcludeSpecificGroupSelect = (event, selection) => {
-            this.setState({
-                memberOfExcludeSpecificGroup: Array.isArray(selection) ? selection : [],
-            }, () => { this.validateConfig() });
-        };
-        this.handleExcludeSpecificGroupToggle = (_event, isExcludeSpecificGroupOpen) => {
-            this.setState({
-                isExcludeSpecificGroupOpen
-            }, () => { this.validateConfig() });
-        };
-        this.handleExcludeSpecificGroupClear = () => {
-            this.setState({
-                memberOfExcludeSpecificGroup: [],
-                memberOfExcludeSpecificGroupOptions: [],
-            }, () => { this.validateConfig() });
-        };
-        this.handleExcludeSpecificGroupCreateOption = newValue => {
-            if (newValue.trim() && valid_filter(newValue) &&  !this.state.memberOfExcludeSpecificGroupOptions.includes(newValue)) {
-                this.setState({
-                    memberOfExcludeSpecificGroupOptions: [...this.state.memberOfExcludeSpecificGroupOptions, newValue],
-                    isExcludeSpecificGroupOpen: false
-                }, () => { this.validateConfig() });
+                }, () => { this.validateModal() });
             }
         };
 
@@ -446,6 +429,14 @@ class MemberOf extends React.Component {
         };
     }
 
+    handleNavSelect(event, key) {
+        this.setState({ activeTabKey: key });
+    }
+
+    handleNavSelectModal(event, key) {
+        this.setState({ activeTabModalKey: key });
+    }
+
     handleToggleFixupModal() {
         this.setState(prevState => ({
             fixupModalShow: !prevState.fixupModalShow,
@@ -464,7 +455,7 @@ class MemberOf extends React.Component {
             errObj[attr] = false;
         }
         this.setState({
-            errObj
+            error: errObj
         });
         return result;
     }
@@ -544,7 +535,6 @@ class MemberOf extends React.Component {
             const attrLists = [
                 'memberOfEntryScope',
                 'memberOfEntryScopeExcludeSubtree', 'memberOfGroupAttr',
-                'memberOfSpecificGroup', 'memberOfExcludeSpecificGroup',
                 'memberOfSpecificGroupOC',
             ];
             for (const check_attr of attrLists) {
@@ -588,7 +578,7 @@ class MemberOf extends React.Component {
         ];
 
         const dnLists = [
-            'configEntryScope', 'configEntryScopeExcludeSubtree'
+            'configEntryScope', 'configEntryScopeExcludeSubtreeScope'
         ];
 
         // Check required attributes
@@ -630,9 +620,8 @@ class MemberOf extends React.Component {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
             const attrLists = [
-                'configEntryScope', 'configEntryScopeExcludeSubtree',
-                'configGroupAttr', 'configSpecificGroup', 'configExcludeSpecificGroup',
-                'configSpecificGroupOC',
+                'configEntryScope', 'configEntryScopeExcludeSubtreeScope',
+                'configGroupAttr', 'configSpecificGroupOC',
             ];
             for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
@@ -670,6 +659,16 @@ class MemberOf extends React.Component {
         this.setState({
             [e.target.id]: value
         }, () => { this.validateModal() });
+    }
+
+    validFilterChange(value) {
+        if (value.trim() && valid_filter(value) &&
+            !this.state.configSpecificGroupOptions.includes(value) &&
+            !this.state.configExcludeSpecificGroupOptions.includes(value) )
+        {
+            return true;
+        }
+        return false;
     }
 
     handleShowConfirmDelete() {
@@ -756,13 +755,14 @@ class MemberOf extends React.Component {
     handleOpenModal() {
         if (!this.state.memberOfConfigEntry) {
             this.setState({
+                activeTabModalKey: 0,
                 configEntryModalShow: true,
                 newEntry: true,
                 configDN: "",
                 configAttr: "",
                 configGroupAttr: [],
                 configEntryScope: [],
-                configEntryScopeExcludeSubtree: [],
+                configEntryScopeExcludeSubtreeScope: [],
                 configSpecificGroup: [],
                 configExcludeSpecificGroup: [],
                 configSpecificGroupOC: [],
@@ -777,7 +777,6 @@ class MemberOf extends React.Component {
             let configGroupAttrObjectList = [];
             let configSpecificGroupList = [];
             let configExcludeSpecificGroupList = [];
-            let configSpecificGroupOC = [];
             let configSpecificGroupOCList = [];
             const cmd = [
                 "dsconf",
@@ -800,19 +799,31 @@ class MemberOf extends React.Component {
                     .done(content => {
                         const configEntry = JSON.parse(content).attrs;
                         this.setState({
+                            activeTabModalKey: 0,
                             configEntryModalShow: true,
                             newEntry: false,
                             saveBtnDisabledModal: true,
                             configDN: this.state.memberOfConfigEntry,
+                            _configDN: this.state.memberOfConfigEntry,
                             configAttr:
                             configEntry.memberofattr === undefined
+                                ? ""
+                                : configEntry.memberofattr[0],
+                            _configAttr: configEntry.memberofattr === undefined
                                 ? ""
                                 : configEntry.memberofattr[0],
                             configAutoAddOC:
                             configEntry.memberofautoaddoc === undefined
                                 ? ""
                                 : configEntry.memberofautoaddoc[0],
+                            _configAutoAddOC: configEntry.memberofautoaddoc === undefined
+                                ? ""
+                                : configEntry.memberofautoaddoc[0],
                             configAllBackends: !(
+                                configEntry.memberofallbackends === undefined ||
+                            configEntry.memberofallbackends[0] === "off"
+                            ),
+                            _configAllBackends: !(
                                 configEntry.memberofallbackends === undefined ||
                             configEntry.memberofallbackends[0] === "off"
                             ),
@@ -820,82 +831,83 @@ class MemberOf extends React.Component {
                                 configEntry.memberofskipnested === undefined ||
                             configEntry.memberofskipnested[0] === "off"
                             ),
+                            _configSkipNested: !(
+                                configEntry.memberofskipnested === undefined ||
+                            configEntry.memberofskipnested[0] === "off"
+                            ),
                             configConfigEntry:
                             configEntry["nsslapd-pluginConfigArea"] === undefined
                                 ? ""
                                 : configEntry["nsslapd-pluginConfigArea"][0],
-                            configSpecificGroup:
-                            configEntry.memberofspecificgroup === undefined
-                                ? []
-                                : configEntry.memberofspecificgroup,
-                            configExcludeSpecificGroup:
-                            configEntry.memberofexcludespecificgroup === undefined
-                                ? []
-                                : configEntry.memberofexcludespecificgroup,
-                            configSpecificGroupOC:
-                            configEntry.memberofspecificgroupoc === undefined
-                                ? []
-                                : configEntry.memberofspecificgroupoc,
+                            _configConfigEntry: configEntry["nsslapd-pluginConfigArea"] === undefined
+                                ? ""
+                                : configEntry["nsslapd-pluginConfigArea"][0],
                         });
 
                         if (configEntry.memberofgroupattr === undefined) {
-                            this.setState({ configGroupAttr: [] });
+                            this.setState({ configGroupAttr: [], _configGroupAttr: [] });
                         } else {
                             for (const value of configEntry.memberofgroupattr) {
                                 configGroupAttrObjectList = [...configGroupAttrObjectList, value];
                             }
                             this.setState({
-                                configGroupAttr: configGroupAttrObjectList
+                                configGroupAttr: configGroupAttrObjectList,
+                                _configGroupAttr: [...configGroupAttrObjectList],
                             });
                         }
                         if (configEntry.memberofentryscope === undefined) {
-                            this.setState({ configEntryScope: [] });
+                            this.setState({ configEntryScope: [], _configEntryScope: [] });
                         } else {
                             for (const value of configEntry.memberofentryscope) {
                                 configScopeList = [...configScopeList, value];
                             }
                             this.setState({
-                                configEntryScope: configScopeList
+                                configEntryScope: configScopeList,
+                                _configEntryScope: [...configScopeList],
                             });
                         }
                         if (configEntry.memberofentryscopeexcludesubtree === undefined) {
-                            this.setState({ configEntryScopeExcludeSubtreeScope: [] });
+                            this.setState({ configEntryScopeExcludeSubtreeScope: [], _configEntryScopeExcludeSubtreeScope: [] });
                         } else {
                             for (const value of configEntry.memberofentryscopeexcludesubtree) {
                                 configExcludeScopeList = [...configExcludeScopeList, value];
                             }
                             this.setState({
-                                configEntryScopeExcludeSubtreeScope: configExcludeScopeList
+                                configEntryScopeExcludeSubtreeScope: configExcludeScopeList,
+                                _configEntryScopeExcludeSubtreeScope: [...configExcludeScopeList],
                             });
                         }
-                        if (configEntry.memberofspecificgroup === undefined) {
-                            this.setState({ configSpecificGroup: [] });
+                        if (configEntry.memberofspecificgroupfilter === undefined) {
+                            this.setState({ configSpecificGroup: [], _configSpecificGroup: [] });
                         } else {
-                            for (const value of configEntry.memberofspecificgroup) {
+                            for (const value of configEntry.memberofspecificgroupfilter) {
                                 configSpecificGroupList = [...configSpecificGroupList, value];
                             }
                             this.setState({
-                                configSpecificGroup: configSpecificGroupList
+                                configSpecificGroup: configSpecificGroupList,
+                                _configSpecificGroup: [...configSpecificGroupList],
                             });
                         }
-                        if (configEntry.memberofexcludespecificgroup === undefined) {
-                            this.setState({ configExcludeSpecificGroup: [] });
+                        if (configEntry.memberofexcludespecificgroupfilter === undefined) {
+                            this.setState({ configExcludeSpecificGroup: [], _configExcludeSpecificGroup: [] });
                         } else {
-                            for (const value of configEntry.memberofexcludespecificgroup) {
+                            for (const value of configEntry.memberofexcludespecificgroupfilter) {
                                 configExcludeSpecificGroupList = [...configExcludeSpecificGroupList, value];
                             }
                             this.setState({
-                                configExcludeSpecificGroup: configExcludeSpecificGroupList
+                                configExcludeSpecificGroup: configExcludeSpecificGroupList,
+                                _configExcludeSpecificGroup: [...configExcludeSpecificGroupList],
                             });
                         }
                         if (configEntry.memberofspecificgroupoc === undefined) {
-                            this.setState({ configSpecificGroupOC: [] });
+                            this.setState({ configSpecificGroupOC: [], _configSpecificGroupOC: [] });
                         } else {
                             for (const value of configEntry.memberofspecificgroupoc) {
                                 configSpecificGroupOCList = [...configSpecificGroupOCList, value];
                             }
                             this.setState({
-                                configSpecificGroupOC: configSpecificGroupOCList
+                                configSpecificGroupOC: configSpecificGroupOCList,
+                                _configSpecificGroupOC: [...configSpecificGroupOCList],
                             });
                         }
                         this.props.toggleLoadingHandler();
@@ -908,13 +920,25 @@ class MemberOf extends React.Component {
                             configAttr: [],
                             configGroupAttr: [],
                             configEntryScope: [],
-                            configEntryScopeExcludeSubtree: [],
+                            configEntryScopeExcludeSubtreeScope: [],
                             configSpecificGroup: [],
                             configExcludeSpecificGroup: [],
                             configSpecificGroupOC: [],
                             configAutoAddOC: "",
                             configAllBackends: false,
-                            configSkipNested: false
+                            configSkipNested: false,
+                            _configDN: this.state.memberOfConfigEntry,
+                            _configAttr: "",
+                            _configAutoAddOC: "",
+                            _configAllBackends: false,
+                            _configSkipNested: false,
+                            _configConfigEntry: "",
+                            _configGroupAttr: [],
+                            _configEntryScope: [],
+                            _configEntryScopeExcludeSubtreeScope: [],
+                            _configSpecificGroup: [],
+                            _configExcludeSpecificGroup: [],
+                            _configSpecificGroupOC: [],
                         });
                         this.props.toggleLoadingHandler();
                     });
@@ -925,13 +949,14 @@ class MemberOf extends React.Component {
         this.setState({ configEntryModalShow: false });
     }
 
+    // Modal config entry update
     cmdOperation(action) {
         const {
             configDN,
             configAttr,
             configGroupAttr,
             configEntryScope,
-            configEntryScopeExcludeSubtree,
+            configEntryScopeExcludeSubtreeScope,
             configAutoAddOC,
             configAllBackends,
             configSkipNested,
@@ -979,9 +1004,9 @@ class MemberOf extends React.Component {
                 cmd = [...cmd, "--autoaddoc", "delete"];
             }
 
-            if (configEntryScopeExcludeSubtree.length !== 0) {
+            if (configEntryScopeExcludeSubtreeScope.length !== 0) {
                 cmd = [...cmd, "--exclude"];
-                for (const value of configEntryScopeExcludeSubtree) {
+                for (const value of configEntryScopeExcludeSubtreeScope) {
                     cmd = [...cmd, value];
                 }
             } else if (action !== "add") {
@@ -1053,7 +1078,7 @@ class MemberOf extends React.Component {
                         this.props.pluginListHandler();
                         this.handleCloseModal();
                         this.setState({
-                            savingModal: true,
+                            savingModal: false,
                         });
                     });
         }
@@ -1141,6 +1166,8 @@ class MemberOf extends React.Component {
         let memberOfEntryScopeList = [];
         let getSchemamemberOfExcludeScopeList = [];
 
+
+
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "MemberOf Plugin");
             this.setState({
@@ -1167,11 +1194,11 @@ class MemberOf extends React.Component {
                 memberOfSpecificGroup:
                     pluginRow.memberofspecificgroupfilter === undefined
                         ? []
-                        : pluginRow.memberofspecificgroup,
+                        : pluginRow.memberofspecificgroupfilter,
                 memberOfExcludeSpecificGroup:
                     pluginRow.memberofexcludespecificgroupfilter === undefined
                         ? []
-                        : pluginRow.memberofexcludespecificgroup,
+                        : pluginRow.memberofexcludespecificgroupfilter,
                 memberOfSpecificGroupOC:
                     pluginRow.memberofspecificgroupoc === undefined
                         ? []
@@ -1199,15 +1226,15 @@ class MemberOf extends React.Component {
                 _memberOfSpecificGroup:
                     pluginRow.memberofspecificgroup === undefined
                         ? []
-                        : pluginRow.memberofspecificgroup,
+                        : [...pluginRow.memberofspecificgroup],
                 _memberOfExcludeSpecificGroup:
                     pluginRow.memberofexcludespecificgroup === undefined
                         ? []
-                        : pluginRow.memberofexcludespecificgroup,
+                        : [...pluginRow.memberofexcludespecificgroup],
                 _memberOfSpecificGroupOC:
                     pluginRow.memberofspecificgroupoc === undefined
                         ? []
-                        : pluginRow.memberofspecificgroupoc,
+                        : [...pluginRow.memberofspecificgroupoc],
                 _memberOfSpecificGroupOpen: false,
                 _memberOfExcludeSpecificGroupOpen: false,
                 _memberOfSpecificGroupOCOpen: false,
@@ -1244,27 +1271,6 @@ class MemberOf extends React.Component {
                     memberOfEntryScopeExcludeSubtree: getSchemamemberOfExcludeScopeList,
                     _memberOfEntryScopeExcludeSubtree: [...getSchemamemberOfExcludeScopeList]
                 });
-            }
-            if (pluginRow.memberofspecificgroupfilter === undefined) {
-                this.setState({ memberOfSpecificGroup: [], _memberOfSpecificGroup: [] });
-            } else {
-                for (const value of pluginRow.memberofspecificgroupfilter) {
-                    memberOfSpecificGroupList = [...memberOfSpecificGroupList, value];
-                }
-            }
-            if (pluginRow.memberofexcludespecificgroupfilter === undefined) {
-                this.setState({ memberOfExcludeSpecificGroup: [], _memberOfExcludeSpecificGroup: [] });
-            } else {
-                for (const value of pluginRow.memberofexcludespecificgroupfilter) {
-                    memberOfExcludeSpecificGroupList = [...memberOfExcludeSpecificGroupList, value];
-                }
-            }
-            if (pluginRow.memberofspecificgroupoc === undefined) {
-                this.setState({ memberOfSpecificGroupOC: [], _memberOfSpecificGroupOC: [] });
-            } else {
-                for (const value of pluginRow.memberofspecificgroupoc) {
-                    memberOfSpecificGroupOCList = [...memberOfSpecificGroupOCList, value];
-                }
             }
         }
         this.setState({
@@ -1376,7 +1382,8 @@ class MemberOf extends React.Component {
                         _("Successfully updated MemberOf Plugin")
                     );
                     this.setState({
-                        saving: false
+                        saving: false,
+                        saveBtnDisabled: true,
                     });
                     this.props.pluginListHandler();
                 })
@@ -1397,6 +1404,148 @@ class MemberOf extends React.Component {
                 });
     }
 
+    openSpecificGroupAddModal() {
+        this.setState({
+            isSpecificGroupModalOpen: true,
+            groupFilter: "",
+            groupFilterType: "include",
+        });
+    }
+
+    openSpecificExcludeGroupAddModal() {
+        this.setState({
+            isSpecificGroupModalOpen: true,
+            groupFilter: "",
+            groupFilterType: "exclude"
+        });
+    }
+
+    closeSpecificGroupAddModal() {
+        this.setState({
+            isSpecificGroupModalOpen: false,
+            groupFilter: "",
+            groupFilterType: "include"
+        });
+    }
+
+    openDeleteFilterConfirmation(filter) {
+        this.setState({
+            showDeleteFilterConfirmation: true,
+            groupFilterType: "include",
+            groupFilter: filter,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    closeDeleteFilterConfirmation() {
+        this.setState({
+            showDeleteFilterConfirmation: false,
+            groupFilterType: "",
+            groupFilter: "",
+        });
+    }
+
+    openDeleteExcludeFilterConfirmation(filter) {
+        this.setState({
+            showDeleteExcludeFilterConfirmation: true,
+            groupFilterType: "exclude",
+            groupFilter: filter,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    closeDeleteExcludeFilterConfirmation() {
+        this.setState({
+            showDeleteExcludeFilterConfirmation: false,
+            groupFilterType: "",
+            groupFilter: "",
+        });
+    }
+
+    handleAddDelSpecificGroupFilter(op, filter) {
+        this.setState({
+            modalSpinning: true
+        });
+
+        let cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "memberof"
+        ];
+
+        if (this.state.configEntryModalShow) {
+            cmd = [...cmd, "config-entry"];
+            cmd = [...cmd, op === "add" ? "add-attr" : "del-attr", this.state.configDN];
+        } else {
+            cmd = [...cmd, op === "add" ? "add-attr" : "del-attr"];
+        }
+        cmd = [...cmd, this.state.groupFilterType === "include" ? "--specific-group-filter" : "--exclude-specific-group-filter", filter];
+
+        log_cmd("handleAddDelSpecificGroupFilter", op, cmd);
+        cockpit
+                .spawn(cmd, {
+                    superuser: true,
+                    err: "message"
+                })
+                .done(content => {
+                    this.props.pluginListHandler();
+                    this.props.addNotification(
+                        "success",
+                        _("Successfully updated MemberOf Plugin")
+                    );
+                    this.setState({
+                        modalSpinning: false,
+                        showDeleteFilterConfirmation: false,
+                        showDeleteExcludeFilterConfirmation: false,
+                        isSpecificGroupModalOpen: false,
+                        isExcludeSpecificGroupModalOpen: false,
+                    });
+                    if (this.state.configEntryModalShow) {
+                        this.handleOpenModal()
+                    }
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    if ('info' in errMsg) {
+                        errMsg = errMsg.desc + " " + errMsg.info;
+                    } else {
+                        errMsg = errMsg.desc;
+                    }
+                    this.props.addNotification(
+                        "error", cockpit.format(_("Error during update - $0"), errMsg)
+                    );
+                    this.setState({
+                        modalSpinning: false,
+                        showDeleteFilterConfirmation: false,
+                        showDeleteExcludeFilterConfirmation: false,
+                        isSpecificGroupModalOpen: false,
+                        isExcludeSpecificGroupModalOpen: false,
+                    });
+                    this.props.pluginListHandler();
+                    if (this.state.configEntryModalShow) {
+                        this.handleOpenModal()
+                    }
+                });
+    }
+
+    handleExcludeSpecificGroupAdd() {
+        this.setState({
+            memberOfExcludeSpecificGroup: [...this.state.memberOfExcludeSpecificGroup, ""],
+            isExcludeSpecificGroupOpen: true
+        });
+    }
+
+    handleExcludeSpecificGroupDelete(index) {
+        this.setState({
+            memberOfExcludeSpecificGroup: this.state.memberOfExcludeSpecificGroup.filter((_, i) => i !== index)
+        });
+    }
+
+
     render() {
         const {
             memberOfAttr,
@@ -1410,44 +1559,83 @@ class MemberOf extends React.Component {
             memberOfSpecificGroup,
             memberOfExcludeSpecificGroup,
             memberOfSpecificGroupOC,
-            memberOfSpecificGroupOptions,
-            memberOfExcludeSpecificGroupOptions,
-
-            configDN,
-            configEntryModalShow,
-            configAttr,
-            configGroupAttr,
-            configEntryScope,
-            configEntryScopeExcludeSubtree,
-            configAutoAddOC,
-            configAllBackends,
-            configSkipNested,
-            configExcludeSpecificGroupOptions,
-
-            isSpecificGroupOpen,
-            isExcludeSpecificGroupOpen,
             isSpecificGroupOCOpen,
-            newEntry,
             fixupModalShow,
             fixupDN,
             fixupFilter,
             error,
-            errorModal,
             saving,
-            savingModal,
             saveBtnDisabled,
-            saveBtnDisabledModal,
             isSubtreeScopeOpen,
             isExcludeScopeOpen,
-            isConfigSpecificGroupOCOpen,
-            isConfigExcludeScopeOpen,
-            isConfigSubtreeScopeOpen,
-            isConfigSpecificGroupOpen,
-            isConfigExcludeSpecificGroupOpen,
-            configSpecificGroup,
-            configSpecificGroupOC,
-            configExcludeSpecificGroup,
+            // Filter modal
+            isSpecificGroupModalOpen,
+            groupFilter,
+            groupFilterType,
         } = this.state;
+
+        // Bundle up all the config entry modal functions and data
+        const configModalHandlers = {
+            handleEditConfig: this.handleEditConfig,
+            handleAddConfig: this.handleAddConfig,
+            handleCloseModal: this.handleCloseModal,
+            handleNavSelectModal: this.handleNavSelectModal,
+            handleModalChange: this.handleModalChange,
+            handleFieldChange: this.handleFieldChange,
+            handleConfigAttrSelect: this.handleConfigAttrSelect,
+            handleConfigAttrClear: this.handleConfigAttrClear,
+            handleConfigGroupAttrSelect: this.handleConfigGroupAttrSelect,
+            handleConfigGroupAttrClear: this.handleConfigGroupAttrClear,
+            handleConfigScopeSelect: this.handleConfigScopeSelect,
+            handleConfigScopeClear: this.handleConfigScopeClear,
+            handleConfigCreateOption: this.handleConfigCreateOption,
+            handleConfigSpecificGroupSelect: this.handleConfigSpecificGroupSelect,
+            handleConfigSpecificGroupClear: this.handleConfigSpecificGroupClear,
+            handleConfigSpecificGroupCreateOption: this.handleConfigSpecificGroupCreateOption,
+            handleConfigExcludeSpecificGroupSelect: this.handleConfigExcludeSpecificGroupSelect,
+            handleConfigExcludeSpecificGroupClear: this.handleConfigExcludeSpecificGroupClear,
+            handleConfigExcludeSpecificGroupCreateOption: this.handleConfigExcludeSpecificGroupCreateOption,
+            handleConfigSpecificGroupOCToggle: this.handleConfigSpecificGroupOCToggle,
+            handleConfigScopeToggle: this.handleConfigScopeToggle,
+            handleConfigExcludeScopeToggle: this.handleConfigExcludeScopeToggle,
+            handleConfigSpecificGroupOCSelect: this.handleConfigSpecificGroupOCSelect,
+            handleConfigSpecificGroupOCClear: this.handleConfigSpecificGroupOCClear,
+            handleConfigExcludeScopeSelect: this.handleConfigExcludeScopeSelect,
+            handleConfigExcludeScopeClear: this.handleConfigExcludeScopeClear,
+            handleConfigExcludeCreateOption: this.handleConfigExcludeCreateOption,
+            handleConfigSpecificGroupToggle: this.handleConfigSpecificGroupToggle,
+            openSpecificGroupAddModal: this.openSpecificGroupAddModal,
+            openSpecificExcludeGroupAddModal: this.openSpecificExcludeGroupAddModal,
+            openDeleteFilterConfirmation: this.openDeleteFilterConfirmation,
+            openDeleteExcludeFilterConfirmation: this.openDeleteExcludeFilterConfirmation,
+            validateModalFilterCreate: this.validateModalFilterCreate,
+        };
+
+        const configModalOpeners = {
+            isConfigSubtreeScopeOpen: this.state.isConfigSubtreeScopeOpen,
+            isConfigExcludeScopeOpen: this.state.isConfigExcludeScopeOpen,
+            isConfigSpecificGroupOpen: this.state.isConfigSpecificGroupOpen,
+            isConfigExcludeSpecificGroupOpen: this.state.isConfigExcludeSpecificGroupOpen,
+            isConfigSpecificGroupOCOpen: this.state.isConfigSpecificGroupOCOpen,
+        };
+
+        const configModalSettings = {
+            configDN: this.state.configDN,
+            configAttr: this.state.configAttr,
+            configGroupAttr: this.state.configGroupAttr,
+            configEntryScope: this.state.configEntryScope,
+            configEntryScopeExcludeSubtreeScope: this.state.configEntryScopeExcludeSubtreeScope,
+            configAutoAddOC: this.state.configAutoAddOC,
+            configAllBackends: this.state.configAllBackends,
+            configSkipNested: this.state.configSkipNested,
+            configSpecificGroupOC: this.state.configSpecificGroupOC,
+            configExcludeSpecificGroup: this.state.configExcludeSpecificGroup,
+            configSpecificGroup: this.state.configSpecificGroup,
+            configEntryScopeOptions: this.state.configEntryScopeOptions,
+            configEntryScopeExcludeOptions: this.state.configEntryScopeExcludeOptions,
+            configSpecificGroupOptions: this.state.configSpecificGroupOptions,
+            configExcludeSpecificGroupOptions: this.state.configExcludeSpecificGroupOptions,
+        };
 
         let saveBtnName = _("Save Config");
         const extraPrimaryProps = {};
@@ -1456,350 +1644,16 @@ class MemberOf extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
-        let modalButtons = [];
-        if (!newEntry) {
-            modalButtons = [
-                <Button key="del" variant="primary" onClick={this.handleShowConfirmDelete}>
-                    {_("Delete Config")}
-                </Button>,
-                <Button
-                    key="save"
-                    variant="primary"
-                    onClick={this.handleEditConfig}
-                    isDisabled={saveBtnDisabledModal || savingModal}
-                    isLoading={savingModal}
-                    spinnerAriaValueText={savingModal ? _("Saving") : undefined}
-                    {...extraPrimaryProps}
-                >
-                    {savingModal ? _("Saving ...") : _("Save Config")}
-                </Button>,
-                <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    {_("Cancel")}
-                </Button>
-            ];
-        } else {
-            modalButtons = [
-                <Button
-                    key="add"
-                    variant="primary"
-                    onClick={this.handleAddConfig}
-                    isDisabled={saveBtnDisabledModal || savingModal}
-                    isLoading={savingModal}
-                    spinnerAriaValueText={savingModal ? _("Saving") : undefined}
-                    {...extraPrimaryProps}
-                >
-                    {savingModal ? _("Adding ...") : _("Add Config")}
-                </Button>,
-                <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    {_("Cancel")}
-                </Button>
-            ];
-        }
-
         return (
             <div>
-                <Modal
-                    variant={ModalVariant.small}
-                    aria-labelledby="ds-modal"
-                    title={_("MemberOf Plugin FixupTask")}
-                    isOpen={fixupModalShow}
-                    onClose={this.handleToggleFixupModal}
-                    actions={[
-                        <Button
-                            key="confirm"
-                            variant="primary"
-                            onClick={this.handleRunFixup}
-                            isDisabled={!valid_dn(fixupDN)}
-                        >
-                            {_("Run")}
-                        </Button>,
-                        <Button key="cancel" variant="link" onClick={this.handleToggleFixupModal}>
-                            {_("Cancel")}
-                        </Button>
-                    ]}
-                >
-                    <Grid>
-                        <GridItem span={12}>
-                            <Form isHorizontal autoComplete="off">
-                                <TextContent>
-                                    <Text className="ds-margin-top" component={TextVariants.h4}>
-                                        {_("This task only needs to be run after enabling the plugin for the first time, or if the plugin configuration has changed in a way that will impact the group memberships.")}
-                                    </Text>
-                                </TextContent>
-                                <Grid className="ds-margin-top" title={_("Base DN that contains entries to fix up.")}>
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Subtree DN")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <TextInput
-                                            value={fixupDN}
-                                            type="text"
-                                            id="fixupDN"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="fixupDN"
-                                            onChange={(e, str) => { this.handleFieldChange(e) }}
-                                            validated={!valid_dn(fixupDN) ? ValidatedOptions.error : ValidatedOptions.default}
-                                        />
-                                        <FormHelperText  >
-                                            {_("Value must be a valid DN")}
-                                        </FormHelperText>
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-bottom" title={_("Optional. Filter for finding entries to fix up. For example:  (uid=*).  If omitted, all entries with objectclass 'inetuser', 'inetadmin', or 'nsmemberof' under the specified subtree DN will have their memberOf attribute regenerated.")}>
-                                    <GridItem span={3} className="ds-label">
-                                        {_("Search Filter")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <TextInput
-                                            value={fixupFilter}
-                                            type="text"
-                                            id="fixupFilter"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="fixupFilter"
-                                            onChange={(e, str) => { this.handleFieldChange(e) }}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                            </Form>
-                        </GridItem>
-                    </Grid>
-                </Modal>
-                <Modal
-                    variant={ModalVariant.medium}
-                    aria-labelledby="ds-modal"
-                    title={_("Manage MemberOf Plugin Shared Config Entry")}
-                    isOpen={configEntryModalShow}
-                    onClose={this.handleCloseModal}
-                    actions={modalButtons}
-                >
-                    <Form isHorizontal autoComplete="off">
-                        <Grid className="ds-margin-top" title={_("The config entry full DN")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Config DN")}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TextInput
-                                    value={configDN}
-                                    type="text"
-                                    id="configDN"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="configDN"
-                                    onChange={(e, str) => { this.handleModalChange(e) }}
-                                    validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
-                                    isDisabled={!newEntry}
-                                />
-                                {newEntry &&
-                                    <FormHelperText>
-                                        {_("Value must be a valid DN")}
-                                    </FormHelperText>
-                                }
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Membership Attribute")}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    selected={configAttr}
-                                    onSelect={this.handleConfigAttrSelect}
-                                    onClear={this.handleConfigAttrClear}
-                                    options={["memberOf"]}
-                                    placeholder={_("Type a member attribute...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={errorModal.configAttr ? "error" : "default"}
-                                    ariaLabel="Type a member attribute"
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Group Attribute")}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    hasCheckbox
-                                    selected={configGroupAttr}
-                                    onSelect={this.handleConfigGroupAttrSelect}
-                                    onClear={this.handleConfigGroupAttrClear}
-                                    options={["member", "memberCertificate", "uniqueMember"]}
-                                    placeholder={_("Type a member group attribute...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={errorModal.configGroupAttr ? "error" : "default"}
-                                    ariaLabel="Type a member group attribute"
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Subtree Scope")}
-                            </GridItem>
-                            <GridItem span={6}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={configEntryScope}
-                                    onSelect={this.handleConfigScopeSelect}
-                                    onClear={this.handleConfigScopeClear}
-                                    options={this.state.configEntryScopeOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleConfigCreateOption}
-                                    validateCreate={(value) => valid_dn(value)}
-                                    placeholder={_("Type a subtree DN...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={errorModal.configEntryScope ? "error" : "default"}
-                                    onToggle={this.handleConfigScopeToggle}
-                                    isOpen={isConfigSubtreeScopeOpen}
-                                    ariaLabel="Type a subtree DN"
-                                />
-                                <FormHelperText  >
-                                    {_("Values must be valid DN's")}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Exclude Subtree")}
-                            </GridItem>
-                            <GridItem span={6}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={configEntryScopeExcludeSubtree}
-                                    onSelect={this.handleConfigExcludeScopeSelect}
-                                    onClear={this.handleConfigExcludeScopeClear}
-                                    options={this.state.configEntryScopeExcludeOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleConfigExcludeCreateOption}
-                                    validateCreate={(value) => valid_dn(value)}
-                                    placeholder={_("Type a subtree DN...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={errorModal.configEntryScopeExcludeSubtree ? "error" : "default"}
-                                    ariaLabel="Type a subtree DN"
-                                    isOpen={isConfigExcludeScopeOpen}
-                                />
-                                <FormHelperText  >
-                                    {_("Values must be valid DN's")}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={"Specifies a filter for specific groups to include, example: (cn=group). (memberOfSpecificGroupFilter)"}>
-                            <GridItem className="ds-label" span={3}>
-                                {"Specific Group Filter"}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={configSpecificGroup}
-                                    onSelect={this.handleConfigSpecificGroupSelect}
-                                    onClear={this.handleConfigSpecificGroupClear}
-                                    options={this.state.configSpecificGroupOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleConfigSpecificGroupCreateOption}
-                                    validateCreate={(value) => this.validateModalFilterCreate(value, 'configSpecificGroup')}
-                                    placeholder={_("Type a search filter...")}
-                                    validated={errorModal.configSpecificGroup ? "error" : "default"}
-                                    ariaLabel="Type a search filter"
-                                    onToggle={this.handleConfigSpecificGroupToggle}
-                                    isOpen={isConfigSpecificGroupOpen}
-                                />
-                                <FormHelperText  >
-                                    {"Values must be valid search filters"}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={"Specifies a filter for specific groups to exclude, example: (cn=group). (memberOfExcludeSpecificGroupFilter)"}>
-                            <GridItem className="ds-label" span={3}>
-                                {"Exclude Specific Group Filter"}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={configExcludeSpecificGroup}
-                                    onSelect={this.handleConfigExcludeSpecificGroupSelect}
-                                    onClear={this.handleConfigExcludeSpecificGroupClear}
-                                    options={configExcludeSpecificGroupOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleConfigExcludeSpecificGroupCreateOption}
-                                    validateCreate={(value) => this.validateModalFilterCreate(value, 'configExcludeSpecificGroup')}
-                                    placeholder={_("Type a search filter...")}
-                                    validated={errorModal.configExcludeSpecificGroup ? "error" : "default"}
-                                    ariaLabel="Type a search filter"
-                                    onToggle={this.handleConfigExcludeSpecificGroupToggle}
-                                    isOpen={isConfigExcludeSpecificGroupOpen}
-                                />
-                                <FormHelperText  >
-                                    {"Values must be valid search filters"}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-
-                        <Grid title={_("Specifies the objectclasses for the specific groups to include/exslude (memberOfSpecificGroupOC)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Specific Group OC")}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={configSpecificGroupOC}
-                                    onSelect={this.handleConfigSpecificGroupOCSelect}
-                                    onClear={this.handleConfigSpecificGroupOCClear}
-                                    options={this.props.objectClasses}
-                                    placeholder={_("Type a objectclass...")}
-                                    noResultsText="There are no matching objectclasses"
-                                    ariaLabel="Type a objectclass"
-                                    onToggle={this.handleConfigSpecificGroupOCToggle}
-                                    isOpen={isConfigSpecificGroupOCOpen}
-                                />
-                                <FormHelperText  >
-                                    {_("Values must be valid objectclasses")}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid>
-                            <GridItem className="ds-left-margin" span={3}>
-                                <Checkbox
-                                    id="configSkipNested"
-                                    isChecked={configSkipNested}
-                                    onChange={(e, checked) => { this.handleModalChange(e) }}
-                                    title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
-                                    label={_("Skip Nested")}
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid>
-                            <GridItem className="ds-left-margin" span={3}>
-                                <Checkbox
-                                    id="configAllBackends"
-                                    isChecked={configAllBackends}
-                                    onChange={(e, checked) => { this.handleModalChange(e) }}
-                                    title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}
-                                    label={_("All Backends")}
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Auto Add OC")}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <FormSelect
-                                    id="configAutoAddOC"
-                                    value={configAutoAddOC}
-                                    onChange={(event, value) => {
-                                        this.handleFieldChange(event);
-                                    }}
-                                    aria-label="FormSelect Input"
-                                >
-                                    <FormSelectOption key="no_setting2" value="" label="-" />
-                                    {this.props.objectClasses.map((attr, index) => (
-                                        <FormSelectOption key={attr} value={attr} label={attr} />
-                                    ))}
-                                </FormSelect>
-                            </GridItem>
-                        </Grid>
-                    </Form>
-                </Modal>
-
+                <MemberOfFixupTaskModal
+                    fixupModalShow={fixupModalShow}
+                    handleToggleFixupModal={this.handleToggleFixupModal}
+                    handleRunFixup={this.handleRunFixup}
+                    fixupDN={fixupDN}
+                    fixupFilter={fixupFilter}
+                    handleFieldChange={this.handleFieldChange}
+                />
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -1810,245 +1664,244 @@ class MemberOf extends React.Component {
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Form isHorizontal autoComplete="off">
-                        <Grid title={_("Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Membership Attribute")}
-                            </GridItem>
-                            <GridItem span={8}>
-                                <TypeaheadSelect
-                                    selected={memberOfAttr}
-                                    onSelect={this.handleMemberOfAttrSelect}
-                                    onClear={this.handleMemberOfAttrClear}
-                                    options={["memberOf"]}
-                                    placeholder={_("Type a member attribute...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={error.memberOfAttr ? "error" : "default"}
-                                    ariaLabel="Type a member attribute"
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Group Attribute")}
-                            </GridItem>
-                            <GridItem span={8}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    hasCheckbox
-                                    selected={memberOfGroupAttr}
-                                    onSelect={this.handleMemberOfGroupAttrSelect}
-                                    onClear={this.handleMemberOfGroupAttrClear}
-                                    options={["member", "memberCertificate", "uniqueMember"]}
-                                    placeholder={_("Type a member group attribute...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={error.memberOfGroupAttr ? "error" : "default"}
-                                    ariaLabel="Type a member group attribute"
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Subtree Scope")}
-                            </GridItem>
-                            <GridItem span={6}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={memberOfEntryScope}
-                                    onSelect={this.handleSubtreeScopeSelect}
-                                    onClear={this.handleSubtreeScopeClear}
-                                    options={this.state.memberOfEntryScopeOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleSubtreeScopeCreateOption}
-                                    validateCreate={(value) => valid_dn(value)}
-                                    placeholder={_("Type a subtree DN...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={error.memberOfEntryScope ? "error" : "default"}
-                                    onToggle={this.handleSubtreeScopeToggle}
-                                    isOpen={isSubtreeScopeOpen}
-                                    ariaLabel="Type a subtree DN"
-                                />
-                                <FormHelperText  >
-                                    {"Values must be valid DN's"}
-                                </FormHelperText>
-                            </GridItem>
-                            <GridItem className="ds-left-margin" span={3}>
-                                <Checkbox
-                                    id="memberOfAllBackends"
-                                    isChecked={memberOfAllBackends}
-                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
-                                    title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}
-                                    label={_("All Backends")}
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Exclude Subtree")}
-                            </GridItem>
-                            <GridItem span={6}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={memberOfEntryScopeExcludeSubtree}
-                                    onSelect={this.handleExcludeScopeSelect}
-                                    onClear={this.handleExcludeScopeClear}
-                                    options={this.state.memberOfEntryScopeExcludeOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleExcludeCreateOption}
-                                    validateCreate={(value) => valid_dn(value)}
-                                    placeholder={_("Type a subtree DN...")}
-                                    noResultsText={_("There are no matching entries")}
-                                    validated={error.memberOfEntryScopeExcludeSubtree ? "error" : "default"}
-                                    onToggle={this.handleExcludeScopeToggle}
-                                    isOpen={isExcludeScopeOpen}
-                                    ariaLabel="Type a subtree DN"
-                                />
-                                <FormHelperText  >
-                                    {_("Values must be valid DN's")}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
+                    <Tabs isFilled className="ds-margin-top-lgZZZ" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText>{_("Plugin Settings")}</TabTitleText>}>
+                            <Form isHorizontal autoComplete="off" className="ds-margin-top-xlg">
+                                <Grid title={_("Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Membership Attribute")}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TypeaheadSelect
+                                            selected={memberOfAttr}
+                                            onSelect={this.handleMemberOfAttrSelect}
+                                            onClear={this.handleMemberOfAttrClear}
+                                            options={["memberOf"]}
+                                            placeholder={_("Type a member attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            validated={error.memberOfAttr ? "error" : "default"}
+                                            ariaLabel="Type a member attribute"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Group Attribute")}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TypeaheadSelect
+                                            isMulti
+                                            hasCheckbox
+                                            selected={memberOfGroupAttr}
+                                            onSelect={this.handleMemberOfGroupAttrSelect}
+                                            onClear={this.handleMemberOfGroupAttrClear}
+                                            options={["member", "memberCertificate", "uniqueMember"]}
+                                            placeholder={_("Type a member group attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            validated={error.memberOfGroupAttr ? "error" : "default"}
+                                            ariaLabel="Type a member group attribute"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title={_("If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Auto Add OC")}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <FormSelect
+                                            id="memberOfAutoAddOC"
+                                            value={memberOfAutoAddOC}
+                                            onChange={(event, value) => {
+                                                this.handleFieldChange(event);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                        >
+                                            <FormSelectOption key="no_setting" value="" label="-" />
+                                            {this.props.objectClasses.map((attr) => (
+                                                <FormSelectOption key={attr} value={attr.toLowerCase()} label={attr} />
+                                            ))}
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
+                                <Grid title={_("Specifies whether to skip nested groups or not (memberOfSkipNested)")}>
+                                    <GridItem className="ds-left-margin" span={3}>
+                                        <Checkbox
+                                            id="memberOfSkipNested"
+                                            isChecked={memberOfSkipNested}
+                                            onChange={(e, checked) => { this.handleFieldChange(e) }}
+                                            title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
+                                            label={_("Skip Nested Groups")}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}>
+                                    <GridItem className="ds-left-margin" span={3}>
+                                        <Checkbox
+                                            id="memberOfAllBackends"
+                                            isChecked={memberOfAllBackends}
+                                            onChange={(e, checked) => { this.handleFieldChange(e) }}
+                                            label={_("All Backends")}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title={_("The value to set as nsslapd-pluginConfigArea")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Shared Config Entry")}
+                                    </GridItem>
+                                    <GridItem className="ds-right-margin" span={9}>
+                                        {memberOfConfigEntry !== "" && (
+                                            <TextInput
+                                                value={memberOfConfigEntry}
+                                                type="text"
+                                                id="memberOfConfigEntry"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="memberOfConfigEntry"
+                                                readOnlyVariant={'plain'}
+                                            />
+                                        )}
+                                        {memberOfConfigEntry === "" && (
+                                            <Button
+                                                variant="primary"
+                                                onClick={this.handleOpenModal}
+                                            >
+                                                {_("Create Config")}
+                                            </Button>
+                                        )}
+                                    </GridItem>
+                                </Grid>
+                                {memberOfConfigEntry !== "" && (
+                                    <Grid>
+                                        <GridItem offset={3} span={3}>
+                                            <Button
+                                                variant="primary"
+                                                onClick={this.handleOpenModal}
+                                            >
+                                                {memberOfConfigEntry === "" ? _("Create Config") : _("Manage Config")}
+                                            </Button>
+                                        </GridItem>
+                                    </Grid>
+                                )}
+                                <Grid title={_("The fixup task will add the memberOf attribute to entries that are missing it.  This is typically only run once after enabling or changing the plugin.")}>
+                                    <GridItem className="ds-label ds-margin-top" span={3}>
+                                        {_("MemberOf Fixup Task")}<WrenchIcon className="ds-left-margin" />
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Button className="ds-margin-top" variant="secondary" onClick={this.handleToggleFixupModal}>
+                                            {_("Run Task")}
+                                        </Button>
+                                    </GridItem>
+                                </Grid>
+                            </Form>
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText>{_("Subtree Scope")}</TabTitleText>}>
+                            <Form isHorizontal autoComplete="off" className="ds-margin-top-xlg">
+                                <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Subtree Scope")}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TypeaheadSelect
+                                            isMulti
+                                            selected={memberOfEntryScope}
+                                            onSelect={this.handleSubtreeScopeSelect}
+                                            onClear={this.handleSubtreeScopeClear}
+                                            options={this.state.memberOfEntryScopeOptions}
+                                            isCreatable
+                                            onCreateOption={this.handleSubtreeScopeCreateOption}
+                                            validateCreate={(value) => valid_dn(value)}
+                                            placeholder={_("Type a subtree DN...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            validated={error.memberOfEntryScope ? "error" : "default"}
+                                            onToggle={this.handleSubtreeScopeToggle}
+                                            isOpen={isSubtreeScopeOpen}
+                                            ariaLabel="Type a subtree DN"
+                                        />
+                                        <FormHelperText  >
+                                            {"Values must be valid DN's"}
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Exclude Subtree")}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TypeaheadSelect
+                                            isMulti
+                                            selected={memberOfEntryScopeExcludeSubtree}
+                                            onSelect={this.handleExcludeScopeSelect}
+                                            onClear={this.handleExcludeScopeClear}
+                                            options={this.state.memberOfEntryScopeExcludeOptions}
+                                            isCreatable
+                                            onCreateOption={this.handleExcludeCreateOption}
+                                            validateCreate={(value) => valid_dn(value)}
+                                            placeholder={_("Type a subtree DN...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            validated={error.memberOfEntryScopeExcludeSubtree ? "error" : "default"}
+                                            onToggle={this.handleExcludeScopeToggle}
+                                            isOpen={isExcludeScopeOpen}
+                                            ariaLabel="Type a subtree DN"
+                                        />
+                                        <FormHelperText  >
+                                            {_("Values must be valid DN's")}
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                            </Form>
+                        </Tab>
 
-                        <Grid title={"Specifies a filter for specific groups to include, example: (cn=group). (memberOfSpecificGroupFilter)"}>
-                            <GridItem className="ds-label" span={3}>
-                                {"Specific Group Filter"}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={memberOfSpecificGroup}
-                                    onSelect={this.handleSpecificGroupSelect}
-                                    onClear={this.handleSpecificGroupClear}
-                                    options={memberOfSpecificGroupOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleSpecificGroupCreateOption}
-                                    validateCreate={(value) => this.validateFilterCreate(value, 'memberOfSpecificGroup')}
-                                    placeholder={"Type a search filter..."}
-                                    validated={error.memberOfSpecificGroup ? "error" : "default"}
-                                    ariaLabel="Type a search filter"
-                                    onToggle={this.handleSpecificGroupToggle}
-                                    isOpen={isSpecificGroupOpen}
-                                />
-                                <FormHelperText  >
-                                    {"Values must be valid search filters"}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={"Specifies a filter for specific groups to exclude, example: (cn=group). (memberOfExcludeSpecificGroupFilter)"}>
-                            <GridItem className="ds-label" span={3}>
-                                {"Specific Group Exclude Filter"}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={memberOfExcludeSpecificGroup}
-                                    onSelect={this.handleExcludeSpecificGroupSelect}
-                                    onClear={this.handleExcludeSpecificGroupClear}
-                                    options={memberOfExcludeSpecificGroupOptions}
-                                    isCreatable
-                                    onCreateOption={this.handleExcludeSpecificGroupCreateOption}
-                                    validateCreate={(value) => this.validateFilterCreate(value, 'memberOfExcludeSpecificGroup')}
-                                    placeholder={"Type a search filter..."}
-                                    validated={error.memberOfExcludeSpecificGroup ? "error" : "default"}
-                                    ariaLabel="Type a search filter"
-                                    onToggle={this.handleExcludeSpecificGroupToggle}
-                                    isOpen={isExcludeSpecificGroupOpen}
-                                />
-                                <FormHelperText  >
-                                    {"Values must be valid search filters"}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-
-                        <Grid title={_("Specifies the objectclasses for the specific groups to include/exslude (memberOfSpecificGroupOC)")}>
-                            <GridItem className="ds-label" span={3}>
-                                {"Specific Group OC"}
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TypeaheadSelect
-                                    isMulti
-                                    selected={memberOfSpecificGroupOC}
-                                    onSelect={this.handleSpecificGroupOCSelect}
-                                    onClear={this.handleSpecificGroupOCClear}
-                                    options={this.props.objectClasses}
-                                    placeholder={_("Type a objectclass...")}
-                                    noResultsText="There are no matching objectclasses"
-                                    ariaLabel="Type a objectclass"
-                                    onToggle={this.handleSpecificGroupOCToggle}
-                                    isOpen={isSpecificGroupOCOpen}
-                                />
-                                <FormHelperText  >
-                                    {_("Values must be valid objectclasses")}
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("Specifies whether to skip nested groups or not (memberOfSkipNested)")}>
-                            <GridItem className="ds-left-margin" span={3}>
-                                <Checkbox
-                                    id="memberOfSkipNested"
-                                    isChecked={memberOfSkipNested}
-                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
-                                    title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
-                                    label={_("Skip Nested")}
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("The value to set as nsslapd-pluginConfigArea")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Shared Config Entry")}
-                            </GridItem>
-                            {memberOfConfigEntry !== "" &&
-                                <GridItem className="ds-right-margin" span={6}>
-                                    <TextInput
-                                        value={memberOfConfigEntry}
-                                        type="text"
-                                        id="memberOfConfigEntry"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="memberOfConfigEntry"
-                                        readOnlyVariant={'plain'}
-                                    />
-                                </GridItem>
-                            }
-                            <GridItem span={2}>
-                                <Button
-                                    variant="primary"
-                                    onClick={this.handleOpenModal}
-                                >
-                                    {memberOfConfigEntry === "" ? _("Create Config") : _("Manage Config")}
-                                </Button>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter")}>
-                            <GridItem className="ds-label" span={3}>
-                                {_("Auto Add OC")}
-                            </GridItem>
-                            <GridItem span={8}>
-                                <FormSelect
-                                    id="memberOfAutoAddOC"
-                                    value={memberOfAutoAddOC}
-                                    onChange={(event, value) => {
-                                        this.handleFieldChange(event);
-                                    }}
-                                    aria-label="FormSelect Input"
-                                >
-                                    <FormSelectOption key="no_setting" value="" label="-" />
-                                    {this.props.objectClasses.map((attr) => (
-                                        <FormSelectOption key={attr} value={attr.toLowerCase()} label={attr} />
-                                    ))}
-                                </FormSelect>
-                            </GridItem>
-                        </Grid>
-                        <Grid title={_("The fixup task will add the memberOf attribute to entries that are missing it.  This is typically only run once after enabling or changing the plugin.")}>
-                            <GridItem className="ds-label ds-margin-top" span={3}>
-                                {_("MemberOf Fixup Task")}<WrenchIcon className="ds-left-margin" />
-                            </GridItem>
-                            <GridItem span={9}>
-                                <Button className="ds-margin-top" variant="secondary" onClick={this.handleToggleFixupModal}>
-                                    {_("Run Task")}
-                                </Button>
-                            </GridItem>
-                        </Grid>
-                    </Form>
+                        <Tab eventKey={2} title={<TabTitleText>{_("Specific Group Scope")}</TabTitleText>}>
+                            <MemberOfTable
+                                title={"Specific Group Filters"}
+                                rows={memberOfSpecificGroup}
+                                deleteAttr={this.openDeleteFilterConfirmation}
+                            />
+                            <Button
+                                id="specific-group-filter"
+                                className="ds-margin-top"
+                                key="specific-group-filter"
+                                variant="secondary"
+                                onClick={this.openSpecificGroupAddModal}
+                            >
+                                Add filter
+                            </Button>
+                            <MemberOfTable
+                                title={"Specific Group Exclude Filters"}
+                                rows={memberOfExcludeSpecificGroup}
+                                deleteAttr={this.openDeleteExcludeFilterConfirmation}
+                            />
+                            <Button
+                                id="specific-group-exclude-filter"
+                                className="ds-margin-top"
+                                key="specific-group-exclude-filter"
+                                variant="secondary"
+                                onClick={this.openSpecificExcludeGroupAddModal}
+                            >
+                                Add exclude filter
+                            </Button>
+                            <Form isHorizontal autoComplete="off" className="ds-margin-top-xlg">
+                                <Grid title={_("Specifies the objectclasses for the specific groups to include/exclude (memberOfSpecificGroupOC)")}>
+                                    <GridItem className="ds-label" span={3}>
+                                        {"Specific Group OC"}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TypeaheadSelect
+                                            isMulti
+                                            selected={memberOfSpecificGroupOC}
+                                            onSelect={this.handleSpecificGroupOCSelect}
+                                            onClear={this.handleSpecificGroupOCClear}
+                                            options={this.props.objectClasses}
+                                            placeholder={_("Type a objectclass...")}
+                                            noResultsText="There are no matching objectclasses"
+                                            ariaLabel="Type a objectclass"
+                                            onToggle={this.handleSpecificGroupOCToggle}
+                                            isOpen={isSpecificGroupOCOpen}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                            </Form>
+                        </Tab>
+                    </Tabs>
                     <Button
                         className="ds-margin-top-lg"
                         key="at"
@@ -2062,6 +1915,33 @@ class MemberOf extends React.Component {
                         {saveBtnName}
                     </Button>
                 </PluginBasicConfig>
+
+                <MemberOfConfigEntryModal
+                    handlers={configModalHandlers}
+                    openers={configModalOpeners}
+                    settings={configModalSettings}
+                    activeTabModalKey={this.state.activeTabModalKey}
+                    objectClasses={this.props.objectClasses}
+                    newEntry={this.state.newEntry}
+                    errorModal={this.state.errorModal}
+                    configEntryModalShow={this.state.configEntryModalShow}
+                    saveBtnDisabledModal={this.state.saveBtnDisabledModal}
+                    savingModal={this.state.savingModal}
+                    extraPrimaryProps={this.state.extraPrimaryProps}
+                    validateModalFilterCreate={this.validateModalFilterCreate}
+                />
+
+                <MemberOfSpecificGroupFilterModal
+                    isSpecificGroupModalOpen={isSpecificGroupModalOpen}
+                    closeSpecificGroupAddModal={this.closeSpecificGroupAddModal}
+                    handleAddDelSpecificGroupFilter={this.handleAddDelSpecificGroupFilter}
+                    groupFilter={groupFilter}
+                    groupFilterType={groupFilterType}
+                    handleFieldChange={this.handleFieldChange}
+                    modalSpinning={this.state.modalSpinning}
+                    validFilterChange={this.validFilterChange}
+                />
+
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
@@ -2072,6 +1952,32 @@ class MemberOf extends React.Component {
                     checked={this.state.modalChecked}
                     mTitle={_("Delete MemberOf Config Entry")}
                     mMsg={_("Are you sure you want to delete this config entry?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showDeleteFilterConfirmation}
+                    closeHandler={this.closeDeleteFilterConfirmation}
+                    handleChange={this.onChange}
+                    actionHandler={() => this.handleAddDelSpecificGroupFilter("delete", this.state.groupFilter)}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.groupFilter}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Delete Specific Group Filter")}
+                    mMsg={_("Are you sure you want to delete this filter?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showDeleteExcludeFilterConfirmation}
+                    closeHandler={this.closeDeleteExcludeFilterConfirmation}
+                    handleChange={this.onChange}
+                    actionHandler={() => this.handleAddDelSpecificGroupFilter("delete", this.state.groupFilter)}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.groupFilter}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Delete Exclude Specific Group Filter")}
+                    mMsg={_("Are you sure you want to delete this filter?")}
                     mSpinningMsg={_("Deleting ...")}
                     mBtnName={_("Delete")}
                 />

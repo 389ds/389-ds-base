@@ -34,9 +34,7 @@ MEMBEROF_SETTINGS = [
     ('deferredupdate', 'off'),
     ('launchfixup', 'on'),
     ('launchfixup', 'off'),
-    ('specific-group-filter', ['(entrydn=cn=group1,ou=groups,dc=example,dc=com)']),
-    ('exclude-specific-group-filter', ['(entrydn=cn=excluded,ou=groups,dc=example,dc=com)']),
-    ('specific-group-oc', ['groupofnames', 'groupofuniquenames']),
+    ('specific-group-oc', 'groupofnames'),
 ]
 
 # Config entry specific settings
@@ -48,9 +46,12 @@ CONFIG_ENTRY_SETTINGS = [
     ('scope', ['dc=example,dc=com']),
     ('exclude', ['ou=excluded,dc=example,dc=com']),
     ('autoaddoc', 'inetuser'),
-    ('specific-group-filter', ['(entrydn=cn=group1,ou=groups,dc=example,dc=com)']),
-    ('exclude-specific-group-filter', ['(entrydn=cn=excluded,ou=groups,dc=example,dc=com)']),
-    ('specific-group-oc', ['groupofnames']),
+    ('specific-group-oc', 'groupofnames'),
+]
+
+MEMBEROF_ATTR_SETTINGS = [
+    ('specific-group-filter', '(entrydn=cn=group1,ou=groups,dc=example,dc=com)'),
+    ('exclude-specific-group-filter', '(entrydn=cn=excluded,ou=groups,dc=example,dc=com)'),
 ]
 
 
@@ -173,19 +174,13 @@ def test_memberof_plugin_set(topo, attr, value):
             config_value = [config_value]
         for val in value:
             assert val in config_value, f"Expected {val} in {config_value}"
-    elif attr in ['scope', 'exclude', 'specific-group-filter', 'exclude-specific-group-filter', 'specific-group-oc'] and isinstance(value, list):
+    elif attr in ['scope', 'exclude'] and isinstance(value, list):
         # For multi-valued attributes
         config_attr = f'memberof{attr.title().replace("-", "")}'
         if attr == 'scope':
             config_attr = 'memberofentryscope'
         elif attr == 'exclude':
             config_attr = 'memberofentryscopeexcludesubtree'
-        elif attr == 'specific-group-filter':
-            config_attr = 'memberofspecificgroupfilter'
-        elif attr == 'exclude-specific-group-filter':
-            config_attr = 'memberofexcludespecificgroupfilter'
-        elif attr == 'specific-group-oc':
-            config_attr = 'memberofspecificgroupoc'
 
         config_value = json_result['attrs'][config_attr]
         if isinstance(config_value, str):
@@ -209,6 +204,8 @@ def test_memberof_plugin_set(topo, attr, value):
             config_attr = 'memberofdeferredupdate'
         elif attr == 'launchfixup':
             config_attr = 'memberoflaunchfixup'
+        elif attr == 'specific-group-oc':
+            config_attr = 'memberofspecificgroupoc'
 
         if config_attr not in json_result['attrs']:
             config_value = ""
@@ -226,6 +223,50 @@ def test_memberof_plugin_set(topo, attr, value):
     output, rc = execute_dsconf_command(dsconf_cmd, reset_cmd)
     # Some attributes might not be deletable, so we don't assert on return code
     log.info(f"Reset {attr}: {output}")
+
+
+@pytest.mark.parametrize("attr,value", MEMBEROF_ATTR_SETTINGS)
+def test_memberof_plugin_add_del_attr(topo, attr, value):
+    """Test memberof plugin add-attr/del-attr command with various
+    configuration options
+
+    :id: 8b3a2d38-e8ec-4b1e-8d45-ba86fbf0360c
+    :setup: Standalone DS instance
+    :steps:
+        1. Add various memberof plugin attributes
+    :expectedresults:
+        1. Success
+    """
+    dsconf_cmd = get_dsconf_base_cmd(topo)
+
+    # Build the set command
+    add_cmd = ['add-attr', f'--{attr}', value]
+
+    # Set the configuration
+    output, rc = execute_dsconf_command(dsconf_cmd, add_cmd)
+    assert rc == 0, f"Failed to add {attr}={value}: {output}"
+    log.info(f"Set {attr}={value} successfully")
+
+    # Verify the setting was applied by getting the configuration
+    output, rc = execute_dsconf_command(dsconf_cmd, ['show'])
+    assert rc == 0
+    json_result = json.loads(output)
+    config_attr = f'memberof{attr.replace("-", "")}'
+    config_value = json_result['attrs'][config_attr][0]
+    assert config_value == value, f"Expected {value} in {config_value}"
+
+    # Now delete the attributes
+    delete_cmd = ['del-attr', f'--{attr}', value]
+    output, rc = execute_dsconf_command(dsconf_cmd, delete_cmd)
+    assert rc == 0, f"Failed to delete {attr}={value}: {output}"
+    log.info(f"Deleted {attr}={value} successfully")
+
+    # Verify the setting was applied by getting the configuration
+    output, rc = execute_dsconf_command(dsconf_cmd, ['show'])
+    assert rc == 0
+    json_result = json.loads(output)
+    config_dict= json_result['attrs']
+    assert config_attr not in config_dict, f"Expected {config_attr} not to be present"
 
 
 def test_memberof_config_entry_operations(topo):
@@ -313,7 +354,7 @@ def test_memberof_config_entry_set(topo, attr, value):
     assert rc == 0, f"Failed to add config entry with {attr}={value}: {output}"
     log.info(f"Added config entry with {attr}={value}")
 
-    # Show config entry to verify
+    # Show config entry to verify it worked
     show_cmd = ['config-entry', 'show', config_dn]
     output, rc = execute_dsconf_command(dsconf_cmd, show_cmd)
     assert rc == 0, f"Failed to show config entry: {output}"
@@ -328,12 +369,6 @@ def test_memberof_config_entry_set(topo, attr, value):
             config_attr = 'memberofentryscope'
         elif attr == 'exclude':
             config_attr = 'memberofentryscopeexcludesubtree'
-        elif attr == 'specific-group-filter':
-            config_attr = 'memberofspecificgroupfilter'
-        elif attr == 'exclude-specific-group-filter':
-            config_attr = 'memberofexcludespecificgroupfilter'
-        elif attr == 'specific-group-oc':
-            config_attr = 'memberofspecificgroupoc'
 
     config_value = json_result['attrs'][config_attr]
     if isinstance(value, list):
@@ -344,7 +379,80 @@ def test_memberof_config_entry_set(topo, attr, value):
     else:
         assert config_value[0] == value, f"Expected {value}, got {config_value}"
 
-    # Delete config entry
+    #
+    # Finally delete the config entry
+    #
+    delete_cmd = ['config-entry', 'delete', config_dn]
+    output, rc = execute_dsconf_command(dsconf_cmd, delete_cmd)
+    assert rc == 0, f"Failed to delete config entry: {output}"
+    log.info(f"Deleted config entry: {output}")
+
+
+
+@pytest.mark.parametrize("attr,value", MEMBEROF_ATTR_SETTINGS)
+def test_memberof_plugin_config_add_del_attr(topo, attr, value):
+    """Test memberof plugin config entry add-attr/del-attr command with various
+    configuration options
+
+    :id: fa27012e-624e-43cd-8b18-5accd0f090d4
+    :setup: Standalone DS instance
+    :steps:
+        1. Add various memberof plugin attributes
+    :expectedresults:
+        1. Success
+    """
+
+    #
+    # Add config entry
+    #
+    dsconf_cmd = get_dsconf_base_cmd(topo)
+    config_dn = f'cn=test-config-add-del-{attr},cn=memberof plugin,cn=plugins,cn=config'
+    add_cmd = ['config-entry', 'add', config_dn, '--attr', 'memberOf']
+    if attr != 'groupattr':
+        add_cmd.extend(['--groupattr', 'memberof'] )
+    output, rc = execute_dsconf_command(dsconf_cmd, add_cmd)
+    assert rc == 0, f"Failed to add config entry with {attr}={value}: {output}"
+    log.info(f"Added config entry with {attr}={value}")
+
+    # Show config entry to verify it was added
+    show_cmd = ['config-entry', 'show', config_dn]
+    output, rc = execute_dsconf_command(dsconf_cmd, show_cmd)
+    assert rc == 0, f"Failed to show config entry: {output}"
+    json_result = json.loads(output)
+
+    #
+    # Add the attribute to the config entry
+    #
+    config_attr = f'memberof{attr.replace("-", "")}'
+    set_cmd = ['config-entry', 'add-attr', config_dn, f'--{attr}', value]
+    output, rc = execute_dsconf_command(dsconf_cmd, set_cmd)
+    assert rc == 0, f"Failed to set {attr}={value}: {output}"
+    log.info(f"Set {attr}={value} successfully")
+
+    # Verify the setting was applied by getting the configuration
+    output, rc = execute_dsconf_command(dsconf_cmd, ['show'])
+    assert rc == 0
+    json_result = json.loads(output)
+    assert attr not in json_result['attrs'], f"Unexpectedly found {attr} in config entry"
+
+    #
+    # Now delete the attribute from the config entry
+    #
+    delete_cmd = ['config-entry', 'del-attr', config_dn, f'--{attr}', value]
+    output, rc = execute_dsconf_command(dsconf_cmd, delete_cmd)
+    assert rc == 0, f"Failed to delete {attr}={value}: {output}"
+    log.info(f"Deleted {attr}={value} successfully")
+
+    # Verify the setting was applied by getting the configuration
+    output, rc = execute_dsconf_command(dsconf_cmd, ['show'])
+    assert rc == 0
+    json_result = json.loads(output)
+    config_dict= json_result['attrs']
+    assert config_attr not in config_dict, f"Expected {config_attr} not to be present"
+
+    #
+    # Finally delete the config entry
+    #
     delete_cmd = ['config-entry', 'delete', config_dn]
     output, rc = execute_dsconf_command(dsconf_cmd, delete_cmd)
     assert rc == 0, f"Failed to delete config entry: {output}"
