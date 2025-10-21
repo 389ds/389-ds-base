@@ -3714,7 +3714,7 @@ msgstr ""
 "ネストされたグループをスキップするかどうかを指定します (memberOfSkipNested)"
 
 #: src/lib/plugins/memberOf.jsx:1417 src/lib/plugins/memberOf.jsx:1587
-msgid "Skip Nested"
+msgid "Skip Nested Groups"
 msgstr "ネストをスキップ"
 
 #: src/lib/plugins/memberOf.jsx:1421 src/lib/plugins/memberOf.jsx:1619
