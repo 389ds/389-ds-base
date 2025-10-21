@@ -1144,6 +1144,8 @@ export class LocalPwPolicy extends React.Component {
             },
         };
 
+        this.unknownPolicyType = "Unknown policy type";
+
         // Check User Attributes Create
         this.handleUserAttrsCreateToggle = (_event, isUserAttrsCreateOpen) => {
             this.setState({
@@ -1881,7 +1883,11 @@ export class LocalPwPolicy extends React.Component {
                     const policy_obj = JSON.parse(content);
                     const pwpRows = [];
                     for (const row of policy_obj.items) {
-                        pwpRows.push([row.targetdn, row.pwp_type, row.basedn]);
+                        let {basedn} = row;
+                        if (row.pwp_type === this.unknownPolicyType) {
+                            basedn = row.dn;
+                        }
+                        pwpRows.push([row.targetdn, row.pwp_type, basedn]);
                     }
                     this.setState({
                         localActiveTabKey: 0,
