@@ -248,12 +248,16 @@ class PwPolicyManager(object):
             # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
             # We need to strip them as python-ldap doesn't expect them
             dn_comps_str = policy.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
-            dn_comps = ldap.dn.explode_dn(dn_comps_str)
-            dn_comps.pop(0)
-            pwp_dn = ",".join(dn_comps)
-            if pwp_dn == dn.lower():
-                # This DN does have a policy associated with it
-                return policy
+            try:
+                dn_comps = ldap.dn.explode_dn(dn_comps_str)
+                dn_comps.pop(0)
+                pwp_dn = ",".join(dn_comps)
+                if pwp_dn == dn.lower():
+                    # This DN does have a policy associated with it
+                    return policy
+            except ldap.DECODING_ERROR:
+                # This is some kind of custom password policy
+                continue
 
         # Did not find a policy for this entry
         raise ValueError("No password policy was found for this entry")
