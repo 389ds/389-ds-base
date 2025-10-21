@@ -421,6 +421,7 @@ const TypeaheadSelect = ({
                                         ev.stopPropagation();
                                         handleSelect(selection);
                                     }}
+                                    textMaxWidth="32ch"
                                 >
                                     {getChildren(selection)}
                                 </Label>
