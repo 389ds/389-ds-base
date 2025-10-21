@@ -1079,6 +1079,7 @@ class PwpTable extends React.Component {
                                 {hasRows && (
                                     <Td isActionCell>
                                         <ActionsColumn
+                                            isDisabled={row[1] === "Unknown policy type"}
                                             items={this.getActions(row)}
                                         />
                                     </Td>

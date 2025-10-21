@@ -107,10 +107,22 @@ def list_policies(inst, basedn, log, args):
             # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
             # We need to strip them as python-ldap doesn't expect them
             dn_comps_str = pwp_entry.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
-            dn_comps = ldap.dn.explode_dn(dn_comps_str)
-            dn_comps.pop(0)
-            entrydn = ",".join(dn_comps)
-            policy_type = _get_policy_type(inst, entrydn)
+            try:
+                dn_comps = ldap.dn.explode_dn(dn_comps_str)
+                dn_comps.pop(0)
+                entrydn = ",".join(dn_comps)
+                policy_type = _get_policy_type(inst, entrydn)
+            except ldap.DECODING_ERROR:
+                # This is some kind of custom password policy, the UI relies on
+                # on type being "Unknown policy type" in this.unknownPolicyType
+                policy_type = "Unknown policy type"
+                entrydn = "Unknown target"
+                if not args.json:
+                    # If not JSON then set a custom response, otherwise the
+                    # JSON result is sufficient
+                    result += "%s (%s)\n" % (pwp_entry.dn, policy_type.lower())
+                    continue
+
             all_attrs = pwp_entry.get_attrs_vals_utf8(attr_list)
             attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
             if args.json:
