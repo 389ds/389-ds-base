@@ -2713,6 +2713,7 @@ class ExistingLagReportsTable extends React.Component {
         });
 
         const reportPath = reportToDelete.path;
+        const reportName = reportToDelete.name;
 
         // Safety check: Validate the path is within expected directories
         // Don't allow deletion from system directories
@@ -2724,23 +2725,31 @@ class ExistingLagReportsTable extends React.Component {
         const isBlockedPath = blockedPaths.some(prefix => reportPath.startsWith(prefix));
 
         if (isBlockedPath) {
+            const errorMsg = cockpit.format(_("Cannot delete report from protected system path: $0"), reportPath);
             console.error("Attempted to delete report from protected path:", reportPath);
             this.setState({
                 modalSpinning: false,
                 showConfirmReportDelete: false,
                 reportToDelete: null
             });
+            if (this.props.addNotification) {
+                this.props.addNotification("error", errorMsg);
+            }
             return;
         }
 
         // Additional check: path must not be root or be too short (likely system directory)
         if (reportPath === '/' || reportPath.split('/').filter(p => p).length < 2) {
+            const errorMsg = cockpit.format(_("Invalid report path: $0"), reportPath);
             console.error("Attempted to delete report from invalid path:", reportPath);
             this.setState({
                 modalSpinning: false,
                 showConfirmReportDelete: false,
                 reportToDelete: null
             });
+            if (this.props.addNotification) {
+                this.props.addNotification("error", errorMsg);
+            }
             return;
         }
 
@@ -2753,6 +2762,9 @@ class ExistingLagReportsTable extends React.Component {
             'replication_analysis.png'
         ];
 
+        // Track deleted files for rollback if needed
+        const deletedFiles = [];
+
         // First, list all files in the directory to verify they're report files
         cockpit.spawn(["ls", "-1A", reportPath], { superuser: true, err: "message" })
             .then(output => {
@@ -2764,6 +2776,10 @@ class ExistingLagReportsTable extends React.Component {
                 );
 
                 if (!allFilesValid) {
+                    const errorMsg = cockpit.format(
+                        _("Report directory '$0' contains unexpected files and cannot be safely deleted."),
+                        reportName
+                    );
                     console.error("Directory contains unexpected files, refusing to delete:", reportPath);
                     console.error("Files found:", files);
                     this.setState({
@@ -2771,13 +2787,25 @@ class ExistingLagReportsTable extends React.Component {
                         showConfirmReportDelete: false,
                         reportToDelete: null
                     });
+                    if (this.props.addNotification) {
+                        this.props.addNotification("error", errorMsg);
+                    }
                     return Promise.reject(new Error("Directory contains unexpected files"));
                 }
 
-                // Delete each file individually
-                const deletePromises = files.map(file =>
-                    cockpit.spawn(["rm", "-f", `${reportPath}/${file}`], { superuser: true, err: "message" })
-                );
+                // Delete each file individually and track progress
+                const deletePromises = files.map(file => {
+                    const filePath = `${reportPath}/${file}`;
+                    return cockpit.spawn(["rm", "-f", filePath], { superuser: true, err: "message" })
+                        .then(() => {
+                            deletedFiles.push(file);
+                            return Promise.resolve();
+                        })
+                        .catch(err => {
+                            console.error(`Failed to delete file ${file}:`, err);
+                            return Promise.reject({ file, error: err });
+                        });
+                });
 
                 return Promise.all(deletePromises);
             })
@@ -2786,13 +2814,21 @@ class ExistingLagReportsTable extends React.Component {
                 return cockpit.spawn(["rmdir", reportPath], { superuser: true, err: "message" });
             })
             .then(() => {
-                // Remove the report from the list
+                // Success! Remove the report from the list
                 this.setState(prevState => ({
                     reports: prevState.reports.filter(r => r.path !== reportPath),
                     modalSpinning: false,
                     showConfirmReportDelete: false,
                     reportToDelete: null
                 }));
+
+                // Show success notification
+                if (this.props.addNotification) {
+                    this.props.addNotification(
+                        "success",
+                        cockpit.format(_("Report '$0' successfully deleted"), reportName)
+                    );
+                }
 
                 // Notify parent component if callback provided
                 if (this.props.onReportDeleted) {
@@ -2801,12 +2837,48 @@ class ExistingLagReportsTable extends React.Component {
             })
             .catch(err => {
                 console.error("Error deleting report:", err);
+
+                // Determine what went wrong and provide specific feedback
+                let errorMsg;
+                if (err && err.file) {
+                    // Specific file deletion failed
+                    errorMsg = cockpit.format(
+                        _("Failed to delete file '$0' from report '$1'. The report directory may be partially deleted."),
+                        err.file,
+                        reportName
+                    );
+                } else if (deletedFiles.length > 0) {
+                    // Some files were deleted, but directory removal failed
+                    errorMsg = cockpit.format(
+                        _("Deleted $0 files from report '$1', but failed to remove the directory. You may need to manually clean up: $2"),
+                        deletedFiles.length,
+                        reportName,
+                        reportPath
+                    );
+                } else {
+                    // General failure
+                    const errDetail = (err && err.message) ? err.message : err.toString();
+                    errorMsg = cockpit.format(
+                        _("Failed to delete report '$0': $1"),
+                        reportName,
+                        errDetail
+                    );
+                }
+
                 this.setState({
                     modalSpinning: false,
                     showConfirmReportDelete: false,
                     reportToDelete: null
                 });
-                // Error notification here?
+
+                if (this.props.addNotification) {
+                    this.props.addNotification("error", errorMsg);
+                }
+
+                // Reload the report list to reflect actual state
+                if (this.props.onReloadReports) {
+                    this.props.onReloadReports();
+                }
             });
     }
 
@@ -3102,12 +3174,18 @@ DiskTable.defaultProps = {
 
 ExistingLagReportsTable.propTypes = {
     reports: PropTypes.array,
-    onSelectReport: PropTypes.func
+    onSelectReport: PropTypes.func,
+    addNotification: PropTypes.func,
+    onReportDeleted: PropTypes.func,
+    onReloadReports: PropTypes.func
 };
 
 ExistingLagReportsTable.defaultProps = {
     reports: [],
-    onSelectReport: () => {}
+    onSelectReport: () => {},
+    addNotification: () => {},
+    onReportDeleted: () => {},
+    onReloadReports: () => {}
 };
 
 export {

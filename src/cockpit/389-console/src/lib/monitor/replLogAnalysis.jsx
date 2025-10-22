@@ -2184,6 +2184,7 @@ export class ReplLogAnalysis extends React.Component {
                         showing={this.state.showChooseLagReportModal}
                         onClose={this.closeChooseLagReportModal}
                         reportDirectory={this.state.customOutputDir ? this.state.customOutputDir : '/tmp'}
+                        addNotification={this.props.addNotification}
                     />
                 )}
             </>

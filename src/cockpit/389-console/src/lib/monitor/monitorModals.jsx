@@ -2564,6 +2564,7 @@ class ChooseLagReportModal extends React.Component {
                                     <ExistingLagReportsTable
                                         reports={reports}
                                         onSelectReport={this.handleSelectReport}
+                                        addNotification={this.props.addNotification}
                                     />
                                 )}
                             </CardBody>
@@ -2732,13 +2733,15 @@ LagReportModal.defaultProps = {
 ChooseLagReportModal.propTypes = {
     showing: PropTypes.bool,
     onClose: PropTypes.func,
-    reportDirectory: PropTypes.string
+    reportDirectory: PropTypes.string,
+    addNotification: PropTypes.func
 };
 
 ChooseLagReportModal.defaultProps = {
     showing: false,
     onClose: () => {},
-    reportDirectory: '/tmp'
+    reportDirectory: '/tmp',
+    addNotification: () => {}
 };
 
 export {
