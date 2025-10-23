@@ -13,7 +13,7 @@ import json
 import pytest
 import logging
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from lib389.tasks import *
 from lib389.utils import *
@@ -23,13 +23,6 @@ from lib389.idm.user import UserAccount
 from lib389.replica import ReplicationManager
 from lib389.repltools import ReplicationLogAnalyzer
 from lib389._constants import *
-
-try:
-    import plotly
-    import matplotlib
-    HTML_PNG_REPORTS_AVAILABLE = True
-except ImportError:
-    HTML_PNG_REPORTS_AVAILABLE = False
 
 pytestmark = pytest.mark.tier0
 
@@ -112,7 +105,6 @@ def _cleanup_multi_suffix_test(test_users_by_suffix, tmp_dir, suppliers, extra_s
         log.error(f"Error cleaning up temporary directory: {e}")
 
 
-@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_basic(topo_m4):
     """Test basic replication log monitoring functionality
 
@@ -132,6 +124,7 @@ def test_replication_log_monitoring_basic(topo_m4):
     tmp_dir = tempfile.mkdtemp(prefix='repl_analysis_')
     test_users = []
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
 
     try:
         # Clear logs and restart servers
@@ -144,10 +137,7 @@ def test_replication_log_monitoring_basic(topo_m4):
 
         # Wait for replication
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        for s1 in suppliers:
-            for s2 in suppliers:
-                if s1 != s2:
-                    repl.wait_for_replication(s1, s2)
+        repl.test_replication_topology(topo_m4)
 
         # Restart to flush logs
         for supplier in suppliers:
@@ -166,12 +156,12 @@ def test_replication_log_monitoring_basic(topo_m4):
         repl_monitor.parse_logs()
         generated_files = repl_monitor.generate_report(
             output_dir=tmp_dir,
-            formats=['csv', 'html', 'json'],
+            formats=['csv', 'json'],
             report_name='basic_test'
         )
 
         # Verify report files exist and have content
-        for fmt in ['csv', 'html', 'summary']:
+        for fmt in ['csv', 'json', 'summary']:
             assert os.path.exists(generated_files[fmt])
             assert os.path.getsize(generated_files[fmt]) > 0
 
@@ -185,6 +175,12 @@ def test_replication_log_monitoring_basic(topo_m4):
                 assert supplier.serverid in csv_content
             # Verify suffix
             assert DEFAULT_SUFFIX in csv_content
+
+        # Verify PatternFly JSON content
+        with open(generated_files['json'], 'r') as f:
+            json_data = json.load(f)
+            assert 'replicationLags' in json_data
+            assert json_data['replicationLags']['series'], "Expected replication lag series in JSON output"
 
         # Verify JSON summary
         with open(generated_files['summary'], 'r') as f:
@@ -203,7 +199,6 @@ def test_replication_log_monitoring_basic(topo_m4):
         _cleanup_test_data(test_users, tmp_dir)
 
 
-@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_advanced(topo_m4):
     """Test advanced replication monitoring features
 
@@ -240,10 +235,7 @@ def test_replication_log_monitoring_advanced(topo_m4):
 
         # Wait for replication
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        for s1 in suppliers:
-            for s2 in suppliers:
-                if s1 != s2:
-                    repl.wait_for_replication(s1, s2)
+        repl.test_replication_topology(topo_m4)
 
         end_time = datetime.now(timezone.utc)
 
@@ -292,6 +284,15 @@ def test_replication_log_monitoring_advanced(topo_m4):
         assert utc_start_time >= start_time, (
             f"Expected start time >= {start_time}, got {utc_start_time}"
         )
+        assert 'end-time' in results2
+        assert 'utc-end-time' in results2
+        utc_end_time = datetime.fromtimestamp(results2['utc-end-time'], timezone.utc)
+        assert utc_end_time >= utc_start_time, (
+            f"Expected end time >= start time, got {utc_end_time} < {utc_start_time}"
+        )
+        assert utc_end_time <= end_time + timedelta(seconds=5), (
+            f"Expected end time within requested range, got {utc_end_time} beyond {end_time}"
+        )
 
         # Test 3: Anonymization
         repl_monitor = ReplicationLogAnalyzer(
@@ -321,7 +322,6 @@ def test_replication_log_monitoring_advanced(topo_m4):
         _cleanup_test_data(test_users, tmp_dir)
 
 
-@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_multi_suffix(topo_m4):
     """Test multi-suffix replication monitoring
 
@@ -344,8 +344,6 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
 
     try:
-
-
         # Setup additional suffixes
         for suffix in [SUFFIX_2, SUFFIX_3]:
             repl = ReplicationManager(suffix)
@@ -371,15 +369,15 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
                     repl.ensure_agreement(s1, s2)
                     repl.ensure_agreement(s2, s1)
 
-        # Wait for all the setup replication to settle, then clear the logs
+        # Allow initial topology to settle before capturing metrics
         for suffix in all_suffixes:
             repl = ReplicationManager(suffix)
-            for s1 in suppliers:
-                for s2 in suppliers:
-                    if s1 != s2:
-                        repl.wait_for_replication(s1, s2)
+            repl.test_replication_topology(topo_m4)
+
         for supplier in suppliers:
             supplier.deleteAccessLogs(restart=True)
+
+        start_time = datetime.now(timezone.utc)
 
         # Generate different amounts of test data per suffix
         test_users_by_suffix[DEFAULT_SUFFIX] = _generate_test_data(
@@ -392,13 +390,14 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
             suppliers[0], SUFFIX_3, 15, user_prefix="test3_user"
         )
 
-        # Wait for replication
+        # Wait for replication of generated data
         for suffix in all_suffixes:
             repl = ReplicationManager(suffix)
-            for s1 in suppliers:
-                for s2 in suppliers:
-                    if s1 != s2:
-                        repl.wait_for_replication(s1, s2)
+            repl.test_replication_topology(topo_m4)
+
+        # Give replication a moment to flush to logs before grabbing the end time
+        time.sleep(1)
+        end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
         for supplier in suppliers:
@@ -408,15 +407,18 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
         log_dirs = [s.ds_paths.log_dir for s in suppliers]
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
-            suffixes=all_suffixes
+            suffixes=all_suffixes,
+            time_range={'start': start_time, 'end': end_time}
         )
 
         repl_monitor.parse_logs()
         generated_files = repl_monitor.generate_report(
             output_dir=tmp_dir,
-            formats=['csv', 'html'],
+            formats=['csv', 'json'],
             report_name='multi_suffix_test'
         )
+
+        assert os.path.exists(generated_files['json'])
 
         # Verify summary statistics
         with open(generated_files['summary'], 'r') as f:
@@ -443,7 +445,6 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
         )
 
 
-@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_filter_combinations(topo_m4):
     """Test complex combinations of filtering options and interactions
 
@@ -461,6 +462,7 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
     tmp_dir = tempfile.mkdtemp(prefix='repl_filter_test_')
     test_users = []
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
 
     try:
         # Clear logs and restart servers
@@ -472,20 +474,31 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
         test_users = _generate_test_data(suppliers[0], DEFAULT_SUFFIX, 30)
 
         # Create different lag patterns
+        # Pause outbound agreements from supplier1 to build a replication backlog
+        for agmt in suppliers[0].agreement.list(suffix=DEFAULT_SUFFIX):
+            suppliers[0].agreement.pause(agmt.dn)
+            paused_agreements.append((suppliers[0], agmt.dn))
+
         for i, user in enumerate(test_users):
             if i % 3 == 0:
-                time.sleep(0.5)  # Short lag
+                time.sleep(1.0)  # Short lag
             elif i % 3 == 1:
-                time.sleep(1.5)  # Medium lag
+                time.sleep(2.0)  # Medium lag
             user.replace('description', f'Modified with lag pattern {i}')
+
+        time.sleep(3)
+
+        # Resume agreements one at a time to create staggered lag
+        for idx, (supplier_obj, dn) in enumerate(paused_agreements):
+            supplier_obj.agreement.resume(dn)
+            if idx < len(paused_agreements) - 1:
+                time.sleep(0.5)
+
+        paused_agreements.clear()
 
         # Wait for replication
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        for s1 in suppliers:
-            for s2 in suppliers:
-                if s1 != s2:
-                    repl.wait_for_replication(s1, s2)
-
+        repl.test_replication_topology(topo_m4)
         end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
@@ -495,11 +508,13 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
         log_dirs = [s.ds_paths.log_dir for s in suppliers]
 
         # Test combined filters
+        lag_threshold = 0.5
+        etime_threshold = 0.001
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
             suffixes=[DEFAULT_SUFFIX],
-            lag_time_lowest=1.0,
-            etime_lowest=0.1,
+            lag_time_lowest=lag_threshold,
+            etime_lowest=etime_threshold,
             only_fully_replicated=True,
             time_range={'start': start_time, 'end': end_time}
         )
@@ -520,7 +535,7 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
             lag_time = max(t_list) - min(t_list)
 
             # Verify all filters were applied
-            assert lag_time > 1.0, "Lag time filter not applied"
+            assert lag_time >= lag_threshold, "Lag time filter not applied"
             assert len(t_list) == len(suppliers), "Not fully replicated"
 
             # Verify time range
@@ -528,6 +543,11 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
                 dt = datetime.fromtimestamp(t, timezone.utc)
                 assert start_time <= dt <= end_time, "Time range filter violated"
     finally:
+        for supplier_obj, dn in paused_agreements:
+            try:
+                supplier_obj.agreement.resume(dn)
+            except Exception as e:
+                log.warning(f"Failed to resume agreement {dn}: {e}")
         _cleanup_test_data(test_users, tmp_dir)
 
 
