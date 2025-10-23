@@ -1248,6 +1248,17 @@ class ScatterLineChart extends React.Component {
             }
         }
 
+        // Helper function to format time values
+        const formatTimeValue = (seconds) => {
+            if (seconds >= 3600) {
+                return `${(seconds / 3600).toFixed(3)}h`;
+            } else if (seconds >= 60) {
+                return `${(seconds / 60).toFixed(3)}m`;
+            } else {
+                return `${seconds.toFixed(3)}s`;
+            }
+        };
+
         // Process tooltip HTML tags
         const formatTooltip = (datum) => {
             if (datum.childName && datum.childName.includes('line-')) {
@@ -1256,7 +1267,7 @@ class ScatterLineChart extends React.Component {
                     // Split the hoverInfo by <br> tags and join with newlines
                     return datum.hoverInfo.split(/<br\s*\/?>/i).join('\n');
                 }
-                return `${datum.name}: ${datum.y.toFixed(3)}s`;
+                return `${datum.name}: ${formatTimeValue(datum.y)}`;
             }
             return null;
         };
@@ -1338,7 +1349,21 @@ class ScatterLineChart extends React.Component {
                             dependentAxis
                             showGrid
                             label={yAxisLabel || "Value"}
-                            tickFormat={(t) => `${t.toFixed(2)}s`}
+                            tickFormat={(t) => {
+                                // Format large values as hours/minutes for better readability
+                                if (t >= 3600) {
+                                    // Show as hours
+                                    const hours = (t / 3600).toFixed(2);
+                                    return `${hours}h`;
+                                } else if (t >= 60) {
+                                    // Show as minutes
+                                    const minutes = (t / 60).toFixed(2);
+                                    return `${minutes}m`;
+                                } else {
+                                    // Show as seconds
+                                    return `${t.toFixed(2)}s`;
+                                }
+                            }}
                             style={{
                                 axisLabel: {
                                     fontSize: 14,

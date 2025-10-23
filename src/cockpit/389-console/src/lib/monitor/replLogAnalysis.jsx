@@ -51,10 +51,8 @@ import {
     Chip,
     ChipGroup,
     yyyyMMddFormat,
-    ActionGroup
 } from "@patternfly/react-core";
 import {
-    SyncAltIcon,
     InfoCircleIcon,
     ExclamationCircleIcon,
     FolderIcon,
@@ -1424,7 +1422,7 @@ export class ReplLogAnalysis extends React.Component {
                                                                 <InfoCircleIcon />
                                                             </Tooltip>
                                                         }
-                                                        className="pf-v5-u-mb-xl"
+                                                        className="ds-margin-top pf-v5-u-mb-xl"
                                                     >
                                                         <HelperText>
                                                             <HelperTextItem>
@@ -1433,7 +1431,7 @@ export class ReplLogAnalysis extends React.Component {
                                                         </HelperText>
 
                                                         {suffixesList.length > 0 && (
-                                                            <div className="pf-v5-u-mt-sm pf-v5-u-mb-md">
+                                                            <div className="ds-margin-top ds-margin-bottom">
                                                                 <ChipGroup categoryName={_("Selected Suffixes")}>
                                                                     {suffixesList.map((suffix, index) => (
                                                                         <Chip
@@ -1902,7 +1900,7 @@ export class ReplLogAnalysis extends React.Component {
                                                     <FormGroup
                                                         label={_("Output Location")}
                                                         fieldId="output-location"
-                                                        className="ds-margin-top"
+                                                        className="ds-margin-top-lg"
                                                     >
                                                         <Checkbox
                                                             id="use-custom-output"
@@ -1952,7 +1950,7 @@ export class ReplLogAnalysis extends React.Component {
                                                     <FormGroup
                                                         label={_("Report Name")}
                                                         fieldId="report-name"
-                                                        className="ds-margin-top"
+                                                        className="ds-margin-top-lg"
                                                     >
                                                         <TextInput
                                                             id="report-name"
