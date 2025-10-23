@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * Copyright (C) 2019 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
@@ -60,6 +60,13 @@ void test_libslapd_haproxy_v1(void **state);
 void test_libslapd_haproxy_v2_valid(void **state);
 void test_libslapd_haproxy_v2_valid_local(void **state);
 void test_libslapd_haproxy_v2_invalid(void **state);
+void test_haproxy_ipv4_subnet_matching(void **state);
+void test_haproxy_ipv6_subnet_matching(void **state);
+void test_haproxy_trusted_ip_parsing(void **state);
+void test_haproxy_parsing_edge_cases(void **state);
+void test_haproxy_netmask_precomputation(void **state);
+void test_haproxy_ip_matches_cidr(void **state);
+void test_haproxy_ipv4_mask_edge_cases(void **state);
 
 /* plugins */
 

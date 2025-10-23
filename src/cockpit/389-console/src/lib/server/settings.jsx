@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, isValidIpAddress, is_port_in_use } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress, isValidIpAddressOrCIDR, is_port_in_use } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -358,7 +358,7 @@ async validateSaveBtn(nav_tab, attr, value) {
             }
             if (attr === 'nsslapd-haproxy-trusted-ip') {
                 for (const ip of value) {
-                    if (value && !isValidIpAddress(ip)) {
+                    if (value && !isValidIpAddressOrCIDR(ip)) {
                         invalidIP = true;
                         disableSaveBtn = true;
                         break;
@@ -1644,10 +1644,10 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs"
+                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs or subnets in CIDR notation (e.g., 192.168.1.0/24)"
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Trusted HAProxy Server IPs
+                                            Trusted HAProxy Server IPs/Subnets
                                         </GridItem>
                                         <GridItem span={9}>
                             <TypeaheadSelect
@@ -1661,8 +1661,8 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 options={[]}
                                 isOpen={this.state.isHaproxyIPsOpen}
                                 onToggle={this.handleOnHaproxyIPsToggle}
-                                placeholder="Type trusted HAProxy server IP address"
-                                ariaLabel="Type trusted HAProxy server IP address"
+                                placeholder="Type trusted HAProxy server IP or subnet (e.g., 192.168.1.0/24)"
+                                ariaLabel="Type trusted HAProxy server IP address or CIDR subnet"
                                 validated={this.state.invalidIP ? "error" : "default"}
                                 isMulti={true}
                                 isCreatable={true}
@@ -1670,7 +1670,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                             />
                                             {(this.state.invalidIP) &&
                                                 <HelperText className="ds-left-margin">
-                                                    <HelperTextItem variant="error">Invalid format for IP address</HelperTextItem>
+                                                    <HelperTextItem variant="error">Invalid format for IP address or CIDR subnet</HelperTextItem>
                                                 </HelperText>}
                                         </GridItem>
                                     </Grid>
