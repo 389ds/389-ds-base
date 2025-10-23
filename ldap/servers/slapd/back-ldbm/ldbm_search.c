@@ -1074,6 +1074,8 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         slapi_filter_optimise(filter);
         /* modify the filter to be: (&(|(originalfilter)(objectclass=referral))(parentid=idofbase)) */
         filter_exec = create_onelevel_filter(filter, e, managedsait);
+        slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
+        slapi_filter_normalize(filter_exec, PR_TRUE /* normalize values too */);
 
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised ONE filter to - %s\n",
              slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));
@@ -1088,6 +1090,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     case LDAP_SCOPE_SUBTREE:
         /* Now optimise the filter for use */
         slapi_filter_optimise(filter);
+        slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
 
         slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
         if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL) || (operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL))) {
@@ -1099,6 +1102,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         } else {
             /* make (|(originalfilter)(objectclass=referral)) */
             filter_exec = create_subtree_filter(filter, managedsait);
+            slapi_filter_normalize(filter_exec, PR_TRUE /* normalize values too */);
         }
 
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised SUB filter to - %s\n",
