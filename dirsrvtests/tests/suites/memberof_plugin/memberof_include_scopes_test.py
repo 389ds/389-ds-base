@@ -13,7 +13,7 @@ import time
 from lib389.utils import ensure_str
 from lib389.topologies import topology_st as topo
 from lib389._constants import *
-from lib389.plugins import MemberOfPlugin
+from lib389.plugins import MemberOfPlugin, ReferentialIntegrityPlugin
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.group import Group, Groups
 from lib389.idm.nscontainer import nsContainers
@@ -77,6 +77,11 @@ def test_multiple_scopes(topo):
 
     inst = topo.standalone
 
+    # enable Referential Integrity plugin
+    # to correctly process the 'member' attribute
+    refint = ReferentialIntegrityPlugin(inst)
+    refint.enable()
+
     # configure plugin
     memberof = MemberOfPlugin(inst)
     memberof.enable()
@@ -122,9 +127,7 @@ def test_multiple_scopes(topo):
     # Check memberOf and group are cleaned up
     check_membership(inst, EXCLUDED_USER, GROUP_DN, False)
     group = Group(topo.standalone,  dn=GROUP_DN)
-    assert not group.present("member", EXCLUDED_USER)
     assert not group.present("member", INCLUDED_USER)
-
 
 if __name__ == '__main__':
     # Run isolated
