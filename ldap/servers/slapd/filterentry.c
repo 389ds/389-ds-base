@@ -343,6 +343,7 @@ test_ava_filter(
                      */
                     Slapi_Value *sval = NULL;
                     sval = slapi_value_new_berval(&ava->ava_value);
+                    value_dn_normalize_value(sval);
                     if (slapi_valueset_find((const Slapi_Attr *)a, &a->a_present_values, sval)) {
                         rc = 0;
                     }
