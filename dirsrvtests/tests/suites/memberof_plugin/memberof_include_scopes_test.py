@@ -77,9 +77,11 @@ def test_multiple_scopes(topo):
 
     inst = topo.standalone
 
+    EXCLUDED_SUBTREE = 'cn=exclude,%s' % SUFFIX
     # enable Referential Integrity plugin
     # to correctly process the 'member' attribute
     refint = ReferentialIntegrityPlugin(inst)
+    refint.add_excludescope(EXCLUDED_SUBTREE)
     refint.enable()
 
     # configure plugin
@@ -111,7 +113,6 @@ def test_multiple_scopes(topo):
     check_membership(inst, f'uid=test_m3,{SUBTREE_3}', f'cn=g3,{SUBTREE_3}', False)
 
     # Set exclude scope
-    EXCLUDED_SUBTREE = 'cn=exclude,%s' % SUFFIX
     EXCLUDED_USER = f"uid=test_m1,{EXCLUDED_SUBTREE}"
     INCLUDED_USER = f"uid=test_m1,{SUBTREE_1}"
     GROUP_DN = f'cn=g1,{SUBTREE_1}'
@@ -128,6 +129,7 @@ def test_multiple_scopes(topo):
     check_membership(inst, EXCLUDED_USER, GROUP_DN, False)
     group = Group(topo.standalone,  dn=GROUP_DN)
     assert not group.present("member", INCLUDED_USER)
+    assert not group.present("member", EXCLUDED_USER)
 
 if __name__ == '__main__':
     # Run isolated
