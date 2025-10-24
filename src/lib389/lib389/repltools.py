@@ -1031,7 +1031,14 @@ class ReplicationLogAnalyzer:
                 raise OSError(f"Could not create directory {output_dir}: {e}")
 
         if not self.csns:
-            raise ValueError("No CSN data available for reporting. Did you call parse_logs()?")
+            # Provide a more user-friendly error message
+            error_msg = "No replication data found matching the specified criteria."
+            if self.lag_time_lowest is not None or self.etime_lowest is not None:
+                error_msg += " The threshold filters (lag time or etime) may be too restrictive."
+            if self.only_fully_replicated or self.only_not_replicated:
+                error_msg += " The replication status filter may have excluded all entries."
+            error_msg += " Try adjusting the filters or expanding the time range."
+            raise ValueError(error_msg)
 
         results = self.build_result()
         generated_files = {}
