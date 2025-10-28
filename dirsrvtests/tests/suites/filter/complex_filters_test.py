@@ -25,8 +25,15 @@ AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=first1))", 1),
                ("(&(uid=*)(&(sn=last3)(givenname=*)))", 1),
                ("(&(uid=uid5)(&(&(sn=*))(&(givenname=*))))", 1),
                ("(&(objectclass=*)(uid=*)(sn=last*))", 5),
-               ("(&(objectclass=*)(uid=*)(sn=last1))", 1)]
-
+               ("(&(objectclass=*)(uid=*)(sn=last1))", 1),
+               ("(&(sn:dn:=last1))", 1),
+               ("(&(sn:dn:=last1)(givenname:dn:=first1))", 1),
+               ("(&(sn:dn:=last1)(givenname=first1))", 1),
+               ("(&(sn=last1)(givenname=first1)(uid:dn:=uid1))", 1),
+               ("(&(uid:dn:=uid1))", 1),
+               ("(&(uid:dn:=uid1)(cn:dn:=full1))", 1),
+               ("(&(uid:dn:=uid1)(givenname:dn:=first1))", 1),
+               ("(&(uid:dn:=uid1)(givenname:dn:=first1)(cn:dn:=full1))", 1)]
 OR_FILTERS = [("(|(uid=uid1)(sn=last1)(givenname=first1))", 1),
               ("(|(uid=uid1)(|(sn=last1)(givenname=first1)))", 1),
               ("(|(uid=uid1)(|(|(sn=last1))(|(givenname=first1))))", 1),
@@ -51,7 +58,11 @@ ZERO_AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=NULL))", 0),
                    ("(&(uid=uid1)(&(sn=last1)(givenname=NULL)))", 0),
                    ("(&(uid=uid1)(&(&(sn=last1))(&(givenname=NULL))))", 0),
                    ("(&(uid=uid1)(&(&(sn=last1))(&(givenname=NULL)(sn=*)))(|(sn=NULL)))", 0),
-                   ("(&(uid=uid1)(&(&(sn=last*))(&(givenname=first*)))(&(sn=NULL)))", 0)]
+                   ("(&(uid=uid1)(&(&(sn=last*))(&(givenname=first*)))(&(sn=NULL)))", 0),
+                   ("(&(uid:dn:=not_uid))", 0),
+                   ("(&(uid:dn:=not_uid)(cn:dn:=full1))", 0),
+                   ("(&(uid:dn:=uid1)(givenname:dn:=not_first1))", 0),
+                   ("(&(uid:dn:=uid1)(givenname:dn:=first1)(cn:dn:=not_full1))", 0)]
 
 ZERO_OR_FILTERS = [("(|(uid=NULL)(sn=NULL)(givenname=NULL))", 0),
                   ("(|(uid=NULL)(|(sn=NULL)(givenname=NULL)))", 0),
