@@ -1044,13 +1044,18 @@ vattr_test_filter_list_and(
             nomatch = -1;
             break;
         } else {
+            /* We have a match, but we need to check access */
             if (!verify_access || (*access_check_done)) {
                 nomatch = 0;
             } else {
                 /* check access */
                 rc = slapi_vattr_filter_test_ext_internal(pb, e, f, verify_access, 1, access_check_done);
-                if (rc)
+                if (rc) {
                     undefined = rc;
+                } else {
+                    /* Access is good so mark this as a match */
+                    nomatch = 0;
+                }
             }
         }
     }
