@@ -6,12 +6,14 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ----
 
+import ldap
 import pytest, os
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.topologies import topology_st as topo
 
 from lib389.idm.user import UserAccount, UserAccounts
+from lib389.idm.group import UniqueGroups
 from lib389.idm.account import Accounts
 
 pytestmark = pytest.mark.tier0
@@ -43,6 +45,37 @@ def test_search_attr(topo):
     # Testing filter is working for other filters
     assert len(user.filter("(objectclass=inetOrgPerson)")) == 4
 
+def test_filter_assertion_not_normalized(topo, request):
+    """Test ldapsearch with a filter with an assertion value
+    that is not normalize
+
+    :id: c23366aa-d134-4f95-86ee-44ad3e05480b
+    :setup: Standalone instance
+    :steps:
+         1. Adding 20 member values to a group
+         2. Checking the a search with not normalize
+            assertion returns the group
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+    """
+    groups = UniqueGroups(topo.standalone, DEFAULT_SUFFIX)
+    demo_group = groups.ensure_state(properties={'cn': 'demo_group'})
+
+    # Adding more that 10 values to 'member' so that
+    # the valueset will be sorted
+    values = []
+    for idx in range(0,20):
+        values.append('uid=scarter%d, ou=People, dc=example,dc=com' % idx)
+    demo_group.add('member', values)
+
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'member=uid=scarter0,   ou=People,dc=example,dc=com')
+    assert len(entries) == 1
+
+    def fin():
+        demo_group.delete('member')
+
+    request.addfinalizer(fin)
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
