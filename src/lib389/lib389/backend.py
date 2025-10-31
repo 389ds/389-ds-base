@@ -617,8 +617,8 @@ class Backend(DSLdapObject):
         # Default system indexes taken from ldap/servers/slapd/back-ldbm/instance.c
         expected_system_indexes = {
             'entryrdn': {'types': ['subtree'], 'matching_rule': None},
-            'parentId': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch', 'scanlimit': 'limit=5000 type=eq flags=AND'},
-            'ancestorId': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch', 'scanlimit': 'limit=5000 type=eq flags=AND'},
+            'parentid': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch', 'scanlimit': 'limit=5000 type=eq flags=AND'},
+            'ancestorid': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch', 'scanlimit': 'limit=5000 type=eq flags=AND'},
             'objectClass': {'types': ['eq'], 'matching_rule': None},
             'aci': {'types': ['pres'], 'matching_rule': None},
             'nscpEntryDN': {'types': ['eq'], 'matching_rule': None},
@@ -660,15 +660,24 @@ class Backend(DSLdapObject):
         for attr_name, expected_config in expected_system_indexes.items():
             try:
                 index = indexes.get(attr_name)
+            except ldap.NO_SUCH_OBJECT:
+                # Index is missing
+                index = None
+            except Exception as e:
+                self._log.debug(f"_lint_system_indexes - Error getting index {attr_name}: {e}")
+                discrepancies.append(f"Unable to check index {attr_name}: {str(e)}")
+                continue
+
+            try:
                 # Check if index exists
                 if index is None:
                     discrepancies.append(f"Missing system index: {attr_name}")
                     # Generate remediation command
-                    index_types = ' '.join([f"--add-type {t}" for t in expected_config['types']])
+                    index_types = ' '.join([f"--index-type {t}" for t in expected_config['types']])
                     cmd = f"dsconf YOUR_INSTANCE backend index add {bename} --attr {attr_name} {index_types}"
-                    if expected_config['matching_rule']:
-                        cmd += f" --add-mr {expected_config['matching_rule']}"
-                    if expected_config['scanlimit']:
+                    if expected_config.get('matching_rule'):
+                        cmd += f" --matching-rule {expected_config['matching_rule']}"
+                    if expected_config.get('scanlimit'):
                         cmd += f" --add-scanlimit {expected_config['scanlimit']}"
                     remediation_commands.append(cmd)
                     reindex_attrs.add(attr_name)  # New index needs reindexing
@@ -692,7 +701,7 @@ class Backend(DSLdapObject):
                         reindex_attrs.add(attr_name)
 
                     # Check matching rules
-                    expected_mr = expected_config['matching_rule']
+                    expected_mr = expected_config.get('matching_rule')
                     if expected_mr:
                         actual_mrs_lower = [mr.lower() for mr in actual_mrs]
                         if expected_mr.lower() not in actual_mrs_lower:
@@ -713,7 +722,6 @@ class Backend(DSLdapObject):
                                 cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-scanlimit {expected_scanlimit}"
                             remediation_commands.append(cmd)
                             reindex_attrs.add(attr_name)
-
 
             except Exception as e:
                 self._log.debug(f"_lint_system_indexes - Error checking index {attr_name}: {e}")
@@ -991,11 +999,11 @@ class Backend(DSLdapObject):
 
         if idlistscanlimit is not None:
             scanlimits = []
-            for scanlimit  in idlistscanlimit:
+            for scanlimit in idlistscanlimit:
                 scanlimits.append(scanlimit)
             # Only add if there are actually limits in the list.
             if len(scanlimits) > 0:
-                props['nsIndexIDListScanLimit'] = mrs
+                props['nsIndexIDListScanLimit'] = scanlimits
 
         new_index.create(properties=props, basedn="cn=index," + self._dn)
 
