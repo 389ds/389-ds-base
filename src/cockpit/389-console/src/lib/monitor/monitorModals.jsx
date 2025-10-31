@@ -1353,15 +1353,15 @@ class ScatterLineChart extends React.Component {
                                 // Format large values as hours/minutes for better readability
                                 if (t >= 3600) {
                                     // Show as hours
-                                    const hours = (t / 3600).toFixed(2);
+                                    const hours = (t / 3600).toFixed(1);
                                     return `${hours}h`;
                                 } else if (t >= 60) {
                                     // Show as minutes
-                                    const minutes = (t / 60).toFixed(2);
+                                    const minutes = (t / 60).toFixed(1);
                                     return `${minutes}m`;
                                 } else {
                                     // Show as seconds
-                                    return `${t.toFixed(2)}s`;
+                                    return `${t.toFixed(1)}s`;
                                 }
                             }}
                             style={{
