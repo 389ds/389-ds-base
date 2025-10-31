@@ -725,19 +725,23 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
     """
 
     inst = topo.standalone
+    nsw = 1 if get_default_db_lib() == "bdb" else 12
+    nsh = 0 if get_default_db_lib() == "bdb" else 12
+    nsa = 1 if get_default_db_lib() == "bdb" else 0
+    nst = 1 if get_default_db_lib() == "bdb" else 0
     no_suffix_on = (
         (1, 0), # no errors are expected.
-        (2, 1), # 1 warning is expected.
-        (3, 0), # no 'no parent' warning is expected.
-        (4, 1), # 1 'all entries were skipped' warning
+        (2, nsw), # 1/12 warning is expected.
+        (3, nsh), # no/12 'no parent' warning is expected.
+        (4, nsa), # 1/no 'all entries were skipped' warning
         (5, 0), # no 'returning task warning' info message
     )
     no_suffix_off = (
         (1, 0), # no errors are expected.
-        (2, 1), # 1 warning is expected.
-        (3, 0), # no 'no parent' warning is expected.
-        (4, 1), # 1 'all entries were skipped' warning
-        (5, 1), # 1 'returning task warning' info message
+        (2, nsw), # 1/12 warning is expected.
+        (3, nsh), # no/12 'no parent' warning is expected.
+        (4, nsa), # 1/no 'all entries were skipped' warning
+        (5, nst), # 1/no 'returning task warning' info message
     )
     nbw = 0 if get_default_db_lib() == "bdb" else 10
     far_suffix_on = (
@@ -773,7 +777,9 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
 
         def fin():
             inst.start()
-            Importer(inst, errlog, "full").run(no_errors)
+            with open(inst.ds_paths.error_log, 'at+') as cleanup_fd:
+                cleanup_errlog = LogHandler(cleanup_fd, patterns)
+                Importer(inst, cleanup_errlog, "full").run(no_errors)
 
         if not DEBUGGING:
             request.addfinalizer(fin)
@@ -825,9 +831,10 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
                     fout.write(f"dn: uid=id{idx},dc=foo\nobjectclasses: extensibleObject\n\n")
                 for line in iter(fin.readline, ''):
                     fout.write(line)
+        os.chmod(e.ldif, 0o644)
 
         # 10. Offline import using backend name ou=people subtree
-        e.run(no_suffix_off)
+        e.run(far_suffix_off)
         e.check_db()
 
         # 11. Offline import using suffix name ou=people subtree
@@ -840,7 +847,7 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
 
         # 13. Online import using backend name ou=people subtree
         e = Importer(inst, errlog, "far")
-        e.run(no_suffix_on)
+        e.run(far_suffix_on)
         e.check_db()
 
         # 14. Online import using suffix name ou=people subtree
