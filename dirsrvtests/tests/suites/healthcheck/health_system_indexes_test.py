@@ -172,50 +172,7 @@ def test_missing_parentid(topology_st, log_buffering_enabled):
 
     log.info("Re-add the parentId index")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
-
-
-def test_missing_matching_rule(topology_st, log_buffering_enabled):
-    """Check if healthcheck returns DSBLE0007 code when parentId index is missing integerOrderingMatch
-
-    :id: 7ffa71db-8995-430a-bed8-59bce944221c
-    :setup: Standalone instance
-    :steps:
-        1. Create DS instance
-        2. Remove integerOrderingMatch matching rule from parentId index
-        3. Use healthcheck without --json option
-        4. Use healthcheck with --json option
-        5. Re-add the matching rule
-        6. Use healthcheck without --json option
-        7. Use healthcheck with --json option
-    :expectedresults:
-        1. Success
-        2. Success
-        3. healthcheck reports DSBLE0007 code and related details
-        4. healthcheck reports DSBLE0007 code and related details
-        5. Success
-        6. healthcheck reports no issues found
-        7. healthcheck reports no issues found
-    """
-
-    RET_CODE = "DSBLE0007"
-    PARENTID_DN = "cn=parentid,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
-
-    standalone = topology_st.standalone
-
-    log.info("Remove integerOrderingMatch matching rule from parentId index")
-    parentid_index = Index(standalone, PARENTID_DN)
-    parentid_index.remove("nsMatchingRule", "integerOrderingMatch")
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
-
-    log.info("Re-add the integerOrderingMatch matching rule")
-    parentid_index = Index(standalone, PARENTID_DN)
-    parentid_index.add("nsMatchingRule", "integerOrderingMatch")
+    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"], idlistscanlimit=['limit=5000 type=eq flags=AND'])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -444,7 +401,7 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
 
     log.info("Re-add the missing system indexes")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
+    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"], idlistscanlimit=['limit=5000 type=eq flags=AND'])
     backend.add_index("nsuniqueid", ["eq"])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)

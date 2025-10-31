@@ -657,9 +657,13 @@ class Backend(DSLdapObject):
         remediation_commands = []
         reindex_attrs = set()
 
+        skip_mr_scanlimit_validation = ['ancestorid', 'entryrdn', 'parentid']
+
         for attr_name, expected_config in expected_system_indexes.items():
+            skip_validation = attr_name.lower() in skip_mr_scanlimit_validation
+            is_pseudo_index = attr_name.lower() in ['ancestorid', 'entryrdn']
             try:
-                index = indexes.get(attr_name)
+                index = indexes.get(attr_name.lower())
                 # Check if index exists
                 if index is None:
                     discrepancies.append(f"Missing system index: {attr_name}")
@@ -691,33 +695,44 @@ class Backend(DSLdapObject):
                         remediation_commands.append(cmd)
                         reindex_attrs.add(attr_name)
 
-                    # Check matching rules
-                    expected_mr = expected_config['matching_rule']
-                    if expected_mr:
-                        actual_mrs_lower = [mr.lower() for mr in actual_mrs]
-                        if expected_mr.lower() not in actual_mrs_lower:
-                            discrepancies.append(f"Index {attr_name} missing matching rule: {expected_mr}")
-                            # Add the missing matching rule
-                            cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr}"
-                            remediation_commands.append(cmd)
-                            reindex_attrs.add(attr_name)
+                    if not skip_validation:
+                        expected_mr = expected_config['matching_rule']
+                        if expected_mr:
+                            actual_mrs_lower = [mr.lower() for mr in actual_mrs]
+                            if expected_mr.lower() not in actual_mrs_lower:
+                                discrepancies.append(f"Index {attr_name} missing matching rule: {expected_mr}")
+                                # Add the missing matching rule
+                                cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr}"
+                                remediation_commands.append(cmd)
+                                reindex_attrs.add(attr_name)
 
-                    # Check fine grain definitions for parentid ONLY
-                    expected_scanlimit = expected_config.get('scanlimit')
-                    if (attr_name.lower() == "parentid") and expected_scanlimit and (len(actual_scanlimit) == 0):
-                            discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_mr}")
-                            # Add the missing scanlimit
-                            if expected_mr:
-                                cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr} --add-scanlimit {expected_scanlimit}"
-                            else:
-                                cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-scanlimit {expected_scanlimit}"
-                            remediation_commands.append(cmd)
-                            reindex_attrs.add(attr_name)
+                        expected_scanlimit = expected_config.get('scanlimit')
+                        if expected_scanlimit and (len(actual_scanlimit) == 0):
+                                discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_mr}")
+                                # Add the missing scanlimit
+                                if expected_mr:
+                                    cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr} --add-scanlimit {expected_scanlimit}"
+                                else:
+                                    cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-scanlimit {expected_scanlimit}"
+                                remediation_commands.append(cmd)
+                                reindex_attrs.add(attr_name)
 
 
+            except ldap.NO_SUCH_OBJECT:
+                if not is_pseudo_index:
+                    discrepancies.append(f"Missing system index: {attr_name}")
+                    index_types = ' '.join([f"--add-type {t}" for t in expected_config['types']])
+                    cmd = f"dsconf YOUR_INSTANCE backend index add {bename} --attr {attr_name} {index_types}"
+                    if expected_config['matching_rule']:
+                        cmd += f" --add-mr {expected_config['matching_rule']}"
+                    if expected_config.get('scanlimit'):
+                        cmd += f" --add-scanlimit {expected_config.get('scanlimit')}"
+                    remediation_commands.append(cmd)
+                    reindex_attrs.add(attr_name)
             except Exception as e:
-                self._log.debug(f"_lint_system_indexes - Error checking index {attr_name}: {e}")
-                discrepancies.append(f"Unable to check index {attr_name}: {str(e)}")
+                if not skip_validation:
+                    self._log.debug(f"_lint_system_indexes - Error checking index {attr_name}: {e}")
+                    discrepancies.append(f"Unable to check index {attr_name}: {str(e)}")
 
         if discrepancies:
             report = copy.deepcopy(DSBLE0007)
@@ -995,7 +1010,7 @@ class Backend(DSLdapObject):
                 scanlimits.append(scanlimit)
             # Only add if there are actually limits in the list.
             if len(scanlimits) > 0:
-                props['nsIndexIDListScanLimit'] = mrs
+                props['nsIndexIDListScanLimit'] = scanlimits
 
         new_index.create(properties=props, basedn="cn=index," + self._dn)
 
