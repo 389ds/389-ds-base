@@ -1,11 +1,12 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import base64
 import logging
 import pytest
 import os
@@ -14,6 +15,7 @@ import re
 import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_st as topo
+from lib389.idm.group import Groups, Group
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.dirsrv_log import DirsrvAuditJSONLog
 
@@ -161,6 +163,62 @@ def test_audit_json_logging(topo, setup_test):
     assert re.match(
         r'[0-9]{4}\-[0-9]{2}\-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}',
         event['local_time'])
+
+
+def test_audit_json_logging_with_binary_value(topo, setup_test):
+    """Test audit json logging is working with binary values
+
+    :id: 79870a11-907d-490c-8d9d-3ca242902966
+    :setup: Standalone Instance
+    :steps:
+        1. Get audit log event
+        2. Check nsState attribute is present
+        3. Check modifiersname attribute is present
+        4. Check nsState value is base64 encoded
+        5. Check modifiersname value is not base64 encoded
+        6. Add large binary value is correctly encoded
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    inst = topo.standalone
+
+    event = get_log_event(inst, "cn=uniqueid generator,cn=config", "modify")
+    assert event['result'] == 0
+    assert event['modify'][0]['op'] == "replace"
+    assert event['modify'][0]['attr'] == "nsState"
+    assert event['modify'][1]['attr'] == "modifiersname"
+
+    # Decoding nsState should not raise an error
+    nsState_value = event['modify'][0]['values_encoded'][0]
+    assert base64.b64decode(nsState_value, validate=True)
+
+    # Decoding modifiersname should raise an error
+    modifersname_value = event['modify'][1]['values'][0]
+    with pytest.raises(base64.binascii.Error):
+        base64.b64decode(modifersname_value, validate=True)
+
+    # Add large binary value and mixed value
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group_properties = {
+        'cn': 'binary_group',
+        'description': 'testgroup for binary value',
+        'objectclass': ['nsValueItem', 'top', 'groupOfNames']}
+    test_group = groups.create(properties=group_properties)
+
+    # Add large binary value
+    bin_value_large = bytes([(i % 256) for i in range(2 * 512 * 512)])
+    test_group.add('nsValueBin', bin_value_large)
+    event = get_log_event(inst, test_group.dn, "modify")
+    assert event['result'] == 0
+    assert event['modify'][0]['op'] == "add"
+    assert event['modify'][0]['attr'] == "nsValueBin"
+    bin_value = event['modify'][0]['values_encoded'][0]
+    assert base64.b64decode(bin_value, validate=True)
 
 
 if __name__ == '__main__':

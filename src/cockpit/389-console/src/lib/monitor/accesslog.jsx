@@ -80,7 +80,7 @@ export class AccessLogMonitor extends React.Component {
         this.setState({
             accessReloading: true
         });
-        
+
         // Use different command when "no-limit" is selected
         let cmd;
         if (this.state.accessLines === "no-limit") {
@@ -88,7 +88,7 @@ export class AccessLogMonitor extends React.Component {
         } else {
             cmd = ["tail", "-" + this.state.accessLines, this.props.logLocation];
         }
-        
+
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -97,8 +97,8 @@ export class AccessLogMonitor extends React.Component {
                         accessReloading: false
                     }));
                 })
-                .fail(() => {
-                    // Notification of failure (could only be server down)
+                .fail((err_msg) => {
+                    cockpit.error(err_msg);
                     this.setState({
                         accessReloading: false,
                     });
@@ -173,7 +173,7 @@ export class AccessLogMonitor extends React.Component {
                 <TextContent>
                     <Text component={TextVariants.h3}>
                         {_("Access Log")}
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh access log")}
                             onClick={this.handleRefreshAccessLog}
