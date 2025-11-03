@@ -588,7 +588,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     #
     # Test online/offline LDIF imports
     #
-    topology_st.standalone.start()
+    topology_st.standalone.restart()
     # topology_st.standalone.config.set('nsslapd-errorlog-level', '1')
 
     # Generate a test ldif (50k entries)
@@ -685,6 +685,8 @@ def test_basic_backup(topology_st, import_example_ldif):
     """
 
     log.info('Running test_basic_backup...')
+
+    topology_st.standalone.restart()
 
     backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test_online'
     log.info(f'Backup directory is {backup_dir}')

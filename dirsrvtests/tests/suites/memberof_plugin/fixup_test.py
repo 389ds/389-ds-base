@@ -173,7 +173,10 @@ def test_fixup_task_limit(topology_st):
     group = groups.create(properties={'cn': 'test'})
 
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
-    for idx in range(400):
+    # Turn on access log buffering to speed up user creation
+    buffering = topology_st.standalone.config.get_attr_val_utf8('nsslapd-accesslog-logbuffering')
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+    for idx in range(6000):
         user = users.create(properties={
             'uid': 'testuser%s' % idx,
             'cn' : 'testuser%s' % idx,
@@ -183,6 +186,9 @@ def test_fixup_task_limit(topology_st):
             'homeDirectory' : '/home/testuser%s' % idx
         })
         group.add('member', user.dn)
+
+    # Restore access log buffering
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', buffering)
 
     # Configure memberOf plugin
     memberof = MemberOfPlugin(topology_st.standalone)
