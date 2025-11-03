@@ -1218,6 +1218,10 @@ def test_rid_starting_with_0(topo_m2, request):
     for replica,rid in zip(replicas, ['010', '020']):
         replica.replace('nsDS5ReplicaId', rid)
 
+    # Restart required - replica IDs are loaded at startup and cached in memory
+    S1.restart()
+    S2.restart()
+
     # Restore replica id in finalizer
     def fin():
         for replica,rid in zip(replicas, ['1', '2']):
