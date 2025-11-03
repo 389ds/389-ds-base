@@ -50,7 +50,7 @@ export class AuditLogMonitor extends React.Component {
         this.setState({
             auditReloading: true
         });
-        
+
         // Use different command when "no-limit" is selected
         let cmd;
         if (this.state.auditLines === "no-limit") {
@@ -58,7 +58,7 @@ export class AuditLogMonitor extends React.Component {
         } else {
             cmd = ["tail", "-" + this.state.auditLines, this.props.logLocation];
         }
-        
+
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -66,6 +66,10 @@ export class AuditLogMonitor extends React.Component {
                         auditlogData: content,
                         auditReloading: false
                     }));
+                })
+                .fail((err_msg) => {
+                    cockpit.error(err_msg);
+                    this.setState({ auditReloading: false });
                 });
     }
 
@@ -166,7 +170,7 @@ export class AuditLogMonitor extends React.Component {
                 <TextContent>
                     <Text component={TextVariants.h3}>
                         {_("Audit Log")}
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh audit log")}
                             onClick={this.handleRefreshAuditLog}
