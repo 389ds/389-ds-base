@@ -80,7 +80,7 @@ export class SecurityLogMonitor extends React.Component {
         this.setState({
             securityReloading: true
         });
-        
+
         // Use different command when "no-limit" is selected
         let cmd;
         if (this.state.securityLines === "no-limit") {
@@ -88,7 +88,7 @@ export class SecurityLogMonitor extends React.Component {
         } else {
             cmd = ["tail", "-" + this.state.securityLines, this.props.logLocation];
         }
-        
+
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -97,8 +97,8 @@ export class SecurityLogMonitor extends React.Component {
                         securityReloading: false
                     }));
                 })
-                .fail(() => {
-                    // Notification of failure (could only be server down)
+                .fail((err_msg) => {
+                    cockpit.error(err_msg);
                     this.setState({
                         securityReloading: false,
                     });
@@ -173,7 +173,7 @@ export class SecurityLogMonitor extends React.Component {
                 <TextContent>
                     <Text component={TextVariants.h3}>
                         {_("Security Log")}
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh security log")}
                             onClick={this.handleRefreshSecurityLog}
