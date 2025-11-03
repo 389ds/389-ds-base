@@ -83,7 +83,7 @@ export class ErrorLogMonitor extends React.Component {
         } else {
             cmd = ["tail", "-" + this.state.errorLines, this.props.logLocation];
         }
-        
+
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(data => {
@@ -118,6 +118,10 @@ export class ErrorLogMonitor extends React.Component {
                         errorlogData: data,
                         errorReloading: false
                     }));
+                })
+                .fail((err_msg) => {
+                    cockpit.error(err_msg);
+                    this.setState({ errorReloading: false });
                 });
     }
 
@@ -254,7 +258,7 @@ export class ErrorLogMonitor extends React.Component {
                 <TextContent>
                     <Text component={TextVariants.h3}>
                         {_("Errors Log")}
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh error log")}
                             onClick={this.handleRefreshErrorLog}

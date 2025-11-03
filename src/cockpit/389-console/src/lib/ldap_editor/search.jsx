@@ -1082,6 +1082,7 @@ export class SearchDatabase extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
+                                <hr />
                             </div>
                         </div>
                     </ExpandableSection>
@@ -1095,7 +1096,7 @@ export class SearchDatabase extends React.Component {
                         </TextContent>
                         <Spinner className="ds-margin-top-lg" size="xl" />
                     </div>
-                    <div className={searching ? "ds-hidden" : ""}>
+                    <div className={searching ? "ds-hidden" : "ds-margin-top"}>
                         <center>
                             <p><b>{_("Results:")}</b> {total}</p>
                         </center>
