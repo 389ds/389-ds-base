@@ -12,6 +12,7 @@
 #endif
 
 #include "slap.h"
+#include <plbase64.h>
 
 /*
  * JCM - The audit log might be better implemented as a post-op plugin.
@@ -607,17 +608,44 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
                 json_object_object_add(mod, "attr", json_object_new_string(mods[j]->mod_type));
 
                 if (operationtype != LDAP_MOD_IGNORE) {
-                    json_object *val_list = NULL;
-                    val_list = json_object_new_array();
+                    json_object *val_list = json_object_new_array();
+                    json_object *val_encoded_list = json_object_new_array();
                     for (size_t i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++) {
                         if (is_password_attr) {
                             /* Mask password values */
                             json_object_array_add(val_list, json_object_new_string("**********************"));
                         } else {
-                            json_object_array_add(val_list, json_object_new_string(mods[j]->mod_bvalues[i]->bv_val));
+                            if (ldif_is_not_printable(mods[j]->mod_bvalues[i]->bv_val,
+                                                      mods[j]->mod_bvalues[i]->bv_len) != 0)
+                            {
+                                /* Need to base64 encode this value */
+                                char *buf = PL_Base64Encode(mods[j]->mod_bvalues[i]->bv_val,
+                                                            mods[j]->mod_bvalues[i]->bv_len,
+                                                            NULL);
+                                if (buf) {
+                                    json_object_array_add(val_encoded_list, json_object_new_string(buf));
+                                    slapi_ch_free_string(&buf);
+                                } else {
+                                    json_object_array_add(val_list, json_object_new_string("[VALUE IS NOT PRINTABLE]"));
+                                }
+                            } else {
+                                /* Value is printable, so we can log it as is */
+                                json_object_array_add(val_list, json_object_new_string(mods[j]->mod_bvalues[i]->bv_val));
+                            }
                         }
                     }
-                    json_object_object_add(mod, "values", val_list);
+                    if (json_object_array_length(val_list) > 0) {
+                        json_object_object_add(mod, "values", val_list);
+                    } else {
+                        /* Free the val_list object if it is empty */
+                        json_object_put(val_list);
+                    }
+                    if (json_object_array_length(val_encoded_list) > 0) {
+                        json_object_object_add(mod, "values_encoded", val_encoded_list);
+                    } else {
+                        /* Free the val_encoded_list object if it is empty */
+                        json_object_put(val_encoded_list);
+                    }
                 }
                 json_object_array_add(mod_list, mod);
             }
