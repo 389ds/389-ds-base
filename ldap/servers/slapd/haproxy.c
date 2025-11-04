@@ -20,7 +20,8 @@
 #include "slap.h"
 
 /* Function to parse IPv4 addresses in version 2 */
-static int haproxy_parse_v2_addr_v4(uint32_t in_addr, unsigned in_port, PRNetAddr *pr_netaddr)
+static int
+haproxy_parse_v2_addr_v4(uint32_t in_addr, unsigned in_port, PRNetAddr *pr_netaddr)
 {
     char addr[INET_ADDRSTRLEN];
 
@@ -46,7 +47,8 @@ static int haproxy_parse_v2_addr_v4(uint32_t in_addr, unsigned in_port, PRNetAdd
 
 
 /* Function to parse IPv6 addresses in version 2 */
-static int haproxy_parse_v2_addr_v6(uint8_t *in6_addr, unsigned in6_port, PRNetAddr *pr_netaddr)
+static int
+haproxy_parse_v2_addr_v6(uint8_t *in6_addr, unsigned in6_port, PRNetAddr *pr_netaddr)
 {
     struct sockaddr_in6 sin6;
     char addr[INET6_ADDRSTRLEN];
@@ -76,7 +78,8 @@ static int haproxy_parse_v2_addr_v6(uint8_t *in6_addr, unsigned in6_port, PRNetA
 
 
 /* Function to parse the header in version 2 */
-int haproxy_parse_v2_hdr(const char *str, size_t *str_len, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
+int
+haproxy_parse_v2_hdr(const char *str, size_t *str_len, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
 {
     struct proxy_hdr_v2 *hdr_v2 = (struct proxy_hdr_v2 *) str;
     uint16_t hdr_v2_len = 0;
@@ -172,7 +175,8 @@ done:
 
 
 /* Function to parse the protocol in version 1 */
-static int haproxy_parse_v1_protocol(const char *str, const char *protocol)
+static int
+haproxy_parse_v1_protocol(const char *str, const char *protocol)
 {
     slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_v1_protocol", "HAProxy protocol - %s\n", str ? str : "(null)");
     if ((str != 0) && (strcasecmp(str, protocol) == 0)) {
@@ -184,7 +188,8 @@ static int haproxy_parse_v1_protocol(const char *str, const char *protocol)
 
 
 /* Function to parse the family (i.e., IPv4 or IPv6) in version 1 */
-static int haproxy_parse_v1_fam(const char *str, int *addr_family)
+static int
+haproxy_parse_v1_fam(const char *str, int *addr_family)
 {
     slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_fam", "Address family - %s\n", str ? str : "(null)");
     if (str == 0) {
@@ -206,7 +211,8 @@ static int haproxy_parse_v1_fam(const char *str, int *addr_family)
 
 
 /* Function to parse addresses in version 1 */
-static int haproxy_parse_v1_addr(const char *str, PRNetAddr *pr_netaddr, int addr_family)
+static int
+haproxy_parse_v1_addr(const char *str, PRNetAddr *pr_netaddr, int addr_family)
 {
     char addrbuf[256];
 
@@ -244,7 +250,8 @@ static int haproxy_parse_v1_addr(const char *str, PRNetAddr *pr_netaddr, int add
 
 
 /* Function to parse port numbers in version 1 */
-static int haproxy_parse_v1_port(const char *str, PRNetAddr *pr_netaddr)
+static int
+haproxy_parse_v1_port(const char *str, PRNetAddr *pr_netaddr)
 {
     char *endptr;
     long port;
@@ -275,7 +282,8 @@ static inline char *get_next_token(char **copied) {
 
 
 /* Function to parse the header in version 1 */
-int haproxy_parse_v1_hdr(const char *str, size_t *str_len, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
+int
+haproxy_parse_v1_hdr(const char *str, size_t *str_len, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
 {
     PRNetAddr parsed_addr_from = {{0}};
     PRNetAddr parsed_addr_dest = {{0}};
@@ -349,7 +357,8 @@ done:
  *
  * @return: Returns 0 on successful operation, -1 on error.
  */
-int haproxy_receive(int fd, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
+int
+haproxy_receive(int fd, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
 {
     /* Buffer to store the header received from the HAProxy server */
     char hdr[HAPROXY_HEADER_MAX_LEN + 1] = {0};
@@ -460,10 +469,10 @@ haproxy_ipv6_in_subnet(const struct in6_addr *ip, const struct in6_addr *subnet,
 {
     const uint32_t *ip_u32 = (const uint32_t *)ip->s6_addr;
     const uint32_t *subnet_u32 = (const uint32_t *)subnet->s6_addr;
-    int full_u32_words;
+    size_t full_u32_words;
+    size_t last_word_idx;
     int remaining_bits;
     uint32_t mask32;
-    int last_word_idx;
 
     /* Handle exact match case - compare as four 32-bit integers with early exit */
     if (prefix_len == 128) {
@@ -492,7 +501,7 @@ haproxy_ipv6_in_subnet(const struct in6_addr *ip, const struct in6_addr *subnet,
     remaining_bits = prefix_len & 31;  /* prefix_len % 32 - bits in partial word */
 
     /* Compare full 32-bit words with early exit on mismatch */
-    for (int i = 0; i < full_u32_words; i++) {
+    for (size_t i = 0; i < full_u32_words; i++) {
         if (ip_u32[i] != subnet_u32[i]) {
             return 0;
         }

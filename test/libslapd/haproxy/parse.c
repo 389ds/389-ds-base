@@ -204,7 +204,7 @@ void test_libslapd_haproxy_v2_invalid(void **state) {
          0}
         };
 
-    for (int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+    for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         int proxy_connection;
         PRNetAddr pr_netaddr_from;
         PRNetAddr pr_netaddr_dest;
@@ -680,7 +680,7 @@ void test_haproxy_ipv4_mask_edge_cases(void **state) {
     for (int prefix = 0; prefix <= 32; prefix++) {
         PR_StringToNetAddr("10.255.255.255", &ip1);
         /* Should not crash or exhibit undefined behavior */
-        int result = haproxy_ipv4_in_subnet(ip1.inet.ip, network.inet.ip, prefix);
+        int result = haproxy_ipv4_in_subnet(ip1.inet.ip, network.inet.ip, (int)prefix);
         /* For /8, 10.255.255.255 should match 10.0.0.0 */
         if (prefix <= 8) {
             assert_int_equal(result, 1);

@@ -223,7 +223,7 @@ g_set_haproxy_trusted_ip(struct berval **ipaddress)
                      "CRITICAL: Failed to parse trusted IPs into binary format. "
                      "This should have been caught during validation.\n");
         /* Free the temporary array and return without updating config */
-        for (int i = 0; haproxy_trusted_ip[i] != NULL; i++) {
+        for (size_t i = 0; haproxy_trusted_ip[i] != NULL; i++) {
             ber_bvfree(haproxy_trusted_ip[i]);
         }
         slapi_ch_free((void **)&haproxy_trusted_ip);

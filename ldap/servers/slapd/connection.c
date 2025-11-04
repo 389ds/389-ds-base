@@ -1366,9 +1366,9 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                             /* Parsed entries should always be available after config load.
                              * If they're not, this indicates a configuration initialization failure. */
                             slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
-                                         "HAProxy trusted IPs not properly initialized - disconnecting connection\n");
+                                          "HAProxy trusted IPs not properly initialized - disconnecting connection\n");
                             disconnect_server_nomutex(conn, conn->c_connid, -1,
-                                                     SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
+                                                      SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
                             ret = CONN_DONE;
                             goto done;
                         }
