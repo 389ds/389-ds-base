@@ -171,7 +171,8 @@ def test_missing_parentid(topology_st, log_buffering_enabled):
 
     log.info("Re-add the parentId index")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
+    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"],
+                      idlistscanlimit=['limit=5000 type=eq flags=AND'])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -259,7 +260,8 @@ def test_usn_plugin_missing_entryusn(topology_st, usn_plugin_enabled, log_buffer
 
     log.info("Re-add the entryusn index")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("entryusn", ["eq"], matching_rules=["integerOrderingMatch"])
+    backend.add_index("entryusn", ["eq"], matching_rules=["integerOrderingMatch"],
+                      idlistscanlimit=['limit=5000 type=eq flags=AND'])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -443,7 +445,8 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
 
     log.info("Re-add the missing system indexes")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
+    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"],
+                      idlistscanlimit=['limit=5000 type=eq flags=AND'])
     backend.add_index("nsuniqueid", ["eq"])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
