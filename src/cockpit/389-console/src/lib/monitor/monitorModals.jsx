@@ -1248,6 +1248,17 @@ class ScatterLineChart extends React.Component {
             }
         }
 
+        // Helper function to format time values
+        const formatTimeValue = (seconds) => {
+            if (seconds >= 3600) {
+                return `${(seconds / 3600).toFixed(3)}h`;
+            } else if (seconds >= 60) {
+                return `${(seconds / 60).toFixed(3)}m`;
+            } else {
+                return `${seconds.toFixed(3)}s`;
+            }
+        };
+
         // Process tooltip HTML tags
         const formatTooltip = (datum) => {
             if (datum.childName && datum.childName.includes('line-')) {
@@ -1256,7 +1267,7 @@ class ScatterLineChart extends React.Component {
                     // Split the hoverInfo by <br> tags and join with newlines
                     return datum.hoverInfo.split(/<br\s*\/?>/i).join('\n');
                 }
-                return `${datum.name}: ${datum.y.toFixed(3)}s`;
+                return `${datum.name}: ${formatTimeValue(datum.y)}`;
             }
             return null;
         };
@@ -1293,8 +1304,8 @@ class ScatterLineChart extends React.Component {
                         maxDomain={{ y: calculatedMaxY }}
                         minDomain={{ y: calculatedMinY }}
                         padding={{
-                            bottom: 100,
-                            left: 80,
+                            bottom: 75,
+                            left: 90,
                             right: 50,
                             top: 50
                         }}
@@ -1338,11 +1349,25 @@ class ScatterLineChart extends React.Component {
                             dependentAxis
                             showGrid
                             label={yAxisLabel || "Value"}
-                            tickFormat={(t) => `${t.toFixed(2)}s`}
+                            tickFormat={(t) => {
+                                // Format large values as hours/minutes for better readability
+                                if (t >= 3600) {
+                                    // Show as hours
+                                    const hours = (t / 3600).toFixed(1);
+                                    return `${hours}h`;
+                                } else if (t >= 60) {
+                                    // Show as minutes
+                                    const minutes = (t / 60).toFixed(1);
+                                    return `${minutes}m`;
+                                } else {
+                                    // Show as seconds
+                                    return `${t.toFixed(1)}s`;
+                                }
+                            }}
                             style={{
                                 axisLabel: {
                                     fontSize: 14,
-                                    padding: 55,
+                                    padding: 70,
                                     fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
                                 },
                                 tickLabels: {
@@ -1397,7 +1422,7 @@ class ScatterLineChart extends React.Component {
                         </ChartGroup>
                     </Chart>
                 </div>
-                <div className="ds-margin-top-sm" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
                     <Button
                         variant="link"
                         isSmall
@@ -1409,7 +1434,7 @@ class ScatterLineChart extends React.Component {
                     </Button>
                 </div>
                 {this.state.showLegend && (
-                    <div className="ds-margin-top-sm">
+                    <div style={{ marginTop: '4px' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--pf-v5-global--spacer--md)' }}>
                             {series.map((s, idx) => (
                                 <button
@@ -1852,9 +1877,9 @@ class LagReportModal extends React.Component {
                             <div className="ds-margin-top">
                                 <Button
                                     variant="secondary"
+                                    icon={<DownloadIcon />}
                                     onClick={() => this.downloadFile(reportUrls.summary, "replication_analysis_summary.json")}
                                 >
-                                    <DownloadIcon className="ds-right-margin-sm" />
                                     {_("Download Summary JSON")}
                                 </Button>
                             </div>
@@ -1909,9 +1934,9 @@ class LagReportModal extends React.Component {
                     </EmptyStateBody>
                     <Button
                         variant="secondary"
+                        icon={<DownloadIcon />}
                         onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
                     >
-                        <DownloadIcon className="ds-right-margin-sm" />
                         {_("Download JSON Data")}
                     </Button>
                 </EmptyState>
@@ -1956,9 +1981,9 @@ class LagReportModal extends React.Component {
                                 <div className="ds-margin-top">
                                     <Button
                                         variant="secondary"
+                                        icon={<DownloadIcon />}
                                         onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
                                     >
-                                        <DownloadIcon className="ds-right-margin-sm" />
                                         {_("Download JSON Data")}
                                     </Button>
                                 </div>
@@ -2005,9 +2030,9 @@ class LagReportModal extends React.Component {
                     </EmptyStateBody>
                     <Button
                         variant="primary"
+                        icon={<DownloadIcon />}
                         onClick={() => this.downloadFile(reportUrls.png, "replication_analysis.png")}
                     >
-                        <DownloadIcon className="ds-right-margin-sm" />
                         {_("Download PNG")}
                     </Button>
                 </EmptyState>
@@ -2038,9 +2063,9 @@ class LagReportModal extends React.Component {
                                 <div className="ds-margin-top ds-text-center">
                                     <Button
                                         variant="primary"
+                                        icon={<DownloadIcon />}
                                         onClick={() => this.downloadFile(reportUrls.png, "replication_analysis.png")}
                                     >
-                                        <DownloadIcon className="ds-right-margin-sm" />
                                         {_("Download PNG")}
                                     </Button>
                                 </div>
@@ -2103,9 +2128,9 @@ class LagReportModal extends React.Component {
                                 <div className="ds-margin-top ds-text-center">
                                     <Button
                                         variant="primary"
+                                        icon={<DownloadIcon />}
                                         onClick={() => this.downloadFile(reportUrls.csv, "replication_analysis.csv")}
                                     >
-                                        <DownloadIcon className="ds-right-margin-sm" />
                                         {_("Download CSV")}
                                     </Button>
                                 </div>
@@ -2370,8 +2395,19 @@ class ChooseLagReportModal extends React.Component {
 
                 const promises = directories.map(dir => {
                     // Check which report files exist in this directory
-                    return cockpit.spawn(["ls", "-la", dir], { superuser: true, err: "ignore" })
-                        .then(files => {
+                    return cockpit.spawn(["ls", "-1A", dir], { superuser: true, err: "ignore" })
+                        .then(output => {
+                            const files = output.trim().split('\n').filter(f => f);
+
+                            // List of valid report file names
+                            const validReportFiles = [
+                                'replication_analysis.json',
+                                'replication_analysis_summary.json',
+                                'replication_analysis.html',
+                                'replication_analysis.csv',
+                                'replication_analysis.png'
+                            ];
+
                             // Check if this directory contains any report files
                             const hasJson = files.includes('replication_analysis.json');
                             const hasHtml = files.includes('replication_analysis.html');
@@ -2381,6 +2417,13 @@ class ChooseLagReportModal extends React.Component {
 
                             // Skip directories that don't have any report files
                             if (!hasJson && !hasHtml && !hasCsv && !hasPng && !hasSummary) {
+                                return null;
+                            }
+
+                            // Validate that all files in the directory are expected report files
+                            const hasUnexpectedFiles = files.some(file => !validReportFiles.includes(file));
+                            if (hasUnexpectedFiles) {
+                                console.warn(`Directory ${dir} contains unexpected files, skipping:`, files);
                                 return null;
                             }
 
@@ -2515,7 +2558,7 @@ class ChooseLagReportModal extends React.Component {
             <>
                 <Modal
                     variant="large"
-                    title={_("Choose Existing Report")}
+                    title={_("View Existing Report")}
                     isOpen={showing}
                     onClose={onClose}
                     actions={[
@@ -2546,6 +2589,7 @@ class ChooseLagReportModal extends React.Component {
                                     <ExistingLagReportsTable
                                         reports={reports}
                                         onSelectReport={this.handleSelectReport}
+                                        addNotification={this.props.addNotification}
                                     />
                                 )}
                             </CardBody>
@@ -2714,13 +2758,15 @@ LagReportModal.defaultProps = {
 ChooseLagReportModal.propTypes = {
     showing: PropTypes.bool,
     onClose: PropTypes.func,
-    reportDirectory: PropTypes.string
+    reportDirectory: PropTypes.string,
+    addNotification: PropTypes.func
 };
 
 ChooseLagReportModal.defaultProps = {
     showing: false,
     onClose: () => {},
-    reportDirectory: '/tmp'
+    reportDirectory: '/tmp',
+    addNotification: () => {}
 };
 
 export {

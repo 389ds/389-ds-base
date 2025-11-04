@@ -597,6 +597,18 @@ def generate_lag_report(inst, basedn, log, args):
 
         repl_analyzer.parse_logs()
 
+        # Check if we have any data after parsing and filtering
+        if not repl_analyzer.csns:
+            error_msg = "No replication data found matching the specified criteria."
+            if args.lag_time_lowest is not None or args.etime_lowest is not None:
+                error_msg += "\n  - The threshold filters (lag time or etime) may be too restrictive."
+            if args.only_fully_replicated or args.only_not_replicated:
+                error_msg += "\n  - The replication status filter may have excluded all entries."
+            if time_range:
+                error_msg += "\n  - The time range may not contain any replication events."
+            error_msg += "\nTry adjusting the filters or expanding the time range."
+            raise ValueError(error_msg)
+
         # Generate reports
         if not json_output_only:
             log.info("Generating analysis reports...")
