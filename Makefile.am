@@ -1106,6 +1106,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/dn.c \
 	ldap/servers/slapd/dse.c \
 	ldap/servers/slapd/dynalib.c \
+	ldap/servers/slapd/dyncerts.c \
 	ldap/servers/slapd/entry.c \
 	ldap/servers/slapd/entrywsi.c \
 	ldap/servers/slapd/errormap.c \
