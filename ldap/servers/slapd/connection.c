@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1332,36 +1332,45 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 
                     /* If bval is NULL and we don't have an error - we still want the proper log and update */
                     if ((haproxy_rc == HAPROXY_HEADER_PARSED) && (proxy_connection)) {
-                        /* Normalize IP addresses */
+                        /* Normalize IP addresses for logging */
                         normalize_IPv4(conn->cin_addr, buf_ip, sizeof(buf_ip), str_ip, sizeof(str_ip));
                         normalize_IPv4(&pr_netaddr_dest, buf_haproxy_destip, sizeof(buf_haproxy_destip),
                                        str_haproxy_destip, sizeof(str_haproxy_destip));
-                        size_t ip_len = strlen(buf_ip);
-                        size_t destip_len = strlen(buf_haproxy_destip);
 
-                        /* Now, reset RC and set it to 0 only if a match is found */
+                        /* Initialize match result - will be set to 0 if both IPs match */
                         haproxy_rc = -1;
 
                         /*
-                         * We need to allow a configuration where DS instance and HAProxy are on the same machine.
-                         * In this case, we need to check if
-                         * the HAProxy client IP (which will be a loopback address) matches one of the the trusted IP addresses,
-                         * while still checking that
-                         * the HAProxy header destination IP address matches one of the trusted IP addresses.
-                         * Additionally, this change will also allow configuration having
-                         * HAProxy listening on a different subnet than one used to forward the request.
+                         * Validate connection against trusted IPs/subnets.
+                         *
+                         * Both the HAProxy client IP and the destination IP from the HAProxy header
+                         * must match one of the configured trusted IP addresses or subnets.
+                         * This allows configurations where DS instance and HAProxy are on the same machine.
+                         *
+                         * Uses parsed binary entries for efficient matching during connection handling.
                          */
-                        for (size_t i = 0; bvals[i] != NULL; ++i) {
-                            size_t bval_len = strlen(bvals[i]->bv_val);
+                        haproxy_trusted_entry_t *parsed_entries = NULL;
+                        size_t parsed_count = 0;
 
-                            /* Check if the Client IP (HAProxy's machine IP) address matches the trusted IP address */
-                            if (!trusted_matches_ip_found) {
-                                trusted_matches_ip_found = (bval_len == ip_len) && (strncasecmp(bvals[i]->bv_val, buf_ip, ip_len) == 0);
-                            }
-                            /* Check if the HAProxy header destination IP address matches the trusted IP address */
-                            if (!trusted_matches_destip_found) {
-                                trusted_matches_destip_found = (bval_len == destip_len) && (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, destip_len) == 0);
-                            }
+                        parsed_entries = g_get_haproxy_trusted_ip_parsed(&parsed_count);
+
+                        if (parsed_entries && parsed_count > 0) {
+                            /* Use parsed binary entries for matching */
+                            trusted_matches_ip_found = haproxy_ip_matches_parsed(conn->cin_addr,
+                                                                                 parsed_entries,
+                                                                                 parsed_count);
+                            trusted_matches_destip_found = haproxy_ip_matches_parsed(&pr_netaddr_dest,
+                                                                                     parsed_entries,
+                                                                                     parsed_count);
+                        } else {
+                            /* Parsed entries should always be available after config load.
+                             * If they're not, this indicates a configuration initialization failure. */
+                            slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
+                                          "HAProxy trusted IPs not properly initialized - disconnecting connection\n");
+                            disconnect_server_nomutex(conn, conn->c_connid, -1,
+                                                      SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
+                            ret = CONN_DONE;
+                            goto done;
                         }
 
                         if (trusted_matches_ip_found && trusted_matches_destip_found) {
@@ -1380,8 +1389,8 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         /* Replace cin_addr and cin_destaddr in the Connection struct with received addresses */
                         slapi_ch_free((void**)&conn->cin_addr);
                         slapi_ch_free((void**)&conn->cin_destaddr);
-                        conn->cin_addr = (PRNetAddr*)malloc(sizeof(PRNetAddr));
-                        conn->cin_destaddr = (PRNetAddr*)malloc(sizeof(PRNetAddr));
+                        conn->cin_addr = (PRNetAddr*)slapi_ch_malloc(sizeof(PRNetAddr));
+                        conn->cin_destaddr = (PRNetAddr*)slapi_ch_malloc(sizeof(PRNetAddr));
                         memcpy(conn->cin_addr, &pr_netaddr_from, sizeof(PRNetAddr));
                         memcpy(conn->cin_destaddr, &pr_netaddr_dest, sizeof(PRNetAddr));
                         conn->c_ipaddr = slapi_ch_strdup(str_haproxy_ip);
