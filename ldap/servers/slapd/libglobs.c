@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2045,6 +2045,10 @@ FrontendConfig_init(void)
     cfg->tcp_fin_timeout = SLAPD_DEFAULT_TCP_FIN_TIMEOUT;
     cfg->tcp_keepalive_time = SLAPD_DEFAULT_TCP_KEEPALIVE_TIME;
 
+    /* Initialize parsed HAProxy trusted IP entries */
+    cfg->haproxy_trusted_ip_parsed = NULL;
+    cfg->haproxy_trusted_ip_parsed_count = 0;
+
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
 
@@ -2848,26 +2852,236 @@ config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char 
     if (value && value[0] &&
         PL_strncasecmp((char *)value[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, value[0]->bv_len) != 0) {
         for (size_t i = 0; value[i] != NULL; i++) {
-            end = strspn(value[i]->bv_val, "0123456789:ABCDEFabcdef.*");
-            /*
-            * If no valid characters are found, or if there are characters after the valid ones,
-            * then print an error message and exit with LDAP_OPERATIONS_ERROR.
-            */
-            if (!end || value[i]->bv_val[end] != '\0') {
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "IP address contains invalid characters (%s), skipping\n",
-                                value[i]->bv_val);
+            char *slash_pos = strchr(value[i]->bv_val, '/');
+            char ip_part[MAX_CIDR_STRING_LEN];
+            int prefix_len = -1;
+
+            /* Validate total input length before processing */
+            if (value[i]->bv_len >= MAX_CIDR_STRING_LEN) {
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                      "IP address/subnet string too long (max %d bytes): %s\n",
+                                      MAX_CIDR_STRING_LEN, value[i]->bv_val);
                 return LDAP_OPERATIONS_ERROR;
             }
-            if (strstr(value[i]->bv_val, ":") == 0) {
-                /* IPv4 - make sure it's just numbers, dots, and wildcard */
-                end = strspn(value[i]->bv_val, "0123456789.*");
-                if (!end || value[i]->bv_val[end] != '\0') {
-                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "IPv4 address contains invalid characters (%s), skipping\n",
-                                    value[i]->bv_val);
+
+            /* Check for embedded null bytes */
+            if (strlen(value[i]->bv_val) != value[i]->bv_len) {
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                      "Null bytes not allowed in IP address/subnet (%s)\n",
+                                      value[i]->bv_val);
+                return LDAP_OPERATIONS_ERROR;
+            }
+
+            /* Reject leading or trailing whitespace - ambiguous and error-prone */
+            if (value[i]->bv_len > 0) {
+                const char *str = value[i]->bv_val;
+                if (isspace((unsigned char)str[0]) || isspace((unsigned char)str[value[i]->bv_len - 1])) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Leading or trailing whitespace not allowed in IP address/subnet (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+            }
+
+            /* Check for CIDR notation */
+            if (slash_pos != NULL) {
+                size_t ip_len = slash_pos - value[i]->bv_val;
+                if (ip_len >= sizeof(ip_part)) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "IP address part too long in CIDR notation (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Extract IP part */
+                memcpy(ip_part, value[i]->bv_val, ip_len);
+                ip_part[ip_len] = '\0';
+
+                /* Check for multiple slashes */
+                if (strchr(slash_pos + 1, '/') != NULL) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Multiple slashes not allowed in CIDR notation (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate the prefix part contains only digits */
+                const char *p = slash_pos + 1;
+                if (*p == '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Empty CIDR prefix length (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Reject leading zeros (e.g., "024", "007") - ambiguous and non-standard */
+                if (*p == '0' && *(p + 1) != '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Leading zeros not allowed in CIDR prefix (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                while (*p) {
+                    if (*p < '0' || *p > '9') {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "Invalid characters in CIDR prefix (must be numeric) (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                    p++;
+                }
+
+                /* Parse and validate prefix length */
+                char *endptr;
+                errno = 0;
+                long parsed_prefix = strtol(slash_pos + 1, &endptr, 10);
+                if (*endptr != '\0' || errno == ERANGE || parsed_prefix < 0) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Invalid CIDR prefix length in (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+                prefix_len = (int)parsed_prefix;
+
+                /* Validate prefix length based on IP type */
+                if (strstr(ip_part, ":") != NULL) {
+                    /* IPv6 */
+                    if (prefix_len > 128) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv6 CIDR prefix length must be 0-128 (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                } else {
+                    /* IPv4 */
+                    if (prefix_len > 32) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv4 CIDR prefix length must be 0-32 (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                }
+
+                /* Validate CIDR IP address */
+                int is_ipv6 = (strchr(ip_part, ':') != NULL);
+
+                /* Check for valid IP address characters based on protocol */
+                if (is_ipv6) {
+                    /* IPv6: hex digits, colons, dots */
+                    end = strspn(ip_part, "0123456789:ABCDEFabcdef.");
+                } else {
+                    /* IPv4: digits and dots */
+                    end = strspn(ip_part, "0123456789.");
+                }
+
+                if (!end || ip_part[end] != '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "CIDR IP address contains invalid characters (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate that the CIDR IP address is parseable */
+                /* For IPv4, ensure exactly 4 octets (3 dots) */
+                if (!is_ipv6) {
+                    int dot_count = 0;
+                    for (const char *p = ip_part; *p; p++) {
+                        if (*p == '.') dot_count++;
+                    }
+                    if (dot_count != 3) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv4 address in CIDR must have exactly 4 octets (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                }
+
+                PRNetAddr test_addr;
+                if (PR_StringToNetAddr(ip_part, &test_addr) != PR_SUCCESS) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Invalid IP address in CIDR notation (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+            } else {
+                /* Validate individual IP address */
+                PL_strncpyz(ip_part, value[i]->bv_val, sizeof(ip_part));
+
+                /* Determine IP protocol type */
+                int is_ipv6 = (strchr(ip_part, ':') != NULL);
+
+                /* Reject wildcards with helpful error message */
+                if (strchr(ip_part, '*') != NULL) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                         "Wildcard patterns are not supported (%s). "
+                                         "Use CIDR notation instead, for example:\n"
+                                         "  - For single IP: 192.168.1.50 (or 192.168.1.50/32)\n"
+                                         "  - For subnet: 192.168.1.0/24 (matches 192.168.1.0-255)\n"
+                                         "  - For IPv6: 2001:db8::/32\n",
+                                         value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate characters based on protocol type */
+                if (is_ipv6) {
+                    /* IPv6: hex digits, colons, dots */
+                    end = strspn(ip_part, "0123456789:ABCDEFabcdef.");
+                } else {
+                    /* IPv4: digits and dots */
+                    end = strspn(ip_part, "0123456789.");
+                }
+
+                if (!end || ip_part[end] != '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "IP address contains invalid characters (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate that the IP address is parseable */
+                /* For IPv4, ensure exactly 4 octets (3 dots) */
+                if (!is_ipv6) {
+                    int dot_count = 0;
+                    for (const char *p = ip_part; *p; p++) {
+                        if (*p == '.') dot_count++;
+                    }
+                    if (dot_count != 3) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv4 address must have exactly 4 octets (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                }
+
+                PRNetAddr test_addr;
+                if (PR_StringToNetAddr(ip_part, &test_addr) != PR_SUCCESS) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Invalid IP address format (%s)\n",
+                                          value[i]->bv_val);
                     return LDAP_OPERATIONS_ERROR;
                 }
             }
         }
+
+        /*
+         * Final validation: test that all values can be successfully parsed into binary format.
+         * This ensures the parsed entries will always be available at runtime
+         */
+        haproxy_trusted_entry_t *test_parsed = NULL;
+        size_t test_count = 0;
+        char parse_errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+
+        test_parsed = haproxy_parse_trusted_ips(value, &test_count, parse_errorbuf);
+        if (test_parsed == NULL && test_count == 0) {
+            /* Parsing failed - this should not happen if validation above is correct */
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "Failed to parse trusted IPs into binary format: %s\n",
+                                  parse_errorbuf[0] ? parse_errorbuf : "unknown error");
+            return LDAP_OPERATIONS_ERROR;
+        }
+        /* Free the test parsed entries - they'll be re-parsed during apply */
+        slapi_ch_free((void **)&test_parsed);
     }
 
     if (apply) {
