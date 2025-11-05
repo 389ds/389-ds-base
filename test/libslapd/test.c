@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * Copyright (C) 2019 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
@@ -33,10 +33,19 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_filter_optimise),
         cmocka_unit_test(test_libslapd_pal_meminfo),
         cmocka_unit_test(test_libslapd_util_cachesane),
+        /* HAProxy header parsing tests */
         cmocka_unit_test(test_libslapd_haproxy_v1),
         cmocka_unit_test(test_libslapd_haproxy_v2_valid),
         cmocka_unit_test(test_libslapd_haproxy_v2_valid_local),
         cmocka_unit_test(test_libslapd_haproxy_v2_invalid),
+        /* HAProxy IP validation and subnet matching tests */
+        cmocka_unit_test(test_haproxy_ipv4_subnet_matching),
+        cmocka_unit_test(test_haproxy_ipv6_subnet_matching),
+        cmocka_unit_test(test_haproxy_trusted_ip_parsing),
+        cmocka_unit_test(test_haproxy_parsing_edge_cases),
+        cmocka_unit_test(test_haproxy_netmask_precomputation),
+        cmocka_unit_test(test_haproxy_ip_matches_cidr),
+        cmocka_unit_test(test_haproxy_ipv4_mask_edge_cases),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
