@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,7 +19,10 @@ log = logging.getLogger(__name__)
 
 HAPROXY_IPS = {
     'single': '192.168.1.1',
-    'multiple': ['10.0.0.1', '172.16.0.1', '192.168.2.1']
+    'multiple': ['10.0.0.1', '172.16.0.1', '192.168.2.1'],
+    'subnet_ipv4': '192.168.1.0/24',
+    'subnet_ipv6': '2001:db8::/32',
+    'mixed': ['192.168.1.0/24', '10.0.0.1', '2001:db8::/64']
 }
 
 REFERRALS = {
@@ -342,6 +345,169 @@ def test_multi_value_batch_persists_after_restart(topology_st, attr_name, values
         output, _ = execute_dsconf_command(dsconf_cmd, ['config', 'get', attr_name])
         for value in values_dict['multiple']:
             assert value in output
+
+    finally:
+        execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+
+
+def test_haproxy_subnet_ipv4(topology_st):
+    """Test adding IPv4 subnet in CIDR notation to nsslapd-haproxy-trusted-ip
+
+    :id: 19456de2-06f6-4c6c-be00-b07f84ba1c18
+    :setup: Standalone DS instance
+    :steps:
+        1. Add an IPv4 subnet in CIDR notation
+        2. Verify the subnet was added correctly
+    :expectedresults:
+        1. Command should execute successfully
+        2. Subnet should be present in the configuration
+    """
+    dsconf_cmd = get_dsconf_base_cmd(topology_st)
+    attr_name = 'nsslapd-haproxy-trusted-ip'
+
+    try:
+        subnet = HAPROXY_IPS['subnet_ipv4']
+        test_attr = f"{attr_name}={subnet}"
+
+        # Add subnet
+        output, rc = execute_dsconf_command(dsconf_cmd, ['config', 'add', test_attr])
+        assert rc == 0
+
+        # Verify
+        output, _ = execute_dsconf_command(dsconf_cmd, ['config', 'get', attr_name])
+        assert subnet in output
+
+    finally:
+        execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+
+
+def test_haproxy_subnet_ipv6(topology_st):
+    """Test adding IPv6 subnet in CIDR notation to nsslapd-haproxy-trusted-ip
+
+    :id: b0b8b546-979c-47a2-bc9a-a4c664be8eba
+    :setup: Standalone DS instance
+    :steps:
+        1. Add an IPv6 subnet in CIDR notation
+        2. Verify the subnet was added correctly
+    :expectedresults:
+        1. Command should execute successfully
+        2. Subnet should be present in the configuration
+    """
+    dsconf_cmd = get_dsconf_base_cmd(topology_st)
+    attr_name = 'nsslapd-haproxy-trusted-ip'
+
+    try:
+        subnet = HAPROXY_IPS['subnet_ipv6']
+        test_attr = f"{attr_name}={subnet}"
+
+        # Add subnet
+        output, rc = execute_dsconf_command(dsconf_cmd, ['config', 'add', test_attr])
+        assert rc == 0
+
+        # Verify
+        output, _ = execute_dsconf_command(dsconf_cmd, ['config', 'get', attr_name])
+        assert subnet in output
+
+    finally:
+        execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+
+
+def test_haproxy_mixed_ips_and_subnets(topology_st):
+    """Test adding mixed individual IPs and subnets to nsslapd-haproxy-trusted-ip
+
+    :id: d4f70db4-8f32-4771-95c2-32e6c83838df
+    :setup: Standalone DS instance
+    :steps:
+        1. Add multiple values including both individual IPs and subnets
+        2. Verify all values were added correctly
+    :expectedresults:
+        1. Batch add command should execute successfully
+        2. All values should be present in the configuration
+    """
+    dsconf_cmd = get_dsconf_base_cmd(topology_st)
+    attr_name = 'nsslapd-haproxy-trusted-ip'
+
+    try:
+        # Add mixed values
+        attr_values = [f"{attr_name}={val}" for val in HAPROXY_IPS['mixed']]
+        output, rc = execute_dsconf_command(dsconf_cmd, ['config', 'add'] + attr_values)
+        assert rc == 0
+
+        # Verify all values
+        output, _ = execute_dsconf_command(dsconf_cmd, ['config', 'get', attr_name])
+        for value in HAPROXY_IPS['mixed']:
+            assert value in output
+
+    finally:
+        execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+
+
+def test_haproxy_invalid_cidr_prefix(topology_st):
+    """Test that invalid CIDR prefix lengths are rejected
+
+    :id: cfcc9fcc-70e8-49a7-82ac-dcf5e1a0cca3
+    :setup: Standalone DS instance
+    :steps:
+        1. Try to add an IPv4 address with invalid prefix length (>32)
+        2. Try to add an IPv6 address with invalid prefix length (>128)
+    :expectedresults:
+        1. IPv4 command should fail
+        2. IPv6 command should fail
+    """
+    dsconf_cmd = get_dsconf_base_cmd(topology_st)
+    attr_name = 'nsslapd-haproxy-trusted-ip'
+
+    try:
+        # Test invalid IPv4 prefix
+        invalid_ipv4 = f"{attr_name}=192.168.1.0/33"
+        output, rc = execute_dsconf_command(dsconf_cmd, ['config', 'add', invalid_ipv4])
+        assert rc != 0  # Should fail
+
+        # Test invalid IPv6 prefix
+        invalid_ipv6 = f"{attr_name}=2001:db8::/129"
+        output, rc = execute_dsconf_command(dsconf_cmd, ['config', 'add', invalid_ipv6])
+        assert rc != 0  # Should fail
+
+    finally:
+        execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+
+
+def test_haproxy_subnet_persists_after_restart(topology_st):
+    """Test subnet configuration persists after server restart
+
+    :id: 7ea0d55c-5345-465e-a33b-46f2e41a90cf
+    :setup: Standalone DS instance
+    :steps:
+        1. Add subnet in CIDR notation
+        2. Verify the subnet is present
+        3. Restart the server
+        4. Verify the subnet persists after restart
+    :expectedresults:
+        1. Subnet should be added successfully
+        2. Subnet should be present before restart
+        3. Server should restart successfully
+        4. Subnet should still be present after restart
+    """
+    dsconf_cmd = get_dsconf_base_cmd(topology_st)
+    attr_name = 'nsslapd-haproxy-trusted-ip'
+
+    try:
+        # Add subnet
+        subnet = HAPROXY_IPS['subnet_ipv4']
+        output, rc = execute_dsconf_command(dsconf_cmd,
+                                          ['config', 'add', f"{attr_name}={subnet}"])
+        assert rc == 0
+
+        # Verify before restart
+        output, _ = execute_dsconf_command(dsconf_cmd, ['config', 'get', attr_name])
+        assert subnet in output
+
+        # Restart the server
+        topology_st.standalone.restart(timeout=10)
+
+        # Verify after restart
+        output, _ = execute_dsconf_command(dsconf_cmd, ['config', 'get', attr_name])
+        assert subnet in output
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
