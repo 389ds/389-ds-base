@@ -2498,7 +2498,9 @@ typedef struct _slapdFrontendConfig
     char *encryptionalias;
     char *errorlog;
     char *listenhost;
-    struct berval **haproxy_trusted_ip;
+    struct berval **haproxy_trusted_ip;                 /* LDAP config format (for dse.ldif/queries) */
+    haproxy_trusted_entry_t *haproxy_trusted_ip_parsed; /* Parsed binary format (for connection matching) */
+    size_t haproxy_trusted_ip_parsed_count;             /* Number of parsed entries */
     int snmp_index;
     char *localuser;
     char *localhost;

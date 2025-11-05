@@ -185,6 +185,59 @@ export function isValidIpAddress (ipAddress) {
     return result !== null;
 }
 
+export function isValidIpAddressOrCIDR (ipAddressOrCIDR) {
+    if (typeof ipAddressOrCIDR !== 'string') {
+        return false;
+    }
+
+    // Check if this is CIDR notation
+    if (ipAddressOrCIDR.includes('/')) {
+        const parts = ipAddressOrCIDR.split('/');
+        if (parts.length !== 2) {
+            return false;
+        }
+
+        const ipPart = parts[0];
+        const prefixPart = parts[1];
+
+        // For CIDR notation, don't allow wildcards - use stricter validation
+        // IPv4 CIDR regex (no wildcards)
+        const regexIPv4CIDR = /^(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/;
+        // IPv6 CIDR regex (same as regular IPv6, no wildcards)
+        const regexIPv6CIDR = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+
+        // Validate the IP part (stricter - no wildcards for CIDR)
+        let ipValid = false;
+        if (ipPart.includes(':')) {
+            ipValid = regexIPv6CIDR.test(ipPart);
+        } else {
+            ipValid = regexIPv4CIDR.test(ipPart);
+        }
+
+        if (!ipValid) {
+            return false;
+        }
+
+        // Validate the prefix length
+        const prefix = parseInt(prefixPart, 10);
+        if (isNaN(prefix)) {
+            return false;
+        }
+
+        // Check prefix length based on IP type
+        if (ipPart.includes(':')) {
+            // IPv6: prefix must be 0-128
+            return prefix >= 0 && prefix <= 128;
+        } else {
+            // IPv4: prefix must be 0-32
+            return prefix >= 0 && prefix <= 32;
+        }
+    }
+
+    // Not CIDR notation - validate as regular IP (allows wildcards)
+    return isValidIpAddress(ipAddressOrCIDR);
+}
+
 export function isValidHostname (hostname) {
     if (typeof hostname !== 'string') {
         return false;
