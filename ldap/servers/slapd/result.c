@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -174,11 +174,19 @@ delete_haproxy_trusted_ip(struct berval **ipaddress)
     }
 }
 
+/*
+ * Set the haproxy trusted IP list.
+ *
+ * NOTE: This function must be called with CFG_LOCK_WRITE held by the caller.
+ * It directly modifies slapdFrontendConfig fields without acquiring locks.
+ */
 void
 g_set_haproxy_trusted_ip(struct berval **ipaddress)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     struct berval **haproxy_trusted_ip = NULL;
+    haproxy_trusted_entry_t *parsed_entries = NULL;
+    size_t parsed_count = 0;
     int nTrustedIPs = 0;
 
     /* check to see if we want to delete all values */
@@ -186,6 +194,10 @@ g_set_haproxy_trusted_ip(struct berval **ipaddress)
         PL_strncasecmp((char *)ipaddress[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, ipaddress[0]->bv_len) == 0) {
         delete_haproxy_trusted_ip(slapdFrontendConfig->haproxy_trusted_ip);
         slapdFrontendConfig->haproxy_trusted_ip = NULL;
+
+        /* Free parsed binary entries */
+        slapi_ch_free((void **)&slapdFrontendConfig->haproxy_trusted_ip_parsed);
+        slapdFrontendConfig->haproxy_trusted_ip_parsed_count = 0;
         return;
     }
 
@@ -204,15 +216,72 @@ g_set_haproxy_trusted_ip(struct berval **ipaddress)
         nTrustedIPs--;
     }
 
+    /* Parse IP addresses into binary format for runtime matching */
+    parsed_entries = haproxy_parse_trusted_ips(ipaddress, &parsed_count, NULL);
+
+    /*
+     * Parsing must succeed. If it fails, this indicates validation in config_set_haproxy_trusted_ip
+     * didn't catch an issue, or there's a logic error. This should never happen in production.
+     */
+    if (parsed_entries == NULL && parsed_count == 0 && ipaddress && ipaddress[0]) {
+        slapi_log_err(SLAPI_LOG_ERR, "g_set_haproxy_trusted_ip",
+                     "CRITICAL: Failed to parse trusted IPs into binary format. "
+                     "This should have been caught during validation.\n");
+        /* Free the temporary array and return without updating config */
+        for (size_t i = 0; haproxy_trusted_ip[i] != NULL; i++) {
+            ber_bvfree(haproxy_trusted_ip[i]);
+        }
+        slapi_ch_free((void **)&haproxy_trusted_ip);
+        return;
+    }
+
+    /* Free old parsed entries */
+    slapi_ch_free((void **)&slapdFrontendConfig->haproxy_trusted_ip_parsed);
+
+    /* Update configuration with new values */
     delete_haproxy_trusted_ip(slapdFrontendConfig->haproxy_trusted_ip);
     slapdFrontendConfig->haproxy_trusted_ip = haproxy_trusted_ip;
+    slapdFrontendConfig->haproxy_trusted_ip_parsed = parsed_entries;
+    slapdFrontendConfig->haproxy_trusted_ip_parsed_count = parsed_count;
 }
 
 struct berval **
 g_get_haproxy_trusted_ip()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapdFrontendConfig->haproxy_trusted_ip;
+    struct berval **retVal = NULL;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->haproxy_trusted_ip;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+/**
+ * Get parsed trusted IP entries in binary format.
+ *
+ * Returns the array of trusted IP entries that have been parsed from string
+ * format into binary network addresses and netmasks. These entries are used
+ * for efficient IP matching during connection validation.
+ *
+ * @param count_out: Optional output parameter for the number of entries
+ * @return: Array of parsed entries, or NULL if none configured
+ */
+haproxy_trusted_entry_t *
+g_get_haproxy_trusted_ip_parsed(size_t *count_out)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    haproxy_trusted_entry_t *retVal = NULL;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    if (count_out) {
+        *count_out = slapdFrontendConfig->haproxy_trusted_ip_parsed_count;
+    }
+    retVal = slapdFrontendConfig->haproxy_trusted_ip_parsed;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 /*

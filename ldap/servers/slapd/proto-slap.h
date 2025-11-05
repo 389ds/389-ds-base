@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021-2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1068,6 +1068,7 @@ void g_set_default_referral(struct berval **ldap_url);
 struct berval **g_get_default_referral(void);
 void g_set_haproxy_trusted_ip(struct berval **ipaddress);
 struct berval **g_get_haproxy_trusted_ip(void);
+haproxy_trusted_entry_t *g_get_haproxy_trusted_ip_parsed(size_t *count_out);
 void disconnect_server(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error);
 int send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly);
 void send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls);

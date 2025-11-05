@@ -45,6 +45,12 @@
  */
 #define HAPROXY_HEADER_MAX_LEN 536
 
+/* Maximum length for CIDR notation string:
+ * IPv6 max: 39 chars (full expansion) + "/128" (4 chars) + null terminator = 44
+ * We use 64 for safety margin and alignment
+ */
+#define MAX_CIDR_STRING_LEN 64
+
 /* Define struct for the proxy header */
 struct proxy_hdr_v2 {
     uint8_t sig[PP2_SIGNATURE_LEN];	/* PP2_SIGNATURE */
@@ -74,3 +80,23 @@ struct proxy_hdr_v2 {
 int haproxy_parse_v1_hdr(const char *str, size_t *str_len, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest);
 int haproxy_parse_v2_hdr(const char *str, size_t *str_len, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest);
 int haproxy_receive(int fd, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest);
+
+/* Parsed trusted IP entry with binary network address and netmask */
+typedef struct {
+    PRNetAddr network;      /* Network address in binary format */
+    PRNetAddr netmask;      /* Netmask in binary format (for CIDR subnets) */
+    int prefix_len;         /* CIDR prefix length (or -1 for non-CIDR) */
+    int is_subnet;          /* 1 if CIDR notation, 0 if single IP */
+    char original[MAX_CIDR_STRING_LEN];     /* Original string for logging */
+} haproxy_trusted_entry_t;
+
+/* CIDR/subnet matching functions - for testing purposes only */
+int haproxy_ip_matches_cidr(const char *ip_str, const char *cidr_str);
+int haproxy_ipv4_in_subnet(uint32_t ip, uint32_t subnet, int prefix_len);
+int haproxy_ipv6_in_subnet(const struct in6_addr *ip, const struct in6_addr *subnet, int prefix_len);
+
+/* Binary IP matching using parsed entries */
+int haproxy_ip_matches_parsed(const PRNetAddr *ip_addr, const haproxy_trusted_entry_t *entries, size_t entry_count);
+
+/* Parse trusted IPs from string to binary format */
+haproxy_trusted_entry_t *haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *errorbuf);
