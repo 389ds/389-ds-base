@@ -358,7 +358,8 @@ class AttributesTable extends React.Component {
                 1: this.state.rows[idx].cells[0].content,
                 2: this.state.rows[idx].cells[1].content,
                 3: this.state.rows[idx].cells[2].content,
-                not_user_defined: this.state.rows[idx].disableActions
+                not_user_defined: this.state.rows[idx].disableActions,
+                originalData: this.state.rows[idx].originalData
             });
         }
 
@@ -375,7 +376,8 @@ class AttributesTable extends React.Component {
                     { content: srow[2] },
                     { content: srow[3] }
                 ],
-                disableActions: srow.not_user_defined
+                disableActions: srow.not_user_defined,
+                originalData: srow.originalData
             });
             srow.expandedRow.parent = count;
             rows.push(srow.expandedRow);
