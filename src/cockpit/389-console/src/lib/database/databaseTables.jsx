@@ -1215,6 +1215,7 @@ class VLVTable extends React.Component {
                             id={row.attrs.cn[0]}
                             icon={<TrashAltIcon />}
                             variant="link"
+                            size="sm"
                         >
                             {_("Delete")}
                         </Button>
@@ -1251,13 +1252,14 @@ class VLVTable extends React.Component {
                 </div>
                 <GridItem className="ds-label" span={1}>
                     <Button
-                        className="ds-margin-top"
+                        className="ds-indent ds-margin-bottom"
                         onClick={() => {
                             this.props.addSortFunc(row.attrs.cn[0]);
                         }}
-                        variant="primary"
+                        variant="secondary"
+                        size="sm"
                     >
-                        {_("Create Sort Index")}
+                        {_("Add Sort Index")}
                     </Button>
                 </GridItem>
             </Grid>
