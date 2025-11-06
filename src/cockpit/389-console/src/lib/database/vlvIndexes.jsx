@@ -526,6 +526,7 @@ class AddVLVIndexModal extends React.Component {
     onTypeaheadChange(e, selection) {
         this.setState({
             sortValue: Array.isArray(selection) ? selection : [],
+            isVLVSortOpen: false,
         });
     }
 
@@ -535,6 +536,7 @@ class AddVLVIndexModal extends React.Component {
             handleChange,
             attrs,
             saving,
+            saveHandler,
         } = this.props;
         let saveBtnName = _("Create Sort Index");
         const extraPrimaryProps = {};
@@ -556,7 +558,7 @@ class AddVLVIndexModal extends React.Component {
                         key="confirm"
                         variant="primary"
                         onClick={() => {
-                            this.props.handleSave(this.state.sortValue);
+                            saveHandler(this.state.sortValue);
                         }}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? _("Saving") : undefined}
@@ -575,19 +577,20 @@ class AddVLVIndexModal extends React.Component {
                         <GridItem className="ds-label" span={12}>
                             {_("Build a list of attributes to form the \"Sort\" index")}
                         </GridItem>
-                        <TypeaheadSelect
-                            selected={this.state.sortValue}
-                            onSelect={this.onTypeaheadChange}
-                            onClear={this.handleVLVSortClear}
-                            options={attrs}
-                            isOpen={this.state.isVLVSortOpen}
-                            onToggle={this.handleVLVSortToggle}
-                            placeholder={_("Type an attribute name ...")}
-                            noResultsText={_("There are no matching entries")}
-                            ariaLabel={_("Type an attribute names to create a sort index")}
-                            isMulti={true}
-                            className="ds-margin-top-lg"
-                        />
+                        <GridItem className="ds-margin-top" span={12}>
+                            <TypeaheadSelect
+                                selected={this.state.sortValue}
+                                onSelect={this.onTypeaheadChange}
+                                onClear={this.handleVLVSortClear}
+                                options={attrs}
+                                isOpen={this.state.isVLVSortOpen}
+                                onToggle={this.handleVLVSortToggle}
+                                placeholder={_("Type an attribute name ...")}
+                                noResultsText={_("There are no matching entries")}
+                                ariaLabel={_("Type an attribute names to create a sort index")}
+                                isMulti={true}
+                            />
+                        </GridItem>
                         <GridItem className="ds-margin-top-xlg" span={12}>
                             <Checkbox
                                 id="reindexVLV"
