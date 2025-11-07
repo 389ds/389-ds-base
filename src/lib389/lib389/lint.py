@@ -307,6 +307,25 @@ from the large group can be slow.
 """
 }
 
+DSMOLE0003 = {
+    'dsle': 'DSMOLE0003',
+    'severity': 'MEDIUM',
+    'description': 'Global backend lock is disabled while memberOf monitors all backends',
+    'items': ['cn=memberof plugin,cn=plugins,cn=config',],
+    'detail': """The memberOf plugin is configured to monitor all backends and the
+global backend lock is disabled, this may lead to potential deadlocks
+during cross backend updates. The server will log a warning, but no
+automatic fix is applied.""",
+    'fix': """To prevent potential deadlocks, enable the global backend lock:
+
+    # dsconf slapd-YOUR_INSTANCE config replace ATTR=on
+
+Alternatively, if monitoring all backends is not required, you can disable it:
+
+    # dsconf slapd-YOUR_INSTANCE plugin memberof set --allbackends off
+"""
+}
+
 # Disk Space check.  Note - PARTITION is replaced by the calling function
 DSDSLE0001 = {
     'dsle': 'DSDSLE0001',
