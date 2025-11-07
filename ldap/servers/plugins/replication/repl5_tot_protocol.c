@@ -45,6 +45,7 @@ typedef struct callback_data
     unsigned long num_entries;
     time_t sleep_on_busy;
     time_t last_busy;
+    uint32_t nb_busy_retries;
     pthread_mutex_t lock;                    /* Lock to protect access to this structure, the message id list and to force memory barriers */
     PRThread *result_tid;                    /* The async result thread */
     operation_id_list_item *message_id_list; /* List of IDs for outstanding operations */
@@ -60,6 +61,8 @@ typedef struct callback_data
  * that the replica has got out of BUSY state
  */
 #define SLEEP_ON_BUSY_WINDOW (10)
+
+#define MAXRETRIES_UPON_BUSY_CONSUMER 5
 
 /* Helper functions */
 static void get_result(int rc, void *cb_data);
@@ -482,6 +485,7 @@ retry:
         cb_data.rc = 0;
         cb_data.num_entries = 1UL;
         cb_data.sleep_on_busy = 0UL;
+        cb_data.nb_busy_retries = 0;
         cb_data.last_busy = slapi_current_rel_time_t();
         cb_data.flowcontrol_detection = 0;
         pthread_mutex_init(&(cb_data.lock), NULL);
@@ -541,6 +545,7 @@ retry:
         cb_data.rc = 0;
         cb_data.num_entries = 0UL;
         cb_data.sleep_on_busy = 0UL;
+        cb_data.nb_busy_retries = 0;
         cb_data.last_busy = slapi_current_rel_time_t();
         cb_data.flowcontrol_detection = 0;
         pthread_mutex_init(&(cb_data.lock), NULL);
@@ -808,6 +813,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
     struct berval *bv;
     unsigned long *num_entriesp;
     time_t *sleep_on_busyp;
+    uint32_t *nb_busy_retriesp;
     time_t *last_busyp;
     int message_id = 0;
     int retval = 0;
@@ -817,6 +823,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
 
     prp = ((callback_data *)cb_data)->prp;
     num_entriesp = &((callback_data *)cb_data)->num_entries;
+    nb_busy_retriesp = &((callback_data *)cb_data)->nb_busy_retries;
     sleep_on_busyp = &((callback_data *)cb_data)->sleep_on_busy;
     last_busyp = &((callback_data *)cb_data)->last_busy;
     PR_ASSERT(prp);
@@ -879,7 +886,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
         rc = conn_send_extended_operation(prp->conn, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID,
                                           bv /* payload */, NULL /* update_control */, &message_id);
 
-        if (message_id) {
+        if (message_id > 0) {
             ((callback_data *)cb_data)->last_message_id_sent = message_id;
         }
 
@@ -887,8 +894,15 @@ send_entry(Slapi_Entry *e, void *cb_data)
          * response. Reason is that it can return LDAP_BUSY, indicating that its queue has
          * filled up. This completely breaks pipelineing, and so we need to fall back to
          * sync transmission for those consumers, in case they pull the LDAP_BUSY stunt on us :( */
-
-        if (prp->repl50consumer) {
+        if (rc == CONN_OPERATION_FAILED) {
+            int optype, ldaprc;
+            conn_get_error(prp->conn, &optype, &ldaprc);
+            if (ldaprc == LDAP_BUSY) {
+                /* we receive a busy while sending extop */
+                rc = CONN_BUSY;
+            }
+        }
+        if ((rc != CONN_BUSY) && (prp->repl50consumer)) {
             /* Get the response here */
             rc = repl5_tot_get_next_result((callback_data *)cb_data);
         }
@@ -907,11 +921,21 @@ send_entry(Slapi_Entry *e, void *cb_data)
                           " it finishes processing its current import queue\n",
                           agmt_get_long_name(prp->agmt), *sleep_on_busyp);
             DS_Sleep(PR_SecondsToInterval(*sleep_on_busyp));
+            *nb_busy_retriesp += 1;
+        } else {
+            /* The max retries is related to consecutive CONN_BUSY */
+            *nb_busy_retriesp = 0;
         }
-    } while (rc == CONN_BUSY);
+    } while ((rc == CONN_BUSY) && (*nb_busy_retriesp < MAXRETRIES_UPON_BUSY_CONSUMER));
 
     ber_bvfree(bv);
-    (*num_entriesp)++;
+    if (*nb_busy_retriesp >= MAXRETRIES_UPON_BUSY_CONSUMER) {
+        slapi_log_error(SLAPI_LOG_WARNING, "repl5_tot_protocol",
+                        "Maximum busy retries (%d) on send_entry for agreement %s\n",
+                        MAXRETRIES_UPON_BUSY_CONSUMER, agmt_get_long_name(prp->agmt));
+    } else {
+        (*num_entriesp)++;
+    }
 
     /* if the connection has been closed, we need to stop
        sending entries and set a special rc value to let
