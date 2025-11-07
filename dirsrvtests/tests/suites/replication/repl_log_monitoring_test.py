@@ -124,6 +124,7 @@ def test_replication_log_monitoring_basic(topo_m4):
     tmp_dir = tempfile.mkdtemp(prefix='repl_analysis_')
     test_users = []
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
 
     try:
         # Clear logs and restart servers
@@ -136,10 +137,7 @@ def test_replication_log_monitoring_basic(topo_m4):
 
         # Wait for replication
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        for s1 in suppliers:
-            for s2 in suppliers:
-                if s1 != s2:
-                    repl.wait_for_replication(s1, s2)
+        repl.test_replication_topology(topo_m4)
 
         # Restart to flush logs
         for supplier in suppliers:
@@ -237,10 +235,7 @@ def test_replication_log_monitoring_advanced(topo_m4):
 
         # Wait for replication
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        for s1 in suppliers:
-            for s2 in suppliers:
-                if s1 != s2:
-                    repl.wait_for_replication(s1, s2)
+        repl.test_replication_topology(topo_m4)
 
         end_time = datetime.now(timezone.utc)
 
@@ -378,6 +373,13 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
                     repl.ensure_agreement(s1, s2)
                     repl.ensure_agreement(s2, s1)
 
+        # Allow initial topology to settle before capturing metrics
+        for suffix in all_suffixes:
+            repl = ReplicationManager(suffix)
+            repl.test_replication_topology(topo_m4)
+
+        start_time = datetime.now(timezone.utc)
+
         # Generate different amounts of test data per suffix
         test_users_by_suffix[DEFAULT_SUFFIX] = _generate_test_data(
             suppliers[0], DEFAULT_SUFFIX, 10
@@ -389,13 +391,14 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
             suppliers[0], SUFFIX_3, 15, user_prefix="test3_user"
         )
 
-        # Wait for replication
+        # Wait for replication of generated data
         for suffix in all_suffixes:
             repl = ReplicationManager(suffix)
-            for s1 in suppliers:
-                for s2 in suppliers:
-                    if s1 != s2:
-                        repl.wait_for_replication(s1, s2)
+            repl.test_replication_topology(topo_m4)
+
+        # Give replication a moment to flush to logs before grabbing the end time
+        time.sleep(1)
+        end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
         for supplier in suppliers:
@@ -405,7 +408,8 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
         log_dirs = [s.ds_paths.log_dir for s in suppliers]
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
-            suffixes=all_suffixes
+            suffixes=all_suffixes,
+            time_range={'start': start_time, 'end': end_time}
         )
 
         repl_monitor.parse_logs()
@@ -459,6 +463,7 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
     tmp_dir = tempfile.mkdtemp(prefix='repl_filter_test_')
     test_users = []
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
 
     try:
         # Clear logs and restart servers
@@ -470,20 +475,31 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
         test_users = _generate_test_data(suppliers[0], DEFAULT_SUFFIX, 30)
 
         # Create different lag patterns
+        # Pause outbound agreements from supplier1 to build a replication backlog
+        for agmt in suppliers[0].agreement.list(suffix=DEFAULT_SUFFIX):
+            suppliers[0].agreement.pause(agmt.dn)
+            paused_agreements.append((suppliers[0], agmt.dn))
+
         for i, user in enumerate(test_users):
             if i % 3 == 0:
-                time.sleep(0.5)  # Short lag
+                time.sleep(1.0)  # Short lag
             elif i % 3 == 1:
-                time.sleep(1.5)  # Medium lag
+                time.sleep(2.0)  # Medium lag
             user.replace('description', f'Modified with lag pattern {i}')
+
+        time.sleep(3)
+
+        # Resume agreements one at a time to create staggered lag
+        for idx, (supplier_obj, dn) in enumerate(paused_agreements):
+            supplier_obj.agreement.resume(dn)
+            if idx < len(paused_agreements) - 1:
+                time.sleep(0.5)
+
+        paused_agreements.clear()
 
         # Wait for replication
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        for s1 in suppliers:
-            for s2 in suppliers:
-                if s1 != s2:
-                    repl.wait_for_replication(s1, s2)
-
+        repl.test_replication_topology(topo_m4)
         end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
@@ -494,7 +510,7 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
 
         # Test combined filters
         lag_threshold = 0.5
-        etime_threshold = 0.01
+        etime_threshold = 0.001
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
             suffixes=[DEFAULT_SUFFIX],
@@ -528,6 +544,11 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
                 dt = datetime.fromtimestamp(t, timezone.utc)
                 assert start_time <= dt <= end_time, "Time range filter violated"
     finally:
+        for supplier_obj, dn in paused_agreements:
+            try:
+                supplier_obj.agreement.resume(dn)
+            except Exception as e:
+                log.warning(f"Failed to resume agreement {dn}: {e}")
         _cleanup_test_data(test_users, tmp_dir)
 
 
