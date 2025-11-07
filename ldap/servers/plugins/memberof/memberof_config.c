@@ -17,6 +17,7 @@
 #include "plhash.h"
 #include <plstr.h>
 #include "memberof.h"
+#include "slap.h"
 
 #define MEMBEROF_CONFIG_FILTER "(objectclass=*)"
 #define MEMBEROF_HASHTABLE_SIZE 1000
@@ -195,6 +196,7 @@ memberof_validate_config(Slapi_PBlock *pb,
     char *config_dn = NULL;
     const char *skip_nested = NULL;
     const char *auto_add_oc = NULL;
+    const char *all_backends = NULL;
     char **entry_scopes = NULL;
     char **entry_exclude_scopes = NULL;
     int not_dn_syntax = 0;
@@ -426,6 +428,47 @@ memberof_validate_config(Slapi_PBlock *pb,
                 x++;
             }
             i++;
+        }
+    }
+
+    /*
+     * If the memberof plugin is configured to monitor all backends, verify
+     * that the global backend lock is enabled. If it is not, log a warning
+     * since this config may lead to deadlocks during cross backend updates.
+     */
+    all_backends = slapi_entry_attr_get_ref(e, MEMBEROF_BACKEND_ATTR);
+    if (all_backends && (strcasecmp(all_backends, "on") == 0)) {
+        const char *config_base = "cn=config";
+        const char *filter = "(objectclass=*)";
+        char *attrs[] = { CONFIG_GLOBAL_BACKEND_LOCK, NULL };
+        Slapi_PBlock *pb = NULL;
+        Slapi_Entry **entries = NULL;
+        char *global_lock = NULL;
+
+        pb = slapi_pblock_new();
+        if (pb) {
+            slapi_search_internal_set_pb(pb, config_base, LDAP_SCOPE_BASE, filter,
+                                        attrs, 0, NULL, NULL,
+                                        memberof_get_plugin_id(), 0);
+
+            if (slapi_search_internal_pb(pb) == LDAP_SUCCESS) {
+                slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+                if (entries && entries[0]) {
+                    global_lock = slapi_entry_attr_get_charptr(entries[0], CONFIG_GLOBAL_BACKEND_LOCK);
+                }
+            }
+            if (global_lock && strcasecmp(global_lock, "off") == 0) {
+                slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "Warning: %s is set to \"off\" while %s is \"on\". "
+                              "This configuration may lead to potential deadlocks during "
+                              "cross backend updates. It is recommended to enable %s.\n",
+                              CONFIG_GLOBAL_BACKEND_LOCK, MEMBEROF_BACKEND_ATTR,
+                              CONFIG_GLOBAL_BACKEND_LOCK);
+           }
+
+            slapi_free_search_results_internal(pb);
+            slapi_pblock_destroy(pb);
+            slapi_ch_free_string(&global_lock);
         }
     }
 
