@@ -324,6 +324,66 @@ def test_healthcheck_MO_plugin_substring_index(topology_st):
     standalone.restart()
 
 
+def test_healthcheck_MO_plugin_global_lock(topology_st):
+    """Verify HealthCheck returns DSMOLE0003 when memberOfAllBackends=on
+    and nsslapd-global-backend-lock=off
+
+    :id: 2a93f824-4bb7-4958-adcb-4e8ba17bfcc0
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Configure the instance with MO Plugin
+        3. Set memberOfAllBackends and nsslapd-global-backend-lock to off
+        4. Use HealthCheck without --json option
+        5. Use HealthCheck with --json option
+        6. Set memberOfAllBackends to on and nsslapd-global-backend-lock to off
+        7. Use HealthCheck without --json option
+        8. Use HealthCheck with --json option
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Healthcheck reports no issue found
+        5. Healthcheck reports no issue found
+        6. Success
+        7. Healthcheck reports DSMOLE0003 code and related details
+        8. Healthcheck reports DSMOLE0003 code and related details
+    """
+
+    RET_CODE = 'DSMOLE0003'
+
+    standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
+
+    log.info('Enable MO plugin')
+    plugin = MemberOfPlugin(standalone)
+    plugin.disable()
+    plugin.enable()
+
+    log.info('Verify no return code')
+    standalone.config.set('nsslapd-global-backend-lock', "off")
+    plugin.replace('memberOfAllBackends', 'off')
+    standalone.restart()
+    assert plugin.get_attr_val_utf8('memberOfAllBackends') == "off"
+    assert standalone.config.get_attr_val_utf8('nsslapd-global-backend-lock') == 'off'
+
+    run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+    run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+
+    log.info('Verify return code')
+    plugin.replace('memberOfAllBackends', 'on')
+    standalone.restart()
+    assert plugin.get_attr_val_utf8('memberOfAllBackends') == "on"
+    assert standalone.config.get_attr_val_utf8('nsslapd-global-backend-lock') == 'off'
+
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+
+    # Restart the instance after changing the plugin to avoid breaking the other tests
+    standalone.restart()
+
+
 @pytest.mark.ds50873
 @pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
