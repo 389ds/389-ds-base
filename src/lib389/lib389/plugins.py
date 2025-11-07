@@ -678,6 +678,107 @@ class ReferentialIntegrityConfig(DSLdapObject):
         self._exit_code = None
 
 
+class DynamicListsPlugin(Plugin):
+    """A collection of Dynamic Lists config entries
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN
+    :type basedn: str
+    """
+
+    _plugin_properties = {
+        'cn' : 'dynamic lists',
+        'nsslapd-pluginEnabled': 'off',
+        'nsslapd-pluginPath': 'libdynamic-lists-plugin',
+        'nsslapd-pluginInitfunc': 'dynamic_lists_init',
+        'nsslapd-pluginType': 'preoperation',
+        'nsslapd-pluginprecedence': '40',
+        'nsslapd-plugin-depends-on-type': 'database',
+        'nsslapd-pluginId' : 'dynamic-lists',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.0.0.0',
+        'nsslapd-pluginDescription' : 'dynamic lists plugin',
+    }
+
+    def __init__(self, instance, dn="cn=Dynamic Lists,cn=plugins,cn=config"):
+        super(DynamicListsPlugin, self).__init__(instance, dn)
+        self._create_objectclasses = ['top', 'nsSlapdPlugin', 'extensibleObject']
+        self._must_attributes = ['cn',
+                                 'dynamicListObjectclass',
+                                 'dynamicListUrlAttr',
+                                 'dynamicListAttr']
+        self._protected = False
+        self._exit_code = None
+
+    def get_dynamiclistobjectclass(self):
+        """Get dynamicListObjectclass attribute"""
+
+        return self.get_attr_val_utf8_l('dynamicListObjectclass')
+
+    def set_dynamiclistobjectclass(self, attr):
+        """Set dynamicListObjectclass attribute"""
+
+        return self.set('dynamicListObjectclass', attr)
+
+    def get_dynamiclisturlattr(self):
+        """Get dynamicListUrlAttr attribute"""
+
+        return self.get_attr_val_utf8_l('dynamicListUrlAttr')
+
+    def set_dynamiclisturlattr(self, attr):
+        """Set dynamicListUrlAttr attribute"""
+
+        return self.set('dynamicListUrlAttr', attr)
+
+    def get_dynamiclistattr(self):
+        """Get dynamicListAttr attribute"""
+
+        return self.get_attr_val_utf8_l('dynamicListAttr')
+
+    def set_dynamiclistattr(self, attr):
+        """Set dynamicListAttr attribute"""
+
+        return self.set('dynamicListAttr', attr)
+
+    def get_configarea(self):
+        """Get nsslapd-pluginConfigArea attribute"""
+
+        return self.get_attr_val_utf8_l('nsslapd-pluginConfigArea')
+
+    def set_configarea(self, attr):
+        """Set nsslapd-pluginConfigArea attribute"""
+
+        return self.set('nsslapd-pluginConfigArea', attr)
+
+    def remove_configarea(self):
+        """Remove all nsslapd-pluginConfigArea attributes"""
+
+        return self.remove_all('nsslapd-pluginConfigArea')
+
+
+class DynamicListsConfig(DSLdapObject):
+    """An instance of Dynamic Lists config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn):
+        super(DynamicListsConfig, self).__init__(instance, dn)
+        self._dn = dn
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn',
+                                 'dynamicListObjectclass',
+                                 'dynamicListUrlAttr',
+                                 'dynamicListAttr']
+        self._create_objectclasses = ['top', 'extensibleObject']
+        self._protected = False
+        self._exit_code = None
+
+
 class SyntaxValidationPlugin(Plugin):
     """An instance of Syntax Validation Task plugin entry
 

@@ -365,7 +365,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libattr-unique-plugin.la \
 	libautomember-plugin.la $(DB_IMPL) libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
-	libpbe-plugin.la libdistrib-plugin.la \
+	libdynamic-lists-plugin.la libpbe-plugin.la libdistrib-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libcontentsync-plugin.la \
@@ -444,6 +444,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/plugins/collation/orfilter.h \
 	ldap/servers/plugins/chainingdb/cb.h \
 	ldap/servers/plugins/deref/deref.h \
+	ldap/servers/plugins/dynamic_lists/dynamic_lists.h \
 	ldap/servers/plugins/acctpolicy/acctpolicy.h \
 	ldap/servers/plugins/posix-winsync/posix-wsp-ident.h \
 	ldap/servers/plugins/posix-winsync/posix-group-func.h \
@@ -1521,6 +1522,17 @@ libderef_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_DEPENDENCIES = libslapd.la
 libderef_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libdynamic-lists-plugin
+#-----------------------
+libdynamic_lists_plugin_la_SOURCES = ldap/servers/plugins/dynamic_lists/dynamic_lists.c \
+    ldap/servers/plugins/dynamic_lists/dynamic_lists_config.c
+
+libdynamic_lists_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+libdynamic_lists_plugin_la_LIBADD = libslapd.la
+libdynamic_lists_plugin_la_DEPENDENCIES = libslapd.la
+libdynamic_lists_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libentryuuid-syntax-plugin

@@ -26,6 +26,7 @@ import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
 import AttributeUniqueness from "./lib/plugins/attributeUniqueness.jsx";
 import AutoMembership from "./lib/plugins/autoMembership.jsx";
 import DNAPlugin from "./lib/plugins/dna.jsx";
+import DynamicLists from "./lib/plugins/dynamicLists.jsx";
 import LinkedAttributes from "./lib/plugins/linkedAttributes.jsx";
 import ManagedEntries from "./lib/plugins/managedEntries.jsx";
 import MemberOf from "./lib/plugins/memberOf.jsx";
@@ -74,8 +75,8 @@ export class Plugins extends React.Component {
             rows: [],
             pluginTableKey: 0,
             attributes: [],
-            objectclasses: [],
-
+            objectClasses: [],
+            attributesFullData: [],
             // Plugin attributes
             currentPluginName: "",
             currentPluginType: "",
@@ -148,6 +149,7 @@ export class Plugins extends React.Component {
                                 this.setState({
                                     objectClasses: ocs,
                                     attributes: attrs,
+                                    attributesFullData: attrContent.items
                                 });
                             })
                             .fail(err => {
@@ -493,6 +495,24 @@ export class Plugins extends React.Component {
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
                         attributes={this.state.attributes}
+                        key={this.props.wasActiveList}
+                    />
+                )
+            },
+            dynamicLists: {
+                name: "Dynamic Lists",
+                icon: this.getIconAndName("Dynamic Lists", "Dynamic Lists"),
+                component: (
+                    <DynamicLists
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.props.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributesFullData}
+                        objectClasses={this.state.objectClasses}
                         key={this.props.wasActiveList}
                     />
                 )

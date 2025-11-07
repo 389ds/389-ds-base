@@ -22,6 +22,7 @@ from lib389.cli_conf.plugins import referint as cli_referint
 from lib389.cli_conf.plugins import accountpolicy as cli_accountpolicy
 from lib389.cli_conf.plugins import attruniq as cli_attruniq
 from lib389.cli_conf.plugins import dna as cli_dna
+from lib389.cli_conf.plugins import dynamic_lists as cli_dynamic_lists
 from lib389.cli_conf.plugins import linkedattr as cli_linkedattr
 from lib389.cli_conf.plugins import managedentries as cli_managedentries
 from lib389.cli_conf.plugins import pampassthrough as cli_pampassthrough
@@ -122,6 +123,7 @@ def create_parser(subparsers):
     cli_contentsync.create_parser(subcommands)
     cli_entryuuid.create_parser(subcommands)
     cli_pwstorage.create_parser(subcommands)
+    cli_dynamic_lists.create_parser(subcommands)
 
     list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins", formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=plugin_list)

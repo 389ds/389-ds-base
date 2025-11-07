@@ -1315,3 +1315,18 @@ nsslapd-pluginDescription: alias entries plugin [base search only]
 nsslapd-pluginVendor: anilech
 nsslapd-pluginVersion: 0.1
 nsslapd-pluginId: alias-entries
+
+dn: cn=Dynamic Lists,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Dynamic Lists
+nsslapd-pluginpath: libdynamic-lists-plugin
+nsslapd-plugininitfunc: dynamic_lists_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: off
+nsslapd-pluginDescription: dynamic lists plugin
+nsslapd-pluginId: dynamic-lists
+dynamicListObjectclass: groupOfUrls
+dynamicListUrlAttr: memberUrl
+dynamicListAttr: member

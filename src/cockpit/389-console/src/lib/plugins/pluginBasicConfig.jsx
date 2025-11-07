@@ -176,7 +176,9 @@ class PluginBasicConfig extends React.Component {
 
     updateSwitch() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
+            const pluginRow = this.props.rows.find(row =>
+                row.cn[0].toLowerCase() === this.props.cn.toLowerCase());
+
             if (pluginRow) {
                 let pluginEnabled = false;
                 if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
