@@ -512,6 +512,33 @@ upgrade_pam_pta_default_config(void)
     return UPGRADE_SUCCESS;
 }
 
+static upgrade_status
+upgrade_dynamic_lists_plugin(void)
+{
+    char *entry = "dn: cn=Dynamic Lists,cn=plugins,cn=config\n"
+                  "objectclass: top\n"
+                  "objectclass: nsSlapdPlugin\n"
+                  "objectclass: extensibleObject\n"
+                  "cn: Dynamic Lists\n"
+                  "nsslapd-pluginpath: libdynamic-lists-plugin\n"
+                  "nsslapd-plugininitfunc: dynamic_lists_init\n"
+                  "nsslapd-plugintype: preoperation\n"
+                  "nsslapd-pluginenabled: off\n"
+                  "nsslapd-pluginId: dynamic-lists\n"
+                  "nsslapd-pluginVersion: none\n"
+                  "nsslapd-pluginVendor: 389 Project\n"
+                  "nsslapd-pluginDescription: dynamic lists plugin\n"
+                  "dynamicListObjectclass: groupOfUrls\n"
+                  "dynamicListUrlAttr: memberUrl\n"
+                  "dynamicListAttr: member\n";
+
+    return upgrade_entry_exists_or_create(
+        "upgrade_dynamic_lists_plugin",
+        "(cn=dynamic lists)",
+        "cn=dynamic lists,cn=plugins,cn=config",
+        entry
+    );
+}
 
 upgrade_status
 upgrade_server(void)
@@ -547,7 +574,11 @@ upgrade_server(void)
     if (upgrade_pam_pta_default_config() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
-    
+
+    if (upgrade_dynamic_lists_plugin() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
     return UPGRADE_SUCCESS;
 }
 
