@@ -12,7 +12,7 @@ import copy
 import os.path
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.lint import DSRILE0001, DSRILE0002, DSMOLE0001, DSMOLE0002
+from lib389.lint import DSRILE0001, DSRILE0002, DSMOLE0001, DSMOLE0002, DSMOLE0003
 from lib389.utils import ensure_str, ensure_list_bytes
 from lib389.schema import Schema
 from lib389._constants import (
@@ -861,6 +861,26 @@ class MemberOfPlugin(Plugin):
                             yield report
                     except KeyError:
                         continue
+
+    def _lint_member_globalbackend_lock(self):
+        """
+        Verify that when the memberOf plugin monitors all backends,
+        the global backend lock is enabled. Warn if disabled.
+        """
+        if self.status():
+            from lib389.config import Config
+            allbackends = self.get_attr_val_utf8_l("memberofallbackends")
+            config = Config(self._instance)
+            if allbackends == "on":
+                GLOBAL_BE_LOCK = "nsslapd-global-backend-lock"
+                global_be_lock = config.get_attr_val_utf8(GLOBAL_BE_LOCK)
+                if global_be_lock == "off":
+                    report = copy.deepcopy(DSMOLE0003)
+                    report['check'] = f'attr:{GLOBAL_BE_LOCK}'
+                    report['items'].append(config.dn)
+                    report['fix'] = report['fix'].replace(f'ATTR', GLOBAL_BE_LOCK)
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    yield report
 
     def get_attr(self):
         """Get memberofattr attribute"""
