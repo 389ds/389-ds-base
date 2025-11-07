@@ -1198,14 +1198,16 @@ class ScatterLineChart extends React.PureComponent {
 
         const baseSeries = Array.isArray(chartData?.series) ? chartData.series : [];
         const processedSeries = baseSeries.map(series => {
-            const datapoints = (series.datapoints || []).map(dp => {
-                const parsed = new Date(dp.x);
-                if (!isNaN(parsed.getTime())) {
+            const datapoints = (series.datapoints || [])
+                .map(dp => {
+                    const parsed = new Date(dp.x);
+                    if (isNaN(parsed.getTime())) {
+                        console.warn('Omitting invalid date value in chart data:', dp.x);
+                        return null;
+                    }
                     return { ...dp, x: parsed, name: dp.name };
-                }
-                console.warn('Invalid date value in chart data:', dp.x);
-                return { ...dp, x: new Date(), name: dp.name };
-            });
+                })
+                .filter(dp => dp !== null);
             return { ...series, datapoints };
         });
 
