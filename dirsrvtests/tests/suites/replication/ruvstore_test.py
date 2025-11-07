@@ -10,16 +10,19 @@ import os
 import logging
 import ldap
 import pytest
+import time
 from ldif import LDIFParser
 from lib389.cli_base import LogCapture
 from lib389.dbgen import dbgen_users
-from lib389.replica import Replicas, ReplicationManager
+from lib389.replica import Replicas, ReplicationManager, Agreements
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, nsUserAccounts
+from lib389.idm.group import Groups
 from lib389.tasks import ImportTask
-from lib389.topologies import create_topology
+from lib389.topologies import create_topology, topology_m3
 from lib389._constants import *
+from lib389.plugins import MemberOfPlugin
 
 pytestmark = pytest.mark.tier1
 
@@ -261,6 +264,133 @@ def test_ruv_after_import(topo):
 
     repl.wait_for_replication(s1, s2)
     repl.wait_for_replication(s2, s1)
+
+
+def check_membership(user, group_dn, find_result=True):
+    """Check if a user has memberOf attribute for the specified group"""
+    memberof_values = user.get_attr_vals_utf8_l('memberof')
+    print(user.get_all_attrs_utf8())
+    print('\n')
+    found = group_dn.lower() in memberof_values
+
+    if find_result:
+        assert found, f"User {user.dn} should be a member of {group_dn}"
+    else:
+        assert not found, f"User {user.dn} should NOT be a member of {group_dn}"
+
+
+def test_ruv_after_aborted_plugin_operation(topology_m3):
+    """Test that RUV does not advance after an aborted plugin operation
+
+    :id: c439f41e-8ddf-49e6-b449-ef9437e1c97f
+    :setup: Replication topology with three suppliers (A <==> B <==> C).
+    :steps:
+        1. Configure linear replication topology by pausing direct agreements between A and C.
+        2. Enable memberOf plugin on supplier B with incompatible objectclass configuration.
+        3. Create test user and group, wait for replication.
+        4. Capture baseline RUV value on supplier B.
+        5. Attempt to add user to group.
+        6. Check RUV value on supplier B after the failed operation.
+    :expectedresults:
+        1. Linear topology configuration should succeed.
+        2. MemberOf plugin should be enabled with incompatible configuration.
+        3. Test user and group should be created and replicated successfully.
+        4. Baseline RUV should be captured successfully.
+        5. Group membership operation should fail/abort on B due to plugin error.
+        6. RUV should remain unchanged after the failed operation.
+    """
+    # Get supplier instances
+    A = topology_m3.ms["supplier1"]
+    B = topology_m3.ms["supplier2"]
+    C = topology_m3.ms["supplier3"]
+
+    # Enable replication logging for debugging
+    for supplier in [A, B, C]:
+        supplier.config.loglevel([ErrorLog.REPLICA])
+
+    log.info("Configuring linear replication topology A <==> B <==> C")
+    agmtsA = Agreements(A)
+    agmtsC = Agreements(C)
+
+    # Find agreements to pause (A <-> C direct connections)
+    for agmt in agmtsA.list():
+        if C.serverid in agmt.get_attr_val_utf8('nsDS5ReplicaHost'):
+            log.info(f"Pausing agreement: {agmt.dn}")
+            agmt.pause()
+
+    for agmt in agmtsC.list():
+        if A.serverid in agmt.get_attr_val_utf8('nsDS5ReplicaHost'):
+            log.info(f"Pausing agreement: {agmt.dn}")
+            agmt.pause()
+
+    log.info("Configuring memberOf plugin on supplier B with incompatible objectclass")
+    memberof_plugin = MemberOfPlugin(B)
+    memberof_plugin.add('memberOfEntryScope', DEFAULT_SUFFIX)
+    memberof_plugin.set_autoaddoc('referral')
+    memberof_plugin.enable()
+    B.restart()
+
+    # Waiting for first keepalive to pass as it changes the RUV
+    time.sleep(31)
+
+    log.info("Creating test user")
+    user_props = {
+        'uid': 'testuser_not_memberof',
+        'cn': 'testuser_not_memberof',
+        'displayName': 'testuser_not_memberof',
+        'uidNumber': '2',
+        'gidNumber': '1002',
+        'homeDirectory': '/home/testuser_not_memberof',
+    }
+    user = nsUserAccounts(A, DEFAULT_SUFFIX).create(properties=user_props)
+
+    # Create a successful group first to establish baseline
+    log.info("Creating group with compatible members")
+    group_props = {
+        'cn': 'group',
+        'description': 'Test group',
+    }
+    group = Groups(A, DEFAULT_SUFFIX).create(properties=group_props)
+
+    log.info("Waiting for replication to complete")
+    # using sleep since wait_for_replication also changes RUV
+    time.sleep(10)
+
+    log.info("Getting baseline RUV value on supplier B before failing operation")
+    replicas2 = Replicas(B)
+    replica2 = replicas2.get(DEFAULT_SUFFIX)
+    ruv_elements = replica2.get_attr_vals_utf8('nsds50ruv')
+
+    # Find the RUV element for replica 2 (B)
+    ruv_before = None
+    for ruv in ruv_elements:
+        if 'replica 2' in ruv:
+            ruv_before = ruv
+            break
+
+    assert ruv_before is not None, "Could not find replica 2 RUV element"
+    log.info(f'RUV before failing operation: {ruv_before}')
+
+    group.add_member(user.dn)
+
+    log.info("Waiting for replication to complete")
+    # using sleep since wait_for_replication also changes RUV
+    time.sleep(10)
+
+    log.info("Checking RUV on supplier B after potentially failing operation")
+    # Get RUV after the failing operation
+    log.info(replica2.get_attr_vals_utf8('nsds50ruv'))
+    ruv_elements_after = replica2.get_attr_vals_utf8('nsds50ruv')
+    ruv_after = None
+    for ruv in ruv_elements_after:
+        if 'replica 2' in ruv:
+            ruv_after = ruv
+            break
+    assert ruv_after is not None, "Could not find replica 2 RUV element after operation"
+    log.info(f'RUV after failing operation: {ruv_after}')
+
+    # The key assertion: RUV should not have advanced due to the failed memberOf operation
+    assert ruv_before == ruv_after, f"RUV advanced after failed operation: before={ruv_before}, after={ruv_after}"
 
 
 if __name__ == '__main__':
