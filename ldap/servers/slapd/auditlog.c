@@ -856,8 +856,8 @@ write_audit_file(
                         slapi_ch_free((void **)&buf);
                     }
                 }
+                addlenstr(l, "-\n");
             }
-            addlenstr(l, "-\n");
         }
         break;
 
