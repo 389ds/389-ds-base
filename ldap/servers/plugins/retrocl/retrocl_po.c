@@ -99,6 +99,9 @@ make_changes_string(LDAPMod **ldm, const char **includeattrs)
             addlenstr(l, ldm[i]->mod_type);
             addlenstr(l, "\n");
             break;
+        default:
+            /* LDAP_MOD_IGNORE or unknown - skip this mod entirely */
+            continue;
         }
         for (j = 0; ldm[i]->mod_bvalues != NULL &&
                     ldm[i]->mod_bvalues[j] != NULL;
