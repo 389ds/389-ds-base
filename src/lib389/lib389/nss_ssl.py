@@ -460,7 +460,7 @@ only.
             if line == 'Database needs user init':
                 # There are no certs, abort...
                 return []
-            cert_values.append(re.match(r'^(.+[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
+            cert_values.append(re.match(r'^(.*[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
         return cert_values
 
     def _openssl_get_csr_subject(self, csr_dir, csr_name):
