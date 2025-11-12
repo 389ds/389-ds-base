@@ -672,6 +672,10 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
             if (ip_len >= sizeof(ip_part) - 1) {
                 slapi_log_err(SLAPI_LOG_ERR, "haproxy_parse_trusted_ips",
                              "IP address portion too long in CIDR notation: %s\n", ip_val);
+                if (errorbuf) {
+                    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                               "IP address portion too long in CIDR notation: %s", ip_val);
+                }
                 slapi_ch_free((void **)&entries);
                 *count_out = 0;
                 return NULL;
@@ -689,6 +693,10 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
                 prefix_long < 0 || prefix_long > 128) {
                 slapi_log_err(SLAPI_LOG_ERR, "haproxy_parse_trusted_ips",
                              "Invalid CIDR prefix length in: %s (must be 0-128 for IPv6, 0-32 for IPv4)\n", ip_val);
+                if (errorbuf) {
+                    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                               "Invalid CIDR prefix length in: %s (must be 0-128 for IPv6, 0-32 for IPv4)", ip_val);
+                }
                 slapi_ch_free((void **)&entries);
                 *count_out = 0;
                 return NULL;
@@ -701,6 +709,10 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
             if (PR_StringToNetAddr(ip_part, &entries[i].network) != PR_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, "haproxy_parse_trusted_ips",
                              "Failed to parse network address: %s\n", ip_part);
+                if (errorbuf) {
+                    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                               "Failed to parse network address: %s", ip_part);
+                }
                 slapi_ch_free((void **)&entries);
                 *count_out = 0;
                 return NULL;
@@ -713,6 +725,11 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
                     slapi_log_err(SLAPI_LOG_ERR, "haproxy_parse_trusted_ips",
                                  "IPv4 CIDR prefix must be 0-32, got %d in: %s\n",
                                  entries[i].prefix_len, ip_val);
+                    if (errorbuf) {
+                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                   "IPv4 CIDR prefix must be 0-32, got %d in: %s",
+                                   entries[i].prefix_len, ip_val);
+                    }
                     slapi_ch_free((void **)&entries);
                     *count_out = 0;
                     return NULL;
@@ -736,6 +753,11 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
                     slapi_log_err(SLAPI_LOG_ERR, "haproxy_parse_trusted_ips",
                                  "IPv6 CIDR prefix must be 0-128, got %d in: %s\n",
                                  entries[i].prefix_len, ip_val);
+                    if (errorbuf) {
+                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                   "IPv6 CIDR prefix must be 0-128, got %d in: %s",
+                                   entries[i].prefix_len, ip_val);
+                    }
                     slapi_ch_free((void **)&entries);
                     *count_out = 0;
                     return NULL;
@@ -780,6 +802,10 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
             if (PR_StringToNetAddr(ip_val, &entries[i].network) != PR_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, "haproxy_parse_trusted_ips",
                              "Failed to parse IP address: %s\n", ip_val);
+                if (errorbuf) {
+                    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                               "Failed to parse IP address: %s", ip_val);
+                }
                 slapi_ch_free((void **)&entries);
                 *count_out = 0;
                 return NULL;
