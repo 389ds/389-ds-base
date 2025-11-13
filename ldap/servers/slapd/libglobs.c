@@ -2800,7 +2800,7 @@ config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char 
          */
         haproxy_trusted_entry_t *test_parsed = NULL;
         size_t test_count = 0;
-        char parse_errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        char parse_errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
 
         test_parsed = haproxy_parse_trusted_ips(value, &test_count, parse_errorbuf);
         if (test_parsed == NULL && test_count == 0) {
