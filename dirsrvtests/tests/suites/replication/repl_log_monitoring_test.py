@@ -344,9 +344,7 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
 
     try:
-        # Clear logs and restart servers
-        for supplier in suppliers:
-            supplier.deleteAccessLogs(restart=True)
+
 
         # Setup additional suffixes
         for suffix in [SUFFIX_2, SUFFIX_3]:
@@ -372,6 +370,16 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
                 for s2 in suppliers[i+1:]:
                     repl.ensure_agreement(s1, s2)
                     repl.ensure_agreement(s2, s1)
+
+        # Wait for all the setup replication to settle, then clear the logs
+        for suffix in all_suffixes:
+            repl = ReplicationManager(suffix)
+            for s1 in suppliers:
+                for s2 in suppliers:
+                    if s1 != s2:
+                        repl.wait_for_replication(s1, s2)
+        for supplier in suppliers:
+            supplier.deleteAccessLogs(restart=True)
 
         # Generate different amounts of test data per suffix
         test_users_by_suffix[DEFAULT_SUFFIX] = _generate_test_data(
