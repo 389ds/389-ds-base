@@ -496,17 +496,24 @@ extensible_candidates(
                     struct berval **keys = NULL;
                     /* keys = mrINDEX (*val), conceptually.  In detail: */
                     struct berval *bvec[2];
+                    Slapi_Value **svals = NULL;
                     bvec[0] = *val;
                     bvec[1] = NULL;
 
+                    /* Convert berval array to Slapi_Value array */
+                    valuearray_init_bervalarray(bvec, &svals);
+
                     /* coverity[var_deref_model] */
                     if (slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrOBJECT) ||
-                        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, bvec) ||
+                        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, svals) ||
                         mrINDEX(pb) ||
                         slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &keys)) {
                         /* something went wrong.  bail. */
+                        valuearray_free(&svals);
                         break;
-                    } else if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
+                    }
+                    valuearray_free(&svals);
+                    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
                         /*
                          * REMEMBER: this flag is only set on WARN levels. If the filter verify
                          * is on strict, we reject in search.c, if we ar off, the flag will NOT
