@@ -1776,7 +1776,7 @@ class MemberOf extends React.Component {
                                                 variant="primary"
                                                 onClick={this.handleOpenModal}
                                             >
-                                                {memberOfConfigEntry === "" ? _("Create Config") : _("Manage Config")}
+                                                {_("Manage Config")}
                                             </Button>
                                         </GridItem>
                                     </Grid>
