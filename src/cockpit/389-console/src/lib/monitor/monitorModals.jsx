@@ -65,6 +65,12 @@ import { getResizeObserver } from "@patternfly/react-core";
 
 const _ = cockpit.gettext;
 
+// Cockpit's default file read limit is 16 MiB. Replication reports can easily exceed that,
+// especially when running in "full precision" mode. Allow substantially larger payloads.
+const MAX_REPORT_JSON_SIZE = 64 * 1024 * 1024; // 64 MiB
+const MAX_BINARY_READ_SIZE = 64 * 1024 * 1024; // 64 MiB
+const CSV_PREVIEW_LINES = 20;
+
 class TaskLogModal extends React.Component {
     render() {
         const {
@@ -1139,7 +1145,7 @@ class FullReportContent extends React.Component {
     }
 }
 
-class ScatterLineChart extends React.Component {
+class ScatterLineChart extends React.PureComponent {
     constructor(props) {
         super(props);
         this.containerRef = React.createRef();
@@ -1149,10 +1155,17 @@ class ScatterLineChart extends React.Component {
             showLegend: this.props.defaultShowLegend !== false,
             hiddenSeries: {}
         };
+        this._resizeTimer = null;
+        this._seriesCache = null;
         this.handleResize = () => {
-            if (this.containerRef.current && this.containerRef.current.clientWidth) {
-                this.setState({ width: this.containerRef.current.clientWidth });
+            if (this._resizeTimer) {
+                clearTimeout(this._resizeTimer);
             }
+            this._resizeTimer = setTimeout(() => {
+                if (this.containerRef.current && this.containerRef.current.clientWidth) {
+                    this.setState({ width: this.containerRef.current.clientWidth });
+                }
+            }, 250);
         };
         this.toggleLegendItem = this.toggleLegendItem.bind(this);
     }
@@ -1164,6 +1177,10 @@ class ScatterLineChart extends React.Component {
 
     componentWillUnmount() {
         this.observer();
+        if (this._resizeTimer) {
+            clearTimeout(this._resizeTimer);
+            this._resizeTimer = null;
+        }
     }
 
     toggleLegendItem(idx) {
@@ -1172,9 +1189,52 @@ class ScatterLineChart extends React.Component {
         }));
     }
 
+    _getSeriesSnapshot() {
+        const { chartData, minY, maxY } = this.props;
+        const cache = this._seriesCache;
+        if (cache && cache.chartData === chartData && cache.minY === minY && cache.maxY === maxY) {
+            return cache;
+        }
+
+        const baseSeries = Array.isArray(chartData?.series) ? chartData.series : [];
+        const processedSeries = baseSeries.map(series => {
+            const datapoints = (series.datapoints || [])
+                .map(dp => {
+                    const parsed = new Date(dp.x);
+                    if (isNaN(parsed.getTime())) {
+                        console.warn('Omitting invalid date value in chart data:', dp.x);
+                        return null;
+                    }
+                    return { ...dp, x: parsed, name: dp.name };
+                })
+                .filter(dp => dp !== null);
+            return { ...series, datapoints };
+        });
+
+        const allYValues = [];
+        processedSeries.forEach(s => s.datapoints.forEach(dp => allYValues.push(dp.y)));
+
+        const computedMin = minY != null
+            ? minY
+            : (allYValues.length ? Math.max(0, Math.min(...allYValues) * 0.9) : 0);
+        const computedMax = maxY != null
+            ? maxY
+            : (allYValues.length ? Math.max(...allYValues) * 1.1 : 10);
+
+        const snapshot = {
+            chartData,
+            minY,
+            maxY,
+            series: processedSeries,
+            yDomain: { min: computedMin, max: computedMax }
+        };
+        this._seriesCache = snapshot;
+        return snapshot;
+    }
+
     render() {
         const { width } = this.state;
-        const { chartData, title, yAxisLabel, xAxisLabel, maxY, minY } = this.props;
+        const { chartData, title, yAxisLabel, xAxisLabel } = this.props;
 
         // If no data is available, show a message
         if (!chartData || !chartData.series || chartData.series.length === 0) {
@@ -1204,49 +1264,7 @@ class ScatterLineChart extends React.Component {
         }
 
         // Process dates to ensure proper formatting for the chart
-        const series = chartData.series.map(s => {
-            // Ensure data points have proper format, including date conversion
-            const processedDatapoints = s.datapoints.map(dp => ({
-                ...dp,
-                // If x is an ISO date string, convert it to a Date object for the chart
-                x: new Date(dp.x),
-                name: dp.name
-            }));
-
-            return {
-                ...s,
-                datapoints: processedDatapoints
-            };
-        });
-
-        // Calculate Y-axis domain if not provided
-        let calculatedMaxY = maxY;
-        let calculatedMinY = minY;
-
-        if (!calculatedMaxY || !calculatedMinY) {
-            // Find min and max Y values across all series
-            let allYValues = [];
-            series.forEach(s => {
-                s.datapoints.forEach(dp => {
-                    allYValues.push(dp.y);
-                });
-            });
-
-            if (allYValues.length > 0) {
-                const dataMin = Math.min(...allYValues);
-                const dataMax = Math.max(...allYValues);
-
-                // Set min to 0 or slightly below the minimum value (never negative)
-                calculatedMinY = minY !== undefined ? minY : Math.max(0, dataMin * 0.9);
-
-                // Set max to slightly above the maximum value
-                calculatedMaxY = maxY !== undefined ? maxY : dataMax * 1.1;
-            } else {
-                // Default values if no data points
-                calculatedMinY = 0;
-                calculatedMaxY = 10;
-            }
-        }
+        const { series, yDomain } = this._getSeriesSnapshot();
 
         // Helper function to format time values
         const formatTimeValue = (seconds) => {
@@ -1301,8 +1319,8 @@ class ScatterLineChart extends React.Component {
                             />
                         }
                         height={safeHeight}
-                        maxDomain={{ y: calculatedMaxY }}
-                        minDomain={{ y: calculatedMinY }}
+                        maxDomain={{ y: yDomain.max }}
+                        minDomain={{ y: yDomain.min }}
                         padding={{
                             bottom: 75,
                             left: 90,
@@ -1327,10 +1345,17 @@ class ScatterLineChart extends React.Component {
                     >
                         <ChartAxis
                             label={xAxisLabel || ""}
+                            fixLabelOverlap
+                            tickCount={5}
                             tickFormat={(t) => {
-                                // Format time as HH:MM:SS
-                                const date = new Date(t);
-                                return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                return new Date(t).toLocaleString(undefined, {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit',
+                                    hour12: false
+                                });
                             }}
                             style={{
                                 axisLabel: {
@@ -1425,7 +1450,6 @@ class ScatterLineChart extends React.Component {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
                     <Button
                         variant="link"
-                        isSmall
                         aria-pressed={this.state.showLegend}
                         countOptions={{ isRead: true, count: visibleSeriesCount }}
                         onClick={() => this.setState({ showLegend: !this.state.showLegend })}
@@ -1477,51 +1501,17 @@ class ScatterLineChart extends React.Component {
     }
 }
 
-ScatterLineChart.propTypes = {
-    chartData: PropTypes.shape({
-        title: PropTypes.string,
-        xAxisLabel: PropTypes.string,
-        yAxisLabel: PropTypes.string,
-        series: PropTypes.arrayOf(
-            PropTypes.shape({
-                datapoints: PropTypes.arrayOf(
-                    PropTypes.shape({
-                        name: PropTypes.string,
-                        x: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
-                        y: PropTypes.number,
-                        hoverInfo: PropTypes.string
-                    })
-                ),
-                legendItem: PropTypes.shape({
-                    name: PropTypes.string
-                }),
-                color: PropTypes.string,
-                style: PropTypes.object
-            })
-        )
-    }),
-    title: PropTypes.string,
-    xAxisLabel: PropTypes.string,
-    yAxisLabel: PropTypes.string,
-    maxY: PropTypes.number,
-    minY: PropTypes.number
-};
-
 class LagReportModal extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
             activeTabKey: 0, // 0 = Summary, 1 = Charts, 2 = PNG Report, 3 = CSV Report, 4 = Report Files
-            csvPreview: null,
-            jsonSummary: null,
-            jsonData: null, // PatternFly chart data
-            loading: false,
-            error: null,
-            pngDataUrl: null,
-            pngError: false,
-            summary: null,
-            suffixStats: {}
+            ...this._freshReportState(),
+            loadingSummary: false,
+            loadingJson: false,
+            loadingCsv: false,
+            loadingPng: false
         };
 
         this.handleTabClick = this.handleTabClick.bind(this);
@@ -1534,9 +1524,31 @@ class LagReportModal extends React.Component {
         this.renderPngTab = this.renderPngTab.bind(this);
         this.renderCsvTab = this.renderCsvTab.bind(this);
         this.renderReportFilesTab = this.renderReportFilesTab.bind(this);
+
+        this._activeLoadToken = 0;
+        this._isMounted = false;
+        this._clientSamplingCap = {
+            primary: 2000,
+            hop: 600
+        };
+    }
+
+    _freshReportState(overrides = {}) {
+        return {
+            csvPreview: null,
+            jsonData: null,
+            error: null,
+            pngDataUrl: null,
+            pngError: false,
+            summary: null,
+            suffixStats: {},
+            clientSamplingNotice: null,
+            ...overrides
+        };
     }
 
     componentDidMount() {
+        this._isMounted = true;
         this.loadData();
     }
 
@@ -1547,6 +1559,7 @@ class LagReportModal extends React.Component {
     }
 
     componentWillUnmount() {
+        this._isMounted = false;
         // Clean up any data URLs to prevent memory leaks
         if (this.state.pngDataUrl && this.state.pngDataUrl.startsWith('blob:')) {
             URL.revokeObjectURL(this.state.pngDataUrl);
@@ -1558,118 +1571,311 @@ class LagReportModal extends React.Component {
     }
 
     loadData() {
-        this.setState({ loading: true });
+        const reportUrls = this.props.reportUrls || {};
+        const loadToken = this._activeLoadToken + 1;
+        this._activeLoadToken = loadToken;
 
-        // Load PatternFly chart JSON data first if available (priority for rendering charts)
-        if (this.props.reportUrls && this.props.reportUrls.json) {
-            cockpit.file(this.props.reportUrls.json)
-                .read()
-                .then(content => {
-                    try {
-                        const data = JSON.parse(content);
-                        this.setState({ jsonData: data, loading: false });
-                        console.log("Successfully loaded PatternFly chart data");
-                    } catch (e) {
-                        console.error("Error parsing JSON data for charts:", e);
-                        this.setState({ loading: false });
-                    }
-                })
-                .catch(err => {
-                    console.error("Error loading JSON data for charts:", err);
-                    this.setState({ loading: false });
-                });
-        } else {
-            this.setState({ loading: false });
+        // Reset state, preserving activeTabKey
+        this.setState(prevState => ({
+            ...this._freshReportState(),
+            activeTabKey: prevState.activeTabKey,
+            loadingSummary: false,
+            loadingJson: false,
+            loadingCsv: false,
+            loadingPng: false
+        }));
+
+        // Load each tab's data independently (asynchronously)
+        if (reportUrls.summary) {
+            this._fetchSummary(reportUrls.summary, loadToken);
         }
 
-        // Load PNG data if available - as a secondary display option
-        if (this.props.reportUrls && this.props.reportUrls.png) {
-            this.loadPngAsDataUrl(this.props.reportUrls.png);
-        } else {
-            // Make sure pngDataUrl is null if no PNG is available
-            this.setState({ pngDataUrl: null });
+        if (reportUrls.json) {
+            this._fetchJsonData(reportUrls.json, loadToken);
         }
 
-        // Load CSV preview if available - as a secondary data option
-        if (this.props.reportUrls && this.props.reportUrls.csv) {
-            cockpit.file(this.props.reportUrls.csv)
-                .read()
-                .then(content => {
-                    // Just show first few lines
-                    const lines = content.split('\n').slice(0, 20);
-                    this.setState({ csvPreview: lines.join('\n') });
-                })
-                .catch(err => {
-                    console.error("Error loading CSV:", err);
-                });
+        if (reportUrls.csv) {
+            this._fetchCsvPreview(reportUrls.csv, loadToken);
         }
 
-        // Load summary JSON if available
-        if (this.props.reportUrls && this.props.reportUrls.summary) {
-            cockpit.file(this.props.reportUrls.summary)
-                .read()
-                .then(content => {
-                    try {
-                        const data = JSON.parse(content);
-                        this.setState({
-                            summary: data.analysis_summary,
-                            suffixStats: data.suffix_statistics || {},
-                            activeTabKey: 0
-                        });
-                    } catch (e) {
-                        console.error("Error parsing JSON summary:", e);
-                    }
-                })
-                .catch(err => {
-                    console.error("Error loading JSON summary:", err);
-                });
+        if (reportUrls.png) {
+            this.loadPngAsDataUrl(reportUrls.png, loadToken);
         }
     }
 
-    loadPngAsDataUrl(pngPath) {
-        if (!pngPath) return;
+    _isActive(loadToken) {
+        return this._isMounted && this._activeLoadToken === loadToken;
+    }
 
-        // Use the base64 command line tool to encode the file
-        cockpit.spawn(["base64", pngPath])
-            .then(base64Output => {
-                // Create a data URL with the base64 content
-                const dataUrl = `data:image/png;base64,${base64Output.trim()}`;
-                this.setState({ pngDataUrl: dataUrl });
-            })
-            .catch(err => {
-                console.error("Error encoding PNG file to base64:", err);
+    _isTooLargeError(err) {
+        if (!err) {
+            return false;
+        }
+        if (err.problem === "too-large" || err.code === 413 || err.status === 413) {
+            return true;
+        }
+        const message = err.message || (typeof err.toString === "function" ? err.toString() : "");
+        if (!message) {
+            return false;
+        }
+        return String(message).toLowerCase().indexOf("too much data") !== -1;
+    }
 
-                // Fallback to reading the file and using FileReader
-                console.log("Trying fallback method...");
-                cockpit.file(pngPath).read()
-                    .then(content => {
-                        if (content) {
-                            try {
-                                const blob = new Blob([content], { type: 'image/png' });
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    const dataUrl = reader.result;
-                                    this.setState({ pngDataUrl: dataUrl });
-                                };
-                                reader.onerror = () => {
-                                    console.error("Error reading blob as data URL");
-                                    this.setState({ pngError: true });
-                                };
-                                reader.readAsDataURL(blob);
-                            } catch (error) {
-                                console.error("Error creating data URL:", error);
-                                this.setState({ pngError: true });
-                            }
-                        } else {
-                            console.error("No content returned from file");
-                            this.setState({ pngError: true });
-                        }
-                    })
-                    .catch(fileErr => {
-                        console.error("Both methods failed to load PNG:", fileErr);
-                        this.setState({ pngError: true });
+    _handleLoadedJsonData(rawData, options = {}) {
+        const { forcedSampling = false, samplingResult: precomputedSampling = null } = options;
+
+        const samplingResult = precomputedSampling || this._applyClientSamplingForDisplay(rawData);
+
+        let notice = null;
+        if (samplingResult.applied) {
+            notice = forcedSampling
+                ? _("Charts were down-sampled automatically because the dataset is very large. Adjust filters or the time range to reduce the dataset, or download the full JSON/CSV for complete details.")
+                : _("Charts are down-sampled for responsiveness. Adjust filters or the time range for a smaller dataset if you need finer detail.");
+        } else if (forcedSampling) {
+            notice = _("The dataset is very large. Charts are shown in full resolution and may respond slowly. Adjust filters or the time range if the UI becomes unresponsive.");
+        }
+
+        this.setState({
+            jsonData: samplingResult.sampledData,
+            clientSamplingNotice: notice,
+            error: null
+        });
+    }
+
+    async _readJsonFile(path, options) {
+        const fileHandle = cockpit.file(path, options);
+        try {
+            const content = await fileHandle.read();
+            return JSON.parse(content);
+        } finally {
+            try {
+                fileHandle.close();
+            } catch (closeErr) {
+                console.error("Error closing JSON file handle:", closeErr);
+            }
+        }
+    }
+
+    async _fetchJsonData(jsonPath, loadToken) {
+        if (!this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingJson: true });
+
+        try {
+            const data = await this._readJsonFile(jsonPath, { max_read_size: MAX_REPORT_JSON_SIZE });
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            this._handleLoadedJsonData(data);
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+
+            if (this._isTooLargeError(err)) {
+                try {
+                    const fallbackData = await this._loadLargeJsonWithSampling(jsonPath);
+                    if (this._isActive(loadToken)) {
+                        this._handleLoadedJsonData(fallbackData, { forcedSampling: true });
+                    }
+                    return;
+                } catch (fallbackErr) {
+                    console.error("Fallback load of large chart JSON failed:", fallbackErr);
+                    this.setState({
+                        error: _("Chart data exceeds the UI limits and could not be displayed. Adjust the filters or time range and try again, or download the JSON report for full details."),
+                        clientSamplingNotice: null,
+                        jsonData: null
                     });
+                    return;
+                }
+            }
+
+            if (err instanceof SyntaxError) {
+                console.error("Error parsing JSON data for charts:", err);
+                this.setState({
+                    error: _("Unable to parse the generated chart data. Download the JSON file to inspect it manually."),
+                    clientSamplingNotice: null,
+                    jsonData: null
+                });
+            } else {
+                console.error("Error loading JSON data for charts:", err);
+                const message = err && err.message
+                    ? cockpit.format(_("Failed to load chart data: $0"), err.message)
+                    : _("Failed to load chart data.");
+                this.setState({
+                    error: message,
+                    clientSamplingNotice: null,
+                    jsonData: null
+                });
+            }
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingJson: false });
+            }
+        }
+    }
+
+    async _fetchSummary(summaryPath, loadToken) {
+        if (!this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingSummary: true });
+
+        try {
+            const data = await this._readJsonFile(summaryPath, { max_read_size: MAX_REPORT_JSON_SIZE });
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            this.setState({
+                summary: data.analysis_summary,
+                suffixStats: data.suffix_statistics || {},
+                activeTabKey: 0
             });
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            console.error("Error loading JSON summary:", err);
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingSummary: false });
+            }
+        }
+    }
+
+    async _fetchCsvPreview(csvPath, loadToken) {
+        if (!this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingCsv: true });
+
+        try {
+            const fileHandle = cockpit.file(csvPath);
+            const content = await fileHandle.read();
+            fileHandle.close();
+
+            if (this._isActive(loadToken)) {
+                // Get first N lines
+                const lines = content.split('\n').slice(0, CSV_PREVIEW_LINES).join('\n');
+                this.setState({ csvPreview: lines });
+            }
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            console.error("Error loading CSV:", err);
+            this.setState({ csvPreview: null });
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingCsv: false });
+            }
+        }
+    }
+
+    async _readBinaryPngAsDataUrl(pngPath) {
+        const fileHandle = cockpit.file(pngPath, { binary: true, max_read_size: MAX_BINARY_READ_SIZE });
+        try {
+            const content = await fileHandle.read();
+            if (!content) {
+                throw new Error("No content returned from PNG file");
+            }
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error || new Error("Failed to read PNG blob"));
+                reader.readAsDataURL(new Blob([content], { type: "image/png" }));
+            });
+        } finally {
+            try {
+                fileHandle.close();
+            } catch (closeErr) {
+                console.error("Error closing PNG file handle:", closeErr);
+            }
+        }
+    }
+
+    async loadPngAsDataUrl(pngPath, loadToken) {
+        if (!pngPath || !this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingPng: true });
+
+        try {
+            const dataUrl = await this._readBinaryPngAsDataUrl(pngPath);
+            if (this._isActive(loadToken)) {
+                this.setState({ pngDataUrl: dataUrl, pngError: false });
+            }
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            console.error("Error loading PNG:", err);
+            this.setState({ pngError: true });
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingPng: false });
+            }
+        }
+    }
+
+    async _loadLargeJsonWithSampling(jsonPath) {
+        const fileHandle = cockpit.file(jsonPath);
+        try {
+            const content = await fileHandle.read();
+            return JSON.parse(content);
+        } catch (parseError) {
+            console.error("Error parsing large JSON data for charts:", parseError);
+            throw parseError;
+        } finally {
+            try {
+                fileHandle.close();
+            } catch (closeErr) {
+                console.error("Error closing JSON file handle:", closeErr);
+            }
+        }
+    }
+
+    _applyClientSamplingForDisplay(originalData) {
+        let samplingApplied = false;
+
+        const downsample = (points, limit) => {
+            if (!Array.isArray(points) || points.length <= limit) return points;
+            samplingApplied = true;
+            const step = (points.length - 1) / (limit - 1);
+            return Array.from({ length: limit }, (_, i) =>
+                points[Math.min(points.length - 1, Math.round(i * step))]
+            );
+        };
+
+        return {
+            sampledData: {
+                ...originalData,
+                replicationLags: originalData.replicationLags ? {
+                    ...originalData.replicationLags,
+                    series: (originalData.replicationLags.series || []).map(s => ({
+                        ...s,
+                        datapoints: downsample(s.datapoints, this._clientSamplingCap.primary)
+                    }))
+                } : undefined,
+                hopLags: originalData.hopLags ? {
+                    ...originalData.hopLags,
+                    series: (originalData.hopLags.series || []).map(s => ({
+                        ...s,
+                        datapoints: downsample(s.datapoints, this._clientSamplingCap.hop)
+                    }))
+                } : undefined,
+                metadata: {
+                    ...originalData.metadata,
+                    clientSampling: samplingApplied || undefined
+                }
+            },
+            applied: samplingApplied
+        };
     }
 
     downloadFile(url, filename) {
@@ -1744,10 +1950,10 @@ class LagReportModal extends React.Component {
     }
 
     renderSummaryTab() {
-        const { summary, suffixStats, loading } = this.state;
+        const { summary, suffixStats, loadingSummary } = this.state;
         const { reportUrls } = this.props;
 
-        if (loading) {
+        if (loadingSummary && !summary) {
             return (
                 <div className="ds-center">
                     <Spinner size="lg" />
@@ -1832,6 +2038,25 @@ class LagReportModal extends React.Component {
                                 </Card>
                             </GridItem>
 
+                            {Array.isArray(summary.skipped_log_dirs) && summary.skipped_log_dirs.length > 0 && (
+                                <GridItem span={12}>
+                                    <Alert
+                                        variant="warning"
+                                        isInline
+                                        title={_("Some selected log directories were skipped")}
+                                    >
+                                        <Text component={TextVariants.small}>
+                                            {_("These directories could not be read during analysis")}
+                                        </Text>
+                                        <List className="ds-margin-top-sm">
+                                            {summary.skipped_log_dirs.map((dir, idx) => (
+                                                <ListItem key={idx}>{dir}</ListItem>
+                                            ))}
+                                        </List>
+                                    </Alert>
+                                </GridItem>
+                            )}
+
                             {summary.updates_by_suffix && Object.keys(summary.updates_by_suffix).length > 0 && (
                                 <GridItem span={12}>
                                     <Card isFlat>
@@ -1892,9 +2117,9 @@ class LagReportModal extends React.Component {
 
     renderChartsTab() {
         const { reportUrls } = this.props;
-        const { loading, jsonData } = this.state;
+        const { loadingJson, jsonData, error, clientSamplingNotice } = this.state;
 
-        if (loading) {
+        if (loadingJson) {
             return (
                 <div className="ds-center">
                     <Spinner size="lg" />
@@ -1911,6 +2136,27 @@ class LagReportModal extends React.Component {
                     <EmptyStateBody>
                         {_("No JSON chart data was found or could be loaded.")}
                     </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        if (error) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={ExclamationCircleIcon} />
+                    <Title headingLevel="h2">{_("Unable to Display Charts")}</Title>
+                    <EmptyStateBody>
+                        {error}
+                    </EmptyStateBody>
+                    {reportUrls && reportUrls.json && (
+                        <Button
+                            variant="secondary"
+                            icon={<DownloadIcon />}
+                            onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
+                        >
+                            {_("Download JSON Data")}
+                        </Button>
+                    )}
                 </EmptyState>
             );
         }
@@ -1950,11 +2196,35 @@ class LagReportModal extends React.Component {
                         <Card>
                             <CardTitle>{_("Interactive Charts")}</CardTitle>
                             <CardBody>
+                                {clientSamplingNotice && (
+                                    <Alert variant="warning" isInline className="ds-margin-bottom">
+                                        {clientSamplingNotice}
+                                    </Alert>
+                                )}
                                 {hasReplicationLags && (
                                     <div className="ds-margin-bottom">
                                         <Title headingLevel="h3">
                                             {jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
+                                            {jsonData.metadata && jsonData.metadata.timezone && (
+                                                <span style={{ fontSize: '0.8em', fontWeight: 'normal', marginLeft: '1em', color: 'var(--pf-v5-global--Color--200)' }}>
+                                                    ({jsonData.metadata.timezone})
+                                                </span>
+                                            )}
                                         </Title>
+                                        {jsonData.metadata && jsonData.metadata.sampling && jsonData.metadata.sampling.applied && (
+                                            <Alert isInline variant="info" title={_("Data was sampled for performance")}>
+                                                {jsonData.metadata.sampling.reducedTotalPoints && jsonData.metadata.sampling.originalTotalPoints ? (
+                                                    <span>
+                                                        {cockpit.format(_("Showing $0 of $1 data points."), jsonData.metadata.sampling.reducedTotalPoints, jsonData.metadata.sampling.originalTotalPoints)}&nbsp;
+                                                    </span>
+                                                ) : null}
+                                                {jsonData.metadata.sampling.precision === "full" ? (
+                                                    <span>{_("Automatic sampling was applied because the dataset is very large. To view all points, consider filtering by time range or suffix.")}</span>
+                                                ) : (
+                                                    <span>{_("For full precision without sampling, rerun with \"Full Precision\" mode (note: may be slower for large datasets).")}</span>
+                                                )}
+                                            </Alert>
+                                        )}
                                         <ScatterLineChart
                                             chartData={jsonData.replicationLags}
                                             title={jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
@@ -1968,6 +2238,11 @@ class LagReportModal extends React.Component {
                                     <div className="ds-margin-top-lg">
                                         <Title headingLevel="h3">
                                             {jsonData.hopLags.title || _("Per-Hop Replication Lags")}
+                                            {jsonData.metadata && jsonData.metadata.timezone && (
+                                                <span style={{ fontSize: '0.8em', fontWeight: 'normal', marginLeft: '1em', color: 'var(--pf-v5-global--Color--200)' }}>
+                                                    ({jsonData.metadata.timezone})
+                                                </span>
+                                            )}
                                         </Title>
                                         <ScatterLineChart
                                             chartData={jsonData.hopLags}
@@ -1997,9 +2272,9 @@ class LagReportModal extends React.Component {
 
     renderPngTab() {
         const { reportUrls } = this.props;
-        const { loading, pngDataUrl, pngError } = this.state;
+        const { loadingPng, pngDataUrl, pngError } = this.state;
 
-        if (loading) {
+        if (loadingPng) {
             return (
                 <div className="ds-center">
                     <Spinner size="lg" />
@@ -2079,9 +2354,9 @@ class LagReportModal extends React.Component {
 
     renderCsvTab() {
         const { reportUrls } = this.props;
-        const { loading, csvPreview } = this.state;
+        const { loadingCsv, csvPreview } = this.state;
 
-        if (loading) {
+        if (loadingCsv) {
             return (
                 <div className="ds-center">
                     <Spinner size="lg" />
@@ -2144,16 +2419,6 @@ class LagReportModal extends React.Component {
 
     renderReportFilesTab() {
         const { reportUrls } = this.props;
-        const { loading } = this.state;
-
-        if (loading) {
-            return (
-                <div className="ds-center">
-                    <Spinner size="lg" />
-                    <p className="ds-margin-top">{_("Loading file data...")}</p>
-                </div>
-            );
-        }
 
         if (!reportUrls || Object.keys(reportUrls).length === 0) {
             return (
@@ -2186,15 +2451,6 @@ class LagReportModal extends React.Component {
                 filename: "replication_analysis.json"
             });
         }
-        if (reportUrls.png) {
-            fileEntries.push({
-                key: 'png',
-                label: _("PNG Image"),
-                desc: _("Static chart image in PNG format"),
-                path: reportUrls.png,
-                filename: "replication_analysis.png"
-            });
-        }
         if (reportUrls.csv) {
             fileEntries.push({
                 key: 'csv',
@@ -2202,6 +2458,15 @@ class LagReportModal extends React.Component {
                 desc: _("Tabular data in CSV format"),
                 path: reportUrls.csv,
                 filename: "replication_analysis.csv"
+            });
+        }
+        if (reportUrls.png) {
+            fileEntries.push({
+                key: 'png',
+                label: _("PNG Image"),
+                desc: _("Static chart image in PNG format"),
+                path: reportUrls.png,
+                filename: "replication_analysis.png"
             });
         }
         if (reportUrls.html) {
@@ -2781,3 +3046,4 @@ export {
     LagReportModal,
     ChooseLagReportModal
 };
+
