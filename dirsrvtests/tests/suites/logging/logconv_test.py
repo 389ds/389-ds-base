@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import time
+from datetime import datetime, timedelta
 
 from lib389._constants import *
 from lib389.idm.account import Anonymous
@@ -1131,6 +1132,189 @@ class TestLogconv:
         output = self.run_logconv()
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_ldaps")
+
+    def test_time_filter_valid_range(self):
+        """Validate logconv with valid start and end time filters.
+
+        :id: 6c7b9a1e-4f3c-4d8e-8a9b-7c6d5e4f3a2b
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with start time 2 minutes in past
+            4. Execute logconv with end time 2 minutes in future
+            5. Verify logconv executes successfully
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Start time formatted correctly
+            4. End time formatted correctly
+            5. logconv returns exit code 0
+        """
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Calculate start time 2 minutes in the past")
+        start_time = datetime.now() - timedelta(minutes=2)
+        formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_start_time.endswith(' ]'):
+            formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Calculate end time 2 minutes in the future")
+        end_time = datetime.now() + timedelta(minutes=2)
+        formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_end_time.endswith(' ]'):
+            formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Execute logconv with start and end time filters")
+        cmd = [
+            self.logconv_path,
+            '-S', formatted_start_time,
+            '-E', formatted_end_time,
+            self.access_log_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv executed successfully")
+        assert result.returncode == 0
+
+    def test_time_filter_invalid_range(self):
+        """Validate logconv with invalid time range where start time is after end time.
+
+        :id: 8d9e1f2a-5b6c-4e7d-9f0a-8c7b6d5e4f3c
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with start time 2 minutes in future
+            4. Execute logconv with end time 2 minutes in past
+            5. Verify logconv returns error
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Start time formatted correctly
+            4. End time formatted correctly
+            5. logconv returns exit code 1
+        """
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Calculate start time 2 minutes in the future")
+        start_time = datetime.now() + timedelta(minutes=2)
+        formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_start_time.endswith(' ]'):
+            formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Calculate end time 2 minutes in the past")
+        end_time = datetime.now() - timedelta(minutes=2)
+        formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_end_time.endswith(' ]'):
+            formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Execute logconv with invalid time range")
+        cmd = [
+            self.logconv_path,
+            '-S', formatted_start_time,
+            '-E', formatted_end_time,
+            self.access_log_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv returned error for invalid time range")
+        assert result.returncode == 1
+
+    def test_time_filter_invalid_format(self):
+        """Validate logconv with invalid timestamp format.
+
+        :id: 9e0f1a2b-6c7d-5e8f-0a1b-9d8c7e6f5a4d
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with invalid start time string
+            4. Execute logconv with invalid end time string
+            5. Verify logconv returns error
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Invalid start time provided
+            4. Invalid end time provided
+            5. logconv returns exit code 1
+        """
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Set invalid timestamp values")
+        invalid_start_time = "invalid"
+        invalid_end_time = "invalid"
+
+        log.info("Execute logconv with invalid timestamp format")
+        cmd = [
+            self.logconv_path,
+            '-S', invalid_start_time,
+            '-E', invalid_end_time,
+            self.access_log_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv returned error for invalid timestamp format")
+        assert result.returncode == 1
+
+    def test_time_filter_without_log_path(self):
+        """Validate logconv with time filter but without access log path.
+
+        :id: 0f1a2b3c-7d8e-6f9a-1b2c-0e9d8f7a6b5c
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with start time but no access log path
+            4. Verify logconv returns error
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Start time formatted correctly
+            4. logconv returns exit code 1
+        """
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Calculate start time 2 minutes in the past")
+        start_time = datetime.now() - timedelta(minutes=2)
+        formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_start_time.endswith(' ]'):
+            formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Execute logconv with start time but no access log path")
+        cmd = [self.logconv_path, '-S', formatted_start_time]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv returned error when access log path not provided")
+        assert result.returncode == 1
 
 if __name__ == '__main__':
     # Run isolated
