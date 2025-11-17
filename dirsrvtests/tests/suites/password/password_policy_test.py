@@ -12,6 +12,7 @@ This test script will test password policy.
 
 import os
 import pytest
+import logging
 import time
 from lib389.config import Config
 from lib389.topologies import topology_st as topo
@@ -29,8 +30,14 @@ import ldap
 
 pytestmark = pytest.mark.tier1
 
+DEBUGGING = os.getenv('DEBUGGING', default=False)
+if DEBUGGING:
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+else:
+    logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
-def create_user(inst, uid, cn, sn, givenname, userpasseord, gid, ou):
+def create_user(inst, uid, cn, sn, givenname, userpassword, gid, ou):
     """
     Will create user
     """
@@ -40,7 +47,7 @@ def create_user(inst, uid, cn, sn, givenname, userpasseord, gid, ou):
         'sn': sn,
         'givenname': givenname,
         'mail': f'{uid}@example.com',
-        'userpassword': userpasseord,
+        'userpassword': userpassword,
         'homeDirectory': f'/home/{uid}',
         'uidNumber': gid,
         'gidNumber': gid
@@ -1518,6 +1525,84 @@ def test_get_pwpolicy_cn_with_quotes(topology_m1, policy_qoutes_setup):
     people = policy_qoutes_setup.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
     people.replace('passwordhistory', 'off')
     assert people.get_attr_val_utf8('passwordhistory') == 'off'
+
+
+def test_duplicate_policies(topo):
+    """Verify that duplicate password policies (user and subtree) are handled correctly.
+
+    :id: 2a8889ea-00c7-4c1b-85d8-2f049eaa0221
+    :setup: Standalone
+    :steps:
+        1. Ensure the OU people exists.
+        2. Create a subtree password policy under ou=people.
+        3. Verify the subtree policy attributes.
+        4. Attempt to create the same subtree policy again.
+        5. Update the subtree policy and verify the update.
+        6. Create a test user under ou=people.
+        7. Create a user password policy for the test user.
+        8. Attempt to create the same user policy again.
+        9. Update the user policy and verify the update.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Fail (ALREADY_EXISTS)
+        5. Success
+        6. Success
+        7. Success
+        8. Fail (ALREADY_EXISTS)
+        9. Success
+    """
+    inst = topo.standalone
+
+    log.info('Verifying OU')
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
+    assert ous.exists('People')
+    people = ous.get("People")
+
+    policy_props = {
+        'passwordMustChange': 'off',
+        'passwordExp': 'off',
+        'passwordMinAge': '0',
+        'passwordChange': 'off',
+        'passwordStorageScheme': 'ssha',
+        'passwordminlength': '6'
+    }
+
+    log.info(f'Creating subtree pwp')
+    pwp = PwPolicyManager(topo.standalone)
+    pwp.create_subtree_policy(people.dn, policy_props)
+    subtree_policy = pwp.get_pwpolicy_entry(people.dn)
+    assert subtree_policy.get_attr_val_utf8('passwordminlength') == '6'
+
+    log.info('Attempting creation of duplicate subtree pwp')
+    with pytest.raises(ldap.ALREADY_EXISTS):
+        pwp.create_subtree_policy(people.dn, policy_props)
+
+    log.info('Attempting subtree pwp update')
+    modified_props = policy_props.copy()
+    modified_props['passwordminlength'] = '8'
+    pwp.create_subtree_policy(people.dn, modified_props)
+    assert subtree_policy.get_attr_val_utf8('passwordminlength') == '8'
+
+    log.info('Creating test user')
+    user = create_user(inst, 'pwuser', 'Pass Word', 'Word', 'Pass', 'Pass123!', '1111', 'ou=people')
+
+    log.info('Creating user pwp')
+    pwp.create_user_policy(user.dn, policy_props)
+    user_policy = pwp.get_pwpolicy_entry(user.dn)
+    assert user_policy.get_attr_val_utf8('passwordMinAge') == '0'
+
+    log.info('Attempting creation of duplicate user pwp')
+    with pytest.raises(ldap.ALREADY_EXISTS):
+        pwp.create_user_policy(user.dn, policy_props)
+
+    log.info('Attempting user pwp update')
+    modified_props = policy_props.copy()
+    modified_props['passwordMinAge'] = '1'
+    pwp.create_user_policy(user.dn, modified_props)
+    assert user_policy.get_attr_val_utf8('passwordMinAge') == '1'
+
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

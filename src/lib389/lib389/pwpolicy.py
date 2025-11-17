@@ -74,6 +74,58 @@ class PwPolicyManager(object):
             'pwptprdelayvalidfrom': 'passwordTPRDelayValidFrom'
         }
 
+    def _is_duplicate_policy(self, entry, new_props):
+        """Check if an existing password policy entry matches the given properties.
+
+        Compares an existing pwp entry with new properties to determine if they are identical.
+        - Ignore the cn attribute, as it may contain escaped variants.
+        - Normalises keys to lowercase
+        - Converts all values to lists of strings
+        - Compares values
+
+        :param entry: The existing PwPolicyEntry to compare against.
+        :type entry: PwPolicyEntry
+        :param new_props: Dictionary of new password policy properties.
+        :type new_props: dict
+        :returns: True if the existing policy is a duplicate of the new properties, False otherwise.
+        :rtype: bool
+        """
+
+        # Helper to normalise a value into a list of strings
+        def _normalise_val(val):
+            if val is None:
+                return []
+            if isinstance(val, (list, tuple)):
+                return [str(v) for v in val]
+            return [str(val)]
+
+        # Normalise existing policy properties
+        existing = entry.get_attrs_vals_utf8(new_props.keys())
+        existing_norm = {}
+        for k, v in existing.items():
+            if k.lower() == 'cn':
+                continue
+            key_norm = k.lower()
+            val_norm = _normalise_val(v)
+            existing_norm[key_norm] = val_norm
+
+        # Normalise new entry properties
+        new_norm = {}
+        for k, v in new_props.items():
+            if k.lower() == 'cn':
+                continue
+            key_norm = k.lower()
+            val_norm = _normalise_val(v)
+            new_norm[key_norm] = val_norm
+
+        # Compare policies
+        for key, new_vals in new_norm.items():
+            old_vals = existing_norm.get(key, [])
+            if sorted(old_vals) != sorted(new_vals):
+                return False
+
+        return True
+
     def is_subtree_policy(self, dn):
         """Check if a subtree password policy exists for a given entry DN.
 
@@ -152,10 +204,19 @@ class PwPolicyManager(object):
         pwp_containers = nsContainers(self._instance, basedn=parentdn)
         pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'})
 
-        # Create or update the policy entry
+        # Create or update a policy entry
         properties['cn'] = 'cn=nsPwPolicyEntry_user,%s' % dn
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
-        pwp_entry = pwp_entries.ensure_state(properties=properties)
+        entry_dn = properties['cn']
+
+        if not pwp_entries.exists(entry_dn):
+            pwp_entry = pwp_entries.create(properties=properties)
+        else:
+            existing_entry = pwp_entries.get(entry_dn)
+            if self._is_duplicate_policy(existing_entry, properties):
+                raise ldap.ALREADY_EXISTS(f"User password policy already exists")
+            pwp_entry = pwp_entries.ensure_state(properties=properties)
+
         try:
             # Add policy to the entry
             user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
@@ -190,10 +251,17 @@ class PwPolicyManager(object):
         pwp_containers = nsContainers(self._instance, basedn=dn)
         pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'})
 
-        # Create or update the policy entry
+        # Create or update a policy entry
         properties['cn'] = 'cn=nsPwPolicyEntry_subtree,%s' % dn
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
-        pwp_entry = pwp_entries.ensure_state(properties=properties)
+        entry_dn = properties['cn']
+        if not pwp_entries.exists(entry_dn):
+            pwp_entry = pwp_entries.create(properties=properties)
+        else:
+            existing_entry = pwp_entries.get(entry_dn)
+            if self._is_duplicate_policy(existing_entry, properties):
+                raise ldap.ALREADY_EXISTS(f"Subtree password policy already exists")
+            pwp_entry = pwp_entries.ensure_state(properties=properties)
 
         # Ensure the CoS template entry (nsPwTemplateEntry) that points to the
         # password policy entry
