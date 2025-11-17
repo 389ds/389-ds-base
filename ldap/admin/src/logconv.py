@@ -2930,8 +2930,9 @@ def main():
             try:
                 db.set_parse_times(args.startTime, args.endTime)
             except (ValueError, IndexError, TypeError) as e:
-                db.server['parse_start_time'] = None
-                db.server['parse_stop_time'] = None
+                db.server.parse_start_time = None
+                db.server.parse_stop_time = None
+                sys.exit(1)
 
         print(f"Access Log Analyzer {logAnalyzerVersion}")
         print(f"Command: {' '.join(sys.argv)}")
