@@ -2082,7 +2082,7 @@ _cl5DispatchDBThreads(void)
                           NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                           PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE);
     if (NULL == pth) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "_cl5DispatchDBThreads - Failed to create trimming thread"
                       "; NSPR error - %d\n",
                       PR_GetError());
@@ -3687,7 +3687,7 @@ _cl5TrimFile(Object *obj, long *numToTrim)
     slapi_operation_parameters op = {0};
     ReplicaId csn_rid;
     void *it;
-    int finished = 0, totalTrimmed = 0, count;
+    int finished = 0, totalTrimmed = 0, totalScanned = 0, count, scanned;
     PRBool abort;
     char strCSN[CSN_STRSIZE];
     int rc;
@@ -3704,6 +3704,7 @@ _cl5TrimFile(Object *obj, long *numToTrim)
     while (!finished && !slapi_is_shutting_down()) {
         it = NULL;
         count = 0;
+        scanned = 0;
         txnid = NULL;
         abort = PR_FALSE;
 
@@ -3720,6 +3721,7 @@ _cl5TrimFile(Object *obj, long *numToTrim)
 
         finished = _cl5GetFirstEntry(obj, &entry, &it, txnid);
         while (!finished && !slapi_is_shutting_down()) {
+            scanned++;
             /*
              * This change can be trimmed if it exceeds purge
              * parameters and has been seen by all consumers.
@@ -3809,6 +3811,7 @@ _cl5TrimFile(Object *obj, long *numToTrim)
                               rc, db_strerror(rc));
             } else {
                 totalTrimmed += count;
+                totalScanned += scanned;
             }
         }
 
@@ -3818,8 +3821,8 @@ _cl5TrimFile(Object *obj, long *numToTrim)
         ruv_destroy(&ruv);
 
     if (totalTrimmed) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrimFile - Trimmed %d changes from the changelog\n",
-                      totalTrimmed);
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrimFile - Scanned %d records, and trimmed %d changes from the changelog\n",
+                      totalScanned, totalTrimmed);
     }
 }
 
