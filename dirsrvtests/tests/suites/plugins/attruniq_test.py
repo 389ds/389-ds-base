@@ -85,14 +85,23 @@ def containers(topology_st, request):
 def attruniq(topology_st, request):
     log.info('Setup attribute uniqueness plugin')
     attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
-    attruniq.create(properties={'cn': 'attruniq'})
-    attruniq.add_unique_attribute('cn')
+
+    if attruniq.exists():
+        attruniq.delete()
+        topology_st.standalone.restart()
+
+    attruniq.create(properties={
+        'cn': 'attruniq',
+        'uniqueness-attribute-name': 'cn',
+        'uniqueness-subtrees': 'cn=config',
+        'nsslapd-pluginEnabled': 'on'
+    })
     topology_st.standalone.restart()
 
     def fin():
         if attruniq.exists():
-            attruniq.disable()
             attruniq.delete()
+            topology_st.standalone.restart()
 
     request.addfinalizer(fin)
 
@@ -251,8 +260,8 @@ def test_modrdn_attr_uniqueness(topology_st, attruniq):
     group1 = groups.create(properties={'cn': 'group1'})
     group2 = groups.create(properties={'cn': 'group2'})
 
-    attruniq.add_unique_attribute('mail')
-    attruniq.add_unique_subtree(group2.dn)
+    attruniq.replace('uniqueness-attribute-name', 'mail')
+    attruniq.replace('uniqueness-subtrees', group2.dn)
     attruniq.enable_all_subtrees()
     log.debug(f'Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"')
     attruniq.enable()
@@ -274,9 +283,6 @@ def test_modrdn_attr_uniqueness(topology_st, attruniq):
         log.fatal(f'Failed: Attribute "mail" with {MAIL_ATTR_VALUE} is accepted')
     assert 'attribute value already exist' in str(excinfo.value)
     log.debug(excinfo.value)
-
-    log.debug('Move user2 to group1')
-    user2.rename(f'uid={user2.rdn}', group1.dn)
 
     user1.delete()
     user2.delete()
@@ -303,17 +309,11 @@ def test_multiple_attr_uniqueness(topology_st, attruniq):
         6. Should raise CONSTRAINT_VIOLATION
     """
 
-    try:
-        attruniq.add_unique_attribute('mail')
-        attruniq.add_unique_attribute('mailAlternateAddress')
-        attruniq.add_unique_subtree(DEFAULT_SUFFIX)
-        attruniq.enable_all_subtrees()
-        log.debug(f'Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"')
-        attruniq.enable()
-    except ldap.LDAPError as e:
-        log.fatal('test_multiple_attribute_uniqueness: Failed to configure plugin for "mail": error {}'.format(e.args[0]['desc']))
-        assert False
-
+    attruniq.replace('uniqueness-attribute-name', ['mail', 'mailAlternateAddress'])
+    attruniq.replace('uniqueness-subtrees', DEFAULT_SUFFIX)
+    attruniq.enable_all_subtrees()
+    log.debug(f'Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"')
+    attruniq.enable()
     topology_st.standalone.restart()
 
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
@@ -384,8 +384,9 @@ def test_exclude_subtrees(topology_st, attruniq):
         16. Success
         17. Success
     """
-    attruniq.add_unique_attribute('telephonenumber')
-    attruniq.add_unique_subtree(DEFAULT_SUFFIX)
+    # Replace dummy config with actual test config
+    attruniq.replace('uniqueness-attribute-name', 'telephonenumber')
+    attruniq.replace('uniqueness-subtrees', DEFAULT_SUFFIX)
     attruniq.enable_all_subtrees()
     attruniq.enable()
     topology_st.standalone.restart()
@@ -518,10 +519,18 @@ def test_matchingrule_attr(topology_st):
     """
 
     inst = topology_st.standalone
-
     attruniq = AttributeUniquenessPlugin(inst,
                                          dn="cn=attribute uniqueness,cn=plugins,cn=config")
-    attruniq.add_unique_attribute('cn:CaseExactMatch:')
+
+    if attruniq.exists():
+        attruniq.delete()
+        inst.restart()
+
+    attruniq.create(properties={
+        'cn': 'attribute uniqueness',
+        'uniqueness-attribute-name': 'cn:CaseExactMatch:',
+        'uniqueness-subtrees': DEFAULT_SUFFIX
+    })
     attruniq.enable_all_subtrees()
     attruniq.enable()
     inst.restart()
@@ -596,7 +605,7 @@ def test_one_container_add(topology_st, attruniq, containers, active_user_1):
     active_2.delete()
 
     log.info('Setup attribute uniqueness plugin for "cn" attribute')
-    attruniq.add_unique_subtree(ACTIVE_DN)
+    attruniq.replace('uniqueness-subtrees', ACTIVE_DN)
     attruniq.enable()
     topology_st.standalone.restart()
 
@@ -629,7 +638,7 @@ def test_one_container_mod(topology_st, attruniq, containers,
     """
 
     log.info('Setup attribute uniqueness plugin for "cn" attribute')
-    attruniq.add_unique_subtree(ACTIVE_DN)
+    attruniq.replace('uniqueness-subtrees', ACTIVE_DN)
     attruniq.enable()
     topology_st.standalone.restart()
 
@@ -658,7 +667,7 @@ def test_one_container_modrdn(topology_st, attruniq, containers,
     """
 
     log.info('Setup attribute uniqueness plugin for "cn" attribute')
-    attruniq.add_unique_subtree(ACTIVE_DN)
+    attruniq.replace('uniqueness-subtrees', ACTIVE_DN)
     attruniq.enable()
     topology_st.standalone.restart()
 
@@ -692,8 +701,7 @@ def test_multiple_containers_add(topology_st, attruniq, containers,
     """
 
     log.info('Setup attribute uniqueness plugin for "cn" attribute')
-    attruniq.add_unique_subtree(ACTIVE_DN)
-    attruniq.add_unique_subtree(STAGE_DN)
+    attruniq.replace('uniqueness-subtrees', [ACTIVE_DN, STAGE_DN])
     attruniq.enable()
     topology_st.standalone.restart()
 
@@ -791,8 +799,7 @@ def test_multiple_containers_mod(topology_st, attruniq, containers,
     """
 
     log.info('Setup attribute uniqueness plugin for "cn" attribute')
-    attruniq.add_unique_subtree(ACTIVE_DN)
-    attruniq.add_unique_subtree(STAGE_DN)
+    attruniq.replace('uniqueness-subtrees', [ACTIVE_DN, STAGE_DN])
     attruniq.enable()
     topology_st.standalone.restart()
 
@@ -877,8 +884,8 @@ def test_multiple_containers_modrdn(topology_st, attruniq, containers,
     """
 
     log.info('Setup attribute uniqueness plugin for "cn" attribute')
-    attruniq.add_unique_subtree(ACTIVE_DN)
-    attruniq.add_unique_subtree(STAGE_DN)
+    # Replace dummy subtree with actual test subtrees
+    attruniq.replace('uniqueness-subtrees', [ACTIVE_DN, STAGE_DN])
     attruniq.enable()
     topology_st.standalone.restart()
 
@@ -997,7 +1004,10 @@ def test_invalid_config_missing_attr_name(topology_st):
     _config_file(topology_st, action='save')
 
     attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
-    attruniq.create(properties={'cn': 'attruniq'})
+    attruniq.create(properties={
+        'cn': 'attruniq',
+        'uniqueness-subtrees': DEFAULT_SUFFIX
+    })
     attruniq.enable()
 
     topology_st.standalone.errorlog_file = open(topology_st.standalone.errlog, "r")
@@ -1044,9 +1054,11 @@ def test_invalid_config_invalid_subtree(topology_st):
     _config_file(topology_st, action='save')
 
     attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
-    attruniq.create(properties={'cn': 'attruniq'})
-    attruniq.add_unique_attribute('cn')
-    attruniq.add_unique_subtree('invalid_subtree')
+    attruniq.create(properties={
+        'cn': 'attruniq',
+        'uniqueness-attribute-name': 'cn',
+        'uniqueness-subtrees': 'invalid_subtree'
+    })
     attruniq.enable()
 
     topology_st.standalone.errorlog_file = open(topology_st.standalone.errlog, "r")
