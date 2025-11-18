@@ -1043,7 +1043,9 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 }
             }
         }
-        if (slapi_sdn_get_dn(dn_newsuperiordn) != NULL) {
+        /* Only update parent if we're actually moving to a NEW parent (not the same parent) */
+        if (slapi_sdn_get_dn(dn_newsuperiordn) != NULL &&
+            slapi_sdn_compare(dn_newsuperiordn, &dn_parentdn) != 0) {
             /* Push out the db modifications from the parent entry */
             retval = modify_update_all(be, pb, &parent_modify_context, &txn);
             if (DBI_RC_RETRY == retval) {
@@ -1279,11 +1281,6 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
-    /* Revert the caches if this is the parent operation */
-    if (parent_op && betxn_callback_fails) {
-        revert_cache(inst, &parent_time);
-    }
-
     /* result already sent above - just free stuff */
     if (postentry) {
         slapi_entry_free(postentry);
@@ -1353,13 +1350,6 @@ error_return:
                     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-
-                /* As it is a BETXN plugin failure then
-                 * revert the caches if this is the parent operation
-                 */
-                if (parent_op) {
-                    revert_cache(inst, &parent_time);
-                }
             }
             retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
 
@@ -1371,6 +1361,15 @@ error_return:
         if (!not_an_error) {
             retval = SLAPI_FAIL_GENERAL;
         }
+    }
+
+    /* Revert the caches if this is the parent operation and cache modifications were made.
+     * Cache modifications (via modify_switch_entries) only happen after BETXN PRE plugins succeed,
+     * so we should only revert if we got past that point (i.e., BETXN POST plugin failures).
+     * For BETXN PRE failures, no cache modifications were made to parent/newparent entries.
+     */
+    if (parent_op && betxn_callback_fails && postentry) {
+        revert_cache(inst, &parent_time);
     }
 
 common_return:
@@ -1418,12 +1417,22 @@ common_return:
                                       "operation failed, the target entry is cleared from dncache (%s)\n", slapi_entry_get_dn(ec->ep_entry));
             CACHE_REMOVE(&inst->inst_dncache, bdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
+
+            /* Also remove ec from entry cache and free it since the operation failed */
+            if (inst && cache_is_in_cache(&inst->inst_cache, ec)) {
+                CACHE_REMOVE(&inst->inst_cache, ec);
+                CACHE_RETURN(&inst->inst_cache, &ec);
+            } else {
+                /* ec was not in cache, just free it */
+                backentry_free(&ec);
+            }
+            ec = NULL;
         }
 
         if (ec && inst) {
             CACHE_RETURN(&inst->inst_cache, &ec);
+            ec = NULL;
         }
-        ec = NULL;
     }
 
     if (inst) {
@@ -1751,6 +1760,8 @@ moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_DN *dn_newrdn, Slapi
 
 /*
  * Return the entries to the cache.
+ * For the original entry 'e', we should NOT remove it from cache on failure,
+ * as it's still a valid entry in the directory.
  */
 static void
 moddn_unlock_and_return_entry(
@@ -1759,12 +1770,9 @@ moddn_unlock_and_return_entry(
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
 
-    /* Something bad happened so we should give back all the entries */
+    /* Unlock and return the entry to the cache */
     if (*targetentry != NULL) {
         cache_unlock_entry(&inst->inst_cache, *targetentry);
-        if (cache_is_in_cache(&inst->inst_cache, *targetentry)) {
-            CACHE_REMOVE(&inst->inst_cache, *targetentry);
-        }
         CACHE_RETURN(&inst->inst_cache, targetentry);
         *targetentry = NULL;
     }

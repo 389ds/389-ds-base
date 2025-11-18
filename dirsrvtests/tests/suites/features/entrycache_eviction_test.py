@@ -147,6 +147,7 @@ def prepare_be(topology_st, request):
     be1.replace('nsslapd-cachesize',  '100' )
     # Set debugging trace specific for this test
     be1.replace('nsslapd-cache-debug-pattern',  f'cn=.*,ou=groups,{suffix}' )
+    inst.config.set('nsslapd-errorlog-level', '266354688')
 
     # import the ldif
     inst.stop()
@@ -154,25 +155,26 @@ def prepare_be(topology_st, request):
     if not inst.ldif2db(bename, None, None, None, ldif_file):
         log.fatal('Failed to import {ldif_file}')
         assert False
-    if get_default_db_lib() == 'bdb':
-        # bdb import uses the entry cache ==> Must clear the pattern from the log
-        with open(inst.ds_paths.error_log, 'r') as fin:
-            lines = fin.readlines()
-        with open(inst.ds_paths.error_log, 'w') as fout:
-            for line in lines:
-                fout.write(line.replace('- entrycache_', '- Xntrycache_'))
+    with open(inst.ds_paths.error_log, 'r') as fin:
+        lines = fin.readlines()
+    with open(inst.ds_paths.error_log, 'w') as fout:
+        for line in lines:
+            line = line.replace('entrycache_add_int', 'Xntrycache_add_int')
+            line = line.replace('entrycache_remove_int', 'Xntrycache_remove_int')
+            fout.write(line)
 
     inst.start()
 
     return (bename, suffix, be1, people_base, groups_base)
 
 
-def grab_debug_logs(inst):
+def grab_debug_logs(inst, last_count=0):
     errlog = DirsrvErrorLog(inst)
     msgs = errlog.match('.*entrycache_.*_int')
-    adds = [ line for line in msgs if 'entrycache_add_int' in line ]
-    dels= [ line for line in msgs if 'entrycache_remove_int' in line ]
-    return (msgs, adds, dels)
+    new_msgs = msgs[last_count:]
+    adds = [ line for line in new_msgs if 'entrycache_add_int' in line ]
+    dels= [ line for line in new_msgs if 'entrycache_remove_int' in line ]
+    return (new_msgs, adds, dels, len(msgs))
 
 
 def test_entry_cache_eviction(topology_st, prepare_be):
@@ -207,13 +209,15 @@ def test_entry_cache_eviction(topology_st, prepare_be):
     inst = topology_st.standalone
     bename, suffix, be1, people_base, groups_base = prepare_be
 
+    log_count = 0
+
     be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '10')
     # Search all groups then all people to try to evict the groups from entrycache
     inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
 
     # Check error logs
-    msgs, adds, dels = grab_debug_logs(inst)
+    msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
     # Should have entrycache_add_int for each group and no entrycache_delete_int
     assert len(adds) == 5
     assert len(dels) == 0
@@ -222,30 +226,26 @@ def test_entry_cache_eviction(topology_st, prepare_be):
     # Search all people to evict groups from entrycache
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     # Check error logs
-    msgs, adds, dels = grab_debug_logs(inst)
-    assert len(adds) == 5
+    msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
     assert len(dels) == 5
 
     # Search all groups then all people to try to evict the groups from entrycache
     inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     # Check error logs
-    msgs, adds, dels = grab_debug_logs(inst)
-    #  Should have the 5 add messages from previous searches + 5 new add
-    #  Should have the 5 del messages from previous searches + 5 new del
-    assert len(adds) == 5+5
-    assert len(dels) == 5+5
+    msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
+    assert len(adds) == 5
+    assert len(dels) == 5
 
     be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '4')
     # Search all groups then all people to try to evict the groups from entrycache
     inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     # Check error logs
-    msgs, adds, dels = grab_debug_logs(inst)
-    # Should have entrycache_add_int for each group and one group is removed
-    # because only 4 of them are preserved.
-    assert len(adds) == 10+5
-    assert len(dels) == 10+1
+    # Should have entrycache_add_int for each group and one group removed (only 4 preserved)
+    msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
+    assert len(adds) == 5
+    assert len(dels) == 1
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

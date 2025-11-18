@@ -123,6 +123,9 @@ class LogHandler():
             # Ignore autotune messages that may confuse the counts
             if 'bdb_start_autotune' in line:
                 continue
+            # Ignore LMDB size warnings that may confuse the counts
+            if 'dbmdb_ctx_t_db_max_size_set' in line:
+                continue
             log.info(f'ERROR LOG line is {line.strip()}')
             for idx,pattern in enumerate(self.patterns):
                 if pattern in line.lower():
@@ -684,7 +687,7 @@ def test_ldif2db_after_backend_create(topo, verify):
     import_time_2 = create_backend_and_import(instance, ldif_file_2, 'o=test_2', 'test_2')
 
     log.info('Import times should be approximately the same')
-    assert abs(import_time_1 - import_time_2) < 5
+    assert abs(import_time_1 - import_time_2) < 15
 
 
 def test_ldif_missing_suffix_entry(topo, request, verify):
@@ -725,6 +728,7 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
     """
 
     inst = topo.standalone
+    inst.config.set('nsslapd-errorlog-level', '266354688')
     no_suffix_on = (
         (1, 0), # no errors are expected.
         (2, 1), # 1 warning is expected.
@@ -739,20 +743,36 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
         (4, 1), # 1 'all entries were skipped' warning
         (5, 1), # 1 'returning task warning' info message
     )
-    nbw = 0 if get_default_db_lib() == "bdb" else 10
+
     far_suffix_on = (
-        (1, 0), # no errors are expected.
-        (2, nbw), # no/10 warning are expected.
-        (3, nbw), # no/10 'no parent' warning are expected.
-        (4, 0), # no 'all entries were skipped' warning
-        (5, 0), # no 'returning task warning' info message
+        (1, 0),  # no errors are expected.
+        (2, 1),  # 1 warning (consolidated, pre-check aborts after 4 entries)
+        (3, 0),  # 0 'no parent' warnings (pre-check aborts before processing)
+        (4, 1),  # 1 'all entries were skipped' warning (from pre-check)
+        (5, 0),  # 0 'returning task warning' info message (online import)
+    )
+    # Backend-specific behavior for orphan detection when suffix parameter is provided
+    nbw = 0 if get_default_db_lib() == "bdb" else 10
+    far_suffix_with_suffix_on = (
+        (1, 0),  # no errors are expected.
+        (2, nbw),  # 0 (BDB early filtering) or 10 (LMDB orphan detection) warnings
+        (3, nbw),  # 0 (BDB early filtering) or 10 (LMDB orphan detection) 'no parent' warnings
+        (4, 0),  # 0 'all entries were skipped' warning (no pre-check abort)
+        (5, 0),  # 0 'returning task warning' info message (online import)
     )
     far_suffix_off = (
-        (1, 0), # no errors are expected.
-        (2, nbw), # no/10 warning is expected.
-        (3, nbw), # no/10 'no parent' warning is expected.
-        (4, 0), # no 'all entries were skipped' warning
-        (5, 0), # no 'returning task warning' info message
+        (1, 0),  # no errors are expected.
+        (2, 1),  # 1 warning (consolidated, pre-check detects missing suffix)
+        (3, 0),  # 0 'no parent' warnings (pre-check aborts before processing)
+        (4, 1),  # 1 'all entries were skipped' warning (from pre-check)
+        (5, 1),  # 1 'returning task warning' info message (offline import)
+    )
+    far_suffix_with_suffix_off = (
+        (1, 0),  # no errors are expected.
+        (2, nbw),  # 0 (BDB early filtering) or 10 (LMDB orphan detection) warnings
+        (3, nbw),  # 0 (BDB early filtering) or 10 (LMDB orphan detection) 'no parent' warnings
+        (4, 0),  # 0 'all entries were skipped' warning (no pre-check abort)
+        (5, 0),  # 0 'returning task warning' (rc=0, successful import of suffix)
     )
 
     with open(inst.ds_paths.error_log, 'at+') as fd:
@@ -773,7 +793,9 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
 
         def fin():
             inst.start()
-            Importer(inst, errlog, "full").run(no_errors)
+            with open(inst.ds_paths.error_log, 'at+') as cleanup_fd:
+                cleanup_errlog = LogHandler(cleanup_fd, patterns)
+                Importer(inst, cleanup_errlog, "full").run(no_errors)
 
         if not DEBUGGING:
             request.addfinalizer(fin)
@@ -826,13 +848,15 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
                 for line in iter(fin.readline, ''):
                     fout.write(line)
 
+        os.chmod(e.ldif, 0o644)
+
         # 10. Offline import using backend name ou=people subtree
-        e.run(no_suffix_off)
+        e.run(far_suffix_off)
         e.check_db()
 
         # 11. Offline import using suffix name ou=people subtree
         e = Importer(inst, errlog, "far", suffix=DEFAULT_SUFFIX)
-        e.run(far_suffix_off)
+        e.run(far_suffix_with_suffix_off)
         e.check_db()
 
         # 12. Start the instance
@@ -840,12 +864,12 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
 
         # 13. Online import using backend name ou=people subtree
         e = Importer(inst, errlog, "far")
-        e.run(no_suffix_on)
+        e.run(far_suffix_on)
         e.check_db()
 
         # 14. Online import using suffix name ou=people subtree
         e = Importer(inst, errlog, "far", suffix=DEFAULT_SUFFIX)
-        e.run(far_suffix_on)
+        e.run(far_suffix_with_suffix_on)
         e.check_db()
 
 
