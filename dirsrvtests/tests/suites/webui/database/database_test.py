@@ -138,6 +138,7 @@ def test_chaining_configuration_availability(topology_st, page, browser_name):
     log.info('Click on Chaining Configuration and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
     frame.locator('#chaining-config').click()
+    frame.locator('#chaining-page').wait_for()
     frame.locator('#defSizeLimit').wait_for()
     assert frame.locator('#defSizeLimit').is_visible()
 

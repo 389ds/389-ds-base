@@ -44,7 +44,10 @@ def test_fixup_task_limit(topo):
     group = groups.create(properties={'cn': 'test'})
 
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
-    for idx in range(400):
+    # Turn on access log buffering to speed up user creation
+    buffering = topo.standalone.config.get_attr_val_utf8('nsslapd-accesslog-logbuffering')
+    topo.standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+    for idx in range(6000):
         user = users.create(properties={
             'uid': 'testuser%s' % idx,
             'cn' : 'testuser%s' % idx,
@@ -54,6 +57,9 @@ def test_fixup_task_limit(topo):
             'homeDirectory' : '/home/testuser%s' % idx
         })
         group.add('member', user.dn)
+
+    # Restore access log buffering
+    topo.standalone.config.set('nsslapd-accesslog-logbuffering', buffering)
 
     # Configure memberOf plugin
     memberof = MemberOfPlugin(topo.standalone)

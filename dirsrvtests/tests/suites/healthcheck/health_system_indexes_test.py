@@ -172,6 +172,7 @@ def test_missing_parentid(topology_st, log_buffering_enabled):
     log.info("Re-add the parentId index")
     backend = Backends(standalone).get("userRoot")
     backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
+    standalone.restart()
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -215,6 +216,7 @@ def test_missing_matching_rule(topology_st, log_buffering_enabled):
     log.info("Re-add the integerOrderingMatch matching rule")
     parentid_index = Index(standalone, PARENTID_DN)
     parentid_index.add("nsMatchingRule", "integerOrderingMatch")
+    standalone.restart()
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -445,6 +447,7 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
     backend = Backends(standalone).get("userRoot")
     backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
     backend.add_index("nsuniqueid", ["eq"])
+    standalone.restart()
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)

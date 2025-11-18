@@ -369,11 +369,13 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
                     repl.ensure_agreement(s1, s2)
                     repl.ensure_agreement(s2, s1)
 
-        # Allow initial topology to settle before capturing metrics
+        # Wait for all the setup replication to settle, then clear the logs
         for suffix in all_suffixes:
             repl = ReplicationManager(suffix)
-            repl.test_replication_topology(topo_m4)
-
+            for s1 in suppliers:
+                for s2 in suppliers:
+                    if s1 != s2:
+                        repl.wait_for_replication(s1, s2)
         for supplier in suppliers:
             supplier.deleteAccessLogs(restart=True)
 
