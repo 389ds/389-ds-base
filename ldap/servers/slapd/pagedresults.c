@@ -804,6 +804,7 @@ pagedresults_cleanup(Connection *conn, int needlock)
         prp->pr_current_be = NULL;
         if (prp->pr_mutex) {
             PR_DestroyLock(prp->pr_mutex);
+            prp->pr_mutex = NULL;
         }
         memset(prp, '\0', sizeof(PagedResults));
     }
@@ -844,6 +845,7 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
         prp = conn->c_pagedresults.prl_list + i;
         if (prp->pr_mutex) {
             PR_DestroyLock(prp->pr_mutex);
+            prp->pr_mutex = NULL;
         }
         if (prp->pr_current_be && prp->pr_search_result_set &&
             prp->pr_current_be->be_search_results_release) {
@@ -1026,11 +1028,10 @@ pagedresults_lock(Connection *conn, int index)
     }
     pthread_mutex_lock(pageresult_lock_get_addr(conn));
     prp = conn->c_pagedresults.prl_list + index;
-    pthread_mutex_unlock(pageresult_lock_get_addr(conn));
     if (prp->pr_mutex) {
         PR_Lock(prp->pr_mutex);
     }
-    return;
+    pthread_mutex_unlock(pageresult_lock_get_addr(conn));
 }
 
 void
@@ -1042,11 +1043,10 @@ pagedresults_unlock(Connection *conn, int index)
     }
     pthread_mutex_lock(pageresult_lock_get_addr(conn));
     prp = conn->c_pagedresults.prl_list + index;
-    pthread_mutex_unlock(pageresult_lock_get_addr(conn));
     if (prp->pr_mutex) {
         PR_Unlock(prp->pr_mutex);
     }
-    return;
+    pthread_mutex_unlock(pageresult_lock_get_addr(conn));
 }
 
 int
