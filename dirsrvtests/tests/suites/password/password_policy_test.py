@@ -1522,8 +1522,8 @@ def test_get_pwpolicy_cn_with_quotes(topology_m1, policy_qoutes_setup):
     people.replace('passwordhistory', 'off')
     assert people.get_attr_val_utf8('passwordhistory') == 'off'
 
-def test_pwpolicy_list(topo):
-    """Verify duplicate local password polices are not listed when
+def test_pwpolicy_list(topo, request):
+    """Verify duplicate local password policies are not listed when
     all local password are listed
 
     :id: 480a3fae-8c0e-4033-806e-03bc572bf3df
@@ -1539,6 +1539,7 @@ def test_pwpolicy_list(topo):
         2. Success
         3. Success
         4. Success
+        5. Success
     """
     inst = topo.standalone
 
@@ -1590,6 +1591,15 @@ def test_pwpolicy_list(topo):
     # Verify there are no duplicates reported
     assert len(logged_output) == len(set(logged_output))
     topo.logcap.flush()
+
+    # Cleanup
+    def fin():
+        try:
+            backend_entry.delete()
+        except Exception:
+            pass
+
+    request.addfinalizer(fin)
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
