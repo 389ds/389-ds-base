@@ -151,7 +151,6 @@ static void memberof_set_plugin_id(void *plugin_id);
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
-static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *sdn);
 static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn, Slapi_Value *memberdn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
@@ -540,21 +539,6 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
      * attributes to refer to the new name. */
     if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
         if (!memberof_entry_in_scope(&configCopy, &post_entry_info)) {
-            /*
-             * After modrdn the group contains both the pre and post DN's as
-             * members, so we need to cleanup both in this case.
-             */
-            if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_e, pre_sdn))) {
-                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                              "deferred_modrdn_func - Delete dn failed for preop entry(%s), error (%d)\n",
-                              slapi_sdn_get_dn(pre_sdn), ret);
-            }
-            if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_e, post_sdn))) {
-                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                              "deferred_modrdn_func - Delete dn failed for postop entry(%s), error (%d)\n",
-                              slapi_sdn_get_dn(post_sdn), ret);
-            }
-
             if (ret == LDAP_SUCCESS && pre_e && configCopy.group_filter &&
                 0 == slapi_filter_test_simple(pre_e, configCopy.group_filter))
             {
@@ -637,16 +621,6 @@ deferred_del_func(MemberofDeferredDelTask *task)
     memberof_copy_config(&configCopy, memberof_get_config());
     free_configCopy = PR_TRUE;
     memberof_unlock_config();
-
-    /* remove this DN from the
-     * membership lists of groups
-     */
-    if ((ret = memberof_del_dn_from_groups(pb, &configCopy, e, sdn))) {
-        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                "deferred_del_func - Error deleting dn (%s) from group. Error (%d)\n",
-                slapi_sdn_get_dn(sdn), ret);
-        goto bail;
-    }
 
     /* is the entry of interest as a group? */
     if (e && configCopy.group_filter && 0 == slapi_filter_test_simple(e, configCopy.group_filter)) {
@@ -1454,16 +1428,6 @@ memberof_postop_del(Slapi_PBlock *pb)
         memberof_copy_config(&configCopy, memberof_get_config());
         memberof_unlock_config();
 
-        /* remove this DN from the
-         * membership lists of groups
-         */
-        if ((ret = memberof_del_dn_from_groups(pb, &configCopy, e, sdn))) {
-            slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                          "memberof_postop_del - Error deleting dn (%s) from group. Error (%d)\n",
-                          slapi_sdn_get_dn(sdn), ret);
-            goto bail;
-        }
-
         /* is the entry of interest as a group? */
         if (e && configCopy.group_filter && 0 == slapi_filter_test_simple(e, configCopy.group_filter)) {
             Slapi_Attr *attr = 0;
@@ -1493,34 +1457,6 @@ done:
     return ret;
 }
 
-
-/* Deletes a member dn from all groups that refer to it. */
-static int
-memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *sdn)
-{
-    char *groupattrs[2] = {0, 0};
-    int rc = LDAP_SUCCESS;
-    int cached = 0;
-
-    /* Loop through each grouping attribute to find groups that have
-     * dn as a member.  For any matches, delete the dn value from the
-     * same grouping attribute. */
-    for (size_t i = 0; config->groupattrs && config->groupattrs[i] && rc == LDAP_SUCCESS; i++) {
-        memberof_del_dn_data data = {(char *)slapi_sdn_get_dn(sdn),
-                                     config->groupattrs[i], config};
-
-        groupattrs[0] = config->groupattrs[i];
-
-        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                "memberof_del_dn_from_groups: Ancestors of %s   attr: %s\n",
-                slapi_sdn_get_dn(sdn),
-                groupattrs[0]);
-        rc = memberof_call_foreach_dn(pb, e, sdn, config, groupattrs,
-                                      memberof_del_dn_type_callback, &data, &cached, PR_FALSE);
-    }
-
-    return rc;
-}
 
 int
 memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
@@ -1902,21 +1838,6 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
          * attributes to refer to the new name. */
         if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
             if (!memberof_entry_in_scope(&configCopy, &post_entry_info)) {
-                /*
-                 * After modrdn the group contains both the pre and post DN's as
-                 * members, so we need to cleanup both in this case.
-                 */
-                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_e, pre_sdn))) {
-                    slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                  "memberof_postop_modrdn - Delete dn failed for preop entry(%s), error (%d)\n",
-                                  slapi_sdn_get_dn(pre_sdn), ret);
-                }
-                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_e, post_sdn))) {
-                    slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                  "memberof_postop_modrdn - Delete dn failed for postop entry(%s), error (%d)\n",
-                                  slapi_sdn_get_dn(post_sdn), ret);
-                }
-
                 if (ret == LDAP_SUCCESS && pre_e && configCopy.group_filter &&
                     0 == slapi_filter_test_simple(pre_e, configCopy.group_filter)) {
                     /* is the entry of interest as a group? */
