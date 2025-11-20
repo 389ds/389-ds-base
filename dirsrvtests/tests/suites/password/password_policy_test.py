@@ -1569,7 +1569,7 @@ def test_duplicate_policies(topo):
         'passwordminlength': '6'
     }
 
-    log.info(f'Creating subtree pwp')
+    log.info('Creating subtree pwp')
     pwp = PwPolicyManager(topo.standalone)
     pwp.create_subtree_policy(people.dn, policy_props)
     subtree_policy = pwp.get_pwpolicy_entry(people.dn)
@@ -1583,6 +1583,7 @@ def test_duplicate_policies(topo):
     modified_props = policy_props.copy()
     modified_props['passwordminlength'] = '8'
     pwp.create_subtree_policy(people.dn, modified_props)
+    subtree_policy = pwp.get_pwpolicy_entry(people.dn)
     assert subtree_policy.get_attr_val_utf8('passwordminlength') == '8'
 
     log.info('Creating test user')
@@ -1601,6 +1602,7 @@ def test_duplicate_policies(topo):
     modified_props = policy_props.copy()
     modified_props['passwordMinAge'] = '1'
     pwp.create_user_policy(user.dn, modified_props)
+    subtree_policy = pwp.get_pwpolicy_entry(people.dn)
     assert user_policy.get_attr_val_utf8('passwordMinAge') == '1'
 
 

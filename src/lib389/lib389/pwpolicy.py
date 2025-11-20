@@ -118,7 +118,12 @@ class PwPolicyManager(object):
             val_norm = _normalise_val(v)
             new_norm[key_norm] = val_norm
 
-        # Compare policies
+        # If the new props introduce a new key, its not a duplicate
+        for key in new_norm.keys():
+            if key not in existing_norm:
+                return False
+
+        # Overlapping values must match
         for key, new_vals in new_norm.items():
             old_vals = existing_norm.get(key, [])
             if sorted(old_vals) != sorted(new_vals):
