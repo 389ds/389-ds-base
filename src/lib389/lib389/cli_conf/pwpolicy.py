@@ -159,19 +159,41 @@ def create_subtree_policy(inst, basedn, log, args):
     # Gather the attributes
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_subtree_policy(args.DN[0], attrs)
+    try:
+        pwp_manager.create_subtree_policy(args.DN[0], attrs)
+        log.info('Successfully created subtree password policy')
 
-    log.info('Successfully created subtree password policy')
+    except ldap.ALREADY_EXISTS as ae:
+        raise ValueError(f"Subtree password policy already exists")
 
+    except ValueError as ve:
+        raise ValueError(f"Failed to create subtree password policy: {ve}")
+
+    except ldap.LDAPError as le:
+        raise ValueError(f"LDAP error while creating subtree policy: {le}")
+
+    except Exception as e:
+        raise ValueError(f"Unexpected error: {e}")
 
 def create_user_policy(inst, basedn, log, args):
     log = log.getChild('create_user_policy')
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_user_policy(args.DN[0], attrs)
+    try:
+        pwp_manager.create_user_policy(args.DN[0], attrs)
+        log.info('Successfully created user password policy')
 
-    log.info('Successfully created user password policy')
+    except ldap.ALREADY_EXISTS:
+        raise ValueError(f"User password policy already exists")
 
+    except ValueError as ve:
+        raise ValueError(f"Failed to create user password policy: {ve}")
+
+    except ldap.LDAPError:
+        raise ValueError(f"LDAP error while creating user policy")
+
+    except Exception as e:
+        raise ValueError(f"Unexpected error: {e}")
 
 def set_global_policy(inst, basedn, log, args):
     log = log.getChild('set_global_policy')
