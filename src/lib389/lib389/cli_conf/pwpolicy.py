@@ -91,6 +91,7 @@ def list_policies(inst, basedn, log, args):
     else:
         result = ""
 
+    seen_dns = set()
     for targetdn in targetdns:
         # Verify target dn exists before getting started
         user_entry = Account(inst, targetdn)
@@ -104,6 +105,11 @@ def list_policies(inst, basedn, log, args):
         attr_list = list(pwp_manager.arg_to_attr.values())
 
         for pwp_entry in pwp_entries.list():
+            # Filter duplicates because subtree search on parent suffix also returns
+            # policies from sub suffixes
+            if pwp_entry.dn in seen_dns:
+                continue
+            seen_dns.add(pwp_entry.dn)
             # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
             # We need to strip them as python-ldap doesn't expect them
             dn_comps_str = pwp_entry.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
