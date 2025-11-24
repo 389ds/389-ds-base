@@ -201,6 +201,7 @@ slapd_bind_local_user(Connection *conn)
                                                         NULL, NULL, NULL, NULL);
                         }
                         /* all done here */
+                        slapi_entry_free(e);
                         slapi_rwlock_unlock(dn_mapping_lock);
                         goto done;
                     } else {
