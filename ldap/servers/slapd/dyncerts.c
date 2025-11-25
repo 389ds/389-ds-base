@@ -20,8 +20,8 @@
 #include <nss.h>
 #include <nss3/pk11pub.h>
 #include <nss3/certdb.h>
-#include "svrcore.h" 
-#include "dyncerts.h" 
+#include "svrcore.h"
+#include "dyncerts.h"
 
 #ifdef DEBUG
 #define SLAPI_LOG_DYC SLAPI_LOG_INFO
@@ -405,18 +405,23 @@ static PRBool
 has_privkey(CERTCertificate *cert)
 {
     SECKEYPrivateKey *privkey = PK11_FindKeyByDERCert(cert->slot, cert, NULL);
-    return privkey ? PR_TRUE : PR_FALSE;
+    PRBool res = privkey ? PR_TRUE : PR_FALSE;
+    SECKEY_DestroyPrivateKey(privkey);
+    return res;
 }
 
 /* Determine the key algorythm */
 static char *
 key_algo(CERTCertificate *cert)
 {
-    SECKEYPublicKey *pubkey = CERT_ExtractPublicKey(cert);
+    SECKEYPublicKey *pubkey = CERT_ExtractPublicKey(cert);\
+    CK_KEY_TYPE keyType = 0;
     if (pubkey == NULL) {
         return "None";
     }
-			switch (pubkey->keyType) {
+    keyType = pubkey->keyType;
+    SECKEY_DestroyPublicKey(pubkey);
+	switch (keyType) {
         case rsaKey: return "RSA";
         case ecKey: return "EC";
         default: return "UNKNOWN";
@@ -461,6 +466,9 @@ is_servercert(CERTCertificate *cert)
     for (size_t i=FIRST_FAMILY_CONFIG_ENTRY_IDX; (e=get_config_entry(i)); i++) {
         const char *ename = slapi_entry_attr_get_ref(e, "nsSSLPersonalitySSL");
         const char *eslot = slapi_entry_attr_get_ref(e, "nsSSLToken");
+        if (!ename || !eslot) {
+            continue;
+        }
         if (strcasecmp(ename, certname) != 0) {
             continue;
         }
@@ -486,13 +494,13 @@ _get_pw(const char *token)
 {
     struct sock_elem *se = pdyncerts.sockets;
     char *pw = NULL;
-#ifdef WITH_SYSTEMD
-    SVRCOREStdSystemdPinObj *StdPinObj = (SVRCOREStdSystemdPinObj *)SVRCORE_GetRegisteredPinObj();
-#else
-    SVRCOREStdPinObj *StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
-#endif
-    SVRCOREError err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
+    SVRCOREError err = SVRCORE_NoSuchToken_Error;
 
+    if (token != NULL) {
+        SVRCOREStdPinObj *StdPinObj = NULL;
+        StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+        err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
+    }
     if (err != SVRCORE_Success || pw == NULL) {
         for (;pw == NULL && se; se=se->next) {
             pw = SSL_RevealPinArg(se->pr_sock);
@@ -661,7 +669,7 @@ gnw_cb(general_name_type_t gnt, const general_name_value_t *val, void *arg)
                 /* Should convert the address to string */
             } else {
                 size_t len = val->vals[0].bv_len;
-                str = malloc(len+1);
+                str = slapi_ch_malloc(len+1);
                 memcpy(str, val->vals[0].bv_val, len);
                 str[len] = 0;
             }
@@ -670,7 +678,7 @@ gnw_cb(general_name_type_t gnt, const general_name_value_t *val, void *arg)
             {
                 size_t len0 = val->vals[0].bv_len;
                 size_t len1 = val->vals[1].bv_len;
-                str = malloc(len0+len1+2);
+                str = slapi_ch_malloc(len0+len1+2);
                 memcpy(str, val->vals[0].bv_val, len0);
                 str[len0] = '=';
                 memcpy(str+len0+1, val->vals[1].bv_val, len1);
@@ -697,6 +705,7 @@ store_alt_name(Slapi_Entry *e, CERTCertificate *cert, const char *attrname)
         bv.bv_val = (char*) si.data;
         walk_subject_alt_names(&bv, gnw_cb, &ctx);
     }
+    SECITEM_FreeItem(&si, PR_FALSE);
 }
 
 /* Get certificate nickname (including token name). Must be freed by caller */
