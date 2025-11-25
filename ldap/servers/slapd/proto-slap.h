@@ -1606,9 +1606,7 @@ int sasl_io_setup(Connection *c);
  * daemon.c
  */
 void handle_closed_connection(Connection *);
-#ifndef LINUX
-void slapd_do_nothing(int);
-#endif
+void slapd_lsan_check(void);
 void slapd_wait4child(int);
 void disk_mon_get_dirs(char ***list);
 int32_t disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space);
