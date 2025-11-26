@@ -2353,21 +2353,25 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
         PK11SlotInfo *slot = sle->slot;
         const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
         const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
+slapi_log_err(SLAPI_LOG_INFO, "slapd_get_unlocked_key_for_cert", "MYDBG: Looking at slot %s on token %s\n", slotname, tokenname);
         if (!slot) {
             slapi_log_err(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
                           "Missing slot for slot list element for certificate [%s]\n",
                           certsubject);
+slapi_log_err(SLAPI_LOG_INFO, "slapd_get_unlocked_key_for_cert", "MYDBG[%d] HERE\n", __LINE__);
         } else if (!PK11_NeedLogin(slot) || PK11_IsLoggedIn(slot, pin_arg)) {
             key = PK11_FindKeyByDERCert(slot, cert, pin_arg);
             slapi_log_err(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
                           "Found unlocked slot [%s] token [%s] for certificate [%s]\n",
                           slotname, tokenname, certsubject);
+slapi_log_err(SLAPI_LOG_INFO, "slapd_get_unlocked_key_for_cert", "MYDBG[%d] HERE (key=%p)\n", __LINE__, key);
             break;
         } else {
             PRErrorCode errcode = PR_GetError();
             slapi_log_err(SLAPI_LOG_NOTICE, "slapd_get_unlocked_key_for_cert",
                           "Skipping locked slot [%s] token [%s] for certificate [%s] (%d - %s)\n",
                           slotname, tokenname, certsubject, errcode, slapd_pr_strerror(errcode));
+slapi_log_err(SLAPI_LOG_INFO, "slapd_get_unlocked_key_for_cert", "MYDBG[%d] HERE token is locked\n", __LINE__);
         }
     }
 
