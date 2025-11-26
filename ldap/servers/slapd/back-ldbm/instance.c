@@ -278,10 +278,6 @@ ldbm_instance_create_default_indexes(backend *be)
     slapi_entry_free(e);
 #endif
 
-    e = ldbm_instance_init_config_entry(LDBM_NUMSUBORDINATES_STR, "pres", 0, 0, 0, 0);
-    ldbm_instance_config_add_index_entry(inst, e, flags);
-    slapi_entry_free(e);
-
     e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID, "eq", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
