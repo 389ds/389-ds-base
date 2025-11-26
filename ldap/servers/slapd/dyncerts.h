@@ -53,6 +53,8 @@
 #define INTERNAL_SLOTNAME1    "Internal (Software)"
 #define INTERNAL_SLOTNAME2    "Internal (Software) Token"
 
+#define TRUST_SIZE 32  /* Large enough to hold trust string */
+
 #define ERRMSG(ctx, rc, ...) { \
             (ctx)->ldaprc = (rc); \
             if ((ctx)->errmsg) { \
@@ -69,6 +71,15 @@ typedef enum {
     DYC_BOTH
 } dyc_et_t;
 
+/* Storage for nickname */
+typedef struct {
+    char buf[TRUST_SIZE*2];
+    char *data;
+    char *fullnickname;
+    char *nickname;
+    char *token;
+} Nickname_t;
+
 struct certctx_str;
 typedef void (*dyc_action_cb_t)(struct certctx_str *ctx);
 
@@ -76,9 +87,7 @@ typedef void (*dyc_action_cb_t)(struct certctx_str *ctx);
 typedef struct certctx_str {
     SECItem dercert;
     SECItem derpkey;
-    char *fullnickname;
-    char *nickname;
-    char *token;
+    Nickname_t n;
     char *trust;
     bool force;
     bool primary;
@@ -150,6 +159,7 @@ struct dyncerts {
     Slapi_Backend *be;
     DCSS *config;
     struct sock_elem *sockets;  /* Secure sockets (needed to get the pin) */
+    Slapi_DN suffix_sdn;
 };
 
 /* Alternate Name Decoder Callback */
