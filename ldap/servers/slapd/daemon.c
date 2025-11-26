@@ -120,6 +120,15 @@ static PRFileDesc *tls_listener = NULL; /* Stashed tls listener for get_ssl_list
 
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
+static int cert_refresh_nbthreads = -1;
+static int32_t cert_refresh_asked = 0;
+static int32_t refresh_cert_count = 1;
+static pthread_mutex_t cert_refresh_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cert_refresh_cv = PTHREAD_COND_INITIALIZER;
+
+static void init_cert_refresh(int nbthreads);
+static void wait4certs_refresh(daemon_ports_t *ports);
+
 static int get_connection_table_size(void);
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 static void get_loopback_by_addr(void);
@@ -996,13 +1005,13 @@ accept_thread(void *vports)
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
+    int32_t last_refresh_cert_count = 0;
+    int32_t cur_refresh_cert_count = 0;
     n_tcps = ports->n_socket;
     s_tcps = ports->s_socket;
 #if defined(ENABLE_LDAPI)
     i_unix = ports->i_socket;
 #endif /* ENABLE_LDAPI */
-
-    num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
 
     while (!g_get_shutdown()) {
         /* Do we need to accept new connections, account for ct->size including list heads. */
@@ -1024,6 +1033,17 @@ accept_thread(void *vports)
             }
         }
 
+        wait4certs_refresh(ports);
+        cur_refresh_cert_count = slapi_atomic_load_32(&refresh_cert_count, __ATOMIC_RELAXED);
+        if (cur_refresh_cert_count != last_refresh_cert_count) {
+            last_refresh_cert_count = cur_refresh_cert_count;
+            /*
+             * refresh_cert() has been called so the PR_FileDesc may
+             * have changed ==> Lets recompute the poll list
+             */
+            slapi_ch_free((void **)&fds);
+            num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
+        }
         select_return = POLL_FN(fds, num_poll, pr_timeout);
         switch (select_return) {
         case 0: /* Timeout */
@@ -1534,6 +1554,8 @@ ct_list_thread(uint64_t threadnum)
          PRIntn num_poll = 0;
          PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
          PRErrorCode prerr;
+
+         wait4certs_refresh(NULL);
 #ifdef ENABLE_EPOLL
             struct epoll_event events[the_connection_table->list_size];
             select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, the_connection_table->list_size, pr_timeout);
@@ -1570,6 +1592,10 @@ init_ct_list_threads(void)
 {
     int ctlists = the_connection_table->list_num;
 
+    /* Provides the thread number for the certificate refresh api:
+     *  listening threads + accept thread
+     */
+    init_cert_refresh(ctlists+1);
     /* start the connection table threads, one thread per CT list */
     for (uint64_t i = 0; i < ctlists; i++) {
         if(PR_CreateThread(PR_SYSTEM_THREAD,
@@ -3128,4 +3154,59 @@ disk_monitoring_stop(void)
         pthread_cond_signal(&diskmon_cvar);
         pthread_mutex_unlock(&diskmon_mutex);
     }
+}
+
+static void
+init_cert_refresh(int nbthreads)
+{
+    cert_refresh_nbthreads = nbthreads;
+}
+
+void
+set_cert_refresh_asked(bool val)
+{
+    slapi_atomic_store_32(&cert_refresh_asked, (val ? 1 : 0), __ATOMIC_RELAXED);
+}
+
+static inline bool __attribute__((always_inline))
+get_cert_refresh_asked(void)
+{
+    return slapi_atomic_load_32(&cert_refresh_asked, __ATOMIC_RELAXED) != 0;
+}
+
+void
+wait4certs_refresh(daemon_ports_t *ports)
+{
+    static int refcnt = 0;
+    bool need_refresh = get_cert_refresh_asked();
+    if (!need_refresh) {
+        /* Avoid taking a mutex in the usual case */
+        return;
+    }
+    pthread_mutex_lock(&cert_refresh_mutex);
+    refcnt ++;
+    /* accept thread may be waiting, so lets wake it up */
+    pthread_cond_broadcast(&cert_refresh_cv);
+    /* Break the condition loop once refresh is done */
+    need_refresh = get_cert_refresh_asked();
+    for (; need_refresh; need_refresh = get_cert_refresh_asked()) {
+        /* Lets block the listening threads and
+         *  also block accept thread until all listening threads are
+         *  blocked
+         */
+        if (ports == NULL || refcnt < cert_refresh_nbthreads) {
+            pthread_cond_wait(&cert_refresh_cv, &cert_refresh_mutex);
+            continue;
+        }
+        if (need_refresh) {
+            /* This is the accept thread and all listening threads are blocked.
+             * ==> time to updatye the certificates */
+            refresh_certs(ports);
+            slapi_atomic_incr_32(&refresh_cert_count, __ATOMIC_RELAXED),
+            set_cert_refresh_asked(false);
+            pthread_cond_broadcast(&cert_refresh_cv);
+       }
+    }
+    refcnt--;
+    pthread_mutex_unlock(&cert_refresh_mutex);
 }
