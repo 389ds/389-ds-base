@@ -2889,16 +2889,16 @@ slapi_entry_attr_get_bool(const Slapi_Entry *e, const char *type)
     return slapi_entry_attr_get_bool_ext(e, type, PR_FALSE);
 }
 
-const struct slapi_value **
-slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *attrname)
+const Slapi_Value **
+slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *type)
 {
     Slapi_Attr *attr;
 
-    if (slapi_entry_attr_find(e, attrname, &attr) != 0) {
+    if (slapi_entry_attr_find(e, type, &attr) != 0) {
         return NULL;
     }
 
-    return (const struct slapi_value **)attr->a_present_values.va;
+    return (const Slapi_Value **)attr->a_present_values.va;
 }
 
 /*
