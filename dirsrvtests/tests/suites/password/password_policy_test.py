@@ -13,7 +13,10 @@ This test script will test password policy.
 import os
 import pytest
 import time
+from lib389.backend import Backend
 from lib389.config import Config
+from lib389.cli_conf.pwpolicy import list_policies
+from lib389.cli_base import FakeArgs
 from lib389.topologies import topology_st as topo
 from lib389.topologies import topology_m1
 from lib389.idm.domain import Domain
@@ -1518,6 +1521,85 @@ def test_get_pwpolicy_cn_with_quotes(topology_m1, policy_qoutes_setup):
     people = policy_qoutes_setup.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
     people.replace('passwordhistory', 'off')
     assert people.get_attr_val_utf8('passwordhistory') == 'off'
+
+def test_pwpolicy_list(topo, request):
+    """Verify duplicate local password policies are not listed when
+    all local password are listed
+
+    :id: 480a3fae-8c0e-4033-806e-03bc572bf3df
+    :setup: Standalone
+    :steps:
+        1. Create a sub suffix
+        2. Verify sub suffix OU exists
+        3. Create pwp on sub suffix
+        4. List all local pwps
+        5. Verify no duplicates
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+
+    # Create a sub suffix
+    SUB_SUFFIX = 'dc=testSuffix,dc=example,dc=com'
+    props = {
+        'cn': 'testSuffix',
+        'nsslapd-suffix': SUB_SUFFIX,
+    }
+    be = Backend(topo.standalone)
+    backend_entry = be.create(properties=props)
+    backend_entry.create_sample_entries('001004002')
+
+    # Verify OU exists
+    ous = OrganizationalUnits(inst, SUB_SUFFIX)
+    people = ous.get("People")
+    assert people.exists()
+
+    # Create subtree pwp on sub suffix OU
+    policy_props = {
+        'passwordMustChange': 'off',
+        'passwordExp': 'off',
+        'passwordMinAge': '0',
+        'passwordChange': 'off',
+        'passwordStorageScheme': 'ssha',
+        'passwordminlength': '6'
+    }
+    pwp = PwPolicyManager(topo.standalone)
+    pwp.create_subtree_policy(people.dn, policy_props)
+    subtree_policy = pwp.get_pwpolicy_entry(people.dn)
+    assert subtree_policy.get_attr_val_utf8('passwordminlength') == '6'
+
+    # Capture policy listing
+    args = FakeArgs()
+    args.suffix = False
+    args.json = False
+    args.verbose = False
+    args.DN = None
+
+    topo.logcap.flush()
+    list_policies(inst, None, topo.logcap.log, args)
+    logged_output = []
+    for rec in topo.logcap.outputs:
+        msg = rec.getMessage()
+        for line in msg.splitlines():
+            if line.strip():
+                logged_output.append(line)
+
+    # Verify there are no duplicates reported
+    assert len(logged_output) == len(set(logged_output))
+    topo.logcap.flush()
+
+    # Cleanup
+    def fin():
+        try:
+            backend_entry.delete()
+        except Exception:
+            pass
+
+    request.addfinalizer(fin)
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
