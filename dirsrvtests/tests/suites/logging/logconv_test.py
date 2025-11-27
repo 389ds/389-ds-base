@@ -13,11 +13,11 @@ import re
 import shutil
 import subprocess
 import time
+from datetime import datetime, timedelta
 
 from lib389._constants import *
 from lib389.idm.account import Anonymous
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_st
 from lib389.utils import ensure_str
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
@@ -33,8 +33,23 @@ from lib389.topologies import create_topology
 log = logging.getLogger(__name__)
 
 @pytest.fixture(scope="class", params=["default", "json"])
-def topology_st(request):
+def topo_shared(request):
     """Create DS standalone instance"""
+    log_format = request.param
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
+    topology.standalone.config.set('nsslapd-accesslog-logbuffering', "off")
+    topology.standalone.config.set('nsslapd-accesslog-log-format', log_format)
+
+    def fin():
+        if topology.standalone.exists():
+            topology.standalone.delete()
+    request.addfinalizer(fin)
+
+    return topology
+
+@pytest.fixture(scope="function", params=["default", "json"])
+def topo_single_use(request):
+    """Create a fresh DS standalone instance per test function."""
     log_format = request.param
     topology = create_topology({ReplicaRole.STANDALONE: 1})
     topology.standalone.config.set('nsslapd-accesslog-logbuffering', "off")
@@ -70,9 +85,9 @@ def adjust_expected_for_backend(self, expected: dict):
 
 class TestLogconv:
 
-    @pytest.fixture(autouse=True)
-    def setup(self, topology_st):
-        self.inst = topology_st.standalone
+    def init_instance(self, inst):
+        """Prepare common attributes for each test."""
+        self.inst = inst
         self.logconv_path = shutil.which("logconv.py") or None
         self.log_format = self.inst.config.get_attr_val_utf8("nsslapd-accesslog-log-format")
         self.access_log_path = self.get_access_log_path()
@@ -244,7 +259,7 @@ class TestLogconv:
 
         return True
 
-    def test_add(self):
+    def test_add(self, topo_shared):
         """Validate add operation stats reported by logconv.
 
         :id: 7747b0e5-9dac-471a-bfb1-7b4dded6afa0
@@ -262,6 +277,7 @@ class TestLogconv:
             4. Success
             5. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         users = UserAccounts(self.inst, DEFAULT_SUFFIX)
@@ -289,7 +305,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_add")
 
-    def test_modify(self):
+    def test_modify(self, topo_shared):
         """Validate modify operation stats reported by logconv.
 
         :id: d5c37b3f-be79-47da-8ce3-051724f21e09
@@ -307,6 +323,7 @@ class TestLogconv:
             4. Success
             5. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         users = UserAccounts(self.inst, DEFAULT_SUFFIX)
@@ -327,7 +344,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_modify")
 
-    def test_modrdn(self):
+    def test_modrdn(self, topo_shared):
         """Validate MODRDN operation stats reported by logconv.
 
         :id: ded94158-d92a-4696-9d49-2fb5437cae26
@@ -345,6 +362,7 @@ class TestLogconv:
             4. Success
             5. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         users = UserAccounts(self.inst, DEFAULT_SUFFIX)
@@ -366,7 +384,7 @@ class TestLogconv:
         assert self.validate_logconv_stats(expected, logconv_stats, "test_modrdn")
 
 
-    def test_compare(self):
+    def test_compare(self, topo_shared):
         """Validate compare operation stats reported by logconv.
 
         :id: 0c874c9a-21bb-41a9-a6dd-e4ae77a24bfa
@@ -384,6 +402,7 @@ class TestLogconv:
             4. Success
             5. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         users = UserAccounts(self.inst, DEFAULT_SUFFIX)
@@ -404,7 +423,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_compare")
 
-    def test_search(self):
+    def test_search(self, topo_shared):
         """Validate basic search operation stats reported by logconv.
 
         :id: e81e2b0b-0c67-4ba0-8dff-2371a3f91546
@@ -418,6 +437,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         try:
@@ -436,7 +456,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_search")
 
-    def test_internal_ops(self):
+    def test_internal_ops(self, topo_shared):
         """Validate internal operation stats reported by logconv.
 
         :id: 631ba514-349d-49f6-961e-a6fca3071cf3
@@ -450,6 +470,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         default_log_level = self.inst.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
@@ -471,7 +492,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_internal_ops")
 
-    def test_base_search(self):
+    def test_base_search(self, topo_shared):
         """Validate base search operation stats reported by logconv.
 
         :id: d7557ef2-582c-42bb-a9ee-ded0680ba707
@@ -485,6 +506,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         try:
@@ -504,7 +526,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_base_search")
 
-    def test_paged_search(self):
+    def test_paged_search(self, topo_shared):
         """Validate paged search operation stats reported by logconv.
 
         :id: 729cb831-bcbe-4f88-8f42-12be5c48b5e6
@@ -518,7 +540,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
-
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         req_ctrl = SimplePagedResultsControl(True, size=3, cookie='')
@@ -542,7 +564,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_paged_search")
 
-    def test_persistent_search(self):
+    def test_persistent_search(self, topo_shared):
         """Validate persistent search operation stats reported by logconv.
 
         :id: a0552c17-d70a-4fe2-b4af-9292d4862da6
@@ -556,6 +578,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         psc = PersistentSearchControl()
@@ -580,7 +603,7 @@ class TestLogconv:
         assert self.validate_logconv_stats(expected, logconv_stats, "test_persistent_search")
 
 
-    def test_simple_bind(self):
+    def test_simple_bind(self, topo_shared):
         """Validate simple bind operation stats reported by logconv.
 
         :id: 20d5244a-3cda-434f-9957-062aaa88e66f
@@ -598,6 +621,7 @@ class TestLogconv:
             4. Success
             5. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         users = UserAccounts(self.inst, DEFAULT_SUFFIX)
@@ -629,7 +653,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_simple_bind")
 
-    def test_anon_bind(self):
+    def test_anon_bind(self, topo_shared):
         """Validate anonymous bind operation stats reported by logconv.
 
         :id: 893b8388-4a6b-4434-89ce-f93e518eff9d
@@ -643,6 +667,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         conn = Anonymous(self.inst).bind()
@@ -667,7 +692,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_anon_bind")
 
-    def test_ldapi(self):
+    def test_ldapi(self, topo_shared):
         """Validate ldapi operation stats reported by logconv.
 
         Note:
@@ -689,6 +714,7 @@ class TestLogconv:
             4. Success
             5. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         self.inst.config.set('nsslapd-ldapilisten', 'on')
@@ -732,7 +758,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_ldapi")
 
-    def test_restart(self):
+    def test_restart(self, topo_shared):
         """Validate restart stats reported by logconv.
 
         Note:
@@ -750,6 +776,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         expected = {
@@ -773,7 +800,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_restart")
 
-    def test_invalid_filter(self):
+    def test_invalid_filter(self, topo_shared):
         """Validate invalid filter search stats reported by logconv.
 
         :id: c2d9c082-eaf5-4eba-a977-c28d3f02d51f
@@ -787,6 +814,7 @@ class TestLogconv:
             2. SUccess
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         self.inst.search_ext_s(
@@ -806,7 +834,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_invalid_filter")
 
-    def test_partially_unindexed_vlv_sort(self):
+    def test_partially_unindexed_vlv_sort(self, topo_shared):
         """Validate an unindexed VLV search + sort stats reported by logconv.
 
         :id: 88af0fcc-d351-4ad2-8be9-8adcb0bd6bf0
@@ -822,6 +850,7 @@ class TestLogconv:
             3. SUccess
             4. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         vlv_control = VLVRequestControl(
@@ -855,7 +884,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_partially_unindexed_vlv_sort")
 
-    def test_fully_unindexed_search(self):
+    def test_fully_unindexed_search(self, topo_shared):
         """Validate an unindexed VLV search stats reported by logconv.
 
         :id: 93d5a42e-ed78-4257-ba8c-f54a14d95b94
@@ -875,6 +904,7 @@ class TestLogconv:
             5. Success
             6. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         # Force an unindexed search
@@ -908,7 +938,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_fully_unindexed_search")
 
-    def test_starttls(self):
+    def test_starttls(self, topo_shared):
         """Validate an starttls operation stats reported by logconv.
 
         :id: 3e76cd43-0a20-4a7b-854c-5292571be8a6
@@ -922,6 +952,7 @@ class TestLogconv:
             2. Success
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         cmd = [
@@ -957,7 +988,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_starttls")
 
-    def test_missing_access_log(self):
+    def test_missing_access_log(self, topo_shared):
         """Validate behavior when access log path is invalid.
 
         :id: 2ea0230b-6a12-4a41-ac7f-6c42862c9095
@@ -969,6 +1000,7 @@ class TestLogconv:
             1. Success
             2. RuntimeError is raised
         """
+        self.init_instance(topo_shared.standalone)
         orig_access_log_path = self.access_log_path
         self.access_log_path = "somewhereovertherainbow"
         try:
@@ -978,7 +1010,7 @@ class TestLogconv:
         finally:
             self.access_log_path = orig_access_log_path
 
-    def test_invalid_access_log_format(self):
+    def test_invalid_access_log_format(self, topo_shared):
         """Validate logconv handles malformed or mixed format logs.
 
         :id: a7fae8d1-0400-44f6-ba61-fbd04c0f0bca
@@ -992,6 +1024,7 @@ class TestLogconv:
             2. SUccess
             3. Actual stats match expected
         """
+        self.init_instance(topo_shared.standalone)
         self.truncate_logs()
 
         lines = [
@@ -1030,7 +1063,7 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_invalid_access_log_format")
 
-    def test_ldaps(self):
+    def test_ldaps(self, topo_single_use):
         """Validate LDAPS and certificate-based bind stats reported by logconv.
 
         Note:
@@ -1050,6 +1083,7 @@ class TestLogconv:
             3. Success
             4. Actual stats match expected
         """
+        self.init_instance(topo_single_use.standalone)
         self.truncate_logs()
 
         RDN_TEST_USER = 'testuser'
@@ -1131,6 +1165,193 @@ class TestLogconv:
         output = self.run_logconv()
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_ldaps")
+
+    def test_time_filter_valid_range(self, topo_shared):
+        """Validate logconv with valid start and end time filters.
+
+        :id: 6c7b9a1e-4f3c-4d8e-8a9b-7c6d5e4f3a2b
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with start time 2 minutes in past
+            4. Execute logconv with end time 2 minutes in future
+            5. Verify logconv executes successfully
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Start time formatted correctly
+            4. End time formatted correctly
+            5. logconv returns exit code 0
+        """
+        self.init_instance(topo_shared.standalone)
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Calculate start time 2 minutes in the past")
+        start_time = datetime.now() - timedelta(minutes=2)
+        formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_start_time.endswith(' ]'):
+            formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Calculate end time 2 minutes in the future")
+        end_time = datetime.now() + timedelta(minutes=2)
+        formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_end_time.endswith(' ]'):
+            formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Execute logconv with start and end time filters")
+        cmd = [
+            self.logconv_path,
+            '-S', formatted_start_time,
+            '-E', formatted_end_time,
+            self.access_log_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv executed successfully")
+        assert result.returncode == 0
+
+    def test_time_filter_invalid_range(self, topo_shared):
+        """Validate logconv with invalid time range where start time is after end time.
+
+        :id: 8d9e1f2a-5b6c-4e7d-9f0a-8c7b6d5e4f3c
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with start time 2 minutes in future
+            4. Execute logconv with end time 2 minutes in past
+            5. Verify logconv returns error
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Start time formatted correctly
+            4. End time formatted correctly
+            5. logconv returns exit code 1
+        """
+        self.init_instance(topo_shared.standalone)
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Calculate start time 2 minutes in the future")
+        start_time = datetime.now() + timedelta(minutes=2)
+        formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_start_time.endswith(' ]'):
+            formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Calculate end time 2 minutes in the past")
+        end_time = datetime.now() - timedelta(minutes=2)
+        formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_end_time.endswith(' ]'):
+            formatted_end_time = end_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Execute logconv with invalid time range")
+        cmd = [
+            self.logconv_path,
+            '-S', formatted_start_time,
+            '-E', formatted_end_time,
+            self.access_log_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv returned error for invalid time range")
+        assert result.returncode == 1
+
+    def test_time_filter_invalid_format(self, topo_shared):
+        """Validate logconv with invalid timestamp format.
+
+        :id: 9e0f1a2b-6c7d-5e8f-0a1b-9d8c7e6f5a4d
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with invalid start time string
+            4. Execute logconv with invalid end time string
+            5. Verify logconv returns error
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Invalid start time provided
+            4. Invalid end time provided
+            5. logconv returns exit code 1
+        """
+        self.init_instance(topo_shared.standalone)
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Set invalid timestamp values")
+        invalid_start_time = "invalid"
+        invalid_end_time = "invalid"
+
+        log.info("Execute logconv with invalid timestamp format")
+        cmd = [
+            self.logconv_path,
+            '-S', invalid_start_time,
+            '-E', invalid_end_time,
+            self.access_log_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv returned error for invalid timestamp format")
+        assert result.returncode == 1
+
+    def test_time_filter_without_log_path(self, topo_shared):
+        """Validate logconv with time filter but without access log path.
+
+        :id: 0f1a2b3c-7d8e-6f9a-1b2c-0e9d8f7a6b5c
+        :setup: Standalone Instance
+        :steps:
+            1. Disable access log buffering
+            2. Perform a search operation to generate access log entries
+            3. Execute logconv with start time but no access log path
+            4. Verify logconv returns error
+        :expectedresults:
+            1. Access log buffering disabled successfully
+            2. Search operation completed and logs generated
+            3. Start time formatted correctly
+            4. logconv returns exit code 1
+        """
+        self.init_instance(topo_shared.standalone)
+        log.info("Disable access log buffering")
+        self.inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+        log.info("Perform search operation to generate access log entries")
+        self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+
+        log.info("Wait for access log entries to be written")
+        time.sleep(1)
+
+        log.info("Calculate start time 2 minutes in the past")
+        start_time = datetime.now() - timedelta(minutes=2)
+        formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if formatted_start_time.endswith(' ]'):
+            formatted_start_time = start_time.strftime("[%d/%b/%Y:%H:%M:%S +0000]")
+
+        log.info("Execute logconv with start time but no access log path")
+        cmd = [self.logconv_path, '-S', formatted_start_time]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        log.info("Verify logconv returned error when access log path not provided")
+        assert result.returncode == 1
 
 if __name__ == '__main__':
     # Run isolated
