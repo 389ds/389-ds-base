@@ -140,6 +140,7 @@ int valuearray_first_value(Slapi_Value **va, Slapi_Value **v);
 
 void valuearrayfast_init(struct valuearrayfast *vaf, Slapi_Value **va);
 void valuearrayfast_done(struct valuearrayfast *vaf);
+const Slapi_Value **slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *attrname);
 
 /* Valueset functions */
 
@@ -1654,5 +1655,11 @@ int sort_make_sort_response_control(Slapi_PBlock *pb, int code, char *error_type
  * subentries.c
  */
 int subentries_parse_request_control(struct berval *subentries_spec_ber);
+
+/*
+ * dyncerts.c
+ */
+Slapi_Backend *dyncert_init_be(void);
+void dyncerts_register_socket(int sock, PRFileDesc *pr_sock);
 
 #endif /* _PROTO_SLAP */

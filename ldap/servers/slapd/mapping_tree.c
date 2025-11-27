@@ -1690,6 +1690,8 @@ mapping_tree_init()
     be = slapi_be_select_by_instance_name(DSE_SCHEMA);
     node = add_internal_mapping_tree_node("cn=schema", be, mapping_tree_root);
     mapping_tree_node_add_child(mapping_tree_root, node);
+    node = add_internal_mapping_tree_node(DYNCERTS_SUFFIX, dyncert_init_be(), mapping_tree_root);
+    mapping_tree_node_add_child(mapping_tree_root, node);
 
     slapi_rwlock_unlock(myLock);
 
