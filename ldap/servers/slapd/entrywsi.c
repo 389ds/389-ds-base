@@ -1186,7 +1186,7 @@ resolve_attribute_state_deleted_to_present(Slapi_Entry *e, Slapi_Attr *a, Slapi_
                 value_distinguished_at_csn(e, a, valuestoupdate[i], deletedcsn)) {
                 entry_deleted_value_to_present_value(a, valuestoupdate[i]);
             }
-            valuestoupdate[i]->v_csnset = NULL;
+            csnset_free(&valuestoupdate[i]->v_csnset);
         }
     }
 }
