@@ -1335,6 +1335,7 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
                     }
                 } else {
                     if (flags & SLAPI_VALUE_FLAG_PRESERVECSNSET) {
+                        csnset_free(&valuestodelete[i]->v_csnset);
                         valuestodelete[i]->v_csnset = found->v_csnset;
                         found->v_csnset = NULL;
                     }
