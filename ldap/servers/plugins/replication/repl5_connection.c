@@ -504,6 +504,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         {
             if (NULL != returned_controls) {
                 *returned_controls = loc_returned_controls;
+                loc_returned_controls = NULL; /* ownership transferred */
             }
             if (LDAP_SUCCESS != rc) {
                 conn->last_ldap_error = rc;
@@ -517,6 +518,9 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         slapi_ch_free_string(&errmsg);
         slapi_ch_free_string(&matched);
         charray_free(referrals);
+        if (loc_returned_controls) {
+            ldap_controls_free(loc_returned_controls);
+        }
     }
     if (res)
         ldap_msgfree(res);
