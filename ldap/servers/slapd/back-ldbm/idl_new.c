@@ -161,10 +161,14 @@ idl_new_fetch(
     dblayer_bulk_set_buffer(be, &bulkdata, buffer, sizeof(buffer), DBI_VF_BULK_DATA);
     memset(&dataret, 0, sizeof(dataret));
 
+    /*
+     * Always use transaction isolation for cursor operations to prevent
+     * race conditions. Without a transaction, concurrent modifications to
+     * index pages can corrupt cursor state, leading to crashes in BDB's
+     * internal functions (e.g., negative size passed to memmove).
+     */
     dblayer_txn_init(li, &s_txn);
-    if (txn) {
-        dblayer_read_txn_begin(be, txn, &s_txn);
-    }
+    dblayer_read_txn_begin(be, txn, &s_txn);
 
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
@@ -428,10 +432,14 @@ idl_new_range_fetch(
         return NULL;
     }
 
+    /*
+     * Always use transaction isolation for cursor operations to prevent
+     * race conditions. Without a transaction, concurrent modifications to
+     * index pages can corrupt cursor state, leading to crashes in BDB's
+     * internal functions (e.g., negative size passed to memmove).
+     */
     dblayer_txn_init(li, &s_txn);
-    if (txn) {
-        dblayer_read_txn_begin(be, txn, &s_txn);
-    }
+    dblayer_read_txn_begin(be, txn, &s_txn);
 
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
