@@ -2722,11 +2722,19 @@ bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool 
         txn->back_txn_txn = NULL;
     }
 
-    if (conf->bdb_enable_transactions) {
+    bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
+
+    /*
+     * Check both config and actual environment capabilities before starting a transaction.
+     * During offline import, the environment is created without DB_INIT_TXN even though
+     * bdb_enable_transactions may be true in config. We use bdb_openflags (cached at
+     * environment open time) rather than get_open_flags() to safely handle cases where
+     * the environment handle exists but may not be fully opened yet.
+     */
+    if (pEnv && pEnv->bdb_DB_ENV && conf->bdb_enable_transactions &&
+        (pEnv->bdb_openflags & DB_INIT_TXN)) {
         int txn_begin_flags;
         DB_TXN *new_txn_back_txn_txn = NULL;
-
-        bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
         if (use_lock)
             slapi_rwlock_rdlock(pEnv->bdb_env_lock);
         if (!parent_txn) {
@@ -6832,7 +6840,27 @@ int bdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key,
 int bdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
 {
     DB *bdb_db = (DB*)db;
-    return bdb_map_error(__FUNCTION__, bdb_db->cursor(bdb_db, (DB_TXN*)cursor->txn, (DBC**)&cursor->cur, 0));
+    DB_TXN *txn = (DB_TXN*)cursor->txn;
+
+    /*
+     * Verify the database's environment actually supports transactions.
+     * During import, databases are opened with a private environment that
+     * lacks DB_INIT_TXN. If we try to use a transaction from the main
+     * environment with a database from the import environment, BDB will fail.
+     * Clear the txn if the database's environment doesn't support transactions.
+     */
+    if (txn != NULL) {
+#ifdef WITH_LIBBDB_RO
+        DB_ENV *dbenv = bdb_db->env;
+#else
+        DB_ENV *dbenv = bdb_db->dbenv;
+#endif
+        if (dbenv && !bdb_uses_transactions(dbenv)) {
+            txn = NULL;
+        }
+    }
+
+    return bdb_map_error(__FUNCTION__, bdb_db->cursor(bdb_db, txn, (DBC**)&cursor->cur, 0));
 }
 
 int bdb_public_value_free(dbi_val_t *data)
