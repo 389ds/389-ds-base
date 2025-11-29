@@ -2634,10 +2634,19 @@ bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool 
         txn->back_txn_txn = NULL;
     }
 
-    if (conf->bdb_enable_transactions) {
+    bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
+
+    /*
+     * Check both config and actual environment capabilities before starting a transaction.
+     * During offline import, the environment is created without DB_INIT_TXN even though
+     * bdb_enable_transactions may be true in config. We use bdb_openflags (cached at
+     * environment open time) rather than get_open_flags() to safely handle cases where
+     * the environment handle exists but may not be fully opened yet.
+     */
+    if (pEnv && pEnv->bdb_DB_ENV && conf->bdb_enable_transactions &&
+        (pEnv->bdb_openflags & DB_INIT_TXN)) {
         int txn_begin_flags;
 
-        bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
         if (use_lock)
             slapi_rwlock_rdlock(pEnv->bdb_env_lock);
         if (!parent_txn) {
