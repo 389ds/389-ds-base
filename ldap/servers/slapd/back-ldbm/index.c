@@ -1091,6 +1091,10 @@ index_read_ext_allids(
     }
     if (retry_count == IDL_FETCH_RETRY_COUNT) {
         ldbm_nasty("index_read_ext_allids", "index_read retry count exceeded", 1046, *err);
+        /* Ensure we don't return NULL after exhausting retries */
+        if (idl == NULL) {
+            idl = idl_alloc(0);
+        }
     } else if (*err != 0 && *err != DBI_RC_NOTFOUND) {
         ldbm_nasty("index_read_ext_allids", errmsg, 1050, *err);
     }
@@ -1106,6 +1110,14 @@ index_read_ext_allids(
     }
     if (encrypted_val) {
         ber_bvfree(encrypted_val);
+    }
+
+    /* Ensure we never return NULL - always return valid IDL */
+    if (idl == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING, "index_read_ext_allids",
+                      "Returning empty IDL for %s after error %d\n",
+                      basetype, *err);
+        idl = idl_alloc(0);
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "<=  %lu candidates\n",
