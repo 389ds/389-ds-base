@@ -158,13 +158,17 @@ idl_new_fetch(
         return NULL;
     }
 
+    /*
+     * Always use transaction isolation for cursor operations to prevent
+     * race conditions. Without a transaction, concurrent modifications to
+     * index pages can corrupt cursor state, leading to crashes in BDB's
+     * internal functions (e.g., negative size passed to memmove).
+     */
     dblayer_txn_init(li, &s_txn);
-    if (txn) {
-        dblayer_read_txn_begin(be, txn, &s_txn);
-    }
+    dblayer_read_txn_begin(be, txn, &s_txn);
 
     /* Make a cursor */
-    ret = db->cursor(db, txn, &cursor, 0);
+    ret = db->cursor(db, s_txn.back_txn_txn, &cursor, 0);
     if (0 != ret) {
         ldbm_nasty("idl_new_fetch", filename, 1, ret);
         cursor = NULL;
@@ -404,13 +408,17 @@ idl_new_range_fetch(
         return NULL;
     }
 
+    /*
+     * Always use transaction isolation for cursor operations to prevent
+     * race conditions. Without a transaction, concurrent modifications to
+     * index pages can corrupt cursor state, leading to crashes in BDB's
+     * internal functions (e.g., negative size passed to memmove).
+     */
     dblayer_txn_init(li, &s_txn);
-    if (txn) {
-        dblayer_read_txn_begin(be, txn, &s_txn);
-    }
+    dblayer_read_txn_begin(be, txn, &s_txn);
 
     /* Make a cursor */
-    ret = db->cursor(db, txn, &cursor, 0);
+    ret = db->cursor(db, s_txn.back_txn_txn, &cursor, 0);
     if (0 != ret) {
         ldbm_nasty("idl_new_range_fetch", filename, 1, ret);
         cursor = NULL;
