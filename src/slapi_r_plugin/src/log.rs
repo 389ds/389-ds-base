@@ -4,8 +4,8 @@ use std::os::raw::c_char;
 use crate::constants;
 use crate::error::LoggingError;
 
-extern "C" {
-    fn slapi_log_error(level: i32, system: *const c_char, message: *const c_char) -> i32;
+unsafe extern "C" {
+    unsafe fn slapi_log_error(level: i32, system: *const c_char, message: *const c_char) -> i32;
 }
 
 pub fn log_error(
@@ -13,10 +13,10 @@ pub fn log_error(
     subsystem: String,
     message: String,
 ) -> Result<(), LoggingError> {
-    let c_subsystem = CString::new(subsystem)
-        .map_err(|e| LoggingError::CString(format!("failed to convert subsystem -> {:?}", e)))?;
-    let c_message = CString::new(message)
-        .map_err(|e| LoggingError::CString(format!("failed to convert message -> {:?}", e)))?;
+    let c_subsystem: CString = CString::new(subsystem)
+        .map_err(|e| LoggingError::CString(format!("failed to convert subsystem -> {e:?}")))?;
+    let c_message: CString = CString::new(message)
+        .map_err(|e| LoggingError::CString(format!("failed to convert message -> {e:?}")))?;
 
     match unsafe { slapi_log_error(level as i32, c_subsystem.as_ptr(), c_message.as_ptr()) } {
         constants::LDAP_SUCCESS => Ok(()),
@@ -27,7 +27,7 @@ pub fn log_error(
 #[repr(i32)]
 #[derive(Debug)]
 /// This is a safe rust representation of the values from slapi-plugin.h
-/// such as SLAPI_LOG_FATAL, SLAPI_LOG_TRACE, SLAPI_LOG_ ... These vaulues
+/// such as `SLAPI_LOG_FATAL`, `SLAPI_LOG_TRACE`, `SLAPI_LOG_` ... These vaulues
 /// must matche their counter parts in slapi-plugin.h
 pub enum ErrorLevel {
     /// Always log messages at this level. Soon to go away, see EMERG, ALERT, CRIT, ERR, WARNING, NOTICE, INFO, DEBUG
