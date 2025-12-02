@@ -107,41 +107,46 @@ alias_entry_srch(Slapi_PBlock *pb)
 
     /* Follow the alias chain */
     dn2 = search_target;
-    do {
-        dn1 = dn2;
-        dn2 = alias_get_next_dn(dn1, &rc);
-        if (i > 0 && dn2 != NULL) {
-            slapi_sdn_free(&dn1);
-        }
+    dn1 = NULL;
+    while (dn2 != NULL && i < MAXALIASCHAIN) {
+        Slapi_DN *tmp = dn2;
+        dn2 = alias_get_next_dn(tmp, &rc);
+
         if (rc != LDAP_SUCCESS) {
             char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
             slapi_create_errormsg(errorbuf, sizeof(errorbuf),
                     "Failed to dereference alias object name (%s) error %d",
-                    slapi_sdn_get_dn(dn1), rc);
+                    slapi_sdn_get_dn(tmp), rc);
             slapi_log_error(SLAPI_LOG_PLUGIN, PLUGINNAME,
                             "alias_entry_srch - %s\n", errorbuf);
-
-            slapi_sdn_free(&dn1);
+            /* Only free tmp if its not search_target */
+            if (tmp != search_target) {
+                slapi_sdn_free(&tmp);
+            }
+            slapi_sdn_free(&tmp);
             slapi_send_ldap_result(pb, rc, NULL, errorbuf, 0, NULL);
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
             return SLAPI_PLUGIN_FAILURE;
         }
-    } while (dn2 != NULL && i++ < MAXALIASCHAIN);
 
-    if (dn1 == search_target) {
-        /* Source dn is not an alias */
-        slapi_sdn_free(&dn2);
+        /* Free dn1, only when we are done using it */
+        if (dn1 != NULL && dn1 != search_target) {
+            slapi_sdn_free(&dn1);
+        }
+        dn1 = tmp;
+        i++;
+    }
+
+    /* If we hit MAXALIASCHAIN, free last node if not search_target */
+    if (dn2 != NULL && dn1 != search_target) {
+        slapi_sdn_free(&dn1);
         return 0;
     }
 
-    if (dn2 == NULL) {
+    if (dn1 != search_target) {
         /* alias resolved, set new base */
-        slapi_sdn_free(&search_target);
         slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, dn1);
-    } else {
-        /* Here we hit an alias chain longer than MAXALIASCHAIN */
-        slapi_sdn_free(&dn1);
-        slapi_sdn_free(&dn2);
+        slapi_sdn_free(&search_target);
     }
 
     return 0;
