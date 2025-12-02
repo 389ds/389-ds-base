@@ -1282,7 +1282,7 @@ def _kill_instance(inst, sig=signal.SIGTERM, delay=None):
         time.sleep(delay)
     os.kill(pid, signal.SIGKILL)
 
-def test_shutdown_on_deferred_memberof(topology_st):
+def test_shutdown_on_deferred_memberof(topology_st, request):
     """This test checks that shutdown is handled properly if memberof updayes are deferred.
 
     :id: c5629cae-15a0-11ee-8807-482ae39447e5
