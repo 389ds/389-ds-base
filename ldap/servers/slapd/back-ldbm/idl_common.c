@@ -172,6 +172,152 @@ idl_min(IDList *a, IDList *b)
     return (a->b_nids > b->b_nids ? b : a);
 }
 
+/*
+ * This is a faster version of idl_id_is_in_idlist.
+ * idl_id_is_in_idlist uses an array of ID so lookup is expensive
+ * idl_id_is_in_idlist_ranges uses a list of ranges of ID lookup is faster
+ */
+int
+idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id)
+{
+    IdRange_t *range = idrange_list;
+    int found = 0;
+
+    if (NULL == idl || NOID == id) {
+        return 0; /* not in the list */
+    }
+    if (ALLIDS(idl)) {
+        return 1; /* in the list */
+    }
+
+    for(;range; range = range->next) {
+        if (id > range->last) {
+            /* check if it belongs to the next range */
+            continue;
+        }
+        if (id >= range->first) {
+            /* It belongs to that range [first..last ] */
+            found = 1;
+            break;
+        } else {
+            /* this range is after id */
+            break;
+        }
+    }
+    return found;
+}
+
+/* free all ranges of IDlist */
+void idrange_free(IdRange_t **head)
+{
+    IdRange_t *curr, *sav;
+
+    if ((head == NULL) || (*head == NULL)) {
+        return;
+    }
+    curr = *head;
+    sav = NULL;
+    for (; curr;) {
+        sav = curr;
+        curr = curr->next;
+        slapi_ch_free((void *) &sav);
+    }
+    if (sav) {
+        slapi_ch_free((void *) &sav);
+    }
+    *head = NULL;
+}
+
+IdRange_t *idrange_add_id(IdRange_t **head, ID id)
+{
+    if (!head) {
+        IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
+        if (!new_range) return NULL;
+        new_range->first = id;
+        new_range->last = id;
+        new_range->next = NULL;
+        *head = new_range;
+        return *head;
+    }
+
+    IdRange_t *curr = *head, *prev = NULL;
+
+    /* First, find if id already falls within any existing range, or it is adjacent to any */
+    while (curr) {
+        if (id >= curr->first && id <= curr->last) {
+            /* inside a range, nothing to do */
+            return curr;
+        }
+
+        if (id == curr->last + 1) {
+            /* Extend this range upwards */
+            curr->last = id;
+
+            /* Check for possible merge with next range */
+            IdRange_t *next = curr->next;
+            if (next && curr->last + 1 >= next->first) {
+               slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                                      "(id=%d) merge current  with next range [%d..%d]\n", id, curr->first, curr->last);
+                curr->last = (next->last > curr->last) ? next->last : curr->last;
+                curr->next = next->next;
+                slapi_ch_free((void*) &next);
+            } else {
+                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                              "(id=%d) extend forward current range [%d..%d]\n", id, curr->first, curr->last);
+            }
+            return curr;
+        }
+
+        if (id + 1 == curr->first) {
+            /* Extend this range downwards */
+            curr->first = id;
+
+            /* Check for possible merge with previous range */
+            if (prev && prev->last + 1 >= curr->first) {
+                prev->last = curr->last;
+                prev->next = curr->next;
+                slapi_ch_free((void *) &curr);
+                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                                      "(id=%d) merge current with previous range [%d..%d]\n", id, prev->first, prev->last);
+                return prev;
+            } else {
+                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                                      "(id=%d) extend backward current range [%d..%d]\n", id, curr->first, curr->last);
+                return curr;
+            }
+        }
+
+        /* If id is before the current range, break so we can insert before */
+        if (id < curr->first) {
+            break;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+    /* Need to insert a new standalone IdRange */
+    IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
+    if (!new_range) {
+        return NULL;
+    }
+    new_range->first = id;
+    new_range->last = id;
+    new_range->next = curr;
+
+    if (prev) {
+        slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                                      "(id=%d) add new range [%d..%d]\n", id, new_range->first, new_range->last);
+        prev->next = new_range;
+    } else {
+        /* Insert at head */
+        slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                                      "(id=%d) head range [%d..%d]\n", id, new_range->first, new_range->last);
+        *head = new_range;
+    }
+    return *head;
+}
+
+
 int
 idl_id_is_in_idlist(IDList *idl, ID id)
 {

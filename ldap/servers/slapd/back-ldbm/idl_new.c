@@ -436,6 +436,7 @@ idl_new_range_fetch(
     size_t leftoverlen = 32;
     size_t leftovercnt = 0;
     char *index_id = get_index_name(be, db, ai);
+    IdRange_t *idrange_list = NULL;
 
 
     if (NULL == flag_err) {
@@ -579,9 +580,11 @@ idl_new_range_fetch(
                      */
                     suffix = key;
                     idl_rc = idl_append_extend(&idl, id);
-                } else if ((key == suffix) || idl_id_is_in_idlist(idl, key)) {
+                    idrange_add_id(&idrange_list, id);
+                } else if ((key == suffix) || idl_id_is_in_idlist_ranges(idl, idrange_list, key)) {
                     /* the parent is the suffix or already in idl. */
                     idl_rc = idl_append_extend(&idl, id);
+                    idrange_add_id(&idrange_list, id);
                 } else {
                     /* Otherwise, keep the {key,id} in leftover array */
                     if (!leftover) {
@@ -695,13 +698,15 @@ error:
 
         while(remaining > 0) {
             for (size_t i = 0; i < leftovercnt; i++) {
-                if (leftover[i].key > 0 && idl_id_is_in_idlist(idl, leftover[i].key) != 0) {
+                if (leftover[i].key > 0 && idl_id_is_in_idlist_ranges(idl, idrange_list, leftover[i].key) != 0) {
                     /* if the leftover key has its parent in the idl */
                     idl_rc = idl_append_extend(&idl, leftover[i].id);
+                    idrange_add_id(&idrange_list, leftover[i].id);
                     if (idl_rc) {
                         slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
                                       "Unable to extend id list (err=%d)\n", idl_rc);
                         idl_free(&idl);
+                        idrange_free(&idrange_list);
                         return NULL;
                     }
                     leftover[i].key = 0;
@@ -710,6 +715,7 @@ error:
             }
         }
         slapi_ch_free((void **)&leftover);
+        idrange_free(&idrange_list);
     }
     slapi_log_err(SLAPI_LOG_FILTER, "idl_new_range_fetch",
                   "Found %d candidates; error code is: %d\n",
