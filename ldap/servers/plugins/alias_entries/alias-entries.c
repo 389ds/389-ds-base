@@ -139,7 +139,7 @@ alias_entry_srch(Slapi_PBlock *pb)
     /* If we hit MAXALIASCHAIN, free last node if not search_target */
     if (dn2 != NULL && dn1 != search_target) {
         slapi_sdn_free(&dn1);
-        slapi_sdn_free(&dn2)
+        slapi_sdn_free(&dn2);
         return 0;
     }
 
