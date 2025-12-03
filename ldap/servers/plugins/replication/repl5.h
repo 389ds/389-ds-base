@@ -689,6 +689,7 @@ typedef int (*FNEnumReplica)(Replica *r, void *arg);
    from the data already in the DIT */
 Replica *replica_new(const Slapi_DN *root);
 Replica *windows_replica_new(const Slapi_DN *root);
+void reset_keepalive_timer(Replica *r);
 /* this function should be called to construct the replica object
    during addition of the replica over LDAP */
 int replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **r);
