@@ -4288,6 +4288,9 @@ replica_add_session_abort_control(Slapi_PBlock *pb)
     bvp->bv_val = NULL;
     ber_bvfree(bvp);
     slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &ctrl);
+    /* Free the control since slapi_pblock_set duplicates it */
+    slapi_ch_free_string(&ctrl.ldctl_oid);
+    slapi_ch_free_string(&ctrl.ldctl_value.bv_val);
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                   "add_session_abort_control - abort control successfully added to result\n");
