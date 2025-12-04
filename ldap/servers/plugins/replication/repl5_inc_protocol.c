@@ -371,6 +371,10 @@ repl5_inc_result_threadmain(void *param)
         if (op) {
             repl5_inc_op_free(op);
         }
+        if (returned_controls) {
+            ldap_controls_free(returned_controls);
+            returned_controls = NULL;
+        }
     }
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain exiting\n");
 }
