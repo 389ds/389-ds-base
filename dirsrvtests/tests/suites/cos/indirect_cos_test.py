@@ -14,8 +14,9 @@ import time
 import subprocess
 
 from lib389 import Entry
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.domain import Domain
+from lib389.cos import CosIndirectDefinitions
 from lib389.topologies import topology_st as topo
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD, HOST_STANDALONE,
                                SERVERID_STANDALONE, PORT_STANDALONE)
@@ -169,6 +170,77 @@ def test_indirect_cos(topo, setup):
     # Step 3 - Check user again now hat we have a mix of vattrs
     log.info('Checking user...')
     check_user(topo.standalone)
+
+
+def test_indirect_cos_reflects_current_value(topo):
+    """Test that indirect COS reflects the current value of the indirect entry
+
+    :id: 905376a4-1a61-44c2-a0c4-541b35a219ad
+    :setup: Standalone instance
+    :steps:
+        1. Add indirect COS definition using manager as specifier
+        2. Add manager entry with roomnumber=1
+        3. Add user entry pointing to manager
+        4. Verify user gets roomnumber=1 from COS
+        5. Modify manager's roomnumber to 2
+        6. Verify user now gets roomnumber=2 from COS
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. User has roomnumber=1
+        5. Success
+        6. User has roomnumber=2
+    """
+
+    MANAGER_DN = f'uid=mymanager,ou=people,{DEFAULT_SUFFIX}'
+    USER_DN = f'uid=cosuser,ou=people,{DEFAULT_SUFFIX}'
+
+    log.info('Add indirect COS definition using manager as specifier')
+    cos_defs = CosIndirectDefinitions(topo.standalone, DEFAULT_SUFFIX)
+    cos_def = cos_defs.create(properties={
+        'cn': 'roomnumber-cos',
+        'cosIndirectSpecifier': 'manager',
+        'cosattribute': 'roomnumber'
+    })
+
+    log.info('Add manager entry with roomnumber=1')
+    manager = UserAccount(topo.standalone, MANAGER_DN)
+    manager.create(properties={
+        'uid': 'mymanager',
+        'cn': 'My Manager',
+        'sn': 'Manager',
+        'uidNumber': '1001',
+        'gidNumber': '1001',
+        'homeDirectory': '/home/mymanager'
+    })
+    manager.add('objectClass', 'extensibleObject')
+    manager.replace('roomnumber', '1')
+
+    log.info('Add user entry with manager attribute')
+    user = UserAccount(topo.standalone, USER_DN)
+    user.create(properties={
+        'uid': 'cosuser',
+        'cn': 'COS User',
+        'sn': 'User',
+        'uidNumber': '1002',
+        'gidNumber': '1002',
+        'homeDirectory': '/home/cosuser',
+        'manager': MANAGER_DN
+    })
+
+    log.info('Verify user gets roomnumber=1 from COS')
+    assert user.get_attr_val_utf8('roomnumber') == '1'
+
+    log.info('Modify manager roomnumber to 2')
+    manager.replace('roomnumber', '2')
+
+    log.info('Verify user now gets roomnumber=2 from COS')
+    assert user.get_attr_val_utf8('roomnumber') == '2'
+
+    user.delete()
+    manager.delete()
+    cos_def.delete()
 
 
 if __name__ == '__main__':
