@@ -694,7 +694,13 @@ dna_close(Slapi_PBlock *pb __attribute__((unused)))
     slapi_destroy_rwlock(g_dna_cache_lock);
     g_dna_cache_lock = NULL;
 
-    dna_delete_global_servers();
+    if (g_dna_cache_server_lock) {
+        dna_server_write_lock();
+        dna_delete_global_servers();
+        dna_server_unlock();
+    } else {
+        dna_delete_global_servers();
+    }
     slapi_destroy_rwlock(g_dna_cache_server_lock);
     g_dna_cache_server_lock = NULL;
 
@@ -767,7 +773,8 @@ out:
 }
 
 /*
- * Free the global linkedl ist of shared servers
+ * Free the global linked list of shared servers
+ * Caller must hold dna_server_write_lock() before invoking this helper.
  */
 static void
 dna_delete_global_servers(void)
@@ -793,14 +800,18 @@ static int
 dna_load_shared_servers(void)
 {
     struct configEntry *config_entry = NULL;
-    struct dnaServer *server = NULL, *global_servers = NULL;
+    struct dnaServer *server = NULL, *global_tail = NULL;
     PRCList *server_list = NULL;
     PRCList *config_list = NULL;
-    int freed_servers = 0;
     int ret = 0;
 
-    /* Now build the new list. */
     dna_write_lock();
+    /* Hold the server list lock for the full rebuild so concurrent updates
+     * cannot free or append entries underneath us. */
+    dna_server_write_lock();
+    dna_delete_global_servers();
+    global_tail = NULL;
+
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         config_list = PR_LIST_HEAD(dna_global_config);
         while (config_list != dna_global_config) {
@@ -810,34 +821,31 @@ dna_load_shared_servers(void)
             if (dna_get_shared_servers(config_entry,
                                        &shared_list,
                                        1 /* get all the servers */)) {
+                dna_server_unlock();
                 dna_unlock();
                 return -1;
             }
 
-            dna_server_write_lock();
-            if (!freed_servers) {
-                dna_delete_global_servers();
-                freed_servers = 1;
-            }
             if (shared_list) {
                 server_list = PR_LIST_HEAD(shared_list);
                 while (server_list != shared_list) {
                     server = (struct dnaServer *)server_list;
-                    if (global_servers == NULL) {
-                        dna_global_servers = global_servers = server;
+                    if (dna_global_servers == NULL) {
+                        dna_global_servers = global_tail = server;
                     } else {
-                        global_servers->next = server;
-                        global_servers = server;
+                        global_tail->next = server;
+                        global_tail = server;
                     }
                     server_list = PR_NEXT_LINK(server_list);
                 }
                 slapi_ch_free((void **)&shared_list);
             }
-            dna_server_unlock();
 
             config_list = PR_NEXT_LINK(config_list);
         }
     }
+
+    dna_server_unlock();
     dna_unlock();
 
     return ret;
