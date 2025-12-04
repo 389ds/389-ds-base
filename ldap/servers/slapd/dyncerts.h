@@ -50,6 +50,8 @@
 #define DYCATTR_FORCE	         DYCATTR_PREFIX "Force"
 #define DYCATTR_SWITCH	         DYCATTR_PREFIX "SwitchInProgress"
 
+#define INTERNAL_SLOTNAME1    "Internal (Software)"
+#define INTERNAL_SLOTNAME2    "Internal (Software) Token"
 
 #define ERRMSG(ctx, rc, ...) { \
             (ctx)->ldaprc = (rc); \

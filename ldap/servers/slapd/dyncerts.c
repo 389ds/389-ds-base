@@ -33,10 +33,18 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static struct slapdplugin dyncerts_plugin = {0};
 static struct dyncerts pdyncerts;
 
+
+/*
+ * dsDynamicCertificateSwitchInProgress is always seen as FALSE
+ * Because accept and listening thread are blocked
+ * when it is switched to TRUE (so it cannot be queried)
+ */ 
 static const char *dyncerts_baseentry_str =
     "dn: " DYNCERTS_SUFFIX "\n"
     "objectclass: top\n"
     "objectclass: nsContainer\n"
+    "objectclass: extensibleObject\n"
+    "dsDynamicCertificateSwitchInProgress: FALSE\n"
     "cn: " DYNCERTS_CN "\n";
 
 static const struct trust_flags_mask trust_flags[] = {
@@ -107,33 +115,46 @@ be_unwillingtoperform(Slapi_PBlock *pb)
 static void
 read_config_info()
 {
-    DCSS *ss = ss_new();
-    Slapi_PBlock *pb = NULL;
-    Slapi_DN sdn = {0};
-    Slapi_Entry *e = NULL;
-    Slapi_Entry **e2 = NULL;
+    if (pdyncerts.config == NULL) {
+        DCSS *ss = ss_new();
+        Slapi_PBlock *pb = NULL;
+        Slapi_DN sdn = {0};
+        Slapi_Entry *e = NULL;
+        Slapi_Entry **e2 = NULL;
 
-    /* Store cn=config entry */
-    slapi_sdn_init_dn_byref(&sdn, CONFIG_DN1);
-    slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
-    ss_add_entry(ss, e);
-    slapi_sdn_done(&sdn);
-    /* Store cn=encryption,cn=config entry */
-    slapi_sdn_init_dn_byref(&sdn, CONFIG_DN2);
-    slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
-    ss_add_entry(ss, e);
-    /* Store cn=*,cn=encryption,cn=config active entries */
-    pb = slapi_search_internal(CONFIG_DN2, LDAP_SCOPE_ONELEVEL, CONFIG_DN2_FILTER,
+        /* Store cn=config entry */
+        slapi_sdn_init_dn_byref(&sdn, CONFIG_DN1);
+        pthread_mutex_lock(&mutex);
+        slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
+        ss_add_entry(ss, e);
+        slapi_sdn_done(&sdn);
+        /* Store cn=encryption,cn=config entry */
+        slapi_sdn_init_dn_byref(&sdn, CONFIG_DN2);
+        slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
+        ss_add_entry(ss, e);
+        /* Store cn=*,cn=encryption,cn=config active entries */
+        pb = slapi_search_internal(CONFIG_DN2, LDAP_SCOPE_ONELEVEL, CONFIG_DN2_FILTER,
                                    NULL, NULL, 0);
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &e2);
-    if (e2 != NULL) {
-        while (*e2) {
-            ss_add_entry(ss, slapi_entry_dup(*e2++));
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &e2);
+        if (e2 != NULL) {
+            while (*e2) {
+                ss_add_entry(ss, slapi_entry_dup(*e2++));
+            }
         }
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+        pdyncerts.config = ss;
     }
-    slapi_free_search_results_internal(pb);
-    slapi_pblock_destroy(pb);
-    pdyncerts.config = ss;
+}
+
+/* Free private data instance config data */
+static void
+free_config_info()
+{
+    if (pdyncerts.config != NULL) {
+        ss_destroy(&pdyncerts.config);
+        pthread_mutex_unlock(&mutex);
+    }
 }
 
 /* Get a specific config entry by index */
@@ -171,14 +192,11 @@ dyncerts_find_entry(const Slapi_DN *basedn, int scope, char **attrs, DCSS **be_s
         scope = LDAP_SCOPE_SUBTREE;
     }
     ss =  get_entry_list(&suffix, scope, attrs);
-    for(size_t idx = 0; idx<ss->nb_entries; idx++) {
-        e = ss->entries[idx];
+    for(size_t idx = 0; (e = get_config_entry(idx)); idx++) {
         if (slapi_sdn_compare(basedn, slapi_entry_get_sdn_const(e)) == 0) {
             break;
         }
-        e = NULL;
     }
-    ss_destroy(&pdyncerts.config);
     *be_ss = ss;
     return e;
 }
@@ -239,7 +257,6 @@ dyncerts_search(Slapi_PBlock *pb)
         }
     }
 
-    pthread_mutex_lock(&mutex);
     /* Let first build the list of all entries */
     e = dyncerts_find_entry(basesdn, scope, attrs, &be_ss);
     ss = ss_new();
@@ -268,7 +285,7 @@ fail:
     if (rc != 0) {
         dyncerts_search_set_release((void**)&ss);
     }
-    pthread_mutex_unlock(&mutex);
+    free_config_info();
     return rc;
 }
 
@@ -437,7 +454,7 @@ secitem2hex(SECItem *si)
         len = si->len;
         data = (unsigned char *)(si->data);
     }
-    char *pt = slapi_ch_malloc(si->len*2+1);
+    char *pt = slapi_ch_malloc(len*2+1);
     pt[0] = 0;
     for (size_t i=0; i<len; i++) {
         sprintf(&pt[2*i], "%02x", data[i]);
@@ -445,23 +462,22 @@ secitem2hex(SECItem *si)
     return pt;
 }
 
-
-
 /* Helper function to determine if slotname is the internal slot */
 static bool
 is_internal_slot(const char *slotname)
 {
-    return ( strcasecmp(slotname, "internal (software)") == 0 ||
-             strcasecmp(slotname, "Internal (Software) Token") == 0);
+    return ( strcasecmp(slotname, INTERNAL_SLOTNAME1) == 0 ||
+             strcasecmp(slotname, INTERNAL_SLOTNAME2) == 0);
 }
 
 /* Determine if a certificate is the server certificate */
 static PRBool
-is_servercert(CERTCertificate *cert)
+is_servercert_int(const char *slotname, const char *nickname)
 {
-    const char *slotname = PK11_GetTokenName(cert->slot);
-    const char *certname = cert->nickname;
     Slapi_Entry *e = NULL;
+    if (slotname == NULL) {
+        slotname = INTERNAL_SLOTNAME1;
+    }
     /* Check iof certificate match one of the familly definition */
     for (size_t i=FIRST_FAMILY_CONFIG_ENTRY_IDX; (e=get_config_entry(i)); i++) {
         const char *ename = slapi_entry_attr_get_ref(e, "nsSSLPersonalitySSL");
@@ -469,7 +485,7 @@ is_servercert(CERTCertificate *cert)
         if (!ename || !eslot) {
             continue;
         }
-        if (strcasecmp(ename, certname) != 0) {
+        if (strcasecmp(ename, nickname) != 0) {
             continue;
         }
         if (is_internal_slot(eslot) && is_internal_slot(slotname)) {
@@ -482,6 +498,15 @@ is_servercert(CERTCertificate *cert)
     return PR_FALSE;
 }
 
+/* Determine if a certificate is the server certificate */
+static PRBool
+is_servercert(CERTCertificate *cert)
+{
+    const char *slotname = PK11_GetTokenName(cert->slot);
+    const char *nickname = cert->nickname;
+    return is_servercert_int(slotname, nickname);
+}
+
 static const char *
 cert_token(CERTCertificate *cert)
 {
@@ -492,15 +517,12 @@ cert_token(CERTCertificate *cert)
 static inline void * __attribute__((always_inline))
 _get_pw(const char *token)
 {
+    /* mutex is held in all backend operation callbacks */
     struct sock_elem *se = pdyncerts.sockets;
     char *pw = NULL;
-    SVRCOREError err = SVRCORE_NoSuchToken_Error;
+    SVRCOREStdPinObj *StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+    SVRCOREError err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
 
-    if (token != NULL) {
-        SVRCOREStdPinObj *StdPinObj = NULL;
-        StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
-        err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
-    }
     if (err != SVRCORE_Success || pw == NULL) {
         for (;pw == NULL && se; se=se->next) {
             pw = SSL_RevealPinArg(se->pr_sock);
