@@ -1316,6 +1316,7 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
                     if (found->v_csnset &&
                         (flags & (SLAPI_VALUE_FLAG_PRESERVECSNSET |
                                   SLAPI_VALUE_FLAG_USENEWVALUE))) {
+                        csnset_free(&valuestodelete[i]->v_csnset);
                         valuestodelete[i]->v_csnset = csnset_dup(found->v_csnset);
                     }
                     if (flags & SLAPI_VALUE_FLAG_USENEWVALUE) {
@@ -1326,6 +1327,7 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
                     }
                 } else {
                     if (flags & SLAPI_VALUE_FLAG_PRESERVECSNSET) {
+                        csnset_free(&valuestodelete[i]->v_csnset);
                         valuestodelete[i]->v_csnset = found->v_csnset;
                         found->v_csnset = NULL;
                     }
