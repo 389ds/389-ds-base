@@ -146,7 +146,7 @@ replica_new(const Slapi_DN *root)
     return r;
 }
 
-void
+static void
 reset_keepalive_timer(Replica *r)
 {
     if (r->repl_eqcxt_ka_update != NULL) {

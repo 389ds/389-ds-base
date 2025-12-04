@@ -19,7 +19,6 @@ from lib389.dseldif import *
 from lib389.topologies import topology_m3 as topo_m3
 from lib389.agreement import Agreements
 from lib389.replica import ReplicationManager, Replicas
-from lib389.cli_ctl.dblib import DbscanHelper
 
 
 pytestmark = pytest.mark.tier1
@@ -191,7 +190,7 @@ def perform_updates(inst, replicas):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     dn = 'uid=demo_user,ou=people,dc=example,dc=com'
     user = UserAccount(inst, dn)
-    for i in range(4):
+    for _ in range(4):
         val = f'Test {count}'
         user.add('description', val)
         count += 1
@@ -209,7 +208,7 @@ def check_updates(inst):
         assert f'Test {i}'.encode() in vals
 
 
-def test_offline_import(topo_m3):
+def test_offline_import(topo_m3, request):
     """Test that keep alive is not updated too soon after an offline import
 
     :id: 493a4810-cc5b-11f0-8c70-c85309d5c3e3
@@ -254,15 +253,21 @@ def test_offline_import(topo_m3):
     S2 = topo_m3.ms["supplier2"]
     S3 = topo_m3.ms["supplier3"]
 
+    def fin():
+        get_agmt(S1, "003").resume()
+        get_agmt(S2, "001").resume()
+        get_agmt(S3, "002").resume()
+
+    request.addfinalizer(fin)
     r1 = Replicas(S1).get(DEFAULT_SUFFIX)
     # 60 is the smallest accepted value for the interval time
     r1.replace('nsds5ReplicaKeepAliveUpdateInterval', '60')
     # Need to restart to reset repeated timer
     S1.restart()
 
-    get_agmt(S1, "003").delete()
-    get_agmt(S2, "001").delete()
-    get_agmt(S3, "002").delete()
+    get_agmt(S1, "003").pause()
+    get_agmt(S2, "001").pause()
+    get_agmt(S3, "002").pause()
     perform_updates(S1, (S2, S3))
     S3.stop()
     ldif_file = '%s/supplier3.ldif' % S3.get_ldif_dir()
