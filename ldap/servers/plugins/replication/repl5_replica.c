@@ -146,6 +146,28 @@ replica_new(const Slapi_DN *root)
     return r;
 }
 
+static void
+reset_keepalive_timer(Replica *r)
+{
+    if (r->repl_eqcxt_ka_update != NULL) {
+        slapi_eq_cancel_rel(r->repl_eqcxt_ka_update);
+        r->repl_eqcxt_ka_update = NULL;
+    }
+    if (replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
+        int64_t interval = replica_get_keepalive_update_interval(r);
+        int64_t bomax = slapi_counter_get_value(r->backoff_max);
+        if (interval <= bomax) {
+            slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "Replica %s "
+                          "should have a keep alive interval greater than the "
+                          "maximum backoff timeout\n", r->repl_name);
+        }
+        r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
+                                                      slapi_current_rel_time_t() + interval,
+                                                      1000 * interval);
+    }
+}
+
+
 /* constructs the replica object from the newly added entry */
 int
 replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **rp)
@@ -250,11 +272,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
                                            RUV_SAVE_INTERVAL);
 
     /* create supplier update event */
-    if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
-        r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
-                                                      slapi_current_rel_time_t() + 30,
-                                                      1000 * replica_get_keepalive_update_interval(r));
-    }
+    reset_keepalive_timer(r);
 
     if (r->tombstone_reap_interval > 0) {
         /*
@@ -1562,12 +1580,7 @@ replica_set_enabled(Replica *r, PRBool enable)
 
         }
         /* create supplier update event */
-        if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
-            /* Should not create local update before the replica get a chance to resync after a restore/import */
-            r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
-                                                       slapi_current_rel_time_t() + 2*PROTOCOL_BACKOFF_MAXIMUM,
-                                                       1000 * replica_get_keepalive_update_interval(r));
-        }
+        reset_keepalive_timer(r);
     } else /* disable */
     {
         if (r->repl_eqcxt_rs) /* event is still registerd */
@@ -3743,6 +3756,7 @@ replica_set_keepalive_update_interval(Replica *r, int64_t interval)
 {
     replica_lock(r->repl_lock);
     r->keepalive_update_interval = interval;
+    reset_keepalive_timer(r);
     replica_unlock(r->repl_lock);
 }
 
