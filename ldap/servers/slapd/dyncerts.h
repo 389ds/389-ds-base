@@ -29,7 +29,7 @@
 
 /* The Dynamic certificate attribute names */
 #define DYCATTR_NICKNAME		 "cn"
-#define DYCATTR_PREFIX           "nsDynamicCertificate"
+#define DYCATTR_PREFIX           "dsDynamicCertificate"
 #define DYCATTR_ISSRVCERT        DYCATTR_PREFIX "IsServerCert"
 #define DYCATTR_ISROOTCA	     DYCATTR_PREFIX "IsRootCA"
 #define DYCATTR_ISCA	         DYCATTR_PREFIX "IsCA"
