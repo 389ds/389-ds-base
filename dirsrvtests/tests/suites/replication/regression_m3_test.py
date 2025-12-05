@@ -168,9 +168,9 @@ def test_cleanallruv_repl(topo_m3):
     assert set(expected_m2_users).issubset(current_m2_users)
 
 
-def get_agmt(inst, cn):
-    for agmt in Agreements(inst).list():
-        if agmt.get_attr_val_utf8("cn") == cn:
+def get_agmt(inst_from, inst_to):
+    for agmt in Agreements(inst_from).list():
+        if agmt.get_attr_val_utf8("nsDS5ReplicaPort") == str(inst_to.port):
             return agmt
     return None
 
@@ -254,9 +254,9 @@ def test_offline_import(topo_m3, request):
     S3 = topo_m3.ms["supplier3"]
 
     def fin():
-        get_agmt(S1, "003").resume()
-        get_agmt(S2, "001").resume()
-        get_agmt(S3, "002").resume()
+        get_agmt(S1, S3).resume()
+        get_agmt(S2, S1).resume()
+        get_agmt(S3, S2).resume()
 
     request.addfinalizer(fin)
     r1 = Replicas(S1).get(DEFAULT_SUFFIX)
@@ -265,9 +265,9 @@ def test_offline_import(topo_m3, request):
     # Need to restart to reset repeated timer
     S1.restart()
 
-    get_agmt(S1, "003").pause()
-    get_agmt(S2, "001").pause()
-    get_agmt(S3, "002").pause()
+    get_agmt(S1, S3).pause()
+    get_agmt(S2, S1).pause()
+    get_agmt(S3, S2).pause()
     perform_updates(S1, (S2, S3))
     S3.stop()
     ldif_file = '%s/supplier3.ldif' % S3.get_ldif_dir()
