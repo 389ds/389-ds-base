@@ -930,7 +930,7 @@ index_read_ext_allids(
     prefix = index_index2prefix(indextype);
     if (prefix == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids", "NULL prefix\n");
-        return NULL;
+        return idl_alloc(0);
     }
     if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
         slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "=> ( \"%s\" %s \"%s\" )\n",
@@ -946,7 +946,7 @@ index_read_ext_allids(
     if (ai == NULL) {
         index_free_prefix(prefix);
         slapi_ch_free_string(&basetmp);
-        return NULL;
+        return idl_alloc(0);
     }
 
     slapi_log_err(SLAPI_LOG_ARGS, "index_read_ext_allids", "indextype: \"%s\" indexmask: 0x%x\n",
@@ -965,7 +965,7 @@ index_read_ext_allids(
         slapi_ch_free_string(&basetmp);
         if (NULL == val || NULL == val->bv_val) {
             /* entrydn value was not given */
-            return NULL;
+            return idl_alloc(0);
         }
         slapi_sdn_init_dn_byval(&sdn, val->bv_val);
         rc = entryrdn_index_read(be, &sdn, &id, txn);
@@ -974,11 +974,11 @@ index_read_ext_allids(
             /* return an empty list */
             return idl_alloc(0);
         } else if (rc) { /* failure */
-            return NULL;
+            return idl_alloc(0);
         } else { /* success */
             rc = idl_append_extend(&idl, id);
             if (rc) { /* failure */
-                return NULL;
+                return idl_alloc(0);
             }
             return idl;
         }
@@ -1020,11 +1020,11 @@ index_read_ext_allids(
     }
     if ((*err = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE)) != 0) {
         slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids",
-                      "<=  NULL (index file open for attr %s)\n",
+                      "<=  empty IDL (index file open for attr %s)\n",
                       basetype);
         index_free_prefix(prefix);
         slapi_ch_free_string(&basetmp);
-        return (NULL);
+        return idl_alloc(0);
     }
 
     if (val != NULL) {
@@ -1040,7 +1040,7 @@ index_read_ext_allids(
                 *err = DBI_RC_OTHER;
                 index_free_prefix(prefix);
                 slapi_ch_free_string(&basetmp);
-                return (NULL);
+                return idl_alloc(0);
             }
             if (hashed_val) {
                 val = hashed_val;
@@ -1098,7 +1098,6 @@ index_read_ext_allids(
     } else if (*err != 0 && *err != DBI_RC_NOTFOUND) {
         ldbm_nasty("index_read_ext_allids", errmsg, 1050, *err);
     }
-    slapi_ch_free_string(&basetmp);
     dblayer_value_free(be, &key);
 
     dblayer_release_index_file(be, ai, db);
@@ -1119,6 +1118,8 @@ index_read_ext_allids(
                       basetype, *err);
         idl = idl_alloc(0);
     }
+
+    slapi_ch_free_string(&basetmp);
 
     slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "<=  %lu candidates\n",
                   (u_long)IDL_NIDS(idl));
