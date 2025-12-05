@@ -143,6 +143,7 @@ read_config_info()
         }
         slapi_free_search_results_internal(pb);
         slapi_pblock_destroy(pb);
+        slapi_sdn_done(&sdn);
         pdyncerts.config = ss;
     }
 }
@@ -192,12 +193,15 @@ dyncerts_find_entry(const Slapi_DN *basedn, int scope, char **attrs, DCSS **be_s
         scope = LDAP_SCOPE_SUBTREE;
     }
     ss =  get_entry_list(&suffix, scope, attrs);
-    for(size_t idx = 0; (e = get_config_entry(idx)); idx++) {
+    for(size_t idx = 0; idx<ss->nb_entries; idx++) {
+        e = ss->entries[idx];
         if (slapi_sdn_compare(basedn, slapi_entry_get_sdn_const(e)) == 0) {
             break;
         }
+        e = NULL;
     }
     *be_ss = ss;
+    slapi_sdn_done(&suffix);
     return e;
 }
 
@@ -538,6 +542,7 @@ verify_cert(Slapi_Entry *e, CERTCertificate *cert, const char *attrname)
     SECCertificateUsage returnedUsages;
     SECCertificateUsage usage = 0;
     char *val = NULL;
+    char *pw = _get_pw(cert_token(cert));
 
     if (strcmp(slapi_entry_attr_get_ref(e, DYCATTR_ISSRVCERT), "TRUE") == 0) {
         usage = certificateUsageSSLServer;
@@ -548,7 +553,8 @@ verify_cert(Slapi_Entry *e, CERTCertificate *cert, const char *attrname)
     }
 
     int rv = CERT_VerifyCertificateNow(cert->dbhandle, cert, PR_TRUE,
-                                       usage, _get_pw(cert_token(cert)), &returnedUsages);
+                                       usage, pw, &returnedUsages);
+    slapi_ch_free_string(&pw);
 
     if (rv != SECSuccess) {
         int errorCode = PR_GetError();
@@ -781,6 +787,7 @@ dyncerts_cert2entry(CERTCertificate *cert)
     COND_STR(e, DYCATTR_TYPE, "OBJECT SIGNING CA", cert->nsCertType & NS_CERT_TYPE_OBJECT_SIGNING_CA);
     slapi_entry_add_string(e, DYCATTR_TOKEN, PK11_GetTokenName(cert->slot));
     secitemv(&cert->derCert, &tmpv);
+    value_done(&tmpv);
     slapi_entry_add_value(e, DYCATTR_CERTDER, &tmpv);
     tmpstr = secitem2hex(&cert->serialNumber);
     slapi_entry_add_string(e, DYCATTR_SN, tmpstr);
@@ -831,11 +838,13 @@ get_entry_list(const Slapi_DN *basesn, int scope, char **attrs)
     ss_add_entry(ss, e);
     if (LDAP_SCOPE_BASE == scope) {
         /* Bypass getting cert list if only looking for the container */
-        Slapi_DN sdn;
+        Slapi_DN sdn = {0};
         slapi_sdn_init_dn_byref(&sdn, DYNCERTS_SUFFIX);
         if (slapi_sdn_compare(&sdn, slapi_entry_get_sdn_const(e)) == 0) {
+            slapi_sdn_done(&sdn);
             return ss;
         }
+        slapi_sdn_done(&sdn);
     }
 
     if (slapd_nss_is_initialized()) {
