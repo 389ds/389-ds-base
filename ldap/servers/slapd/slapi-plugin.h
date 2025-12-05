@@ -1848,6 +1848,15 @@ PRBool slapi_entry_attr_get_bool(const Slapi_Entry *e, const char *type);
 PRBool slapi_entry_attr_get_bool_ext(const Slapi_Entry *e, const char *type, PRBool default_value);
 
 /**
+ * Gets a set of value of a given attribute of a given entry
+ *
+ * \param e Entry from which you want to get the values.
+ * \param type Attribute type from which you want to get the values.
+ * \return \c an array of Slapi_Value pointers
+ */
+const Slapi_Value **slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *type);
+
+/**
  * Replaces the value or values of an attribute in an entry with a specified string
  * value.
  *
