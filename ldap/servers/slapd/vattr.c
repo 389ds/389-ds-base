@@ -148,7 +148,10 @@ vattr_check_thread(void *arg)
     int32_t rc;
     int32_t check_suffix; /* used to skip suffixes in ignored_backend */
     PRBool exist_vattr_definition = PR_FALSE;
-    char *ignored_backend[5] = {"cn=config", "cn=schema", "cn=monitor", "cn=changelog", NULL}; /* suffixes to ignore */
+    const char *ignored_backend[] = {  /* suffixes to ignore */ \
+        "cn=config", "cn=schema", "cn=monitor", "cn=changelog",
+        DYNCERTS_SUFFIX, NULL
+    };
     char *suffix;
     int ignore_vattrs;
 

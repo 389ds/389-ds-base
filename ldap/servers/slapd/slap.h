@@ -2956,4 +2956,7 @@ int32_t slapd_identify_local_user(Connection *conn);
 int32_t slapd_bind_local_user(Connection *conn);
 #endif
 
+#define DYNCERTS_CN	"dynamiccertificates"
+#define DYNCERTS_SUFFIX	"cn=" DYNCERTS_CN
+
 #endif /* _slap_h_ */
