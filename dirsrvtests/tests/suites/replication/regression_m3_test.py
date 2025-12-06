@@ -166,6 +166,7 @@ def test_cleanallruv_repl(topo_m3):
 
     assert set(expected_m1_users).issubset(current_m1_users)
     assert set(expected_m2_users).issubset(current_m2_users)
+    M3.start()
 
 
 def get_agmt(inst_from, inst_to):
