@@ -401,11 +401,11 @@ db2ldif_skip_all(void *args)
     suffix = slapi_sdn_get_dn(be->be_suffix);
     slapi_task_log_notice(task, "Backend instance '%s': "
             "Import complete. Processed 0 entries, all entries were "
-            "skipped because ldif file does not contain the suffix entry %s).",
+            "skipped because ldif file does not contain the suffix entry %s).\n",
              be->be_name, suffix);
     slapi_log_err(SLAPI_LOG_WARNING, "db2ldif_is_suffix_in_ldif", "%s: "
             "Import complete. Processed 0 entries, all entries were "
-            "skipped because ldif file does not contain the suffix entry %s).",
+            "skipped because ldif file does not contain the suffix entry %s).\n",
              be->be_name, suffix);
     slapi_task_finish(task, 0);
     g_decr_active_threadcnt();
