@@ -36,6 +36,9 @@ static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int l
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
 static void stat_add_srch_lookup(Op_stat *op_stat,  struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt);
+static bool dynamic_lists_filter_matches(Slapi_Filter *filter, struct ldbminfo *li);
+static void dynamic_candidates(Slapi_PBlock *pb, struct ldbminfo *li, const char *base, IDList **candidates, int *err);
+static void dynamic_lists_buildup_entry(Slapi_PBlock *pb, struct backentry *entry, struct ldbminfo *li);
 
 /* This is for performance testing, allows us to disable ACL checking altogether */
 #if defined(DISABLE_ACL_CHECK)
@@ -45,6 +48,145 @@ static void stat_add_srch_lookup(Op_stat *op_stat,  struct component_keys_lookup
 #endif
 
 #define ISLEGACY(be) (be ? (be->be_instance_info ? (((ldbm_instance *)be->be_instance_info)->inst_li ? (((ldbm_instance *)be->be_instance_info)->inst_li->li_legacy_errcode) : 0) : 0) : 0)
+
+/* Recursively walk the filter to see if it contains our dynamic attribute */
+static bool
+dynamic_lists_filter_matches(Slapi_Filter *filter, struct ldbminfo *li)
+{
+    switch (filter->f_choice) {
+    case LDAP_FILTER_EQUALITY:
+        if (strcasecmp(filter->f_avtype, li->li_dynamic_lists_attr) == 0) {
+            return true;
+        }
+        break;
+    case LDAP_FILTER_AND:
+    case LDAP_FILTER_OR:
+    case LDAP_FILTER_NOT:
+        for (Slapi_Filter *sub_filter = filter->f_list;
+             sub_filter;
+             sub_filter = sub_filter->f_next)
+        {
+            if (dynamic_lists_filter_matches(sub_filter, li)) {
+                return true;
+            }
+        }
+        break;
+    }
+    return false;
+}
+
+static void
+dynamic_lists_buildup_entry(Slapi_PBlock *pb, struct backentry *entry, struct ldbminfo *li)
+{
+    const Slapi_Value **urls = NULL;
+
+    if (slapi_entry_attr_hasvalue(entry->ep_entry, "objectclass",
+                                  li->li_dynamic_lists_oc) == 0)
+    {
+         /* Entry does not have the groupOfUrls objectclass */
+         return;
+    }
+
+    /* The entry could have multiple urls, so we need to loop here */
+    urls = slapi_entry_attr_get_valuearray(entry->ep_entry,
+                                           li->li_dynamic_lists_url_attr);
+    for (size_t i = 0; urls && urls[i]; i++) {
+        Slapi_PBlock *search_pb = NULL;
+        Slapi_ValueSet *list_set = NULL;
+        LDAPURLDesc *ludp = NULL;
+        const char *url = NULL;
+        char *list_attr = NULL;
+        int secure = 0;
+        int rc = 0;
+
+        url = slapi_value_get_string(urls[i]);
+        /*
+        * Parse the LDAP URL and validate it
+        */
+        if ((rc = slapi_ldap_url_parse(url, &ludp, 0, &secure)) != 0) {
+            /* Failed to parse the memberUrl attribute */
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - failed to parse the LDAP url: %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_filter == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Missing filter in LDAP URL %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_dn == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Missing base dn in LDAP URL %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_attrs != NULL && ludp->lud_attrs[0] != NULL) {
+            /* If an attribute is specified use it */
+            list_attr = ludp->lud_attrs[0];
+        }
+
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "dynamic_lists_buildup_entry",
+                      "%s (url: %s) - Performing internal search\n",
+                      slapi_entry_get_dn_const(entry->ep_entry), url);
+
+        /*
+        * Get our DN's groupOfUrls attribute
+        */
+        search_pb = slapi_pblock_new();
+        slapi_search_internal_set_pb(search_pb, ludp->lud_dn, ludp->lud_scope, ludp->lud_filter,
+                                     NULL, 0, NULL, NULL, li->li_identity, 0);
+        slapi_search_internal_pb(search_pb);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (LDAP_SUCCESS != rc) {
+            /* log an error and use the plugin entry for the config */
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Internal search based on LDAP url (%s) failed: err=%d\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url, rc);
+            goto cont;
+        } else {
+            Slapi_Entry **entries = NULL;
+
+            list_set = slapi_valueset_new();
+            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            for (size_t i = 0; entries && entries[i]; i++) {
+                if (list_attr == NULL) {
+                    /* No list attribute, so use the DN of the entry */
+                    const char *dn = slapi_entry_get_dn_const(entries[i]);
+                    slapi_valueset_add_value_ext(list_set, slapi_value_new_string(dn),
+                                                 SLAPI_VALUE_FLAG_PASSIN);
+                } else {
+                    /* Use an attribute/value from within the entry */
+                    const char *entry_list_attr = slapi_entry_attr_get_ref(entries[i],
+                                                                           list_attr);
+                    if (entry_list_attr) {
+                        slapi_valueset_add_value_ext(list_set,
+                                                     slapi_value_new_string(entry_list_attr),
+                                                     SLAPI_VALUE_FLAG_PASSIN);
+                    }
+                }
+            }
+        }
+        if (slapi_valueset_isempty(list_set) == 0) {
+            slapi_entry_add_valueset(entry->ep_entry,
+                                     list_attr ? list_attr : li->li_dynamic_lists_attr,
+                                     list_set);
+            entry->ep_is_dynamic = true;
+        }
+
+    cont:
+        slapi_valueset_free(list_set);
+        slapi_free_search_results_internal(search_pb);
+        slapi_pblock_destroy(search_pb);
+        if (ludp != NULL) {
+            ldap_free_urldesc(ludp);
+        }
+    } /* end of URL loop */
+}
 
 int
 compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li)
@@ -1054,6 +1196,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     int r = 0;
     char logbuf[1024] = {0};
     Slapi_Operation *operation;
+    int32_t internal_op = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
     if (NULL == filter) {
@@ -1063,6 +1206,9 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     }
 
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+
+    internal_op = operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     switch (scope) {
     case LDAP_SCOPE_BASE:
@@ -1091,8 +1237,6 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         /* Now optimise the filter for use */
         slapi_filter_optimise(filter);
         slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
-
-        slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
         if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL) || (operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL))) {
             /* For performance reason, skip adding (objectclass=referral) in case
              *  - there is no referral on the server
@@ -1145,10 +1289,52 @@ bail:
         }
     }
 
+    if (!internal_op && li->li_dynamic_lists_enabled &&
+        dynamic_lists_filter_matches(filter, li))
+    {
+        /* Filter includes the dynamic attribute, so we need to build up the
+         * candidates list */
+        dynamic_candidates(pb, li, base, candidates, &err);
+    }
+
     slapi_log_err(SLAPI_LOG_TRACE, "build_candidate_list", "Candidate list has %lu ids\n",
                   *candidates ? (*candidates)->b_nids : 0L);
 
     return r;
+}
+
+/*
+ * Build a candidate list for dynamic entries
+ */
+static void
+dynamic_candidates(
+    Slapi_PBlock *pb,
+    struct ldbminfo *li,
+    const char *base,
+    IDList **candidates,
+    int *err)
+{
+    int rc = 0;
+    Slapi_Entry **entries = NULL;
+    char *dynamic_filter = slapi_ch_smprintf("(&(objectclass=%s)(%s=*))",
+                                             li->li_dynamic_lists_oc,
+                                             li->li_dynamic_lists_url_attr);
+    Slapi_PBlock *search_pb = slapi_pblock_new();
+
+    slapi_search_internal_set_pb(search_pb, base, LDAP_SCOPE_SUBTREE, dynamic_filter,
+                                 NULL, 0, NULL, NULL, li->li_identity, 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        for (size_t i = 0; entries && entries[i]; i++) {
+            ID id = slapi_entry_attr_get_int(entries[i], "entryid");
+            idl_insert(candidates, id);
+        }
+    }
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+    slapi_ch_free_string(&dynamic_filter);
 }
 
 /*
@@ -1549,6 +1735,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     Slapi_Connection *conn;
     Slapi_Operation *op;
     int reverse_list = 0;
+    int32_t internal_op = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &basesdn);
     if (NULL == basesdn) {
@@ -1576,6 +1763,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
+    internal_op = op && operation_is_flag_set(op, OP_FLAG_INTERNAL);
 
     if ((reverse_list = operation_is_flag_set(op, OP_FLAG_REVERSE_CANDIDATE_ORDER))) {
         /*
@@ -1773,6 +1961,12 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
             continue;
         }
+
+        if (li->li_dynamic_lists_enabled && !internal_op) {
+            /* Need to build up any dynamic content for the entry */
+            dynamic_lists_buildup_entry(pb, e, li);
+        }
+
         e->ep_vlventry = NULL;
         sr->sr_entry = e;
 
@@ -2098,6 +2292,11 @@ ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr)
         ((struct backentry *)backend_info_ptr)->ep_vlventry = NULL;
     }
 
+    if (((struct backentry *)backend_info_ptr)->ep_is_dynamic) {
+        /* Always remove the dynamic entry from the cache because it needs to
+         * be rebuilt every time it's looked at */
+        CACHE_REMOVE(&inst->inst_cache, (struct backentry *)backend_info_ptr);
+    }
     CACHE_RETURN(&inst->inst_cache, (struct backentry **)&backend_info_ptr);
 
     return 0;
