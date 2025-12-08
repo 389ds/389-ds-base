@@ -1422,9 +1422,9 @@ dblayer_is_lmdb(Slapi_Backend *be)
 }
 
 /*
- * Iterate on the provided curor starting at startingkey (or first key if 
+ * Iterate on the provided curor starting at startingkey (or first key if
  *  startingkey is NULL) and call action_cb for each records
- * 
+ *
  * action_cb callback returns:
  *     DBI_RC_SUCCESS to iterate on next entry
  *     DBI_RC_NOTFOUND to stop iteration with DBI_RC_SUCCESS code

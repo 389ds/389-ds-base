@@ -149,6 +149,11 @@ struct config_info
 
 #define CONFIG_LDBM_DN "cn=config,cn=ldbm database,cn=plugins,cn=config"
 
+#define CONFIG_DYNAMIC_LISTS_ENABLED "nsslapd-dynamic-lists-enabled"
+#define CONFIG_DYNAMIC_LISTS_ATTR "nsslapd-dynamic-lists-attr"
+#define CONFIG_DYNAMIC_LISTS_OC "nsslapd-dynamic-lists-oc"
+#define CONFIG_DYNAMIC_LISTS_URL_ATTR "nsslapd-dynamic-lists-url-attr"
+
 #define LDBM_INSTANCE_CONFIG_DONT_WRITE 1
 
 /* Some fuctions in ldbm_config.c used by ldbm_instance_config.c */
