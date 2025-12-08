@@ -345,11 +345,11 @@ dyncerts_cleanup(Slapi_PBlock *pb)
             slapi_ch_free((void **)&pdata->sockets);
             pdata->sockets = se;
         }
+        slapi_sdn_done(&pdyncerts.suffix_sdn);
         memset(pdata, 0, sizeof *pdata);
         pdata = NULL;
     }
     slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, pdata);
-    slapi_sdn_done(&pdyncerts.suffix_sdn);
     pthread_mutex_unlock(&mutex);
     return 0;
 }
@@ -894,10 +894,10 @@ nss_add_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
     SECCertificateUsage usage = 0;
     CERTCertTrust trust = {0};
     const char *errmsg = NULL;
-    char *pw = NULL;
+    char *pw = _get_pw(ctx->n.token);
 
     if (PK11_NeedLogin(ctx->slot)) {
-        rv = PK11_Authenticate(ctx->slot, PR_TRUE, _get_pw(ctx->n.token));
+        rv = PK11_Authenticate(ctx->slot, PR_TRUE, pw);
         CHECK_ERR("Failed to authenticate to token")
     }
     cert = CERT_DecodeCertFromPackage((char *)ctx->dercert.data, ctx->dercert.len);
@@ -958,7 +958,6 @@ nss_add_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
     } else {
         usage = certificateUsageSSLServer;
     }
-    pw = _get_pw(ctx->n.token);
     rv = CERT_VerifyCertificateNow(cert->dbhandle, cert, PR_TRUE,
                                    usage, pw, &returnedUsages);
     slapi_ch_free_string(&pw);
@@ -1059,6 +1058,7 @@ dyncert_nickname_free(Nickname_t *n)
     memset(n, 0, sizeof *n);
 }
 
+#if 0
 /* Fill nickname from token and nickname */
 static void
 dyncert_nickname_from_token_and_name(Nickname_t *n, const char *token, const char *nickname)
@@ -1086,6 +1086,7 @@ dyncert_nickname_from_token_and_name(Nickname_t *n, const char *token, const cha
         n->fullnickname[tlen] = ':';
     }
 }
+#endif
 
 /* Fill nickname from full_nickname */
 static void
@@ -1240,7 +1241,7 @@ dyncerts_import_entry(Slapi_Entry *e, char *errmsg, bool verifyOnly)
     int rc = LDAP_SUCCESS;
     CertCtx_t ctx = {0};
 
-    dyncert_nickname_from_full_nickname(&ctx.n, slapi_entry_attr_get_charptr(e, DYCATTR_NICKNAME));
+    dyncert_nickname_from_full_nickname(&ctx.n, slapi_entry_attr_get_ref(e, DYCATTR_NICKNAME));
     ctx.dercert = slapi_entry_attr_get_secitem(e, DYCATTR_CERTDER);
     ctx.derpkey = slapi_entry_attr_get_secitem(e, DYCATTR_PKEYDER);
     ctx.trust = slapi_entry_attr_get_charptr(e, DYCATTR_TRUST);
@@ -1291,11 +1292,7 @@ dyncerts_add(Slapi_PBlock *pb)
         goto done;
     }
     rc = dyncerts_import_entry(e, returntext, false);
-    e = NULL; /* caller will free it */
 done:
-    if (e) {
-        slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup(e));
-    }
     /* make sure OPRETURN and RESULT_CODE are set */
     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &error);
     if (rc) {
@@ -1310,6 +1307,11 @@ done:
     free_config_info();
     dyncert_nickname_free(&n);
     slapi_send_ldap_result(pb, rc, NULL, returntext[0] ? returntext : NULL, 0, NULL);
+    /* The frontend does not free the added entry, so we should do it now */
+    if (e) {
+        slapi_entry_free(e);
+    }
+    slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
     return rc;
 }
 
