@@ -178,7 +178,7 @@ not_exporting(void)
     slapi_ch_free_string(&export_lock);
     return res;
 }
-        
+
 /* Get the db implementation plugin path (either libback-ldbm.so or libback-bdb.so) */
 char *
 backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
