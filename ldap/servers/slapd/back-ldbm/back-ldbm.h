@@ -341,6 +341,8 @@ struct backentry
     void *ep_id_link;               /*     tables used for */
     void *ep_uuid_link;             /*     looking up entries */
     PRMonitor *ep_mutexp;           /* protection for mods; make it reentrant */
+    bool ep_is_dynamic;             /* is the entry a dynamic entry and must be
+                                     * removed from cache asap */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
@@ -638,6 +640,12 @@ struct ldbminfo
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
     int li_backend_opt_level;
     size_t li_max_key_len;
+
+    /* dynamic lists */
+    bool li_dynamic_lists_enabled;
+    char *li_dynamic_lists_attr;
+    char *li_dynamic_lists_oc;
+    char *li_dynamic_lists_url_attr;
 };
 
 
