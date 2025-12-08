@@ -960,7 +960,6 @@ nss_add_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
     }
     rv = CERT_VerifyCertificateNow(cert->dbhandle, cert, PR_TRUE,
                                    usage, pw, &returnedUsages);
-    slapi_ch_free_string(&pw);
     if (!ctx->force) {
         CHECK_ERR("Failed to extract public key from certificate");
     }
@@ -974,11 +973,11 @@ nss_add_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
     rv = SECSuccess;
 done:
     if (rv) {
-        rv = PR_GetError();
+        PRErrorCode err = PR_GetError();
         ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
         if (ctx->errmsg) {
             PR_snprintf((ctx)->errmsg, SLAPI_DSE_RETURNTEXT_SIZE, "%s: %d - %s",
-                        errmsg, rv, slapd_pr_strerror(rv));
+                        errmsg, err, slapd_pr_strerror(err));
         }
     }
 done2:
@@ -989,6 +988,7 @@ done2:
     if (verifyOnly) {
         dyncerts_free_nss_add_cert_and_key(ctx);
     }
+    slapi_ch_free_string(&pw);
     return rv;
 }
 
@@ -1319,12 +1319,15 @@ done:
 static int
 dyncerts_mods2entry(Slapi_PBlock *pb, Slapi_DN *sdn, LDAPMod **mods, Nickname_t *n, char *errmsg, Slapi_Entry **pte)
 {
-    Slapi_Entry *e = *pte = slapi_entry_alloc();
     const char *nickname = dyncert_nickname_from_dn(n, sdn);
-    const char *val = NULL;
     char *dn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+    Slapi_Entry *e = *pte = slapi_entry_alloc();
+    const char *val = NULL;
     int rc = LDAP_SUCCESS;
 
+    slapi_entry_init(e, dn, NULL);
+    slapi_entry_add_string(e, "objectclass", "top");
+    slapi_entry_add_string(e, "objectclass", "extensibleobject");
     if (!nickname) {
         /* Should not happen (unless heap corruption) because we already
          * tested that the modified entry exists
@@ -1332,23 +1335,19 @@ dyncerts_mods2entry(Slapi_PBlock *pb, Slapi_DN *sdn, LDAPMod **mods, Nickname_t 
         rc = LDAP_NAMING_VIOLATION;
         goto done;
     }
-    slapi_entry_init(e, dn, NULL);
-    slapi_entry_add_string(e, "objectclass", "top");
-    slapi_entry_add_string(e, "objectclass", "extensibleobject");
     slapi_entry_add_string(e, DYCATTR_NICKNAME, nickname);
     rc = slapi_entry_apply_mods(e, mods);
     if (rc) {
         goto done;
     }
     val = slapi_entry_attr_get_charptr(e, DYCATTR_NICKNAME);
-    if (strcasecmp(val, nickname)) {
+    if ((val == NULL) || (strcasecmp(val, nickname) != 0)) {
         /* cn attribute was changed ! */
         rc = LDAP_NAMING_VIOLATION;
         goto done;
     }
     rc = dyncerts_check_entry(pb, e, n, errmsg, false);
 done:
-    dyncert_nickname_free(n);
     return rc;
 }
 

@@ -204,7 +204,7 @@ class ECDSA_Certificate:
         self.fixNamingAttribute(NameOID.COUNTRY_NAME, 'US')
         self.fixNamingAttribute(NameOID.ORGANIZATION_NAME, 'Example Organization')
 
-    def generateCA(self, namingAttributes, validity_days=3650):
+    def generateCA(self, nickname, namingAttributes={}, validity_days=3650):
         """Generate an intermediary CA certificate using elliptic curve"""
         ca = ECDSA_Certificate()
         ca.namingAttrs = namingAttributes
