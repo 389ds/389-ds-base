@@ -1504,6 +1504,7 @@ export class ReplLogAnalysis extends React.Component {
                                                         fieldId="anonymize-option"
                                                         className="ds-margin-top"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Radio
                                                             id="anonymizeYes"
                                                             name="anonymizeOption"
@@ -1525,8 +1526,9 @@ export class ReplLogAnalysis extends React.Component {
                                                     <FormGroup
                                                         label={_("Replication Status Filter")}
                                                         fieldId="replication-filter"
-                                                        className="ds-margin-top-lg"
+                                                        className="ds-margin-top-xlg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Radio
                                                             id="replicationFilterAll"
                                                             name="replicationFilter"
@@ -1806,6 +1808,7 @@ export class ReplLogAnalysis extends React.Component {
                                                         fieldId="analysis-precision"
                                                         className="ds-margin-top-lg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Radio
                                                             id="precisionFast"
                                                             name="analysisPrecision"
@@ -1838,8 +1841,9 @@ export class ReplLogAnalysis extends React.Component {
                                                         label={_("Report Format")}
                                                         isRequired
                                                         fieldId="report-format"
-                                                        className="ds-margin-top"
+                                                        className="ds-margin-top-lg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Checkbox
                                                             id="formatJson"
                                                             isChecked={formatOptions.json}
@@ -1910,6 +1914,7 @@ export class ReplLogAnalysis extends React.Component {
                                                         fieldId="output-location"
                                                         className="ds-margin-top-lg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Checkbox
                                                             id="use-custom-output"
                                                             label={_("Use custom output directory")}
