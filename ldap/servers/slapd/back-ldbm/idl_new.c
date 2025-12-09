@@ -167,6 +167,20 @@ idl_new_fetch(
     dblayer_txn_init(li, &s_txn);
     dblayer_read_txn_begin(be, txn, &s_txn);
 
+    /*
+     * Verify the database's environment actually supports transactions.
+     * During import, databases are opened with a private environment that
+     * lacks DB_INIT_TXN. If we try to use a transaction from the main
+     * environment with a database from the import environment, BDB will fail.
+     * Clear the txn if the database's environment is NULL or doesn't support
+     * transactions.
+     */
+    if (s_txn.back_txn_txn != NULL) {
+        if (db->dbenv == NULL || !dblayer_db_uses_transactions(db->dbenv)) {
+            s_txn.back_txn_txn = NULL;
+        }
+    }
+
     /* Make a cursor */
     ret = db->cursor(db, s_txn.back_txn_txn, &cursor, 0);
     if (0 != ret) {
@@ -416,6 +430,20 @@ idl_new_range_fetch(
      */
     dblayer_txn_init(li, &s_txn);
     dblayer_read_txn_begin(be, txn, &s_txn);
+
+    /*
+     * Verify the database's environment actually supports transactions.
+     * During import, databases are opened with a private environment that
+     * lacks DB_INIT_TXN. If we try to use a transaction from the main
+     * environment with a database from the import environment, BDB will fail.
+     * Clear the txn if the database's environment is NULL or doesn't support
+     * transactions.
+     */
+    if (s_txn.back_txn_txn != NULL) {
+        if (db->dbenv == NULL || !dblayer_db_uses_transactions(db->dbenv)) {
+            s_txn.back_txn_txn = NULL;
+        }
+    }
 
     /* Make a cursor */
     ret = db->cursor(db, s_txn.back_txn_txn, &cursor, 0);
