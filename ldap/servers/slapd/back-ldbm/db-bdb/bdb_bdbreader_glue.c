@@ -264,20 +264,24 @@ int db_open(DB *db, DB_TXN *txnid, const char *file,
 
 int db_close(DB *db, u_int32_t flags)
 {
-    bdbreader_bdb_close((struct bdb_db **)&db->impl);
-    db->impl = NULL;
-    db->open_flags = OPEN_FLAGS_CLOSED;
-    dbc_close(db->cur);
-    slapi_ch_free_string(&db->fname);
-    slapi_ch_free((void**)&db);
+    if (db != NULL) {
+        bdbreader_bdb_close((struct bdb_db **)&db->impl);
+        db->impl = NULL;
+        db->open_flags = OPEN_FLAGS_CLOSED;
+        dbc_close(db->cur);
+        slapi_ch_free_string(&db->fname);
+        slapi_ch_free((void**)&db);
+    }
     return DB_SUCCESS;
 }
 
 int dbc_close(DBC *dbc)
 {
-    slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: dbc=%p dbc->impl=%p\n", __FUNCTION__, dbc, dbc->impl);
-    bdbreader_cur_close((struct bdb_cur **)&dbc->impl);
-    slapi_ch_free((void **)&dbc);
+    if (dbc != NULL) {
+        slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: dbc=%p dbc->impl=%p\n", __FUNCTION__, dbc, dbc->impl);
+        bdbreader_cur_close((struct bdb_cur **)&dbc->impl);
+        slapi_ch_free((void **)&dbc);
+    }
     return DB_SUCCESS;
 }
 
