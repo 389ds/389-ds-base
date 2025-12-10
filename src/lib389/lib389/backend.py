@@ -1327,6 +1327,10 @@ class DatabaseConfig(DSLdapObject):
             'nsslapd-db-durable-transaction',
             'nsslapd-search-bypass-filter-test',
             'nsslapd-serial-lock',
+            'nsslapd-dynamic-lists-enabled',
+            'nsslapd-dynamic-lists-attr',
+            'nsslapd-dynamic-lists-oc',
+            'nsslapd-dynamic-lists-url-attr',
         ]
         self._db_attrs = {
             'bdb':

@@ -75,6 +75,12 @@ arg_to_attr = {
         'search_scope': 'vlvscope',
         'search_filter': 'vlvfilter',
         'sort': 'vlvsort',
+        # Dynamic lists
+        'enable_dynamic_lists': 'nsslapd-dynamic-lists-enabled',
+        'disable_dynamic_lists': 'nsslapd-dynamic-lists-disabled',
+        'dynamic_oc': 'nsslapd-dynamic-lists-oc',
+        'dynamic_list_attr': 'nsslapd-dynamic-lists-attr',
+        'dynamic_url_attr': 'nsslapd-dynamic-lists-url-attr',
     }
 
 SINGULAR = Backend
@@ -536,10 +542,25 @@ def db_config_set(inst, basedn, log, args):
     did_something = False
     replace_list = []
 
+    if args.enable_dynamic_lists and args.disable_dynamic_lists:
+        raise ValueError("You can not enable and disable dynamic lists at the same time")
+
     for attr, value in list(attrs.items()):
         if value == "":
             # We don't support deleting attributes or setting empty values in db
             continue
+
+        if attr == "nsslapd-dynamic-lists-enabled":
+            if value:
+                value = "on"
+            else:
+                continue
+        elif attr == "nsslapd-dynamic-lists-disabled":
+            attr = "nsslapd-dynamic-lists-enabled"
+            if value:
+                value = "off"
+            else:
+                continue
 
         if attr == "nsslapd-mdb-max-size":
             try:
@@ -1120,7 +1141,12 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--mdb-max-size', help='Sets the lmdb database maximum size (accepts bytes, or with unit suffix: k, m, g, t)')
     set_db_config_parser.add_argument('--mdb-max-readers', help='Sets the lmdb database maximum number of readers (Advanced setting)')
     set_db_config_parser.add_argument('--mdb-max-dbs', help='Sets the lmdb database maximum number of sub databases (Advanced setting)')
-
+    # Dynamic lists
+    set_db_config_parser.add_argument('--enable-dynamic-lists', action='store_true', help='Enables dynamic lists')
+    set_db_config_parser.add_argument('--disable-dynamic-lists', action='store_true', help='Disables dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-oc', help='Sets the objectclass for dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-url-attr', help='Sets the url attribute for dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-list-attr', help='Sets the list attribute for dynamic lists')
 
     #######################################################
     # Database & Suffix Monitor
