@@ -5,10 +5,10 @@ import {
     Alert,
     Button,
     Checkbox,
-    Form,
+    FormSelect,
+    FormSelectOption,
     Grid,
     GridItem,
-    Hr,
     NumberInput,
     Spinner,
     Switch,
@@ -28,6 +28,119 @@ import { SyncAltIcon } from '@patternfly/react-icons';
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 const _ = cockpit.gettext;
+
+class DynamicLists extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        return (
+            <div className="ds-left-indent-md">
+                <Grid
+                    className="ds-margin-top-xlg"
+                    title={_("Enable or disable Dynamic Lists feature (nsslapd-dynamic-lists-enabled).")}
+                >
+                    <GridItem span={12}>
+                        <div className="ds-container">
+                            <Switch
+                                id="dynamiclistsenabled"
+                                label={<>Dynamic Lists <i>enabled</i></>}
+                                labelOff={<>Dynamic Lists <i>disabled</i></>}
+                                isChecked={this.props.dynamiclistsenabled}
+                                onChange={this.props.handleChange}
+                                ouiaId="dynamic switch"
+                            />
+                            <Tooltip
+                                id="dynamic_lists"
+                                position="top"
+                                content={
+                                    <div>
+                                        {_("Dynamic Lists is a feature that allows " +
+                                        "the server to dynamically add content to " +
+                                        "database entries during searches. " +
+                                        "This is most useful for creating dynamic " +
+                                        "groups. The content is controlled by using " +
+                                        "LDAP URI's to define the scope and content. " +
+                                        "See the official documentation for more " +
+                                        "information.")}
+                                    </div>
+                                }
+                            >
+                                <OutlinedQuestionCircleIcon
+                                    className="ds-left-margin ds-margin-top-sm"
+                                />
+                            </Tooltip>
+                        </div>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    className="ds-margin-top-lg"
+                    title={_("Objectclass that identifies entries as 'dynamic' (nsslapd-dynamic-lists-oc).")}
+                >
+                    <GridItem className="ds-label" span={3}>
+                        {_("Dynamic List Objectclass")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <FormSelect
+                            id="dynamicoc"
+                            value={this.props.dynamicoc.toLowerCase()}
+                            onChange={this.props.handleChange}
+                            aria-label="Dynamic List Objectclass"
+                            ouiaId="DynamicListObjectclassSelect"
+                        >
+                            {this.props.objectClasses.map((option, index) => (
+                                <FormSelectOption key={index} value={option.toLowerCase()} label={option} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    className="ds-margin-top-lg"
+                    title={_("Attribute that contains the LDAP URL for the dynamic list (nsslapd-dynamic-lists-url-attr).")}
+                >
+                    <GridItem className="ds-label" span={3}>
+                        {_("Dynamic List URL Attribute")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <FormSelect
+                            id="dynamicurlattr"
+                            value={this.props.dynamicurlattr.toLowerCase()}
+                            onChange={this.props.handleChange}
+                            aria-label="Dynamic List URL Attribute"
+                            ouiaId="DynamicListURL Attr Select AttributeSelect"
+                        >
+                            {this.props.urlAttrs.map((option, index) => (
+                                <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    className="ds-margin-top-lg"
+                    title={_("Attribute that contains the dynamic list content. This attribute must have a DN syntax (nsslapd-dynamic-lists-attr).")}
+                >
+                    <GridItem className="ds-label" span={3}>
+                        {_("Dynamic List Attribute")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <FormSelect
+                            id="dynamiclistattr"
+                            value={this.props.dynamiclistattr.toLowerCase()}
+                            onChange={this.props.handleChange}
+                            aria-label="Dynamic List Attribute"
+                            ouiaId="DynamicListAttributeSelect"
+                        >
+                            {this.props.dnAttrs.map((option, index) => (
+                                <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+            </div>
+        );
+    }
+}
 
 export class GlobalDatabaseConfig extends React.Component {
     constructor(props) {
@@ -59,6 +172,10 @@ export class GlobalDatabaseConfig extends React.Component {
             importcachesize: this.props.data.importcachesize,
             importcacheauto: this.props.data.importcacheauto,
             ndncachemaxsize: this.props.data.ndncachemaxsize,
+            dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            dynamiclistattr: this.props.data.dynamiclistattr,
+            dynamicoc: this.props.data.dynamicoc,
+            dynamicurlattr: this.props.data.dynamicurlattr,
             // These variables store the original value (used for saving config)
             _looklimit: this.props.data.looklimit,
             _idscanlimit: this.props.data.idscanlimit,
@@ -82,6 +199,10 @@ export class GlobalDatabaseConfig extends React.Component {
             _db_cache_auto: this.props.data.db_cache_auto,
             _import_cache_auto: this.props.data.import_cache_auto,
             _ndncachemaxsize: this.props.data.ndncachemaxsize,
+            _dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            _dynamiclistattr: this.props.data.dynamiclistattr,
+            _dynamicoc: this.props.data.dynamicoc,
+            _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
@@ -90,7 +211,10 @@ export class GlobalDatabaseConfig extends React.Component {
         this.handleSelectDBLocksMonitoring = this.handleSelectDBLocksMonitoring.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
 
+        this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
+                               "1.3.6.1.4.1.1466.115.121.1.12"];
         this.maxValue = 2147483647;
+
         this.onMinusConfig = (id) => {
             this.setState({
                 [id]: Number(this.state[id]) - 1,
@@ -147,7 +271,8 @@ export class GlobalDatabaseConfig extends React.Component {
             "dblocks", "dblocksMonitoring", "dblocksMonitoringThreshold",
             "dblocksMonitoringPause", "chxpoint", "compactinterval",
             "compacttime", "importcachesize", "importcacheauto",
-            "ndncachemaxsize",
+            "ndncachemaxsize", "dynamiclistsenabled", "dynamiclistattr",
+            "dynamicoc", "dynamicurlattr",
         ];
 
         // Check if a setting was changed, if so enable the save button
@@ -274,6 +399,22 @@ export class GlobalDatabaseConfig extends React.Component {
         }
         if (this.state._rangelooklimit !== this.state.rangelooklimit) {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
+        }
+        if (this.state._dynamiclistsenabled !== this.state.dynamiclistsenabled) {
+            if(this.state.dynamiclistsenabled) {
+                cmd.push("--enable-dynamic-lists");
+            } else {
+                cmd.push("--disable-dynamic-lists");
+            }
+        }
+        if (this.state._dynamiclistattr !== this.state.dynamiclistattr) {
+            cmd.push("--dynamic-list-attr=" + this.state.dynamiclistattr);
+        }
+        if (this.state._dynamicoc !== this.state.dynamicoc) {
+            cmd.push("--dynamic-oc=" + this.state.dynamicoc);
+        }
+        if (this.state._dynamicurlattr !== this.state.dynamicurlattr) {
+            cmd.push("--dynamic-url-attr=" + this.state.dynamicurlattr);
         }
         if (this.state.db_cache_auto) {
             // Auto cache is selected
@@ -655,6 +796,17 @@ export class GlobalDatabaseConfig extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
+        const dnAttrs = this.props.attributes.filter(attr =>
+            ((attr.syntax && attr.syntax[0] === this.dn_syntax_oids[0]) ||
+             (attr.syntax && attr.syntax[0] === this.dn_syntax_oids[1])) &&
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamicurlattr.toLowerCase()
+        );
+        const urlAttrs = this.props.attributes.filter(attr =>
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
+        );
+
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
@@ -966,7 +1118,20 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
+                            <Tab eventKey={5} title={<TabTitleText>{_("Dynamic Lists")}</TabTitleText>}>
+                                <DynamicLists
+                                    dynamiclistsenabled={this.state.dynamiclistsenabled}
+                                    handleChange={this.handleChange}
+                                    objectClasses={this.props.objectClasses}
+                                    dynamicoc={this.state.dynamicoc}
+                                    dynamicurlattr={this.state.dynamicurlattr}
+                                    dynamiclistattr={this.state.dynamiclistattr}
+                                    dnAttrs={dnAttrs}
+                                    urlAttrs={urlAttrs}
+                                />
+                            </Tab>
+
+                            <Tab eventKey={6} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("Database Transaction Log Location (nsslapd-db-logdirectory).")}
@@ -1120,8 +1285,9 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             availDbSizeBytes: 0,
             error: {},
             activeTabKey:  this.props.data.activeTab,
-            db_cache_auto: this.props.data.db_cache_auto,
-            import_cache_auto: this.props.data.import_cache_auto,
+            urlAttrs: [],
+            dnAttrs: [],
+            autosize: this.props.data.autosize,
             looklimit: this.props.data.looklimit,
             idscanlimit: this.props.data.idscanlimit,
             pagelooklimit: this.props.data.pagelooklimit,
@@ -1132,6 +1298,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             mdbmaxreaders: this.props.data.mdbmaxreaders,
             mdbmaxdbs: this.props.data.mdbmaxdbs,
             ndncachemaxsize: this.props.data.ndncachemaxsize,
+            dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            dynamiclistattr: this.props.data.dynamiclistattr,
+            dynamicoc: this.props.data.dynamicoc,
+            dynamicurlattr: this.props.data.dynamicurlattr,
             // These variables store the original value (used for saving config)
             _looklimit: this.props.data.looklimit,
             _idscanlimit: this.props.data.idscanlimit,
@@ -1143,6 +1313,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             _mdbmaxreaders: this.props.data.mdbmaxreaders,
             _mdbmaxdbs: this.props.data.mdbmaxdbs,
             _ndncachemaxsize: this.props.data.ndncachemaxsize,
+            _dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            _dynamiclistattr: this.props.data.dynamiclistattr,
+            _dynamicoc: this.props.data.dynamicoc,
+            _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
@@ -1150,6 +1324,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
         this.loadAvailableDiskSpace = this.loadAvailableDiskSpace.bind(this);
 
+        this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
+                               "1.3.6.1.4.1.1466.115.121.1.12"];
         this.maxValue = 2147483647;
         this.onMinusConfig = (id) => {
             if (id === "mdbmaxsize") {
@@ -1268,7 +1444,9 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         const check_attrs = [
             "looklimit", "idscanlimit", "pagelooklimit",
             "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
-            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs",
+            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize",
+            "dynamiclistsenabled", "dynamiclistattr", "dynamicoc",
+            "dynamicurlattr",
         ];
 
         // Check if a setting was changed, if so enable the save button
@@ -1395,6 +1573,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--mdb-max-dbs=" + this.state.mdbmaxdbs);
             requireRestart = true;
         }
+        if (this.state._autosize !== this.state.autosize) {
+            cmd.push("--cache-autosize=" + this.state.autosize);
+            requireRestart = true;
+        }
+        if (this.state._dynamiclistsenabled !== this.state.dynamiclistsenabled) {
+            if(this.state.dynamiclistsenabled) {
+                cmd.push("--enable-dynamic-lists");
+            } else {
+                cmd.push("--disable-dynamic-lists");
+            }
+        }
+        if (this.state._dynamiclistattr !== this.state.dynamiclistattr) {
+            cmd.push("--dynamic-list-attr=" + this.state.dynamiclistattr);
+        }
+        if (this.state._dynamicoc !== this.state.dynamicoc) {
+            cmd.push("--dynamic-oc=" + this.state.dynamicoc);
+        }
+        if (this.state._dynamicurlattr !== this.state.dynamicurlattr) {
+            cmd.push("--dynamic-url-attr=" + this.state.dynamicurlattr);
+        }
+
         if (cmd.length > 6) {
             this.setState({
                 saving: true
@@ -1466,6 +1665,53 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             saveBtnName = _("Saving config ...");
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
+
+        if (this.state.db_cache_auto) {
+            db_cache_form = (
+                <div className="ds-margin-left">
+                    <Grid
+                        title={_("Enable entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead.")}
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            {_("Memory Percentage")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <NumberInput
+                                value={this.state.autosize}
+                                min={0}
+                                max={100}
+                                onMinus={() => { this.onMinusConfig("autosize") }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
+                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={4}
+                                unit="%"
+                                validated={'autosize' in this.state.error &&
+                                    this.state.error['autosize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>
+            );
+            db_auto_checked = true;
+        }
+
+        const dnAttrs = this.props.attributes.filter(attr =>
+            ((attr.syntax && attr.syntax[0] === this.dn_syntax_oids[0]) ||
+             (attr.syntax && attr.syntax[0] === this.dn_syntax_oids[1])) &&
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamicurlattr.toLowerCase()
+        );
+        const urlAttrs = this.props.attributes.filter(attr =>
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
+        );
 
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
@@ -1660,7 +1906,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={4} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("Warning: Normalized DN Cache is disabled")}
@@ -1709,7 +1955,20 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
+                            <Tab eventKey={3} title={<TabTitleText>{_("Dynamic Lists")}</TabTitleText>}>
+                                <DynamicLists
+                                    dynamiclistsenabled={this.state.dynamiclistsenabled}
+                                    handleChange={this.handleChange}
+                                    objectClasses={this.props.objectClasses}
+                                    dynamicoc={this.state.dynamicoc}
+                                    dynamicurlattr={this.state.dynamicurlattr}
+                                    dynamiclistattr={this.state.dynamiclistattr}
+                                    dnAttrs={dnAttrs}
+                                    urlAttrs={urlAttrs}
+                                />
+                            </Tab>
+
+                            <Tab eventKey={4} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("Location for database memory mapped files, this element is read only.")}
@@ -1814,9 +2073,13 @@ GlobalDatabaseConfigMDB.propTypes = {
     data: PropTypes.object,
     reload: PropTypes.func,
     enableTree: PropTypes.func,
+    attributes: PropTypes.array,
+    objectClasses: PropTypes.array,
 };
 
 GlobalDatabaseConfigMDB.defaultProps = {
     serverId: "",
     data: {},
+    attributes: [],
+    objectClasses: [],
 };

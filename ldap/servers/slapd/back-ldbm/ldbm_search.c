@@ -315,6 +315,10 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
          * Target entry is released later on
          * (in cache_return_target_entry called by op_shared_search).
          */
+        if (e && e->ep_is_dynamic) {
+            /* We always remove dynamic entries from the cache */
+            CACHE_REMOVE(&inst->inst_cache, e);
+        }
         CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
     }
     if (inst->inst_ref_count) {
@@ -1723,6 +1727,10 @@ static void
 non_target_cache_return(Slapi_Operation *op, struct cache *cache, struct backentry **e)
 {
     if (e && (*e != operation_get_target_entry(op))) {
+        if ((*e)->ep_is_dynamic) {
+            /* We always remove dynamic entries from the cache */
+            CACHE_REMOVE(cache, *e);
+        }
         CACHE_RETURN(cache, e);
     }
 }
@@ -2235,6 +2243,10 @@ ldbm_back_prev_search_results(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_BACKLDBM,
                           "ldbm_back_prev_search_results", "returning: %s\n",
                           slapi_entry_get_dn_const(sr->sr_entry->ep_entry));
+            if (sr->sr_entry->ep_is_dynamic) {
+                /* We always remove dynamic entries from the cache */
+                CACHE_REMOVE(&inst->inst_cache, sr->sr_entry);
+            }
             CACHE_RETURN(&inst->inst_cache, &(sr->sr_entry));
             sr->sr_entry = NULL;
         }
