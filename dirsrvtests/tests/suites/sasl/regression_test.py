@@ -9,9 +9,10 @@
 
 import os
 import pytest
+import ldap.sasl
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2
+from lib389.topologies import topology_m2, topology_st
 from lib389._constants import *
 from lib389.replica import ReplicationManager
 from lib389.config import CertmapLegacy, Config
@@ -347,9 +348,41 @@ def test_bind_certifcate_with_unescaped_subject(topology_m2, request):
         sasl_bind_as_user(inst, user2)
 
 
+def test_sasl_bind_does_not_trigger_lockout(topology_st):
+    """Verify that a failed SASL bind does not trigger account lockout on root DSE
+
+    :id: adc4b762-8b9b-4356-8150-05a6ad2e41f4
+    :setup: Standalone instance
+    :steps:
+        1. Enable account lockout with passwordMaxFailure set to 5
+        2. Perform a SASL DIGEST-MD5 bind with non-existent user credentials
+        3. Verify the bind fails with INVALID_CREDENTIALS
+        4. Check that passwordRetryCount is NOT set on the root DSE entry
+    :expectedresults:
+        1. Account lockout should be enabled
+        2. SASL bind should be attempted
+        3. Bind should fail as expected
+        4. Root DSE should NOT have passwordRetryCount attribute
+    """
+    inst = topology_st.standalone
+
+    log.info("Enable account lockout")
+    inst.config.set('passwordLockout', 'on')
+    inst.config.set('passwordMaxFailure', '5')
+
+    log.info("Perform SASL DIGEST-MD5 bind with non-existent user")
+    auth_tokens = ldap.sasl.digest_md5("nonexistent_user", "wrong_password")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.sasl_interactive_bind_s("", auth_tokens)
+
+    log.info("Verify root DSE does not have passwordRetryCount")
+    assert not inst.rootdse.present('passwordRetryCount')
+
+    log.info("Verified that failed SASL bind does not trigger account lockout on root DSE")
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
