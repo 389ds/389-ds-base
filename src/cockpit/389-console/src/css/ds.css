@@ -282,6 +282,10 @@ textarea {
     margin-top: 10px !important;
 }
 
+.ds-margin-top-sm {
+    margin-top: 5px !important;
+}
+
 .ds-margin-top-med {
     margin-top: 15px !important;
 }
