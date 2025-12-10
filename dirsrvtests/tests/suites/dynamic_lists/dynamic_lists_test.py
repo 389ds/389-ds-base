@@ -84,7 +84,7 @@ def test_dynamic_lists_memberurl_all_users(topo, dynamic_lists_setup):
     group = groups.create(properties={
         'cn': 'test_dynamic_group',
         'objectClass': ['groupOfUrls','groupOfNames'],
-        'memberURL': f'ldap:///{DEFAULT_SUFFIX}??sub?(uid=testuser*)',
+        'memberURL': f'ldap:///ou=people,{DEFAULT_SUFFIX}??sub?(uid=testuser*)',
     })
     group_dn = group.dn
     log.info(f"Created group: {group_dn} with memberURL: ldap:///{DEFAULT_SUFFIX}??sub?(uid=*)")
@@ -226,12 +226,14 @@ def test_dynamic_lists_multiple_memberurl(topo, dynamic_lists_setup):
         4. Add an additional memberURL attribute to demo_group pointing to the new OU
            with the same filter as the first memberURL
         5. Search for the group and verify all users from both locations are listed as members
+        6. Search for the group again and verify all users from both locations are listed as members
     :expectedresults:
         1. Success
         2. Organizational unit and entry should be created successfully
         3. Group should be created with first memberURL successfully
         4. Second memberURL should be added successfully
         5. All users from both locations should be listed as members of the group
+        6. All users from both locations should be listed as members of the group
     """
 
     inst = topo.standalone
@@ -274,7 +276,7 @@ def test_dynamic_lists_multiple_memberurl(topo, dynamic_lists_setup):
     demo_group = groups.create(properties={
         'cn': 'demo_group_multiple',
         'objectClass': 'groupOfUrls',
-        'memberURL': f'ldap:///{DEFAULT_SUFFIX}??sub?(uid=testuser*)',
+        'memberURL': f'ldap:///ou=people,{DEFAULT_SUFFIX}??sub?(uid=testuser*)',
     })
     log.info(f"Created demo_group: {demo_group.dn} with memberURL: ldap:///{DEFAULT_SUFFIX}??sub?(uid=testuser*)")
 
@@ -293,7 +295,7 @@ def test_dynamic_lists_multiple_memberurl(topo, dynamic_lists_setup):
     log.info(f"Members: {members}")
 
     # Verify all users from DEFAULT_SUFFIX are members
-    assert len(members) == 7, f"Expected {7} members, got {len(members)}. Members: {members}"
+    assert len(members) == 6, f"Expected {6} members, got {len(members)}. Members: {members}"
 
     # Verify all users from DEFAULT_SUFFIX are members
     for user_dn in user_dns:
@@ -301,6 +303,12 @@ def test_dynamic_lists_multiple_memberurl(topo, dynamic_lists_setup):
 
     # Verify the user from the new OU is a member
     assert ou_user_dn in members, f"User {ou_user_dn} should be a member of the group. Members: {members}"
+
+    # Now test that multiple seaches still return the same number of members
+    members = demo_group.list_members()
+    log.info(f"Found {len(members)} members in group")
+    log.info(f"Members: {members}")
+    assert len(members) == 6, f"Expected {6} members, got {len(members)}. Members: {members}"
 
     log.info("Test completed successfully - all users from both locations are listed as members")
 

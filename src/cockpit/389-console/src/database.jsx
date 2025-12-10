@@ -95,6 +95,8 @@ export class Database extends React.Component {
             suffixLoading: false,
             modalSpinning: false,
             attributes: [],
+            objectClasses: [],
+            attributesFullData: [],
             // Loaded suffix configurations
             suffix: {},
             // Other
@@ -127,7 +129,7 @@ export class Database extends React.Component {
         this.loadAttrEncrypt = this.loadAttrEncrypt.bind(this);
         this.loadReferrals = this.loadReferrals.bind(this);
         this.getAutoTuning = this.getAutoTuning.bind(this);
-        this.loadAttrs = this.loadAttrs.bind(this);
+        this.loadSchema = this.loadSchema.bind(this);
 
         // ChainingConfig
         this.loadChainingLink = this.loadChainingLink.bind(this);
@@ -295,6 +297,10 @@ export class Database extends React.Component {
                                         compacttime: attrs['nsslapd-db-compactdb-time'][0],
                                         importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
                                         importcachesize: attrs['nsslapd-import-cachesize'][0],
+                                        dynamiclistsenabled: attrs['nsslapd-dynamic-lists-enabled'][0] == "on" ? true : false,
+                                        dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
+                                        dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
+                                        dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
                                     },
                                 configUpdated: 1
                             }), () => { this.loadNDN() });
@@ -324,6 +330,10 @@ export class Database extends React.Component {
                                         mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
                                         dbhomedir: dbhome,
                                         autosize: attrs['nsslapd-cache-autosize'][0],
+                                        dynamiclistsenabled: attrs['nsslapd-dynamic-lists-enabled'][0] == "on" ? true : false,
+                                        dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
+                                        dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
+                                        dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
                                     },
                                 configUpdated: 1
                             }), () => { this.loadNDN() });
@@ -562,7 +572,7 @@ export class Database extends React.Component {
                     this.setState(() => ({
                         nodes: treeData,
                         node_name: current_node,
-                    }), this.loadAttrs);
+                    }), this.loadSchema);
                 })
                 .fail(err => {
                     // Handle backend get-tree failure gracefully
@@ -574,7 +584,7 @@ export class Database extends React.Component {
                     this.setState(() => ({
                         nodes: treeData,
                         node_name: current_node,
-                    }), this.loadAttrs);
+                    }), this.loadSchema);
                 });
     }
 
@@ -1033,7 +1043,7 @@ export class Database extends React.Component {
         this.setState({
             activeKey: 1,
             suffixLoading: true
-        }, this.loadAttrs());
+        }, this.loadSchema());
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -1240,13 +1250,16 @@ export class Database extends React.Component {
                 });
     }
 
-    loadAttrs() {
-        // Now get the schema that various tabs use
+    loadSchema() {
         const attr_cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema", "attributetypes", "list"
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
         ];
-        log_cmd("loadAttrs", "Get attrs", attr_cmd);
+        log_cmd("loadSchema", "Plugins Get attrs", attr_cmd);
         cockpit
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1255,10 +1268,31 @@ export class Database extends React.Component {
                     for (const content of attrContent.items) {
                         attrs.push(content.name[0]);
                     }
-                    this.setState({
-                        attributes: attrs,
-                        loaded: true
-                    }, this.update_tree_nodes);
+
+                    const oc_cmd = [
+                        "dsconf",
+                        "-j",
+                        "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                        "schema",
+                        "objectclasses",
+                        "list"
+                    ];
+                    log_cmd("loadSchema", "Get objectClasses", oc_cmd);
+                    cockpit
+                            .spawn(oc_cmd, { superuser: true, err: "message" })
+                            .done(content => {
+                                const ocContent = JSON.parse(content);
+                                const ocs = [];
+                                for (const content of ocContent.items) {
+                                    ocs.push(content.name[0]);
+                                }
+                                this.setState({
+                                    attributes: attrs,
+                                    objectClasses: ocs,
+                                    attributesFullData: attrContent.items,
+                                    loaded: true
+                                }, this.update_tree_nodes);
+                            })
                 });
     }
 
@@ -1287,6 +1321,8 @@ export class Database extends React.Component {
                             data={this.state.globalDBConfig}
                             enableTree={this.enableTree}
                             key={this.state.configUpdated}
+                            objectClasses={this.state.objectClasses}
+                            attributes={this.state.attributesFullData}
                         />
                     );
                 } else if (this.state.backendImplement === BE_IMPL_MDB) {
@@ -1298,6 +1334,8 @@ export class Database extends React.Component {
                             data={this.state.globalDBConfig}
                             enableTree={this.enableTree}
                             key={this.state.configUpdated}
+                            attributes={this.state.attributesFullData}
+                            objectClasses={this.state.objectClasses}
                         />
                     );
                 }
