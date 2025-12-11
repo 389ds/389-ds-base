@@ -4923,13 +4923,17 @@ log__fix_rotationinfof(char *pathname)
                     ignoreit = 1;
                 }
             }
-            if (ignoreit || (q - p != 15)) {
+            /*
+             * Accept timestamp length of 15 (YYYYMMDD-HHMMSS) for uncompressed,
+             * or 18 (YYYYMMDD-HHMMSS.gz) for compressed files.
+             */
+            if (ignoreit || ((q - p != 15) && (q - p != 18))) {
                 continue;
             }
             logp = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             logp->l_ctime = log_reverse_convert_time(p);
             logp->l_compressed = PR_FALSE;
-            if (strcmp(p + strlen(p) - 3, ".gz") == 0) {
+            if ((q - p == 18) && strcmp(p + 15, ".gz") == 0) {
                 logp->l_compressed = PR_TRUE;
             }
             PR_snprintf(rotated_log, rotated_log_len, "%s/%s",
@@ -5097,9 +5101,13 @@ log__check_prevlogs(FILE *fp, char *pathname)
 
     for (dirent = PR_ReadDir(dirptr, dirflags); dirent;
          dirent = PR_ReadDir(dirptr, dirflags)) {
+        /*
+         * Use strchr instead of strrchr to find the first '.' after log type,
+         * so we correctly handle compressed files like access.20051123-165135.gz
+         */
         if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-            (p = strrchr(dirent->name, '.')) != NULL &&
-            NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
+            (p = strchr(dirent->name, '.')) != NULL &&
+            NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
             char *q;
             int ignoreit = 0;
 
@@ -5113,7 +5121,11 @@ log__check_prevlogs(FILE *fp, char *pathname)
                     ignoreit = 1;
                 }
             }
-            if (ignoreit || (q - p != 15))
+            /*
+             * Accept timestamp length of 15 (YYYYMMDD-HHMMSS) for uncompressed,
+             * or 18 (YYYYMMDD-HHMMSS.gz) for compressed files.
+             */
+            if (ignoreit || ((q - p != 15) && (q - p != 18)))
                 continue;
 
             fseek(fp, 0, SEEK_SET);
