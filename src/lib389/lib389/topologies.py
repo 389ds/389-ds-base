@@ -470,6 +470,17 @@ def topology_i3(request):
     topology.logcap = LogCapture()
     return topology
 
+
+@pytest.fixture(scope="module")
+def topology_i4(request):
+    """Create three instance DS deployment"""
+
+    topology = create_topology({ReplicaRole.STANDALONE: 4}, request=request)
+
+    topology.logcap = LogCapture()
+    return topology
+
+
 @pytest.fixture(scope="module")
 def topology_m1(request):
     """Create Replication Deployment with one supplier and one consumer"""
