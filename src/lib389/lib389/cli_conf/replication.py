@@ -557,8 +557,12 @@ def generate_lag_report(inst, basedn, log, args):
             else:
                 log.warning(f"Ignoring unknown format: {fmt}")
 
-    if not formats:  # Fallback to html if no valid formats specified
-        formats.append('html')
+    if not formats:  # Prefer JSON/CSV when no valid formats specified
+        formats.extend(['json', 'csv'])
+
+    # Deduplicate while preserving order
+    seen = set()
+    formats = [fmt for fmt in formats if not (fmt in seen or seen.add(fmt))]
 
     # Parse time range if specified
     time_range = {}
@@ -586,9 +590,11 @@ def generate_lag_report(inst, basedn, log, args):
             only_not_replicated=args.only_not_replicated,
             lag_time_lowest=args.lag_time_lowest,
             etime_lowest=args.etime_lowest,
-            repl_lag_threshold=args.repl_lag_threshold,
             utc_offset=args.utc_offset,
-            time_range=time_range
+            time_range=time_range,
+            sampling_mode=("none" if getattr(args, "precision", "balanced") == "full" else "auto"),
+            max_chart_points=getattr(args, "max_chart_points", None),
+            analysis_precision=getattr(args, "precision", "balanced")
         )
 
         # Parse logs
@@ -1643,8 +1649,6 @@ def create_parser(subparsers):
         help='Filter entries with lag time above this threshold (seconds)')
     filter_group.add_argument('--etime-lowest', type=float,
         help='Filter entries with etime above this threshold (seconds)')
-    filter_group.add_argument('--repl-lag-threshold', type=float,
-        help='Replication lag threshold for highlighting (seconds)')
 
     # Time range options subgroup
     time_group = repl_lag_report_parser.add_argument_group('Time range options')
@@ -1661,6 +1665,13 @@ def create_parser(subparsers):
         help='UTC offset in ±HHMM format (e.g., -0400, +0530)')
     additional_group.add_argument('--anonymous', action='store_true',
         help='Anonymize server names in the report')
+
+    # Performance options
+    perf_group = repl_lag_report_parser.add_argument_group('Performance options')
+    perf_group.add_argument('--precision', choices=['fast', 'balanced', 'full'], default='balanced',
+        help='Analysis precision vs speed: fast (more sampling), balanced (default), full (no sampling)')
+    perf_group.add_argument('--max-chart-points', type=int,
+        help='Maximum total data points to include across all chart series (sampling applied if exceeded). Default depends on --precision')
 
     ############################################
     # Replication Agmts

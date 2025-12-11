@@ -726,8 +726,9 @@ class VisualizationHelper:
         return colors
 
     @staticmethod
-    def prepare_chart_data(csns: Dict[str, Dict[Union[int, str], Dict[str, Any]]]) -> Dict[Tuple[str, str], ChartData]:
-        """Prepare data for visualization."""
+    def prepare_chart_data(csns: Dict[str, Dict[Union[int, str], Dict[str, Any]]],
+                          tz: tzinfo = timezone.utc) -> Dict[Tuple[str, str], ChartData]:
+        """Prepare data for visualization with timezone-aware timestamps."""
         chart_data = defaultdict(lambda: {
             'times': [], 'lags': [], 'durations': [], 'hover': []
         })
@@ -754,8 +755,8 @@ class VisualizationHelper:
                 suffix_val = rec.get('suffix', 'unknown')
                 server_val = rec.get('server_name', 'unknown')
 
-                # Convert numeric UTC to a datetime
-                ts_dt = datetime.fromtimestamp(rec['logtime'])
+                # Convert numeric UTC timestamp to timezone-aware datetime
+                ts_dt = datetime.fromtimestamp(rec['logtime'], tz=tz)
 
                 # Operation duration, defaulting to 0.0 if missing
                 duration_val = float(rec.get('duration', 0.0))
@@ -765,7 +766,10 @@ class VisualizationHelper:
                 data_slot['times'].append(ts_dt)
                 data_slot['lags'].append(lag_val)  # The same global-lag for all servers
                 data_slot['durations'].append(duration_val)
+                # Format timestamp for hover display in the specified timezone
+                timestamp_str = ts_dt.strftime('%Y-%m-%d %H:%M:%S')
                 data_slot['hover'].append(
+                    f"Timestamp: {timestamp_str}<br>"
                     f"CSN: {csn}<br>"
                     f"Server: {server_val}<br>"
                     f"Lag Time: {lag_val:.3f}s<br>"
@@ -795,11 +799,25 @@ class ReplicationLogAnalyzer:
     - Generating final dictionaries to be used for CSV, HTML, or JSON reporting.
     """
 
+    # Sampling configuration constants
+    AUTO_SAMPLING_THRESHOLD = 4000  # Trigger auto sampling above this many CSN points
+    HOP_SERIES_BUDGET_RATIO = 0.25  # Allocate max 25% of chart points to hop lag series
+    MIN_POINTS_PER_SERIES = 2       # Minimum points to preserve series shape after sampling
+
+    # Precision preset configurations
+    PRECISION_PRESETS = {
+        'fast': 2000,      # Fast analysis with more aggressive sampling
+        'balanced': 6000,  # Balanced speed and detail (default)
+        'full': None       # Full precision, no sampling cap
+    }
+
     def __init__(self, log_dirs: List[str], suffixes: Optional[List[str]] = None,
                 anonymous: bool = False, only_fully_replicated: bool = False,
                 only_not_replicated: bool = False, lag_time_lowest: Optional[float] = None,
-                etime_lowest: Optional[float] = None, repl_lag_threshold: Optional[float] = None,
-                utc_offset: Optional[int] = None, time_range: Optional[Dict[str, datetime]] = None):
+                etime_lowest: Optional[float] = None,
+                utc_offset: Optional[int] = None, time_range: Optional[Dict[str, datetime]] = None,
+                sampling_mode: str = "auto", max_chart_points: Optional[int] = None,
+                analysis_precision: str = "balanced"):
         if not log_dirs:
             raise ValueError("No log directories provided for analysis.")
 
@@ -810,7 +828,9 @@ class ReplicationLogAnalyzer:
         self.only_not_replicated = only_not_replicated
         self.lag_time_lowest = lag_time_lowest
         self.etime_lowest = etime_lowest
-        self.repl_lag_threshold = repl_lag_threshold
+        self._active_server_count: int = 0
+        self._processed_log_dirs: List[str] = []
+        self._skipped_log_dirs: List[str] = []
 
         # Set timezone
         if utc_offset is not None:
@@ -824,16 +844,36 @@ class ReplicationLogAnalyzer:
         self.time_range = time_range or {}
         self.csns: Dict[str, Dict[Union[int, str], Dict[str, Any]]] = {}
 
-        # Track earliest global timestamp
+        # Track earliest and latest timestamps
         self.start_dt: Optional[datetime] = None
         self.start_udt: Optional[float] = None
+        self.end_dt: Optional[datetime] = None
+        self.end_udt: Optional[float] = None
         self._logger = logging.getLogger(__name__)
+
+        # Sampling / precision controls
+        # analysis_precision: fast|balanced|full (string hint)
+        self.analysis_precision = (analysis_precision or "balanced").lower()
+        self.sampling_mode = (sampling_mode or "auto").lower()  # none|uniform|auto
+        # Max total chart points across all series for replicationLags (default by precision)
+        if max_chart_points is None:
+            self.max_chart_points = self.PRECISION_PRESETS.get(
+                self.analysis_precision,
+                self.PRECISION_PRESETS['balanced']
+            )
+        else:
+            self.max_chart_points = max_chart_points if max_chart_points > 0 else None
+
+        # Threshold to trigger auto sampling if lots of CSNs
+        self._auto_sampling_csn_threshold = self.AUTO_SAMPLING_THRESHOLD
 
     def _should_include_record(self, csn: str, server_map: Dict[Union[int, str], Dict[str, Any]]) -> bool:
         """Determine if a record should be included based on filtering criteria."""
-        if self.only_fully_replicated and len(server_map) != len(self.log_dirs):
+        total_servers = self._active_server_count or len(self.log_dirs)
+
+        if self.only_fully_replicated and len(server_map) != total_servers:
             return False
-        if self.only_not_replicated and len(server_map) == len(self.log_dirs):
+        if self.only_not_replicated and len(server_map) == total_servers:
             return False
 
         # Check lag time threshold
@@ -860,9 +900,10 @@ class ReplicationLogAnalyzer:
 
         return True
 
-    def _collect_logs(self) -> List[Tuple[str, List[str]]]:
-        """For each directory in self.log_dirs, return a tuple (server_name, [logfiles])."""
-        data = []
+    def _collect_logs(self) -> List[Dict[str, Any]]:
+        """For each directory in self.log_dirs, return metadata about discovered log files."""
+        data: List[Dict[str, Any]] = []
+        processed_dirs: List[str] = []
         for dpath in self.log_dirs:
             if not os.path.isdir(dpath):
                 self._logger.warning(f"{dpath} is not a directory or not accessible.")
@@ -880,9 +921,16 @@ class ReplicationLogAnalyzer:
 
             logfiles.sort()
             if logfiles:
-                data.append((server_name, logfiles))
+                data.append({
+                    'server_name': server_name or dpath,
+                    'logfiles': logfiles,
+                    'source_dir': dpath,
+                })
+                processed_dirs.append(dpath)
             else:
                 self._logger.warning(f"No accessible 'access' logs found in {dpath}")
+        self._processed_log_dirs = processed_dirs
+        self._skipped_log_dirs = [d for d in self.log_dirs if d not in processed_dirs]
         return data
 
     @staticmethod
@@ -950,7 +998,12 @@ class ReplicationLogAnalyzer:
         if not server_data:
             raise ValueError("No valid log directories with accessible logs found.")
 
-        for idx, (server_name, logfiles) in enumerate(server_data):
+        self._active_server_count = len(server_data)
+
+        for idx, server_entry in enumerate(server_data):
+            server_name = server_entry['server_name']
+            logfiles = server_entry['logfiles']
+
             displayed_name = f"server_{idx}" if self.anonymous else server_name
 
             # For each log file, parse line by line
@@ -993,6 +1046,9 @@ class ReplicationLogAnalyzer:
 
         # Apply filters after collecting all data
         filtered_csns = {}
+        earliest_udt: Optional[float] = None
+        latest_udt: Optional[float] = None
+
         for csn, server_map in self.csns.items():
             if self._should_include_record(csn, server_map):
                 filtered_csns[csn] = server_map
@@ -1000,7 +1056,34 @@ class ReplicationLogAnalyzer:
                 hop_list = self._compute_hop_lags(server_map)
                 filtered_csns[csn]['__hop_lags__'] = hop_list
 
+                for key, record in server_map.items():
+                    if key == '__hop_lags__' or not isinstance(record, dict):
+                        continue
+                    logtime = record.get('logtime')
+                    if logtime is None:
+                        continue
+                    if earliest_udt is None or logtime < earliest_udt:
+                        earliest_udt = logtime
+                    if latest_udt is None or logtime > latest_udt:
+                        latest_udt = logtime
+
         self.csns = filtered_csns
+
+        if earliest_udt is not None:
+            earliest_dt = datetime.fromtimestamp(earliest_udt, tz=timezone.utc).astimezone(self.tz)
+            self.start_udt = earliest_udt
+            self.start_dt = earliest_dt
+        else:
+            self.start_udt = None
+            self.start_dt = None
+
+        if latest_udt is not None:
+            latest_dt = datetime.fromtimestamp(latest_udt, tz=timezone.utc).astimezone(self.tz)
+            self.end_udt = latest_udt
+            self.end_dt = latest_dt
+        else:
+            self.end_udt = None
+            self.end_dt = None
 
     def build_result(self) -> Dict[str, Any]:
         """Build the final dictionary object with earliest timestamp, UTC offset, and replication data."""
@@ -1013,11 +1096,14 @@ class ReplicationLogAnalyzer:
             "utc-offset": self.start_dt.utcoffset().total_seconds() if self.start_dt.utcoffset() else 0,
             "lag": self.csns
         }
+        if self.end_dt is not None:
+            obj["end-time"] = str(self.end_dt)
+            obj["utc-end-time"] = self.end_udt
         # Also record the log-files (anonymous or not)
         if self.anonymous:
-            obj['log-files'] = list(range(len(self.log_dirs)))
+            obj['log-files'] = list(range(self._active_server_count))
         else:
-            obj['log-files'] = self.log_dirs
+            obj['log-files'] = self._processed_log_dirs or self.log_dirs
         return obj
 
     def generate_report(self, output_dir: str,
@@ -1187,22 +1273,6 @@ class ReplicationLogAnalyzer:
                     showlegend=False
                 ),
                 row=2, col=1
-            )
-
-        # Add a horizontal threshold line to the Replication Lag subplot
-        if self.repl_lag_threshold is not None:
-            fig.add_hline(
-                y=self.repl_lag_threshold,
-                line=dict(color='red', width=2, dash='dash'),
-                annotation=dict(
-                    text=f"Lag Threshold = {self.repl_lag_threshold}s",
-                    font=dict(color='red'),
-                    showarrow=False,
-                    x=1,
-                    xanchor='left',
-                    y=self.repl_lag_threshold
-                ),
-                row=1, col=1
             )
 
         # Figure layout settings
@@ -1378,7 +1448,8 @@ class ReplicationLogAnalyzer:
                     for key, data_map in server_map.items():
                         if not isinstance(data_map, dict) or key == '__hop_lags__':
                             continue
-                        ts_str = datetime.fromtimestamp(data_map['logtime']).strftime('%Y-%m-%d %H:%M:%S')
+                        ts_dt = datetime.fromtimestamp(data_map['logtime'], tz=self.tz)
+                        ts_str = ts_dt.strftime('%Y-%m-%d %H:%M:%S')
                         writer.writerow([
                             ts_str,
                             data_map['server_name'],
@@ -1400,7 +1471,8 @@ class ReplicationLogAnalyzer:
                     hop_list = server_map.get('__hop_lags__', [])
                     for hop_info in hop_list:
                         hop_lag_str = f"{hop_info['hop_lag']:.3f}"
-                        arrival_ts = datetime.fromtimestamp(hop_info['arrival_consumer']).strftime('%Y-%m-%d %H:%M:%S')
+                        arrival_dt = datetime.fromtimestamp(hop_info['arrival_consumer'], tz=self.tz)
+                        arrival_ts = arrival_dt.strftime('%Y-%m-%d %H:%M:%S')
                         writer.writerow([
                             csn,
                             hop_info['supplier'],
@@ -1473,7 +1545,10 @@ class ReplicationLogAnalyzer:
 
         # Build analysis summary
         analysis_summary = {
-            'total_servers': len(self.log_dirs),
+            'total_servers': self._active_server_count or len(self.log_dirs),
+            'configured_log_dirs': self.log_dirs,
+            'processed_log_dirs': self._processed_log_dirs,
+            'skipped_log_dirs': self._skipped_log_dirs,
             'analyzed_logs': len(self.csns),
             'total_updates': sum(suffix_updates.values()),
             'minimum_lag': min_lag,
@@ -1486,7 +1561,7 @@ class ReplicationLogAnalyzer:
             'updates_by_suffix': suffix_updates,
             'time_range': {
                 'start': results['start-time'],
-                'end': 'current'
+                'end': results.get('end-time', 'current')
             }
         }
 
@@ -1504,125 +1579,129 @@ class ReplicationLogAnalyzer:
 
     def _generate_patternfly_json(self, results: Dict[str, Any], outfile: str) -> None:
         """Generate JSON specifically formatted for PatternFly 5 charts."""
-        # Prepare chart data using the visualization helper
-        chart_data = VisualizationHelper.prepare_chart_data(self.csns)
+        chart_data = VisualizationHelper.prepare_chart_data(self.csns, self.tz)
+        ordered_series = sorted(chart_data.keys())
+        color_palette = VisualizationHelper.generate_color_palette(len(ordered_series))
 
-        # Create a structure for PatternFly 5 scatter-line chart
+        def _uniform_indices(n: int, target: int) -> List[int]:
+            if target <= 0 or target >= n:
+                return list(range(n))
+            step = (n - 1) / float(target - 1)
+            return [int(round(i * step)) for i in range(target)]
+
+        sampling_enabled = self.sampling_mode != "none"
+        total_points = sum(len(chart_data[key].times) for key in ordered_series)
+        if sampling_enabled and self.sampling_mode == "auto" and total_points <= self._auto_sampling_csn_threshold:
+            sampling_enabled = False
+
+        ratio = None
+        if sampling_enabled and self.max_chart_points and total_points > self.max_chart_points:
+            ratio = self.max_chart_points / float(total_points)
+
+        sampling_meta = {
+            "applied": False,
+            "mode": None,
+            "samplingMode": self.sampling_mode,
+            "precision": self.analysis_precision,
+            "maxChartPoints": self.max_chart_points,
+            "originalTotalPoints": total_points,
+            "reducedTotalPoints": None
+        }
+
+        def _mark_sampling():
+            sampling_meta["applied"] = True
+            if not sampling_meta["mode"]:
+                sampling_meta["mode"] = "uniform-auto" if self.sampling_mode == "auto" else "uniform"
+
+        def _apply_sampling(indices: List[int], target: Optional[int]) -> List[int]:
+            if target is None or target >= len(indices):
+                return indices
+            target = max(self.MIN_POINTS_PER_SERIES, target)
+            if target >= len(indices):
+                return indices
+            _mark_sampling()
+            return [indices[j] for j in _uniform_indices(len(indices), target)]
+
         series_data = []
-
-        # Create a color palette for consistent coloring
-        all_keys = list(chart_data.keys())
-        color_palette = VisualizationHelper.generate_color_palette(len(all_keys))
-
-        for idx, ((suffix, server_name), data) in enumerate(chart_data.items()):
-            # Skip if no data points
+        for idx, (suffix, server_name) in enumerate(ordered_series):
+            data = chart_data[(suffix, server_name)]
             if not data.times:
                 continue
-
-            # Sort data by time for better chart rendering
-            sorted_indices = sorted(range(len(data.times)), key=lambda i: data.times[i])
-
-            # Prepare data points
-            datapoints = []
-            for i in sorted_indices:
-                # Format time as ISO string for consistent serialization
-                timestamp = data.times[i].isoformat()
-                lag_value = data.lags[i]
-                duration = data.durations[i]
-                hover_text = data.hover[i]
-
-                datapoints.append({
-                    "name": server_name,
-                    "x": timestamp,  # ISO format timestamp
-                    "y": lag_value,  # Lag value for y-axis
-                    "duration": duration,  # Additional data
-                    "hoverInfo": hover_text  # Hover text
-                })
-
-            # Add to series
+            sorted_idx = sorted(range(len(data.times)), key=lambda i: data.times[i])
+            target = None
+            if ratio is not None:
+                target = int(round(len(sorted_idx) * ratio))
+            indices = _apply_sampling(sorted_idx, target)
+            datapoints = [{
+                "name": server_name,
+                "x": data.times[i].isoformat(),
+                "y": data.lags[i],
+                "duration": data.durations[i],
+                "hoverInfo": data.hover[i]
+            } for i in indices]
             series_data.append({
                 "datapoints": datapoints,
-                "legendItem": {
-                    "name": f"{server_name} ({suffix})"
-                },
+                "legendItem": {"name": f"{server_name} ({suffix})"},
                 "color": color_palette[idx % len(color_palette)]
             })
 
-        # Create series for hop lags if available
-        hop_series = []
-        hop_data = {}
-
-        # Process hop lag data
+        hop_data: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"times": [], "lags": [], "hover": []})
         for csn, server_map in self.csns.items():
-            hop_list = server_map.get('__hop_lags__', [])
-
-            for hop_info in hop_list:
-                # Create a key based on source and target
-                source = hop_info.get('supplier', 'unknown')
-                target = hop_info.get('consumer', 'unknown')
+            for hop in server_map.get('__hop_lags__', []):
+                source = hop.get('supplier', 'unknown')
+                target = hop.get('consumer', 'unknown')
                 key = f"{source} → {target}"
-
-                if key not in hop_data:
-                    hop_data[key] = {
-                        'times': [],
-                        'lags': [],
-                        'hover': []
-                    }
-
-                # Add data point
-                timestamp = datetime.fromtimestamp(hop_info['arrival_consumer'])
-                hop_data[key]['times'].append(timestamp)
-                hop_data[key]['lags'].append(hop_info['hop_lag'])
-                hop_data[key]['hover'].append(
+                entry = hop_data[key]
+                ts = datetime.fromtimestamp(hop.get('arrival_consumer', 0.0), tz=self.tz)
+                entry["times"].append(ts)
+                entry["lags"].append(hop.get('hop_lag', 0.0))
+                ts_str = ts.strftime('%Y-%m-%d %H:%M:%S')
+                entry["hover"].append(
+                    f"Timestamp: {ts_str}<br>"
                     f"CSN: {csn}<br>"
                     f"Source: {source}<br>"
                     f"Target: {target}<br>"
-                    f"Hop Lag: {hop_info['hop_lag']:.3f}s<br>"
-                    f"Suffix: {hop_info.get('suffix','unknown')}<br>"
-                    f"Entry: {(hop_info.get('target_dn') or 'unknown')}"
+                    f"Hop Lag: {hop.get('hop_lag', 0.0):.3f}s<br>"
+                    f"Suffix: {hop.get('suffix','unknown')}<br>"
+                    f"Entry: {(hop.get('target_dn') or 'unknown')}"
                 )
 
-        # Generate color palette for hop data
-        hop_color_palette = VisualizationHelper.generate_color_palette(len(hop_data))
+        total_hop_points = sum(len(entry["times"]) for entry in hop_data.values())
+        sampling_meta["originalTotalPoints"] += total_hop_points
 
-        # Create hop series data
-        for idx, (key, data) in enumerate(hop_data.items()):
-            # Skip if no data points
-            if not data['times']:
+        hop_ratio = None
+        if sampling_enabled and self.max_chart_points:
+            hop_limit = int(self.max_chart_points * self.HOP_SERIES_BUDGET_RATIO)
+            if hop_limit > 0 and total_hop_points > hop_limit:
+                hop_ratio = hop_limit / float(total_hop_points)
+
+        hop_palette = VisualizationHelper.generate_color_palette(len(hop_data))
+        hop_series = []
+        for idx, (key, entry) in enumerate(sorted(hop_data.items())):
+            if not entry["times"]:
                 continue
-
-            # Sort data by time
-            sorted_indices = sorted(range(len(data['times'])), key=lambda i: data['times'][i])
-
-            # Prepare data points
-            datapoints = []
-            for i in sorted_indices:
-                # Format time as ISO string for consistent serialization
-                timestamp = data['times'][i].isoformat()
-                lag_value = data['lags'][i]
-                hover_text = data['hover'][i]
-
-                datapoints.append({
-                    "name": key,
-                    "x": timestamp,
-                    "y": lag_value,
-                    "hoverInfo": (
-                        hover_text
-                        .replace("Suffix: None", "Suffix: unknown")
-                        .replace("Entry: None", "Entry: unknown")
-                    )
-                })
-
-            # Add to hop series
+            sorted_idx = sorted(range(len(entry["times"])), key=lambda i: entry["times"][i])
+            target = None
+            if hop_ratio is not None:
+                target = int(round(len(sorted_idx) * hop_ratio))
+            indices = _apply_sampling(sorted_idx, target)
+            datapoints = [{
+                "name": key,
+                "x": entry["times"][i].isoformat(),
+                "y": entry["lags"][i],
+                "hoverInfo": entry["hover"][i].replace("Suffix: None", "Suffix: unknown").replace("Entry: None", "Entry: unknown")
+            } for i in indices]
             hop_series.append({
                 "datapoints": datapoints,
-                "legendItem": {
-                    "name": key
-                },
-                "color": hop_color_palette[idx % len(hop_color_palette)]
+                "legendItem": {"name": key},
+                "color": hop_palette[idx % len(hop_palette)]
             })
 
-        # Final data structure for PatternFly 5 charts
+        if sampling_meta["applied"]:
+            reduced = sum(len(item["datapoints"]) for item in series_data)
+            reduced += sum(len(item["datapoints"]) for item in hop_series)
+            sampling_meta["reducedTotalPoints"] = reduced
+
         pf_data = {
             "replicationLags": {
                 "title": "Global Replication Lag Over Time",
@@ -1637,16 +1716,21 @@ class ReplicationLogAnalyzer:
                 "series": hop_series
             },
             "metadata": {
-                "totalServers": len(self.log_dirs),
+                "totalServers": self._active_server_count or len(self.log_dirs),
+                "configuredLogDirs": self.log_dirs,
+                "processedLogDirs": self._processed_log_dirs,
+                "skippedLogDirs": self._skipped_log_dirs,
                 "analyzedLogs": len(self.csns),
                 "totalUpdates": sum(len([
                     rec for key, rec in server_map.items()
                     if isinstance(rec, dict) and key != '__hop_lags__'
-                ]) for csn, server_map in self.csns.items()),
+                ]) for server_map in self.csns.values()),
                 "timeRange": {
                     "start": results['start-time'],
                     "end": results.get('end-time', 'current')
-                }
+                },
+                "timezone": str(self.tz),
+                "sampling": sampling_meta
             }
         }
 
