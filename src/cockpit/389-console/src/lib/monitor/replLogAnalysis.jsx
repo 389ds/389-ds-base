@@ -83,15 +83,15 @@ export class ReplLogAnalysis extends React.Component {
             currentSuffixInput: "",
             anonymizeOption: false,
             replicationFilter: "all", // 'all', 'only-fully', 'only-not'
+            analysisPrecision: "balanced", // 'fast' | 'balanced' | 'full'
             lagTimeLowest: "",
             etimeLowest: "",
-            replLagThreshold: "",
             utcOffset: "+0000",
             formatOptions: {
                 json: true,       // JSON format for PatternFly chart data
-                html: true,       // HTML format - default to true
-                png: true,        // PNG format - default to true
-                csv: true         // CSV format - default to true
+                html: false,      // HTML format requires optional packages
+                png: false,       // PNG format requires optional packages
+                csv: true         // CSV format for tabular data
             },
             useCustomOutputDir: false,
             customOutputDir: "",
@@ -137,6 +137,7 @@ export class ReplLogAnalysis extends React.Component {
         this.handleAnonymizeChange = this.handleAnonymizeChange.bind(this);
         this.handleReplicationFilterChange = this.handleReplicationFilterChange.bind(this);
         this.handleFormatOptionChange = this.handleFormatOptionChange.bind(this);
+        this.handlePrecisionChange = this.handlePrecisionChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.generateReport = this.generateReport.bind(this);
         this.closeLagReportModal = this.closeLagReportModal.bind(this);
@@ -252,7 +253,7 @@ export class ReplLogAnalysis extends React.Component {
             errors[id] = _("Date format must be YYYY-MM-DD HH:MM:SS");
         }
 
-        if ((id === "lagTimeLowest" || id === "etimeLowest" || id === "replLagThreshold") && value) {
+        if ((id === "lagTimeLowest" || id === "etimeLowest") && value) {
             const numValue = parseFloat(value);
             if (isNaN(numValue) || numValue < 0) {
                 errors[id] = _("Must be a positive number");
@@ -274,6 +275,12 @@ export class ReplLogAnalysis extends React.Component {
     handleReplicationFilterChange(value) {
         this.setState({
             replicationFilter: value
+        });
+    }
+
+    handlePrecisionChange(value) {
+        this.setState({
+            analysisPrecision: value
         });
     }
 
@@ -554,10 +561,6 @@ export class ReplLogAnalysis extends React.Component {
             cmd.push("--etime-lowest", this.state.etimeLowest);
         }
 
-        if (this.state.replLagThreshold) {
-            cmd.push("--repl-lag-threshold", this.state.replLagThreshold);
-        }
-
         // Add time range using the formatted date-time values
         const startTimeStr = this.formatDateTimeForCommand(this.state.startDate);
         if (startTimeStr) {
@@ -570,6 +573,10 @@ export class ReplLogAnalysis extends React.Component {
         }
 
         // Add UTC offset
+        // Add analysis precision hint for backend sampling strategy
+        if (this.state.analysisPrecision) {
+            cmd.push("--precision", this.state.analysisPrecision);
+        }
         if (this.state.utcOffset) {
             cmd.push("--utc-offset", this.state.utcOffset);
         }
@@ -1246,7 +1253,8 @@ export class ReplLogAnalysis extends React.Component {
             isLoading,
             browsingError,
             selectedDirectories,
-            expanded
+            expanded,
+            analysisPrecision
         } = this.state;
 
         const formIsValid = logDirsList.length > 0 && suffixesList.length > 0 &&
@@ -1496,6 +1504,7 @@ export class ReplLogAnalysis extends React.Component {
                                                         fieldId="anonymize-option"
                                                         className="ds-margin-top"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Radio
                                                             id="anonymizeYes"
                                                             name="anonymizeOption"
@@ -1517,8 +1526,9 @@ export class ReplLogAnalysis extends React.Component {
                                                     <FormGroup
                                                         label={_("Replication Status Filter")}
                                                         fieldId="replication-filter"
-                                                        className="ds-margin-top-lg"
+                                                        className="ds-margin-top-xlg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Radio
                                                             id="replicationFilterAll"
                                                             name="replicationFilter"
@@ -1778,39 +1788,6 @@ export class ReplLogAnalysis extends React.Component {
                                                         )}
                                                     </FormGroup>
 
-                                                    <FormGroup
-                                                        label={_("Replication Lag (seconds)")}
-                                                        fieldId="repl-lag"
-                                                        labelIcon={
-                                                            <Tooltip
-                                                                content={_("Threshold for highlighting lag in reports. Entries with lag exceeding this value will be highlighted in reports and charts.")}
-                                                            >
-                                                                <InfoCircleIcon />
-                                                            </Tooltip>
-                                                        }
-                                                        className="ds-margin-top"
-                                                    >
-                                                        <NumberInput
-                                                            id="replLagThreshold"
-                                                            value={this.state.replLagThreshold}
-                                                            min={0}
-                                                            step={0.1}
-                                                            onMinus={() => this.handleNumberInputMinus("replLagThreshold")}
-                                                            onChange={(event) => this.handleNumberInputChange("replLagThreshold", event)}
-                                                            onPlus={() => this.handleNumberInputPlus("replLagThreshold")}
-                                                            inputName="replLagThreshold"
-                                                            inputAriaLabel="Replication lag threshold"
-                                                            minusBtnAriaLabel="Decrease replication lag threshold"
-                                                            plusBtnAriaLabel="Increase replication lag threshold"
-                                                        />
-                                                        {errors.replLagThreshold && (
-                                                            <HelperText>
-                                                                <HelperTextItem variant="error" icon={<ExclamationCircleIcon />}>
-                                                                    {errors.replLagThreshold}
-                                                                </HelperTextItem>
-                                                            </HelperText>
-                                                        )}
-                                                    </FormGroup>
                                                 </GridItem>
                                             </Grid>
                                         </CardBody>
@@ -1827,11 +1804,46 @@ export class ReplLogAnalysis extends React.Component {
                                             <Grid hasGutter>
                                                 <GridItem span={12}>
                                                     <FormGroup
+                                                        label={_("Analysis Precision")}
+                                                        fieldId="analysis-precision"
+                                                        className="ds-margin-top-lg"
+                                                    >
+                                                        <div className="ds-margin-top-sm" />
+                                                        <Radio
+                                                            id="precisionFast"
+                                                            name="analysisPrecision"
+                                                            label={_("Fast (preview, sampled)")}
+                                                            isChecked={analysisPrecision === "fast"}
+                                                            onChange={() => this.handlePrecisionChange("fast")}
+                                                            description={_("Quick preview using sampling for large datasets")}
+                                                            className="pf-v5-u-mb-md"
+                                                        />
+                                                        <Radio
+                                                            id="precisionBalanced"
+                                                            name="analysisPrecision"
+                                                            label={_("Balanced (default)")}
+                                                            isChecked={analysisPrecision === "balanced"}
+                                                            onChange={() => this.handlePrecisionChange("balanced")}
+                                                            description={_("Good balance between speed and precision")}
+                                                            className="pf-v5-u-mb-md"
+                                                        />
+                                                        <Radio
+                                                            id="precisionFull"
+                                                            name="analysisPrecision"
+                                                            label={_("Full Precision (slower)")}
+                                                            isChecked={analysisPrecision === "full"}
+                                                            onChange={() => this.handlePrecisionChange("full")}
+                                                            description={_("Process all points without sampling (note: very large datasets may still be auto-sampled for performance; use time range or suffix filters to reduce data volume)")}
+                                                        />
+                                                    </FormGroup>
+
+                                                    <FormGroup
                                                         label={_("Report Format")}
                                                         isRequired
                                                         fieldId="report-format"
-                                                        className="ds-margin-top"
+                                                        className="ds-margin-top-lg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Checkbox
                                                             id="formatJson"
                                                             isChecked={formatOptions.json}
@@ -1902,6 +1914,7 @@ export class ReplLogAnalysis extends React.Component {
                                                         fieldId="output-location"
                                                         className="ds-margin-top-lg"
                                                     >
+                                                        <div className="ds-margin-top-sm" />
                                                         <Checkbox
                                                             id="use-custom-output"
                                                             label={_("Use custom output directory")}
@@ -2003,7 +2016,12 @@ export class ReplLogAnalysis extends React.Component {
                                                 className="pf-v5-u-mt-xl"
                                                 isInline
                                             >
-                                                {reportError}
+                                                {reportError.split('\n').map((line, idx) => (
+                                                    <span key={idx}>
+                                                        {line}
+                                                        <br />
+                                                    </span>
+                                                ))}
                                             </Alert>
                                         )}
                                     </GridItem>
