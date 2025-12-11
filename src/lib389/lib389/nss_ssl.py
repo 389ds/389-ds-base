@@ -10,6 +10,7 @@
 """
 
 import copy
+import hashlib
 import os
 import re
 import socket
@@ -24,6 +25,8 @@ from lib389.passwd import password_generate
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list, DSVersion, cert_is_ca
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 
 
 KEYBITS = 4096
@@ -1096,19 +1099,54 @@ only.
 
         return ensure_str(result)
 
-    def get_cert_details(self, nickname):
-        """Get the trust flags, subject DN, issuer, and expiration date
+    def get_cert_details(self, nickname, raw_bytes=False):
+        """
+        Get cert details or raw cert bytes from the NSS DB.
 
-        return a list:
-            0 - nickname
-            1 - subject
-            2 - issuer
-            3 - expire date
-            4 - trust_flags
+        Parameters:
+            nickname (str): The NSS certificate nickname to look up.
+            raw_bytes (bool): If True, return the certs DER encoded
+                bytes rather than parsed metadata. Used for detecting
+                duplicate certs by hashing the binary DER file.
+
+        Returns:
+            If raw_bytes=True:
+                bytes — the DER-encoded certificate.
+
+            If raw_bytes=False:
+                list containing:
+                    0 - nickname (str)
+                    1 - subject DN (str)
+                    2 - issuer DN (str)
+                    3 - expiration date (str)
+                    4 - trust flags (str)
+
+        Raises:
+            ValueError: If the certificate is not found, or if certutil fails.
         """
         all_certs = self._rsa_cert_list()
         for cert in all_certs:
             if cert[0] == nickname:
+                if raw_bytes:
+                    # Export the certificate in PEM and then convert to DER binary format
+                    # NSS's internal storage might differ from the input format (PEM/DER),
+                    # so the cert is first exported in PEM format (certutil -L -a), then
+                    # converted to DER
+                    cmd = [
+                        "/usr/bin/certutil",
+                        "-L",
+                        "-d", self._certdb,
+                        "-n", nickname,
+                        "-a"
+                    ]
+                    try:
+                        output = check_output(cmd, stderr=subprocess.STDOUT)
+                        pem_data = output.decode("utf-8")
+                        cert_obj = x509.load_pem_x509_certificate(pem_data.encode("utf-8"))
+                        return cert_obj.public_bytes(serialization.Encoding.DER)
+                    except subprocess.CalledProcessError as e:
+                        raise ValueError(e.output.decode("utf-8").rstrip())
+
                 trust_flags = cert[1]
                 certdetails = self.display_cert_details(nickname)
                 end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
@@ -1170,45 +1208,184 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-    def add_cert(self, nickname, input_file, ca=False):
-        """Add server or CA cert
+    def add_cert(self, nickname, input_file, ca=False, pkcs12_pin_text=None,
+                 pkcs12_pin_stdin=False, pkcs12_pin_path=None, nss_db_pin_path=None,
+                 do_it=False):
         """
+        Add a certificate (PEM, DER, or PKCS#12) into an NSS DB.
+
+        Supports:
+            - PEM (.pem) single or bundle of certificates
+            - DER (.der) single certificate
+            - PKCS#12 (.p12/.pfx)
+
+        Notes:
+            - PEM/DER require a nickname.
+            - PKCS12 can omit nickname, one will be autodetected after import.
+            - Duplicate cert detection is performed using SHA256 of raw cert bytes.
+            - do_it can be used to import unverified CA certificates.
+        """
+        self.log.debug("add_cert(input_file=%s, nickname=%s)", input_file, nickname)
 
         # Verify input_file exists
         if not os.path.exists(input_file):
             raise ValueError("The certificate file ({}) does not exist".format(input_file))
 
-        pem_file = True
-        if not input_file.lower().endswith(".pem"):
-            pem_file = False
-        else:
-            self._assert_not_chain(input_file)
+        if not self._db_exists(even_partial=True):
+            log.info('Security database does not exist. Creating a new one in {}.'.format(self.dirsrv.get_cert_dir()))
+            self.tlsdb.reinit()
+
+        # To really check for duplicates we compare cert hash
+        with open(input_file, "rb") as f:
+            input_bytes = f.read()
+        input_hash = hashlib.sha256(input_bytes).hexdigest()
+
+        for nick, _ in self._rsa_cert_list():
+            try:
+                existing_bytes = self.get_cert_details(nick, raw_bytes=True)
+                if hashlib.sha256(existing_bytes).hexdigest() == input_hash:
+                    raise ValueError("Certificate already exists in the database")
+            except ValueError:
+                continue
+
+        path = input_file.lower()
+        is_pem = path.endswith(".pem")
+        is_der = path.endswith(".der")
+        is_p12 = path.endswith((".p12", ".pfx"))
+
+        if not (is_pem or is_der or is_p12):
+            raise ValueError("Unsupported certificate format")
+
+         #PKCS12
+        if is_p12:
+            # Figure out how we are getting the p12 password
+            if pkcs12_pin_path:
+                p12_pin = pkcs12_pin_path
+                p12_flag = "-w"
+            elif pkcs12_pin_text:
+                p12_pin = pkcs12_pin_text
+                p12_flag = "-W"
+            elif pkcs12_pin_stdin:
+                p12_pin = "-"
+                p12_flag = "-W"
+            else:
+                raise ValueError("PKCS#12 file requires a password")
+
+            cmd = [
+                "/usr/bin/pk12util",
+                "-i", input_file,
+                "-d", self._certdb,
+                p12_flag, p12_pin,
+            ]
+            if nss_db_pin_path:
+                cmd.extend(["-k", nss_db_pin_path])
+            if nickname:
+                cmd.extend(["-n", nickname])
+
+            self.log.debug("PKCS12 import cmd: %s", cmd)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
+
+            # Resolve nickname if not provided
+            if not nickname:
+                certs = self._rsa_cert_list()
+                if not certs:
+                    raise ValueError("PKCS#12 import succeeded but no certificates were found in the DB")
+                # NSS lists them in import order, so use the last one
+                nickname = certs[-1][0]
+
+            # Apply trust flags
+            if ca:
+                try:
+                    # Check if the certificate is a CA
+                    if not cert_is_ca(input_file, pkcs12_password=p12_pin) and not do_it:
+                        raise ValueError(f"Certificate ({input_file}) is not a CA certificate")
+                except Exception as e:
+                    if not do_it:
+                        raise
+                trust_flags = "CT,,"
+            else:
+                trust_flags = ",,"
+
+            cmd = [
+                "/usr/bin/certutil",
+                "-M",
+                "-d", self._certdb,
+                "-n", nickname,
+                "-t", trust_flags,
+                "-f", f"{self._certdb}/{PWD_TXT}"
+            ]
+
+            self.log.debug("Setting trust flags cmd: %s", cmd)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError("Failed to set trust flags: " + e.output.decode('utf-8').rstrip())
+
+            return
+
+        # If not PEM/DER we are in trouble
+        if not (is_pem or is_der):
+            raise ValueError("Unsupported certificate format")
+
+        # PEM/DER require a nickname
+        if not nickname:
+            raise ValueError("PEM/DER certificates require a nickname")
+
+        # We have a nickname, is it unique
+        existing_nicks = [n for n, _t in self._rsa_cert_list()]
+        if nickname in existing_nicks:
+            raise ValueError(f"Certificate nickname '{nickname}' already exists")
+
+        if is_pem:
+            # Check for cert bundle or keys
+            cert_count = 0
+            key_count = 0
+
+            with open(input_file, "r") as f:
+                for line in f:
+                    if line.startswith("-----BEGIN CERTIFICATE-----"):
+                        cert_count += 1
+                    elif line.startswith("-----BEGIN PRIVATE KEY-----"):
+                        key_count += 1
+
+            if key_count > 0:
+                raise ValueError(
+                    f"PEM file '{input_file}' contains a private key — not supported."
+                )
+
+            # If multiple certs are present, treat as bundle
+            if cert_count > 1:
+                nicknames = nickname if isinstance(nickname, list) else [nickname]
+                return self.add_ca_cert_bundle(input_file, nicknames)
 
         if ca:
             # Verify this is a CA cert
             if not cert_is_ca(input_file):
-                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+                if not do_it:
+                    raise ValueError(f"Certificate ({input_file}) is not a CA certificate")
             trust_flags = "CT,,"
         else:
             # Verify this is a server cert
             if cert_is_ca(input_file):
-                raise ValueError(f"Certificate ({nickname}) is not a server certificate")
+                raise ValueError(f"Certificate ({input_file}) is not a server certificate")
             trust_flags = ",,"
 
         cmd = [
-            '/usr/bin/certutil',
-            '-A',
-            '-d', self._certdb,
-            '-n', nickname,
-            '-t', trust_flags,
-            '-i', input_file,
-            '-f',
-            '%s/%s' % (self._certdb, PWD_TXT),
+            "/usr/bin/certutil",
+            "-A",
+            "-d", self._certdb,
+            "-n", nickname,
+            "-t", trust_flags,
+            "-i", input_file,
+            "-f", f"{self._certdb}/{PWD_TXT}"
         ]
-        if pem_file:
-            cmd.append('-a')
+        if is_pem:
+            cmd.append("-a")
 
-        self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
+        self.log.debug("PEM/DER import cmd: %s", cmd)
         try:
             check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
@@ -1299,7 +1476,8 @@ only.
                         if line.startswith('-----BEGIN CERTIFICATE-----'):
                             # create tmp cert file
                             writing_ca = True
-                            ca_file_name = cert_file + "-" + str(ca_count)
+                            # ca_file_name = cert_file + "-" + str(ca_count)
+                            ca_file_name = f"{cert_file}-{ca_count}.pem"
                             ca_file = open(ca_file_name, 'w')
                             ca_files_to_cleanup.append(ca_file_name)
                             ca_file.write(line)
