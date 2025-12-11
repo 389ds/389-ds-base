@@ -316,25 +316,26 @@ def test_dna_multi_supplier_unique_values(topo_m4, dna_setup, request):
         )
 
 
-def test_dna_shared_config_replication(topo_m4, dna_setup):
+def test_dna_shared_config_replication(topo_m4, dna_setup, request):
     """Test that DNA shared config entries replicate correctly
 
     :id: c767bc0e-f2c9-480a-812d-09b2aa3d3b66
     :setup: Four suppliers with DNA plugin configured and shared config
     :steps:
         1. Verify shared config entries exist on all suppliers
-        2. Modify dnaRemainingValues on a shared config entry
+        2. Create user to consume DNA value (updating shared config)
         3. Wait for replication
         4. Verify the change replicated to all suppliers
     :expectedresults:
         1. All shared config entries found on all suppliers
-        2. Modification successful
+        2. User created, DNA value allocated
         3. Replication completed
         4. Change visible on all suppliers
     """
     suppliers = dna_setup['suppliers']
     m1 = suppliers[0]
     repl = ReplicationManager(DEFAULT_SUFFIX)
+    m1_shared_cfg = dna_setup['created_objects']['shared_configs'][0]
 
     for idx, supplier in enumerate(suppliers):
         ous = OrganizationalUnits(supplier, DEFAULT_SUFFIX)
@@ -352,24 +353,43 @@ def test_dna_shared_config_replication(topo_m4, dna_setup):
     ous = OrganizationalUnits(m1, DEFAULT_SUFFIX)
     ou_ranges = ous.get('dna_ranges')
 
-    shared_configs = DNAPluginSharedConfigs(m1, ou_ranges.dn)
-    entries = shared_configs.list()
-    test_entry = entries[0]
+    # Create a user to trigger DNA allocation
+    created_users = []
+    def fin():
+        for user in created_users:
+            try:
+                user.delete()
+            except ldap.NO_SUCH_OBJECT:
+                pass
+    request.addfinalizer(fin)
 
-    new_remaining = '999'
-    test_entry.replace('dnaRemainingValues', new_remaining)
-    log.info(f"Modified {test_entry.dn} dnaRemainingValues to {new_remaining}")
+    user_dn = f'uid=dna_shared_test,{DEFAULT_SUFFIX}'
+    user = UserAccount(m1, user_dn)
+    user.create(properties={
+        'uid': 'dna_shared_test',
+        'cn': 'DNA Shared Test',
+        'sn': 'Test',
+        'uidNumber': '-1',
+        'gidNumber': '1000',
+        'homeDirectory': '/home/dna_shared_test'
+    })
+    created_users.append(user)
+
+    log.info("Created user to trigger DNA allocation and shared config update")
+
+    # Expected remaining value is 99 (100 - 1)
+    expected_remaining = '99'
 
     time.sleep(1)
     for supplier in suppliers[1:]:
         repl.wait_for_replication(m1, supplier)
 
     for idx, supplier in enumerate(suppliers):
-        # Get the same entry on each supplier by DN
-        replicated_entry = DNAPluginSharedConfigs(supplier, ou_ranges.dn).get(dn=test_entry.dn)
+        # Get the m1 shared config entry on each supplier
+        replicated_entry = DNAPluginSharedConfigs(supplier, ou_ranges.dn).get(dn=m1_shared_cfg.dn)
         remaining = replicated_entry.get_attr_val_utf8('dnaRemainingValues')
-        assert remaining == new_remaining, (
-            f"Supplier{idx+1} has dnaRemainingValues={remaining}, expected {new_remaining}"
+        assert remaining == expected_remaining, (
+            f"Supplier{idx+1} has dnaRemainingValues={remaining}, expected {expected_remaining}"
         )
 
 
