@@ -74,10 +74,10 @@ typedef enum {
 /* Storage for nickname */
 typedef struct {
     char buf[TRUST_SIZE*2];
-    char *data;
-    char *fullnickname;
-    char *nickname;
-    char *token;
+    char *data;            /* Should be freed if != buf */
+    char *fullnickname;    /* Should not be freed: Point within buf or data */
+    char *nickname;        /* Should not be freed: Point within buf or data */
+    char *token;           /* Should not be freed: Point within buf or data */
 } Nickname_t;
 
 struct certctx_str;

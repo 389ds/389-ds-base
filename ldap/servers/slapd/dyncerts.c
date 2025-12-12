@@ -61,7 +61,7 @@ static const struct trust_flags_mask trust_flags[] = {
 };
 
 /* Some forward definitions */
-static DCSS *get_entry_list(const Slapi_DN *basesn, int scope, char **attrs);
+static DCSS *get_entry_list(const Slapi_DN *basedn, int scope, char **attrs);
 int dyncerts_apply_cb(const char *nickname, dyc_action_cb_t cb, void *arg, char *errmsg);
 static void dyncert_nickname_free(Nickname_t *n);
 
@@ -187,7 +187,6 @@ dyncerts_find_entry(const Slapi_DN *basedn, int scope, char **attrs, DCSS **be_s
     Slapi_Entry *e = NULL;
     DCSS *ss = NULL;
 
-    read_config_info();
     if (slapi_sdn_compare(basedn, &pdyncerts.suffix_sdn) != 0) {
         scope = LDAP_SCOPE_SUBTREE;
     }
@@ -260,6 +259,7 @@ dyncerts_search(Slapi_PBlock *pb)
     }
 
     /* Let first build the list of all entries */
+    read_config_info();
     e = dyncerts_find_entry(basesdn, scope, attrs, &be_ss);
     ss = ss_new();
     ss->pdscc = be_ss;
@@ -1027,7 +1027,7 @@ dyncerts_import_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
     e = dyncerts_find_entry(ctx->sdn, LDAP_SCOPE_BASE, NULL, &ss);
     ss_destroy(&ss);
     if (!e) {
-        slapi_log_err(SLAPI_LOG_ERR, "dyncerts_add",
+        slapi_log_err(SLAPI_LOG_ERR, "dyncerts_import_cert_and_key",
                       "Failed to add certificate %s (entry not found after import).\n",
                       ctx->n.fullnickname);
         ERRMSG(ctx, LDAP_UNWILLING_TO_PERFORM,
@@ -1270,6 +1270,7 @@ dyncerts_add(Slapi_PBlock *pb)
     /*
      * Get the database, the dn and the entry to add
      */
+    read_config_info();
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdcerts) < 0 ||
         slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn) < 0 ||
         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) < 0 || (NULL == pdcerts)) {
@@ -1304,8 +1305,8 @@ done:
                       dn, rc, returntext);
     }
     ss_destroy(&ss);
-    free_config_info();
     dyncert_nickname_free(&n);
+    free_config_info();
     slapi_send_ldap_result(pb, rc, NULL, returntext[0] ? returntext : NULL, 0, NULL);
     /* The frontend does not free the added entry, so we should do it now */
     if (e) {
@@ -1395,6 +1396,9 @@ dyncerts_modify_cert(Slapi_PBlock *pb, Slapi_Entry *e, LDAPMod **mods, DCSS *ss,
     int rc = dyncerts_mods2entry(pb, sdn, mods, &n, errmsg, &newe);
     const char *nickname = n.nickname;
     PR_ASSERT(n.nickname);
+    if (rc != LDAP_SUCCESS) {
+        goto done;
+    }
     if (slapi_entry_attr_get_charptr(newe, DYCATTR_CERTDER)) {
         /* need to change the certificate ==> import the entry */
         rc = dyncerts_import_entry(newe, errmsg, true);
@@ -1500,6 +1504,7 @@ dyncerts_modify(Slapi_PBlock *pb)
     /*
      * Get the database, the dn and the modifiers
      */
+    read_config_info();
     PR_ASSERT(pb);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdcerts) < 0 ||
         slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn) < 0 ||
@@ -1595,7 +1600,7 @@ dyncerts_list_cert_cb(CERTCertificate *cert, SECItem *sitem, void *arg)
 
 /* Generate the parent search set */
 static DCSS *
-get_entry_list(const Slapi_DN *basesn, int scope, char **attrs)
+get_entry_list(const Slapi_DN *basedn, int scope, char **attrs)
 {
     DCSS *ss = ss_new();
     int str2entry_flags = SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES |
@@ -1618,7 +1623,7 @@ get_entry_list(const Slapi_DN *basesn, int scope, char **attrs)
     if (LDAP_SCOPE_BASE == scope) {
         /* Bypass getting cert list if only looking for the container */
         Slapi_DN sdn = {0};
-        if (slapi_sdn_compare(&pdyncerts.suffix_sdn, slapi_entry_get_sdn_const(e)) == 0) {
+        if (slapi_sdn_compare(&pdyncerts.suffix_sdn, basedn) == 0) {
             return ss;
         }
         slapi_sdn_done(&sdn);
@@ -1647,6 +1652,7 @@ dyncerts_delete(Slapi_PBlock *pb)
     /*
      * Get the backend context and the dn
      */
+    read_config_info();
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdcerts) < 0 ||
         slapi_pblock_get(pb, SLAPI_DELETE_TARGET_SDN, &sdn) < 0 ||
         (pdcerts == NULL)) {
@@ -1708,7 +1714,6 @@ dyncert_rename_cb(CertCtx_t *ctx)
     int rc = 0;
 
     slapi_sdn_init_dn_byref(&sdn_new, new_dn);
-
     (void) dyncert_nickname_from_dn(&new_ctx.n, &sdn_new);
     new_ctx.errmsg = ctx->errmsg;
     rc = dyncert_resolve_token(&new_ctx);
@@ -1789,6 +1794,7 @@ dyncerts_rename(Slapi_PBlock *pb)
     const char *new_sup = NULL;
     const char *new_dn = NULL;
 
+    read_config_info();
     slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
     /*
      * Get the backend context and the dn
