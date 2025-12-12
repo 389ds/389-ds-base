@@ -428,6 +428,16 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
     return ret;
 }
 
+/* Free acs */
+static void
+acs_free(attrcrypt_cipher_state **acs)
+{
+    if (*acs) {
+        PR_DestroyLock((*acs)->cipher_lock);
+        slapi_ch_free((void**)acs);
+    }
+}
+
 /*
  CKM_AES_CBC_PAD
  CKM_DES3_CBC_PAD
@@ -538,7 +548,7 @@ attrcrypt_init(ldbm_instance *li)
                     attrcrypt_cipher_state *acs = (attrcrypt_cipher_state *)slapi_ch_calloc(sizeof(attrcrypt_cipher_state), 1);
                     ret = attrcrypt_cipher_init(li, ace, private_key, public_key, acs);
                     if (ret) {
-                        slapi_ch_free((void **)&acs);
+                        acs_free(&acs);
                         if (li->attrcrypt_configured) {
                             if ((ace + 1)->cipher_number) {
                                 /* this is not the last cipher */
@@ -1171,7 +1181,7 @@ back_crypt_init(Slapi_Backend *be, const char *dn, const char *encAlgorithm, voi
                           "Please choose other cipher or disable changelog "
                           "encryption.\n",
                           ace->cipher_display_name);
-            slapi_ch_free((void **)&acs);
+            acs_free(&acs);
         } else {
             /* Since we succeeded, set acs to state_priv */
             _back_crypt_acs_list_add(state_priv, acs);

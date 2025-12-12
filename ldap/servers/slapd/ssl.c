@@ -1089,7 +1089,7 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
 
     nssFlags &= (~NSS_INIT_READONLY);
     slapd_pk11_configurePKCS11(NULL, NULL, tokPBE, ptokPBE, NULL, NULL, NULL, NULL, 0, 0);
-   secStatus = NSS_InitReadWrite(certdir);
+    secStatus = NSS_InitReadWrite(certdir);
 
     dongle_file_name = slapi_ch_smprintf("%s/pin.txt", certdir);
 
