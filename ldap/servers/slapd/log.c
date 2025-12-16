@@ -135,6 +135,7 @@ static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 static int get_syslog_loglevel(int loglevel);
 static void log_external_libs_debug_openldap_print(char *buffer);
 static int log__fix_rotationinfof(char *pathname);
+static int log__validate_rotated_logname(const char *timestamp_str, PRBool *is_compressed);
 
 static int
 get_syslog_loglevel(int loglevel)
@@ -410,7 +411,7 @@ g_log_init()
     loginfo.log_security_fdes = NULL;
     loginfo.log_security_file = NULL;
     loginfo.log_securityinfo_file = NULL;
-    loginfo.log_numof_access_logs = 1;
+    loginfo.log_numof_security_logs = 1;
     loginfo.log_security_logchain = NULL;
     loginfo.log_security_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
     loginfo.log_security_compress = cfg->securitylog_compress;
@@ -3311,7 +3312,7 @@ log__open_accesslogfile(int logfile_state, int locked)
                 }
             } else if (loginfo.log_access_compress) {
                 if (compress_log_file(newfile, loginfo.log_access_mode) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
+                    slapi_log_err(SLAPI_LOG_ERR, "log__open_accesslogfile",
                             "failed to compress rotated access log (%s)\n",
                             newfile);
                 } else {
@@ -4710,6 +4711,50 @@ log__delete_rotated_logs()
     loginfo.log_error_logchain = NULL;
 }
 
+/*
+ * log__validate_rotated_logname
+ *
+ * Validates that a log filename timestamp suffix matches the expected format:
+ * YYYYMMDD-HHMMSS (15 chars) or YYYYMMDD-HHMMSS.gz (18 chars) for compressed files.
+ * Uses regex pattern: ^[0-9]{8}-[0-9]{6}(\.gz)?$
+ *
+ * \param timestamp_str The timestamp portion of the log filename (after the first '.')
+ * \param is_compressed Output parameter set to PR_TRUE if the file has .gz suffix
+ * \return 1 if valid, 0 if invalid
+ */
+static int
+log__validate_rotated_logname(const char *timestamp_str, PRBool *is_compressed)
+{
+    Slapi_Regex *re = NULL;
+    char *re_error = NULL;
+    int rc = 0;
+
+    /* Match YYYYMMDD-HHMMSS with optional .gz suffix */
+    static const char *pattern = "^[0-9]{8}-[0-9]{6}(\\.gz)?$";
+
+    *is_compressed = PR_FALSE;
+
+    re = slapi_re_comp(pattern, &re_error);
+    if (re == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "log__validate_rotated_logname",
+                      "Failed to compile regex: %s\n", re_error ? re_error : "unknown error");
+        slapi_ch_free_string(&re_error);
+        return 0;
+    }
+
+    rc = slapi_re_exec_nt(re, timestamp_str);
+    if (rc == 1) {
+        /* Check if compressed by looking for .gz suffix */
+        size_t len = strlen(timestamp_str);
+        if (len >= 3 && strcmp(timestamp_str + len - 3, ".gz") == 0) {
+            *is_compressed = PR_TRUE;
+        }
+    }
+
+    slapi_re_free(re);
+    return rc == 1 ? 1 : 0;
+}
+
 #define ERRORSLOG 1
 #define ACCESSLOG 2
 #define AUDITLOG 3
@@ -4792,31 +4837,19 @@ log__fix_rotationinfof(char *pathname)
             }
         } else if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
                    (p = strchr(dirent->name, '.')) != NULL &&
-                   NULL != strchr(p, '-')) /* e.g., errors.20051123-165135 */
+                   NULL != strchr(p, '-')) /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
         {
             struct logfileinfo *logp;
-            char *q;
-            int ignoreit = 0;
+            PRBool is_compressed = PR_FALSE;
 
-            for (q = ++p; q && *q; q++) {
-                if (*q != '-' &&
-                    *q != '.' && /* .gz */
-                    *q != 'g' &&
-                    *q != 'z' &&
-                    !isdigit(*q))
-                {
-                    ignoreit = 1;
-                }
-            }
-            if (ignoreit || (q - p != 15)) {
+            /* Skip the '.' to get the timestamp portion */
+            p++;
+            if (!log__validate_rotated_logname(p, &is_compressed)) {
                 continue;
             }
             logp = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             logp->l_ctime = log_reverse_convert_time(p);
-            logp->l_compressed = PR_FALSE;
-            if (strcmp(p + strlen(p) - 3, ".gz") == 0) {
-                logp->l_compressed = PR_TRUE;
-            }
+            logp->l_compressed = is_compressed;
             PR_snprintf(rotated_log, rotated_log_len, "%s/%s",
                         logsdir, dirent->name);
 
@@ -4982,23 +5015,15 @@ log__check_prevlogs(FILE *fp, char *pathname)
     for (dirent = PR_ReadDir(dirptr, dirflags); dirent;
          dirent = PR_ReadDir(dirptr, dirflags)) {
         if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-            (p = strrchr(dirent->name, '.')) != NULL &&
-            NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
-            char *q;
-            int ignoreit = 0;
+            (p = strchr(dirent->name, '.')) != NULL &&
+            NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
+            PRBool is_compressed = PR_FALSE;
 
-            for (q = ++p; q && *q; q++) {
-                if (*q != '-' &&
-                    *q != '.' && /* .gz */
-                    *q != 'g' &&
-                    *q != 'z' &&
-                    !isdigit(*q))
-                {
-                    ignoreit = 1;
-                }
-            }
-            if (ignoreit || (q - p != 15))
+            /* Skip the '.' to get the timestamp portion */
+            p++;
+            if (!log__validate_rotated_logname(p, &is_compressed)) {
                 continue;
+            }
 
             fseek(fp, 0, SEEK_SET);
             buf[BUFSIZ - 1] = '\0';
