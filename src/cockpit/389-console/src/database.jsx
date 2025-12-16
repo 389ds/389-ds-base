@@ -324,6 +324,10 @@ export class Database extends React.Component {
                                         mdbmaxreaders: attrs['nsslapd-mdb-max-readers'][0],
                                         mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
                                         dbhomedir: dbhome,
+                                        dynamiclistsenabled: attrs['nsslapd-dynamic-lists-enabled'][0] == "on" ? true : false,
+                                        dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
+                                        dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
+                                        dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
                                     },
                                 configUpdated: 1
                             }), () => { this.loadNDN() });
