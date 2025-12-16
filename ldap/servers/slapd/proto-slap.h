@@ -139,6 +139,7 @@ int valuearray_first_value(Slapi_Value **va, Slapi_Value **v);
 
 void valuearrayfast_init(struct valuearrayfast *vaf, Slapi_Value **va);
 void valuearrayfast_done(struct valuearrayfast *vaf);
+const Slapi_Value **slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *attrname);
 
 /* Valueset functions */
 
