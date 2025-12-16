@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lib389"
-version = "3.1.3"  # Should match the main 389-ds-base version
+version = "3.2.0"  # Should match the main 389-ds-base version
 description = "A library for accessing, testing, and configuring the 389 Directory Server"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
