@@ -17,7 +17,7 @@ from lib389.backend import Backends
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.dbgen import dbgen_create_groups
 from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, PLUGIN_AUTOMEMBER
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tasks import ImportTask
 from lib389.topologies import topology_st
@@ -148,6 +148,9 @@ def prepare_be(topology_st, request):
     # Set debugging trace specific for this test
     be1.replace('nsslapd-cache-debug-pattern',  f'cn=.*,ou=groups,{suffix}' )
     inst.config.set('nsslapd-errorlog-level', '266354688')
+    inst.config.set('nsslapd-errorlog-logbuffering', 'off')
+    inst.plugins.disable(name=PLUGIN_AUTOMEMBER)
+
 
     # import the ldif
     inst.stop()
@@ -213,8 +216,8 @@ def test_entry_cache_eviction(topology_st, prepare_be):
 
     be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '10')
     # Search all groups then all people to try to evict the groups from entrycache
-    inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
-    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
+    inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=groupOfNames)', ['dn'], escapehatch='i am sure')
+    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=inetOrgPerson)', ['dn'], escapehatch='i am sure')
 
     # Check error logs
     msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
@@ -224,14 +227,14 @@ def test_entry_cache_eviction(topology_st, prepare_be):
 
     be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '0')
     # Search all people to evict groups from entrycache
-    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
+    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=inetOrgPerson)', ['dn'], escapehatch='i am sure')
     # Check error logs
     msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
     assert len(dels) == 5
 
     # Search all groups then all people to try to evict the groups from entrycache
-    inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
-    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
+    inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=groupOfNames)', ['dn'], escapehatch='i am sure')
+    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=inetOrgPerson)', ['dn'], escapehatch='i am sure')
     # Check error logs
     msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)
     assert len(adds) == 5
@@ -239,8 +242,8 @@ def test_entry_cache_eviction(topology_st, prepare_be):
 
     be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '4')
     # Search all groups then all people to try to evict the groups from entrycache
-    inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
-    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
+    inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=groupOfNames)', ['dn'], escapehatch='i am sure')
+    inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=inetOrgPerson)', ['dn'], escapehatch='i am sure')
     # Check error logs
     # Should have entrycache_add_int for each group and one group removed (only 4 preserved)
     msgs, adds, dels, log_count = grab_debug_logs(inst, log_count)

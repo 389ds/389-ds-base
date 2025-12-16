@@ -1061,7 +1061,12 @@ static bool
 debug_pattern_matches(struct cache *cache, const char *dn)
 {
     if (cache->c_inst->cache_debug_re && dn) {
-        if (slapi_re_exec_nt(cache->c_inst->cache_debug_re, dn)) {
+        static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+        int rc = 0;
+        pthread_mutex_lock(&mutex);
+        rc = slapi_re_exec_nt(cache->c_inst->cache_debug_re, dn);
+        pthread_mutex_unlock(&mutex);
+        if (rc) {
             return true;
         }
     }
