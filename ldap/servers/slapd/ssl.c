@@ -3089,9 +3089,10 @@ refresh_certs(daemon_ports_t *ports)
      * replace the server certificate(s)
      */
     PRFileDesc **sock = NULL;
+    bool stop = false;
 
     slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
-                  "Refresh in progress.\n");
+                  "Certificate refresh started.\n");
 
     /* Perform some cleanup */
     _security_library_initialized = 0;
@@ -3104,14 +3105,20 @@ refresh_certs(daemon_ports_t *ports)
     if (_security_library_initialized == 0) {
         slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
             "Failed to reinitialize the security module. Stopping the server.");
+        stop = true;
     }
 
     for (sock = ports->s_socket; sock && *sock; sock++) {
         if (slapd_ssl_init2(sock, 0)) {
             slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
                 "Failed to update the new certificates. Stopping the server.");
+            stop = true;
         }
     }
+    if (stop) {
+        g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+    }
+
     slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
-                  "Refresh completed propgress.\n");
+                  "Certificate refresh completed.\n");
 }

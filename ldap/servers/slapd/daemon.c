@@ -127,7 +127,7 @@ static pthread_mutex_t cert_refresh_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cert_refresh_cv = PTHREAD_COND_INITIALIZER;
 
 static void init_cert_refresh(int nbthreads);
-static void wait4certs_refresh(daemon_ports_t *ports);
+void wait4certs_refresh(daemon_ports_t *ports);
 
 static int get_connection_table_size(void);
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
@@ -3202,7 +3202,7 @@ wait4certs_refresh(daemon_ports_t *ports)
             /* This is the accept thread and all listening threads are blocked.
              * ==> time to updatye the certificates */
             refresh_certs(ports);
-            slapi_atomic_incr_32(&refresh_cert_count, __ATOMIC_RELAXED),
+            slapi_atomic_incr_32(&refresh_cert_count, __ATOMIC_RELAXED);
             set_cert_refresh_asked(false);
             pthread_cond_broadcast(&cert_refresh_cv);
        }

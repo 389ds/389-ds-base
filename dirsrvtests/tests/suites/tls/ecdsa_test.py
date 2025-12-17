@@ -690,7 +690,7 @@ def test_refresh_ecdsa_1ca(topo, ecdsa_certs):
 def test_refresh_ecdsa_2ca(topo, ecdsa_certs):
     """Test dynamic refresh of server certificate and CA
 
-    :id: 96039bce-5370-11f0-9de5-c85309d5c3e3
+    :id: f77ae9b0-db70-11f0-a059-c85309d5c3e3
     :setup: Standalone Instance
     :steps:
         1. Open ldaps connection with server CA certificate and search root entry
