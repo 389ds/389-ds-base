@@ -31,9 +31,6 @@ objectClass: nsEncryptionConfig
 cn: encryption
 nsSSLSessionTimeout: 0
 nsSSLClientAuth: allowed
-aci: (target ="ldap:///*cn=dynamiccertificates")(targetattr="
- *")(version 3.0; acl "dynamic certificates"; deny( all ) us
- erdn = "ldap:///all";)
 
 dn: cn=RSA,cn=encryption,cn=config
 objectClass: top
