@@ -9,20 +9,25 @@
 """
 
 import ldap
+import logging
 import os
 import pytest
 
-from lib389._constants import DEFAULT_SUFFIX, PW_DM, DN_DM
+from lib389._constants import DEFAULT_SUFFIX, PW_DM, DN_DM, ReplicaRole
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389._mapped_object import DSLdapObject
 from lib389.idm.account import Accounts, Anonymous
 from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits
 from lib389.idm.group import Group, Groups
-from lib389.topologies import topology_st as topo
+from lib389.topologies import topology_st as topo, create_topology
 from lib389.idm.domain import Domain
 from lib389.plugins import ACLPlugin
+from lib389.tasks import ImportTask
 
 pytestmark = pytest.mark.tier1
+
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
 
 PEOPLE = "ou=PEOPLE,{}".format(DEFAULT_SUFFIX)
 DYNGROUP = "cn=DYNGROUP,{}".format(PEOPLE)
@@ -497,6 +502,68 @@ def test_info_disclosure(request, topo):
         conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
         DN = "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX
         Accounts(conn, DN).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL, strict=True)
+
+
+@pytest.fixture(scope="function")
+def topo_fn(request):
+    """Function-scoped standalone instance that is removed after each test"""
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
+
+    def fin():
+        if topology.standalone.exists():
+            topology.standalone.delete()
+    request.addfinalizer(fin)
+
+    return topology
+
+
+def test_delete_aci_with_invalid_syntax(topo_fn, request):
+    """Verify that an ACI with invalid syntax can be deleted after being imported
+
+    :id: 7f3e8a9b-4c2d-4e5f-9a1b-2c3d4e5f6a7b
+    :setup: Standalone Instance
+    :steps:
+        1. Import an LDIF containing an ACI with invalid syntax
+        2. Attempt to delete the invalid ACI
+    :expectedresults:
+        1. Import should succeed
+        2. Delete operation should succeed without error
+    """
+    inst = topo_fn.standalone
+
+    invalid_aci = ('(targetattr ="fffff")(version 3.0;acl "Directory Administrators Group";'
+                   'allow (all) (groupdn = "ldap:///cn=Directory Administrators, dc=example,dc=com");)')
+    valid_aci = ('(targetattr!="userPassword")(version 3.0; acl "Enable anonymous access"; '
+                 'allow (read, search, compare) userdn="ldap:///anyone";)')
+
+    log.info("Create LDIF file with invalid ACI")
+    ldif_file = f'{inst.get_ldif_dir()}/invalid_aci_test.ldif'
+    with open(ldif_file, 'w') as f:
+        f.write(f"dn: {DEFAULT_SUFFIX}\n")
+        f.write("objectClass: top\n")
+        f.write("objectClass: domain\n")
+        f.write("dc: example\n")
+        f.write(f"aci: {valid_aci}\n")
+        f.write(f"aci: {invalid_aci}\n")
+    os.chmod(ldif_file, 0o777)
+
+    def fin():
+        if os.path.exists(ldif_file):
+            os.remove(ldif_file)
+    request.addfinalizer(fin)
+
+    log.info("Import LDIF with invalid ACI")
+    import_task = ImportTask(inst)
+    import_task.import_suffix_from_ldif(ldiffile=ldif_file, suffix=DEFAULT_SUFFIX)
+    import_task.wait()
+    assert import_task.get_exit_code() == 0, f"Import failed with exit code: {import_task.get_exit_code()}"
+
+    log.info("Delete the invalid ACI")
+    suffix = Domain(inst, DEFAULT_SUFFIX)
+    suffix.remove('aci', invalid_aci)
+
+    log.info("Verify the invalid ACI was removed")
+    assert invalid_aci not in suffix.get_attr_vals_utf8('aci')
 
 
 if __name__ == "__main__":
