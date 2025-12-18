@@ -3177,6 +3177,13 @@ get_cert_refresh_asked(void)
 void
 wait4certs_refresh(daemon_ports_t *ports)
 {
+    /*
+     * Block listening and accept threads until 
+     *  certificates refresh is complete
+     * Note:
+     *  Listening threads have a NULL ports
+     *  Accept threads have non NULL ports
+     */
     static int refcnt = 0;
     bool need_refresh = get_cert_refresh_asked();
     if (!need_refresh) {
@@ -3200,7 +3207,7 @@ wait4certs_refresh(daemon_ports_t *ports)
         }
         if (need_refresh) {
             /* This is the accept thread and all listening threads are blocked.
-             * ==> time to updatye the certificates */
+             * ==> time to update the certificates */
             refresh_certs(ports);
             slapi_atomic_incr_32(&refresh_cert_count, __ATOMIC_RELAXED);
             set_cert_refresh_asked(false);
