@@ -18,8 +18,8 @@
 #include "slap.h"
 #include "fe.h"
 #include <nss.h>
-#include <nss3/pk11pub.h>
-#include <nss3/certdb.h>
+#include <pk11pub.h>
+#include <certdb.h>
 #include "svrcore.h"
 #include "dyncerts.h"
 
