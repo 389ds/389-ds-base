@@ -37,6 +37,7 @@ from ldapurl import LDAPUrl
 from contextlib import closing
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import pkcs12
 import lib389
 from pathlib import Path
 from subprocess import check_output
@@ -1993,12 +1994,22 @@ def check_cert_info(cert_file_name, search_text):
     return search_text.lower() in cert_text.lower()
 
 
-def cert_is_ca(cert_file_name):
-    with open(cert_file_name, "rb") as f:
-        if is_cert_der(cert_file_name):
-            cert = x509.load_der_x509_certificate(f.read(), default_backend())
-        else:
-            cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+def cert_is_ca(cert_file_name, pkcs12_password=None):
+    # We need to handle a PKCS#12 cert file differently
+    if cert_file_name.lower().endswith((".p12", ".pfx")):
+        with open(cert_file_name, "rb") as f:
+            p12_data = f.read()
+        cert, key, cas = pkcs12.load_key_and_certificates(
+            p12_data, pkcs12_password.encode() if pkcs12_password else None
+        )
+        if cert is None:
+            raise ValueError("No certificate found in PKCS#12 file")
+    else:
+        with open(cert_file_name, "rb") as f:
+            if is_cert_der(cert_file_name):
+                cert = x509.load_der_x509_certificate(f.read(), default_backend())
+            else:
+                cert = x509.load_pem_x509_certificate(f.read(), default_backend())
 
     try:
         key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
