@@ -68,6 +68,7 @@ set_entry_points()
     sep->sep_disconnect_server = (caddr_t)disconnect_server;
     sep->sep_slapd_ssl_init = (caddr_t)slapd_ssl_init;
     sep->sep_slapd_ssl_init2 = (caddr_t)slapd_ssl_init2;
+    sep->sep_slapd_ssl_refresh_certs = (caddr_t)set_cert_refresh_asked;
     set_dll_entry_points(sep);
 
     /* To apply the nsslapd-counters config value properly,

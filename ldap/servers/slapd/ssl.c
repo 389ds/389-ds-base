@@ -3059,3 +3059,66 @@ slapi_set_cacertfile(char *certfile)
     slapi_ch_free_string(&CACertPemFile);
     CACertPemFile = certfile;
 }
+
+/*
+ * Function handling on line certificat refresh
+ */
+
+static void
+pop_ssl_layer(PRFileDesc *fd)
+{
+    /*
+     * Remove ssl layer from listening fd stack to stop using the old
+     * certificate
+     */
+    PRFileDesc *oldsock = PR_PopIOLayer(fd, PR_TOP_IO_LAYER);
+    if (oldsock != NULL) {
+        PRDescIdentity id = PR_GetLayersIdentity(oldsock);
+        const char *name = PR_GetNameForIdentity(id);
+        slapi_log_err(SLAPI_LOG_DEBUG, "pop_ssl_layer", "Poping %s layer\n", name);
+        if (oldsock->dtor) {
+            oldsock->dtor(oldsock); /* Call nspr layer destructor */
+        }
+    }
+}
+
+void
+refresh_certs(daemon_ports_t *ports)
+{
+    /*
+     * replace the server certificate(s)
+     */
+    PRFileDesc **sock = NULL;
+    bool stop = false;
+
+    slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
+                  "Certificate refresh started.\n");
+
+    /* Perform some cleanup */
+    _security_library_initialized = 0;
+    for (sock = ports->s_socket; sock && *sock; sock++) {
+        pop_ssl_layer(*sock);
+    }
+    SSL_ClearSessionCache();
+
+    slapd_ssl_init();
+    if (_security_library_initialized == 0) {
+        slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
+            "Failed to reinitialize the security module. Stopping the server.");
+        stop = true;
+    }
+
+    for (sock = ports->s_socket; sock && *sock; sock++) {
+        if (slapd_ssl_init2(sock, 0)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
+                "Failed to update the new certificates. Stopping the server.");
+            stop = true;
+        }
+    }
+    if (stop) {
+        g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+    }
+
+    slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
+                  "Certificate refresh completed.\n");
+}

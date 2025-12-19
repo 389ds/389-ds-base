@@ -2261,6 +2261,9 @@ get_entry_point(int ep_name, caddr_t *ep_addr)
         case ENTRY_POINT_SLAPD_SSL_INIT2:
             *ep_addr = sep->sep_slapd_ssl_init2;
             break;
+        case ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED:
+            *ep_addr = sep->sep_slapd_ssl_refresh_certs;
+            break;
         default:
             rc = -1;
         }

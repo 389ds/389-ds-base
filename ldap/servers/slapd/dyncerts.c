@@ -996,7 +996,11 @@ done2:
 static void
 dyncert_refresh_certs()
 {
-    /* TBD in  phase3 */
+        caddr_t cb = NULL;
+        get_entry_point(ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED, &cb);
+        if (cb) {
+            ((slapd_ssl_set_cert_refresh_asked_ptr)cb)(true);
+        }
 }
 
 /* Import the certificate and the key */

@@ -91,6 +91,11 @@ def ldapi(inst):
         l.unbind()
 
 
+def utcdate():
+    return datetime.datetime.utcnow() # Python 3.8
+    # return datetime.datetime.now(datetime.UTC) # Python 3.11
+
+
 ################################
 ###### GENERATE CA CERT ########
 ################################
@@ -131,8 +136,8 @@ class ECDSA_Certificate:
             .issuer_name(ca.issuer)
             .public_key(ca.pkey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
-            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=validity_days))
+            .not_valid_before(utcdate())
+            .not_valid_after(utcdate() + datetime.timedelta(days=validity_days))
             # CA certificate extensions
             .add_extension(
                 x509.BasicConstraints(ca=True, path_length=0),
@@ -225,8 +230,8 @@ class ECDSA_Certificate:
             .issuer_name(ca.issuer)
             .public_key(ca.pkey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
-            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=validity_days))
+            .not_valid_before(utcdate())
+            .not_valid_after(utcdate() + datetime.timedelta(days=validity_days))
             # CA certificate extensions
             .add_extension(
                 x509.BasicConstraints(ca=True, path_length=0),
@@ -289,8 +294,8 @@ class ECDSA_Certificate:
             .issuer_name(cert.issuer)
             .public_key(cert.pkey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
-            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=validity_days))
+            .not_valid_before(utcdate())
+            .not_valid_after(utcdate() + datetime.timedelta(days=validity_days))
             # Server certificate extensions
             .add_extension(
                 x509.BasicConstraints(ca=False, path_length=None),
@@ -609,7 +614,7 @@ def test_ecdsa(topo, ecdsa_certs):
 def test_dynamic(topo, ecdsa_certs):
     """Check that certificates can be managed dynamically
 
-    :id: 7902f37c-01d3-11ed-b65c-482ae39447e5
+    :id: 20615484-db69-11f0-aad9-c85309d5c3e3
     :setup: Standalone Instance with ecdsa certificates
     :steps:
         1. Create Test-DynCert-1 certificate
@@ -642,6 +647,92 @@ def test_dynamic(topo, ecdsa_certs):
     assert cert2.read_cert(inst)
     cert2.delete(inst)
     assert not cert2.read_cert(inst)
+
+
+def test_refresh_ecdsa_1ca(topo, ecdsa_certs):
+    """Test dynamic refresh of server certificate
+
+    :id: 96039bce-5370-11f0-9de5-c85309d5c3e3
+    :setup: Standalone Instance with ecdsa certificates
+    :steps:
+        1. Open ldaps connection with server CA certificate and search root entry
+        2. Open a second ldaps connection with server CA certificate and keep it open
+        3. Generate a new server certificate (signed by original CA)
+        4. Change nsSSLPersonalitySSL to the new certificate nickname
+        5. Add the new server cert (using add operation on dynamic certificates)
+        6. Open ldaps connection with server CA certificate and search root entry
+        7. Perform a search on the second open ldaps connection
+    :expectedresults:
+        1. No error
+        2. No error
+        3. No error
+        4. No error
+        5. No error
+        6. No error
+        7. No error
+    """
+
+    inst=topo.standalone
+    cert, ca, dir = ecdsa_certs
+    tls_search(inst, ca)
+    ld = open_ldaps_conn(inst, ca)
+    cert2 = ca.generateCertificate("New-Cert-1CA")
+    cert2.save(dir)
+    cert2.setSslPersonality(inst)
+    cert2.online_install(inst)
+    tls_search(inst, ca)
+    with redirect_stdio(f"Search using already open connection with CA: {ca}"):
+        results = ld.search_s('', ldap.SCOPE_BASE)
+        assert len(results) == 1
+        ld.unbind()
+
+
+def test_refresh_ecdsa_2ca(topo, ecdsa_certs):
+    """Test dynamic refresh of server certificate and CA
+
+    :id: f77ae9b0-db70-11f0-a059-c85309d5c3e3
+    :setup: Standalone Instance
+    :steps:
+        1. Open ldaps connection with server CA certificate and search root entry
+        2. Open a second ldaps connection with server CA certificate and keep it open
+        3. Generate a new Self Signed CA
+        4. Generate a new server certificate (signed by the new CA)
+        5. Add the new CA (using add operation on dynamic certificates)
+        6. Add the new server cert (using add operation on dynamic certificates)
+        7. Open ldaps connection with old server CA certificate and search root entry
+        8. Open ldaps connection with new server CA certificate and search root entry
+        9. Perform a search on the second open ldaps connection
+    :expectedresults:
+        1. No error
+        2. No error
+        3. No error
+        4. No error
+        5. No error
+        6. No error
+        7. ldap.SERVER_DOWN because the old CA does not match the server one
+        8. No error
+        9. ldap.SERVER_DOWN because the old CA does not match the server one
+    """
+
+    inst=topo.standalone
+    cert, ca, dir = ecdsa_certs
+    tls_search(inst, ca)
+    ld = open_ldaps_conn(inst, ca)
+    ca2 = ECDSA_Certificate.generateRootCA("New-CA-2CA")
+    cert2 = ca2.generateCertificate("New-Cert-2CA")
+    ca2.save(dir)
+    cert2.save(dir)
+    cert2.setSslPersonality(inst)
+    ca2.online_install(inst)
+    cert2.online_install(inst)
+    with pytest.raises(ldap.SERVER_DOWN):
+        tls_search(inst, ca)
+    tls_search(inst, ca2)
+    with redirect_stdio(f"Search using already open connection with CA: {ca}"):
+        with pytest.raises(ldap.SERVER_DOWN):
+            results = ld.search_s('', ldap.SCOPE_BASE)
+            assert len(results) == 1
+        ld.unbind()
 
 
 if __name__ == '__main__':

@@ -45,10 +45,10 @@ struct SVRCORESystemdPinObj
     uint64_t timeout;
 };
 
+#ifdef WITH_SYSTEMD
 static void destroyObject(SVRCOREPinObj *obj);
 static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry);
 
-#ifdef WITH_SYSTEMD
 static const SVRCOREPinMethods vtable = { 0, 0, destroyObject, getPin };
 #endif // WITH_SYSTEMD
 

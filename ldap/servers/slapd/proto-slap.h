@@ -685,6 +685,8 @@ void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, bool *isCr
  * daemon.c
  */
 int validate_num_config_reservedescriptors(void) ;
+void set_cert_refresh_asked(bool val);
+
 
 /*
  * delete.c
@@ -1181,6 +1183,7 @@ int slapd_security_library_is_initialized(void);
 int slapd_ssl_listener_is_initialized(void);
 int slapd_SSL_client_auth(LDAP *ld);
 SECKEYPrivateKey *slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg);
+void refresh_certs(daemon_ports_t *ports);
 
 /*
  * security_wrappers.c
