@@ -1557,6 +1557,8 @@ subtree_candidates(
             idl_free(&tmp);
             idl_free(&descendants);
         }
+    } else if (candidates != NULL) {
+        *err = LDAP_SUCCESS;
     }
 
     return (candidates);

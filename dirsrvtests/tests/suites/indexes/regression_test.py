@@ -12,22 +12,29 @@ import pytest
 import ldap
 import logging
 import glob
+import random
 import re
-from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
+from contextlib import suppress
 from lib389.backend import Backend, Backends, DatabaseConfig
-from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
+from lib389.cli_base import FakeArgs
+from lib389.cli_ctl.dbgen import dbgen_create_groups
 from lib389.cli_ctl.dblib import DbscanHelper
+from lib389.config import LDBMConfig
+from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, PW_DM, SER_ROOT_DN, SER_ROOT_PW
+from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389.dbgen import dbgen_users
 from lib389.idm.domain import Domain
 from lib389.idm.group import Groups, Group
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.index import Indexes
+from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.plugins import MemberOfPlugin
 from lib389.properties import TASK_WAIT
 from lib389.tasks import Tasks, Task
 from lib389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
+from textwrap import dedent
 
 pytestmark = pytest.mark.tier1
 
@@ -210,6 +217,94 @@ def check_dbi(dbsh, attr_name, expected = True, lowercase=False):
             assert attr_name in dbi
     else:
         assert dbi is None
+
+
+class PersonPosix(DSLdapObject):
+    def __init__(self, instance, dn=None): 
+        super(PersonPosix, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = [ 'uid', 'cn', 'sn', 'uidNumber', 'gidNumber', 'homeDirectory' ]
+        self._create_objectclasses = ['person', 'posixAccount', 'top']
+        self._protected = False
+
+    def bind(self, password=None, *args, **kwargs):
+        inst_clone = self._instance.clone({SER_ROOT_DN: self.dn, SER_ROOT_PW: password})
+        inst_clone.open(*args, **kwargs)
+        return inst_clone
+
+
+class PersonPosixs(DSLdapObjects):
+    def __init__(self, instance, basedn):
+        super(PersonPosixs, self).__init__(instance)
+        self._objectclasses = ['person', 'posixAccount', 'top']
+        self._filterattrs = None
+        self._childobject = PersonPosix
+        self._basedn = basedn
+
+
+class PersonOrg(DSLdapObject):
+    def __init__(self, instance, dn=None): 
+        super(PersonOrg, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = [ 'cn', 'sn' ]
+        self._create_objectclasses = ['person', 'nsOrgPerson', 'top']
+        self._protected = False
+
+
+class PersonOrgs(DSLdapObjects):
+    def __init__(self, instance, basedn):
+        super(PersonOrgs, self).__init__(instance)
+        self._objectclasses = ['person', 'nsOrgPerson', 'top']
+        self._filterattrs = None
+        self._childobject = PersonOrg
+        self._basedn = basedn
+
+
+@pytest.fixture(scope="function")
+def add_some_entries(topo, request):
+    inst = topo.standalone
+    added_entries = []
+    e1 = PersonPosixs(inst, DEFAULT_SUFFIX)
+    e2 = PersonOrgs(inst, DEFAULT_SUFFIX)
+    # It is easier to add aci to all entries than to modify the suffix aci then revert it later
+    aci='(targetattr="*")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+
+    for idx in range(100):
+        p1 = {
+                'cn': f'p1_{idx}',
+                'sn': 'foo',
+                'uid': f'uid1_{idx}',
+                'uidNumber': str(1000+idx),
+                'gidNumber': str(1000+idx),
+                'homeDirectory': f'/home/uid1_{idx}',
+                'userPassword': PW_DM,
+                'aci': aci,
+             }
+        p2 = {
+                'cn': f'p2_{idx}',
+                'sn': f'sn2_{idx}',
+                'aci': aci,
+             }
+        added_entries.append(e1.create(properties=p1))
+        added_entries.append(e2.create(properties=p2))
+    for idx in range(3):
+        p3 = {
+                'cn': f'p3_{idx}',
+                'sn': 'foo',
+                'uid': f'uid3_{idx}',
+                'aci': aci,
+             }
+        added_entries.append(e2.create(properties=p3))
+
+    # Prepare finalizer
+    def fin():
+        for e in added_entries:
+            e.delete()
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    return added_entries
 
 
 @pytest.mark.skipif(ds_is_older("1.4.4.4"), reason="Not implemented")
@@ -898,6 +993,33 @@ def test_concurrent_modifications_during_indexing(topo, homeDirectory_index_clea
     log.info("Cleaning up test data")
     for user in test_users:
         user.delete()
+
+
+def test_idl_range_limit(topo, add_some_entries):
+    """Test nsslapd-rangelookthroughlimit and AND shortcut
+
+    :id: 746a5af2-d755-11f0-8b62-c85309d5c3e3
+    :setup: Standalone Instance with some entries
+    :steps:
+        1. Set nsslapd-rangelookthroughlimit
+        2. Open a new connection and bound it as an user
+        3. Perform Range search that hit nsslapd-rangelookthroughlimit and AND shortcut
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    inst = topo.standalone
+    added_entries = add_some_entries
+
+    dbconfig = LDBMConfig(inst)
+    dbconfig.set('nsslapd-rangelookthroughlimit', "50")
+
+    conn = added_entries[0].bind(PW_DM)
+
+    entries = conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(&(objectclass=nsOrgPerson)(sn=foo)(uid>=a))")
+    assert len(entries) == 3
 
 
 if __name__ == "__main__":
