@@ -473,7 +473,7 @@ def topology_i3(request):
 
 @pytest.fixture(scope="module")
 def topology_i4(request):
-    """Create three instance DS deployment"""
+    """Create four instance DS deployment"""
 
     topology = create_topology({ReplicaRole.STANDALONE: 4}, request=request)
 
