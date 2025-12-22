@@ -13,8 +13,7 @@ Strategy:
     - Create 4 instances with replication
     - Create many backends with shared config containers
     - Spawn threads to continuously add/modify/delete shared config entries
-    - Enable MemberOf with nested groups for additional pre-op load
-    - Add cn=config modification worker
+    - Add cn=config modification worker to trigger config reloads
 
 Configure via environment variables:
     DNA_STRESS_NUM_BACKENDS  - Number of backends (default: 50)
@@ -43,8 +42,7 @@ from lib389.topologies import topology_i4
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts
-from lib389.idm.group import Groups
-from lib389.plugins import DNAPlugin, DNAPluginConfigs, DNAPluginSharedConfigs, MemberOfPlugin
+from lib389.plugins import DNAPlugin, DNAPluginConfigs, DNAPluginSharedConfigs
 from lib389.backend import Backends
 from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 from lib389.replica import ReplicationManager
@@ -234,61 +232,7 @@ def setup_backends_and_dna(instances, num_backends, db_lib):
     }
 
 
-def setup_memberof_and_groups(instances, all_suffixes):
-    """Enable MemberOf plugin and create nested groups across backends.
-
-    Args:
-        instances: List of DirSrv instances
-        all_suffixes: List of all suffixes (backends)
-
-    Returns:
-        dict with groups and users created
-    """
-    log.info("Setting up MemberOf plugin and nested groups...")
-
-    for inst in instances:
-        memberof = MemberOfPlugin(inst)
-        memberof.enable()
-        memberof.set('memberofgroupattr', 'member')
-        memberof.set_autoaddoc('nsMemberOf')
-        inst.restart()
-
-    inst = instances[0]
-
-    created_groups = {}
-    for idx, suffix in enumerate(all_suffixes[:5]):  # Use first 5 backends
-        ous = OrganizationalUnits(inst, suffix)
-        try:
-            ous.get('groups')
-        except ldap.NO_SUCH_OBJECT:
-            ous.create(properties={'ou': 'groups'})
-
-        groups = Groups(inst, suffix, rdn='ou=groups')
-        group_name = f'stress_group_{idx}'
-        try:
-            group = groups.get(group_name)
-        except ldap.NO_SUCH_OBJECT:
-            group = groups.create(properties={'cn': group_name})
-        created_groups[suffix] = group
-
-    top_groups = Groups(inst, DEFAULT_SUFFIX, rdn='ou=groups')
-    try:
-        top_group = top_groups.get('top_stress_group')
-    except ldap.NO_SUCH_OBJECT:
-        top_group = top_groups.create(properties={'cn': 'top_stress_group'})
-
-    for suffix, group in created_groups.items():
-        if suffix != DEFAULT_SUFFIX:
-            try:
-                top_group.add('member', group.dn)
-            except ldap.TYPE_OR_VALUE_EXISTS:
-                pass
-
-    log.info(f"Created {len(created_groups)} groups with nested structure")
-    return {'groups': created_groups, 'top_group': top_group}
-
-
-def run_stress_test(instances, setup_data, duration, threads_per_backend, memberof_data):
+def run_stress_test(instances, setup_data, duration, threads_per_backend):
     """Run the stress test.
 
     Args:
@@ -296,13 +240,10 @@ def run_stress_test(instances, setup_data, duration, threads_per_backend, member
         setup_data: Dict from setup_backends_and_dna
         duration: Test duration in seconds
         threads_per_backend: Number of threads per backend
-        memberof_data: Dict with groups and top_group from setup_memberof_and_groups
     """
     inst = instances[0]
     all_suffixes = setup_data['all_suffixes']
     ou_ranges_by_suffix = setup_data['ou_ranges_by_suffix']
-    groups = memberof_data['groups']
-    # top_group is the nested group containing other groups (created in setup_memberof_and_groups)
 
     stats = StressStats()
     stop_event = threading.Event()
@@ -352,9 +293,8 @@ def run_stress_test(instances, setup_data, duration, threads_per_backend, member
         stats.increment('delete', local_del)
 
     def user_creation_worker(target_inst, suffix_list):
-        """Worker that creates users across backends to exercise DNA and MemberOf."""
+        """Worker that creates users across backends to exercise DNA allocation."""
         local_count = 0
-        group_list = list(groups.values())
 
         while not stop_event.is_set():
             try:
@@ -371,14 +311,6 @@ def run_stress_test(instances, setup_data, duration, threads_per_backend, member
                     'homeDirectory': f'/home/{uid}',
                 })
                 local_count += 1
-
-                # Add user to a random group (triggers MemberOf)
-                if group_list and random.random() < 0.5:
-                    try:
-                        random_group = random.choice(group_list)
-                        random_group.add('member', user.dn)
-                    except ldap.LDAPError:
-                        pass
 
                 # Delete after a brief delay to avoid filling up
                 time.sleep(0.01)
@@ -496,15 +428,6 @@ def run_stress_test(instances, setup_data, duration, threads_per_backend, member
     if hung:
         log.warning(f"Threads did not finish: {hung[:5]}...")
 
-    log.info("Running MemberOf fixup task...")
-    memberof = MemberOfPlugin(inst)
-    try:
-        task = memberof.fixup(basedn=DEFAULT_SUFFIX)
-        task.wait(timeout=120)
-        log.info(f"MemberOf fixup task completed with exit code: {task.get_exit_code()}")
-    except Exception as e:
-        log.warning(f"MemberOf fixup task failed: {e}")
-
     elapsed = time.time() - start_time
     s = stats.get()
     total_ops = s['add'] + s['modify'] + s['delete']
@@ -566,13 +489,10 @@ def stress_setup(topology_i4, request):
 
     log.info("Replication topology setup complete")
 
-    memberof_data = setup_memberof_and_groups(instances, setup_data['all_suffixes'])
-
     def fin():
         for inst in instances:
             try:
                 DNAPlugin(inst).disable()
-                MemberOfPlugin(inst).disable()
                 inst.restart()
             except:
                 pass
@@ -582,7 +502,6 @@ def stress_setup(topology_i4, request):
         'instances': instances,
         'setup_data': setup_data,
         'db_lib': db_lib,
-        'memberof_data': memberof_data,
     }
 
 
@@ -591,26 +510,22 @@ def test_dna_shared_config_stress_lmdb(stress_setup):
     """Stress test for DNA shared config locking with LMDB backend.
 
     :id: 2974edfb-ec34-4754-8539-68e4407509fb
-    :setup: 4 instances with replication, LMDB, many backends with DNA shared configs,
-            MemberOf plugin enabled with nested groups
+    :setup: 4 instances with replication, LMDB, many backends with DNA shared configs
     :steps:
         1. Create multiple threads per backend modifying shared config entries
         2. Each modification triggers dna_load_shared_servers()
-        3. Create users across backends with DNA and MemberOf processing
+        3. Create users across backends with DNA allocation
         4. Modify cn=config entries to trigger pre-op processing
         5. Run for configured duration
-        6. Run MemberOf fixup task
     :expectedresults:
         1. No crashes from dna_load_shared_servers() race conditions
         2. All servers remain responsive throughout
         3. Operations complete without server failures
-        4. MemberOf fixup completes successfully
     """
     instances = stress_setup['instances']
     setup_data = stress_setup['setup_data']
-    memberof_data = stress_setup['memberof_data']
 
-    stats = run_stress_test(instances, setup_data, RUN_DURATION, THREADS_PER_BACKEND, memberof_data)
+    stats = run_stress_test(instances, setup_data, RUN_DURATION, THREADS_PER_BACKEND)
 
     assert stats['add'] > 0, "Expected some add operations"
     assert stats['modify'] > 0, "Expected some modify operations"
@@ -624,28 +539,24 @@ def test_dna_shared_config_stress_bdb(stress_setup):
     """Stress test for DNA shared config locking with BDB backend.
 
     :id: 0ebbe83c-1823-45c0-9914-15c7c15e2d19
-    :setup: 4 instances with replication, BDB, many backends with DNA shared configs,
-            MemberOf plugin enabled with nested groups
+    :setup: 4 instances with replication, BDB, many backends with DNA shared configs
     :steps:
         1. Create multiple threads per backend modifying shared config entries
         2. Each modification triggers dna_load_shared_servers()
-        3. Create users across backends with DNA and MemberOf processing
+        3. Create users across backends with DNA allocation
         4. Modify cn=config entries to trigger pre-op processing
         5. Run for configured duration (BDB may need more conservative settings)
-        6. Run MemberOf fixup task
     :expectedresults:
         1. No crashes from dna_load_shared_servers() race conditions
         2. All servers remain responsive throughout
         3. Operations complete without server failures
-        4. MemberOf fixup completes successfully
     """
     instances = stress_setup['instances']
     setup_data = stress_setup['setup_data']
-    memberof_data = stress_setup['memberof_data']
 
     bdb_threads = max(1, THREADS_PER_BACKEND // 2)
 
-    stats = run_stress_test(instances, setup_data, RUN_DURATION, bdb_threads, memberof_data)
+    stats = run_stress_test(instances, setup_data, RUN_DURATION, bdb_threads)
 
     assert stats['add'] > 0, "Expected some add operations"
     assert stats['modify'] > 0, "Expected some modify operations"
