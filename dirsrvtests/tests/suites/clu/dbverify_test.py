@@ -31,6 +31,7 @@ def set_log_file(request):
 
     def fin():
         log.info('Delete log file')
+        log.removeHandler(fh)
         os.remove(LOG_FILE)
 
     request.addfinalizer(fin)
@@ -68,6 +69,49 @@ def test_dsctl_dbverify(topology_st, set_log_file):
     with open(LOG_FILE, 'r+') as f:
         file_content = f.read()
         assert message in file_content
+
+
+def run_dbverify(inst, bename, rc=0):
+    # Run dsctl inst dbverify bename and check it returns rc
+    cmd = [ 'dsctl', inst.serverid, 'dbverify', bename ]
+    log.info(f'Run: {cmd}')
+    result =  subprocess.run(cmd, encoding='utf-8', capture_output=True, text=True)
+    log.info(f'Returned: {result.returncode} stdout: {result.stdout} stderr: {result.stderr}')
+    assert result.returncode == rc
+    return result
+
+
+
+def test_dbverify_bad_bename(topology_st, set_log_file):
+    """Test dbverify tool when backend does not exists
+
+    :id: da79a4cc-956c-11f0-8220-c85309d5c3e3
+    :setup: Standalone instance
+    :steps:
+         1. Create DS instance
+         2. Run dbverify
+         3. Check if dbverify provides the expected messages
+    :expectedresults:
+         1. Success
+         2. Success
+         3. Success
+    """
+
+    standalone = topology_st.standalone
+    if get_default_db_lib() == 'bdb':
+        message = "dbverify failed"
+        logmessage = "Backend 'userFoot' does not exist."
+        rc = 1
+    else:
+        message = "dbverify successful"
+        logmessage = "db_verify feature is meaningless"
+        rc = 0
+
+    standalone.stop()
+    result = run_dbverify(standalone, 'userFoot', rc)
+    assert message in result.stdout
+    assert logmessage in result.stderr
+
 
 
 if __name__ == '__main__':
