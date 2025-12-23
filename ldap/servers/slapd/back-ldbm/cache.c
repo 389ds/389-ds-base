@@ -849,8 +849,10 @@ erase_cache(struct cache *cache, int type)
 void
 cache_destroy_please(struct cache *cache, int type)
 {
+    cache_lock(cache);
     erase_cache(cache, type);
     slapi_ch_free((void**)&cache->c_pinned_ctx);
+    cache_unlock(cache);
     PR_DestroyMonitor(cache->c_mutex);
     PR_DestroyLock(cache->c_emutexalloc_mutex);
 }
@@ -1172,9 +1174,11 @@ pinned_remove(struct cache *cache, void *ptr)
             cache->c_pinned_ctx->head = cache->c_pinned_ctx->tail = NULL;
         } else {
             cache->c_pinned_ctx->head = BACK_LRU_NEXT(e, struct backentry *);
+            cache->c_pinned_ctx->head->ep_lruprev = NULL;
         }
     } else if (cache->c_pinned_ctx->tail == e) {
         cache->c_pinned_ctx->tail = BACK_LRU_PREV(e, struct backentry *);
+        cache->c_pinned_ctx->tail->ep_lrunext = NULL;
     } else {
         BACK_LRU_PREV(e, struct backentry *)->ep_lrunext = BACK_LRU_NEXT(e, struct backcommon *);
         BACK_LRU_NEXT(e, struct backentry *)->ep_lruprev = BACK_LRU_PREV(e, struct backcommon *);
