@@ -7,6 +7,31 @@ AC_CONFIG_HEADERS([config.h])
 # include the version information
 . $srcdir/VERSION.sh
 AC_MSG_NOTICE(This is configure for $PACKAGE_TARNAME $PACKAGE_VERSION)
+
+# Validate lib389 version matches main project version
+AC_MSG_CHECKING([lib389 version sync])
+lib389_pyproject="$srcdir/src/lib389/pyproject.toml"
+if test -f "$lib389_pyproject"; then
+    lib389_version=$(grep -E '^version\s*=' "$lib389_pyproject" | sed 's/.*"\(.*\)".*/\1/')
+    if test "x$lib389_version" != "x$RPM_VERSION"; then
+        AC_MSG_RESULT([MISMATCH])
+        AC_MSG_ERROR([
+lib389 version mismatch detected!
+  Main project version (VERSION.sh): $RPM_VERSION
+  lib389 version (pyproject.toml):   $lib389_version
+
+To fix this, run:
+  pushd $srcdir/src/lib389 && python3 validate_version.py --update && popd
+
+lib389 version MUST match the main project version before release.
+])
+    else
+        AC_MSG_RESULT([ok ($lib389_version)])
+    fi
+else
+    AC_MSG_RESULT([MISSING])
+    AC_MSG_ERROR([lib389 pyproject.toml not found at $lib389_pyproject - source tree is incomplete])
+fi
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define tar-pax])
 AC_SUBST([RPM_VERSION])
 AC_SUBST([RPM_RELEASE])
