@@ -21,7 +21,7 @@ lib389 version mismatch detected!
   lib389 version (pyproject.toml):   $lib389_version
 
 To fix this, run:
-  pushd $srcdir/src/lib389 && python3 validate_version.py --update && popd
+  cd $srcdir/src/lib389 && python3 validate_version.py --update
 
 lib389 version MUST match the main project version before release.
 ])
