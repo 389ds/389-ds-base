@@ -707,7 +707,7 @@ def test_multiple_containers_add(topology_st, attruniq, containers,
                                            cn=[STAGE_USER_1_CN, ACTIVE_USER_2_CN])
         stage_user_2 = create_stage_user(topology_st, uid=STAGE_USER_2_CN,
                                          cn=[ACTIVE_USER_1_CN, STAGE_USER_2_CN])
-    except:
+    except Exception:
         assert False, "Failed to create users necessary for the test"
     finally:
         active_user_2.delete()
