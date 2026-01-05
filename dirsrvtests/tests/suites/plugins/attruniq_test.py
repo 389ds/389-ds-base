@@ -745,7 +745,7 @@ def test_multiple_containers_add_across_subtrees(topology_st, attruniq, containe
     attruniq.enable()
     topology_st.standalone.restart()
 
-    # Inserting sleep to prevent repeatedly occuring 'Server is busy' errors
+    # Inserting sleep to prevent repeatedly occurring 'Server is busy' errors
     sleep(5)
 
     log.info("Verify both subtrees apply attruniqueness separately")
