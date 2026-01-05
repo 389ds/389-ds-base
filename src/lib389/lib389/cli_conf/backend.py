@@ -544,7 +544,7 @@ def db_config_set(inst, basedn, log, args):
     did_something = False
     replace_list = []
 
-    if args.enable_dynamic_lists and args.disable_dynamic_lists:
+    if getattr(args,'enable_dynamic_lists', None) and getattr(args, 'disable_dynamic_lists', None):
         raise ValueError("You can not enable and disable dynamic lists at the same time")
 
     for attr, value in list(attrs.items()):
