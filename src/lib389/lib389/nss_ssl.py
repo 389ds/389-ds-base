@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,7 +24,6 @@ from lib389.passwd import password_generate
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list, DSVersion, cert_is_ca
-
 
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
@@ -1170,49 +1169,95 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-    def add_cert(self, nickname, input_file, ca=False):
-        """Add server or CA cert
+    def add_cert(self, nickname, input_file,
+                 ca=False, pkcs12_file=False, pkcs12_password=None):
         """
+        Add or replace a certificate in the NSS database.
 
-        # Verify input_file exists
-        if not os.path.exists(input_file):
-            raise ValueError("The certificate file ({}) does not exist".format(input_file))
+        Args:
+            nickname: NSS certificate nickname
+            input_file: Path to certificate or PKCS#12 file
+            ca: Whether this is a CA certificate
+            pkcs12_file: Whether input_file is a PKCS#12 bundle
+            pkcs12_password: Password for PKCS#12 file (if applicable)
+        """
+        if not nickname:
+            raise ValueError("Certificate nickname must not be empty")
 
-        pem_file = True
-        if not input_file.lower().endswith(".pem"):
-            pem_file = False
-        else:
+        if not os.path.isfile(input_file):
+            raise ValueError(f"Certificate file does not exist: {input_file}")
+
+        if pkcs12_file:
+            self.log.info("Importing PKCS#12 into NSS: %s", input_file)
+
+            if pkcs12_password is None:
+                pkcs12_password = ""
+
+            cmd = [
+                "pk12util",
+                "-v",
+                "-i", input_file,
+                "-d", self._certdb,
+                "-k", f"{self._certdb}/{PWD_TXT}",
+                "-W", pkcs12_password,
+            ]
+
+            self.log.debug(f"nss import p12 cmd: {format_cmd_list(cmd)}", )
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(f"Failed to import PKCS#12 {input_file} {e}")
+
+            if ca:
+                cmd = [
+                    "certutil",
+                    "-M",
+                    "-n", nickname,
+                    "-t", "CT,,",
+                    "-d", self._certdb,
+                    "-f", f"{self._certdb}/{PWD_TXT}",
+                ]
+                self.log.debug(f"set CA trust cmd: {format_cmd_list(cmd)}")
+                try:
+                    check_output(cmd, stderr=subprocess.STDOUT)
+                except subprocess.CalledProcessError as e:
+                    raise ValueError(f"Failed to set CA trust for {nickname} {e}")
+
+            return
+
+        pem_file = input_file.lower().endswith(".pem")
+        if pem_file:
             self._assert_not_chain(input_file)
 
-        if ca:
-            # Verify this is a CA cert
-            if not cert_is_ca(input_file):
-                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
-            trust_flags = "CT,,"
-        else:
-            # Verify this is a server cert
-            if cert_is_ca(input_file):
-                raise ValueError(f"Certificate ({nickname}) is not a server certificate")
-            trust_flags = ",,"
+        is_ca_cert = cert_is_ca(input_file)
+        if ca and not is_ca_cert:
+            raise ValueError(f"Certificate '{nickname}' is not a CA certificate")
+
+        if not ca and is_ca_cert:
+            raise ValueError(f"Certificate '{nickname}' is not a server certificate")
+
+        trust_flags = "CT,," if ca else ",,"
 
         cmd = [
-            '/usr/bin/certutil',
-            '-A',
-            '-d', self._certdb,
-            '-n', nickname,
-            '-t', trust_flags,
-            '-i', input_file,
-            '-f',
-            '%s/%s' % (self._certdb, PWD_TXT),
+            "certutil",
+            "-A",
+            "-d", self._certdb,
+            "-n", nickname,
+            "-t", trust_flags,
+            "-i", input_file,
+            "-f", f"{self._certdb}/{PWD_TXT}",
         ]
-        if pem_file:
-            cmd.append('-a')
 
-        self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
+        if pem_file:
+            cmd.append("-a")
+
+        self.log.info(f"Adding certificate {nickname} to NSS")
+        self.log.debug(f"certutil add cmd: {format_cmd_list(cmd)}")
+
         try:
             check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            raise ValueError(e.output.decode('utf-8').rstrip())
+            raise ValueError(f"Failed to add certificate: {nickname} {e}")
 
     def add_server_key_and_cert(self, input_key, input_cert):
         if not os.path.exists(input_key):

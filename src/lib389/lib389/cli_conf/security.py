@@ -9,8 +9,11 @@
 from collections import OrderedDict, namedtuple
 import json
 import os
+import sys
 from lib389.config import Config, Encryption, RSA
 from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
+from lib389.cert_manager import CertManager
+from lib389.dyncerts import DynamicCerts
 from lib389.cli_base import _warn, CustomHelpFormatter
 
 
@@ -140,6 +143,20 @@ def _security_generic_toggle_parsers(parent, cls, attr, help_pattern):
     return list(map(add_parser, ('Enable', 'Disable'), ('on', 'off')))
 
 
+def _resolve_pkcs12_password(args):
+    if args.pkcs12_pin_text:
+        return args.pkcs12_pin_text
+
+    if args.pkcs12_pin_stdin:
+        return sys.stdin.read().rstrip("\n")
+
+    if args.pkcs12_pin_path:
+        with open(args.pkcs12_pin_path) as f:
+            return f.read().rstrip("\n")
+
+    return None
+
+
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
     tlsdb = NssSsl(dbpath=dbpath)
@@ -216,30 +233,35 @@ def security_disable_plaintext_port(inst, basedn, log, args, warn=True):
 
 
 def cert_add(inst, basedn, log, args):
-    """Add server certificate
+    """Add a single server certificate
     """
-    # Verify file and certificate name
     if not os.path.isfile(args.file):
         raise ValueError(f'Certificate file "{args.file}" does not exist')
 
-    tlsdb = NssSsl(dirsrv=inst)
-    if not tlsdb._db_exists(even_partial=True):  # we want to be very careful
-        log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tlsdb.reinit()
+    # Resolve the PKCS#12 password, can be text, stdin or from file.
+    pkcs12_password = _resolve_pkcs12_password(args)
+    pkcs12_file = args.file.lower().endswith((".p12", ".pfx"))
+
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
+
+    cert_exists = certmgr.get_cert_details(args.name)
+    if cert_exists:
+        log.info(f"Certificate '{args.name}' already exists, skipping")
+        return
+
     try:
-        tlsdb.get_cert_details(args.name)
-        raise ValueError("Certificate already exists with the same name")
-    except ValueError:
-        pass
-
-    if args.primary_cert:
-        # This is the server's primary certificate, update RSA entry
-        RSA(inst).set('nsSSLPersonalitySSL', args.name)
-
-    # Add the cert
-    tlsdb.add_cert(args.name, args.file)
-
-    log.info("Successfully added certificate")
+        certmgr.add_cert(
+            file_path=args.file,
+            nickname=args.name,
+            pkcs12_file=pkcs12_file,
+            pkcs12_password=pkcs12_password,
+            primary=args.primary_cert
+        )
+        log.info("Successfully added certificate")
+    except Exception as e:
+        log.error(f"Failed to add certificate '{args.name}': {e}")
+        raise
 
 
 def cacert_add(inst, basedn, log, args):
@@ -260,9 +282,14 @@ def cacert_add(inst, basedn, log, args):
 def cert_list(inst, basedn, log, args):
     """List all the server certificates
     """
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
+    certs = certmgr.list_certs()
+    if not certs:
+        log.info("No certificates found.")
+        return
+
     cert_list = []
-    tlsdb = NssSsl(dirsrv=inst)
-    certs = tlsdb.list_certs()
     for cert in certs:
         if args.json:
             cert_list.append(
@@ -283,6 +310,7 @@ def cert_list(inst, basedn, log, args):
             log.info('Issuer DN: {}'.format(cert[2]))
             log.info('Expires: {}'.format(cert[3]))
             log.info('Trust Flags: {}\n'.format(cert[4]))
+
     if args.json:
         log.info(json.dumps(cert_list, indent=4))
 
@@ -320,8 +348,15 @@ def cacert_list(inst, basedn, log, args):
 def cert_get(inst, basedn, log, args):
     """Get the details about a server certificate
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    details = tlsdb.get_cert_details(args.name)
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
+    # certmgr = CertManager(dirsrv=inst, backend=NssSsl)
+    # certmgr = CertManager(dirsrv=inst, backend=DynamicCerts)
+    details = certmgr.get_cert_details(args.name)
+    if not details:
+        log.error(f"Certificate '{args.name}' not found.")
+        return
+
     if args.json:
         log.info(json.dumps(
                 {
@@ -420,9 +455,19 @@ def cert_edit(inst, basedn, log, args):
 def cert_del(inst, basedn, log, args):
     """Delete cert
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    tlsdb.del_cert(args.name)
-    log.info(f"Successfully deleted certificate")
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
+    cert = certmgr.get_cert_details(args.name)
+    if not cert:
+        log.warning(f"Certificate '{args.name}' does not exist, nothing to delete.")
+        return
+
+    try:
+        certmgr.del_cert(args.name)
+        log.info(f"Successfully deleted certificate")
+    except Exception as e:
+        log.error(f"Failed to delete certificate '{args.name}': {e}")
+        raise
 
 
 def key_list(inst, basedn, log, args):
@@ -504,11 +549,19 @@ def create_parser(subparsers):
     cert_add_parser = certs_sub.add_parser('add', help='Add a server certificate', description=(
         'Add a server certificate to the NSS database'))
     cert_add_parser.add_argument('--file', required=True,
-        help='Sets the file name of the certificate')
+        help='Sets the file pkcs12 name of the certificate')
+    cert_add_parser.add_argument('--pkcs12-pin-text', required=False,
+        help='The pkcs12 password')
+    cert_add_parser.add_argument('--pkcs12-pin-stdin', required=False,
+        help='The pkcs12 password')
+    cert_add_parser.add_argument('--pkcs12-pin-path', required=False,
+        help='A path to a file containing the pkcs12 password')
     cert_add_parser.add_argument('--name', required=True,
         help='Sets the name/nickname of the certificate')
     cert_add_parser.add_argument('--primary-cert', action='store_true',
                                  help="Sets this certificate as the server's certificate")
+    cert_add_parser.add_argument('--do-it', dest="ack", help="Force the addition of a certificate that cannot be verified",
+                               action='store_true', default=False)
     cert_add_parser.set_defaults(func=cert_add)
 
     cert_edit_parser = certs_sub.add_parser('set-trust-flags', help='Set the Trust flags',
