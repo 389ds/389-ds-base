@@ -388,7 +388,6 @@ idl_new_range_fetch(
 {
     int ret = 0;
     int ret2 = 0;
-    int idl_rc = 0;
     dbi_cursor_t cursor = {0};
     IDList *idl = NULL;
     dbi_val_t cur_key = {0};
@@ -406,6 +405,7 @@ idl_new_range_fetch(
     idl_range_id_pair *leftover = NULL;
     size_t leftoverlen = 32;
     size_t leftovercnt = 0;
+    IdRange_t *idrange_list = NULL;
 
     if (NULL == flag_err) {
         return NULL;
@@ -537,10 +537,12 @@ idl_new_range_fetch(
                      * found entry is the one from the suffix
                      */
                     suffix = key;
-                    idl_rc = idl_append_extend(&idl, id);
-                } else if ((key == suffix) || idl_id_is_in_idlist(idl, key)) {
+                    idl_append_extend(&idl, id);
+                    idrange_add_id(&idrange_list, id);
+                } else if ((key == suffix) || idl_id_is_in_idlist_ranges(idl, idrange_list, key)) {
                     /* the parent is the suffix or already in idl. */
-                    idl_rc = idl_append_extend(&idl, id);
+                    idl_append_extend(&idl, id);
+                    idrange_add_id(&idrange_list, id);
                 } else {
                     /* Otherwise, keep the {key,id} in leftover array */
                     if (!leftover) {
@@ -555,13 +557,7 @@ idl_new_range_fetch(
                     leftovercnt++;
                 }
             } else {
-                idl_rc = idl_append_extend(&idl, id);
-            }
-            if (idl_rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                              "Unable to extend id list (err=%d)\n", idl_rc);
-                idl_free(&idl);
-                goto error;
+                idl_append_extend(&idl, id);
             }
 
             count++;
@@ -651,21 +647,17 @@ error:
 
         while(remaining > 0) {
             for (size_t i = 0; i < leftovercnt; i++) {
-                if (leftover[i].key > 0 && idl_id_is_in_idlist(idl, leftover[i].key) != 0) {
+                if (leftover[i].key > 0 && idl_id_is_in_idlist_ranges(idl, idrange_list, leftover[i].key) != 0) {
                     /* if the leftover key has its parent in the idl */
-                    idl_rc = idl_append_extend(&idl, leftover[i].id);
-                    if (idl_rc) {
-                        slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                                      "Unable to extend id list (err=%d)\n", idl_rc);
-                        idl_free(&idl);
-                        return NULL;
-                    }
+                    idl_append_extend(&idl, leftover[i].id);
+                    idrange_add_id(&idrange_list, leftover[i].id);
                     leftover[i].key = 0;
                     remaining--;
                 }
             }
         }
         slapi_ch_free((void **)&leftover);
+        idrange_free(&idrange_list);
     }
     return idl;
 }
