@@ -1599,20 +1599,22 @@ pthread_mutex_t *pageresult_lock_get_addr(Connection *conn);
 int pagedresults_parse_control_value(Slapi_PBlock *pb, struct berval *psbvp, ber_int_t *pagesize, int *index, Slapi_Backend *be);
 void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, ber_int_t estimate, int curr_search_count, int index);
 Slapi_Backend *pagedresults_get_current_be(Connection *conn, int index);
-int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock);
-void *pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int index);
-int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int locked, int index);
-int pagedresults_get_search_result_count(Connection *conn, Operation *op, int index);
-int pagedresults_set_search_result_count(Connection *conn, Operation *op, int cnt, int index);
+int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, bool locked);
+void *pagedresults_get_search_result(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, bool locked, int index);
+int pagedresults_get_search_result_count(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_set_search_result_count(Connection *conn, Operation *op, int cnt, bool locked, int index);
 int pagedresults_get_search_result_set_size_estimate(Connection *conn,
                                                      Operation *op,
+                                                     bool locked,
                                                      int index);
 int pagedresults_set_search_result_set_size_estimate(Connection *conn,
                                                      Operation *op,
                                                      int cnt,
+                                                     bool locked,
                                                      int index);
-int pagedresults_get_with_sort(Connection *conn, Operation *op, int index);
-int pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, int index);
+int pagedresults_get_with_sort(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, bool locked, int index);
 int pagedresults_get_unindexed(Connection *conn, Operation *op, int index);
 int pagedresults_set_unindexed(Connection *conn, Operation *op, int index);
 int pagedresults_get_sort_result_code(Connection *conn, Operation *op, int index);
@@ -1624,15 +1626,13 @@ int pagedresults_cleanup(Connection *conn, int needlock);
 int pagedresults_is_timedout_nolock(Connection *conn);
 int pagedresults_reset_timedout_nolock(Connection *conn);
 int pagedresults_in_use_nolock(Connection *conn);
-int pagedresults_free_one(Connection *conn, Operation *op, int index);
-int pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, pthread_mutex_t *mutex);
+int pagedresults_free_one(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, bool locked);
 int op_is_pagedresults(Operation *op);
 int pagedresults_cleanup_all(Connection *conn, int needlock);
 void op_set_pagedresults(Operation *op);
-void pagedresults_lock(Connection *conn, int index);
-void pagedresults_unlock(Connection *conn, int index);
-int pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int index);
-int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked);
+int pagedresults_is_abandoned_or_notavailable(Connection *conn, bool locked, int index);
+int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, bool locked);
 
 /*
  * sort.c
