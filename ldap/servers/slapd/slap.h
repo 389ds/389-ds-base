@@ -84,6 +84,10 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <stdbool.h>
 #include <time.h> /* For timespec definitions */
 
+/* Macros for paged results lock parameter */
+#define PR_LOCKED true
+#define PR_NOT_LOCKED false
+
 /* Provides our int types and platform specific requirements. */
 #include <slapi_pal.h>
 
@@ -1631,7 +1635,6 @@ typedef struct _paged_results
     struct timespec pr_timelimit_hr;        /* expiry time of this request rel to clock monotonic */
     int pr_flags;
     ber_int_t pr_msgid; /* msgid of the request; to abandon */
-    PRLock *pr_mutex;   /* protect each conn structure    */
 } PagedResults;
 
 /* array of simple paged structure stashed in connection */
