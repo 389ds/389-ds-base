@@ -179,7 +179,7 @@ do_abandon(Slapi_PBlock *pb)
     logpb.tv_sec = -1;
     logpb.tv_nsec = -1;
 
-    if (0 == pagedresults_free_one_msgid(pb_conn, id, pageresult_lock_get_addr(pb_conn))) {
+    if (0 == pagedresults_free_one_msgid(pb_conn, id, PR_NOT_LOCKED)) {
         if (log_format != LOG_FORMAT_DEFAULT) {
             /* JSON logging */
             logpb.target_op = "Simple Paged Results";
