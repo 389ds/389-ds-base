@@ -155,7 +155,7 @@ def test_add_delete_pem_certmanager(cert_setup, cert_manager, tmp_path):
     The cert_manager fixture parametrises the test, running the
     same logic against each backend through the CertManager layer.
 
-    :id: TODO
+    :id: 0704d89e-da60-4f14-8261-ba49e7a5d1cc
     :setup: Standalone instance with RSACertificate cert class
     :steps:
         1. Generate a new PEM cert signed by the test CA.
@@ -201,7 +201,7 @@ def test_add_delete_der_certmanager(cert_setup, cert_manager, tmp_path):
     The cert_manager fixture parametrises the test, running the
     same logic against each backend through the CertManager layer.
 
-    :id: TODO
+    :id: e95d3cd9-baab-4a0f-9f88-e9f3286c3f04
     :setup: Standalone instance with RSACertificate cert class
     :steps:
         1. Generate a new DER cert signed by the test CA.
@@ -247,7 +247,7 @@ def test_add_delete_pkcs12_certmanager(cert_setup, cert_manager, tmp_path):
     The cert_manager fixture parametrises the test, running the
     same logic against each backend through the CertManager layer.
 
-    :id: TODO
+    :id: b12dbf9b-7506-4040-b47c-b2b7c4e30ed4
     :setup: Standalone instance with RSACertificate cert class
     :steps:
         1. Generate a new server cert signed by the test CA.
@@ -301,7 +301,7 @@ def test_add_delete_pkcs12_security_text(topo, cert_setup, tmp_path):
     Under the hood, the test goes through the CertManager abstraction
     layer and interacts with the NSS and DynamicCerts backends.
 
-    :id: TODO
+    :id: 6e17cc36-ce9b-4506-b5f7-cc94db35a076
     :setup: Standalone instance with RSACertificate cert class
     :steps:
         1. Generate a new server certificate signed by the test CA.
@@ -369,7 +369,7 @@ def test_add_delete_pkcs12_security_stdin(topo, cert_setup, tmp_path):
     Under the hood, the test goes through the CertManager abstraction
     layer and interacts with the NSS and DynamicCerts backends.
 
-    :id: TODO
+    :id: 490e8ccc-a711-4ea9-b115-734d0c2c931d
     :setup: Standalone instance with RSACertificate cert class
     :steps:
         1. Generate a new server certificate signed by the test CA.
@@ -439,7 +439,7 @@ def test_add_delete_pkcs12_security_file(topo, cert_setup, tmp_path):
     Under the hood, the test goes through the CertManager abstraction
     layer and interacts with the NSS and DynamicCerts backends.
 
-    :id: TODO
+    :id: 1784c258-db09-4d12-ad96-a6ff0643860a
     :setup: Standalone instance with RSACertificate cert class
     :steps:
         1. Generate a new server certificate signed by the test CA.
