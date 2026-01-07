@@ -285,6 +285,18 @@ typedef struct _idlist_set
 #define INDIRECT_BLOCK(idl) ((idl)->b_nids == INDBLOCK)
 #define IDL_NIDS(idl)       (idl ? (idl)->b_nids : (NIDS)0)
 
+/*
+ * used by the supplier during online total init
+ * it stores the ranges of ID that are already present
+ * in the candidate list ('parentid>=1')
+ */
+typedef struct IdRange {
+    ID first;
+    ID last;
+    struct IdRange *next;
+} IdRange_t;
+
+
 typedef size_t idl_iterator;
 
 /* small hashtable implementation used in the entry cache -- the table
