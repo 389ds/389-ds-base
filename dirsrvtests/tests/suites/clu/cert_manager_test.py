@@ -26,7 +26,7 @@ from lib389.topologies import topology_st as topo
 from lib389.dseldif import DSEldif
 from lib389.utils import ensure_str, RSACertificate
 from lib389.cli_base import LogCapture, FakeArgs
-from lib389.cli_conf.security import cert_add, cert_list, cert_del
+from lib389.cli_conf.security import cert_add, cert_list, cert_del, cert_edit
 
 log = logging.getLogger(__name__)
 
@@ -573,6 +573,99 @@ def test_add_delete_pem_force(topo, cert_setup, tmp_path):
     lc.flush()
     args = FakeArgs()
     args.name = server_cert.nickname
+    cert_del(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Verify deletion
+    lc.flush()
+    args = FakeArgs()
+    args.json = False
+    cert_list(inst, DEFAULT_SUFFIX, lc.log, args)
+    assert not lc.contains(nickname)
+
+def test_edit_cert_trust_flags(topo, cert_setup, tmp_path):
+    """
+    Edit trust flags on an existing certificate.
+
+    Validates the user facing cert CLI (cert_add, cert_edit_trust, cert_list)
+    via CertManager. Ensures trust flags can be set and removed.
+
+    Validates the user facing cert CLI (cert_add, cert_list, etc)
+    for editing an existing certifcates trust flags.
+
+    Under the hood, the test goes through the CertManager abstraction
+    layer and interacts with the NSS and DynamicCerts backends.
+
+    :id: TODO
+    :setup: Standalone instance with RSACertificate cert class
+    :steps:
+        1. Generate a new server certificate and add it.
+        2. Edit the trust flags to 'CT,,'
+        3. Verify the certificate listing shows updated trust.
+        4. Edit the trust flags to ',,'
+        5. Verify the certificate listing shows cleared trust.
+        6. Delete the certificate.
+    :expectedresults:
+        1. Certificate added successfully
+        2. Trust flags updated successfully
+        3. Trust flags match 'CT,,'
+        4. Trust flags cleared successfully
+        5. Trust flags are empty
+        6. Certificate deleted successfully
+    """
+    inst = topo.standalone
+    lc = LogCapture()
+    ca = cert_setup["ca"]
+    nickname = "TEST_SERVER_TRUST"
+
+    # Generate server cert signed by CA
+    server_cert = ca.generateServerCert(nickname, ca=ca)
+    server_cert.save(str(tmp_path))
+
+    args = FakeArgs()
+    args.name = server_cert.nickname
+    args.file = server_cert.pem
+    args.pkcs12_pin_text = None
+    args.pkcs12_pin_stdin = None
+    args.pkcs12_pin_path = None
+    args.primary_cert = False
+    args.force = False
+
+    cert_add(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Edit trust flags to 'CT,,' (trusted CA/SSL)
+    lc.flush()
+    args = FakeArgs()
+    args.name = nickname
+    args.flags = "CT,,"
+    cert_edit(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Verify certificate shows updated trust
+    lc.flush()
+    args = FakeArgs()
+    args.json = False
+    cert_list(inst, DEFAULT_SUFFIX, lc.log, args)
+    assert lc.contains(nickname)
+    assert lc.contains("CT,,")
+
+    # Edit trust flags to ',,' (untrustworthy)
+    lc.flush()
+    args = FakeArgs()
+    args.name = nickname
+    args.flags = ",,"
+    cert_edit(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Verify certificate shows updated trust
+    lc.flush()
+    args = FakeArgs()
+    args.json = False
+    cert_list(inst, DEFAULT_SUFFIX, lc.log, args)
+    assert lc.contains(nickname)
+    assert lc.contains(",,")
+
+    # Step 6: Delete the certificate
+    lc.flush()
+    args = FakeArgs()
+    args.name = nickname
     cert_del(inst, DEFAULT_SUFFIX, lc.log, args)
 
     # Verify deletion

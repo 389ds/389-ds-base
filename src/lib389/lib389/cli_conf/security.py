@@ -351,8 +351,6 @@ def cert_get(inst, basedn, log, args):
     """
     # Use CertManager to offload the request to DynamicCerts or NSS
     certmgr = CertManager(dirsrv=inst)
-    # certmgr = CertManager(dirsrv=inst, backend=NssSsl)
-    # certmgr = CertManager(dirsrv=inst, backend=DynamicCerts)
     details = certmgr.get_cert_details(args.name)
     if not details:
         log.error(f"Certificate '{args.name}' not found.")
@@ -448,8 +446,9 @@ def csr_del(inst, basedn, log, args):
 def cert_edit(inst, basedn, log, args):
     """Edit cert
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    tlsdb.edit_cert_trust(args.name, args.flags)
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
+    certmgr.edit_cert_trust(args.name, args.flags)
     log.info("Successfully edited certificate trust flags")
 
 

@@ -185,6 +185,9 @@ class DynamicCerts:
             dict if certificate info on success
             None if certificate does not exist
         """
+        if not nickname:
+            raise ValueError("Certificate nickname cannot be empty")
+
         self._ensure_ldapi_connection()
         dn = f"cn={nickname},{DYNCERT_SUFFIX}"
 
@@ -235,6 +238,9 @@ class DynamicCerts:
         """
         if not cn:
             raise ValueError("Certificate CN cannot be empty")
+
+        if not cert_file:
+            raise ValueError("Certificate data is empty")
 
         self._ensure_ldapi_connection()
         dn = f"cn={cn},{DYNCERT_SUFFIX}"
@@ -296,6 +302,9 @@ class DynamicCerts:
         Returns:
             None
         """
+        if not cn:
+            raise ValueError("Certificate CN cannot be empty")
+
         self._ensure_ldapi_connection()
         dn = f"cn={cn},{DYNCERT_SUFFIX}"
 
@@ -306,4 +315,45 @@ class DynamicCerts:
             log.warning(f"Certificate: {cn} does not exist in DynamicCerts backend: {dn}")
         except ldap.LDAPError as e:
             log.error(f"Failed to delete certificate: {cn}: {e}")
+            raise
+
+    def edit_cert_trust(self, cn: str, trust_flags: str):
+        """
+        Edit trust flags on an existing DynamicCerts certificate.
+
+        Returns:
+            None
+        """
+        if not cn:
+            raise ValueError("Certificate CN cannot be empty")
+
+        if not trust_flags:
+            raise ValueError("Certificate trust flags cannot be empty")
+
+        flag_sections = trust_flags.split(',')
+        if len(flag_sections) != 3:
+            raise ValueError("Invalid trust flag format (expected 3 comma separated sections)")
+
+        for section in flag_sections:
+            if len(section) > 6:
+                raise ValueError("Invalid trust flag format, too many flags in a section")
+
+        for c in trust_flags:
+            if c not in ['p', 'P', 'c', 'C', 'T', 'u', ',']:
+                raise ValueError(f"Invalid trust flag '{c}'")
+
+        dn = f"cn={cn},{DYNCERT_SUFFIX}"
+        self._ensure_ldapi_connection()
+
+        mods = [
+            (ldap.MOD_REPLACE, DYCATTR_TRUST, [trust_flags.encode(encoding="ascii")]),
+        ]
+
+        try:
+            self.conn.modify_s(dn, mods)
+            log.info(f"Updated trust flags: {trust_flags} for: {dn} in DynamicCerts backend")
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError(f"Certificate entry not found: {cn}")
+        except ldap.LDAPError as e:
+            log.error(f"Failed to modify trust flags: {trust_flags}: {e}")
             raise

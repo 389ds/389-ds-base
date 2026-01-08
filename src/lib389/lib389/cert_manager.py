@@ -128,8 +128,6 @@ class CertManager:
         if not nickname:
             raise ValueError("Certificate nickname must not be empty")
 
-        log.info(f"Adding certificate {nickname} via {self.backend_name}")
-
         if isinstance(self.backend, DynamicCerts):
             der_cert: bytes = None
             der_privkey: bytes = None
@@ -196,3 +194,13 @@ class CertManager:
             except Exception as e:
                 log.error(f"Failed to set primary SSL cert: {nickname} {e}")
                 raise
+
+    def edit_cert_trust(self, nickname: str, trust_flags: str):
+        """
+        Edit trust flags on an existing certificate.
+
+        Args:
+            nickname: Certificate nickname/CN
+            trust_flags: NSS style trust flag triplet, e.g. 'CT,,'
+        """
+        return self.backend.edit_cert_trust(nickname, trust_flags)
