@@ -33,6 +33,7 @@ DYCATTR_TOKEN       = DYCATTR_PREFIX + "tokenname"
 DYCATTR_KALGO       = DYCATTR_PREFIX + "keyalgorithm"
 DYCATTR_NOTBEFORE   = DYCATTR_PREFIX + "notbefore"
 DYCATTR_NOTAFTER    = DYCATTR_PREFIX + "notafter"
+DYCATTR_FORCE	    = DYCATTR_PREFIX + "Force"
 
 class DynamicCerts:
     """
@@ -218,7 +219,8 @@ class DynamicCerts:
     def add_cert(self, cn: str,
                  cert_file: Union[bytes, str],
                  privkey_file: Union[bytes, str] = None,
-                 is_ca: bool = False):
+                 is_ca: bool = False,
+                 force: bool = False):
         """
         Add or replace a certificate in DynamicCerts backend.
 
@@ -254,6 +256,9 @@ class DynamicCerts:
 
         if is_ca:
             attrs.append((DYCATTR_TRUST, [b"CT,,"]))
+
+        if force:
+            attrs.append((DYCATTR_FORCE, [b"TRUE"]))
 
         try:
             self.conn.add_s(dn, attrs)

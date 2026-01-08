@@ -256,7 +256,8 @@ def cert_add(inst, basedn, log, args):
             nickname=args.name,
             pkcs12_file=pkcs12_file,
             pkcs12_password=pkcs12_password,
-            primary=args.primary_cert
+            primary=args.primary_cert,
+            force=args.force
         )
         log.info("Successfully added certificate")
     except Exception as e:
@@ -560,7 +561,7 @@ def create_parser(subparsers):
         help='Sets the name/nickname of the certificate')
     cert_add_parser.add_argument('--primary-cert', action='store_true',
                                  help="Sets this certificate as the server's certificate")
-    cert_add_parser.add_argument('--do-it', dest="ack", help="Force the addition of a certificate that cannot be verified",
+    cert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",
                                action='store_true', default=False)
     cert_add_parser.set_defaults(func=cert_add)
 

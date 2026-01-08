@@ -107,7 +107,7 @@ class CertManager:
 
     def add_cert(self, file_path: str, nickname: str,
                  pkcs12_file: bool = False, pkcs12_password: str = None,
-                 primary: bool = False, ca: bool = False):
+                 primary: bool = False, ca: bool = False, force: bool = False):
         """
         Add or replace a certificate in the backend (DynamicCert or NSS).
 
@@ -176,7 +176,8 @@ class CertManager:
                 cn=nickname,
                 cert_file=der_cert,
                 privkey_file=der_privkey,
-                is_ca=ca
+                is_ca=ca,
+                force=force
             )
         else:
             # NSS

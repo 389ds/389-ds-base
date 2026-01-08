@@ -18,6 +18,7 @@ import ldap
 import ldapurl
 
 from lib389._constants import DEFAULT_SUFFIX
+from lib389.config import CertmapLegacy
 from lib389.nss_ssl import NssSsl
 from lib389.dyncerts import DynamicCerts
 from lib389.cert_manager import CertManager
@@ -333,6 +334,7 @@ def test_add_delete_pkcs12_security_text(topo, cert_setup, tmp_path):
     args.pkcs12_pin_stdin = False
     args.pkcs12_pin_path = None
     args.primary_cert = False
+    args.force = False
 
     # Add certificate
     cert_add(inst, DEFAULT_SUFFIX, lc.log, args)
@@ -387,7 +389,6 @@ def test_add_delete_pkcs12_security_stdin(topo, cert_setup, tmp_path):
     """
     inst = topo.standalone
     lc = LogCapture()
-    # Get CA cert created by module scoped fixture
     ca = cert_setup["ca"]
     nickname = "TEST_SERVER_P12_STDIN"
 
@@ -402,6 +403,7 @@ def test_add_delete_pkcs12_security_stdin(topo, cert_setup, tmp_path):
     args.pkcs12_pin_stdin = True
     args.pkcs12_pin_path = None
     args.primary_cert = False
+    args.force = False
 
     stdin_backup = sys.stdin
     try:
@@ -410,17 +412,20 @@ def test_add_delete_pkcs12_security_stdin(topo, cert_setup, tmp_path):
     finally:
         sys.stdin = stdin_backup
 
+    # Verify certificate exists
     lc.flush()
     args = FakeArgs()
     args.json = False
     cert_list(inst, DEFAULT_SUFFIX, lc.log, args)
     assert lc.contains(nickname)
 
+    # Delete the certificate
     lc.flush()
     args = FakeArgs()
     args.name = server_cert.nickname
     cert_del(inst, DEFAULT_SUFFIX, lc.log, args)
 
+    # Verify deletion
     lc.flush()
     args = FakeArgs()
     args.json = False
@@ -475,8 +480,86 @@ def test_add_delete_pkcs12_security_file(topo, cert_setup, tmp_path):
     args.pkcs12_pin_stdin = False
     args.pkcs12_pin_path = str(pwd_file)  # Path to password file
     args.primary_cert = False
+    args.force = False
 
     # Add certificate
+    cert_add(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Verify certificate exists
+    lc.flush()
+    args = FakeArgs()
+    args.json = False
+    cert_list(inst, DEFAULT_SUFFIX, lc.log, args)
+    assert lc.contains(nickname)
+
+    # Delete the certificate
+    lc.flush()
+    args = FakeArgs()
+    args.name = server_cert.nickname
+    cert_del(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Verify deletion
+    lc.flush()
+    args = FakeArgs()
+    args.json = False
+    cert_list(inst, DEFAULT_SUFFIX, lc.log, args)
+    assert not lc.contains(nickname)
+
+def test_add_delete_pem_force(topo, cert_setup, tmp_path):
+    """
+    Test adding and deleting a server certificate in PEM format using the
+    --do-it (force) option.
+
+    Validates the user facing cert CLI (cert_add, cert_list, etc)
+    for importing an unsigned PEM certificate, bypassing chain
+    verification via the '--do-it' flag. The test ensures that the
+    unsigned cert can be added, and that the cert can be listed and deleted.
+
+    Under the hood, the test goes through the CertManager abstraction
+    layer and interacts with the NSS and DynamicCerts backends.
+
+    :id: 07104ff3-86b7-4821-b055-954dd527fe48
+    :setup: Standalone instance with RSACertificate cert class
+    :steps:
+        1. Generate a new server certificate, NOT signed by the test CA.
+        2. Add the cert without force flag
+        3. Add the cert with force flag
+        4. Verify the cert can be listed.
+        5. Delete the cert.
+        6. Verify the cert can not be listed.
+    :expectedresults:
+        1. Success.
+        2. Returns UNWILLING_TO_PERFORM.
+        3. Success.
+        4. Success.
+        5. Success.
+        6. Success.
+    """
+    inst = topo.standalone
+    lc = LogCapture()
+    ca = cert_setup["ca"]
+    nickname = "TEST_SERVER_PEM_FORCE"
+
+    # Generate server cert, NOT signed by CA
+    server_cert = ca.generateServerCert(nickname)
+    server_cert.save(str(tmp_path))
+
+    args = FakeArgs()
+    args.name = server_cert.nickname
+    args.file = server_cert.pem
+    args.pkcs12_pin_text = None
+    args.pkcs12_pin_stdin = None
+    args.pkcs12_pin_path = None
+    args.primary_cert = False
+    args.force = False
+
+    # Ensure the adding of an unsigned cert returns error
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        cert_add(inst, DEFAULT_SUFFIX, lc.log, args)
+
+    # Force add an unsigned cert
+    lc.flush()
+    args.force = True
     cert_add(inst, DEFAULT_SUFFIX, lc.log, args)
 
     # Verify certificate exists
