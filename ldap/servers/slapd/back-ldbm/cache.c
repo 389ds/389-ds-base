@@ -458,11 +458,13 @@ static void
 lru_delete(struct cache *cache, void *ptr)
 {
     struct backcommon *e;
+
     if (NULL == ptr) {
         LOG("=> lru_delete\n<= lru_delete (null entry)\n");
         return;
     }
     e = (struct backcommon *)ptr;
+
 #ifdef LDAP_CACHE_DEBUG_LRU
     pinned_verify(cache, __LINE__);
     lru_verify(cache, e, 1);
@@ -475,8 +477,9 @@ lru_delete(struct cache *cache, void *ptr)
         e->ep_lrunext->ep_lruprev = e->ep_lruprev;
     else
         cache->c_lrutail = e->ep_lruprev;
-#ifdef LDAP_CACHE_DEBUG_LRU
+    /* Always clear pointers after removal to prevent stale pointer issues */
     e->ep_lrunext = e->ep_lruprev = NULL;
+#ifdef LDAP_CACHE_DEBUG_LRU
     lru_verify(cache, e, 0);
 #endif
 }
@@ -633,9 +636,14 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                 if (entry->ep_refcnt == 0) {
                     entry->ep_refcnt++;
                     if (entry->ep_state & ENTRY_STATE_PINNED) {
+                        /* Entry is in pinned list, not LRU - remove from pinned only.
+                         * pinned_remove clears lru pointers and won't add to LRU since refcnt > 0.
+                         */
                         pinned_remove(cache, laste);
+                    } else {
+                        /* Entry is in LRU list - remove from LRU */
+                        lru_delete(cache, laste);
                     }
-                    lru_delete(cache, laste);
                     if (type == ENTRY_CACHE) {
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
@@ -679,9 +687,14 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                     if (entry->ep_refcnt == 0) {
                         entry->ep_refcnt++;
                         if (entry->ep_state & ENTRY_STATE_PINNED) {
+                            /* Entry is in pinned list, not LRU - remove from pinned only.
+                             * pinned_remove clears lru pointers and won't add to LRU since refcnt > 0.
+                             */
                             pinned_remove(cache, laste);
+                        } else {
+                            /* Entry is in LRU list - remove from LRU */
+                            lru_delete(cache, laste);
                         }
-                        lru_delete(cache, laste);
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
                     } else {
@@ -771,6 +784,11 @@ entrycache_flush(struct cache *cache)
             e = CACHE_LRU_TAIL(cache, struct backentry *);
         } else {
             e = BACK_LRU_PREV(e, struct backentry *);
+        }
+        if (e == NULL) {
+            slapi_log_err(SLAPI_LOG_WARNING, "entrycache_flush",
+                          "Unexpected NULL entry while flushing cache - LRU list may be corrupted\n");
+            break;
         }
         ASSERT(e->ep_refcnt == 0);
         e->ep_refcnt++;
@@ -1160,6 +1178,7 @@ pinned_remove(struct cache *cache, void *ptr)
 {
     struct backentry *e = (struct backentry *)ptr;
     ASSERT(e->ep_state & ENTRY_STATE_PINNED);
+
     cache->c_pinned_ctx->npinned--;
     cache->c_pinned_ctx->size -= e->ep_size;
     e->ep_state &= ~ENTRY_STATE_PINNED;
@@ -1172,13 +1191,23 @@ pinned_remove(struct cache *cache, void *ptr)
             cache->c_pinned_ctx->head = cache->c_pinned_ctx->tail = NULL;
         } else {
             cache->c_pinned_ctx->head = BACK_LRU_NEXT(e, struct backentry *);
+            /* Update new head's prev pointer to NULL */
+            if (cache->c_pinned_ctx->head) {
+                cache->c_pinned_ctx->head->ep_lruprev = NULL;
+            }
         }
     } else if (cache->c_pinned_ctx->tail == e) {
         cache->c_pinned_ctx->tail = BACK_LRU_PREV(e, struct backentry *);
+        /* Update new tail's next pointer to NULL */
+        if (cache->c_pinned_ctx->tail) {
+            cache->c_pinned_ctx->tail->ep_lrunext = NULL;
+        }
     } else {
+        /* Middle of list: update both neighbors to point to each other */
         BACK_LRU_PREV(e, struct backentry *)->ep_lrunext = BACK_LRU_NEXT(e, struct backcommon *);
         BACK_LRU_NEXT(e, struct backentry *)->ep_lruprev = BACK_LRU_PREV(e, struct backcommon *);
     }
+    /* Clear the removed entry's pointers */
     e->ep_lrunext = e->ep_lruprev = NULL;
     if (e->ep_refcnt == 0) {
         lru_add(cache, ptr);
@@ -1245,6 +1274,7 @@ pinned_add(struct cache *cache, void *ptr)
             return false;
     }
     /* Now it is time to insert the entry in the pinned list */
+
     cache->c_pinned_ctx->npinned++;
     cache->c_pinned_ctx->size += e->ep_size;
     e->ep_state |= ENTRY_STATE_PINNED;
@@ -1754,7 +1784,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
                  * 3) ep_state: 0 && state: 0
                  *    ==> increase the refcnt
                  */
-                if (e->ep_refcnt == 0)
+                if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
                     lru_delete(cache, (void *)e);
                 e->ep_refcnt++;
                 e->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
@@ -1781,7 +1811,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
             } else {
                 if (alt) {
                     *alt = my_alt;
-                    if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
+                    if (my_alt->ep_refcnt == 0 && (my_alt->ep_state & ENTRY_STATE_PINNED) == 0)
                         lru_delete(cache, (void *)*alt);
                     (*alt)->ep_refcnt++;
                     LOG("the entry %s already exists.  returning existing entry %s (state: 0x%x)\n",
@@ -2378,6 +2408,14 @@ dncache_flush(struct cache *cache)
             dn = CACHE_LRU_TAIL(cache, struct backdn *);
         } else {
             dn = BACK_LRU_PREV(dn, struct backdn *);
+        }
+        if (dn == NULL) {
+            /* Safety check: we should normally exit via the CACHE_LRU_HEAD check.
+             * If we get here, c_lruhead may be NULL or the LRU list is corrupted.
+             */
+            slapi_log_err(SLAPI_LOG_WARNING, "dncache_flush",
+                          "Unexpected NULL entry while flushing cache - LRU list may be corrupted\n");
+            break;
         }
         ASSERT(dn->ep_refcnt == 0);
         dn->ep_refcnt++;
