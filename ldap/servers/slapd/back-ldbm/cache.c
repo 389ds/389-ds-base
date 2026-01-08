@@ -419,11 +419,13 @@ static void
 lru_delete(struct cache *cache, void *ptr)
 {
     struct backcommon *e;
+
     if (NULL == ptr) {
         LOG("=> lru_delete\n<= lru_delete (null entry)\n");
         return;
     }
     e = (struct backcommon *)ptr;
+
 #ifdef LDAP_CACHE_DEBUG_LRU
     lru_verify(cache, e, 1);
 #endif
@@ -435,8 +437,9 @@ lru_delete(struct cache *cache, void *ptr)
         e->ep_lrunext->ep_lruprev = e->ep_lruprev;
     else
         cache->c_lrutail = e->ep_lruprev;
-#ifdef LDAP_CACHE_DEBUG_LRU
+    /* Always clear pointers after removal to prevent stale pointer issues */
     e->ep_lrunext = e->ep_lruprev = NULL;
+#ifdef LDAP_CACHE_DEBUG_LRU
     lru_verify(cache, e, 0);
 #endif
 }
@@ -700,6 +703,11 @@ entrycache_flush(struct cache *cache)
             e = CACHE_LRU_TAIL(cache, struct backentry *);
         } else {
             e = BACK_LRU_PREV(e, struct backentry *);
+        }
+        if (e == NULL) {
+            slapi_log_err(SLAPI_LOG_WARNING, "entrycache_flush",
+                          "Unexpected NULL entry while flushing cache - LRU list may be corrupted\n");
+            break;
         }
         ASSERT(e->ep_refcnt == 0);
         e->ep_refcnt++;
@@ -2111,6 +2119,14 @@ dncache_flush(struct cache *cache)
             dn = CACHE_LRU_TAIL(cache, struct backdn *);
         } else {
             dn = BACK_LRU_PREV(dn, struct backdn *);
+        }
+        if (dn == NULL) {
+            /* Safety check: we should normally exit via the CACHE_LRU_HEAD check.
+             * If we get here, c_lruhead may be NULL or the LRU list is corrupted.
+             */
+            slapi_log_err(SLAPI_LOG_WARNING, "dncache_flush",
+                          "Unexpected NULL entry while flushing cache - LRU list may be corrupted\n");
+            break;
         }
         ASSERT(dn->ep_refcnt == 0);
         dn->ep_refcnt++;
