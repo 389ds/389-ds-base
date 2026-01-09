@@ -230,6 +230,107 @@ upgrade_205_fixup_repl_dep(void)
     return UPGRADE_SUCCESS;
 }
 
+/*
+ * Check if parentid/ancestorid indexes are missing the integerOrderingMatch
+ * matching rule.
+ *
+ * This function logs a warning if we detect this condition, advising
+ * the administrator to reindex the affected attributes.
+ */
+static upgrade_status
+upgrade_check_id_index_matching_rule(void)
+{
+    struct slapi_pblock *pb = slapi_pblock_new();
+    Slapi_Entry **backends = NULL;
+    const char *be_base_dn = "cn=ldbm database,cn=plugins,cn=config";
+    const char *be_filter = "(objectclass=nsBackendInstance)";
+    const char *attrs_to_check[] = {"parentid", "ancestorid", NULL};
+    upgrade_status uresult = UPGRADE_SUCCESS;
+
+    /* Search for all backend instances */
+    slapi_search_internal_set_pb(
+            pb, be_base_dn,
+            LDAP_SCOPE_ONELEVEL,
+            be_filter, NULL, 0, NULL, NULL,
+            plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &backends);
+
+    if (backends) {
+        for (size_t be_idx = 0; backends[be_idx] != NULL; be_idx++) {
+            const char *be_name = slapi_entry_attr_get_ref(backends[be_idx], "cn");
+            if (!be_name) {
+                continue;
+            }
+
+            /* Check each attribute that should have integerOrderingMatch */
+            for (size_t attr_idx = 0; attrs_to_check[attr_idx] != NULL; attr_idx++) {
+                const char *attr_name = attrs_to_check[attr_idx];
+                struct slapi_pblock *idx_pb = slapi_pblock_new();
+                Slapi_Entry **idx_entries = NULL;
+                char *idx_dn = slapi_create_dn_string("cn=%s,cn=index,cn=%s,%s",
+                                                       attr_name, be_name, be_base_dn);
+                char *idx_filter = "(objectclass=nsIndex)";
+                PRBool has_matching_rule = PR_FALSE;
+
+                if (!idx_dn) {
+                    slapi_pblock_destroy(idx_pb);
+                    continue;
+                }
+
+                slapi_search_internal_set_pb(
+                        idx_pb, idx_dn,
+                        LDAP_SCOPE_BASE,
+                        idx_filter, NULL, 0, NULL, NULL,
+                        plugin_get_default_component_id(), 0);
+                slapi_search_internal_pb(idx_pb);
+                slapi_pblock_get(idx_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &idx_entries);
+
+                if (idx_entries && idx_entries[0]) {
+                    /* Index exists, check if it has integerOrderingMatch */
+                    Slapi_Attr *mr_attr = NULL;
+                    if (slapi_entry_attr_find(idx_entries[0], "nsMatchingRule", &mr_attr) == 0) {
+                        Slapi_Value *sval = NULL;
+                        int idx;
+                        for (idx = slapi_attr_first_value(mr_attr, &sval);
+                             idx != -1;
+                             idx = slapi_attr_next_value(mr_attr, idx, &sval)) {
+                            const struct berval *bval = slapi_value_get_berval(sval);
+                            if (bval && bval->bv_val &&
+                                strcasecmp(bval->bv_val, "integerOrderingMatch") == 0) {
+                                has_matching_rule = PR_TRUE;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!has_matching_rule) {
+                        /* Index exists but doesn't have integerOrderingMatch, log a warning */
+                        slapi_log_err(SLAPI_LOG_ERR, "upgrade_check_id_index_matching_rule",
+                                "Index '%s' in backend '%s' is missing 'nsMatchingRule: integerOrderingMatch'. "
+                                "Incorrectly configured system indexes can lead to poor search performance, replication issues, and other operational problems. "
+                                "To fix this, add the matching rule and reindex: "
+                                "dsconf <instance> backend index set --add-mr integerOrderingMatch --attr %s %s && "
+                                "dsconf <instance> backend index reindex --attr %s %s. "
+                                "WARNING: Reindexing can be resource-intensive and may impact server performance on a live system. "
+                                "Consider scheduling reindexing during maintenance windows or periods of low activity.\n",
+                                attr_name, be_name, attr_name, be_name, attr_name, be_name);
+                    }
+                }
+
+                slapi_ch_free_string(&idx_dn);
+                slapi_free_search_results_internal(idx_pb);
+                slapi_pblock_destroy(idx_pb);
+            }
+        }
+    }
+
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    return uresult;
+}
+
 upgrade_status
 upgrade_server(void)
 {
@@ -252,6 +353,10 @@ upgrade_server(void)
     }
 
     if (upgrade_205_fixup_repl_dep() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_check_id_index_matching_rule() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 
