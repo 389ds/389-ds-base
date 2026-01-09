@@ -406,9 +406,9 @@ upgrade_check_id_index_matching_rule(void)
 
                     if (!has_matching_rule) {
                         /* Index exists but doesn't have integerOrderingMatch, log a warning */
-                        slapi_log_err(SLAPI_LOG_WARNING, "upgrade_check_id_index_matching_rule",
+                        slapi_log_err(SLAPI_LOG_ERR, "upgrade_check_id_index_matching_rule",
                                 "Index '%s' in backend '%s' is missing 'nsMatchingRule: integerOrderingMatch'. "
-                                "Without it, searches may return incorrect or empty results. "
+                                "Incorrectly configured system indexes can lead to poor search performance, replication issues, and other operational problems. "
                                 "To fix this, add the matching rule and reindex: "
                                 "dsconf <instance> backend index set --add-mr integerOrderingMatch --attr %s %s && "
                                 "dsconf <instance> backend index reindex --attr %s %s. "
