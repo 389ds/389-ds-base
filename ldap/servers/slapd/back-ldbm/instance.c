@@ -191,6 +191,7 @@ ldbm_instance_create_default_indexes(backend *be)
     char *ancestorid_indexes_limit = NULL;
     char *parentid_indexes_limit = NULL;
     struct attrinfo *ai = NULL;
+    struct attrinfo *index_already_configured = NULL;
     struct index_idlistsizeinfo *iter;
     int cookie;
     int limit;
@@ -255,10 +256,14 @@ ldbm_instance_create_default_indexes(backend *be)
         slapi_entry_free(e);
     }
 
-    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch", parentid_indexes_limit);
-    ldbm_instance_config_add_index_entry(inst, e, flags);
-    attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
-    slapi_entry_free(e);
+    ainfo_get(be, (char *)LDBM_PARENTID_STR, &ai);
+    index_already_configured = ai;
+    if (!index_already_configured) {
+        e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch", parentid_indexes_limit);
+        ldbm_instance_config_add_index_entry(inst, e, flags);
+        attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
+        slapi_entry_free(e);
+    }
 
     e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
@@ -296,10 +301,14 @@ ldbm_instance_create_default_indexes(backend *be)
          * ancestorid is special, there is actually no such attr type
          * but we still want to use the attr index file APIs.
          */
-        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch", ancestorid_indexes_limit);
-        ldbm_instance_config_add_index_entry(inst, e, flags);
-        attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
-        slapi_entry_free(e);
+        ainfo_get(be, (char *)LDBM_ANCESTORID_STR, &ai);
+        index_already_configured = ai;
+        if (!index_already_configured) {
+            e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch", ancestorid_indexes_limit);
+            ldbm_instance_config_add_index_entry(inst, e, flags);
+            attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
+            slapi_entry_free(e);
+        }
     }
 
     slapi_ch_free_string(&ancestorid_indexes_limit);
