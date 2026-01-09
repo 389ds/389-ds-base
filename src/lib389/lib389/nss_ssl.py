@@ -1169,26 +1169,26 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-    def add_cert(self, nickname, input_file,
-                 ca=False, pkcs12_file=False, pkcs12_password=None):
+    def add_cert(self, nickname, cert_file,
+                 is_ca=False, pkcs12_file=False, pkcs12_password=None):
         """
         Add or replace a certificate in the NSS database.
 
         Args:
             nickname: NSS certificate nickname
-            input_file: Path to certificate or PKCS#12 file
+            cert_file: Path to certificate or PKCS#12 file
             ca: Whether this is a CA certificate
-            pkcs12_file: Whether input_file is a PKCS#12 bundle
+            pkcs12_file: Whether cert_file is a PKCS#12 bundle
             pkcs12_password: Password for PKCS#12 file (if applicable)
         """
         if not nickname:
             raise ValueError("Certificate nickname must not be empty")
 
-        if not os.path.isfile(input_file):
-            raise ValueError(f"Certificate file does not exist: {input_file}")
+        if not os.path.isfile(cert_file):
+            raise ValueError(f"Certificate file does not exist: {cert_file}")
 
         if pkcs12_file:
-            self.log.info("Importing PKCS#12 into NSS: %s", input_file)
+            self.log.info("Importing PKCS#12 into NSS: %s", cert_file)
 
             if pkcs12_password is None:
                 pkcs12_password = ""
@@ -1196,19 +1196,20 @@ only.
             cmd = [
                 "pk12util",
                 "-v",
-                "-i", input_file,
+                "-n", nickname,
+                "-i", cert_file,
                 "-d", self._certdb,
                 "-k", f"{self._certdb}/{PWD_TXT}",
                 "-W", pkcs12_password,
             ]
 
-            self.log.debug(f"nss import p12 cmd: {format_cmd_list(cmd)}", )
+            self.log.info(f"nss import p12 cmd: {format_cmd_list(cmd)}", )
             try:
                 check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-                raise ValueError(f"Failed to import PKCS#12 {input_file} {e}")
+                raise ValueError(f"Failed to import PKCS#12 {cert_file} {e}")
 
-            if ca:
+            if is_ca:
                 cmd = [
                     "certutil",
                     "-M",
@@ -1225,18 +1226,18 @@ only.
 
             return
 
-        pem_file = input_file.lower().endswith(".pem")
+        pem_file = cert_file.lower().endswith(".pem")
         if pem_file:
-            self._assert_not_chain(input_file)
+            self._assert_not_chain(cert_file)
 
-        is_ca_cert = cert_is_ca(input_file)
-        if ca and not is_ca_cert:
+        is_ca_cert = cert_is_ca(cert_file)
+        if is_ca and not is_ca_cert:
             raise ValueError(f"Certificate '{nickname}' is not a CA certificate")
 
-        if not ca and is_ca_cert:
+        if not is_ca and is_ca_cert:
             raise ValueError(f"Certificate '{nickname}' is not a server certificate")
 
-        trust_flags = "CT,," if ca else ",,"
+        trust_flags = "CT,," if is_ca else ",,"
 
         cmd = [
             "certutil",
@@ -1244,7 +1245,7 @@ only.
             "-d", self._certdb,
             "-n", nickname,
             "-t", trust_flags,
-            "-i", input_file,
+            "-i", cert_file,
             "-f", f"{self._certdb}/{PWD_TXT}",
         ]
 
@@ -1324,13 +1325,13 @@ only.
         :raises:
         """
 
-        # Verify input_file exists
+        # Verify cert_file exists
         if not os.path.exists(cert_file):
             raise ValueError("The certificate file ({}) does not exist".format(cert_file))
 
         if not cert_file.lower().endswith(".pem"):
             # Binary cert, this can not be a bundle
-            self.add_cert(nicknames[0], cert_file, ca=True)
+            self.add_cert(nicknames[0], cert_file, is_ca=True)
             log.info(f"Successfully added CA certificate ({nicknames[0]})")
             return
 
@@ -1394,7 +1395,7 @@ only.
                                     raise ValueError(f"Certificate ({ca_cert_name}) is not a CA certificate")
 
                                 # Add this CA certificate
-                                self.add_cert(ca_cert_name, ca_file_name, ca=True)
+                                self.add_cert(ca_cert_name, ca_file_name, is_ca=True)
                                 ca_count += 1
                                 log.info(f"Successfully added CA certificate ({ca_cert_name})")
 

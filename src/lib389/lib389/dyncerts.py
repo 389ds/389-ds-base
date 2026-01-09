@@ -10,8 +10,9 @@ import datetime
 import ldap
 import ldap.sasl
 import logging
+import os
 from typing import Optional, Union
-from lib389.utils import get_ldapurl_from_serverid
+from lib389.utils import get_ldapurl_from_serverid, cert_is_ca
 
 log = logging.getLogger(__name__)
 
@@ -127,6 +128,20 @@ class DynamicCerts:
 
         return ",".join(result)
 
+    def _is_catrust(self, cert_tuple):
+        """
+        Determine if a DynamicCerts certificate is a CA.
+
+        Args:
+            cert_tuple: tuple returned by list_certs (cn, subject, issuer, notAfter, trust_flags)
+
+        Returns:
+            True if CA, else False
+        """
+        trust_flags = cert_tuple[4]  # fifth element = normalized trust flags
+        ssl_flag, _, _ = trust_flags.split(',')  # split into SSL, Email, ObjectSigning
+        return 'C' in ssl_flag
+
     def is_online(self):
         """
         Check if the DynamicCert backend is reachable over LDAPI.
@@ -146,9 +161,9 @@ class DynamicCerts:
             log.error(f"DynamicCert backend not reachable: {e}")
             return False
 
-    def list_certs(self):
+    def _list_all_certs(self):
         """
-        List all certificates in the dynamiccertificates subtree.
+        List all server certificates in the DynamicCerts backend.
 
         Returns:
             List of tuples: (cn, subject, issuer, notAfter, trust flags)
@@ -176,6 +191,37 @@ class DynamicCerts:
             certs.append((cn, subject, issuer, not_after, trust_flags))
 
         return certs
+
+    def list_certs(self):
+        """
+        List all server certificates in the DynamicCerts backend.
+
+        Returns:
+            List of cert tuples or empty list.
+        """
+        certs = []
+        all_certs = self._list_all_certs()
+        for cert in all_certs:
+            if not self._is_catrust(cert):
+                certs.append(cert)
+
+        return certs
+
+    def list_ca_certs(self):
+        """
+        List all CA certificates in the DynamicCerts backend.
+
+        Returns:
+            List of cert tuples or empty list.
+        """
+        ca_certs = []
+        all_certs = self._list_all_certs()
+        for cert_tuple in all_certs:
+            if self._is_catrust(cert_tuple):
+                # Only include nickname and trust flags, like NSsSsl
+                ca_certs.append((cert_tuple[0], cert_tuple[4]))
+
+        return ca_certs
 
     def get_cert_details(self, nickname: str):
         """
@@ -219,7 +265,7 @@ class DynamicCerts:
             log.error(f"Error fetching certificate details: {e}")
             raise
 
-    def add_cert(self, cn: str,
+    def add_cert(self, nickname: str,
                  cert_file: Union[bytes, str],
                  privkey_file: Union[bytes, str] = None,
                  is_ca: bool = False,
@@ -236,14 +282,14 @@ class DynamicCerts:
         Returns:
             None
         """
-        if not cn:
+        if not nickname:
             raise ValueError("Certificate CN cannot be empty")
 
         if not cert_file:
             raise ValueError("Certificate data is empty")
 
         self._ensure_ldapi_connection()
-        dn = f"cn={cn},{DYNCERT_SUFFIX}"
+        dn = f"cn={nickname},{DYNCERT_SUFFIX}"
 
         der_cert = self._read_file_or_bytes(cert_file)
         if not der_cert:
@@ -253,7 +299,7 @@ class DynamicCerts:
 
         attrs = [
             ("objectClass", [b"top", b"extensibleObject"]),
-            (DYCATTR_CN, [cn.encode(encoding="utf-8")]),
+            (DYCATTR_CN, [nickname.encode(encoding="utf-8")]),
             (DYCATTR_CERTDER, [der_cert]),
         ]
 
@@ -275,7 +321,7 @@ class DynamicCerts:
 
         mods = [
             (ldap.MOD_REPLACE, DYCATTR_CERTDER, [der_cert]),
-            (ldap.MOD_REPLACE, DYCATTR_CN, [cn.encode("utf-8")]),
+            (ldap.MOD_REPLACE, DYCATTR_CN, [nickname.encode("utf-8")]),
         ]
 
         if der_privkey is not None:
@@ -290,10 +336,89 @@ class DynamicCerts:
 
         try:
             self.conn.modify_s(dn, mods)
-            log.info(f"Replaced certificate {cn} in DynamicCert")
+            log.info(f"Replaced certificate {nickname} in DynamicCert")
         except ldap.LDAPError as e:
             log.error(f"Failed to update certificate: {e}")
             raise
+
+    def add_ca_cert_bundle(self, cert_file, nicknames):
+        """
+        Add a PEM file that may contain one or more CA certificates.
+
+        Args:
+            nicknames: List of names
+            cert_file: Path to certificate file (.pem or DER)
+        """
+
+        # Check file exists
+        if not os.path.exists(cert_file):
+            raise ValueError(f"The certificate file ({cert_file}) does not exist")
+
+        # Binary cert, this can not be a bundle
+        if not cert_file.lower().endswith(".pem"):
+            self.add_cert(nicknames[0], cert_file, is_ca=True)
+            log.info(f"Successfully added CA certificate ({nicknames[0]}) to DynamicCert backend")
+            return
+
+        # PEM parsing
+        ca_count = 0
+        ca_files_to_cleanup = []
+        writing_ca = False
+        tmp_fp = None
+
+        try:
+            with open(cert_file, "r") as f:
+                for line in f:
+                    if line.startswith("-----BEGIN CERTIFICATE-----"):
+                        writing_ca = True
+                        tmp_file = f"{cert_file}-{ca_count}"
+                        tmp_fp = open(tmp_file, "w")
+                        ca_files_to_cleanup.append(tmp_file)
+                        tmp_fp.write(line)
+                        continue
+
+                    if writing_ca:
+                        tmp_fp.write(line)
+                        if line.startswith("-----END CERTIFICATE-----"):
+                            tmp_fp.close()
+                            writing_ca = False
+
+                            # Determine nickname
+                            if ca_count < len(nicknames):
+                                nickname = nicknames[ca_count]
+                            else:
+                                nickname = f"{nicknames[-1]}{ca_count}"
+
+                            # Check if certificate nickname exists
+                            try:
+                                self.get_cert_details(nickname)
+                                raise ValueError(f"Certificate already exists with the same name ({nickname})")
+                            except ValueError:
+                                pass
+
+                            # Verify this is a CA cert
+                            if not cert_is_ca(tmp_file):
+                                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+
+                            # Add this CA certificate
+                            self.add_cert(nickname, tmp_file, is_ca=True)
+                            log.info(f"Successfully added CA certificate ({nickname})")
+                            ca_count += 1
+
+            # Cleanup all tmp certs
+            for tmp in ca_files_to_cleanup:
+                try:
+                    os.remove(tmp)
+                except Exception:
+                    pass
+
+        except Exception as e:
+            try:
+                for tmp in ca_files_to_cleanup:
+                    os.remove(tmp)
+            except Exception:
+                pass
+            raise e
 
     def del_cert(self, cn: str):
         """
@@ -310,9 +435,9 @@ class DynamicCerts:
 
         try:
             self.conn.delete_s(dn)
-            log.info(f"Deleted certificate: {cn} from DynamicCerts backend: {dn}")
+            log.info(f"Deleted certificate: {cn} from: {dn}")
         except ldap.NO_SUCH_OBJECT:
-            log.warning(f"Certificate: {cn} does not exist in DynamicCerts backend: {dn}")
+            log.warning(f"Certificate: {cn} does not exist in: {dn}")
         except ldap.LDAPError as e:
             log.error(f"Failed to delete certificate: {cn}: {e}")
             raise
@@ -351,7 +476,7 @@ class DynamicCerts:
 
         try:
             self.conn.modify_s(dn, mods)
-            log.info(f"Updated trust flags: {trust_flags} for: {dn} in DynamicCerts backend")
+            log.info(f"Updated trust flags: {trust_flags} for: {dn}")
         except ldap.NO_SUCH_OBJECT:
             raise ValueError(f"Certificate entry not found: {cn}")
         except ldap.LDAPError as e:

@@ -2154,10 +2154,6 @@ class RSACertificate:
 
         ca_chain = self._get_ca_chain()
 
-        if self.isCA:
-            self.ca_bundle = f"{prefix}-ca-bundle.pem"
-            self._save_pem_bundle(self.ca_bundle, [self.cert] + ca_chain)
-
         if not self.isCA and ca_chain:
             self.server_bundle = f"{prefix}-server-bundle.pem"
             self._save_pem_bundle(self.server_bundle, [self.cert] + ca_chain)

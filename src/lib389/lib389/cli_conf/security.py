@@ -272,12 +272,15 @@ def cacert_add(inst, basedn, log, args):
     if not os.path.isfile(args.file):
         raise ValueError(f'Certificate file "{args.file}" does not exist')
 
-    tls = NssSsl(dirsrv=inst)
-    if not tls._db_exists(even_partial=True):  # we want to be very careful
-        log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tls.reinit()
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
 
-    tls.add_ca_cert_bundle(args.file, args.name)
+    try:
+        certmgr.add_ca_cert_bundle(args.file, args.name)
+        log.info("Successfully added CA certificate")
+    except Exception as e:
+        log.error(f"Failed to add CA certificate '{args.name}': {e}")
+        raise
 
 
 def cert_list(inst, basedn, log, args):
@@ -320,28 +323,26 @@ def cacert_list(inst, basedn, log, args):
     """List all CA certs
     """
     cert_list = []
-    tlsdb = NssSsl(dirsrv=inst)
-    certs = tlsdb.list_certs(ca=True)
-    for cert in certs:
+    # Use CertManager to offload the request to DynamicCerts or NSS
+    certmgr = CertManager(dirsrv=inst)
+    ca_certs = certmgr.list_ca_certs()
+    for cert in ca_certs:
+        # Cert handlers return a limited tuple for CA certs (nickname, trust_flags)
+        nickname = cert[0] if len(cert) > 0 else ""
+        flags    = cert[1] if len(cert) > 1 else ""
         if args.json:
             cert_list.append(
                 {
                     "type": "certificate",
                     "attrs": {
-                                'nickname': cert[0],
-                                'subject': cert[1],
-                                'issuer': cert[2],
-                                'expires': cert[3],
-                                'flags': cert[4],
+                                'nickname': nickname,
+                                'flags': flags,
                             }
                 }
             )
         else:
-            log.info('Certificate Name: {}'.format(cert[0]))
-            log.info('Subject DN: {}'.format(cert[1]))
-            log.info('Issuer DN: {}'.format(cert[2]))
-            log.info('Expires: {}'.format(cert[3]))
-            log.info('Trust Flags: {}\n'.format(cert[4]))
+            log.info(f"Certificate Name: {nickname}")
+            log.info(f"Trust Flags: {flags}\n")
     if args.json:
         log.info(json.dumps(cert_list, indent=4))
 
@@ -464,7 +465,6 @@ def cert_del(inst, basedn, log, args):
 
     try:
         certmgr.del_cert(args.name)
-        log.info(f"Successfully deleted certificate")
     except Exception as e:
         log.error(f"Failed to delete certificate '{args.name}': {e}")
         raise

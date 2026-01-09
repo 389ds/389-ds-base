@@ -63,12 +63,12 @@ class CertManager:
             dyncert = DynamicCerts(dirsrv=self.dirsrv)
             if dyncert.is_online():
                 self.backend = dyncert
-                log.info("DynamicCert backend is online")
+                log.debug("DynamicCert backend is online")
             else:
                 if dirsrv is None:
                     raise ValueError("dirsrv instance is required for NSS fallback")
                 self.backend = NssSsl(dirsrv=self.dirsrv)
-                log.info("DynamicCert offline, using NSS backend")
+                log.debug("DynamicCert offline, using NSS backend")
 
         self.backend_name = type(self.backend).__name__
 
@@ -80,6 +80,15 @@ class CertManager:
             List of tuples (nickname, subject, issuer, expires, trust flags)
         """
         return self.backend.list_certs()
+
+    def list_ca_certs(self):
+        """
+        Return a list of all CA certificates in the backend.
+
+        Returns:
+            List of tuples (nickname, trust flags)
+        """
+        return self.backend.list_ca_certs()
 
     def get_cert_details(self, nickname: str):
         """
@@ -171,7 +180,7 @@ class CertManager:
 
             # DynamicCerts
             self.backend.add_cert(
-                cn=nickname,
+                nickname=nickname,
                 cert_file=der_cert,
                 privkey_file=der_privkey,
                 is_ca=ca,
@@ -181,8 +190,8 @@ class CertManager:
             # NSS
             self.backend.add_cert(
                 nickname=nickname,
-                input_file=file_path,
-                ca=ca,
+                cert_file=file_path,
+                is_ca=ca,
                 pkcs12_file=pkcs12_file,
                 pkcs12_password=pkcs12_password
             )
@@ -194,6 +203,23 @@ class CertManager:
             except Exception as e:
                 log.error(f"Failed to set primary SSL cert: {nickname} {e}")
                 raise
+
+    def add_ca_cert_bundle(self, cert_file: str, nicknames: list[str]):
+        """
+        Add one or more CA certificates. Supports:
+        - Single DER or PEM cert
+        - PEM bundle with multiple certificates
+
+        Args:
+            cert_file: Path to certificate file (.pem or DER)
+            nicknames: List of nickname strings, one per certificate
+        """
+
+        # Verify input
+        if not os.path.exists(cert_file):
+            raise ValueError(f"Certificate file does not exist: {cert_file}")
+
+        self.backend.add_ca_cert_bundle(cert_file=cert_file, nicknames=nicknames)
 
     def edit_cert_trust(self, nickname: str, trust_flags: str):
         """
