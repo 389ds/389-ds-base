@@ -182,6 +182,8 @@ ldbm_instance_create_default_indexes(backend *be)
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     /* write the dse file only on the final index */
     int flags = LDBM_INSTANCE_CONFIG_DONT_WRITE;
+    struct attrinfo *ai = NULL;
+    struct attrinfo *index_already_configured = NULL;
 
     /*
      * Always index (entrydn or entryrdn), parentid, objectclass,
@@ -199,9 +201,13 @@ ldbm_instance_create_default_indexes(backend *be)
         slapi_entry_free(e);
     }
 
-    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
-    ldbm_instance_config_add_index_entry(inst, e, flags);
-    slapi_entry_free(e);
+    ainfo_get(be, (char *)LDBM_PARENTID_STR, &ai);
+    index_already_configured = ai;
+    if (!index_already_configured) {
+        e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
+        ldbm_instance_config_add_index_entry(inst, e, flags);
+        slapi_entry_free(e);
+    }
 
     e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
@@ -239,9 +245,13 @@ ldbm_instance_create_default_indexes(backend *be)
          * ancestorid is special, there is actually no such attr type
          * but we still want to use the attr index file APIs.
          */
-        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
-        attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
-        slapi_entry_free(e);
+        ainfo_get(be, (char *)LDBM_ANCESTORID_STR, &ai);
+        index_already_configured = ai;
+        if (!index_already_configured) {
+            e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
+            attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
+            slapi_entry_free(e);
+        }
     }
 
     return 0;
