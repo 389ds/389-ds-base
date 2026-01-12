@@ -183,7 +183,7 @@ ldbm_instance_create_default_indexes(backend *be)
     /* write the dse file only on the final index */
     int flags = LDBM_INSTANCE_CONFIG_DONT_WRITE;
     struct attrinfo *ai = NULL;
-    struct attrinfo *index_already_configured = NULL;
+    int index_already_configured = 0;
 
     /*
      * Always index (entrydn or entryrdn), parentid, objectclass,
@@ -202,7 +202,8 @@ ldbm_instance_create_default_indexes(backend *be)
     }
 
     ainfo_get(be, (char *)LDBM_PARENTID_STR, &ai);
-    index_already_configured = ai;
+    /* Check if the attrinfo is actually for parentid, not a fallback to .default */
+    index_already_configured = (ai != NULL && strcmp(ai->ai_type, LDBM_PARENTID_STR) == 0);
     if (!index_already_configured) {
         e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
         ldbm_instance_config_add_index_entry(inst, e, flags);
@@ -246,7 +247,8 @@ ldbm_instance_create_default_indexes(backend *be)
          * but we still want to use the attr index file APIs.
          */
         ainfo_get(be, (char *)LDBM_ANCESTORID_STR, &ai);
-        index_already_configured = ai;
+        /* Check if the attrinfo is actually for ancestorid, not a fallback to .default */
+        index_already_configured = (ai != NULL && strcmp(ai->ai_type, LDBM_ANCESTORID_STR) == 0);
         if (!index_already_configured) {
             e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
             attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
