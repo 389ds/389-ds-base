@@ -413,7 +413,20 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
     def _format_usage(self, usage, actions, groups, prefix):
         usage = super(CustomHelpFormatter, self)._format_usage(usage, actions, groups, prefix)
-        formatted_options = self._format_actions_usage(parent_arguments, [])
+
+        if sys.version_info < (3, 13):
+            # Use _format_actions_usage() for Python 3.12 and earlier
+            formatted_options = self._format_actions_usage(parent_arguments, [])
+        else:
+            # Use _get_actions_usage_parts() for Python 3.13 and later
+            action_parts = self._get_actions_usage_parts(parent_arguments, [])
+            if sys.version_info >= (3, 15):
+                # Python 3.15 returns a tuple (list of actions, count of actions)
+                formatted_options = ' '.join(action_parts[0])
+            else:
+                # Python 3.13 and 3.14 return a list of actions
+                formatted_options = ' '.join(action_parts)
+
         # If formatted_options already in usage - remove them
         if formatted_options in usage:
             usage = usage.replace(f' {formatted_options}', '')
