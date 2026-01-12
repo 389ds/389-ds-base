@@ -19,7 +19,8 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
 from lib389.idm.posixgroup import PosixGroups
 from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinitions, \
-    MemberOfPlugin, AutoMembershipRegexRules, AutoMembershipDefinition, RetroChangelogPlugin
+    MemberOfPlugin, AutoMembershipRegexRules, AutoMembershipDefinition, RetroChangelogPlugin, \
+    ReferentialIntegrityPlugin
 from lib389.backend import Backends
 from lib389.config import Config
 from lib389._constants import DEFAULT_SUFFIX
@@ -196,6 +197,7 @@ def _create_all_entries(topo):
     auto = AutoMembershipPlugin(topo.ms["supplier1"])
     auto.add("nsslapd-pluginConfigArea", "cn=autoMembersPlugin,{}".format(BASE_REPL))
     MemberOfPlugin(topo.ms["supplier1"]).enable()
+    ReferentialIntegrityPlugin(topo.ms["supplier1"]).enable()
     automembers_definitions = AutoMembershipDefinitions(topo.ms["supplier1"])
     automembers_definitions.create(properties={
         'cn': 'userGroups',
@@ -950,8 +952,18 @@ def _startuptask(topo):
 
 @pytest.fixture(scope="function")
 def _fixture_for_build_task(request, topo):
+    supplier = topo.ms['supplier1']
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    contract_grp = "cn=Contractors,ou=userGroups,{}".format(BASE_SUFF)
+
+    for grp in (managers_grp, contract_grp):
+        group = Group(supplier, grp)
+        try:
+            group.remove_all('member')
+        except ldap.NO_SUCH_ATTRIBUTE:
+            pass
+
     def finof():
-        supplier = topo.ms['supplier1']
         auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
         for user in nsAdminGroups(supplier, auto_mem_scope, rdn=None).list():
             user.delete()
