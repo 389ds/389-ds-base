@@ -9,12 +9,12 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-import pdb
 from lib389.topologies import topology_st
 from lib389.pwpolicy import PwPolicyManager
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD)
+from lib389.idm.directorymanager import DirectoryManager
 
 pytestmark = pytest.mark.tier1
 
@@ -359,6 +359,468 @@ def test_pwdpolicysubentry(topology_st, password_policy):
     pwp_subentry = user.get_attr_vals_utf8('pwdpolicysubentry')[0]
     assert 'nsPwPolicyEntry_subtree' in pwp_subentry
     assert 'nsPwPolicyEntry_user' not in pwp_subentry
+
+
+@pytest.fixture(scope="function")
+def shadowUser(request, topology_st):
+    """ Create a user with shadowAccount objectclass """
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    shadowUser = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': '1',
+        'cn': 'shadowUser',
+        'uid': 'shadowUser',
+        'uidNumber': '1',
+        'gidNumber': '11',
+        'homeDirectory': '/home/shadowUser',
+        'displayName': 'Shadow User',
+        'givenname': 'Shadow',
+        'mail':f'shadowuser@{DEFAULT_SUFFIX}',
+        'userpassword': 'password'
+    })
+
+    def fin():
+        if shadowUser.exists():
+            shadowUser.delete()
+
+    request.addfinalizer(fin)
+
+    return shadowUser
+
+
+def days_to_secs(days):
+    """ Convert days to seconds """
+    return days * 86400
+
+
+def check_shadow_attr_value(inst, user_dn, attr_type, expected):
+    """ Check that shadowAccount attribute has expected value """
+    dm = DirectoryManager(inst)
+    dm.rebind()
+    user = UserAccount(inst, user_dn)
+    assert user.present(attr_type), f'Entry {user_dn} does not have {attr_type} attribute'
+    actual = int(user.get_attr_val_utf8(attr_type))
+    assert actual == expected, f'{attr_type} of entry {user_dn} is {actual}, expected {expected}'
+    log.info(f'{attr_type} of entry {user_dn} has expected value {actual}')
+
+
+def setup_pwp(inst, pwp_mgr, policy, dn=None, policy_props=None):
+    """ Setup password policy """
+
+    log.info(f'Setting up {policy} password policy for {dn}')
+    dm = DirectoryManager(inst)
+    dm.rebind()
+
+    log.info(f'Configuring {policy} password policy')
+
+    assert policy == 'global' or dn, 'dn is required for non-global policy'
+
+    if not policy_props:
+        policy_props = {
+            'passwordMinAge': str(days_to_secs(1)),
+            'passwordExp': 'on',
+            'passwordMaxAge': str(days_to_secs(10)),
+            'passwordWarning': str(days_to_secs(3))
+        }
+
+    if policy == 'global':
+        pwp_mgr.set_global_policy(policy_props)
+    elif policy == 'subtree':
+        pwp_mgr.create_subtree_policy(dn, policy_props)
+    elif policy == 'user':
+        pwp_mgr.create_user_policy(dn, policy_props)
+    else:
+        raise ValueError(f'Invalid type of password policy: {policy}')
+
+
+def modify_pwp(inst, pwp_mgr, policy, dn=None, policy_props=None):
+    """ Modify password policy """
+    dm = DirectoryManager(inst)
+    dm.rebind()
+
+    assert policy == 'global' or dn, 'dn is required for non-global policy'
+
+    if not policy_props:
+        policy_props = {
+            'passwordMinAge': str(days_to_secs(3)),
+            'passwordMaxAge': str(days_to_secs(30)),
+            'passwordWarning': str(days_to_secs(9))
+        }
+
+    if policy == 'global':
+        pwp_mgr.set_global_policy(properties=policy_props)
+    elif policy in ['subtree', 'user']:
+        policy_entry = pwp_mgr.get_pwpolicy_entry(dn)
+        policy_entry.replace_many(*policy_props.items())
+    else:
+        raise ValueError(f'Invalid type of password policy: {policy}')
+    log.info(f'Modified {policy} policy with {policy_props}.')
+
+@pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+def test_shadowaccount_no_policy(topology_st, shadowUser):
+    """Check shadowAccount under no password policy
+
+    :id: a1b2c3d4-5e6f-7890-abcd-ef1234567890
+    :setup: Standalone instance
+    :steps:
+        1. Add a user with shadowAccount objectclass
+        2. Bind as the user
+        3. Check shadowLastChange attribute is set correctly
+    :expectedresults:
+        1. User is added successfully
+        2. Bind is successful
+        3. shadowLastChange is set correctly (days since epoch)
+    """
+
+    edate = int(time.time() / (60 * 60 * 24))
+
+    log.info(f"Bind as {shadowUser.dn}")
+    shadowUser.rebind('password')
+    check_shadow_attr_value(topology_st.standalone, shadowUser.dn,
+                            'shadowLastChange', edate)
+
+
+@pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+def test_shadowaccount_global_policy(topology_st, shadowUser, request):
+    """Check shadowAccount with global password policy
+
+    :id: b2c3d4e5-6f7a-8901-bcde-f23456789012
+    :setup: Standalone instance
+    :steps:
+        1. Set global password policy
+        2. Add a second shadowAccount user
+        3. Bind as each user and check shadowAccount attributes
+        4. Modify global password policy
+        5. Change user password (as the user, not DM)
+        6. Re-bind with new password
+        7. Check shadowAccount attributes are updated
+        8. Clean up - delete second user and reset policy
+    :expectedresults:
+        1. Global password policy is set successfully
+        2. Second user is added
+        3. shadowAccount attributes match policy values for both users
+        4. Password policy is modified successfully
+        5. Password is changed successfully
+        6. Re-bind with new password is successful
+        7. shadowAccount attributes are updated to match new policy values
+        8. Cleanup is successful
+    """
+    inst = topology_st.standalone
+
+    log.info('Create second shadowAccount user')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    shadowUser2 = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': '2',
+        'cn': 'shadowUser2',
+        'uid': 'shadowUser2',
+        'uidNumber': '2',
+        'gidNumber': '22',
+        'homeDirectory': '/home/shadowUser2',
+        'displayName': 'Shadow User 2',
+        'givenname': 'Shadow2',
+        'mail': f'shadowuser2@{DEFAULT_SUFFIX}',
+        'userpassword': 'password'
+    })
+
+    def fin():
+        log.info('Clean up - delete second user and reset global policy')
+        dm = DirectoryManager(inst)
+        dm.rebind()
+        try:
+            shadowUser2.delete()
+        except Exception:
+            pass
+        inst.config.replace('passwordMinAge', '0')
+        inst.config.replace('passwordMaxAge', '8640000')
+        inst.config.replace('passwordWarning', '86400')
+        inst.config.replace('passwordExp', 'off')
+    request.addfinalizer(fin)
+
+    log.info('Configure global password policy')
+    pwp_mgr = PwPolicyManager(inst)
+    setup_pwp(inst, pwp_mgr, 'global')
+
+    edate = int(time.time() / (60 * 60 * 24))
+
+    log.info('Verify attributes of shadowUser (user 1)')
+    shadowUser.rebind('password')
+    check_shadow_attr_value(inst, shadowUser.dn,
+                            'shadowLastChange', edate)
+    check_shadow_attr_value(inst, shadowUser.dn,
+                            'shadowMin', 1)
+    check_shadow_attr_value(inst, shadowUser.dn,
+                            'shadowMax', 10)
+    check_shadow_attr_value(inst, shadowUser.dn,
+                            'shadowWarning', 3)
+
+    log.info('Verify attributes of shadowUser2 (user 2)')
+    shadowUser2.rebind('password')
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowLastChange', edate)
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowMin', 1)
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowMax', 10)
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowWarning', 3)
+
+    log.info('Modify global password policy')
+    modify_pwp(inst, pwp_mgr, 'global')
+
+    log.info('Change shadowUser2 password as the user')
+    shadowUser2.rebind('password')
+    shadowUser2.replace('userpassword', 'password2')
+    time.sleep(1)
+
+    log.info('Re-bind as shadowUser2 with new password')
+    shadowUser2.rebind('password2')
+
+    log.info('Verify modified shadowUser2 attributes')
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowMin', 3)
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowMax', 30)
+    check_shadow_attr_value(inst, shadowUser2.dn,
+                            'shadowWarning', 9)
+
+
+@pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+def test_shadowaccount_subtree_policy(topology_st, request):
+    """Check shadowAccount with subtree level password policy
+
+    :id: c3d4e5f6-7a8b-9012-cdef-345678901234
+    :setup: Standalone instance
+    :steps:
+        1. Create subtree password policy for DEFAULT_SUFFIX with passwordMustChange on
+        2. Add a new shadowAccount user under the subtree
+        3. Check shadowLastChange is 0 (since passwordMustChange is on)
+        4. Verify search as user fails with UNWILLING_TO_PERFORM
+        5. Change user password (as user)
+        6. Re-bind with new password
+        7. Check shadowAccount attributes are updated with correct values
+        8. Clean up subtree password policy
+    :expectedresults:
+        1. Subtree password policy is created successfully
+        2. User is added successfully
+        3. shadowLastChange is 0 until password is changed
+        4. Search fails with UNWILLING_TO_PERFORM as expected
+        5. Password is changed successfully
+        6. Re-bind with new password is successful
+        7. shadowAccount attributes are updated to match policy values
+        8. Subtree password policy is deleted successfully
+    """
+    inst = topology_st.standalone
+    subtree_dn = DEFAULT_SUFFIX
+
+    log.info('Configure subtree password policy with passwordMustChange on')
+    properties = {
+        'passwordMustChange': 'on',
+        'passwordExp': 'on',
+        'passwordMinAge': str(days_to_secs(2)),
+        'passwordMaxAge': str(days_to_secs(20)),
+        'passwordWarning': str(days_to_secs(6)),
+        'passwordChange': 'on',
+        'passwordStorageScheme': 'clear'
+    }
+
+    pwp_mgr = PwPolicyManager(inst)
+    setup_pwp(inst, pwp_mgr, 'subtree', dn=subtree_dn, policy_props=properties)
+
+    def fin():
+        log.info('Clean up: delete subtree password policy')
+        dm = DirectoryManager(inst)
+        dm.rebind()
+        try:
+            pwp_mgr.delete_local_policy(subtree_dn)
+        except Exception:
+            pass
+        try:
+            subtree_user.delete()
+        except Exception:
+            pass
+    request.addfinalizer(fin)
+
+    log.info('Add a new shadowAccount user under the subtree')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    subtree_user = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': '3',
+        'cn': 'subtreeUser',
+        'uid': 'subtreeUser',
+        'uidNumber': '3',
+        'gidNumber': '33',
+        'homeDirectory': '/home/subtreeUser',
+        'displayName': 'Subtree User',
+        'givenname': 'Subtree',
+        'mail': f'subtreeuser@{DEFAULT_SUFFIX}',
+        'userpassword': 'password'
+    })
+
+    dm = DirectoryManager(inst)
+    dm.rebind()
+
+    log.info('Verify shadowLastChange is 0 since passwordMustChange is on')
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowLastChange', 0)
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowMin', 2)
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowMax', 20)
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowWarning', 6)
+
+    log.info(f'Bind as {subtree_user.dn} and verify search fails with UNWILLING_TO_PERFORM')
+    subtree_user.rebind('password')
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        subtree_user.exists()
+
+    log.info('Modify subtree password policy')
+    dm.rebind()
+    modify_properties = {
+        'passwordMinAge': str(days_to_secs(4)),
+        'passwordMaxAge': str(days_to_secs(40)),
+        'passwordWarning': str(days_to_secs(12))
+    }
+    modify_pwp(inst, pwp_mgr, 'subtree', dn=subtree_dn, policy_props=modify_properties)
+
+    log.info(f'Change {subtree_user.dn} password as the user')
+    subtree_user.rebind('password')
+    subtree_user.replace('userpassword', 'password0')
+    time.sleep(1)
+
+    log.info(f'Re-bind as {subtree_user.dn} with new password')
+    subtree_user.rebind('password0')
+
+    edate = int(time.time() / (60 * 60 * 24))
+
+    log.info('Verify shadowLastChange is now set to today after password change')
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowLastChange', edate)
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowMin', 4)
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowMax', 40)
+    check_shadow_attr_value(inst, subtree_user.dn,
+                            'shadowWarning', 12)
+
+
+@pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+def test_shadowaccount_user_policy(topology_st, request):
+    """Check shadowAccount with user level password policy
+
+    :id: d4e5f6a7-8b9c-0123-def0-456789012345
+    :setup: Standalone instance
+    :steps:
+        1. Create a new shadowAccount user
+        2. Create user password policy
+        3. Verify shadowAccount attributes match policy values
+        4. Modify user password policy
+        5. Change user password
+        6. Re-bind with new password
+        7. Check shadowAccount attributes are updated
+        8. Clean up user password policy
+    :expectedresults:
+        1. User is created successfully
+        2. User password policy is created successfully
+        3. shadowAccount attributes match policy values
+        4. Password policy is modified successfully
+        5. Password is changed successfully
+        6. Re-bind with new password is successful
+        7. shadowAccount attributes are updated to match new policy values
+        8. User password policy is deleted successfully
+    """
+    inst = topology_st.standalone
+
+    log.info('Create a new shadowAccount user for user policy test')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_policy_user = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': '4',
+        'cn': 'userPolicyUser',
+        'uid': 'userPolicyUser',
+        'uidNumber': '4',
+        'gidNumber': '44',
+        'homeDirectory': '/home/userPolicyUser',
+        'displayName': 'User Policy User',
+        'givenname': 'UserPolicy',
+        'mail': f'userpolicyuser@{DEFAULT_SUFFIX}',
+        'userpassword': 'password'
+    })
+
+    pwp_mgr = PwPolicyManager(inst)
+
+    def fin():
+        log.info('Clean up: delete user password policy and user')
+        dm = DirectoryManager(inst)
+        dm.rebind()
+        try:
+            pwp_mgr.delete_local_policy(user_policy_user.dn)
+        except Exception:
+            pass
+        try:
+            user_policy_user.delete()
+        except Exception:
+            pass
+    request.addfinalizer(fin)
+
+    log.info('Configure user password policy')
+    properties = {
+        'passwordExp': 'on',
+        'passwordMinAge': str(days_to_secs(2)),
+        'passwordMaxAge': str(days_to_secs(20)),
+        'passwordWarning': str(days_to_secs(6)),
+        'passwordChange': 'on',
+        'passwordStorageScheme': 'clear'
+    }
+    setup_pwp(inst, pwp_mgr, 'user', dn=user_policy_user.dn, policy_props=properties)
+
+    edate = int(time.time() / (60 * 60 * 24))
+
+    dm = DirectoryManager(inst)
+    dm.rebind()
+
+    log.info('Verify shadowAccount attributes match user policy')
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowLastChange', edate)
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowMin', 2)
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowMax', 20)
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowWarning', 6)
+
+    log.info('Modify user password policy')
+    modify_properties = {
+        'passwordMinAge': str(days_to_secs(4)),
+        'passwordMaxAge': str(days_to_secs(40)),
+        'passwordWarning': str(days_to_secs(12))
+    }
+    modify_pwp(inst, pwp_mgr, 'user', dn=user_policy_user.dn, policy_props=modify_properties)
+
+    log.info(f'Change {user_policy_user.dn} password as the user')
+    user_policy_user.rebind('password')
+    user_policy_user.replace('userpassword', 'password0')
+    time.sleep(1)
+
+    log.info(f'Re-bind as {user_policy_user.dn} with new password')
+    user_policy_user.rebind('password0')
+
+    edate = int(time.time() / (60 * 60 * 24))
+
+    log.info('Verify shadowAccount attributes are updated after password change')
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowLastChange', edate)
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowMin', 4)
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowMax', 40)
+    check_shadow_attr_value(inst, user_policy_user.dn,
+                            'shadowWarning', 12)
 
 
 if __name__ == '__main__':
