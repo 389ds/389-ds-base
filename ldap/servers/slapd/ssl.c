@@ -745,7 +745,7 @@ SSLPLCY_Install(void)
     s = NSS_SetDomesticPolicy();
 
 #ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
-    /* Set explicitly PQC algorythm policy if it is not set by default */
+    /* Set explicitly PQC algorithm policy if it is not set by default */
     for (size_t i=0; s == SECSuccess && i < PR_ARRAY_SIZE(oids); i++) {
         int oflags = 0;
         (void) NSS_GetAlgorithmPolicy(oids[i], &oflags);
@@ -2797,7 +2797,7 @@ extractKeysAndSubject(
             char sktnames[100] = "";
             get_supported_key_type_names(sktnames, sizeof sktnames);
             slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
-                          "Unexpected key algorythm in certificate: %s. Only %s are supported.\n", nickname, sktnames);
+                          "Unexpected key algorithm in certificate: %s. Only %s are supported.\n", nickname, sktnames);
             goto bail;
         }
     }
