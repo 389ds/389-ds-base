@@ -283,7 +283,9 @@ def test_mldsa(topo):
             'loginShell': '/bin/false',
             'description': cert_dn })
 
-    with TemporaryDirectory(delete=not DEBUGGING) as dir:
+    # Usefull to debug by requires Python 3.12
+    # with TemporaryDirectory(delete=not DEBUGGING) as dir:
+    with TemporaryDirectory() as dir:
         scriptname = f"{dir}/doit"
         d = {
             'dir': dir,
