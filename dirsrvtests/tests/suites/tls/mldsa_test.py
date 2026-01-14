@@ -285,7 +285,6 @@ def test_mldsa(topo):
 
     with TemporaryDirectory(delete=not DEBUGGING) as dir:
         scriptname = f"{dir}/doit"
-        scriptname = "/tmp/doit"
         d = {
             'dir': dir,
             'instname': inst.serverid,
@@ -301,8 +300,6 @@ def test_mldsa(topo):
         res.check_returncode()
         # If ldapsearch is successful then defaultnamingcontext should be in res.stdout
         assert "defaultnamingcontext" in res.stdout
-
-
 
 
 if __name__ == '__main__':
