@@ -1536,7 +1536,7 @@ diskfull_return:
                 slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
                 if (deferred) {
                     PRIntervalTime delay = PR_MillisecondsToInterval(100);
-                    while (deferred) {
+                    while (deferred && !g_get_shutdown()) {
                         DS_Sleep(delay);
                         slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
                     }
