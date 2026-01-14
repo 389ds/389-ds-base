@@ -169,6 +169,21 @@ PRBool enableTLS1 = PR_TRUE;
 /* CA cert pem file */
 static char *CACertPemFile = NULL;
 
+static const struct {
+    KeyType kt;
+    const char *shortname;
+    const char *fullname;
+} supported_key_types[] = {
+    { rsaKey, "RSA", "Rivest–Shamir–Adleman" },
+    { ecKey, "EC", "Elliptic Curve" },
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+    { kyberKey, "Kyber", "Kyber key - Post-quantum cryptography key encapsulation mechanism" },
+    { mldsaKey, "ML-DSA", "Module-Lattice-Based Digital Signature Algorithm (post-quantum)" },
+#endif
+    { 0 }
+};
+
+
 /* helper functions for openldap update. */
 static int slapd_extract_cert(Slapi_Entry *entry, int isCA);
 static int slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot);
@@ -718,8 +733,27 @@ SSLPLCY_Install(void)
 {
 
     SECStatus s = 0;
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+    int flags = NSS_USE_ALG_IN_SIGNATURE | NSS_USE_ALG_IN_SSL;
+    static const SECOidTag oids[] = {
+        SEC_OID_ML_DSA_44,
+        SEC_OID_ML_DSA_65,
+        SEC_OID_ML_DSA_87,
+    };
+#endif
 
     s = NSS_SetDomesticPolicy();
+
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+    /* Set explicitly PQC algorythm policy if it is not set by default */
+    for (size_t i=0; s == SECSuccess && i < PR_ARRAY_SIZE(oids); i++) {
+        int oflags = 0;
+        (void) NSS_GetAlgorithmPolicy(oids[i], &oflags);
+        if ((oflags & flags) != flags) {
+            s = NSS_SetAlgorithmPolicy(oids[i], flags, 0);
+        }
+    }
+#endif
 
     return s ? PR_FAILURE : PR_SUCCESS;
 }
@@ -1759,8 +1793,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                 }
 
                 if (SECSuccess == rv) {
-                    SSLKEAType certKEA;
-
                     /* If we want weak dh params, flag it on the socket now! */
                     rv = SSL_OptionSet(*fd, SSL_ENABLE_SERVER_DHE, PR_TRUE);
                     if (rv != SECSuccess) {
@@ -1774,11 +1806,10 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                         }
                     }
 
-                    certKEA = NSS_FindCertKEAType(cert);
-                    rv = SSL_ConfigSecureServer(*fd, cert, key, certKEA);
+                    rv = SSL_ConfigServerCert(*fd, cert, key, NULL, 0);
                     if (SECSuccess != rv) {
                         errorCode = PR_GetError();
-                        slapd_SSL_warn("ConfigSecureServer: "
+                        slapd_SSL_warn("ConfigServerCert: "
                                        "Server key/certificate is "
                                        "bad for cert %s of family %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                        cert_name, *family, errorCode,
@@ -2663,6 +2694,38 @@ bail:
     return rv;
 }
 
+/* Helper for get_supported_key_type */
+static char *
+buf_add_str(char *buf, char *bufend, const char *str)
+{
+    /* bufend is sizeof(buf)-4 (to avoid overflow with ...) */
+    char *ret = buf+strlen(str);
+    if (ret > bufend) {
+        ret = bufend;
+        strcpy(buf, "...");
+    } else {
+        strcpy(buf, str);
+    }
+    return ret;
+}
+
+static void
+get_supported_key_type_names(char *buf, size_t bufsize)
+{
+    char *bufend = buf + bufsize - 4;
+    for (size_t i=0; supported_key_types[i].kt; i++) {
+        if (i>0) {
+            if (supported_key_types[i+1].kt == 0) {
+                /* Last supported key type */
+                buf = buf_add_str(buf, bufend, " or ");
+            } else {
+                buf = buf_add_str(buf, bufend, ", ");
+            }
+        }
+        buf = buf_add_str(buf, bufend, supported_key_types[i].shortname);
+    }
+}
+
 /*
  * Borrowed from keyutil.c (crypto-util)
  *
@@ -2723,10 +2786,20 @@ extractKeysAndSubject(
     }
 
     keytype = (*privkey)->keyType;
-    if  (keytype != rsaKey && keytype != ecKey) {
-        slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
-                      "Unexpected key algorythm in certificate: %s. Only rsa and ec keys are supported.\n", nickname);
-        goto bail;
+    for (size_t i=0; ;i++) {
+        KeyType kt = supported_key_types[i].kt;
+        if (kt == keytype) {
+            /* Stop looping if the key type is supported */
+            break;
+        }
+        if (kt == 0) {
+            /* No supported key type have been found. */
+            char sktnames[100] = "";
+            get_supported_key_type_names(sktnames, sizeof sktnames);
+            slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
+                          "Unexpected key algorythm in certificate: %s. Only %s are supported.\n", nickname, sktnames);
+            goto bail;
+        }
     }
 
     *subject = CERT_AsciiToName(cert->subjectName);
