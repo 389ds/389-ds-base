@@ -9,6 +9,8 @@
 import logging
 import pytest
 import os
+import sys
+import itertools
 import rpm
 import socket
 import subprocess
@@ -28,12 +30,19 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+
 def rpm_is_older(pkg, version):
     ts = rpm.TransactionSet()
     mi = ts.dbMatch('name', pkg)
     for h in mi:
-        if h['version'] < version:
-            return True
+        print(f"{pkg} {h['version']} {version}")
+        for n1,n2 in itertools.zip_longest(h['version'].split('.'), version.split('.'), fillvalue=""):
+            try:
+                if int(n1) < int(n2):
+                    return True
+            except ValueError:
+                if n1 < n2:
+                    return True
     return False
 
 
@@ -244,6 +253,7 @@ ldapsearch -Y external -H $url -b "" -s base
 """
 
 @pytest.mark.skipif(rpm_is_older("openssl", "3.5"), reason="OpenSSL too old to support PQC")
+@pytest.mark.skipif(rpm_is_older("nss", "3.119.1"), reason="NSS too old to support PQC")
 def test_mldsa(topo):
     """Test using ML-DSA Certificate - (PQC)
 
@@ -283,8 +293,9 @@ def test_mldsa(topo):
             'loginShell': '/bin/false',
             'description': cert_dn })
 
-    # Usefull to debug by requires Python 3.12
     # with TemporaryDirectory(delete=not DEBUGGING) as dir:
+    # (This is useful for debbuging but requires python >= 3.12 
+    #  which trigger failure in github Verify test)
     with TemporaryDirectory() as dir:
         scriptname = f"{dir}/doit"
         d = {
