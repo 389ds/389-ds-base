@@ -11,7 +11,6 @@
 
     TODO put them in a module!
 """
-import datetime
 import json
 import re
 import os
@@ -24,6 +23,7 @@ import socket
 import ipaddress
 import time
 import stat
+from datetime import (datetime, timedelta)
 import sys
 import filecmp
 import pwd
@@ -36,8 +36,6 @@ from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
 from cryptography import x509
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import pkcs12
 import lib389
@@ -1362,7 +1360,7 @@ def gentime_to_datetime(gentime):
     :returns: datetime.datetime object
     """
 
-    return datetime.datetime.strptime(gentime, '%Y%m%d%H%M%SZ')
+    return datetime.strptime(gentime, '%Y%m%d%H%M%SZ')
 
 
 def gentime_to_posix_time(gentime):
@@ -1996,17 +1994,37 @@ def check_cert_info(cert_file_name, search_text):
     return search_text.lower() in cert_text.lower()
 
 
-def cert_is_ca(cert_file_name):
-    with open(cert_file_name, "rb") as f:
-        if is_cert_der(cert_file_name):
-            cert = x509.load_der_x509_certificate(f.read(), default_backend())
-        else:
-            cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+def cert_is_ca(cert_file_name, pkcs12_password: str = None):
+    try:
+        with open(cert_file_name, "rb") as f:
+            data = f.read()
+
+            # PKCS#12
+            if cert_file_name.lower().endswith((".p12", ".pfx")):
+                if pkcs12_password is None:
+                    raise ValueError("Password required for PKCS#12 file")
+                private_key, cert, additional_certs = pkcs12.load_key_and_certificates(
+                    data, pkcs12_password.encode() if isinstance(pkcs12_password, str) else pkcs12_password, backend=default_backend()
+                )
+                if cert is None:
+                    raise ValueError("No certificate found in PKCS#12 container")
+            # DER
+            elif is_cert_der(cert_file_name):
+                cert = x509.load_der_x509_certificate(data, default_backend())
+            # PEM
+            else:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+
+    except ValueError as ve:
+        raise ValueError(f"Unable to load certificate '{cert_file_name}': {ve}")
 
     try:
+        # Check key usage
         key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
         if not key_usage.value.key_cert_sign:
             return False
+
+        # Check constraints
         basic_constraints = cert.extensions.get_extension_for_oid(
             x509.oid.ExtensionOID.BASIC_CONSTRAINTS
         )
@@ -2014,6 +2032,7 @@ def cert_is_ca(cert_file_name):
             return False
         else:
             return True
+
     except x509.ExtensionNotFound:
         # No extensions, check the cert info directly
         return check_cert_info(cert_file_name, "CA:TRUE")
@@ -2066,205 +2085,3 @@ def get_timeout_scale():
         log.error(f"DS_TIMEOUT_SCALE should be a valid float. Using default value: {scale_factor}")
         return scale_factor
 
-class RSACertificate:
-    P12_PASSWORD = "password"
-
-    def __init__(self):
-        self.isCA = False
-        self.isRoot = False
-        self.nickname = None
-        self.cert = None
-        self.pkey = None
-        self.caChain = None
-
-        self.pem = None
-        self.der = None
-        self.key = None
-        self.kder = None
-        self.p12 = None
-
-        self.ca_bundle = None
-        self.server_bundle = None
-
-    def _save_pem_file(self, filename, item):
-        with open(filename, "wb") as f:
-            if isinstance(item, rsa.RSAPrivateKey):
-                f.write(item.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption()
-                ))
-            elif isinstance(item, x509.Certificate):
-                f.write(item.public_bytes(serialization.Encoding.PEM))
-            else:
-                raise ValueError(f"Unknown item type: {type(item)}")
-
-    def _save_pem_bundle(self, filename, certs):
-        with open(filename, "wb") as f:
-            for cert in certs:
-                f.write(cert.public_bytes(serialization.Encoding.PEM))
-
-    def _save_der_file(self, filename, item):
-        with open(filename, "wb") as f:
-            if isinstance(item, rsa.RSAPrivateKey):
-                f.write(item.private_bytes(
-                    encoding=serialization.Encoding.DER,
-                    format=serialization.PrivateFormat.PKCS8,
-                    encryption_algorithm=serialization.NoEncryption()
-                ))
-            elif isinstance(item, x509.Certificate):
-                f.write(item.public_bytes(serialization.Encoding.DER))
-            else:
-                raise ValueError(f"Unknown item type: {type(item)}")
-
-    def _save_p12_file(self, filename, pw=P12_PASSWORD):
-        if isinstance(pw, str):
-            pw = pw.encode()
-        enc = serialization.BestAvailableEncryption(pw) if pw else serialization.NoEncryption()
-        with open(filename, "wb") as f:
-            f.write(pkcs12.serialize_key_and_certificates(
-                self.nickname.encode(),
-                self.pkey,
-                self.cert,
-                [],
-                enc
-            ))
-
-    def _get_ca_chain(self):
-        chain = []
-        ca = self.caChain
-        while ca:
-            chain.append(ca.cert)
-            ca = ca.caChain
-        return chain
-
-    def save(self, dirname, pk12pw=P12_PASSWORD):
-        prefix = f"{dirname}/{self.nickname}"
-        self.pem = f"{prefix}-cert.pem"
-        self.der = f"{prefix}-cert.der"
-        self.key = f"{prefix}-key.pem"
-        self.kder = f"{prefix}-key.der"
-        self.p12 = f"{prefix}.p12"
-
-        self._save_pem_file(self.pem, self.cert)
-        self._save_der_file(self.der, self.cert)
-        self._save_pem_file(self.key, self.pkey)
-        self._save_der_file(self.kder, self.pkey)
-        self._save_p12_file(self.p12, pk12pw)
-
-        ca_chain = self._get_ca_chain()
-
-        if not self.isCA and ca_chain:
-            self.server_bundle = f"{prefix}-server-bundle.pem"
-            self._save_pem_bundle(self.server_bundle, [self.cert] + ca_chain)
-
-    @staticmethod
-    def generateRootCA(nickname, validity_days=3650):
-        ca = RSACertificate()
-        ca.isCA = True
-        ca.isRoot = True
-        ca.nickname = nickname
-
-        ca.pkey = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        ca.subject = x509.Name([
-            x509.NameAttribute(x509.NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(x509.NameOID.ORGANIZATION_NAME, "Test Root CA"),
-            x509.NameAttribute(x509.NameOID.COMMON_NAME, nickname),
-        ])
-
-        builder = (
-            x509.CertificateBuilder()
-            .subject_name(ca.subject)
-            .issuer_name(ca.subject)
-            .public_key(ca.pkey.public_key())
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=validity_days))
-            .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
-            .add_extension(
-                x509.KeyUsage(
-                    digital_signature=False,
-                    key_cert_sign=True,
-                    crl_sign=False,
-                    key_encipherment=False,
-                    content_commitment=False,
-                    data_encipherment=False,
-                    key_agreement=False,
-                    encipher_only=False,
-                    decipher_only=False,
-                ),
-                critical=True
-            )
-            .add_extension(
-                x509.SubjectKeyIdentifier.from_public_key(ca.pkey.public_key()),
-                critical=False
-            )
-            .add_extension(
-                x509.AuthorityKeyIdentifier.from_issuer_public_key(ca.pkey.public_key()),
-                critical=False
-            )
-        )
-        ca.cert = builder.sign(private_key=ca.pkey, algorithm=hashes.SHA256())
-
-        return ca
-
-    @staticmethod
-    def generateServerCert(nickname, ca=None, validity_days=365):
-        cert = RSACertificate()
-        cert.nickname = nickname
-        cert.isCA = False
-
-        cert.pkey = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        cert.subject = x509.Name([
-            x509.NameAttribute(x509.NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(x509.NameOID.ORGANIZATION_NAME, "Test Server"),
-            x509.NameAttribute(x509.NameOID.COMMON_NAME, nickname),
-        ])
-
-        issuer = ca.cert.subject if ca else cert.subject
-        signing_key = ca.pkey if ca else cert.pkey
-        builder = (
-            x509.CertificateBuilder()
-            .subject_name(cert.subject)
-            .issuer_name(issuer)
-            .public_key(cert.pkey.public_key())
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=validity_days))
-            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
-            .add_extension(
-                x509.KeyUsage(
-                    digital_signature=True,
-                    key_encipherment=True,
-                    key_cert_sign=False,
-                    crl_sign=False,
-                    content_commitment=False,
-                    data_encipherment=False,
-                    key_agreement=False,
-                    encipher_only=False,
-                    decipher_only=False,
-                ),
-                critical=True
-            )
-            .add_extension(
-                x509.ExtendedKeyUsage([
-                    x509.oid.ExtendedKeyUsageOID.SERVER_AUTH,
-                    x509.oid.ExtendedKeyUsageOID.CLIENT_AUTH,
-                ]),
-                critical=True
-            )
-            .add_extension(
-                x509.SubjectKeyIdentifier.from_public_key(cert.pkey.public_key()),
-                critical=False
-            )
-        )
-        if ca:
-            builder = builder.add_extension(
-                x509.AuthorityKeyIdentifier.from_issuer_public_key(ca.pkey.public_key()),
-                critical=False
-            )
-
-        cert.cert = builder.sign(private_key=signing_key, algorithm=hashes.SHA256())
-        cert.caChain = ca
-
-        return cert

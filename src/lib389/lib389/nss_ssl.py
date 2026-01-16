@@ -1098,12 +1098,12 @@ only.
     def get_cert_details(self, nickname):
         """Get the trust flags, subject DN, issuer, and expiration date
 
-        return a list:
-            0 - nickname
-            1 - subject
-            2 - issuer
-            3 - expire date
-            4 - trust_flags
+        :return: dict containing certificate details with keys:
+            - "cn"          : Certificate nickname (str)
+            - "subject"     : Subject DN (str)
+            - "issuer"      : Issuer DN (str)
+            - "expires"     : Expiration date/time as a string (YYYY-MM-DD HH:MM:SS)
+            - "trust_flags" : Trust flags from NSS (str)
         """
         all_certs = self._rsa_cert_list()
         for cert in all_certs:
@@ -1141,26 +1141,33 @@ only.
                             issuer = issuer[1:-1]
                             break
 
-                return ([nickname,  subject, issuer, str(end_date), trust_flags])
+                return {
+                    "cn": nickname,
+                    "subject": subject,
+                    "issuer": issuer,
+                    "expires": str(end_date),
+                    "trust_flags": trust_flags,
+                }
 
-        # Did not find cert with that name
-        raise ValueError("Certificate '{}' not found in NSS database".format(nickname))
+        return None
 
     def list_certs(self, ca=False):
         all_certs = self._rsa_cert_list()
         certs = []
-        for cert in all_certs:
-            trust_flags = cert[1]
+        for nickname, trust_flags in all_certs:
             if (ca and "CT" in trust_flags) or (not ca and "CT" not in trust_flags):
-                certs.append(self.get_cert_details(cert[0]))
+                cert_details = self.get_cert_details(nickname)
+                certs.append(cert_details)
         return certs
 
     def list_ca_certs(self):
-        return [
-            cert
-            for cert in self._rsa_cert_list()
-            if self._rsa_cert_is_catrust(cert)
-        ]
+        ca_certs = []
+        for cert in self._rsa_cert_list():
+            if self._rsa_cert_is_catrust(cert):
+                # cert[0] is the nickname
+                cert_details = self.get_cert_details(cert[0])
+                ca_certs.append(cert_details)
+        return ca_certs
 
     def list_client_ca_certs(self):
         return [
@@ -1169,23 +1176,42 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-    def add_cert(self, nickname, cert_file,
-                 is_ca=False, pkcs12_file=False, pkcs12_password=None):
-        """
-        Add or replace a certificate in the NSS database.
+    def add_cert(self, nickname: str, cert_file: str, ca=False,
+                 pkcs12_password=None, force: bool = False):
+        """Add server or CA cert
 
-        Args:
-            nickname: NSS certificate nickname
-            cert_file: Path to certificate or PKCS#12 file
-            ca: Whether this is a CA certificate
-            pkcs12_file: Whether cert_file is a PKCS#12 bundle
-            pkcs12_password: Password for PKCS#12 file (if applicable)
+        :param nickname: Certificate nickname (pk12util uses the certs CN instead)
+        :param cert_file: Path to certificate or PKCS#12 file
+        :param ca: Whether this is a CA certificate
+        :param pkcs12_password: Password for PKCS#12 file (if applicable)
         """
         if not nickname:
             raise ValueError("Certificate nickname must not be empty")
 
+        # Verify input_file exists
         if not os.path.isfile(cert_file):
-            raise ValueError(f"Certificate file does not exist: {cert_file}")
+            raise ValueError("The certificate file ({}) does not exist".format(cert_file))
+
+        pem_file = True
+        if not cert_file.lower().endswith(".pem"):
+            pem_file = False
+        else:
+            self._assert_not_chain(cert_file)
+
+        if ca:
+            # Verify this is a CA cert
+            if not cert_is_ca(cert_file):
+                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+            trust_flags = "CT,,"
+        else:
+            # Verify this is a server cert
+            if cert_is_ca(cert_file, pkcs12_password=pkcs12_password):
+                raise ValueError(f"Certificate ({nickname}) is not a server certificate")
+            trust_flags = ",,"
+
+        pkcs12_file = None
+        if cert_file.lower().endswith((".p12", ".pfx")):
+            pkcs12_file = True
 
         if pkcs12_file:
             self.log.info("Importing PKCS#12 into NSS: %s", cert_file)
@@ -1209,7 +1235,7 @@ only.
             except subprocess.CalledProcessError as e:
                 raise ValueError(f"Failed to import PKCS#12 {cert_file} {e}")
 
-            if is_ca:
+            if ca:
                 cmd = [
                     "certutil",
                     "-M",
@@ -1231,34 +1257,34 @@ only.
             self._assert_not_chain(cert_file)
 
         is_ca_cert = cert_is_ca(cert_file)
-        if is_ca and not is_ca_cert:
+        if ca and not is_ca_cert:
             raise ValueError(f"Certificate '{nickname}' is not a CA certificate")
 
-        if not is_ca and is_ca_cert:
+        if not ca and is_ca_cert:
             raise ValueError(f"Certificate '{nickname}' is not a server certificate")
 
-        trust_flags = "CT,," if is_ca else ",,"
+        trust_flags = "CT,," if ca else ",,"
 
         cmd = [
-            "certutil",
-            "-A",
-            "-d", self._certdb,
-            "-n", nickname,
-            "-t", trust_flags,
-            "-i", cert_file,
-            "-f", f"{self._certdb}/{PWD_TXT}",
+            '/usr/bin/certutil',
+            '-A',
+            '-d', self._certdb,
+            '-n', nickname,
+            '-t', trust_flags,
+            '-i', cert_file,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+
         ]
 
         if pem_file:
-            cmd.append("-a")
+            cmd.append('-a')
 
-        self.log.info(f"Adding certificate {nickname} to NSS")
-        self.log.debug(f"certutil add cmd: {format_cmd_list(cmd)}")
-
+        self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
         try:
             check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            raise ValueError(f"Failed to add certificate: {nickname} {e}")
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def add_server_key_and_cert(self, input_key, input_cert):
         if not os.path.exists(input_key):
@@ -1316,6 +1342,30 @@ only.
             if os.path.exists(p12_bundle):
                 os.remove(p12_bundle)
 
+    def add_ca_cert(self, cert_file: str, nickname: str, force: bool = False):
+        """
+        Add a CA certificate (PEM or DER).
+
+        :param cert_file: path to the certificate file
+        :param nickname: nickname to assign
+        """
+        # Verify input_file exists
+        if not os.path.exists(cert_file):
+            raise ValueError(f"The certificate file ({cert_file}) does not exist")
+
+        try:
+            existing = self.get_cert_details(nickname)
+            if existing:
+                raise ValueError(f"Certificate already exists with the same name ({nickname})")
+        except ValueError:
+            pass
+
+        if not cert_is_ca(cert_file):
+            raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+
+        self.add_cert(nickname, cert_file, ca=True)
+        log.info(f"Successfully added CA certificate ({nickname})")
+
     def add_ca_cert_bundle(self, cert_file, nicknames):
         """
         Add a PEM file that could be a bundle of CA certs
@@ -1325,13 +1375,13 @@ only.
         :raises:
         """
 
-        # Verify cert_file exists
+        # Verify input_file exists
         if not os.path.exists(cert_file):
             raise ValueError("The certificate file ({}) does not exist".format(cert_file))
 
         if not cert_file.lower().endswith(".pem"):
             # Binary cert, this can not be a bundle
-            self.add_cert(nicknames[0], cert_file, is_ca=True)
+            self.add_cert(nicknames[0], cert_file, ca=True)
             log.info(f"Successfully added CA certificate ({nicknames[0]})")
             return
 
@@ -1373,14 +1423,8 @@ only.
                                     ca_cert_name = nicknames[names_len - 1] + str(ca_count)
 
                                 # Check if certificate nickname exists
-                                name_exists = False
-                                try:
-                                    self.get_cert_details(ca_cert_name)
-                                    name_exists = True
-                                except ValueError:
-                                    pass
-
-                                if name_exists:
+                                cert = self.get_cert_details(ca_cert_name)
+                                if cert:
                                     # Not good, cleanup and raise error
                                     try:
                                         for tmp_file in ca_files_to_cleanup:
@@ -1395,7 +1439,7 @@ only.
                                     raise ValueError(f"Certificate ({ca_cert_name}) is not a CA certificate")
 
                                 # Add this CA certificate
-                                self.add_cert(ca_cert_name, ca_file_name, is_ca=True)
+                                self.add_cert(ca_cert_name, ca_file_name, ca=True)
                                 ca_count += 1
                                 log.info(f"Successfully added CA certificate ({ca_cert_name})")
 
