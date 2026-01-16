@@ -12,6 +12,7 @@ import logging
 from typing import Optional
 import ldap
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.utils import cert_is_ca, pem_to_der, is_pem_cert
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -31,26 +32,6 @@ DYCATTR_TRUST       = DYCATTR_PREFIX + "trustflags"
 DYCATTR_NOTAFTER    = DYCATTR_PREFIX + "notafter"
 DYCATTR_FORCE	    = DYCATTR_PREFIX + "Force"
 DYCATTR_ISCA        = DYCATTR_PREFIX + "IsCA"
-
-
-def _pem_to_der(blob: bytes):
-    """
-    Convert PEM certificate bytes to DER format.
-
-    :param blob: PEM encoded certificate bytes
-    :return: DER encoded certificate bytes
-    """
-    cert = x509.load_pem_x509_certificate(blob)
-    return cert.public_bytes(serialization.Encoding.DER)
-
-def _is_pem_cert(blob: bytes):
-    """
-    Check if the given blob is a PEM certificate.
-
-    :param blob: Certificate data bytes
-    :return: True if PEM format, else False
-    """
-    return b"-----BEGIN CERTIFICATE-----" in blob
 
 class DynamicCert(DSLdapObject):
     """
@@ -206,10 +187,13 @@ class DynamicCerts(DSLdapObjects):
         """
         if not nickname:
             raise ValueError("Certificate CN cannot be empty")
+
         if not os.path.isfile(cert_file):
             raise ValueError(f"Certificate file does not exist: {cert_file}")
 
-        log.info(f"nickname:{nickname}")
+        if pkcs12_password and not isinstance(pkcs12_password, str):
+            raise TypeError("PKCS#12 password must be a string")
+
         with open(cert_file, "rb") as f:
             cert_bytes = f.read()
 
@@ -234,7 +218,10 @@ class DynamicCerts(DSLdapObjects):
                     encryption_algorithm=serialization.NoEncryption()
                 )
         else:
-            der_cert = _pem_to_der(cert_bytes) if _is_pem_cert(cert_bytes) else cert_bytes
+            try:
+                der_cert = pem_to_der(cert_bytes) if is_pem_cert(cert_bytes) else cert_bytes
+            except Exception as e:
+                raise ValueError(f"Failed to parse certificate '{cert_file}': {e}")
 
         dn = f"cn={nickname},{self._basedn}"
         attrs = {
@@ -244,8 +231,12 @@ class DynamicCerts(DSLdapObjects):
         }
         if der_privkey:
             attrs[DYCATTR_PKEYDER] = [der_privkey]
+
         if ca:
+            if not cert_is_ca(cert_file):
+                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
             attrs[DYCATTR_TRUST] = [b"CT,,"]
+
         if force:
             attrs[DYCATTR_FORCE] = [b"TRUE"]
 
@@ -274,6 +265,9 @@ class DynamicCerts(DSLdapObjects):
         """
         if not os.path.exists(cert_file):
             raise ValueError(f"Certificate file does not exist: {cert_file}")
+
+        if not cert_is_ca(cert_file):
+            raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
 
         self.add_cert(cert_file=cert_file, nickname=nickname, pkcs12_password=pkcs12_password, ca=True, force=force)
 

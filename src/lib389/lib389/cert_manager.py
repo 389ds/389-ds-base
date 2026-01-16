@@ -9,6 +9,7 @@
 import os
 import logging
 from typing import Optional
+from lib389 import DirSrv
 from lib389.nss_ssl import NssSsl
 from lib389.dyncerts import DynamicCerts
 from lib389.config import RSA
@@ -31,20 +32,14 @@ class CertManager:
         :param instance: DirSrv instance
         :raises ValueError: If instance is None
         """
-        if instance is None:
+        if not isinstance(instance, DirSrv):
             raise ValueError("A DirSrv instance is required")
 
         self.dirsrv = instance
 
-        try:
-            dyncerts = DynamicCerts(instance=self.dirsrv)
-            if dyncerts.is_online():
-                self.cert_handler = dyncerts
-                log.debug("Using DynamicCert backend")
-            else:
-                raise RuntimeError("DynamicCert backend not accessible")
-        except Exception as e:
-            log.debug(f"DynamicCert backend unavailable ({e}), falling back to NSS")
+        if self.dirsrv.status():
+            self.cert_handler = DynamicCerts(instance=self.dirsrv)
+        else:
             self.cert_handler = NssSsl(dirsrv=self.dirsrv)
 
         self.cert_handler_name = type(self.cert_handler).__name__
