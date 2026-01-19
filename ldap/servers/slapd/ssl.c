@@ -2788,7 +2788,7 @@ extractKeysAndSubject(
     keytype = (*privkey)->keyType;
     for (size_t i=0; ;i++) {
         KeyType kt = supported_key_types[i].kt;
-        if (kt == keytype) {
+        if (kt == keytype && keytype != 0) {
             /* Stop looping if the key type is supported */
             break;
         }
