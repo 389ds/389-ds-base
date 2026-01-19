@@ -680,7 +680,7 @@ export class Plugins extends React.Component {
                             <Nav key={this.state.pluginTableKey} theme="light" onSelect={(event, item) => this.handleSelect(event, item)}>
                                 <NavList>
                                     {Object.entries(selectPlugins).map(([id, item]) => (
-                                        <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>
+                                        <NavItem key={item.name} itemId={item.name} ouiaId={id} isActive={this.state.activePlugin === item.name}>
                                             {item.icon}
                                         </NavItem>
                                     ))}
