@@ -786,8 +786,8 @@ dyncerts_cert2entry(CERTCertificate *cert)
     COND_STR(e, DYCATTR_TYPE, "OBJECT SIGNING CA", cert->nsCertType & NS_CERT_TYPE_OBJECT_SIGNING_CA);
     slapi_entry_add_string(e, DYCATTR_TOKEN, PK11_GetTokenName(cert->slot));
     secitemv(&cert->derCert, &tmpv);
-    value_done(&tmpv);
     slapi_entry_add_value(e, DYCATTR_CERTDER, &tmpv);
+    value_done(&tmpv);
     tmpstr = secitem2hex(&cert->serialNumber);
     slapi_entry_add_string(e, DYCATTR_SN, tmpstr);
     slapi_ch_free_string(&tmpstr);
