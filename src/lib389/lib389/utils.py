@@ -1997,7 +1997,11 @@ def check_cert_info(cert_file_name, search_text):
 
 
 def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
+    """
+    Determine if a certificate is a CA.
 
+    Supports PEM, DER, and PKCS#12 certificates, from bytes or file paths.
+    """
     # If passed bytes directly (DER,PEM)
     cert_file = None
     if isinstance(cert_data, (bytes, bytearray)):
@@ -2009,8 +2013,9 @@ def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
                 data = f.read()
         except ValueError as ve:
             raise ValueError(f"Unable to load certificate '{cert_data}': {ve}")
+
     try:
-        # PKCS#12
+        # p12
         if cert_file and cert_file.lower().endswith((".p12", ".pfx")):
             if pkcs12_password is None:
                 raise ValueError("Password required for PKCS#12 file")
@@ -2023,12 +2028,21 @@ def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
             )
             if cert is None:
                 raise ValueError("No certificate found in PKCS#12 container")
-        # DER
-        elif is_cert_der(cert_file):#JC can i use something from utils
-            cert = x509.load_der_x509_certificate(data, default_backend())
-        # PEM
+
+        # Bytes
+        elif cert_file is None:
+            try:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+
+        # File
         else:
-            cert = x509.load_pem_x509_certificate(data, default_backend())
+            try:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+
     except ValueError as ve:
         raise ValueError(f"Unable to load certificate '{cert_file}': {ve}")
 

@@ -134,9 +134,6 @@ class DynamicCert(DSLdapObject):
             log.error(f"Failed to update trust flags for {self._dn}: {e}")
             raise
 
-        # log.info(f"Updated trust flags for {self._dn} to '{trust_flags}'")
-
-
 class DynamicCerts(DSLdapObjects):
     """
     Collection of DynamicCert entries under cn=dynamiccertificates.
@@ -227,7 +224,7 @@ class DynamicCerts(DSLdapObjects):
         attrs = {
             "cn": [nickname.encode()],
             "objectClass": [b"top", b"extensibleObject"],
-            DYCATTR_CERTDER: [der_cert]
+            DYCATTR_CERTDER: [ der_cert, ]
         }
         if der_privkey:
             attrs[DYCATTR_PKEYDER] = [der_privkey]
@@ -240,6 +237,9 @@ class DynamicCerts(DSLdapObjects):
         if force:
             attrs[DYCATTR_FORCE] = [b"TRUE"]
 
+        if not der_cert:
+            raise ValueError(f"Failed to extract DER bytes from {cert_file}")
+
         cert_obj = self.get_cert_obj(nickname)
         if not cert_obj:
             cert_obj = DynamicCert(self._instance, dn)
@@ -247,7 +247,6 @@ class DynamicCerts(DSLdapObjects):
         else:
             attrs_list = [(attr, vals) for attr, vals in attrs.items()]
             cert_obj.replace_many(*attrs_list)
-
 
     def add_ca_cert(self,
                     cert_file: str,
@@ -296,14 +295,19 @@ class DynamicCerts(DSLdapObjects):
         cert_objects = self.list()
         certs = []
         for cert in cert_objects:
-            if cert._dn != self._basedn and not cert.is_ca():
-                certs.append({
-                    "cn": cert.get_attr_vals_utf8(DYCATTR_CN)[0],
-                    "subject": cert.get_attr_vals_utf8(DYCATTR_SUBJECT)[0],
-                    "issuer": cert.get_attr_vals_utf8(DYCATTR_ISSUER)[0],
-                    "expires": cert._normalise_timestamp(cert.get_attr_vals_utf8(DYCATTR_NOTAFTER)[0]),
-                    "trust_flags": cert.get_attr_vals_utf8(DYCATTR_TRUST)[0],
-                })
+            if cert._dn == self._basedn:
+                continue
+            der_cert = cert.get_attr_vals_bytes(DYCATTR_CERTDER)[0]
+            log.info(f"JC der_cert len:{len(der_cert)}")
+            if der_cert:
+                if not cert_is_ca(der_cert):
+                    certs.append({
+                        "cn": cert.get_attr_vals_utf8(DYCATTR_CN)[0],
+                        "subject": cert.get_attr_vals_utf8(DYCATTR_SUBJECT)[0],
+                        "issuer": cert.get_attr_vals_utf8(DYCATTR_ISSUER)[0],
+                        "expires": cert._normalise_timestamp(cert.get_attr_vals_utf8(DYCATTR_NOTAFTER)[0]),
+                        "trust_flags": cert.get_attr_vals_utf8(DYCATTR_TRUST)[0],
+                    })
         return certs
 
     def list_ca_certs(self):
@@ -315,14 +319,19 @@ class DynamicCerts(DSLdapObjects):
         cert_objects = self.list()
         certs = []
         for cert in cert_objects:
-            if cert._dn != self._basedn and cert.is_ca():
-                certs.append({
-                    "cn": cert.get_attr_vals_utf8(DYCATTR_CN)[0],
-                    "subject": cert.get_attr_vals_utf8(DYCATTR_SUBJECT)[0],
-                    "issuer": cert.get_attr_vals_utf8(DYCATTR_ISSUER)[0],
-                    "expires": cert._normalise_timestamp(cert.get_attr_vals_utf8(DYCATTR_NOTAFTER)[0]),
-                    "trust_flags": cert.get_attr_vals_utf8(DYCATTR_TRUST)[0],
-                })
+            if cert._dn == self._basedn:
+                continue
+            der_cert = cert.get_attr_vals_bytes(DYCATTR_CERTDER)[0]
+            log.info(f"JC der_cert len:{len(der_cert)}")
+            if der_cert:
+                if cert_is_ca(der_cert):
+                    certs.append({
+                        "cn": cert.get_attr_vals_utf8(DYCATTR_CN)[0],
+                        "subject": cert.get_attr_vals_utf8(DYCATTR_SUBJECT)[0],
+                        "issuer": cert.get_attr_vals_utf8(DYCATTR_ISSUER)[0],
+                        "expires": cert._normalise_timestamp(cert.get_attr_vals_utf8(DYCATTR_NOTAFTER)[0]),
+                        "trust_flags": cert.get_attr_vals_utf8(DYCATTR_TRUST)[0],
+                    })
         return certs
 
     def get_cert_obj(self, nickname: str):
