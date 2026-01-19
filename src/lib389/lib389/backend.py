@@ -712,7 +712,7 @@ class Backend(DSLdapObject):
                             missing_mr = True
 
                     missing_scanlimit = False
-                    if (attr_name.lower() == "parentid") and expected_scanlimit and (len(actual_scanlimit) == 0):
+                    if expected_scanlimit and (len(actual_scanlimit) == 0):
                         discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_scanlimit}")
                         missing_scanlimit = True
 
