@@ -7,7 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.backend import Backend, Backends, DatabaseConfig, BackendSuffixView
+from lib389.backend import Backend, Backends, DatabaseConfig, BackendSuffixView, is_subsuffix_of
 from lib389.configurations.sample import (
     create_base_domain,
     create_base_org,
@@ -338,6 +338,7 @@ def is_db_replicated(inst, suffix):
 def backend_get_subsuffixes(inst, basedn, log, args):
     subsuffixes = []
     be_insts = MANY(inst).list()
+    all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
     for be in be_insts:
         be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
         if be_suffix == args.be_name.lower():
@@ -347,7 +348,7 @@ def backend_get_subsuffixes(inst, basedn, log, args):
                 db_type = "suffix"
                 sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                 sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
-                if sub == be_suffix:
+                if is_subsuffix_of(sub, be_suffix, all_suffixes):
                     # We have a subsuffix (maybe a db link?)
                     if is_db_link(inst, sub_be):
                         db_type = "link"
@@ -399,38 +400,34 @@ def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     }
 
 
-def backend_build_tree(inst, be_insts, nodes):
-    """Recursively build the tree
-    """
-    if len(nodes) == 0:
-        # Done
+def backend_build_tree(inst, be_insts, nodes, all_suffixes):
+    """Recursively build the tree."""
+    if not nodes:
         return
 
     for node in nodes:
-        node_suffix = node['id']
+        node_suffix = node['id'].lower()
         # Get sub suffixes and chaining of node
         for be in be_insts:
             be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
-            if be_suffix == node_suffix.lower():
+            if be_suffix == node_suffix:
                 # We have our parent, now find the children
                 mts = be._mts.list()
-
                 for mt in mts:
                     sub_parent = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                     sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
                     sub_suffix = mt.get_attr_val_utf8_l('cn')
-                    if sub_parent == be_suffix:
+                    if is_subsuffix_of(sub_parent, be_suffix, all_suffixes):
                         # We have a subsuffix (maybe a db link?)
                         link = is_db_link(inst, sub_be)
                         replicated = is_db_replicated(inst, sub_suffix)
                         node['children'].append(build_node(sub_suffix,
-                                                        sub_be,
-                                                        subsuf=True,
-                                                        link=link,
-                                                        replicated=replicated))
-
+                                                           sub_be,
+                                                           subsuf=True,
+                                                           link=link,
+                                                           replicated=replicated))
                 # Recurse over the new subsuffixes
-                backend_build_tree(inst, be_insts, node['children'])
+                backend_build_tree(inst, be_insts, node['children'], all_suffixes)
                 break
 
 
@@ -471,7 +468,8 @@ def backend_get_tree(inst, basedn, log, args):
     else:
         # Build the tree
         be_insts = Backends(inst).list()
-        backend_build_tree(inst, be_insts, nodes)
+        all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
+        backend_build_tree(inst, be_insts, nodes, all_suffixes)
 
         # Done
         if args.json:
