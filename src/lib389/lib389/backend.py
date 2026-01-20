@@ -678,7 +678,7 @@ class Backend(DSLdapObject):
                     if expected_config.get('matching_rule'):
                         cmd += f" --matching-rule {expected_config['matching_rule']}"
                     if expected_config.get('scanlimit'):
-                        cmd += f" --add-scanlimit {expected_config['scanlimit']}"
+                        cmd += f" --add-scanlimit \"{expected_config['scanlimit']}\""
                     remediation_commands.append(cmd)
                     reindex_attrs.add(attr_name)  # New index needs reindexing
                 else:
@@ -700,28 +700,31 @@ class Backend(DSLdapObject):
                         remediation_commands.append(cmd)
                         reindex_attrs.add(attr_name)
 
-                    # Check matching rules
+                    # Check matching rules and scanlimit together to generate a single combined command
                     expected_mr = expected_config.get('matching_rule')
+                    expected_scanlimit = expected_config.get('scanlimit')
+
+                    missing_mr = False
                     if expected_mr:
                         actual_mrs_lower = [mr.lower() for mr in actual_mrs]
                         if expected_mr.lower() not in actual_mrs_lower:
                             discrepancies.append(f"Index {attr_name} missing matching rule: {expected_mr}")
-                            # Add the missing matching rule
-                            cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr}"
-                            remediation_commands.append(cmd)
-                            reindex_attrs.add(attr_name)
+                            missing_mr = True
 
-                    # Check fine grain definitions for parentid ONLY
-                    expected_scanlimit = expected_config.get('scanlimit')
-                    if (attr_name.lower() == "parentid") and expected_scanlimit and (len(actual_scanlimit) == 0):
-                            discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_mr}")
-                            # Add the missing scanlimit
-                            if expected_mr:
-                                cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr} --add-scanlimit {expected_scanlimit}"
-                            else:
-                                cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-scanlimit {expected_scanlimit}"
-                            remediation_commands.append(cmd)
-                            reindex_attrs.add(attr_name)
+                    missing_scanlimit = False
+                    if expected_scanlimit and (len(actual_scanlimit) == 0):
+                        discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_scanlimit}")
+                        missing_scanlimit = True
+
+                    # Generate a single combined command for all missing items
+                    if missing_mr or missing_scanlimit:
+                        cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name}"
+                        if missing_mr:
+                            cmd += f" --add-mr {expected_mr}"
+                        if missing_scanlimit:
+                            cmd += f" --add-scanlimit \"{expected_scanlimit}\""
+                        remediation_commands.append(cmd)
+                        reindex_attrs.add(attr_name)
 
             except Exception as e:
                 self._log.debug(f"_lint_system_indexes - Error checking index {attr_name}: {e}")
