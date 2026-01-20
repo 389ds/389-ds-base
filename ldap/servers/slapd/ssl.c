@@ -744,12 +744,15 @@ SSLPLCY_Install(void)
     s = NSS_SetDomesticPolicy();
 
 #ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
-    /* Set explicitly PQC algorithm policy if it is not set by default */
-    for (size_t i=0; s == SECSuccess && i < PR_ARRAY_SIZE(oids); i++) {
-        int oflags = 0;
-        (void) NSS_GetAlgorithmPolicy(oids[i], &oflags);
-        if ((oflags & flags) != flags) {
-            s = NSS_SetAlgorithmPolicy(oids[i], flags, 0);
+    /* Should rely on the crypto module policy in FIPS mode */
+    if (!slapd_pk11_isFIPS()) {
+        /* Set explicitly PQC algorithm policy if it is not set by default */
+        for (size_t i=0; s == SECSuccess && i < PR_ARRAY_SIZE(oids); i++) {
+            int oflags = 0;
+            (void) NSS_GetAlgorithmPolicy(oids[i], &oflags);
+            if ((oflags & flags) != flags) {
+                s = NSS_SetAlgorithmPolicy(oids[i], flags, 0);
+            }
         }
     }
 #endif
