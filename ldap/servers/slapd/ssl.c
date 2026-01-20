@@ -177,7 +177,6 @@ static const struct {
     { rsaKey, "RSA", "Rivest–Shamir–Adleman" },
     { ecKey, "EC", "Elliptic Curve" },
 #ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
-    { kyberKey, "Kyber", "Kyber key - Post-quantum cryptography key encapsulation mechanism" },
     { mldsaKey, "ML-DSA", "Module-Lattice-Based Digital Signature Algorithm (post-quantum)" },
 #endif
     { 0 }
@@ -1674,7 +1673,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     /*
      * Now, get the complete list of cipher families. Each family
      * has a token name and personality name which we'll use to find
-     * appropriate keys and certs, and call SSL_ConfigSecureServer
+     * appropriate keys and certs, and call SSL_ConfigServerCert
      * with.
      */
 
@@ -1809,7 +1808,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                     rv = SSL_ConfigServerCert(*fd, cert, key, NULL, 0);
                     if (SECSuccess != rv) {
                         errorCode = PR_GetError();
-                        slapd_SSL_warn("ConfigServerCert: "
+                        slapd_SSL_warn("SSL_ConfigServerCert: "
                                        "Server key/certificate is "
                                        "bad for cert %s of family %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                        cert_name, *family, errorCode,

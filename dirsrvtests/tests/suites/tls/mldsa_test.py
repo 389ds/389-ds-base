@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -293,10 +293,10 @@ def test_mldsa(topo):
             'loginShell': '/bin/false',
             'description': cert_dn })
 
-    # with TemporaryDirectory(delete=not DEBUGGING) as dir:
-    # (This is useful for debbuging but requires python >= 3.12 
-    #  which trigger failure in github Verify test)
-    with TemporaryDirectory() as dir:
+    tmpdir_kwargs = {}
+    if sys.version_info >= (3, 12):
+        tmpdir_kwargs['delete'] = not DEBUGGING
+    with TemporaryDirectory(**tmpdir_kwargs) as dir:
         scriptname = f"{dir}/doit"
         d = {
             'dir': dir,
