@@ -18,6 +18,7 @@ import shutil
 import logging
 import subprocess
 import uuid
+from typing import Optional
 from datetime import datetime, timedelta
 from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
@@ -84,9 +85,8 @@ class NssSsl(DSLint):
         all_certs = self._rsa_cert_list()
         for cert in all_certs:
             cert_list.append(self.get_cert_details(cert[0]))
-
         for cert in cert_list:
-            cert_date = cert[3].split()[0]
+            cert_date = cert['expires'].split()[0]
             diff_date = datetime.strptime(cert_date, '%Y-%m-%d').date() - datetime.today().date()
             if diff_date < timedelta(days=0):
                 # Expired
@@ -1176,14 +1176,19 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-    def add_cert(self, nickname: str, cert_file: str, ca=False,
-                 pkcs12_password=None, force: bool = False):
+    def add_cert(self,
+                 nickname: str,
+                 cert_file: str,
+                 pkcs12_password: Optional[str] = None,
+                 ca: bool = False,
+                 force: bool = False):
         """Add server or CA cert
 
-        :param nickname: Certificate nickname (pk12util uses the certs CN instead)
-        :param cert_file: Path to certificate or PKCS#12 file
+        :param nickname: Certificate nickname
+        :param cert_file: Path to certificate file (PEM, DER, or PKCS#12)
         :param ca: Whether this is a CA certificate
-        :param pkcs12_password: Password for PKCS#12 file (if applicable)
+        :param pkcs12_password: Password for PKCS#12, if any
+        :param force: Force the addition of a certificate that cannot be verified
         """
         if not nickname:
             raise ValueError("Certificate nickname must not be empty")
@@ -1255,13 +1260,6 @@ only.
         pem_file = cert_file.lower().endswith(".pem")
         if pem_file:
             self._assert_not_chain(cert_file)
-
-        is_ca_cert = cert_is_ca(cert_file)
-        if ca and not is_ca_cert:
-            raise ValueError(f"Certificate '{nickname}' is not a CA certificate")
-
-        if not ca and is_ca_cert:
-            raise ValueError(f"Certificate '{nickname}' is not a server certificate")
 
         trust_flags = "CT,," if ca else ",,"
 
@@ -1344,26 +1342,58 @@ only.
 
     def add_ca_cert(self, cert_file: str, nickname: str, force: bool = False):
         """
-        Add a CA certificate (PEM or DER).
+        Add a CA certificate from a PEM bundle or single PEM/DER file.
+
+        Adapter function to match abstraction layer interface.
 
         :param cert_file: path to the certificate file
         :param nickname: nickname to assign
+        :param force: Force the addition of a certificate that cannot be verified
         """
         # Verify input_file exists
         if not os.path.exists(cert_file):
             raise ValueError(f"The certificate file ({cert_file}) does not exist")
 
-        try:
-            existing = self.get_cert_details(nickname)
-            if existing:
-                raise ValueError(f"Certificate already exists with the same name ({nickname})")
-        except ValueError:
-            pass
+        # Normalise nickname(s)
+        if isinstance(nickname, list):
+            nicknames = nickname
+        elif isinstance(nickname, str):
+            nicknames = [nickname]
+        else:
+            raise TypeError(f"nickname must be str or list[str], got: {type(nickname)}")
+
+        # Allow overwrite only for single cert
+        if len(nicknames) == 1:
+            single_nick = nicknames[0]
+            try:
+                if self.get_cert_details(single_nick):
+                    if not force:
+                        raise ValueError(
+                            f"Certificate already exists with the same name ({single_nick})"
+                        )
+                    else:
+                        log.info(f"Overwriting existing certificate ({single_nick})")
+                        self.del_cert(single_nick)
+            except ValueError:
+                pass
+
+        # Offload to PEM bundle handler
+        if cert_file.lower().endswith(".pem"):
+            return self.add_ca_cert_bundle(
+                cert_file=cert_file,
+                nicknames=nicknames
+            )
+
+        if len(nicknames) != 1:
+            raise ValueError(
+                "Binary CA cert requires exactly one nickname"
+            )
 
         if not cert_is_ca(cert_file):
             raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
 
-        self.add_cert(nickname, cert_file, ca=True)
+        self.add_cert(nicknames[0], cert_file, ca=True)
+
         log.info(f"Successfully added CA certificate ({nickname})")
 
     def add_ca_cert_bundle(self, cert_file, nicknames):

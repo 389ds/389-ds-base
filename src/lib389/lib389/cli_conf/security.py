@@ -8,11 +8,10 @@
 
 from collections import OrderedDict, namedtuple
 import json
-import ldap
 import os
 import sys
 from lib389.config import Config, Encryption, RSA
-from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
+from lib389.nss_ssl import NssSsl
 from lib389.cert_manager import CertManager
 from lib389.cli_base import _warn, CustomHelpFormatter
 
@@ -156,40 +155,40 @@ def _resolve_pkcs12_password(args):
 
     return None
 
-def _dump_cert(cert, json_output: bool = False):
+def _dump_cert(cert, json_output: bool = False, log = None):
     """
-    Print a certificate dict or list of dicts in text or JSON format.
+    Print or return a certificate's details in text or JSON format.
 
-    :param cert: dict or list of dicts describing certificates.
+    :param cert: dict describing a certificate
     :param json_output: If True print JSON else print text
+    :param log: Optional logger to output text
     """
-    if isinstance(cert, list):
-        for c in cert:
-            _dump_cert(c, json_output=json_output)
-        return
-
     if not isinstance(cert, dict):
-        raise TypeError(f"Expected dict or list of dicts, got {type(cert)}")
+        raise TypeError(f"Expected dict, got {type(cert)}")
 
     if json_output:
-        output = {
+        return {
             "type": "certificate",
             "attrs": {
-                "cn": cert["cn"],
+                "nickname": cert["cn"],
                 "subject": cert["subject"],
                 "issuer": cert["issuer"],
                 "expires": cert["expires"],
-                "trust_flags": cert["trust_flags"],
+                "flags": cert["trust_flags"],
             }
         }
-        print(json.dumps(output, indent=4))
     else:
-        print(f"Certificate Name: {cert['cn']}")
-        print(f"Subject DN: {cert['subject']}")
-        print(f"Issuer DN: {cert['issuer']}")
-        print(f"Expires: {cert['expires']}")
-        print(f"Trust Flags: {cert['trust_flags']}")
-        print()  # blank line
+        msg = (
+            f"Certificate Name: {cert['cn']}\n"
+            f"Subject DN: {cert['subject']}\n"
+            f"Issuer DN: {cert['issuer']}\n"
+            f"Expires: {cert['expires']}\n"
+            f"Trust Flags: {cert['trust_flags']}\n"
+        )
+        if log:
+            log.info(msg)
+
+        print(msg)
 
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
@@ -201,7 +200,7 @@ def security_enable(inst, basedn, log, args):
 
     if len(certs) == 1:
         # If there is only cert make sure it is set as the server certificate
-        RSA(inst).set('nsSSLPersonalitySSL', certs[0][0])
+        RSA(inst).set('nsSSLPersonalitySSL', certs[0]['cn'])
     elif args.cert_name is not None:
         # A certificate nickname was provided, set it as the server certificate
         RSA(inst).set('nsSSLPersonalitySSL', args.cert_name)
@@ -285,8 +284,8 @@ def cert_add(inst, basedn, log, args):
         return
 
     certmgr.add_cert(
-        cert_file=args.file,
-        nickname=args.name,
+        args.file,
+        args.name,
         pkcs12_password=pkcs12_password,
         primary=args.primary_cert,
         ca=False,
@@ -306,7 +305,7 @@ def cacert_add(inst, basedn, log, args):
         raise ValueError("PKCS#12 CA certificates not supported. Use PEM or DER file")
 
     certmgr = CertManager(instance=inst)
-    certmgr.add_ca_cert(args.file, args.name, args.force)
+    certmgr.add_ca_cert(args.file, args.name, force=args.force)
     log.info("Successfully added CA certificate")
 
 def cert_list(inst, basedn, log, args):
@@ -318,8 +317,12 @@ def cert_list(inst, basedn, log, args):
         log.info("No certificates found.")
         return
 
-    for cert in certs:
-        _dump_cert(cert, json_output=args.json)
+    if args.json:
+        output = [_dump_cert(cert, json_output=True) for cert in certs]
+        print(json.dumps(output, indent=4))
+    else:
+        for cert in certs:
+            _dump_cert(cert, json_output=False, log=log)
 
 def cacert_list(inst, basedn, log, args):
     """List all CA certs
@@ -330,8 +333,12 @@ def cacert_list(inst, basedn, log, args):
         log.info("No CA certificates found.")
         return
 
-    for cert in ca_certs:
-        _dump_cert(cert, json_output=args.json)
+    if args.json:
+        output = [_dump_cert(cert, json_output=True) for cert in ca_certs]
+        print(json.dumps(output, indent=4))
+    else:
+        for cert in ca_certs:
+            _dump_cert(cert, json_output=False, log=log)
 
 def cert_get(inst, basedn, log, args):
     """Get the details about a server certificate
@@ -345,6 +352,9 @@ def cert_get(inst, basedn, log, args):
     if "C" in cert.get("trust_flags", ""):
         return
 
+    if args.json:
+        output = _dump_cert(cert, json_output=args.json)
+        print(json.dumps(output, indent=4))
     _dump_cert(cert, json_output=args.json)
 
 def cacert_get(inst, basedn, log, args):
@@ -359,6 +369,9 @@ def cacert_get(inst, basedn, log, args):
     if "C" not in cert.get("trust_flags", ""):
         return
 
+    if args.json:
+        output = _dump_cert(cert, json_output=args.json)
+        print(json.dumps(output, indent=4))
     _dump_cert(cert, json_output=args.json)
 
 def csr_list(inst, basedn, log, args):
@@ -438,9 +451,11 @@ def cert_del(inst, basedn, log, args):
     """Delete cert
     """
     certmgr = CertManager(instance=inst)
-    certmgr.del_cert(args.name)
-    log.info(f"Successfully deleted certificate")
-
+    try:
+        certmgr.del_cert(args.name)
+        log.info(f"Successfully deleted certificate")
+    except ValueError as e:
+        log.info(f"Failed to delete certificate '{args.name}': {e}")
 
 def key_list(inst, basedn, log, args):
     """
@@ -559,8 +574,9 @@ def create_parser(subparsers):
     cacert_add_parser = cacerts_sub.add_parser('add', help='Add a Certificate Authority', description=(
         'Add a CA certificate (PEM or DER only) to the NSS database or DynamicCerts backend.'))
     cacert_add_parser.add_argument('--file', required=True,
-        help='Sets the file name of the CA certificate')
-    cacert_add_parser.add_argument('--name', required=True,
+        help='Sets the name/nickname of the CA certificate, if adding a PEM bundle then specify multiple names one for '
+             'each certificate, otherwise a number increment will be added to the previous name.')
+    cacert_add_parser.add_argument('--name', nargs='+', required=True,
         help='Sets the name/nickname of the CA certificate')
     cacert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",action='store_true', default=False)
     cacert_add_parser.set_defaults(func=cacert_add)

@@ -95,10 +95,10 @@ class CertManager:
 
         :param cert_file: Path to certificate file (PEM, DER, or PKCS#12)
         :param nickname: Certificate nickname/CN
-        :param pkcs12_password: Password for PKCS#12 sources
+        :param pkcs12_password: Password for PKCS#12, if any
         :param primary: Set as the server's primary SSL certificate
         :param ca: Whether this certificate is a CA certificate
-        :param force: Allow installing unverifiable certificates
+        :param force: Force the addition of a certificate that cannot be verified
         :raises ValueError: If cert_file or nickname is invalid
         """
         if not os.path.isfile(cert_file):
@@ -133,7 +133,7 @@ class CertManager:
         if not os.path.exists(cert_file):
             raise ValueError(f"Certificate file does not exist: {cert_file}")
 
-        self.cert_handler.add_ca_cert(cert_file=cert_file, nickname=nickname, force=force)
+        self.cert_handler.add_ca_cert(cert_file, nickname, force=force)
 
     def edit_cert_trust(self, nickname: str, trust_flags: str):
         """

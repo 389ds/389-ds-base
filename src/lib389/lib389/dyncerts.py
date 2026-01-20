@@ -8,9 +8,11 @@
 
 import datetime
 import os
-import logging
-from typing import Optional
 import ldap
+import logging
+import re
+import tempfile
+from typing import Optional
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.utils import cert_is_ca, pem_to_der, is_pem_cert
 from cryptography import x509
@@ -32,6 +34,9 @@ DYCATTR_TRUST       = DYCATTR_PREFIX + "trustflags"
 DYCATTR_NOTAFTER    = DYCATTR_PREFIX + "notafter"
 DYCATTR_FORCE	    = DYCATTR_PREFIX + "Force"
 DYCATTR_ISCA        = DYCATTR_PREFIX + "IsCA"
+
+CA_NAME = 'Self-Signed-CA'
+CERT_NAME = 'Server-Cert'
 
 class DynamicCert(DSLdapObject):
     """
@@ -71,25 +76,7 @@ class DynamicCert(DSLdapObject):
         except Exception:
             return raw
 
-    def is_ca(self):
-        """
-        Determine if this certificate is a CA.
-
-        :return: True if certificate is a CA, else False
-        """
-        # Check trust flags first
-        trust_flags = self.get_attr_val_utf8(DYCATTR_TRUST)
-        if trust_flags:
-            try:
-                ssl_field, email_field, object_field = trust_flags.split(",")
-                if "C" in ssl_field:
-                    return True
-            except Exception:
-                pass
-
-        return False
-
-    def delete_cert(self):
+    def del_cert(self):
         """
         Delete this DynamicCert entry from LDAP.
 
@@ -151,21 +138,6 @@ class DynamicCerts(DSLdapObjects):
         self._childobject = DynamicCert
         self._basedn = DYNCERT_SUFFIX
 
-    def is_online(self):
-        """
-        Check if the DynamicCert LDAP backend is online.
-
-        returns: True if accessible, else False
-        """
-        try:
-            return self.exists(dn=self._basedn)
-        except ldap.LDAPError as e:
-            log.warning(f"DynamicCert backend not reachable: {e}")
-            return False
-        except Exception as e:
-            log.warning(f"DynamicCert backend check failed: {e}")
-            return False
-
     def add_cert(self,
                  cert_file: str,
                  nickname: str,
@@ -179,7 +151,7 @@ class DynamicCerts(DSLdapObjects):
         :param cert_file: Path to certificate file (PEM, DER, or PKCS#12)
         :param nickname: Certificate nickname
         :param pkcs12_password: Password for PKCS#12, if any
-        :param ca: Set CA trust flag
+        :param ca: Whether this certificate is a CA certificate
         :param force: Force the addition of a certificate that cannot be verified
         """
         if not nickname:
@@ -196,10 +168,12 @@ class DynamicCerts(DSLdapObjects):
 
         der_cert = None
         der_privkey = None
+
         if cert_file.lower().endswith((".p12", ".pfx")):
             try:
                 privkey, cert, _ = pkcs12.load_key_and_certificates(
-                    cert_bytes, pkcs12_password.encode() if pkcs12_password else None
+                    cert_bytes, pkcs12_password.encode() if pkcs12_password else None,
+                    backend=default_backend()
                 )
             except Exception as e:
                 raise ValueError(f"Failed to load PKCS#12 file: {cert_file}: {e}")
@@ -220,7 +194,9 @@ class DynamicCerts(DSLdapObjects):
             except Exception as e:
                 raise ValueError(f"Failed to parse certificate '{cert_file}': {e}")
 
-        dn = f"cn={nickname},{self._basedn}"
+        if ca and not cert_is_ca(cert_file):
+            raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+
         attrs = {
             "cn": [nickname.encode()],
             "objectClass": [b"top", b"extensibleObject"],
@@ -230,8 +206,6 @@ class DynamicCerts(DSLdapObjects):
             attrs[DYCATTR_PKEYDER] = [der_privkey]
 
         if ca:
-            if not cert_is_ca(cert_file):
-                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
             attrs[DYCATTR_TRUST] = [b"CT,,"]
 
         if force:
@@ -240,11 +214,13 @@ class DynamicCerts(DSLdapObjects):
         if not der_cert:
             raise ValueError(f"Failed to extract DER bytes from {cert_file}")
 
+        dn = f"cn={nickname},{self._basedn}"
         cert_obj = self.get_cert_obj(nickname)
         if not cert_obj:
             cert_obj = DynamicCert(self._instance, dn)
             cert_obj.create(properties=attrs)
         else:
+            log.info(f"Updating existing certificate; {nickname}")
             attrs_list = [(attr, vals) for attr, vals in attrs.items()]
             cert_obj.replace_many(*attrs_list)
 
@@ -255,20 +231,103 @@ class DynamicCerts(DSLdapObjects):
                     force: bool = False
         ):
         """
-        Add a CA certificate from a PEM or DER file.
+        Add a CA certificate from a PEM bundle or single PEM/DER file.
 
         :param cert_file: Path to the certificate file (PEM or DER)
         :param nickname: Certificate nickname
+        :param pkcs12_password: Password for PKCS#12, if any
         :param force: Force the addition of a certificate that cannot be verified
         :raises ValueError: If file is invalid or file does not exist
         """
         if not os.path.exists(cert_file):
             raise ValueError(f"Certificate file does not exist: {cert_file}")
 
-        if not cert_is_ca(cert_file):
-            raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+        # Normalise nickname(s)
+        if isinstance(nickname, str):
+            nicknames = [nickname]
+        elif isinstance(nickname, list):
+            nicknames = nickname
+        else:
+            raise TypeError(f"nickname must be str or list[str], got {type(nickname)}")
 
-        self.add_cert(cert_file=cert_file, nickname=nickname, pkcs12_password=pkcs12_password, ca=True, force=force)
+        # PEM (may be bundle)
+        if cert_file.lower().endswith(".pem"):
+            with open(cert_file, "r") as f:
+                pem_data = f.read()
+
+            pem_certs = re.findall(
+                r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+                pem_data,
+                re.DOTALL
+            )
+
+            if not pem_certs:
+                raise ValueError("No certificates found in PEM file")
+
+            temp_files = []
+            try:
+                for idx, cert in enumerate(pem_certs):
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pem", mode="w") as tmp:
+                        tmp.write(cert.strip() + "\n")
+                        tmp_cert_path = tmp.name
+                    temp_files.append(tmp_cert_path)
+
+                    # Determine nickname, could be a list, or not enough
+                    if idx < len(nicknames):
+                        ca_nick = nicknames[idx]
+                    else:
+                        ca_nick = f"{nicknames[-1]}{idx}"
+
+                    # Check we dont trample over installer certs
+                    if ca_nick.lower() in (CERT_NAME.lower(), CA_NAME.lower()):
+                        raise ValueError(f"You may not import a CA with the nickname {CERT_NAME} or {CA_NAME}")
+
+                    if not cert_is_ca(tmp_cert_path):
+                        raise ValueError(f"Certificate ({ca_nick}) is not a CA certificate")
+
+                    try:
+                        # Handle existing LDAP object
+                        if self.get_cert_details(ca_nick):
+                            if not force:
+                                raise ValueError(
+                                    f"Certificate already exists with the same name ({ca_nick})"
+                                )
+                            else:
+                                log.info(f"Overwriting existing CA cert {ca_nick}")
+                                self.del_cert(ca_nick)
+                    except ValueError:
+                        pass
+
+                    self.add_cert(
+                        tmp_cert_path,
+                        ca_nick,
+                        pkcs12_password=pkcs12_password,
+                        ca=True,
+                        force=force
+                    )
+
+            finally:
+                for tmp_file in temp_files:
+                    try:
+                        os.remove(tmp_file)
+                    except OSError as e:
+                        log.debug(f"Failed to remove tmp cert file: {tmp_file}: {e}")
+        else:
+            # Single binary cert
+            if len(nicknames) != 1:
+                raise ValueError("Single cert requires exactly one nickname")
+
+            ca_nick = nicknames[0]
+            try:
+                if self.get_cert_details(ca_nick):
+                    if force:
+                        self.del_cert(ca_nick)
+                    else:
+                        raise ValueError(f"Certificate already exists: {ca_nick}")
+            except ValueError:
+                pass
+
+            self.add_cert(cert_file, ca_nick, pkcs12_password=pkcs12_password, ca=True, force=force)
 
     def del_cert(self, nickname: str):
         """
@@ -284,7 +343,7 @@ class DynamicCerts(DSLdapObjects):
         if not cert_obj:
             raise ValueError(f"Certificate entry not found: {nickname}")
 
-        cert_obj.delete_cert()
+        cert_obj.del_cert()
 
     def list_certs(self):
         """
@@ -298,7 +357,6 @@ class DynamicCerts(DSLdapObjects):
             if cert._dn == self._basedn:
                 continue
             der_cert = cert.get_attr_vals_bytes(DYCATTR_CERTDER)[0]
-            log.info(f"JC der_cert len:{len(der_cert)}")
             if der_cert:
                 if not cert_is_ca(der_cert):
                     certs.append({
@@ -322,7 +380,6 @@ class DynamicCerts(DSLdapObjects):
             if cert._dn == self._basedn:
                 continue
             der_cert = cert.get_attr_vals_bytes(DYCATTR_CERTDER)[0]
-            log.info(f"JC der_cert len:{len(der_cert)}")
             if der_cert:
                 if cert_is_ca(der_cert):
                     certs.append({

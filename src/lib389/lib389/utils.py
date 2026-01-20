@@ -2017,15 +2017,14 @@ def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
     try:
         # p12
         if cert_file and cert_file.lower().endswith((".p12", ".pfx")):
-            if pkcs12_password is None:
-                raise ValueError("Password required for PKCS#12 file")
-            if isinstance(pkcs12_password, str):
-                pkcs12_password = pkcs12_password.encode()
-            private_key, cert, additional_certs = pkcs12.load_key_and_certificates(
-                data,
-                pkcs12_password,
-                backend=default_backend()
-            )
+            try:
+                privkey, cert, _ = pkcs12.load_key_and_certificates(
+                    data, pkcs12_password.encode() if pkcs12_password else None,
+                    backend=default_backend()
+                )
+            except Exception as e:
+                raise ValueError(f"Failed to load PKCS#12 file: {cert_file}: {e}")
+
             if cert is None:
                 raise ValueError("No certificate found in PKCS#12 container")
 
