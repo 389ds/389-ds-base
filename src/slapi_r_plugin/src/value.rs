@@ -182,7 +182,7 @@ impl From<&Uuid> for Value {
         let s_ptr = cstr.as_ptr();
         Box::leak(cstr);
 
-        let mut v = unsafe { slapi_value_new() };
+        let v = unsafe { slapi_value_new() };
         unsafe {
             (*v).bv.len = len;
             (*v).bv.data = s_ptr as *const u8;
