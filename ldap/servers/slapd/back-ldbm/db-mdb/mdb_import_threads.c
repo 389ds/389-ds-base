@@ -59,9 +59,9 @@
 
 
 /* import thread usage statistics */
-#define MDB_STAT_INIT(stats)    { mdb_stat_collect(&stats, MDB_STAT_RUN, 1); }
-#define MDB_STAT_END(stats)     { mdb_stat_collect(&stats, MDB_STAT_RUN, 0); }
-#define MDB_STAT_STEP(stats, step)    { mdb_stat_collect(&stats, (step), 0); }
+#define MDB_STAT_INIT(stats, enabled)    { if (enabled) mdb_stat_collect(&stats, MDB_STAT_RUN, 1); }
+#define MDB_STAT_END(stats, enabled)     { if (enabled) mdb_stat_collect(&stats, MDB_STAT_RUN, 0); }
+#define MDB_STAT_STEP(stats, step, enabled)    { if (enabled) mdb_stat_collect(&stats, (step), 0); }
 
 typedef enum {
     MDB_STAT_RUN,
@@ -424,6 +424,7 @@ dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data)
         return -1;
     }
     dbmdb_dup_worker_slot(q, data, slot);
+    pthread_cond_broadcast(&q->cv);
     pthread_mutex_unlock(&q->mutex);
     return 0;
 }
@@ -3914,14 +3915,15 @@ dbmdb_import_writer(void*param)
     int count = 0;
     int rc = 0;
     mdb_stat_info_t stats = {0};
+    int stats_enabled = ctx->ctx->dsecfg.import_stats;
 
-    MDB_STAT_INIT(stats);
+    MDB_STAT_INIT(stats, stats_enabled);
     while (!rc && !info_is_finished(info)) {
-        MDB_STAT_STEP(stats, MDB_STAT_PAUSE);
+        MDB_STAT_STEP(stats, MDB_STAT_PAUSE, stats_enabled);
         wait_for_starting(info);
-        MDB_STAT_STEP(stats, MDB_STAT_READ);
+        MDB_STAT_STEP(stats, MDB_STAT_READ, stats_enabled);
         slot = dbmdb_import_q_getall(&ctx->writerq);
-        MDB_STAT_STEP(stats, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         if (info_is_finished(info)) {
             dbmdb_import_q_flush(&ctx->writerq);
             break;
@@ -3932,14 +3934,14 @@ dbmdb_import_writer(void*param)
 
         for (; slot; slot = nextslot) {
             if (!txn) {
-                MDB_STAT_STEP(stats, MDB_STAT_TXNSTART);
+                MDB_STAT_STEP(stats, MDB_STAT_TXNSTART, stats_enabled);
                 rc = TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
             }
             if (!rc) {
-                MDB_STAT_STEP(stats, MDB_STAT_WRITE);
+                MDB_STAT_STEP(stats, MDB_STAT_WRITE, stats_enabled);
                 rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
             }
-            MDB_STAT_STEP(stats, MDB_STAT_RUN);
+            MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
             nextslot = slot->next;
             slapi_ch_free((void**)&slot);
         }
@@ -3947,9 +3949,9 @@ dbmdb_import_writer(void*param)
             break;
         }
         if  (count++ >= WRITER_MAX_OPS_IN_TXN) {
-            MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
+            MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP, stats_enabled);
             rc = TXN_COMMIT(txn);
-            MDB_STAT_STEP(stats, MDB_STAT_RUN);
+            MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
             if (rc) {
                 break;
             }
@@ -3958,32 +3960,32 @@ dbmdb_import_writer(void*param)
         }
     }
     if (txn && !rc) {
-        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
+        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP, stats_enabled);
         rc = TXN_COMMIT(txn);
-        MDB_STAT_STEP(stats, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         if (!rc) {
             txn = NULL;
         }
     }
     if (txn) {
-        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
+        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP, stats_enabled);
         TXN_ABORT(txn);
-        MDB_STAT_STEP(stats, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         txn = NULL;
     }
-    MDB_STAT_STEP(stats, MDB_STAT_WRITE);
+    MDB_STAT_STEP(stats, MDB_STAT_WRITE, stats_enabled);
     if (!rc) {
         /* Ensure that all data are written on disk */
         rc = mdb_env_sync(ctx->ctx->env, 1);
     }
-    MDB_STAT_END(stats);
+    MDB_STAT_END(stats, stats_enabled);
 
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
                 "Failed to write in the database. Error is 0x%x: %s.\n",
                 rc, mdb_strerror(rc));
         thread_abort(info);
-    } else {
+    } else if (stats_enabled) {
         char buf[200];
         char *summary = mdb_stat_summarize(&stats, buf, sizeof buf);
         if (summary) {

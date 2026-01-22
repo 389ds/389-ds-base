@@ -41,6 +41,7 @@
 #define CONFIG_MDB_MAX_SIZE       "nsslapd-mdb-max-size"
 #define CONFIG_MDB_MAX_READERS    "nsslapd-mdb-max-readers"
 #define CONFIG_MDB_MAX_DBS        "nsslapd-mdb-max-dbs"
+#define CONFIG_MDB_IMPORT_STATS   "nsslapd-mdb-import-stats"
 
 #define DBMDB_DB_MINSIZE             ( 4LL * MEGABYTE )
 #define DBMDB_DISK_RESERVE(disksize) ((disksize)*2ULL/1000ULL)
@@ -76,6 +77,7 @@ typedef struct
     int max_readers;
     int max_dbs;
     uint64_t max_size;
+    int import_stats;
 } dbmdb_cfg_t;
 
 /* config parameters limits */
