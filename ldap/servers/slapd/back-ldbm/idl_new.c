@@ -66,6 +66,7 @@ typedef struct {
     size_t leftoverlen;
     size_t leftovercnt;
     IDList *idl;
+    IdRange_t *idrange_list;
     int flag_err;
     ID lastid;
     ID suffix;
@@ -716,7 +717,6 @@ static int
 idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
 {
     idl_range_ctx_t *rctx = ctx;
-    int idl_rc = 0;
     ID id = 0;
 
     if (key->data == NULL) {
@@ -779,10 +779,12 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
              * found entry is the one from the suffix
              */
             rctx->suffix = keyval;
-            idl_rc = idl_append_extend(&rctx->idl, id);
-        } else if ((keyval == rctx->suffix) || idl_id_is_in_idlist(rctx->idl, keyval)) {
+            idl_append_extend(&rctx->idl, id);
+            idrange_add_id(&rctx->idrange_list, id);
+        } else if ((keyval == rctx->suffix) || idl_id_is_in_idlist_ranges(rctx->idl, rctx->idrange_list, keyval)) {
             /* the parent is the suffix or already in idl. */
-            idl_rc = idl_append_extend(&rctx->idl, id);
+            idl_append_extend(&rctx->idl, id);
+            idrange_add_id(&rctx->idrange_list, id);
         } else {
             /* Otherwise, keep the {keyval,id} in leftover array */
             if (!rctx->leftover) {
@@ -797,14 +799,7 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
             rctx->leftovercnt++;
         }
     } else {
-        idl_rc = idl_append_extend(&rctx->idl, id);
-    }
-    if (idl_rc) {
-        slapi_log_err(SLAPI_LOG_ERR, "idl_lmdb_range_fetch",
-                      "Unable to extend id list (err=%d)\n", idl_rc);
-        idl_free(&rctx->idl);
-        rctx->flag_err = LDAP_UNWILLING_TO_PERFORM;
-        return DBI_RC_NOTFOUND;
+        idl_append_extend(&rctx->idl, id);
     }
 #if defined(DB_ALLIDS_ON_READ)
     /* enforce the allids read limit */
@@ -841,7 +836,6 @@ idl_lmdb_range_fetch(
 {
     int ret = 0;
     int ret2 = 0;
-    int idl_rc = 0;
     dbi_cursor_t cursor = {0};
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
@@ -966,21 +960,17 @@ error:
         while(remaining > 0) {
             for (size_t i = 0; i < idl_range_ctx.leftovercnt; i++) {
                 if (idl_range_ctx.leftover[i].key > 0 &&
-                    idl_id_is_in_idlist(idl_range_ctx.idl, idl_range_ctx.leftover[i].key) != 0) {
+                    idl_id_is_in_idlist_ranges(idl_range_ctx.idl, idl_range_ctx.idrange_list, idl_range_ctx.leftover[i].key) != 0) {
                     /* if the leftover key has its parent in the idl */
-                    idl_rc = idl_append_extend(&idl_range_ctx.idl, idl_range_ctx.leftover[i].id);
-                    if (idl_rc) {
-                        slapi_log_err(SLAPI_LOG_ERR, "idl_lmdb_range_fetch",
-                                      "Unable to extend id list (err=%d)\n", idl_rc);
-                        idl_free(&idl_range_ctx.idl);
-                        break;
-                    }
+                    idl_append_extend(&idl_range_ctx.idl, idl_range_ctx.leftover[i].id);
+                    idrange_add_id(&idl_range_ctx.idrange_list, idl_range_ctx.leftover[i].id);
                     idl_range_ctx.leftover[i].key = 0;
                     remaining--;
                 }
             }
         }
         slapi_ch_free((void **)&idl_range_ctx.leftover);
+        idrange_free(&idl_range_ctx.idrange_list);
     }
     *flag_err = idl_range_ctx.flag_err;
     slapi_log_err(SLAPI_LOG_FILTER, "idl_lmdb_range_fetch",
