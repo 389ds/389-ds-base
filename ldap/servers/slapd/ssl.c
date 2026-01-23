@@ -748,7 +748,7 @@ SSLPLCY_Install(void)
     if (!slapd_pk11_isFIPS()) {
         /* Set explicitly PQC algorithm policy if it is not set by default */
         for (size_t i=0; s == SECSuccess && i < PR_ARRAY_SIZE(oids); i++) {
-            int oflags = 0;
+            PRUint32 oflags = 0;
             (void) NSS_GetAlgorithmPolicy(oids[i], &oflags);
             if ((oflags & flags) != flags) {
                 s = NSS_SetAlgorithmPolicy(oids[i], flags, 0);

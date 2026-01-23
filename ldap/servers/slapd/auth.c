@@ -396,6 +396,42 @@ handle_bad_certificate(void *clientData, PRFileDesc *prfd)
 
 
 /*
+ * Determine if the connection key exchange is Post Quantum Cryptology aware.
+ * This function may need to evolve with NSS as more PQC methods get supported.
+ */
+static bool
+check_pqc(int connid, SSLChannelInfo *sci)
+{
+    /*
+     * FYI: To interprets the values:
+     * KeaType and KeaGroup values are defined in
+     * https://github.com/nss-dev/nss/blob/master/lib/ssl/sslt.h
+     * Respectively in SSLKEAType and SSLNamedGroup enums
+     */
+    slapi_log_err(SLAPI_LOG_CONNS, "check_pqc", "conn=%" PRIu64 " TLS keaType=%d keaGroup=%d\n",
+                  connid, sci->keaType, sci->keaGroup);
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+    /* PQC KeaType is hybrid */
+    switch (sci->keaType) {
+        case ssl_kea_ecdh_hybrid:
+        case ssl_kea_ecdh_hybrid_psk:
+            break;
+        default:
+            return false;
+    }
+    /* PQC keaGroup is KEM */
+    switch (sci->keaGroup) {
+        case ssl_grp_kem_secp256r1mlkem768:
+        case ssl_grp_kem_secp384r1mlkem1024:
+        case ssl_grp_kem_mlkem768x25519:
+        case ssl_grp_kem_xyber768d00:
+            return true;
+    }
+#endif
+    return false;
+}
+
+/*
  * Get an identity from the client's certificate (if any was sent).
  *
  * Note: handle_handshake_done() is called via slapd_ssl_handshakeCallback().
@@ -417,6 +453,7 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
     SSLCipherSuiteInfo cipherInfo;
     char *subject = NULL;
     char sslversion[64];
+    bool pqc = false;
     int err = 0;
 
     if ((slapd_ssl_getChannelInfo(prfd, &channelInfo, sizeof(channelInfo))) != SECSuccess) {
@@ -454,7 +491,12 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
     }
 
     keySize = cipherInfo.effectiveKeyBits;
-    cipher = slapi_ch_strdup(cipherInfo.symCipherName);
+    pqc = check_pqc(conn->c_connid, &channelInfo);
+    if (pqc) {
+        cipher = slapi_ch_smprintf("%s[PQC]", cipherInfo.symCipherName);
+    } else {
+        cipher = slapi_ch_strdup(cipherInfo.symCipherName);
+    }
 
     /* If inside an Start TLS operation, perform the privacy level discovery
      * and if the security degree achieved after the handshake is not reckoned

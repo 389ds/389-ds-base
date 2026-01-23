@@ -274,6 +274,7 @@ def test_mldsa(topo):
     """
 
     inst = topo.standalone
+    inst.config.set('nsslapd-errorlog-level', str(16384 + 8))
     inst.enable_tls()
 
     cm = CertmapLegacy(inst)
