@@ -38,6 +38,36 @@ from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSBLE0007, DSVIRTLE0001
 from lib389.plugins import USNPlugin
 
 
+def is_subsuffix_of(sub_parent, be_suffix, all_suffixes):
+    """Check if sub_parent indicates this is a sub-suffix of be_suffix.
+
+    Returns True only if be_suffix is the CLOSEST ancestor suffix of sub_parent.
+    This prevents a sub-suffix from appearing under multiple ancestors.
+
+    :param sub_parent: The nsslapd-parent-suffix value (lowercase)
+    :param be_suffix: The suffix to check against (lowercase)
+    :param all_suffixes: Set of all backend suffixes (lowercase)
+    :returns: True if be_suffix is the closest ancestor suffix
+    """
+    if not sub_parent:
+        return False
+    if sub_parent == be_suffix:
+        return True
+    if sub_parent in all_suffixes:
+        # sub_parent is itself a suffix, will be handled separately
+        return False
+    if not sub_parent.endswith(',' + be_suffix):
+        return False
+    # Find the closest (longest) matching suffix for this parent
+    best_match = None
+    for sfx in all_suffixes:
+        if sub_parent == sfx or sub_parent.endswith(',' + sfx):
+            if best_match is None or len(sfx) > len(best_match):
+                best_match = sfx
+    # Only return True if be_suffix is the closest match
+    return best_match == be_suffix
+
+
 class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
 
@@ -1028,22 +1058,27 @@ class Backend(DSLdapObject):
         vlv.create(rdn="cn=" + vlvname, properties=props, basedn=basedn)
 
     def get_sub_suffixes(self):
-        """Return a list of Backend's
-        returns: a List of subsuffix entries
+        """Return a list of Backend's that are sub-suffixes of this backend.
+        :returns: A list of Backend instances that are sub-suffixes
         """
         subsuffixes = []
         top_be_suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
+        if not top_be_suffix:
+            return subsuffixes
+
         mts = self._mts.list()
+        be_insts = Backends(self._instance).list()
+        all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
+
         for mt in mts:
             parent_suffix = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
             if parent_suffix is None:
                 continue
-            if parent_suffix == top_be_suffix:
+
+            if is_subsuffix_of(parent_suffix, top_be_suffix, all_suffixes):
                 child_suffix = mt.get_attr_val_utf8_l('cn')
-                be_insts = Backends(self._instance).list()
                 for be in be_insts:
-                    be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
-                    if child_suffix == be_suffix:
+                    if child_suffix == be.get_attr_val_utf8_l('nsslapd-suffix'):
                         subsuffixes.append(be)
                         break
         return subsuffixes
