@@ -1,4 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
+
 # Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
@@ -28,7 +29,7 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 
 
-@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="Not supported over mdb")
+@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="Not supported over bdb")
 def test_memberof_deferred_update_lmdb_rejection(topo):
     """Test that memberOf plugin rejects deferred update configuration with LMDB backend
 
