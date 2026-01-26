@@ -294,6 +294,9 @@ def test_mldsa(topo):
             'loginShell': '/bin/false',
             'description': cert_dn })
 
+    inst.config.set("nsslapd-accesslog-logbuffering", "off")
+    inst.config.set("nsslapd-errorlog-logbuffering", "off")
+
     tmpdir_kwargs = {}
     if sys.version_info >= (3, 12):
         tmpdir_kwargs['delete'] = not DEBUGGING
@@ -314,6 +317,9 @@ def test_mldsa(topo):
         res.check_returncode()
         # If ldapsearch is successful then defaultnamingcontext should be in res.stdout
         assert "defaultnamingcontext" in res.stdout
+    assert inst.ds_access_log.match('.*RESULT.*dn="uid=test_user,ou=people,dc=example,dc=com".*')
+    assert inst.ds_access_log.match('.*TLS.*[PQC].*')
+    assert inst.ds_error_log.match('.*check_pqc.*')
 
 
 if __name__ == '__main__':
