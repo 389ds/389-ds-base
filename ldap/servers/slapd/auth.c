@@ -411,7 +411,7 @@ check_pqc(uint64_t connid, SSLChannelInfo *sci)
     slapi_log_err(SLAPI_LOG_CONNS, "check_pqc", "conn=%" PRIu64 " TLS keaType=%d keaGroup=%d\n",
                   connid, sci->keaType, sci->keaGroup);
 #ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
-    /* NSS supports PQC (because of the ifdef). No let check if the connection use it */
+    /* NSS supports PQC (because of the ifdef). Now lets check if the connection uses it */
     /* Check that PQC KeaType is hybrid */
     switch (sci->keaType) {
         case ssl_kea_ecdh_hybrid:
