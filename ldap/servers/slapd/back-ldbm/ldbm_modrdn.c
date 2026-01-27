@@ -1613,7 +1613,6 @@ dsentrydn_moddn_rename(
     /* Iterate over the children list renaming every child */
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    struct backentry **child_entry_copies = NULL;
     int retval = 0;
     char **newsuperiordns = NULL;
     size_t newsuperiordncomps = 0;
@@ -1648,29 +1647,22 @@ dsentrydn_moddn_rename(
     /*
      * Iterate over the child entries renaming them.
      */
-    child_entry_copies = (struct backentry **)slapi_ch_calloc(sizeof(struct backentry *), nids + 1);
-    for (size_t i = 0; i <= nids; i++) {
-        child_entry_copies[i] = backentry_dup(child_entries[i]);
-    }
-    for (size_t i = 0; retval == 0 && child_entries[i]; i++) {
-        retval = dsentrydn_moddn_rename_child(ptxn, be, li, child_entries[i], &child_entry_copies[i],
+    for (size_t i = 0; i < nids && child_entries[i]; i++) {
+        struct backentry *child_entry_copy = backentry_dup(child_entries[i]);
+        retval = dsentrydn_moddn_rename_child(ptxn, be, li,
+                                              child_entries[i],
+                                              &child_entry_copy,
                                               parentdncomps, newsuperiordns,
                                               newsuperiordncomps);
-    }
-
-    if (0 == retval) {
-        for (size_t i = 0; child_entries[i]; i++) {
-            CACHE_REMOVE(&inst->inst_cache, child_entry_copies[i]);
-            CACHE_RETURN(&inst->inst_cache, &(child_entry_copies[i]));
-        }
-    } else {
-        /* failure */
-        for (size_t i = 0; child_entries[i]; i++) {
-            backentry_free(&(child_entry_copies[i]));
+        if (retval != 0) {
+            backentry_free(&child_entry_copy);
+            break;
+        } else {
+            CACHE_REMOVE(&inst->inst_cache, child_entry_copy);
+            CACHE_RETURN(&inst->inst_cache, &child_entry_copy);
         }
     }
 
-    slapi_ch_free((void **)&child_entry_copies);
     slapi_ldap_value_free(newsuperiordns);
 
     return retval;
