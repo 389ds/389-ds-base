@@ -701,9 +701,9 @@ error:
                 }
             }
         }
-        slapi_ch_free((void **)&leftover);
-        idrange_free(&idrange_list);
     }
+    slapi_ch_free((void **)&leftover);
+    idrange_free(&idrange_list);
     slapi_log_err(SLAPI_LOG_FILTER, "idl_new_range_fetch",
                   "Found %d candidates; error code is: %d\n",
                   idl ? idl->b_nids : 0, *flag_err);
@@ -885,6 +885,7 @@ idl_lmdb_range_fetch(
     idl_range_ctx.lastid = 0;
     idl_range_ctx.count = 0;
     idl_range_ctx.index_id = index_id;
+    idl_range_ctx.idrange_list = NULL;
     if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
             struct _back_info_index_key bck_info;
             /* We are doing a bulk import
@@ -969,9 +970,9 @@ error:
                 }
             }
         }
-        slapi_ch_free((void **)&idl_range_ctx.leftover);
-        idrange_free(&idl_range_ctx.idrange_list);
     }
+    slapi_ch_free((void **)&idl_range_ctx.leftover);
+    idrange_free(&idl_range_ctx.idrange_list);
     *flag_err = idl_range_ctx.flag_err;
     slapi_log_err(SLAPI_LOG_FILTER, "idl_lmdb_range_fetch",
                   "Found %d candidates; error code is: %d\n",
