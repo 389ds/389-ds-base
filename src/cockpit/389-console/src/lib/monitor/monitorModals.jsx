@@ -3,17 +3,22 @@ import React from "react";
 import {
     Button,
     Checkbox,
+    ClipboardCopy,
+    ClipboardCopyVariant,
     EmptyState,
     EmptyStateIcon,
     EmptyStateBody,
     Grid,
     GridItem,
     Form,
+    Label,
     Modal,
     ModalVariant,
     NumberInput,
     Radio,
     Spinner,
+    Split,
+    SplitItem,
     Tab,
     Tabs,
     TabTitleText,
@@ -36,9 +41,12 @@ import {
     ListItem
 } from "@patternfly/react-core";
 import {
+    ArrowRightIcon,
+    CheckCircleIcon,
     CopyIcon,
     OutlinedQuestionCircleIcon,
     DownloadIcon,
+    ServerIcon
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
@@ -70,6 +78,19 @@ const _ = cockpit.gettext;
 const MAX_REPORT_JSON_SIZE = 64 * 1024 * 1024; // 64 MiB
 const MAX_BINARY_READ_SIZE = 64 * 1024 * 1024; // 64 MiB
 const CSV_PREVIEW_LINES = 20;
+
+const formatLagSeconds = (seconds, precision = 3) => {
+    if (seconds === undefined || seconds === null) {
+        return null;
+    }
+    if (seconds >= 3600) {
+        return `${(seconds / 3600).toFixed(precision)}h`;
+    }
+    if (seconds >= 60) {
+        return `${(seconds / 60).toFixed(precision)}m`;
+    }
+    return `${seconds.toFixed(precision)}s`;
+};
 
 class TaskLogModal extends React.Component {
     render() {
@@ -1168,6 +1189,13 @@ class ScatterLineChart extends React.PureComponent {
             }, 250);
         };
         this.toggleLegendItem = this.toggleLegendItem.bind(this);
+        this.handlePointClick = this.handlePointClick.bind(this);
+    }
+
+    handlePointClick(datum, seriesIndex) {
+        if (this.props.onPointClick && datum.csnId) {
+            this.props.onPointClick(datum);
+        }
     }
 
     componentDidMount() {
@@ -1267,15 +1295,7 @@ class ScatterLineChart extends React.PureComponent {
         const { series, yDomain } = this._getSeriesSnapshot();
 
         // Helper function to format time values
-        const formatTimeValue = (seconds) => {
-            if (seconds >= 3600) {
-                return `${(seconds / 3600).toFixed(3)}h`;
-            } else if (seconds >= 60) {
-                return `${(seconds / 60).toFixed(3)}m`;
-            } else {
-                return `${seconds.toFixed(3)}s`;
-            }
-        };
+        const formatTimeValue = (seconds) => formatLagSeconds(seconds, 3);
 
         // Process tooltip HTML tags
         const formatTooltip = (datum) => {
@@ -1308,13 +1328,35 @@ class ScatterLineChart extends React.PureComponent {
                                 labels={({ datum }) => formatTooltip(datum)}
                                 constrainToVisibleArea
                                 labelComponent={
-                                    <ChartTooltip
-                                        style={{
-                                            fontSize: "12px",
-                                            padding: 10,
-                                            whiteSpace: "pre-line" // Important for newlines
-                                        }}
-                                    />
+                                <ChartTooltip
+                                    orientation={({ datum }) => {
+                                        // Position tooltip below for high points, above for low points
+                                        // This prevents the tooltip from blocking clicks on points near the top
+                                        const yMax = yDomain.max;
+                                        const yMin = yDomain.min;
+                                        const yRange = yMax - yMin;
+                                        const threshold = yMin + (yRange * 0.6);
+                                        return datum.y > threshold ? "bottom" : "top";
+                                    }}
+                                    style={{
+                                        fontSize: "12px",
+                                        padding: 10,
+                                        whiteSpace: "pre-line", // Important for newlines
+                                        pointerEvents: "none"
+                                    }}
+                                    flyoutStyle={{
+                                        pointerEvents: "none"
+                                    }}
+                                    dx={0}
+                                    dy={({ datum }) => {
+                                        // Add extra offset to keep tooltip away from the point
+                                        const yMax = yDomain.max;
+                                        const yMin = yDomain.min;
+                                        const yRange = yMax - yMin;
+                                        const threshold = yMin + (yRange * 0.6);
+                                        return datum.y > threshold ? 10 : -10;
+                                    }}
+                                />
                                 }
                             />
                         }
@@ -1410,6 +1452,7 @@ class ScatterLineChart extends React.PureComponent {
                                 if (this.state.hiddenSeries[idx]) {
                                     return null;
                                 }
+                                const hasClickHandler = !!this.props.onPointClick;
                                 return (
                                     <ChartScatter
                                         key={`scatter-${idx}`}
@@ -1417,9 +1460,39 @@ class ScatterLineChart extends React.PureComponent {
                                         data={s.datapoints}
                                         style={{
                                             data: {
-                                                fill: s.color
+                                                fill: s.color,
+                                                cursor: hasClickHandler ? 'pointer' : 'default'
                                             }
                                         }}
+                                        events={hasClickHandler ? [{
+                                            target: "data",
+                                            eventHandlers: {
+                                                onClick: () => [{
+                                                    target: "data",
+                                                    mutation: (props) => {
+                                                        this.handlePointClick(props.datum, idx);
+                                                        return null;
+                                                    }
+                                                }],
+                                                onMouseOver: () => [{
+                                                    target: "data",
+                                                    mutation: (props) => ({
+                                                        style: {
+                                                            ...props.style,
+                                                            fill: s.color,
+                                                            cursor: 'pointer',
+                                                            strokeWidth: 2,
+                                                            stroke: 'var(--pf-v5-global--active-color--100, #0066cc)',
+                                                            r: 6
+                                                        }
+                                                    })
+                                                }],
+                                                onMouseOut: () => [{
+                                                    target: "data",
+                                                    mutation: () => null
+                                                }]
+                                            }
+                                        }] : undefined}
                                     />
                                 );
                             })}
@@ -1501,17 +1574,320 @@ class ScatterLineChart extends React.PureComponent {
     }
 }
 
+/**
+ * CSNDetailModal - Displays detailed CSN propagation path information
+ * Shows the hop-by-hop timing of how a change propagated through the replication topology
+ */
+class CSNDetailModal extends React.Component {
+    constructor(props) {
+        super(props);
+        this.formatTimestamp = this.formatTimestamp.bind(this);
+        this.formatLag = this.formatLag.bind(this);
+    }
+
+    formatTimestamp(isoString) {
+        if (!isoString) return _("Unknown");
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) {
+                console.warn("Invalid timestamp format:", isoString);
+                return cockpit.format(_("Invalid: $0"), isoString);
+            }
+            return date.toLocaleString(undefined, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3,
+                hour12: false
+            });
+        } catch (e) {
+            console.warn("Error formatting timestamp:", isoString, e);
+            return cockpit.format(_("Invalid: $0"), isoString);
+        }
+    }
+
+    formatLag(seconds) {
+        return formatLagSeconds(seconds, 3) || _("N/A");
+    }
+
+    render() {
+        const { csnData, onClose } = this.props;
+
+        if (!csnData) {
+            return null;
+        }
+
+        const arrivals = csnData.arrivals || [];
+        const pathJson = JSON.stringify(csnData, null, 2);
+
+        return (
+            <Modal
+                variant={ModalVariant.large}
+                title={_("CSN Propagation Details")}
+                isOpen={!!csnData}
+                onClose={onClose}
+                aria-label={_("CSN propagation details")}
+                actions={[
+                    <Button key="close" variant="primary" onClick={onClose}>
+                        {_("Close")}
+                    </Button>
+                ]}
+            >
+                        {/* CSN Summary Information */}
+                        <Card isFlat className="ds-margin-bottom-md">
+                            <CardBody>
+                                <Grid hasGutter>
+                                    <GridItem span={6}>
+                                        <DescriptionList isHorizontal isCompact>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("CSN")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <ClipboardCopy
+                                                        variant={ClipboardCopyVariant.inline}
+                                                    >
+                                                        {csnData.csn}
+                                                    </ClipboardCopy>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Entry DN")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <Tooltip content={csnData.targetDn}>
+                                                        <span className="pf-v5-u-text-truncate" style={{ maxWidth: '300px', display: 'inline-block' }}>
+                                                            {csnData.targetDn}
+                                                        </span>
+                                                    </Tooltip>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Suffix")}</DescriptionListTerm>
+                                                <DescriptionListDescription>{csnData.suffix}</DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                        </DescriptionList>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <DescriptionList isHorizontal isCompact>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Origin Server")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <Label color="blue" icon={<ServerIcon />}>
+                                                        {csnData.originServer}
+                                                    </Label>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            {csnData.originIncludedInArrivals === false && (
+                                                <DescriptionListGroup>
+                                                    <DescriptionListTerm>{_("Origin Note")}</DescriptionListTerm>
+                                                    <DescriptionListDescription>
+                                                        <Text component={TextVariants.small} style={{ color: 'var(--pf-v5-global--Color--200)' }}>
+                                                            {_("Origin server record is outside the selected time range; entry details reflect the earliest arrival.")}
+                                                        </Text>
+                                                    </DescriptionListDescription>
+                                                </DescriptionListGroup>
+                                            )}
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Total Lag")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <strong>{this.formatLag(csnData.globalLag)}</strong>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Servers Reached")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {csnData.serverCount}
+                                                    {csnData.replicatedToAll && (
+                                                        <Label color="green" icon={<CheckCircleIcon />} className="ds-left-margin">
+                                                            {_("All")}
+                                                        </Label>
+                                                    )}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                        </DescriptionList>
+                                    </GridItem>
+                                </Grid>
+                            </CardBody>
+                        </Card>
+
+                        {/* Arrival Timeline Visualization */}
+                        <Card isFlat className="ds-margin-bottom-md">
+                            <CardTitle>{_("Arrival Timeline")}</CardTitle>
+                            <CardBody>
+                                <Text
+                                    component={TextVariants.small}
+                                    className="ds-margin-bottom"
+                                    style={{ color: 'var(--pf-v5-global--Color--200)', fontStyle: 'italic' }}
+                                >
+                                    {_("Note: Shows arrival order by time. Actual replication topology may differ in fan-out configurations.")}
+                                </Text>
+                                <div
+                                    role="list"
+                                    aria-label={_("CSN propagation timeline")}
+                                    style={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        alignItems: 'center',
+                                        gap: 'var(--pf-v5-global--spacer--sm)',
+                                        padding: 'var(--pf-v5-global--spacer--sm)'
+                                    }}
+                                >
+                                    {arrivals.map((arrival, idx) => (
+                                        <React.Fragment key={idx}>
+                                            {/* Server Node */}
+                                            <div
+                                                role="listitem"
+                                                aria-label={cockpit.format(
+                                                    arrival.isOrigin
+                                                        ? _("Origin server: $0")
+                                                        : _("Server $0, delay: $1"),
+                                                    arrival.server,
+                                                    arrival.isOrigin ? "" : this.formatLag(arrival.relativeDelay)
+                                                )}
+                                                style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                padding: 'var(--pf-v5-global--spacer--sm)',
+                                                backgroundColor: arrival.isOrigin
+                                                    ? 'var(--pf-v5-global--palette--blue-50, #e7f1fa)'
+                                                    : 'var(--pf-v5-global--BackgroundColor--200, #f0f0f0)',
+                                                borderRadius: 'var(--pf-v5-global--BorderRadius--sm)',
+                                                border: arrival.isOrigin
+                                                    ? '2px solid var(--pf-v5-global--primary-color--100, #0066cc)'
+                                                    : '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)',
+                                                minWidth: '120px'
+                                            }}>
+                                                <Text component={TextVariants.small} style={{ fontWeight: 'bold' }}>
+                                                    {arrival.server}
+                                                </Text>
+                                                <Text component={TextVariants.small} style={{ fontSize: '0.75rem', color: 'var(--pf-v5-global--Color--200)' }}>
+                                                    {this.formatTimestamp(arrival.timestamp)}
+                                                </Text>
+                                                {arrival.isOrigin && (
+                                                    <Label color="blue" isCompact style={{ marginTop: '4px' }}>
+                                                        {_("Origin")}
+                                                    </Label>
+                                                )}
+                                                {!arrival.isOrigin && (
+                                                    <Text component={TextVariants.small} style={{ marginTop: '4px', color: 'var(--pf-v5-global--success-color--100)' }}>
+                                                        +{this.formatLag(arrival.relativeDelay)}
+                                                    </Text>
+                                                )}
+                                            </div>
+
+                                            {/* Arrow between nodes */}
+                                            {idx < arrivals.length - 1 && (
+                                                <div
+                                                    role="presentation"
+                                                    aria-hidden="true"
+                                                    style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        padding: '0 var(--pf-v5-global--spacer--xs)'
+                                                    }}
+                                                >
+                                                    <ArrowRightIcon style={{ color: 'var(--pf-v5-global--Color--200)' }} />
+                                                    <Text component={TextVariants.small} style={{
+                                                        fontSize: '0.7rem',
+                                                        color: 'var(--pf-v5-global--Color--200)',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {arrivals[idx + 1].hopLag !== undefined
+                                                            ? this.formatLag(arrivals[idx + 1].hopLag)
+                                                            : ''}
+                                                    </Text>
+                                                </div>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </CardBody>
+                        </Card>
+
+                        {/* Detailed Arrivals Table */}
+                        <Card isFlat className="ds-margin-bottom-md">
+                            <CardTitle>{_("Arrival Details")}</CardTitle>
+                            <CardBody>
+                                <table className="pf-v5-c-table pf-m-compact" role="grid">
+                                    <thead>
+                                        <tr>
+                                            <th>{_("Server")}</th>
+                                            <th>{_("Arrival Time")}</th>
+                                            <th>{_("Hop Lag")}</th>
+                                            <th>{_("Cumulative Delay")}</th>
+                                            <th>{_("Duration")}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {arrivals.map((arrival, idx) => (
+                                            <tr key={idx}>
+                                                <td>
+                                                    {arrival.server}
+                                                    {arrival.isOrigin && (
+                                                        <span style={{ color: 'var(--pf-v5-global--primary-color--100)', marginLeft: 'var(--pf-v5-global--spacer--xs)' }}>
+                                                            ({_("Origin")})
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td>{this.formatTimestamp(arrival.timestamp)}</td>
+                                                <td>
+                                                    {arrival.isOrigin
+                                                        ? <em>{_("Origin")}</em>
+                                                        : this.formatLag(arrival.hopLag)}
+                                                </td>
+                                                <td>{this.formatLag(arrival.relativeDelay)}</td>
+                                                <td>{arrival.duration ? this.formatLag(arrival.duration) : _("N/A")}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </CardBody>
+                        </Card>
+
+                        {/* Copy Actions */}
+                        <Split hasGutter>
+                            <SplitItem>
+                                <ClipboardCopy
+                                    variant={ClipboardCopyVariant.expansion}
+                                    isExpanded={false}
+                                    isCode
+                                    isReadOnly
+                                    hoverTip={_("Copy full path JSON")}
+                                    clickTip={_("Copied!")}
+                                >
+                                    {pathJson}
+                                </ClipboardCopy>
+                            </SplitItem>
+                        </Split>
+            </Modal>
+        );
+    }
+}
+
+CSNDetailModal.propTypes = {
+    csnData: PropTypes.object,
+    onClose: PropTypes.func.isRequired
+};
+
+CSNDetailModal.defaultProps = {
+    csnData: null
+};
+
 class LagReportModal extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            activeTabKey: 0, // 0 = Summary, 1 = Charts, 2 = PNG Report, 3 = CSV Report, 4 = Report Files
+            activeTabKey: 0,
             ...this._freshReportState(),
             loadingSummary: false,
             loadingJson: false,
             loadingCsv: false,
-            loadingPng: false
+            loadingPng: false,
+            selectedCsnId: null
         };
 
         this.handleTabClick = this.handleTabClick.bind(this);
@@ -1524,6 +1900,8 @@ class LagReportModal extends React.Component {
         this.renderPngTab = this.renderPngTab.bind(this);
         this.renderCsvTab = this.renderCsvTab.bind(this);
         this.renderReportFilesTab = this.renderReportFilesTab.bind(this);
+        this.handleCsnPointClick = this.handleCsnPointClick.bind(this);
+        this.handleCloseCsnDetails = this.handleCloseCsnDetails.bind(this);
 
         this._activeLoadToken = 0;
         this._isMounted = false;
@@ -1543,8 +1921,24 @@ class LagReportModal extends React.Component {
             summary: null,
             suffixStats: {},
             clientSamplingNotice: null,
+            selectedCsnId: null,
             ...overrides
         };
+    }
+
+    handleCsnPointClick(datum) {
+        if (datum && datum.csnId) {
+            const { jsonData } = this.state;
+            if (jsonData && jsonData.csnDetails && jsonData.csnDetails[datum.csnId]) {
+                this.setState({ selectedCsnId: datum.csnId });
+            } else {
+                console.warn("CSN details not available for:", datum.csnId);
+            }
+        }
+    }
+
+    handleCloseCsnDetails() {
+        this.setState({ selectedCsnId: null });
     }
 
     componentDidMount() {
@@ -2117,7 +2511,7 @@ class LagReportModal extends React.Component {
 
     renderChartsTab() {
         const { reportUrls } = this.props;
-        const { loadingJson, jsonData, error, clientSamplingNotice } = this.state;
+        const { loadingJson, jsonData, error, clientSamplingNotice, selectedCsnId } = this.state;
 
         if (loadingJson) {
             return (
@@ -2170,6 +2564,13 @@ class LagReportModal extends React.Component {
                           jsonData.hopLags.series &&
                           jsonData.hopLags.series.length > 0;
 
+        const hasCsnDetails = jsonData && jsonData.csnDetails &&
+                             Object.keys(jsonData.csnDetails).length > 0;
+
+        const selectedCsnData = selectedCsnId && hasCsnDetails
+            ? jsonData.csnDetails[selectedCsnId]
+            : null;
+
         if (!jsonData || (!hasReplicationLags && !hasHopLags)) {
             return (
                 <EmptyState>
@@ -2201,6 +2602,15 @@ class LagReportModal extends React.Component {
                                         {clientSamplingNotice}
                                     </Alert>
                                 )}
+                                {hasCsnDetails && (
+                                    <Text
+                                        component={TextVariants.small}
+                                        className="ds-margin-bottom"
+                                        style={{ color: 'var(--pf-v5-global--Color--200)', fontStyle: 'italic' }}
+                                    >
+                                        {_("Tip: Click on any chart point to view detailed CSN propagation path.")}
+                                    </Text>
+                                )}
                                 {hasReplicationLags && (
                                     <div className="ds-margin-bottom">
                                         <Title headingLevel="h3">
@@ -2231,6 +2641,7 @@ class LagReportModal extends React.Component {
                                             xAxisLabel={(jsonData.replicationLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
                                             yAxisLabel={jsonData.replicationLags.yAxisLabel || _("Lag Time (seconds)")}
                                             defaultShowLegend={true}
+                                            onPointClick={hasCsnDetails ? this.handleCsnPointClick : undefined}
                                         />
                                     </div>
                                 )}
@@ -2250,9 +2661,17 @@ class LagReportModal extends React.Component {
                                             xAxisLabel={(jsonData.hopLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
                                             yAxisLabel={jsonData.hopLags.yAxisLabel || _("Hop Lag Time (seconds)")}
                                             defaultShowLegend={false}
+                                            onPointClick={hasCsnDetails ? this.handleCsnPointClick : undefined}
                                         />
                                     </div>
                                 )}
+
+                                {/* CSN Detail Panel - shown when a point is clicked */}
+                                <CSNDetailModal
+                                    csnData={selectedCsnData}
+                                    onClose={this.handleCloseCsnDetails}
+                                />
+
                                 <div className="ds-margin-top">
                                     <Button
                                         variant="secondary"
@@ -2876,6 +3295,28 @@ class ChooseLagReportModal extends React.Component {
 }
 
 // Prototypes and defaultProps
+ScatterLineChart.propTypes = {
+    chartData: PropTypes.object,
+    title: PropTypes.string,
+    yAxisLabel: PropTypes.string,
+    xAxisLabel: PropTypes.string,
+    minY: PropTypes.number,
+    maxY: PropTypes.number,
+    defaultShowLegend: PropTypes.bool,
+    onPointClick: PropTypes.func
+};
+
+ScatterLineChart.defaultProps = {
+    chartData: null,
+    title: "",
+    yAxisLabel: "Value",
+    xAxisLabel: "",
+    minY: null,
+    maxY: null,
+    defaultShowLegend: true,
+    onPointClick: null
+};
+
 AgmtDetailsModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
@@ -3044,6 +3485,7 @@ export {
     ReportLoginModal,
     FullReportContent,
     LagReportModal,
-    ChooseLagReportModal
+    ChooseLagReportModal,
+    CSNDetailModal
 };
 
