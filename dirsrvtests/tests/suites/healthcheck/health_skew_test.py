@@ -13,7 +13,7 @@ import pytest
 import subprocess
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dseldif import DSEldif
-from lib389.replica import Changelog, ReplicationManager
+from lib389.replica import ReplicationManager
 from lib389.topologies import topology_m2
 
 pytestmark = pytest.mark.tier1
