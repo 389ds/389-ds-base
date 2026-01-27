@@ -274,6 +274,7 @@ def test_mldsa(topo):
     """
 
     inst = topo.standalone
+    inst.config.set('nsslapd-errorlog-level', str(16384 + 8))
     inst.enable_tls()
 
     cm = CertmapLegacy(inst)
@@ -292,6 +293,9 @@ def test_mldsa(topo):
             'homeDirectory': '/var/empty',
             'loginShell': '/bin/false',
             'description': cert_dn })
+
+    inst.config.set("nsslapd-accesslog-logbuffering", "off")
+    inst.config.set("nsslapd-errorlog-logbuffering", "off")
 
     tmpdir_kwargs = {}
     if sys.version_info >= (3, 12):
@@ -313,6 +317,9 @@ def test_mldsa(topo):
         res.check_returncode()
         # If ldapsearch is successful then defaultnamingcontext should be in res.stdout
         assert "defaultnamingcontext" in res.stdout
+    assert inst.ds_access_log.match('.*RESULT.*dn="uid=test_user,ou=people,dc=example,dc=com".*')
+    assert inst.ds_access_log.match('.*TLS.*[PQC].*')
+    assert inst.ds_error_log.match('.*check_pqc.*')
 
 
 if __name__ == '__main__':
