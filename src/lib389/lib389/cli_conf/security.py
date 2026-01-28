@@ -86,9 +86,9 @@ def _security_generic_get(inst, basedn, log, args, attrs_map):
             val = ""
         result[props.attr.lower()] = val
     if args.json:
-        print(json.dumps({'type': 'list', 'items': result}, indent=4))
+        log.info(json.dumps({'type': 'list', 'items': result}, indent=4))
     else:
-        print('\n'.join([f'{attr}: {value or ""}' for attr, value in result.items()]))
+        log.info('\n'.join([f'{attr}: {value or ""}' for attr, value in result.items()]))
 
 
 def _security_generic_set(inst, basedn, log, args, attrs_map):
@@ -228,10 +228,10 @@ def security_ciphers_set(inst, basedn, log, args):
 def security_ciphers_get(inst, basedn, log, args):
     enc = Encryption(inst)
     if args.json:
-        print({'type': 'list', 'items': enc.ciphers})
+        log.info({'type': 'list', 'items': enc.ciphers})
     else:
         val = ','.join(enc.ciphers)
-        print(val if val != '' else '<undefined>')
+        log.info(val if val != '' else '<undefined>')
 
 
 def security_ciphers_list(inst, basedn, log, args):
@@ -247,12 +247,13 @@ def security_ciphers_list(inst, basedn, log, args):
         lst = enc.ciphers
 
     if args.json:
-        print(json.dumps({'type': 'list', 'items': lst}, indent=4))
+        log.info(json.dumps({'type': 'list', 'items': lst}, indent=4))
     else:
         if lst == []:
             log.getChild('security').warn('List of ciphers is empty')
         else:
-            print(*lst, sep='\n')
+            for item in lst:
+                log.info(item)
 
 
 def security_disable_plaintext_port(inst, basedn, log, args, warn=True):
@@ -312,7 +313,10 @@ def cert_list(inst, basedn, log, args):
     certmgr = CertManager(instance=inst)
     certs = certmgr.list_certs()
     if not certs:
-        log.info("No certificates found.")
+        if args.json:
+            log.info(json.dumps([], indent=4))
+        else:
+            log.info("No certificates found.")
         return
 
     if args.json:
@@ -328,7 +332,10 @@ def cacert_list(inst, basedn, log, args):
     certmgr = CertManager(instance=inst)
     ca_certs = certmgr.list_ca_certs()
     if not ca_certs:
-        log.info("No CA certificates found.")
+        if args.json:
+            log.info(json.dumps([], indent=4))
+        else:
+            log.info("No CA certificates found.")
         return
 
     if args.json:

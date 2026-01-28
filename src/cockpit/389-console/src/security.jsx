@@ -60,6 +60,8 @@ export class Security extends React.Component {
             primaryCertName: '',
             serverCertNames: [],
             serverCerts: [],
+            CACerts: [],
+            CACertNames: [],
             isMinSSLOpen: false,
             isMaxSSLOpen: false,
             isClientAuthOpen: false,
@@ -330,9 +332,14 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
+                    }
                     this.setState(() => (
                         {
                             CACerts: certs,
+                            CACertNames: certNames,
                         }), this.loadCSRs
                     );
                 })
@@ -1226,6 +1233,9 @@ export class Security extends React.Component {
                                     ServerKeys={this.state.serverOrphanKeys}
                                     addNotification={this.props.addNotification}
                                     certDir={this.props.certDir}
+                                    certNicknames={this.state.serverCertNames}
+                                    CACertNicknames={this.state.CACertNames}
+                                    reloadCerts={this.loadCerts}
                                 />
                             </Tab>
                             <Tab eventKey={2} title={<TabTitleText>{_("Cipher Preferences")}</TabTitleText>}>
