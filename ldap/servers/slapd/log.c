@@ -206,8 +206,8 @@ compress_log_file(char *log_name, int32_t mode)
 
     if ((source = fopen(log_name, "r")) == NULL) {
         /* Failed to open log file */
-        /* coverity[leaked_storage] gzclose does close FD */
         gzclose(outfile);
+        /* coverity[leaked_handle] gzclose does close FD */
         return -1;
     }
 
@@ -217,17 +217,17 @@ compress_log_file(char *log_name, int32_t mode)
         if (bytes_written == 0)
         {
             fclose(source);
-            /* coverity[leaked_storage] gzclose does close FD */
             gzclose(outfile);
+            /* coverity[leaked_handle] gzclose does close FD */
             return -1;
         }
         bytes_read = fread(buf, 1, LOG_CHUNK, source);
     }
-    /* coverity[leaked_storage] gzclose does close FD */
     gzclose(outfile);
     fclose(source);
     PR_Delete(log_name); /* remove the old uncompressed log */
 
+    /* coverity[leaked_handle] gzclose does close FD */
     return 0;
 }
 
