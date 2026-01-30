@@ -201,6 +201,7 @@ compress_log_file(char *log_name, int32_t mode)
     if ((source = fopen(log_name, "r")) == NULL) {
         /* Failed to open log file */
         gzclose(outfile);
+        /* coverity[leaked_handle] gzclose does close FD */
         return -1;
     }
 
@@ -211,6 +212,7 @@ compress_log_file(char *log_name, int32_t mode)
         {
             fclose(source);
             gzclose(outfile);
+            /* coverity[leaked_handle] gzclose does close FD */
             return -1;
         }
         bytes_read = fread(buf, 1, LOG_CHUNK, source);
@@ -219,6 +221,7 @@ compress_log_file(char *log_name, int32_t mode)
     fclose(source);
     PR_Delete(log_name); /* remove the old uncompressed log */
 
+    /* coverity[leaked_handle] gzclose does close FD */
     return 0;
 }
 
