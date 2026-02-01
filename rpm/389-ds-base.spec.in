@@ -152,8 +152,8 @@ BuildRequires:    python%{python3_pkgversion}-devel
 # For cockpit
 %if %{with cockpit}
 BuildRequires:    rsync
-BuildRequires:    npm
-BuildRequires:    nodejs
+BuildRequires:    /usr/bin/npm
+BuildRequires:    /usr/bin/node
 %endif
 
 # END BUILD REQUIRES
@@ -188,9 +188,7 @@ Requires:         %{name}-robdb-libs = %{version}-%{release}
 Requires:         libdb
 %endif
 %endif
-Requires:         lmdb
-# This picks up libperl.so as a Requires, so we add this versioned one
-Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
+Requires:         lmdb-libs
 # Needed by logconv.pl
 %if %{without libbdb_ro}
 %if %{without bundle_libdb}
@@ -217,6 +215,7 @@ Source0:          %{name}-%{version}.tar.bz2
 Source2:          %{name}-devel.README
 %if %{with bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
+Source5:          jemalloc-5.3.0_throw_bad_alloc.patch
 %endif
 %if %{with bundle_libdb}
 Source4:          https://fedorapeople.org/groups/389ds/libdb-5.3.28-59.tar.bz2
@@ -434,6 +433,7 @@ COCKPIT_FLAGS="--disable-cockpit"
 
 # Build jemalloc
 pushd ../%{jemalloc_name}-%{jemalloc_ver}
+patch -p1 -F3 < %{SOURCE5}
 %configure \
         --libdir=%{_libdir}/%{pkgname}/lib \
         --bindir=%{_libdir}/%{pkgname}/bin \

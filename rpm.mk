@@ -143,6 +143,7 @@ srpmdistdir:
 rpmbuildprep:
 	cp dist/sources/$(TARBALL) $(RPMBUILD)/SOURCES/
 	cp rpm/$(PACKAGE)-* $(RPMBUILD)/SOURCES/
+	cp rpm/jemalloc-5.3.0_throw_bad_alloc.patch $(RPMBUILD)/SOURCES/
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
