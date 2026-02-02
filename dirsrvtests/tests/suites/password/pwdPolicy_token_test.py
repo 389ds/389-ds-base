@@ -15,6 +15,7 @@ from lib389._constants import *
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.topologies import topology_st as topo
+from lib389.idm.directorymanager import DirectoryManager
 
 pytestmark = pytest.mark.tier1
 
@@ -25,14 +26,13 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-USER_DN = 'uid=Test_user1,ou=People,dc=example,dc=com'
 USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
-TOKEN = 'test_user1'
+TOKEN = 'test_user123'
 
 user_properties = {
-    'uid': 'Test_user1',
-    'cn': 'test_user1',
-    'sn': 'test_user1',
+    'uid': 'Test_user123',
+    'cn': 'test_user123',
+    'sn': 'test_user123',
     'uidNumber': '1001',
     'gidNumber': '2001',
     'userpassword': PASSWORD,
@@ -59,28 +59,48 @@ def test_token_lengths(topo):
     :id: dae9d916-2a03-4707-b454-9e901d295b13
     :setup: Standalone instance
     :steps:
-        1. Test token length rejects password of the same length as rdn value
+        1. Create user, setup global password policy
+        2. Bind as user, change password to 'Abcd012+'
+        3. Bind as user with 'Abcd012+', attempt changes to 'user', 'us123', 'Tuse!1234', 'Tuse!0987', 'Tabc!1234'
+        4. For each passwordMinTokenLength 4, 6, 10: change settings, rebind as user, attempt password with token of that length from TOKEN
+        5. Cleanup - delete user
     :expectedresults:
-        1. Passwords are rejected
+        1. User created, password policy enabled and set
+        2. Success
+        3. All attempts fail with CONSTRAINT_VIOLATION
+        4. All attempts fail with CONSTRAINT_VIOLATION
+        5. User successfully deleted
     """
     user = pwd_setup(topo)
-    for length in ['4', '6', '10']:
-        topo.standalone.simple_bind_s(DN_DM, PASSWORD)
-        topo.standalone.config.set('passwordMinTokenLength', length)
-        topo.standalone.simple_bind_s(USER_DN, PASSWORD)
-        time.sleep(1)
+    dm = DirectoryManager(topo.standalone)
 
-        try:
-            passwd = TOKEN[:int(length)]
-            log.info("Testing password len {} token ({})".format(length, passwd))
-            user.replace('userpassword', passwd)
-            log.fatal('Password incorrectly allowed!')
-            assert False
-        except ldap.CONSTRAINT_VIOLATION as e:
-            log.info('Password correctly rejected: ' + str(e))
-        except ldap.LDAPError as e:
-            log.fatal('Unexpected failure ' + str(e))
-            assert False
+    try:
+        # Verify that the user can change their password
+        user.rebind(PASSWORD)
+        user.replace('userpassword', 'Abcd012+')
+
+        # Verify that the default password policy is enforced
+        user.rebind('Abcd012+')
+        for new_password in ['user', 'us123', 'Tuse!1234', 'Tuse!0987', 'Tabc!1234']:
+            log.info(f"Testing password {new_password}")
+            with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+                user.replace('userpassword', new_password)
+
+        # Verify that the password policy is enforced for different token lengths
+        for length in ['4', '6', '10']:
+            dm.rebind(PASSWORD)
+            topo.standalone.config.set('passwordMinTokenLength', length)
+            user.rebind('Abcd012+')
+            time.sleep(1)
+
+            with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+                passwd = TOKEN[:int(length)]
+                log.info("Testing password len {} token ({})".format(length, passwd))
+                user.replace('userpassword', passwd)
+
+    finally:
+        # Cleanup
+        user.delete()
 
 
 if __name__ == '__main__':
