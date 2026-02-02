@@ -866,6 +866,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
     struct vlv_key *key = NULL;
     dbi_val_t data = {0};
     dblayer_private *priv = NULL;
+    size_t key_size_limit = li->li_max_key_len - sizeof(entry->ep_id);
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     priv = (dblayer_private *)li->li_dblayer_private;
@@ -886,6 +887,10 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
         return rc;
     }
 
+    /* Truncate the key if it is too long */
+    if (key->key.size > key_size_limit) {
+        key->key.size = key_size_limit;
+    }
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
     } else {
@@ -930,7 +935,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
         if (txn && txn->back_special_handling_fn) {
             rc = txn->back_special_handling_fn(be, BTXNACT_VLV_DEL, db, &key->key, &data, txn);
         } else {
-            rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, NULL);
+            rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, &data);
         }
         if (rc == 0) {
             if (txn && txn->back_special_handling_fn) {

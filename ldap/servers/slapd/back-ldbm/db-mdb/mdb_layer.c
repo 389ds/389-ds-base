@@ -2134,10 +2134,15 @@ void *dbmdb_recno_cache_build(void *arg)
         recno = 1;
     }
     while (rc == 0) {
+        struct ldbminfo *li = (struct ldbminfo *)rcctx->cursor->be->be_database->plg_private;
         slapi_log_err(SLAPI_LOG_DEBUG, "dbmdb_recno_cache_build", "recno=%d\n", recno);
         if (recno % RECNO_CACHE_INTERVAL == 1) {
             /* Prepare the cache data */
             len = sizeof(*rce) + data.mv_size + key.mv_size;
+            if (len > li->li_max_key_len) {
+                key.mv_size = li->li_max_key_len - data.mv_size - sizeof(*rce);
+                len = li->li_max_key_len;
+            }
             rce = (dbmdb_recno_cache_elmt_t*)slapi_ch_malloc(len);
             rce->len = len;
             rce->recno = recno;
