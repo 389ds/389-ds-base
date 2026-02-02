@@ -195,6 +195,16 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #include "pw.h"
 
 /*
+ * SERVER UPGRADE INTERNALS
+ */
+typedef enum _upgrade_status {
+    UPGRADE_SUCCESS = 0,
+    UPGRADE_FAILURE = 1,
+} upgrade_status;
+
+upgrade_status upgrade_server(void);
+
+/*
  * call the appropriate signal() function.
  */
 #if defined(hpux)
