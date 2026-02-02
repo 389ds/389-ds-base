@@ -1175,11 +1175,11 @@ def test_vlv_with_mr(vlv_setup_with_uid_mr):
 
 
 
-def test_vlv_long_attribute_value(topology_st):
+def test_vlv_long_attribute_value(topology_st, request):
     """
     Test VLV with an entry containing a very long attribute value (2K).
 
-    :id: 7213-vlv-long-attr
+    :id: 99126fa4-003e-11f1-b7d6-c85309d5c3e3
     :setup: Standalone instance.
     :steps:
         1. Cleanup leftover from previous tests
@@ -1205,8 +1205,19 @@ def test_vlv_long_attribute_value(topology_st):
     inst = topology_st.standalone
     reindex_task = Tasks(inst)
 
+    users_to_delete = []
+
+    def fin():
+        cleanup(inst)
+        # Clean the added users
+        for user in users_to_delete:
+            user.delete()
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
     # Clean previous tests leftover
-    cleanup(inst)
+    fin()
 
     # Create VLV search and index
     vlv_search, vlv_index = create_vlv_search_and_index(inst)
@@ -1234,7 +1245,7 @@ def test_vlv_long_attribute_value(topology_st):
         'homeDirectory': '/home/longcnuser1'
     }
     user = users.create(properties=user_properties)
-    users_to_delete = [ user ];
+    users_to_delete.append(user);
 
     # Verify the entry was created and has the long cn value
     entry = user.get_attr_vals_utf8('cn')
@@ -1271,10 +1282,6 @@ def test_vlv_long_attribute_value(topology_st):
     count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
     assert count > 1
     log.info(f'VLV search successful with {count} entries including entry with 2K cn value')
-
-    # Clean the added users
-    for user in users_to_delete:
-        user.delete()
 
 
 
