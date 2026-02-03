@@ -188,8 +188,6 @@ def _dump_cert(cert, json_output: bool = False, log = None):
         if log:
             log.info(msg)
 
-        print(msg)
-
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
     tlsdb = NssSsl(dbpath=dbpath)
