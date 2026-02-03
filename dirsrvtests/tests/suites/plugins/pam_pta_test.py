@@ -104,6 +104,8 @@ def pam_service_ldapserver(migrated_child_config):
                 f.write(line + "\n")
         os.chmod(pam_file, 0o644)
 
+        yield
+
     except Exception as e:
         if os.path.exists(backup_file):
             # Restore backup on error
