@@ -683,6 +683,7 @@ class ChartData(NamedTuple):
     lags: List[float]
     durations: List[float]
     hover: List[str]
+    csn_ids: List[str]
 
 class VisualizationHelper:
     """Helper class for visualization-related functionality."""
@@ -730,7 +731,7 @@ class VisualizationHelper:
                           tz: tzinfo = timezone.utc) -> Dict[Tuple[str, str], ChartData]:
         """Prepare data for visualization with timezone-aware timestamps."""
         chart_data = defaultdict(lambda: {
-            'times': [], 'lags': [], 'durations': [], 'hover': []
+            'times': [], 'lags': [], 'durations': [], 'hover': [], 'csn_ids': []
         })
 
         for csn, server_map in csns.items():
@@ -766,6 +767,7 @@ class VisualizationHelper:
                 data_slot['times'].append(ts_dt)
                 data_slot['lags'].append(lag_val)  # The same global-lag for all servers
                 data_slot['durations'].append(duration_val)
+                data_slot['csn_ids'].append(csn)
                 # Format timestamp for hover display in the specified timezone
                 timestamp_str = ts_dt.strftime('%Y-%m-%d %H:%M:%S')
                 data_slot['hover'].append(
@@ -784,7 +786,8 @@ class VisualizationHelper:
                 times=value['times'],
                 lags=value['lags'],
                 durations=value['durations'],
-                hover=value['hover']
+                hover=value['hover'],
+                csn_ids=value['csn_ids']
             )
             for key, value in chart_data.items()
         }
@@ -803,6 +806,14 @@ class ReplicationLogAnalyzer:
     AUTO_SAMPLING_THRESHOLD = 4000  # Trigger auto sampling above this many CSN points
     HOP_SERIES_BUDGET_RATIO = 0.25  # Allocate max 25% of chart points to hop lag series
     MIN_POINTS_PER_SERIES = 2       # Minimum points to preserve series shape after sampling
+    MAX_CSN_DETAILS = 10000         # Maximum CSN details to include (prevents memory issues)
+
+    # CSN format: TTTTTTTTSSSSRRRRNNNN (20 hex chars)
+    # T=timestamp(8), S=sequence(4), R=replicaID(4), N=subseq(4)
+    CSN_TIMESTAMP_START = 0
+    CSN_TIMESTAMP_END = 8
+    CSN_REPLICA_ID_START = 12
+    CSN_REPLICA_ID_END = 16
 
     # Precision preset configurations
     PRECISION_PRESETS = {
@@ -866,6 +877,54 @@ class ReplicationLogAnalyzer:
 
         # Threshold to trigger auto sampling if lots of CSNs
         self._auto_sampling_csn_threshold = self.AUTO_SAMPLING_THRESHOLD
+
+        # Mapping of (replica ID, suffix) to server name
+        # Built during log parsing to correctly identify origin servers
+        # Keyed by (replica_id, suffix) because replica IDs are per-suffix in multi-suffix deployments
+        self._replica_id_to_server: Dict[Tuple[str, str], str] = {}
+
+    @staticmethod
+    def _extract_replica_id_from_csn(csn: str) -> Optional[str]:
+        """Extract the replica ID from a CSN string.
+
+        CSN format: TTTTTTTTSSSSRRRRNNNN (20 hex characters)
+        - T = timestamp (8 chars)
+        - S = sequence (4 chars)
+        - R = replica ID (4 chars)
+        - N = subseq (4 chars)
+
+        :param csn: The CSN string
+        :returns: The replica ID as a string (4 hex chars), or None if invalid
+        """
+        if not csn or not isinstance(csn, str) or len(csn) < 16:
+            return None
+        try:
+            # Extract and validate replica ID is valid hex
+            replica_id = csn[ReplicationLogAnalyzer.CSN_REPLICA_ID_START:
+                            ReplicationLogAnalyzer.CSN_REPLICA_ID_END]
+            int(replica_id, 16)  # Validate it's valid hex
+            return replica_id
+        except (ValueError, IndexError):
+            return None
+
+    @staticmethod
+    def _extract_timestamp_from_csn(csn: str) -> Optional[float]:
+        """Extract the timestamp (epoch seconds) from a CSN string.
+
+        CSN format: TTTTTTTTSSSSRRRRNNNN (20 hex characters)
+        - T = timestamp (8 chars, hex, seconds since epoch)
+
+        :param csn: The CSN string
+        :returns: Timestamp as float (epoch seconds), or None if invalid
+        """
+        if not csn or not isinstance(csn, str) or len(csn) < 8:
+            return None
+        try:
+            ts_hex = csn[ReplicationLogAnalyzer.CSN_TIMESTAMP_START:
+                         ReplicationLogAnalyzer.CSN_TIMESTAMP_END]
+            return float(int(ts_hex, 16))
+        except (ValueError, IndexError):
+            return None
 
     def _should_include_record(self, csn: str, server_map: Dict[Union[int, str], Dict[str, Any]]) -> bool:
         """Determine if a record should be included based on filtering criteria."""
@@ -990,6 +1049,148 @@ class ReplicationLogAnalyzer:
 
         return hops
 
+    def _build_csn_details(self, csn_whitelist: Optional[set] = None) -> Dict[str, Dict[str, Any]]:
+        """Build detailed CSN propagation information for drill-down functionality.
+
+        Returns a dictionary keyed by CSN containing:
+        - csn: The CSN string
+        - targetDn: The target entry DN
+        - suffix: The replication suffix
+        - globalLag: Total propagation time (earliest to latest arrival)
+        - originServer: The server where the change originated (determined by CSN replica ID)
+        - originTime: ISO timestamp of origin
+        - arrivals: Ordered list of server arrivals with timing details
+        - hops: List of server-to-server hops with lag times
+        - totalHops: Number of hops in the propagation path
+        - replicatedToAll: Whether the change reached all servers
+
+        Note: Origin server is determined by the replica ID embedded in the CSN,
+        not by earliest log timestamp (which can be incorrect under clock skew).
+
+        :param csn_whitelist: Optional set of CSN IDs to include. If provided,
+                              only these CSNs will have details generated.
+                              This prevents memory bloat when chart data is sampled.
+        """
+        csn_details = {}
+        total_servers = self._active_server_count or len(self.log_dirs)
+
+        if csn_whitelist is not None:
+            csn_items = [(csn, sm) for csn, sm in self.csns.items() if csn in csn_whitelist]
+        else:
+            csn_items = list(self.csns.items())
+
+        if len(csn_items) > self.MAX_CSN_DETAILS:
+            self._logger.info(
+                f"CSN details limited to {self.MAX_CSN_DETAILS} entries "
+                f"(dataset has {len(csn_items)} CSNs). "
+                "Selecting CSNs with highest global lag for drill-down."
+            )
+            csn_lags = []
+            for csn, server_map in csn_items:
+                t_list = [
+                    rec.get('logtime', 0)
+                    for key, rec in server_map.items()
+                    if isinstance(rec, dict) and key != '__hop_lags__' and 'logtime' in rec
+                ]
+                if t_list:
+                    lag = max(t_list) - min(t_list)
+                    csn_lags.append((csn, server_map, lag))
+            csn_lags.sort(key=lambda x: x[2], reverse=True)
+            csn_items = [(csn, sm) for csn, sm, _ in csn_lags[:self.MAX_CSN_DETAILS]]
+
+        for csn, server_map in csn_items:
+            valid_records = []
+            for key, data in server_map.items():
+                if isinstance(data, dict) and key != '__hop_lags__' and 'logtime' in data:
+                    valid_records.append(data)
+
+            if not valid_records:
+                continue
+
+            valid_records.sort(key=lambda x: x['logtime'])
+
+            suffix = None
+            for rec in valid_records:
+                if rec.get('suffix'):
+                    suffix = rec['suffix']
+                    break
+
+            replica_id = self._extract_replica_id_from_csn(csn)
+            origin_server_name = None
+            origin_record = None
+
+            origin_in_arrivals = False
+            if replica_id and suffix:
+                map_key = (replica_id, suffix)
+                if map_key in self._replica_id_to_server:
+                    origin_server_name = self._replica_id_to_server[map_key]
+                    for rec in valid_records:
+                        if rec.get('server_name') == origin_server_name:
+                            origin_record = rec
+                            origin_in_arrivals = True
+                            break
+
+            if origin_record is None:
+                origin_record = valid_records[0]
+                if not origin_server_name:
+                    origin_server_name = origin_record.get('server_name', 'unknown')
+
+            csn_ts = self._extract_timestamp_from_csn(csn)
+            origin_time = csn_ts if csn_ts is not None else origin_record['logtime']
+            earliest_time = valid_records[0]['logtime']
+            latest_time = valid_records[-1]['logtime']
+            global_lag = latest_time - earliest_time
+
+            arrivals = []
+            for idx, rec in enumerate(valid_records):
+                server_name = rec.get('server_name', 'unknown')
+                is_origin = (server_name == origin_server_name)
+
+                arrival_entry = {
+                    'server': server_name,
+                    'timestamp': datetime.fromtimestamp(rec['logtime'], tz=self.tz).isoformat(),
+                    'relativeDelay': rec['logtime'] - earliest_time,
+                    'duration': float(rec.get('duration', 0.0)),
+                    'etime': rec.get('etime')
+                }
+
+                if is_origin:
+                    arrival_entry['isOrigin'] = True
+
+                if idx > 0:
+                    prev_rec = valid_records[idx - 1]
+                    arrival_entry['hopFrom'] = prev_rec.get('server_name', 'unknown')
+                    arrival_entry['hopLag'] = rec['logtime'] - prev_rec['logtime']
+
+                arrivals.append(arrival_entry)
+
+            hops = []
+            for i in range(1, len(valid_records)):
+                prev_rec = valid_records[i - 1]
+                curr_rec = valid_records[i]
+                hops.append({
+                    'from': prev_rec.get('server_name', 'unknown'),
+                    'to': curr_rec.get('server_name', 'unknown'),
+                    'lag': curr_rec['logtime'] - prev_rec['logtime']
+                })
+
+            csn_details[csn] = {
+                'csn': csn,
+                'targetDn': origin_record.get('target_dn', 'unknown') or 'unknown',
+                'suffix': origin_record.get('suffix', 'unknown') or 'unknown',
+                'globalLag': global_lag,
+                'originServer': origin_server_name,
+                'originIncludedInArrivals': origin_in_arrivals,
+                'originTime': datetime.fromtimestamp(origin_time, tz=self.tz).isoformat(),
+                'arrivals': arrivals,
+                'hops': hops,
+                'totalHops': len(hops),
+                'serverCount': len(valid_records),
+                'replicatedToAll': len(valid_records) == total_servers
+            }
+
+        return csn_details
+
     def parse_logs(self) -> None:
         """Parse logs from all directories. Each directory is treated as one server
         unless anonymized, in which case we use 'server_{index}'.
@@ -1043,6 +1244,41 @@ class ReplicationLogAnalyzer:
                         'target_dn': record.get('target_dn'),
                         'duration': record.get('duration', 0.0),
                     }
+
+        # Build (replica ID, suffix) to server mapping based on closest CSN timestamp
+        # Keyed by (replica_id, suffix) because replica IDs are per-suffix in multi-suffix deployments
+        # For each (replica ID, suffix) pair, the server whose logtime is closest to the CSN
+        # timestamp is the best origin candidate under clock skew.
+        replica_id_best: Dict[Tuple[str, str], Tuple[bool, float, float, str]] = {}
+        for csn, server_map in self.csns.items():
+            replica_id = self._extract_replica_id_from_csn(csn)
+            if not replica_id:
+                continue
+            csn_ts = self._extract_timestamp_from_csn(csn)
+            for key, record in server_map.items():
+                if not isinstance(record, dict) or key == '__hop_lags__':
+                    continue
+                logtime = record.get('logtime')
+                server_name = record.get('server_name')
+                suffix = record.get('suffix')
+                if logtime is None or not server_name or not suffix:
+                    continue
+                # Prefer candidates where we can compare against CSN timestamp
+                has_csn_ts = csn_ts is not None
+                score = abs(logtime - csn_ts) if has_csn_ts else logtime
+                map_key = (replica_id, suffix)
+                if map_key not in replica_id_best:
+                    replica_id_best[map_key] = (has_csn_ts, score, logtime, server_name)
+                    continue
+                prev_has_ts, prev_score, prev_logtime, _ = replica_id_best[map_key]
+                if has_csn_ts and not prev_has_ts:
+                    replica_id_best[map_key] = (has_csn_ts, score, logtime, server_name)
+                elif has_csn_ts == prev_has_ts:
+                    if score < prev_score or (score == prev_score and logtime < prev_logtime):
+                        replica_id_best[map_key] = (has_csn_ts, score, logtime, server_name)
+
+        # Store the mapping ((replica ID, suffix) -> server name)
+        self._replica_id_to_server = {k: srv for k, (_, _, _, srv) in replica_id_best.items()}
 
         # Apply filters after collecting all data
         filtered_csns = {}
@@ -1577,6 +1813,17 @@ class ReplicationLogAnalyzer:
         except Exception as e:
             raise IOError(f"Failed to write JSON summary to {outfile}: {e}")
 
+    @staticmethod
+    def _collect_csn_ids(series_list: List[Dict[str, Any]]) -> set:
+        """Collect CSN IDs from chart series datapoints."""
+        csn_ids = set()
+        for series in series_list:
+            for dp in series.get("datapoints", []):
+                csn_id = dp.get("csnId")
+                if csn_id:
+                    csn_ids.add(csn_id)
+        return csn_ids
+
     def _generate_patternfly_json(self, results: Dict[str, Any], outfile: str) -> None:
         """Generate JSON specifically formatted for PatternFly 5 charts."""
         chart_data = VisualizationHelper.prepare_chart_data(self.csns, self.tz)
@@ -1637,7 +1884,8 @@ class ReplicationLogAnalyzer:
                 "x": data.times[i].isoformat(),
                 "y": data.lags[i],
                 "duration": data.durations[i],
-                "hoverInfo": data.hover[i]
+                "hoverInfo": data.hover[i],
+                "csnId": data.csn_ids[i]
             } for i in indices]
             series_data.append({
                 "datapoints": datapoints,
@@ -1645,7 +1893,7 @@ class ReplicationLogAnalyzer:
                 "color": color_palette[idx % len(color_palette)]
             })
 
-        hop_data: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"times": [], "lags": [], "hover": []})
+        hop_data: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"times": [], "lags": [], "hover": [], "csn_ids": []})
         for csn, server_map in self.csns.items():
             for hop in server_map.get('__hop_lags__', []):
                 source = hop.get('supplier', 'unknown')
@@ -1655,6 +1903,7 @@ class ReplicationLogAnalyzer:
                 ts = datetime.fromtimestamp(hop.get('arrival_consumer', 0.0), tz=self.tz)
                 entry["times"].append(ts)
                 entry["lags"].append(hop.get('hop_lag', 0.0))
+                entry["csn_ids"].append(csn)
                 ts_str = ts.strftime('%Y-%m-%d %H:%M:%S')
                 entry["hover"].append(
                     f"Timestamp: {ts_str}<br>"
@@ -1689,7 +1938,10 @@ class ReplicationLogAnalyzer:
                 "name": key,
                 "x": entry["times"][i].isoformat(),
                 "y": entry["lags"][i],
-                "hoverInfo": entry["hover"][i].replace("Suffix: None", "Suffix: unknown").replace("Entry: None", "Entry: unknown")
+                "hoverInfo": (entry["hover"][i]
+                              .replace("Suffix: None", "Suffix: unknown")
+                              .replace("Entry: None", "Entry: unknown")),
+                "csnId": entry["csn_ids"][i]
             } for i in indices]
             hop_series.append({
                 "datapoints": datapoints,
@@ -1701,6 +1953,13 @@ class ReplicationLogAnalyzer:
             reduced = sum(len(item["datapoints"]) for item in series_data)
             reduced += sum(len(item["datapoints"]) for item in hop_series)
             sampling_meta["reducedTotalPoints"] = reduced
+
+        sampled_csn_ids = None
+        if sampling_meta["applied"]:
+            sampled_csn_ids = self._collect_csn_ids(series_data)
+            sampled_csn_ids.update(self._collect_csn_ids(hop_series))
+
+        csn_details = self._build_csn_details(csn_whitelist=sampled_csn_ids)
 
         pf_data = {
             "replicationLags": {
@@ -1715,6 +1974,7 @@ class ReplicationLogAnalyzer:
                 "xAxisLabel": "Time",
                 "series": hop_series
             },
+            "csnDetails": csn_details,
             "metadata": {
                 "totalServers": self._active_server_count or len(self.log_dirs),
                 "configuredLogDirs": self.log_dirs,
