@@ -187,6 +187,8 @@ def _dump_cert(cert, json_output: bool = False, log = None):
         )
         if log:
             log.info(msg)
+        else:
+            print(msg)
 
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
@@ -352,8 +354,9 @@ def cert_get(inst, basedn, log, args):
 
     if args.json:
         output = _dump_cert(cert, json_output=args.json)
-        print(json.dumps(output, indent=4))
-    _dump_cert(cert, json_output=args.json)
+        log.info(json.dumps(output, indent=4))
+    else:
+        _dump_cert(cert, json_output=args.json, log=log)
 
 def cacert_get(inst, basedn, log, args):
     """Get the details about a CA certificate
@@ -369,8 +372,9 @@ def cacert_get(inst, basedn, log, args):
 
     if args.json:
         output = _dump_cert(cert, json_output=args.json)
-        print(json.dumps(output, indent=4))
-    _dump_cert(cert, json_output=args.json)
+        log.info(json.dumps(output, indent=4))
+    else:
+        _dump_cert(cert, json_output=args.json, log=log)
 
 def csr_list(inst, basedn, log, args):
     """
@@ -453,7 +457,7 @@ def cert_del(inst, basedn, log, args):
         certmgr.del_cert(args.name)
         log.info(f"Successfully deleted certificate")
     except ValueError as e:
-        log.info(f"Failed to delete certificate '{args.name}': {e}")
+        log.error(f"Failed to delete certificate '{args.name}': {e}")
 
 def key_list(inst, basedn, log, args):
     """
@@ -572,7 +576,7 @@ def create_parser(subparsers):
     cacert_add_parser = cacerts_sub.add_parser('add', help='Add a Certificate Authority', description=(
         'Add a CA certificate (PEM or DER only) to the NSS database or DynamicCerts backend.'))
     cacert_add_parser.add_argument('--file', required=True,
-        help='Sets the name/nickname of the CA certificate, if adding a PEM bundle then specify multiple names one for '
+        help='Path to the CA certificate file (PEM or DER). If adding a PEM bundle then specify multiple names one for '
              'each certificate, otherwise a number increment will be added to the previous name.')
     cacert_add_parser.add_argument('--name', nargs='+', required=True,
         help='Sets the name/nickname of the CA certificate')

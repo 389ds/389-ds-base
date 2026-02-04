@@ -14,7 +14,7 @@ import re
 import tempfile
 from typing import Optional
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.utils import cert_is_ca, pem_to_der, is_pem_cert
+from lib389.utils import cert_is_ca, pem_to_der, is_pem_cert, ensure_str
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -214,7 +214,10 @@ class DynamicCerts(DSLdapObjects):
         if not der_cert:
             raise ValueError(f"Failed to extract DER bytes from {cert_file}")
 
-        dn = f"cn={nickname},{self._basedn}"
+        # Escape the CN to handle special chars in the nickname
+        escaped_cn = ldap.dn.escape_dn_chars(nickname)
+        dn = ensure_str(f"cn={escaped_cn},{self._basedn}")
+        # Raw CN used for lookup
         cert_obj = self.get_cert_obj(nickname)
         if not cert_obj:
             cert_obj = DynamicCert(self._instance, dn)

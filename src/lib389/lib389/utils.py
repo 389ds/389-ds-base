@@ -2011,8 +2011,8 @@ def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
         try:
             with open(cert_file, "rb") as f:
                 data = f.read()
-        except ValueError as ve:
-            raise ValueError(f"Unable to load certificate '{cert_data}': {ve}")
+        except OSError as e:
+            raise ValueError(f"Unable to load certificate '{cert_data}': {e}")
 
     try:
         # p12

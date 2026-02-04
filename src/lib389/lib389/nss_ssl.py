@@ -1234,7 +1234,9 @@ only.
                 "-W", pkcs12_password,
             ]
 
-            self.log.info(f"nss import p12 cmd: {format_cmd_list(cmd)}", )
+            # Mask the password in logs
+            masked_cmd = [arg if arg != pkcs12_password else "****" for arg in cmd]
+            self.log.info(f"nss import p12 cmd: {format_cmd_list(masked_cmd)}", )
             try:
                 check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
