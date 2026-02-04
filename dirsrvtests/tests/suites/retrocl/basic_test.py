@@ -492,7 +492,7 @@ def test_retrocl_trimming_entries(topology_st):
         if inst.searchErrorsLog("trim_changelog: removed "):
             log.info(f'Trimming detected after {attempt * 6} seconds')
             break
-    
+
     log.info('Verify trimming occurred by checking error log')
     assert inst.searchErrorsLog("trim_changelog: removed ")
 

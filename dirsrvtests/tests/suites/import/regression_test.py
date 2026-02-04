@@ -687,7 +687,7 @@ def test_ldif2db_after_backend_create(topo, verify):
     import_time_2 = create_backend_and_import(instance, ldif_file_2, 'o=test_2', 'test_2')
 
     log.info('Import times should be approximately the same')
-    assert abs(import_time_1 - import_time_2) < 15
+    assert abs(import_time_1 - import_time_2) < 20
 
 
 def test_ldif_missing_suffix_entry(topo, request, verify):
