@@ -21,7 +21,7 @@ from lib389.backend import Backends
 from lib389.topologies import topology_m4 as topo_m4
 from lib389.idm.user import UserAccount
 from lib389.replica import ReplicationManager
-from lib389.repltools import ReplicationLogAnalyzer
+from lib389.repltools import ReplicationLogAnalyzer, DSLogParser
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier0
@@ -105,6 +105,101 @@ def _cleanup_multi_suffix_test(test_users_by_suffix, tmp_dir, suppliers, extra_s
         log.error(f"Error cleaning up temporary directory: {e}")
 
 
+def _clear_access_logs(suppliers):
+    """Clear access logs for all suppliers and restart."""
+    for supplier in suppliers:
+        supplier.deleteAccessLogs(restart=True)
+
+
+def _restart_suppliers(suppliers):
+    """Restart all suppliers."""
+    for supplier in suppliers:
+        supplier.restart()
+
+
+def _get_log_dirs(suppliers):
+    """Return log directories for all suppliers."""
+    return [s.ds_paths.log_dir for s in suppliers]
+
+
+def _load_json(path):
+    """Load and return JSON from file."""
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
+def _pause_agreements(supplier, suffix):
+    """Pause outbound agreements and return list of paused tuples."""
+    paused = []
+    for agmt in supplier.agreement.list(suffix=suffix):
+        supplier.agreement.pause(agmt.dn)
+        paused.append((supplier, agmt.dn))
+    return paused
+
+
+def _resume_agreements(paused_agreements):
+    """Resume paused replication agreements."""
+    for supplier_obj, dn in paused_agreements:
+        try:
+            supplier_obj.agreement.resume(dn)
+        except Exception as e:
+            log.warning(f"Failed to resume agreement {dn}: {e}")
+
+
+def _assert_csn_details_schema(json_data):
+    """Validate csnDetails presence and basic structure."""
+    assert 'csnDetails' in json_data, "Expected csnDetails in JSON output for drill-down"
+    csn_details = json_data['csnDetails']
+    if csn_details:
+        # Check structure of at least one CSN detail entry
+        first_csn = next(iter(csn_details.values()))
+        assert 'csn' in first_csn, "CSN detail should contain 'csn' field"
+        assert 'targetDn' in first_csn, "CSN detail should contain 'targetDn' field"
+        assert 'suffix' in first_csn, "CSN detail should contain 'suffix' field"
+        assert 'globalLag' in first_csn, "CSN detail should contain 'globalLag' field"
+        assert 'originServer' in first_csn, "CSN detail should contain 'originServer' field"
+        assert 'arrivals' in first_csn, "CSN detail should contain 'arrivals' list"
+        assert 'hops' in first_csn, "CSN detail should contain 'hops' list"
+        assert isinstance(first_csn['arrivals'], list), "arrivals should be a list"
+
+        # Verify arrivals structure
+        if first_csn['arrivals']:
+            first_arrival = first_csn['arrivals'][0]
+            assert 'server' in first_arrival, "Arrival should contain 'server' field"
+            assert 'timestamp' in first_arrival, "Arrival should contain 'timestamp' field"
+            assert 'relativeDelay' in first_arrival, "Arrival should contain 'relativeDelay' field"
+
+    # Verify csnId is included in datapoints for cross-reference
+    if 'replicationLags' in json_data and json_data['replicationLags'].get('series'):
+        for series in json_data['replicationLags']['series']:
+            for datapoint in series['datapoints']:
+                assert 'csnId' in datapoint, "Datapoint should contain 'csnId' for drill-down"
+
+    return csn_details
+
+
+def _find_latest_logtime_for_prefix(log_dir, suffix, start_time, end_time, user_prefix):
+    latest = None
+    for fname in os.listdir(log_dir):
+        if not fname.startswith('access'):
+            continue
+        full_path = os.path.join(log_dir, fname)
+        parser = DSLogParser(
+            logname=full_path,
+            suffixes=[suffix],
+            tz=timezone.utc,
+            start_time=start_time,
+            end_time=end_time
+        )
+        for record in parser.parse_file():
+            target_dn = record.get('target_dn') or ''
+            if user_prefix in target_dn:
+                ts = record.get('timestamp')
+                if ts and (latest is None or ts > latest):
+                    latest = ts
+    return latest
+
+
 def test_replication_log_monitoring_basic(topo_m4):
     """Test basic replication log monitoring functionality
 
@@ -128,8 +223,7 @@ def test_replication_log_monitoring_basic(topo_m4):
 
     try:
         # Clear logs and restart servers
-        for supplier in suppliers:
-            supplier.deleteAccessLogs(restart=True)
+        _clear_access_logs(suppliers)
 
         # Generate test data with known patterns
         log.info('Creating test data...')
@@ -140,11 +234,10 @@ def test_replication_log_monitoring_basic(topo_m4):
         repl.test_replication_topology(topo_m4)
 
         # Restart to flush logs
-        for supplier in suppliers:
-            supplier.restart()
+        _restart_suppliers(suppliers)
 
         # Configure monitoring
-        log_dirs = [s.ds_paths.log_dir for s in suppliers]
+        log_dirs = _get_log_dirs(suppliers)
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
             suffixes=[DEFAULT_SUFFIX],
@@ -177,23 +270,23 @@ def test_replication_log_monitoring_basic(topo_m4):
             assert DEFAULT_SUFFIX in csv_content
 
         # Verify PatternFly JSON content
-        with open(generated_files['json'], 'r') as f:
-            json_data = json.load(f)
-            assert 'replicationLags' in json_data
-            assert json_data['replicationLags']['series'], "Expected replication lag series in JSON output"
+        json_data = _load_json(generated_files['json'])
+        assert 'replicationLags' in json_data
+        assert json_data['replicationLags']['series'], "Expected replication lag series in JSON output"
+
+        _assert_csn_details_schema(json_data)
 
         # Verify JSON summary
-        with open(generated_files['summary'], 'r') as f:
-            summary = json.load(f)
-            assert 'analysis_summary' in summary
-            stats = summary['analysis_summary']
+        summary = _load_json(generated_files['summary'])
+        assert 'analysis_summary' in summary
+        stats = summary['analysis_summary']
 
-            # Verify basic stats
-            assert stats['total_servers'] == len(suppliers)
-            assert stats['total_updates'] > 0
-            assert stats['updates_by_suffix'][DEFAULT_SUFFIX] > 0
-            assert 'average_lag' in stats
-            assert 'maximum_lag' in stats
+        # Verify basic stats
+        assert stats['total_servers'] == len(suppliers)
+        assert stats['total_updates'] > 0
+        assert stats['updates_by_suffix'][DEFAULT_SUFFIX] > 0
+        assert 'average_lag' in stats
+        assert 'maximum_lag' in stats
 
     finally:
         _cleanup_test_data(test_users, tmp_dir)
@@ -221,8 +314,7 @@ def test_replication_log_monitoring_advanced(topo_m4):
 
     try:
         # Clear logs and restart servers
-        for supplier in suppliers:
-            supplier.deleteAccessLogs(restart=True)
+        _clear_access_logs(suppliers)
 
         # Generate test data
         start_time = datetime.now(timezone.utc)
@@ -240,10 +332,9 @@ def test_replication_log_monitoring_advanced(topo_m4):
         end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
-        for supplier in suppliers:
-            supplier.restart()
+        _restart_suppliers(suppliers)
 
-        log_dirs = [s.ds_paths.log_dir for s in suppliers]
+        log_dirs = _get_log_dirs(suppliers)
 
         # Test 1: Lag time filtering
         repl_monitor = ReplicationLogAnalyzer(
@@ -374,8 +465,7 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
             repl = ReplicationManager(suffix)
             repl.test_replication_topology(topo_m4)
 
-        for supplier in suppliers:
-            supplier.deleteAccessLogs(restart=True)
+        _clear_access_logs(suppliers)
 
         start_time = datetime.now(timezone.utc)
 
@@ -400,11 +490,10 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
         end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
-        for supplier in suppliers:
-            supplier.restart()
+        _restart_suppliers(suppliers)
 
         # Monitor all suffixes
-        log_dirs = [s.ds_paths.log_dir for s in suppliers]
+        log_dirs = _get_log_dirs(suppliers)
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
             suffixes=all_suffixes,
@@ -466,8 +555,7 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
 
     try:
         # Clear logs and restart servers
-        for supplier in suppliers:
-            supplier.deleteAccessLogs(restart=True)
+        _clear_access_logs(suppliers)
 
         # Generate varied test data
         start_time = datetime.now(timezone.utc)
@@ -475,9 +563,7 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
 
         # Create different lag patterns
         # Pause outbound agreements from supplier1 to build a replication backlog
-        for agmt in suppliers[0].agreement.list(suffix=DEFAULT_SUFFIX):
-            suppliers[0].agreement.pause(agmt.dn)
-            paused_agreements.append((suppliers[0], agmt.dn))
+        paused_agreements = _pause_agreements(suppliers[0], DEFAULT_SUFFIX)
 
         for i, user in enumerate(test_users):
             if i % 3 == 0:
@@ -502,10 +588,9 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
         end_time = datetime.now(timezone.utc)
 
         # Restart to flush logs
-        for supplier in suppliers:
-            supplier.restart()
+        _restart_suppliers(suppliers)
 
-        log_dirs = [s.ds_paths.log_dir for s in suppliers]
+        log_dirs = _get_log_dirs(suppliers)
 
         # Test combined filters
         lag_threshold = 0.5
@@ -543,11 +628,321 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
                 dt = datetime.fromtimestamp(t, timezone.utc)
                 assert start_time <= dt <= end_time, "Time range filter violated"
     finally:
-        for supplier_obj, dn in paused_agreements:
-            try:
-                supplier_obj.agreement.resume(dn)
-            except Exception as e:
-                log.warning(f"Failed to resume agreement {dn}: {e}")
+        _resume_agreements(paused_agreements)
+        _cleanup_test_data(test_users, tmp_dir)
+
+
+def test_replication_log_monitoring_csn_details_edge_cases(topo_m4):
+    """Test CSN details edge cases and structure validation
+
+    :id: f43dc473-4428-4971-be4c-169c4a78726e
+    :setup: Four suppliers replication setup
+    :steps:
+        1. Test CSN details structure with various replication patterns
+        2. Verify arrivals ordering and hop lag calculations
+        3. Test partial replication scenarios
+        4. Verify origin server detection
+    :expectedresults:
+        1. CSN details should have correct structure
+        2. Arrivals should be ordered by timestamp
+        3. Partial replication should be detected
+        4. Origin server should be correctly identified
+    """
+    tmp_dir = tempfile.mkdtemp(prefix='repl_csn_edge_')
+    test_users = []
+    suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+
+    try:
+        _clear_access_logs(suppliers)
+
+        log.info('Creating test data for CSN details edge case testing...')
+        test_users = _generate_test_data(suppliers[0], DEFAULT_SUFFIX, 5)
+
+        repl = ReplicationManager(DEFAULT_SUFFIX)
+        repl.test_replication_topology(topo_m4)
+
+        _restart_suppliers(suppliers)
+
+        log_dirs = _get_log_dirs(suppliers)
+        repl_monitor = ReplicationLogAnalyzer(
+            log_dirs=log_dirs,
+            suffixes=[DEFAULT_SUFFIX],
+            anonymous=False,
+            only_fully_replicated=True
+        )
+
+        repl_monitor.parse_logs()
+        generated_files = repl_monitor.generate_report(
+            output_dir=tmp_dir,
+            formats=['json'],
+            report_name='csn_edge_test'
+        )
+
+        assert os.path.exists(generated_files['json'])
+
+        json_data = _load_json(generated_files['json'])
+
+        assert 'csnDetails' in json_data, "csnDetails should be present"
+        csn_details = json_data['csnDetails']
+
+        if csn_details:
+            for csn, details in csn_details.items():
+                arrivals = details.get('arrivals', [])
+                if len(arrivals) > 1:
+                    timestamps = [a['timestamp'] for a in arrivals]
+                    assert timestamps == sorted(timestamps), \
+                        f"Arrivals for CSN {csn} should be ordered by timestamp"
+
+                if arrivals:
+                    origin_arrival = next((a for a in arrivals if a.get('isOrigin')), None)
+                    assert origin_arrival is not None, "Expected an arrival marked as origin"
+                    assert origin_arrival.get('server') == details.get('originServer'), \
+                        "Origin arrival server should match originServer field"
+
+                    for i, arrival in enumerate(arrivals[1:], start=1):
+                        assert 'hopLag' in arrival, \
+                            f"Arrival {i} should have hopLag"
+                        assert arrival['hopLag'] >= 0, \
+                            "hopLag should be non-negative"
+
+                if len(arrivals) > 1:
+                    global_lag = details.get('globalLag', 0)
+                    assert global_lag >= 0, "globalLag should be non-negative"
+
+                    last_delay = arrivals[-1].get('relativeDelay', 0)
+                    assert abs(last_delay - global_lag) < 0.001, \
+                        "Last arrival's relativeDelay should match globalLag"
+
+                server_count = details.get('serverCount', 0)
+                assert server_count == len(arrivals), \
+                    "serverCount should match number of arrivals"
+
+                total_hops = details.get('totalHops', 0)
+                expected_hops = max(0, len(arrivals) - 1)
+                assert total_hops == expected_hops, \
+                    f"totalHops should be {expected_hops}, got {total_hops}"
+
+                hops = details.get('hops', [])
+                assert len(hops) == total_hops, \
+                    "hops list length should match totalHops"
+
+            if 'replicationLags' in json_data and json_data['replicationLags'].get('series'):
+                for series in json_data['replicationLags']['series']:
+                    for datapoint in series.get('datapoints', []):
+                        csn_id = datapoint.get('csnId')
+                        if csn_id:
+                            assert csn_id in csn_details, \
+                                f"csnId {csn_id} in datapoint should exist in csnDetails"
+
+    finally:
+        _cleanup_test_data(test_users, tmp_dir)
+
+
+def test_replication_log_monitoring_origin_out_of_scope(topo_m4):
+    """Test origin detection when origin server record is outside time range
+
+    :id: d73fd9c5-f930-47d6-ade4-ada1cf0d2c21
+    :setup: Four suppliers replication setup
+    :steps:
+        1. Pause outbound agreements from the origin supplier
+        2. Generate changes, then resume agreements to delay consumer arrivals
+        3. Use time range that excludes the origin log but includes consumer logs
+    :expectedresults:
+        1. Origin server should be identified from replica ID mapping
+        2. At least one CSN should have origin outside the selected time range
+        3. JSON report should include csnDetails entries for validation
+    """
+    tmp_dir = tempfile.mkdtemp(prefix='repl_origin_scope_')
+    test_users = []
+    suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
+
+    try:
+        # Reset access logs to make time-range cuts easier to reason about
+        _clear_access_logs(suppliers)
+
+        # Pause outbound agreements so consumer logs won't see the pre-resume CSNs
+        paused_agreements = _pause_agreements(suppliers[0], DEFAULT_SUFFIX)
+
+        log.info('Creating pre-resume changes for origin out-of-scope test...')
+        # Create CSNs that originate on supplier1 but won't reach consumers yet
+        pre_start = datetime.now(timezone.utc)
+        test_users = _generate_test_data(
+            suppliers[0], DEFAULT_SUFFIX, 2, user_prefix="origin_scope_pre"
+        )
+        pre_end = datetime.now(timezone.utc)
+        # Locate the latest origin log time for these CSNs to set a deterministic cutoff
+        origin_log_time = _find_latest_logtime_for_prefix(
+            suppliers[0].ds_paths.log_dir,
+            DEFAULT_SUFFIX,
+            pre_start,
+            pre_end,
+            "origin_scope_pre_"
+        )
+        assert origin_log_time is not None, "Expected origin server log entries for pre-resume data"
+        # Cut the analysis window just after origin logging, excluding supplier1 entries
+        start_time = origin_log_time + timedelta(seconds=1)
+        time.sleep(1)
+
+        # Resume agreements so the pre-resume CSNs replicate to consumers after start_time
+        _resume_agreements(paused_agreements)
+        paused_agreements.clear()
+
+        log.info('Creating post-resume changes for origin mapping...')
+        # Additional CSNs after resume ensure normal replication continues
+        test_users += _generate_test_data(
+            suppliers[0], DEFAULT_SUFFIX, 2, user_prefix="origin_scope_post"
+        )
+
+        # Wait for replication to finish and capture the upper bound of the time window
+        repl = ReplicationManager(DEFAULT_SUFFIX)
+        repl.test_replication_topology(topo_m4)
+        end_time = datetime.now(timezone.utc)
+
+        # Restart to flush logs before analysis
+        _restart_suppliers(suppliers)
+
+        log_dirs = _get_log_dirs(suppliers)
+        repl_monitor = ReplicationLogAnalyzer(
+            log_dirs=log_dirs,
+            suffixes=[DEFAULT_SUFFIX],
+            time_range={'start': start_time, 'end': end_time}
+        )
+
+        # Parse logs within the time window and produce JSON details
+        repl_monitor.parse_logs()
+        generated_files = repl_monitor.generate_report(
+            output_dir=tmp_dir,
+            formats=['json'],
+            report_name='origin_scope_test'
+        )
+
+        json_data = _load_json(generated_files['json'])
+
+        csn_details = json_data.get('csnDetails', {})
+        origin_server = suppliers[0].serverid
+        found = False
+        if csn_details:
+            origin_counts = {}
+            for details in csn_details.values():
+                origin = details.get('originServer', 'unknown')
+                origin_counts[origin] = origin_counts.get(origin, 0) + 1
+            if origin_server not in origin_counts and f"slapd-{origin_server}" in origin_counts:
+                origin_server = f"slapd-{origin_server}"
+
+        # Focus on the pre-resume CSNs; these should have origin out of scope
+        pre_details = [
+            details for details in csn_details.values()
+            if "origin_scope_pre_" in (details.get('targetDn') or '')
+        ]
+        assert pre_details, "Expected pre-resume CSNs in csnDetails"
+        # Confirm at least one CSN shows origin server missing from arrivals
+        for details in pre_details:
+            if details.get('originServer') != origin_server:
+                continue
+            arrivals = details.get('arrivals', [])
+            arrival_servers = {a.get('server') for a in arrivals}
+            if arrival_servers and origin_server not in arrival_servers:
+                found = True
+                break
+            log.info(
+                "Origin out-of-scope candidate: csn=%s arrivals=%s",
+                details.get('csn'),
+                sorted(arrival_servers)
+            )
+
+        assert found, (
+            "Expected at least one CSN where the origin server is outside the time range "
+            "but still identified via replica ID mapping"
+        )
+
+    finally:
+        _resume_agreements(paused_agreements)
+        _cleanup_test_data(test_users, tmp_dir)
+
+
+def test_replication_log_monitoring_partial_replication(topo_m4):
+    """Test CSN details with partial replication (not all servers reached)
+
+    :id: d4026fd0-d83b-400e-8c2e-44fcf676368f
+    :setup: Four suppliers replication setup
+    :steps:
+        1. Pause replication agreements to create partial replication
+        2. Generate changes and verify partial replication detection
+        3. Verify replicatedToAll flag is correct
+    :expectedresults:
+        1. Partial replication should be detected
+        2. replicatedToAll should be False for partially replicated CSNs
+        3. serverCount should reflect actual servers reached
+    """
+    tmp_dir = tempfile.mkdtemp(prefix='repl_partial_')
+    test_users = []
+    suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
+
+    try:
+        _clear_access_logs(suppliers)
+
+        log.info('Creating fully replicated test data...')
+        test_users = _generate_test_data(suppliers[0], DEFAULT_SUFFIX, 3)
+
+        repl = ReplicationManager(DEFAULT_SUFFIX)
+        repl.test_replication_topology(topo_m4)
+
+        _restart_suppliers(suppliers)
+
+        # Pause outbound agreements from supplier1 to create partial replication
+        paused_agreements = _pause_agreements(suppliers[0], DEFAULT_SUFFIX)
+
+        log.info('Creating partially replicated test data...')
+        test_users += _generate_test_data(suppliers[0], DEFAULT_SUFFIX, 3, user_prefix="partial_user")
+
+        # Allow some time for local logging; do not wait for full replication
+        time.sleep(2)
+
+        log_dirs = _get_log_dirs(suppliers)
+        repl_monitor = ReplicationLogAnalyzer(
+            log_dirs=log_dirs,
+            suffixes=[DEFAULT_SUFFIX],
+            anonymous=False,
+            only_fully_replicated=False,
+            only_not_replicated=False
+        )
+
+        repl_monitor.parse_logs()
+        generated_files = repl_monitor.generate_report(
+            output_dir=tmp_dir,
+            formats=['json'],
+            report_name='partial_repl_test'
+        )
+
+        json_data = _load_json(generated_files['json'])
+
+        assert 'csnDetails' in json_data
+        csn_details = json_data['csnDetails']
+
+        if csn_details:
+            fully_replicated_count = sum(
+                1 for details in csn_details.values()
+                if details.get('replicatedToAll', False)
+            )
+
+            assert fully_replicated_count > 0, \
+                "Should have some fully replicated CSNs"
+
+            total_servers = len(suppliers)
+            for csn, details in csn_details.items():
+                server_count = details.get('serverCount', 0)
+                assert server_count <= total_servers, \
+                    f"serverCount ({server_count}) should not exceed total servers ({total_servers})"
+
+                replicated_to_all = details.get('replicatedToAll', False)
+                if replicated_to_all:
+                    assert server_count == total_servers, \
+                        "replicatedToAll=True requires serverCount == total_servers"
+
+    finally:
+        _resume_agreements(paused_agreements)
         _cleanup_test_data(test_users, tmp_dir)
 
 
