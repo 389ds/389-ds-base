@@ -704,19 +704,17 @@ def test_ndn_cache_size_enforcement(topo, request):
 
     request.addfinalizer(fin)
 
-def test_require_index(topo, request):
+def test_require_index(topo):
     """Validate that unindexed searches are rejected
 
     :id: fb6e31f2-acc2-4e75-a195-5c356faeb803
     :setup: Standalone instance
     :steps:
         1. Set "nsslapd-require-index" to "on"
-        2. ancestorid/idlscanlimit to 100
-        3. Test an unindexed search is rejected
+        2. Test an unindexed search is rejected
     :expectedresults:
         1. Success
         2. Success
-        3. Success
     """
 
     # Set the config
@@ -727,10 +725,6 @@ def test_require_index(topo, request):
 
     db_cfg = DatabaseConfig(topo.standalone)
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
-    backend = Backends(topo.standalone).get_backend(DEFAULT_SUFFIX)
-    ancestorid_index = backend.get_index('ancestorid')
-    ancestorid_index.replace("nsIndexIDListScanLimit", ensure_bytes("limit=100 type=eq flags=AND"))
-    topo.standalone.restart()
 
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     for i in range(101):
@@ -741,15 +735,10 @@ def test_require_index(topo, request):
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         raw_objects.filter("(description=test*)")
 
-    def fin():
-        ancestorid_index.replace("nsIndexIDListScanLimit", ensure_bytes("limit=5000 type=eq flags=AND"))
-
-    request.addfinalizer(fin)
-
 
 
 @pytest.mark.skipif(ds_is_older('1.4.2'), reason="The config setting only exists in 1.4.2 and higher")
-def test_require_internal_index(topo, request):
+def test_require_internal_index(topo):
     """Ensure internal operations require indexed attributes
 
     :id: 22b94f30-59e3-4f27-89a1-c4f4be036f7f
@@ -780,10 +769,6 @@ def test_require_internal_index(topo, request):
     # Create a bunch of users
     db_cfg = DatabaseConfig(topo.standalone)
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
-    backend = Backends(topo.standalone).get_backend(DEFAULT_SUFFIX)
-    ancestorid_index = backend.get_index('ancestorid')
-    ancestorid_index.replace("nsIndexIDListScanLimit", ensure_bytes("limit=100 type=eq flags=AND"))
-    topo.standalone.restart()
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     for i in range(102, 202):
         users.create_test_user(uid=i)
@@ -807,12 +792,6 @@ def test_require_internal_index(topo, request):
     # Deletion of user should be rejected
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         user.delete()
-
-    def fin():
-        ancestorid_index.replace("nsIndexIDListScanLimit", ensure_bytes("limit=5000 type=eq flags=AND"))
-
-    request.addfinalizer(fin)
-
 
 
 if __name__ == '__main__':
