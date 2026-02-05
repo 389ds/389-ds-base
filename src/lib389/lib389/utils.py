@@ -32,11 +32,14 @@ import operator
 import subprocess
 import math
 import errno
+from typing import Optional, Union
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import pkcs12
 import lib389
 from pathlib import Path
 from subprocess import check_output
@@ -1993,17 +1996,62 @@ def check_cert_info(cert_file_name, search_text):
     return search_text.lower() in cert_text.lower()
 
 
-def cert_is_ca(cert_file_name):
-    with open(cert_file_name, "rb") as f:
-        if is_cert_der(cert_file_name):
-            cert = x509.load_der_x509_certificate(f.read(), default_backend())
-        else:
-            cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
+    """
+    Determine if a certificate is a CA.
+
+    Supports PEM, DER, and PKCS#12 certificates, from bytes or file paths.
+    """
+    # If passed bytes directly (DER,PEM)
+    cert_file = None
+    if isinstance(cert_data, (bytes, bytearray)):
+        data = bytes(cert_data)
+    else:
+        cert_file = cert_data
+        try:
+            with open(cert_file, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            raise ValueError(f"Unable to load certificate '{cert_data}': {e}")
 
     try:
+        # p12
+        if cert_file and cert_file.lower().endswith((".p12", ".pfx")):
+            try:
+                privkey, cert, _ = pkcs12.load_key_and_certificates(
+                    data, ensure_bytes(pkcs12_password),
+                    backend=default_backend()
+                )
+            except Exception as e:
+                raise ValueError(f"Failed to load PKCS#12 file: {cert_file}: {e}")
+
+            if cert is None:
+                raise ValueError("No certificate found in PKCS#12 container")
+
+        # Bytes
+        elif cert_file is None:
+            try:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+
+        # File
+        else:
+            try:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+
+    except ValueError as ve:
+        raise ValueError(f"Unable to load certificate '{cert_file}': {ve}")
+
+    try:
+        # Check key usage
         key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
         if not key_usage.value.key_cert_sign:
             return False
+
+        # Check constraints
         basic_constraints = cert.extensions.get_extension_for_oid(
             x509.oid.ExtensionOID.BASIC_CONSTRAINTS
         )
@@ -2011,10 +2059,29 @@ def cert_is_ca(cert_file_name):
             return False
         else:
             return True
+
     except x509.ExtensionNotFound:
         # No extensions, check the cert info directly
-        return check_cert_info(cert_file_name, "CA:TRUE")
+        return check_cert_info(cert_file, "CA:TRUE")
 
+def pem_to_der(blob: bytes):
+    """
+    Convert PEM certificate bytes to DER format.
+
+    :param blob: PEM encoded certificate bytes
+    :return: DER encoded certificate bytes
+    """
+    cert = x509.load_pem_x509_certificate(blob)
+    return cert.public_bytes(serialization.Encoding.DER)
+
+def is_pem_cert(blob: bytes):
+    """
+    Check if the given blob is a PEM certificate.
+
+    :param blob: Certificate data bytes
+    :return: True if PEM format, else False
+    """
+    return b"-----BEGIN CERTIFICATE-----" in blob
 
 def get_passwd_from_file(passwd_file):
     if os.path.exists(passwd_file):

@@ -9,8 +9,10 @@
 from collections import OrderedDict, namedtuple
 import json
 import os
+import sys
 from lib389.config import Config, Encryption, RSA
-from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
+from lib389.nss_ssl import NssSsl
+from lib389.cert_manager import CertManager
 from lib389.cli_base import _warn, CustomHelpFormatter
 
 
@@ -140,6 +142,52 @@ def _security_generic_toggle_parsers(parent, cls, attr, help_pattern):
     return list(map(add_parser, ('Enable', 'Disable'), ('on', 'off')))
 
 
+def _resolve_pkcs12_password(args):
+    if args.pkcs12_pin_text:
+        return args.pkcs12_pin_text
+
+    if args.pkcs12_pin_stdin:
+        return sys.stdin.readline().rstrip("\n")
+
+    if args.pkcs12_pin_path:
+        with open(args.pkcs12_pin_path) as f:
+            return f.read().rstrip("\n")
+
+    return None
+
+def _dump_cert(cert, json_output: bool = False, log = None):
+    """
+    Print or return a certificate's details in text or JSON format.
+
+    :param cert: dict describing a certificate
+    :param json_output: If True print JSON else print text
+    :param log: Optional logger to output text
+    """
+    if not isinstance(cert, dict):
+        raise TypeError(f"Expected dict, got {type(cert)}")
+
+    if json_output:
+        return {
+            "type": "certificate",
+            "attrs": {
+                "nickname": cert["cn"],
+                "subject": cert["subject"],
+                "issuer": cert["issuer"],
+                "expires": cert["expires"],
+                "flags": cert["trust_flags"],
+            }
+        }
+    else:
+        msg = (
+            f"Certificate Name: {cert['cn']}\n"
+            f"Subject DN: {cert['subject']}\n"
+            f"Issuer DN: {cert['issuer']}\n"
+            f"Expires: {cert['expires']}\n"
+            f"Trust Flags: {cert['trust_flags']}\n"
+        )
+        if log:
+            log.info(msg)
+
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
     tlsdb = NssSsl(dbpath=dbpath)
@@ -150,7 +198,7 @@ def security_enable(inst, basedn, log, args):
 
     if len(certs) == 1:
         # If there is only cert make sure it is set as the server certificate
-        RSA(inst).set('nsSSLPersonalitySSL', certs[0][0])
+        RSA(inst).set('nsSSLPersonalitySSL', certs[0]['cn'])
     elif args.cert_name is not None:
         # A certificate nickname was provided, set it as the server certificate
         RSA(inst).set('nsSSLPersonalitySSL', args.cert_name)
@@ -222,25 +270,26 @@ def cert_add(inst, basedn, log, args):
     if not os.path.isfile(args.file):
         raise ValueError(f'Certificate file "{args.file}" does not exist')
 
-    tlsdb = NssSsl(dirsrv=inst)
-    if not tlsdb._db_exists(even_partial=True):  # we want to be very careful
-        log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tlsdb.reinit()
-    try:
-        tlsdb.get_cert_details(args.name)
-        raise ValueError("Certificate already exists with the same name")
-    except ValueError:
-        pass
+    pkcs12_password = None
+    pkcs12_file = args.file.lower().endswith((".p12", ".pfx"))
+    if pkcs12_file:
+        pkcs12_password = _resolve_pkcs12_password(args)
 
-    if args.primary_cert:
-        # This is the server's primary certificate, update RSA entry
-        RSA(inst).set('nsSSLPersonalitySSL', args.name)
+    certmgr = CertManager(instance=inst)
+    cert = certmgr.get_cert(args.name)
+    if cert:
+        log.info(f"Certificate '{args.name}' already exists, skipping")
+        return
 
-    # Add the cert
-    tlsdb.add_cert(args.name, args.file)
-
+    certmgr.add_cert(
+        args.file,
+        args.name,
+        pkcs12_password=pkcs12_password,
+        primary=args.primary_cert,
+        ca=False,
+        force=args.force
+    )
     log.info("Successfully added certificate")
-
 
 def cacert_add(inst, basedn, log, args):
     """Add CA certificate, or CA certificate bundle
@@ -249,100 +298,81 @@ def cacert_add(inst, basedn, log, args):
     if not os.path.isfile(args.file):
         raise ValueError(f'Certificate file "{args.file}" does not exist')
 
-    tls = NssSsl(dirsrv=inst)
-    if not tls._db_exists(even_partial=True):  # we want to be very careful
-        log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tls.reinit()
+    # Does it make sense to add a CA cert from p12 container ?
+    if args.file.lower().endswith((".p12", ".pfx")):
+        raise ValueError("PKCS#12 CA certificates not supported. Use PEM or DER file")
 
-    tls.add_ca_cert_bundle(args.file, args.name)
-
+    certmgr = CertManager(instance=inst)
+    certmgr.add_ca_cert(args.file, args.name, force=args.force)
+    log.info("Successfully added CA certificate")
 
 def cert_list(inst, basedn, log, args):
     """List all the server certificates
     """
-    cert_list = []
-    tlsdb = NssSsl(dirsrv=inst)
-    certs = tlsdb.list_certs()
-    for cert in certs:
-        if args.json:
-            cert_list.append(
-                {
-                    "type": "certificate",
-                    "attrs": {
-                                'nickname': cert[0],
-                                'subject': cert[1],
-                                'issuer': cert[2],
-                                'expires': cert[3],
-                                'flags': cert[4],
-                            }
-                }
-            )
-        else:
-            log.info('Certificate Name: {}'.format(cert[0]))
-            log.info('Subject DN: {}'.format(cert[1]))
-            log.info('Issuer DN: {}'.format(cert[2]))
-            log.info('Expires: {}'.format(cert[3]))
-            log.info('Trust Flags: {}\n'.format(cert[4]))
-    if args.json:
-        log.info(json.dumps(cert_list, indent=4))
+    certmgr = CertManager(instance=inst)
+    certs = certmgr.list_certs()
+    if not certs:
+        log.info("No certificates found.")
+        return
 
+    if args.json:
+        output = [_dump_cert(cert, json_output=True) for cert in certs]
+        log.info(json.dumps(output, indent=4))
+    else:
+        for cert in certs:
+            _dump_cert(cert, json_output=False, log=log)
 
 def cacert_list(inst, basedn, log, args):
     """List all CA certs
     """
-    cert_list = []
-    tlsdb = NssSsl(dirsrv=inst)
-    certs = tlsdb.list_certs(ca=True)
-    for cert in certs:
-        if args.json:
-            cert_list.append(
-                {
-                    "type": "certificate",
-                    "attrs": {
-                                'nickname': cert[0],
-                                'subject': cert[1],
-                                'issuer': cert[2],
-                                'expires': cert[3],
-                                'flags': cert[4],
-                            }
-                }
-            )
-        else:
-            log.info('Certificate Name: {}'.format(cert[0]))
-            log.info('Subject DN: {}'.format(cert[1]))
-            log.info('Issuer DN: {}'.format(cert[2]))
-            log.info('Expires: {}'.format(cert[3]))
-            log.info('Trust Flags: {}\n'.format(cert[4]))
-    if args.json:
-        log.info(json.dumps(cert_list, indent=4))
+    certmgr = CertManager(instance=inst)
+    ca_certs = certmgr.list_ca_certs()
+    if not ca_certs:
+        log.info("No CA certificates found.")
+        return
 
+    if args.json:
+        output = [_dump_cert(cert, json_output=True) for cert in ca_certs]
+        log.info(json.dumps(output, indent=4))
+    else:
+        for cert in ca_certs:
+            _dump_cert(cert, json_output=False, log=log)
 
 def cert_get(inst, basedn, log, args):
     """Get the details about a server certificate
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    details = tlsdb.get_cert_details(args.name)
-    if args.json:
-        log.info(json.dumps(
-                {
-                    "type": "certificate",
-                    "attrs": {
-                                'nickname': details[0],
-                                'subject': details[1],
-                                'issuer': details[2],
-                                'expires': details[3],
-                                'flags': details[4],
-                            }
-                }, indent=4
-            )
-        )
-    else:
-        log.info('Certificate Name: {}'.format(details[0]))
-        log.info('Subject DN: {}'.format(details[1]))
-        log.info('Issuer DN: {}'.format(details[2]))
-        log.info('Expires: {}'.format(details[3]))
-        log.info('Trust Flags: {}'.format(details[4]))
+    certmgr = CertManager(instance=inst)
+    cert = certmgr.get_cert(args.name)
+    if not cert:
+        log.error(f"Certificate '{args.name}' not found.")
+        return
 
+    if "C" in cert.get("trust_flags", ""):
+        return
+
+    if args.json:
+        output = _dump_cert(cert, json_output=args.json)
+        log.info(json.dumps(output, indent=4))
+    else:
+        _dump_cert(cert, json_output=args.json, log=log)
+
+def cacert_get(inst, basedn, log, args):
+    """Get the details about a CA certificate
+    """
+    certmgr = CertManager(instance=inst)
+    cert = certmgr.get_cert(args.name)
+    if not cert:
+        log.error(f"Certificate '{args.name}' not found.")
+        return
+
+    if "C" not in cert.get("trust_flags", ""):
+        return
+
+    if args.json:
+        output = _dump_cert(cert, json_output=args.json)
+        log.info(json.dumps(output, indent=4))
+    else:
+        _dump_cert(cert, json_output=args.json, log=log)
 
 def csr_list(inst, basedn, log, args):
     """
@@ -412,18 +442,20 @@ def csr_del(inst, basedn, log, args):
 def cert_edit(inst, basedn, log, args):
     """Edit cert
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    tlsdb.edit_cert_trust(args.name, args.flags)
+    certmgr = CertManager(instance=inst)
+    certmgr.edit_cert_trust(args.name, args.flags)
     log.info("Successfully edited certificate trust flags")
 
 
 def cert_del(inst, basedn, log, args):
     """Delete cert
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    tlsdb.del_cert(args.name)
-    log.info(f"Successfully deleted certificate")
-
+    certmgr = CertManager(instance=inst)
+    try:
+        certmgr.del_cert(args.name)
+        log.info(f"Successfully deleted certificate")
+    except ValueError as e:
+        log.error(f"Failed to delete certificate '{args.name}': {e}")
 
 def key_list(inst, basedn, log, args):
     """
@@ -509,6 +541,11 @@ def create_parser(subparsers):
         help='Sets the name/nickname of the certificate')
     cert_add_parser.add_argument('--primary-cert', action='store_true',
                                  help="Sets this certificate as the server's certificate")
+    cert_add_parser.add_argument('--pkcs12-pin-text', help='The PKCS#12 password as plain text. WARNING: Password may appear' \
+        ' in process list or shell history. Use --pkcs12-pin-stdin or --pkcs12-pin-path to prevent password exposure.')
+    cert_add_parser.add_argument('--pkcs12-pin-stdin', help='Read the PKCS#12 password from stdin', action='store_true')
+    cert_add_parser.add_argument('--pkcs12-pin-path',  help='Path to a file containing the PKCS#12 password')
+    cert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",action='store_true', default=False)
     cert_add_parser.set_defaults(func=cert_add)
 
     cert_edit_parser = certs_sub.add_parser('set-trust-flags', help='Set the Trust flags',
@@ -519,7 +556,7 @@ def create_parser(subparsers):
     cert_edit_parser.set_defaults(func=cert_edit)
 
     cert_del_parser = certs_sub.add_parser('del', help='Delete a certificate',
-        description=('Delete a certificate from the NSS database'))
+        description=('Delete a server certificate from the NSS database or DynamicCerts backend.'))
     cert_del_parser.add_argument('name', help='The name/nickname of the certificate')
     cert_del_parser.set_defaults(func=cert_del)
 
@@ -529,19 +566,20 @@ def create_parser(subparsers):
     cert_get_parser.set_defaults(func=cert_get)
 
     cert_list_parser = certs_sub.add_parser('list', help='List the server certificates',
-        description=('Lists the server certificates in the NSS database'))
+        description=('List all server certificates in the NSS database or DynamicCerts backend.'))
     cert_list_parser.set_defaults(func=cert_list)
 
     # CA certificate management
     cacerts = security_sub.add_parser('ca-certificate', help='Manage TLS certificate authorities', formatter_class=CustomHelpFormatter)
     cacerts_sub = cacerts.add_subparsers(help='ca-certificate')
     cacert_add_parser = cacerts_sub.add_parser('add', help='Add a Certificate Authority', description=(
-        'Add a Certificate Authority to the NSS database'))
+        'Add a CA certificate (PEM or DER only) to the NSS database or DynamicCerts backend.'))
     cacert_add_parser.add_argument('--file', required=True,
-        help='Sets the file name of the CA certificate')
-    cacert_add_parser.add_argument('--name', nargs='+', required=True,
-        help='Sets the name/nickname of the CA certificate, if adding a PEM bundle then specify multiple names one for '
+        help='Path to the CA certificate file (PEM or DER). If adding a PEM bundle then specify multiple names one for '
              'each certificate, otherwise a number increment will be added to the previous name.')
+    cacert_add_parser.add_argument('--name', nargs='+', required=True,
+        help='Sets the name/nickname of the CA certificate')
+    cacert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",action='store_true', default=False)
     cacert_add_parser.set_defaults(func=cacert_add)
 
     cacert_edit_parser = cacerts_sub.add_parser('set-trust-flags', help='Set the Trust flags',
@@ -559,7 +597,7 @@ def create_parser(subparsers):
     cacert_get_parser = cacerts_sub.add_parser('get', help="Displays a Certificate Authority's information",
         description=('Get detailed information about a CA certificate, like trust attributes, expiration dates, Subject and Issuer DN'))
     cacert_get_parser.add_argument('name', help='The name/nickname of the CA certificate')
-    cacert_get_parser.set_defaults(func=cert_get)
+    cacert_get_parser.set_defaults(func=cacert_get)
 
     cacert_list_parser = cacerts_sub.add_parser('list', help='List the Certificate Authorities',
         description=('List the CA certificates in the NSS database'))
