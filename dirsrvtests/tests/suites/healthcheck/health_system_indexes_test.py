@@ -450,6 +450,58 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
+def test_upgrade_removes_parentid_scanlimit(topology_st):
+    """Check if upgrade function removes nsIndexIDListScanLimit from parentid index
+
+    :id: 2808886e-c1c1-441d-b3a3-299c4ef1ab4a
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Stop the server
+        3. Use DSEldif to add nsIndexIDListScanLimit to parentid index
+        4. Start the server (triggers upgrade)
+        5. Verify nsIndexIDListScanLimit is removed from parentid index
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. nsIndexIDListScanLimit is no longer present
+    """
+    from lib389.dseldif import DSEldif
+
+    standalone = topology_st.standalone
+    PARENTID_DN = "cn=parentid,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
+    SCANLIMIT_VALUE = "limit=5000 type=eq flags=AND"
+
+    log.info("Stop the server")
+    standalone.stop()
+
+    log.info("Add nsIndexIDListScanLimit to parentid index using DSEldif")
+    dse_ldif = DSEldif(standalone)
+    dse_ldif.add(PARENTID_DN, "nsIndexIDListScanLimit", SCANLIMIT_VALUE)
+
+    # Verify it was added
+    scanlimit = dse_ldif.get(PARENTID_DN, "nsIndexIDListScanLimit")
+    assert scanlimit is not None, "Failed to add nsIndexIDListScanLimit"
+    log.info(f"Added nsIndexIDListScanLimit: {scanlimit}")
+
+    log.info("Start the server (triggers upgrade)")
+    standalone.start()
+
+    log.info("Verify nsIndexIDListScanLimit was removed by upgrade")
+    # Check via LDAP - the upgrade should have removed it
+    parentid_index = Index(standalone, PARENTID_DN)
+    scanlimit_after = parentid_index.get_attr_vals_utf8("nsIndexIDListScanLimit")
+    log.info(f"nsIndexIDListScanLimit after upgrade: {scanlimit_after}")
+
+    # The upgrade function should have removed nsIndexIDListScanLimit
+    assert not scanlimit_after, \
+        f"nsIndexIDListScanLimit should have been removed but found: {scanlimit_after}"
+
+    log.info("Upgrade successfully removed nsIndexIDListScanLimit from parentid index")
+
+
 if __name__ == "__main__":
     # Run isolated
     # -s for DEBUG mode
