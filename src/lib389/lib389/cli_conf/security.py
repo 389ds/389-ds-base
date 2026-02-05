@@ -187,8 +187,6 @@ def _dump_cert(cert, json_output: bool = False, log = None):
         )
         if log:
             log.info(msg)
-        else:
-            print(msg)
 
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
@@ -319,7 +317,7 @@ def cert_list(inst, basedn, log, args):
 
     if args.json:
         output = [_dump_cert(cert, json_output=True) for cert in certs]
-        print(json.dumps(output, indent=4))
+        log.info(json.dumps(output, indent=4))
     else:
         for cert in certs:
             _dump_cert(cert, json_output=False, log=log)
@@ -335,7 +333,7 @@ def cacert_list(inst, basedn, log, args):
 
     if args.json:
         output = [_dump_cert(cert, json_output=True) for cert in ca_certs]
-        print(json.dumps(output, indent=4))
+        log.info(json.dumps(output, indent=4))
     else:
         for cert in ca_certs:
             _dump_cert(cert, json_output=False, log=log)
@@ -543,7 +541,8 @@ def create_parser(subparsers):
         help='Sets the name/nickname of the certificate')
     cert_add_parser.add_argument('--primary-cert', action='store_true',
                                  help="Sets this certificate as the server's certificate")
-    cert_add_parser.add_argument('--pkcs12-pin-text', help='The PKCS#12 password as plain text')
+    cert_add_parser.add_argument('--pkcs12-pin-text', help='The PKCS#12 password as plain text. WARNING: Password may appear' \
+        ' in process list or shell history. Use --pkcs12-pin-stdin or --pkcs12-pin-path to prevent password exposure.')
     cert_add_parser.add_argument('--pkcs12-pin-stdin', help='Read the PKCS#12 password from stdin', action='store_true')
     cert_add_parser.add_argument('--pkcs12-pin-path',  help='Path to a file containing the PKCS#12 password')
     cert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",action='store_true', default=False)

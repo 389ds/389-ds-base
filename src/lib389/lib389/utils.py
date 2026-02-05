@@ -2019,7 +2019,7 @@ def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
         if cert_file and cert_file.lower().endswith((".p12", ".pfx")):
             try:
                 privkey, cert, _ = pkcs12.load_key_and_certificates(
-                    data, pkcs12_password.encode() if pkcs12_password else None,
+                    data, ensure_bytes(pkcs12_password),
                     backend=default_backend()
                 )
             except Exception as e:
