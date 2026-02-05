@@ -39,7 +39,6 @@ arg_to_attr = {
         'mode': 'nsslapd-mode',
         'state': 'nsslapd-state',
         'idlistscanlimit': 'nsslapd-idlistscanlimit',
-        'systemidlistscanlimit': 'nsslapd-systemidlistscanlimit',
         'directory': 'nsslapd-directory',
         'dbcachesize': 'nsslapd-dbcachesize',
         'logdirectory': 'nsslapd-db-logdirectory',
@@ -624,21 +623,6 @@ def backend_set_index(inst, basedn, log, args):
             except ldap.NO_SUCH_ATTRIBUTE:
                 raise ValueError('Can not delete matching rule type because it does not exist')
 
-    if args.replace_scanlimit is not None:
-        for replace_scanlimit in args.replace_scanlimit:
-            index.replace('nsIndexIDListScanLimit', replace_scanlimit)
-
-    if args.add_scanlimit is not None:
-        for add_scanlimit in args.add_scanlimit:
-            index.add('nsIndexIDListScanLimit', add_scanlimit)
-
-    if args.del_scanlimit is not None:
-        for del_scanlimit in args.del_scanlimit:
-            try:
-                index.remove('nsIndexIDListScanLimit', del_scanlimit)
-            except ldap.NO_SUCH_ATTRIBUTE:
-                raise ValueError('Can not delete a fine grain limit definition because it does not exist')
-
     if args.reindex:
         be.reindex(attrs=[args.attr])
     log.info("Index successfully updated")
@@ -960,9 +944,6 @@ def create_parser(subparsers):
     edit_index_parser.add_argument('--del-type', action='append', help='Removes an index type from the index: (eq, sub, pres, or approx)')
     edit_index_parser.add_argument('--add-mr', action='append', help='Adds a matching-rule to the index')
     edit_index_parser.add_argument('--del-mr', action='append', help='Removes a matching-rule from the index')
-    edit_index_parser.add_argument('--add-scanlimit', action='append', help='Adds a fine grain limit definiton to the index')
-    edit_index_parser.add_argument('--replace-scanlimit', action='append', help='Replaces a fine grain limit definiton to the index')
-    edit_index_parser.add_argument('--del-scanlimit', action='append', help='Removes a fine grain limit definiton to the index')
     edit_index_parser.add_argument('--reindex', action='store_true', help='Re-indexes the database after editing the index')
     edit_index_parser.add_argument('be_name', help='The backend name or suffix')
 
@@ -1089,7 +1070,6 @@ def create_parser(subparsers):
                                                                  'will check when examining candidate entries in response to a search request')
     set_db_config_parser.add_argument('--mode', help='Specifies the permissions used for newly created index files')
     set_db_config_parser.add_argument('--idlistscanlimit', help='Specifies the number of entry IDs that are searched during a search operation')
-    set_db_config_parser.add_argument('--systemidlistscanlimit', help='Specifies the number of entry IDs that are fetch from ancestorid/parentid indexes')
     set_db_config_parser.add_argument('--directory', help='Specifies absolute path to database instance')
     set_db_config_parser.add_argument('--dbcachesize', help='Specifies the database index cache size in bytes')
     set_db_config_parser.add_argument('--logdirectory', help='Specifies the path to the directory that contains the database transaction logs')

@@ -60,7 +60,6 @@ struct config_info
 #define CONFIG_RANGELOOKTHROUGHLIMIT "nsslapd-rangelookthroughlimit"
 #define CONFIG_PAGEDLOOKTHROUGHLIMIT "nsslapd-pagedlookthroughlimit"
 #define CONFIG_IDLISTSCANLIMIT "nsslapd-idlistscanlimit"
-#define CONFIG_SYSTEMIDLISTSCANLIMIT "nsslapd-systemidlistscanlimit"
 #define CONFIG_PAGEDIDLISTSCANLIMIT "nsslapd-pagedidlistscanlimit"
 #define CONFIG_DIRECTORY "nsslapd-directory"
 #define CONFIG_MODE "nsslapd-mode"
