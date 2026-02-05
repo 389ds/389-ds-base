@@ -7,10 +7,22 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import glob
 import os
+import re
+import subprocess
+from enum import Enum
 from lib389._constants import TaskWarning
 from lib389.cli_base import CustomHelpFormatter
+from lib389.dseldif import DSEldif
 from pathlib import Path
+
+
+class IndexOrdering(Enum):
+    """Represents the ordering type of an index."""
+    INTEGER = "integer"
+    LEXICOGRAPHIC = "lexicographic"
+    UNKNOWN = "unknown"
 
 
 def dbtasks_db2index(inst, log, args):
@@ -126,6 +138,387 @@ def dbtasks_verify(inst, log, args):
         log.info("dbverify successful")
 
 
+def _get_db_dir(dse_ldif):
+    """Get the database directory.
+
+    Args:
+        dse_ldif: DSEldif instance.
+
+    Returns:
+        Path to the database directory, or None if not found.
+    """
+    try:
+        db_dir = dse_ldif.get(
+            "cn=config,cn=ldbm database,cn=plugins,cn=config",
+            "nsslapd-directory",
+            single=True,
+        )
+        return db_dir
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+
+def _has_integer_ordering_match(dse_ldif, backend, index_name):
+    """Check if an index has integerOrderingMatch configured in DSE.
+
+    Args:
+        dse_ldif: DSEldif instance.
+        backend: Backend name.
+        index_name: Name of the index to check.
+
+    Returns:
+        True if integerOrderingMatch is configured, False otherwise.
+    """
+    index_dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
+        index_name, backend
+    )
+    matching_rules = dse_ldif.get(index_dn, "nsMatchingRule", lower=True)
+    if matching_rules:
+        return any(mr.lower() == "integerorderingmatch" for mr in matching_rules)
+    return False
+
+
+def _has_index_scan_limit(dse_ldif, backend, index_name):
+    """Check if an index has nsIndexIDListScanLimit configured.
+
+    Args:
+        dse_ldif: DSEldif instance.
+        backend: Backend name.
+        index_name: Name of the index to check.
+
+    Returns:
+        True if nsIndexIDListScanLimit is configured, False otherwise.
+    """
+    index_dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
+        index_name, backend
+    )
+    scan_limit = dse_ldif.get(index_dn, "nsIndexIDListScanLimit")
+    return scan_limit is not None
+
+
+def _index_config_exists(dse_ldif, backend, index_name):
+    """Check if an index configuration entry exists in DSE.
+
+    Args:
+        dse_ldif: DSEldif instance.
+        backend: Backend name.
+        index_name: Name of the index to check.
+
+    Returns:
+        True if the index config entry exists, False otherwise.
+    """
+    index_dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
+        index_name, backend
+    )
+    try:
+        cn = dse_ldif.get(index_dn, "cn")
+        return cn is not None
+    except (ValueError, KeyError):
+        return False
+
+
+def _default_index_exists(dse_ldif, index_name):
+    """Check if an index exists in cn=default indexes.
+
+    Args:
+        dse_ldif: DSEldif instance.
+        index_name: Name of the index to check.
+
+    Returns:
+        True if the index exists in default indexes, False otherwise.
+    """
+    index_dn = "cn={},cn=default indexes,cn=config,cn=ldbm database,cn=plugins,cn=config".format(
+        index_name
+    )
+    try:
+        cn = dse_ldif.get(index_dn, "cn")
+        return cn is not None
+    except (ValueError, KeyError):
+        return False
+
+
+def _check_disk_ordering(db_dir, backend, index_name, dbscan_path, is_mdb, log):
+    """Check if index on disk uses lexicographic or integer ordering.
+
+    Args:
+        db_dir: Path to the database directory.
+        backend: Backend name.
+        index_name: Name of the index to check.
+        dbscan_path: Path to the dbscan binary.
+        is_mdb: True if using MDB backend.
+        log: Logger instance.
+
+    Returns:
+        IndexOrdering: The detected ordering type.
+    """
+    if is_mdb:
+        # MDB uses pseudo-paths: db_dir/backend/index.db
+        # dbscan accesses indexes via paths like: /var/lib/dirsrv/slapd-xxx/db/userroot/parentid.db
+        index_file = os.path.join(db_dir, backend, "{}.db".format(index_name))
+    else:
+        # BDB has separate directories per backend with actual index files
+        backend_dir = os.path.join(db_dir, backend)
+        if not os.path.exists(backend_dir):
+            return IndexOrdering.UNKNOWN
+        index_file = None
+        pattern = os.path.join(backend_dir, "{}.db*".format(index_name))
+        for f in glob.glob(pattern):
+            if os.path.isfile(f):
+                index_file = f
+                break
+        if not index_file:
+            return IndexOrdering.UNKNOWN
+
+    try:
+        result = subprocess.run(
+            [dbscan_path, "-f", index_file],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=60,
+        )
+
+        if result.returncode != 0:
+            log.warning("  dbscan returned non-zero exit code for %s", index_file)
+            return IndexOrdering.UNKNOWN
+
+        # Parse keys from dbscan output
+        keys = []
+        for line in result.stdout.split("\n"):
+            line = line.strip()
+            if line.startswith("="):
+                match = re.match(r"^=(\d+)", line)
+                if match:
+                    keys.append(int(match.group(1)))
+
+        if len(keys) < 2:
+            return IndexOrdering.UNKNOWN
+
+        # Check if keys are in integer order by looking for decreasing numeric values
+        # (which would indicate lexicographic ordering, e.g., "3" < "30" < "4")
+        prev_id = keys[0]
+        for i in range(1, min(len(keys), 100)):
+            current_id = keys[i]
+            if prev_id > current_id:
+                return IndexOrdering.LEXICOGRAPHIC
+            prev_id = current_id
+
+        return IndexOrdering.INTEGER
+
+    except subprocess.TimeoutExpired:
+        log.warning("  dbscan timed out for %s", index_file)
+        return IndexOrdering.UNKNOWN
+    except OSError as e:
+        log.warning("  Error running dbscan: %s", e)
+        return IndexOrdering.UNKNOWN
+
+
+def dbtasks_index_check(inst, log, args):
+    """Check and optionally fix index ordering mismatches.
+
+    This function detects mismatches between the configured ordering
+    (integerOrderingMatch in DSE) and the actual on-disk ordering of
+    parentid and ancestorid indexes.
+
+    Args:
+        inst: DirSrv instance.
+        log: Logger instance.
+        args: Parsed command line arguments.
+
+    Returns:
+        True if all checks passed, False if mismatches were detected.
+    """
+    # Server must be stopped
+    if inst.status():
+        log.error("index-check requires the instance to be stopped")
+        return False
+
+    # Check for dbscan binary
+    dbscan_path = os.path.join(inst.ds_paths.bin_dir, "dbscan")
+    if not os.path.exists(dbscan_path):
+        log.error("dbscan utility not found at %s", dbscan_path)
+        return False
+
+    # Load DSE
+    try:
+        dse_ldif = DSEldif(inst)
+    except Exception as e:
+        log.error("Failed to read dse.ldif: %s", e)
+        return False
+
+    # Get backends to check
+    all_backends = dse_ldif.get_backends()
+    if not all_backends:
+        log.info("No backends found")
+        return True
+
+    # Filter to specific backend if requested
+    if args.backend:
+        # Case-insensitive backend lookup
+        backend_lower = args.backend.lower()
+        matching_backend = None
+        for be in all_backends:
+            if be.lower() == backend_lower:
+                matching_backend = be
+                break
+        if matching_backend is None:
+            log.error("Backend '%s' not found. Available backends: %s",
+                      args.backend, ", ".join(all_backends))
+            return False
+        backends_to_check = [matching_backend]
+    else:
+        backends_to_check = all_backends
+
+    # Get database directory and check database type
+    db_dir = _get_db_dir(dse_ldif)
+    if not db_dir or not os.path.exists(db_dir):
+        log.error("Database directory not found")
+        return False
+
+    db_lib = inst.get_db_lib()
+    is_mdb = (db_lib == "mdb")
+    log.info("Database type: %s", db_lib.upper())
+
+    # Track all issues found
+    all_ok = True
+    mismatches = []  # (backend, index_name) tuples needing reindex
+    missing_matching_rules = []  # (backend, index_name) tuples missing integerOrderingMatch
+    scan_limits_to_remove = []  # (backend, index_name) tuples with nsIndexIDListScanLimit
+    ancestorid_configs_to_remove = []  # backend names with ancestorid config entries
+    remove_ancestorid_from_defaults = False  # Flag to remove from cn=default indexes
+
+    # Check if ancestorid exists in cn=default indexes (should be removed)
+    if _default_index_exists(dse_ldif, "ancestorid"):
+        log.warning("ancestorid found in cn=default indexes - should be removed")
+        remove_ancestorid_from_defaults = True
+        all_ok = False
+
+    for backend in backends_to_check:
+        log.info("Checking backend: %s", backend)
+
+        # Check for ancestorid config entry (should not exist)
+        if _index_config_exists(dse_ldif, backend, "ancestorid"):
+            log.warning("  ancestorid - config entry exists (should be removed)")
+            ancestorid_configs_to_remove.append(backend)
+            all_ok = False
+
+        # Check parentid and ancestorid indexes
+        for index_name in ["parentid", "ancestorid"]:
+            # Check for scan limits (should be removed)
+            if _has_index_scan_limit(dse_ldif, backend, index_name):
+                log.warning("  %s - has nsIndexIDListScanLimit (should be removed)", index_name)
+                scan_limits_to_remove.append((backend, index_name))
+                all_ok = False
+
+            # Check disk ordering
+            disk_ordering = _check_disk_ordering(db_dir, backend, index_name, dbscan_path, is_mdb, log)
+
+            if disk_ordering == IndexOrdering.UNKNOWN:
+                log.info("  %s - could not determine disk ordering, skipping", index_name)
+                # For parentid, still check if matching rule is missing
+                if index_name == "parentid":
+                    config_has_int_order = _has_integer_ordering_match(dse_ldif, backend, index_name)
+                    if not config_has_int_order:
+                        log.warning("  %s - missing integerOrderingMatch in config", index_name)
+                        missing_matching_rules.append((backend, index_name))
+                        all_ok = False
+                continue
+
+            config_has_int_order = _has_integer_ordering_match(dse_ldif, backend, index_name)
+            config_desc = "integer" if config_has_int_order else "lexicographic"
+            log.info("  %s - config: %s, disk: %s",
+                     index_name, config_desc, disk_ordering.value)
+
+            # For parentid, the desired state is always integer ordering
+            if index_name == "parentid":
+                if not config_has_int_order:
+                    log.warning("  %s - missing integerOrderingMatch in config", index_name)
+                    if (backend, index_name) not in missing_matching_rules:
+                        missing_matching_rules.append((backend, index_name))
+                    all_ok = False
+
+                if disk_ordering == IndexOrdering.LEXICOGRAPHIC:
+                    log.warning("  %s - disk ordering is lexicographic, needs reindex", index_name)
+                    if (backend, index_name) not in mismatches:
+                        mismatches.append((backend, index_name))
+                    all_ok = False
+
+    # Handle issues
+    if not all_ok:
+        if args.fix:
+            log.info("Fixing issues...")
+
+            # Remove ancestorid from cn=default indexes
+            if remove_ancestorid_from_defaults:
+                default_idx_dn = "cn=ancestorid,cn=default indexes,cn=config,cn=ldbm database,cn=plugins,cn=config"
+                log.info("  Removing ancestorid from default indexes...")
+                try:
+                    dse_ldif.delete_dn(default_idx_dn)
+                    log.info("  Removed ancestorid from default indexes")
+                except Exception as e:
+                    log.error("  Failed to remove ancestorid from default indexes: %s", e)
+                    return False
+
+            # Remove scan limits (only for indexes that won't be deleted)
+            for backend, index_name in scan_limits_to_remove:
+                # Skip ancestorid if we're going to delete the whole entry anyway
+                if index_name == "ancestorid" and backend in ancestorid_configs_to_remove:
+                    continue
+                index_dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
+                    index_name, backend
+                )
+                log.info("  Removing nsIndexIDListScanLimit from %s in backend %s...", index_name, backend)
+                try:
+                    dse_ldif.delete(index_dn, "nsIndexIDListScanLimit")
+                    log.info("  Removed nsIndexIDListScanLimit from %s", index_name)
+                except Exception as e:
+                    log.error("  Failed to remove nsIndexIDListScanLimit from %s: %s", index_name, e)
+                    return False
+
+            # Remove ancestorid config entries from backends
+            for backend in ancestorid_configs_to_remove:
+                index_dn = "cn=ancestorid,cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(backend)
+                log.info("  Removing ancestorid config entry from backend %s...", backend)
+                try:
+                    dse_ldif.delete_dn(index_dn)
+                    log.info("  Removed ancestorid config entry from backend %s", backend)
+                except Exception as e:
+                    log.error("  Failed to remove ancestorid config from backend %s: %s", backend, e)
+                    return False
+
+            # Add missing matching rules to dse.ldif
+            for backend, index_name in missing_matching_rules:
+                index_dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
+                    index_name, backend
+                )
+                log.info("  Adding integerOrderingMatch to %s in backend %s...", index_name, backend)
+                try:
+                    dse_ldif.add(index_dn, "nsMatchingRule", "integerOrderingMatch")
+                    log.info("  Updated dse.ldif with integerOrderingMatch for %s", index_name)
+                except Exception as e:
+                    log.error("  Failed to update dse.ldif for %s: %s", index_name, e)
+                    return False
+
+            # Reindex indexes with disk ordering issues
+            for backend, index_name in mismatches:
+                log.info("  Reindexing %s in backend %s...", index_name, backend)
+                if not inst.db2index(bename=backend, attrs=[index_name]):
+                    log.error("  Failed to reindex %s", index_name)
+                    return False
+                log.info("  Reindex of %s completed successfully", index_name)
+
+            log.info("All issues fixed")
+            return True
+        else:
+            log.info("Issues detected. Run with --fix to repair.")
+            return False
+    else:
+        log.info("All checks passed - no issues found")
+        return True
+
+
 def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     # db2index_parser.add_argument('suffix', help="The suffix to reindex. IE dc=example,dc=com.")
@@ -172,3 +565,12 @@ def create_parser(subcommands):
     ldifs_parser = subcommands.add_parser('ldifs', help="List all the LDIF files located in the server's LDIF directory", formatter_class=CustomHelpFormatter)
     ldifs_parser.add_argument('--delete', nargs=1, help="Delete LDIF file")
     ldifs_parser.set_defaults(func=dbtasks_ldifs)
+
+    index_check_parser = subcommands.add_parser('index-check',
+        help="Check for index ordering mismatches (parentid/ancestorid). The server must be stopped.",
+        formatter_class=CustomHelpFormatter)
+    index_check_parser.add_argument('backend', nargs='?', default=None,
+        help="Backend to check. If not specified, all backends are checked.")
+    index_check_parser.add_argument('--fix', action='store_true', default=False,
+        help="Fix mismatches by reindexing affected indexes")
+    index_check_parser.set_defaults(func=dbtasks_index_check)
