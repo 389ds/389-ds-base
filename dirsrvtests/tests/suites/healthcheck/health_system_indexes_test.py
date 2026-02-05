@@ -501,6 +501,91 @@ def test_upgrade_removes_parentid_scanlimit(topology_st):
 
     log.info("Upgrade successfully removed nsIndexIDListScanLimit from parentid index")
 
+    # Verify idempotency - restart again and ensure no errors
+    log.info("Restart server again to verify idempotency (no errors on second run)")
+    standalone.restart()
+    # Verify the attribute is still absent
+    scanlimit_after_second = parentid_index.get_attr_vals_utf8("nsIndexIDListScanLimit")
+    assert not scanlimit_after_second, \
+        f"nsIndexIDListScanLimit should still be absent after second restart but found: {scanlimit_after_second}"
+    log.info("Idempotency verified - no issues on second restart")
+
+
+def test_upgrade_removes_ancestorid_index_config(topology_st):
+    """Check if upgrade function removes ancestorid index config entry
+
+    :id: 3f3d6e9b-75ac-4f0d-b2ce-7204e6eacd0a
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Stop the server
+        3. Use DSEldif to add an ancestorid index config entry
+        4. Start the server (triggers upgrade)
+        5. Verify ancestorid index config entry is removed
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. ancestorid index config entry is no longer present
+    """
+    from lib389.dseldif import DSEldif
+
+    standalone = topology_st.standalone
+    ANCESTORID_DN = "cn=ancestorid,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
+
+    log.info("Stop the server")
+    standalone.stop()
+
+    log.info("Add ancestorid index config entry using DSEldif")
+    dse_ldif = DSEldif(standalone)
+
+    # Create a fake ancestorid index entry
+    ancestorid_entry = [
+        "dn: {}\n".format(ANCESTORID_DN),
+        "objectClass: top\n",
+        "objectClass: nsIndex\n",
+        "cn: ancestorid\n",
+        "nsSystemIndex: true\n",
+        "nsIndexType: eq\n",
+        "nsMatchingRule: integerOrderingMatch\n",
+        "\n"
+    ]
+    dse_ldif.add_entry(ancestorid_entry)
+
+    # Verify it was added by re-reading dse.ldif
+    dse_ldif2 = DSEldif(standalone)
+    cn_value = dse_ldif2.get(ANCESTORID_DN, "cn")
+    assert cn_value is not None, "Failed to add ancestorid index config entry"
+    log.info(f"Added ancestorid index entry with cn: {cn_value}")
+
+    log.info("Start the server (triggers upgrade)")
+    standalone.start()
+
+    log.info("Verify ancestorid index config entry was removed by upgrade")
+    # Check via LDAP - the upgrade should have removed the entry
+    try:
+        ancestorid_index = Index(standalone, ANCESTORID_DN)
+        # If we can get the entry, it wasn't removed - this is a failure
+        cn_after = ancestorid_index.get_attr_vals_utf8("cn")
+        assert False, f"ancestorid index config entry should have been removed but still exists: {cn_after}"
+    except Exception as e:
+        # Entry should not exist - this is expected
+        log.info(f"ancestorid index config entry correctly removed (got exception: {e})")
+
+    log.info("Upgrade successfully removed ancestorid index config entry")
+
+    # Verify idempotency - restart again and ensure no errors
+    log.info("Restart server again to verify idempotency (no errors on second run)")
+    standalone.restart()
+    # Verify the entry is still absent
+    try:
+        ancestorid_index = Index(standalone, ANCESTORID_DN)
+        cn_after_second = ancestorid_index.get_attr_vals_utf8("cn")
+        assert False, f"ancestorid index config entry should still be absent after second restart but found: {cn_after_second}"
+    except Exception as e:
+        log.info(f"Idempotency verified - ancestorid still absent after second restart (got exception: {e})")
+
 
 if __name__ == "__main__":
     # Run isolated
