@@ -172,8 +172,7 @@ def test_missing_parentid(topology_st, log_buffering_enabled):
 
     log.info("Re-add the parentId index")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"],
-                      idlistscanlimit=['limit=5000 type=eq flags=AND'])
+    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -261,8 +260,7 @@ def test_usn_plugin_missing_entryusn(topology_st, usn_plugin_enabled, log_buffer
 
     log.info("Re-add the entryusn index")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("entryusn", ["eq"], matching_rules=["integerOrderingMatch"],
-                      idlistscanlimit=['limit=5000 type=eq flags=AND'])
+    backend.add_index("entryusn", ["eq"], matching_rules=["integerOrderingMatch"])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -406,132 +404,6 @@ def test_retrocl_plugin_missing_matching_rule(topology_st, retrocl_plugin_enable
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
-def test_missing_scanlimit(topology_st, log_buffering_enabled):
-    """Check if healthcheck returns DSBLE0007 code when parentId index is missing scanlimit
-
-    :id: 40e1bf6a-2397-459b-bdf3-f787ca118b86
-    :setup: Standalone instance
-    :steps:
-        1. Create DS instance
-        2. Remove nsIndexIDListScanLimit from parentId index
-        3. Use healthcheck without --json option
-        4. Use healthcheck with --json option
-        5. Verify the remediation command has properly quoted scanlimit
-        6. Re-add the scanlimit
-        7. Use healthcheck without --json option
-        8. Use healthcheck with --json option
-    :expectedresults:
-        1. Success
-        2. Success
-        3. healthcheck reports DSBLE0007 code and related details
-        4. healthcheck reports DSBLE0007 code and related details
-        5. The scanlimit value is quoted in the remediation command
-        6. Success
-        7. healthcheck reports no issues found
-        8. healthcheck reports no issues found
-    """
-
-    RET_CODE = "DSBLE0007"
-    PARENTID_DN = "cn=parentid,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
-    SCANLIMIT_VALUE = "limit=5000 type=eq flags=AND"
-
-    standalone = topology_st.standalone
-
-    log.info("Remove nsIndexIDListScanLimit from parentId index")
-    parentid_index = Index(standalone, PARENTID_DN)
-    parentid_index.remove("nsIndexIDListScanLimit", SCANLIMIT_VALUE)
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
-
-    # Verify the remediation command has properly quoted scanlimit
-    args = FakeArgs()
-    args.instance = standalone.serverid
-    args.verbose = standalone.verbose
-    args.list_errors = False
-    args.list_checks = False
-    args.exclude_check = []
-    args.check = ["backends"]
-    args.dry_run = False
-    args.json = False
-    health_check_run(standalone, topology_st.logcap.log, args)
-    # Check that the scanlimit is quoted in the output
-    assert topology_st.logcap.contains('--add-scanlimit "limit=5000 type=eq flags=AND"')
-    log.info("Verified scanlimit is properly quoted in remediation command")
-    topology_st.logcap.flush()
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
-
-    log.info("Re-add the nsIndexIDListScanLimit")
-    parentid_index = Index(standalone, PARENTID_DN)
-    parentid_index.add("nsIndexIDListScanLimit", SCANLIMIT_VALUE)
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
-
-
-def test_missing_matching_rule_and_scanlimit(topology_st, log_buffering_enabled):
-    """Check if healthcheck generates a single combined command when both matching rule and scanlimit are missing
-
-    :id: af8214ad-5e4c-422a-8f74-3e99227551df
-    :setup: Standalone instance
-    :steps:
-        1. Create DS instance
-        2. Remove both integerOrderingMatch and nsIndexIDListScanLimit from parentId index
-        3. Use healthcheck and verify a single combined command is generated
-        4. Re-add the matching rule and scanlimit
-        5. Use healthcheck without --json option
-        6. Use healthcheck with --json option
-    :expectedresults:
-        1. Success
-        2. Success
-        3. healthcheck reports DSBLE0007 and generates a single command with both --add-mr and --add-scanlimit
-        4. Success
-        5. healthcheck reports no issues found
-        6. healthcheck reports no issues found
-    """
-
-    RET_CODE = "DSBLE0007"
-    PARENTID_DN = "cn=parentid,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
-    SCANLIMIT_VALUE = "limit=5000 type=eq flags=AND"
-
-    standalone = topology_st.standalone
-
-    log.info("Remove both integerOrderingMatch and nsIndexIDListScanLimit from parentId index")
-    parentid_index = Index(standalone, PARENTID_DN)
-    parentid_index.remove("nsMatchingRule", "integerOrderingMatch")
-    parentid_index.remove("nsIndexIDListScanLimit", SCANLIMIT_VALUE)
-
-    # Run healthcheck and verify combined command
-    args = FakeArgs()
-    args.instance = standalone.serverid
-    args.verbose = standalone.verbose
-    args.list_errors = False
-    args.list_checks = False
-    args.exclude_check = []
-    args.check = ["backends"]
-    args.dry_run = False
-    args.json = False
-    health_check_run(standalone, topology_st.logcap.log, args)
-
-    # Verify DSBLE0007 is reported
-    assert topology_st.logcap.contains(RET_CODE)
-    log.info("healthcheck returned code: %s" % RET_CODE)
-
-    # Verify a single combined command is generated with both --add-mr and --add-scanlimit
-    assert topology_st.logcap.contains('--add-mr integerOrderingMatch --add-scanlimit "limit=5000 type=eq flags=AND"')
-    log.info("Verified combined command with both --add-mr and --add-scanlimit")
-
-    topology_st.logcap.flush()
-
-    log.info("Re-add the integerOrderingMatch matching rule and scanlimit")
-    parentid_index = Index(standalone, PARENTID_DN)
-    parentid_index.add("nsMatchingRule", "integerOrderingMatch")
-    parentid_index.add("nsIndexIDListScanLimit", SCANLIMIT_VALUE)
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
-
-
 def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
     """Check if healthcheck returns DSBLE0007 code when multiple system indexes are missing
 
@@ -572,8 +444,7 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
 
     log.info("Re-add the missing system indexes")
     backend = Backends(standalone).get("userRoot")
-    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"],
-                      idlistscanlimit=['limit=5000 type=eq flags=AND'])
+    backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
     backend.add_index("nsuniqueid", ["eq"])
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
