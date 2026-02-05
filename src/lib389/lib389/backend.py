@@ -645,10 +645,11 @@ class Backend(DSLdapObject):
         indexes = self.get_indexes()
 
         # Default system indexes taken from ldap/servers/slapd/back-ldbm/instance.c
+        # Note: entryrdn and ancestorid are internal system indexes that are not
+        # exposed in cn=config - they are managed internally by the server.
+        # Only parentid has a DSE config entry (for the integerOrderingMatch rule).
         expected_system_indexes = {
-            'entryrdn': {'types': ['subtree'], 'matching_rule': None},
-            'parentid': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch', 'scanlimit': 'limit=5000 type=eq flags=AND'},
-            'ancestorid': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch', 'scanlimit': 'limit=5000 type=eq flags=AND'},
+            'parentid': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'},
             'objectClass': {'types': ['eq'], 'matching_rule': None},
             'aci': {'types': ['pres'], 'matching_rule': None},
             'nscpEntryDN': {'types': ['eq'], 'matching_rule': None},
@@ -705,17 +706,14 @@ class Backend(DSLdapObject):
                     # Generate remediation command
                     index_types = ' '.join([f"--index-type {t}" for t in expected_config['types']])
                     cmd = f"dsconf YOUR_INSTANCE backend index add {bename} --attr {attr_name} {index_types}"
-                    if expected_config.get('matching_rule'):
+                    if expected_config['matching_rule']:
                         cmd += f" --matching-rule {expected_config['matching_rule']}"
-                    if expected_config.get('scanlimit'):
-                        cmd += f" --add-scanlimit \"{expected_config['scanlimit']}\""
                     remediation_commands.append(cmd)
                     reindex_attrs.add(attr_name)  # New index needs reindexing
                 else:
                     # Index exists, check configuration
                     actual_types = index.get_attr_vals_utf8('nsIndexType') or []
                     actual_mrs = index.get_attr_vals_utf8('nsMatchingRule') or []
-                    actual_scanlimit = index.get_attr_vals_utf8('nsIndexIDListScanLimit') or []
 
                     # Normalize to lowercase for comparison
                     actual_types = [t.lower() for t in actual_types]
@@ -730,31 +728,16 @@ class Backend(DSLdapObject):
                         remediation_commands.append(cmd)
                         reindex_attrs.add(attr_name)
 
-                    # Check matching rules and scanlimit together to generate a single combined command
+                    # Check matching rules
                     expected_mr = expected_config.get('matching_rule')
-                    expected_scanlimit = expected_config.get('scanlimit')
-
-                    missing_mr = False
                     if expected_mr:
                         actual_mrs_lower = [mr.lower() for mr in actual_mrs]
                         if expected_mr.lower() not in actual_mrs_lower:
                             discrepancies.append(f"Index {attr_name} missing matching rule: {expected_mr}")
-                            missing_mr = True
-
-                    missing_scanlimit = False
-                    if expected_scanlimit and (len(actual_scanlimit) == 0):
-                        discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_scanlimit}")
-                        missing_scanlimit = True
-
-                    # Generate a single combined command for all missing items
-                    if missing_mr or missing_scanlimit:
-                        cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name}"
-                        if missing_mr:
-                            cmd += f" --add-mr {expected_mr}"
-                        if missing_scanlimit:
-                            cmd += f" --add-scanlimit \"{expected_scanlimit}\""
-                        remediation_commands.append(cmd)
-                        reindex_attrs.add(attr_name)
+                            # Add the missing matching rule
+                            cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr}"
+                            remediation_commands.append(cmd)
+                            reindex_attrs.add(attr_name)
 
             except Exception as e:
                 self._log.debug(f"_lint_system_indexes - Error checking index {attr_name}: {e}")
@@ -993,13 +976,12 @@ class Backend(DSLdapObject):
                 return
         raise ValueError("Can not delete index because it does not exist")
 
-    def add_index(self, attr_name, types, matching_rules=None, idlistscanlimit=None, reindex=False):
+    def add_index(self, attr_name, types, matching_rules=None, reindex=False):
         """ Add an index.
 
         :param attr_name - name of the attribute to index
         :param types - a List of index types(eq, pres, sub, approx)
         :param matching_rules - a List of matching rules for the index
-        :param idlistscanlimit - a List of fine grain definitions for scanning limit
         :param reindex - If set to True then index the attribute after creating it.
         """
 
@@ -1029,15 +1011,6 @@ class Backend(DSLdapObject):
             # Only add if there are actually rules present in the list.
             if len(mrs) > 0:
                 props['nsMatchingRule'] = mrs
-
-        if idlistscanlimit is not None:
-            scanlimits = []
-            for scanlimit in idlistscanlimit:
-                scanlimits.append(scanlimit)
-            # Only add if there are actually limits in the list.
-            if len(scanlimits) > 0:
-                props['nsIndexIDListScanLimit'] = scanlimits
-
         new_index.create(properties=props, basedn="cn=index," + self._dn)
 
         if reindex:
@@ -1349,7 +1322,6 @@ class DatabaseConfig(DSLdapObject):
             'nsslapd-lookthroughlimit',
             'nsslapd-mode',
             'nsslapd-idlistscanlimit',
-            'nsslapd-systemidlistscanlimit',
             'nsslapd-directory',
             'nsslapd-import-cachesize',
             'nsslapd-idl-switch',
