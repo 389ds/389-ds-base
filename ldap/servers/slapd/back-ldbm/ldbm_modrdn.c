@@ -102,6 +102,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
     int32_t parent_op = 0;
     int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
+    int32_t cache_mod_phase = 0; /* set when we reach the cache modification phase */
     struct timespec parent_time;
     Slapi_Mods *smods_add_rdn = NULL;
 
@@ -1181,6 +1182,8 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         goto error_return;
     }
 
+    /* We're now past the BETXN PRE phase and entering the cache modification phase */
+    cache_mod_phase = 1;
     postentry = slapi_entry_dup(ec->ep_entry);
 
     if (parententry != NULL) {
@@ -1363,12 +1366,11 @@ error_return:
         }
     }
 
-    /* Revert the caches if this is the parent operation and cache modifications were made.
-     * Cache modifications (via modify_switch_entries) only happen after BETXN PRE plugins succeed,
-     * so we should only revert if we got past that point (i.e., BETXN POST plugin failures).
-     * For BETXN PRE failures, no cache modifications were made to parent/newparent entries.
+    /* Revert the caches if this is the parent operation AND we reached the
+     * cache modification phase. If BETXN PRE fails, cache_mod_phase is 0
+     * and we don't need to revert since no cache modifications were made.
      */
-    if (parent_op && betxn_callback_fails && postentry) {
+    if (parent_op && betxn_callback_fails && cache_mod_phase) {
         revert_cache(inst, &parent_time);
     }
 
