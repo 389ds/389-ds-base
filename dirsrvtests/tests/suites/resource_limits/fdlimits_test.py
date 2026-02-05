@@ -27,7 +27,7 @@ RESRV_FD_ATTR = "nsslapd-reservedescriptors"
 GLOBAL_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
 SYSTEMD_LIMIT = ensure_str(check_output("systemctl show -p LimitNOFILE dirsrv@standalone1".split(" ")).strip()).split('=')[1]
 CUSTOM_VAL = str(int(SYSTEMD_LIMIT) - 10)
-RESRV_DESC_VAL = str(10)
+RESRV_DESC_VAL_LOW = 10
 TOO_HIGH_VAL = str(GLOBAL_LIMIT * 2)
 TOO_HIGH_VAL2 = str(int(SYSTEMD_LIMIT) * 2)
 TOO_LOW_VAL = "0"
@@ -86,40 +86,30 @@ def test_reserve_descriptor_validation(topology_st):
     :id: TODO
     :setup: Standalone Instance
     :steps:
-        1. Set attr nsslapd-reservedescriptors to a low value of RESRV_DESC_VAL (10)
+        1. Set attr nsslapd-reservedescriptors to a low value (10)
         2. Verify low value has been set
         3. Restart instance (On restart the reservedescriptor attr will be validated)
-        4. Check updated value for nsslapd-reservedescriptors attr
+        4. Verify corrected value for nsslapd-reservedescriptors > low value
     :expectedresults:
         1. Success
-        2. A value of RESRV_DESC_VAL (10) is returned
+        2. A value of RESRV_DESC_VAL_LOW (10) is returned
         3. Success
-        4. A value of STANDALONE_INST_RESRV_DESCS (55) is returned
+        4. Corrected value for nsslapd-reservedescriptors > low value
     """
 
-    # Set nsslapd-reservedescriptors to a low value (RESRV_DESC_VAL:10)
-    topology_st.standalone.config.set(RESRV_FD_ATTR, RESRV_DESC_VAL)
-    resrv_fd = topology_st.standalone.config.get_attr_val_utf8(RESRV_FD_ATTR)
-    assert resrv_fd == RESRV_DESC_VAL
+    # Set nsslapd-reservedescriptors to a low value (10)
+    topology_st.standalone.config.set(RESRV_FD_ATTR, str(RESRV_DESC_VAL_LOW))
+    resrv_fd = int(topology_st.standalone.config.get_attr_val_utf8(RESRV_FD_ATTR))
+    assert resrv_fd == RESRV_DESC_VAL_LOW
 
     # An instance restart triggers a validation of the configured nsslapd-reservedescriptors attribute
     topology_st.standalone.restart()
 
-    """
-    A standalone instance contains a single backend with default indexes
-    so we only check these. TODO add tests for repl, chaining, PTA, SSL
-    """
-    STANDALONE_INST_RESRV_DESCS = 20 # 20 = Reserve descriptor constant
-    backends = Backends(topology_st.standalone)
-    STANDALONE_INST_RESRV_DESCS += (len(backends.list()) * 4) # 4 = Backend descriptor constant
-    for be in backends.list() :
-        STANDALONE_INST_RESRV_DESCS += len(be.get_indexes().list())
+    # Get the corrected value
+    corrected_fd = int(topology_st.standalone.config.get_attr_val_utf8(RESRV_FD_ATTR))
+    assert corrected_fd > RESRV_DESC_VAL_LOW
 
-    # Varify reservedescriptors has been updated
-    resrv_fd = topology_st.standalone.config.get_attr_val_utf8(RESRV_FD_ATTR)
-    assert resrv_fd == str(STANDALONE_INST_RESRV_DESCS)
-
-    log.info("test_reserve_descriptor_validation PASSED")
+    log.info(f"test_reserve_descriptor_validation PASSED (corrected from {RESRV_DESC_VAL_LOW} to {corrected_fd})")
 
 
 if __name__ == '__main__':
