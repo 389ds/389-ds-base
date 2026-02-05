@@ -90,8 +90,16 @@ def setup_test_env(request, topology_m2):
     supplier1 = topology_m2.ms["supplier1"]
     supplier2 = topology_m2.ms["supplier2"]
 
+    policy_dn = f"cn=supplierUpdatePolicy,cn=replSchema,{supplier1.config.dn}"
+    policy_entry = DSLdapObject(supplier1, policy_dn)
+    policy_entry.add('schemaUpdateObjectclassReject', 'OCUpdatePolicy')
+    supplier1.restart()
+
     log.info("Add OCUpdatePolicy that allows 'member' attribute")
-    _add_oc(supplier1, "1.2.3.4.5.6.7.8.9.10.2", "OCUpdatePolicy")
+    try:
+        _add_oc(supplier1, "1.2.3.4.5.6.7.8.9.10.2", "OCUpdatePolicy")
+    except ValueError:
+        pass
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.wait_for_replication(supplier1, supplier2)
@@ -139,8 +147,13 @@ def setup_test_env(request, topology_m2):
         config2.replace('nsslapd-errorlog-level', '0')
 
         schema = Schema(supplier1)
+        schema2 = Schema(supplier2)
         try:
             schema.remove_objectclass("OCUpdatePolicy")
+        except (ldap.NO_SUCH_OBJECT, ValueError):
+            pass
+        try:
+            schema2.remove_objectclass("OCUpdatePolicy")
         except (ldap.NO_SUCH_OBJECT, ValueError):
             pass
 
@@ -166,6 +179,11 @@ def test_schema_update_policy_allow(topology_m2, setup_test_env):
     supplier1 = topology_m2.ms["supplier1"]
     supplier2 = topology_m2.ms["supplier2"]
     repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    policy_dn = f"cn=supplierUpdatePolicy,cn=replSchema,{supplier1.config.dn}"
+    policy_entry = DSLdapObject(supplier1, policy_dn)
+    policy_entry.remove('schemaUpdateObjectclassReject', 'OCUpdatePolicy')
+    supplier1.restart()
 
     log.info("Check entry was replicated to supplier2")
     repl.wait_for_replication(supplier1, supplier2)
@@ -210,8 +228,6 @@ def test_schema_update_policy_reject(topology_m2, setup_test_env, temporary_oc2)
     log.info("Configure supplier to reject schema updates for OCUpdatePolicy")
     policy_dn = f"cn=supplierUpdatePolicy,cn=replSchema,{supplier1.config.dn}"
     policy_entry = DSLdapObject(supplier1, policy_dn)
-    policy_entry.add('schemaUpdateObjectclassReject', 'OCUpdatePolicy')
-    supplier1.restart()
     wait_for_attr_value(supplier1, policy_dn, 'schemaUpdateObjectclassReject', 'OCUpdatePolicy')
 
     log.info("Verify OC2UpdatePolicy is in supplier1")
@@ -238,6 +254,7 @@ def test_schema_update_policy_reject(topology_m2, setup_test_env, temporary_oc2)
     policy_entry.remove('schemaUpdateObjectclassReject', 'OCUpdatePolicy')
     supplier1.restart()
     wait_for_attr_value(supplier1, policy_dn, 'schemaUpdateObjectclassReject', None)
+    time.sleep(1)
 
     log.info("Update entry again to trigger schema push")
     test_user.replace('description', 'test_no_more_reject')
