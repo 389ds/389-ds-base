@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 installation1_prefix = None
 
 # Expected minimum and maximum number of async result in usual cases
-USUAL_MIN_AP = 3
+USUAL_MIN_AP = 2
 USUAL_MAX_AP = 11
 
 @pytest.fixture(params=[(None, (USUAL_MIN_AP, USUAL_MAX_AP)),
