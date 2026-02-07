@@ -386,35 +386,6 @@ ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbuf __attribu
 }
 
 static void *
-ldbm_config_system_allidsthreshold_get(void *arg)
-{
-    struct ldbminfo *li = (struct ldbminfo *)arg;
-
-    return (void *)((uintptr_t)(li->li_system_allidsthreshold));
-}
-
-static int
-ldbm_config_system_allidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *)arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int)((uintptr_t)value);
-
-    /* Do whatever we can to make sure the data is ok. */
-
-    /* Catch attempts to configure a stupidly low ancestorid allidsthreshold */
-    if ((val > -1) && (val < 5000)) {
-        val = 5000;
-    }
-
-    if (apply) {
-        li->li_system_allidsthreshold = val;
-    }
-
-    return retval;
-}
-
-static void *
 ldbm_config_pagedallidsthreshold_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -1094,7 +1065,6 @@ static config_info ldbm_config[] = {
     {CONFIG_LOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_lookthroughlimit_get, &ldbm_config_lookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "2147483646", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_SYSTEMIDLISTSCANLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_system_allidsthreshold_get, &ldbm_config_system_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE | CONFIG_FLAG_SKIP_DEFAULT_SETTING},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
 

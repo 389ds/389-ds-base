@@ -583,7 +583,6 @@ struct ldbminfo
     int li_mode;
     int li_lookthroughlimit;
     int li_allidsthreshold;
-    int li_system_allidsthreshold;
     char *li_directory;
     int li_reslimit_lookthrough_handle;
     uint64_t li_dbcachesize;
