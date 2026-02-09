@@ -21,7 +21,7 @@ from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.paths import Paths
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, is_fips
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
@@ -214,12 +214,20 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
 
     def run(self):
         """Start a sync repl client"""
-        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
         ldap_connection = TestSyncer(self.inst.toLDAPURL())
         ldap_connection.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
-        # Use FIPS approved TLS versions, ciphers
-        ldap_connection.set_option(ldap.OPT_X_TLS_CIPHER_SUITE, "AES256-GCM-SHA384:AES128-GCM-SHA256")
-        ldap_connection.set_option(ldap.OPT_X_TLS_PROTOCOL_MIN, ldap.OPT_X_TLS_PROTOCOL_TLS1_2)
+
+        if is_fips():
+            # In FIPS mode, use connection level CA cert because a new TLS context is
+            # created, ignoring global CA cert
+            ldap_connection.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
+            ldap_connection.set_option(ldap.OPT_X_TLS_PROTOCOL_MIN, ldap.OPT_X_TLS_PROTOCOL_TLS1_2)
+        else:
+            # In non FIPS mode, the connection inherits global settings, so we use global CA cert
+            ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
+
+        # Rebuild TLS context
+        ldap_connection.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
 
         ldap_connection.simple_bind_s('cn=directory manager', 'password')
         ldap_search = ldap_connection.syncrepl_search(
