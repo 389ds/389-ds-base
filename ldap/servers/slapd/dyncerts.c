@@ -444,6 +444,9 @@ key_algo(CERTCertificate *cert)
 	switch (keyType) {
         case rsaKey: return "RSA";
         case ecKey: return "EC";
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+        case mldsaKey: return "ML-DSA";
+#endif
         default: return "UNKNOWN";
     }
 }
@@ -577,8 +580,13 @@ verify_cert(Slapi_Entry *e, CERTCertificate *cert, const char *attrname)
 static ber_tag_t
 sanse_bv2 (BerElement *ber, general_name_value_t *val)
 {
+    ber_tag_t rc = 0;
     val->nbvals = 2;
-    return ber_scanf(ber, "{oo}", &val->vals[0], &val->vals[1]);
+    rc = ber_scanf(ber, "{oo}", &val->vals[0], &val->vals[1]);
+    if (val->vals[0].bv_len == 0) {
+        return LBER_ERROR;
+    }
+    return rc;
 }
 
 /*
@@ -589,8 +597,13 @@ sanse_bv2 (BerElement *ber, general_name_value_t *val)
 static ber_tag_t
 sanse_edi (BerElement *ber, general_name_value_t *val)
 {
+    ber_tag_t rc = 0;
     val->nbvals = 1;
-    return ber_scanf(ber, "{o}", &val->vals[0]);
+    rc = ber_scanf(ber, "{o}", &val->vals[0]);
+    if (val->vals[0].bv_len == 0) {
+        return LBER_ERROR;
+    }
+    return rc;
 }
 
 /*
@@ -600,8 +613,13 @@ sanse_edi (BerElement *ber, general_name_value_t *val)
 static ber_tag_t
 sanse_bv1 (BerElement *ber, general_name_value_t *val)
 {
+    ber_tag_t rc = 0;
     val->nbvals = 1;
-    return ber_scanf(ber, "o", &val->vals[0]);
+    rc = ber_scanf(ber, "o", &val->vals[0]);
+    if (val->vals[0].bv_len == 0) {
+        return LBER_ERROR;
+    }
+    return rc;
 }
 
 /*
@@ -611,9 +629,11 @@ sanse_bv1 (BerElement *ber, general_name_value_t *val)
 static ber_tag_t
 sanse_bv0 (BerElement *ber, general_name_value_t *val)
 {
+    ber_tag_t rc = 0;
     ber_tag_t tag = 0;
     val->nbvals = 0;
-    return ber_scanf(ber, "T", &tag);
+    rc = ber_scanf(ber, "T", &tag);
+    return rc;
 }
 
 /* Free data within general_name_value_t */
@@ -693,7 +713,20 @@ gnw_cb(general_name_type_t gnt, const general_name_value_t *val, void *arg)
     switch (val->nbvals) {
         case 1:
             if (gnt == gnt_ipaddress) {
-                /* Should convert the address to string */
+                /* Lets convert the address to string */
+                if (val->vals[0].bv_len == 4) {
+                    /* IPv4 address */
+                    str = slapi_ch_malloc(INET_ADDRSTRLEN);
+                    if (inet_ntop(AF_INET, val->vals[0].bv_val, str, INET_ADDRSTRLEN) == NULL) {
+                        slapi_ch_free_string(&str);
+                    }
+                } else if (val->vals[0].bv_len == 16) {
+                    /* IPv6 address */
+                    str = slapi_ch_malloc(INET6_ADDRSTRLEN);
+                    if (inet_ntop(AF_INET6, val->vals[0].bv_val, str, INET6_ADDRSTRLEN) == NULL) {
+                        slapi_ch_free_string(&str);
+                    }
+                }
             } else {
                 size_t len = val->vals[0].bv_len;
                 str = slapi_ch_malloc(len+1);
