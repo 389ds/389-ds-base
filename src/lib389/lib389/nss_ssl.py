@@ -91,13 +91,13 @@ class NssSsl(DSLint):
             if diff_date < timedelta(days=0):
                 # Expired
                 report = copy.deepcopy(DSCERTLE0002)
-                report['detail'] = report['detail'].replace('CERT', cert[0])
+                report['detail'] = report['detail'].replace('CERT', cert['cn'])
                 report['check'] = f'tls:certificate_expiration'
                 yield report
             elif diff_date < timedelta(days=30):
                 # Expiring within 30 days
                 report = copy.deepcopy(DSCERTLE0001)
-                report['detail'] = report['detail'].replace('CERT', cert[0])
+                report['detail'] = report['detail'].replace('CERT', cert['cn'])
                 report['check'] = f'tls:certificate_expiration'
                 yield report
 
