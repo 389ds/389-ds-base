@@ -10,7 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.agreement import *
-from lib389.topologies import topology_m2
+from lib389.topologies import topology_m2_gssapi, gssapi_ack
 
 pytestmark = pytest.mark.tier2
 
@@ -69,25 +69,8 @@ def _allow_machine_account(inst, name):
         (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDN', f"uid={name},ou=Machines,{DEFAULT_SUFFIX}".encode('utf-8'))
     ])
 
-def _verify_etc_hosts():
-    #Check if /etc/hosts is compatible with the test
-    NEEDED_HOSTS = ( ('ldapkdc.example.com', '127.0.0.1'),
-                     ('ldapkdc1.example.com', '127.0.1.1'),
-                     ('ldapkdc2.example.com', '127.0.2.1'))
-    found_hosts = {}
-    with open('/etc/hosts','r') as f:
-        for l in f:
-            s = l.split()
-            if len(s) < 2:
-                continue
-            for nh in NEEDED_HOSTS:
-                if (s[0] == nh[1] and s[1] == nh[0]):
-                    found_hosts[s[1]] = True
-    return len(found_hosts) == len(NEEDED_HOSTS)
-
-@pytest.mark.skipif(not _verify_etc_hosts(), reason="/etc/hosts does not contains the needed hosts.")
-@pytest.mark.skipif(True, reason="Test disabled because it requires specific kerberos requirement (server principal, keytab, etc ...")
-def test_gssapi_repl(topology_m2):
+@gssapi_ack
+def test_gssapi_repl(topology_m2_gssapi):
     """Test gssapi authenticated replication agreement of two suppliers using KDC
 
     :id: 552850aa-afc3-473e-9c39-aae802b46f11
@@ -112,8 +95,8 @@ def test_gssapi_repl(topology_m2):
          6. Test User should be created on M1 and M2 both
          7. Test User should be created on M1 and M2 both
     """
-    supplier1 = topology_m2.ms["supplier1"]
-    supplier2 = topology_m2.ms["supplier2"]
+    supplier1 = topology_m2_gssapi.ms["supplier1"]
+    supplier2 = topology_m2_gssapi.ms["supplier2"]
 
     # Create the locations on each supplier for the other to bind to.
     _create_machine_ou(supplier1)
@@ -134,10 +117,9 @@ def test_gssapi_repl(topology_m2):
     # Creating agreement from supplier 1 to supplier 2
 
     # Set the replica bind method to sasl gssapi
-    properties = {RA_NAME: r'meTo_$host:$port',
+    properties = {RA_NAME: 'meTo_' + supplier2.host + ':' + str(supplier2.port),
                   RA_METHOD: 'SASL/GSSAPI',
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    supplier1.agreement.delete(suffix=SUFFIX, consumer_host=supplier2.host, consumer_port=supplier2.port)
     m1_m2_agmt = supplier1.agreement.create(suffix=SUFFIX, host=supplier2.host, port=supplier2.port, properties=properties)
     if not m1_m2_agmt:
         log.fatal("Fail to create a supplier -> supplier replica agreement")
@@ -147,10 +129,9 @@ def test_gssapi_repl(topology_m2):
     # Creating agreement from supplier 2 to supplier 1
 
     # Set the replica bind method to sasl gssapi
-    properties = {RA_NAME: r'meTo_$host:$port',
+    properties = {RA_NAME: 'meTo_' + supplier1.host + ':' + str(supplier1.port),
                   RA_METHOD: 'SASL/GSSAPI',
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    supplier2.agreement.delete(suffix=SUFFIX, consumer_host=supplier1.host, consumer_port=supplier1.port)
     m2_m1_agmt = supplier2.agreement.create(suffix=SUFFIX, host=supplier1.host, port=supplier1.port, properties=properties)
     if not m2_m1_agmt:
         log.fatal("Fail to create a supplier -> supplier replica agreement")
@@ -169,9 +150,15 @@ def test_gssapi_repl(topology_m2):
 
     # Check replication is working...
     if supplier1.testReplication(DEFAULT_SUFFIX, supplier2):
-        log.info('Replication is working.')
+        log.info('Replication is working: supplier1 -> supplier2')
     else:
-        log.fatal('Replication is not working.')
+        log.fatal('Replication is not working: supplier1 -> supplier2')
+        assert False
+
+    if supplier2.testReplication(DEFAULT_SUFFIX, supplier1):
+        log.info('Replication is working: supplier2 -> supplier1')
+    else:
+        log.fatal('Replication is not working: supplier2 -> supplier1')
         assert False
 
     # Add a user to supplier 1

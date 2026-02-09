@@ -499,6 +499,63 @@ def topology_m2(request):
     topology.logcap = LogCapture()
     return topology
 
+@pytest.fixture(scope="module")
+def topology_m2_gssapi(request):
+    """Create Replication Deployment with two suppliers with GSSAPI enabled.
+
+    Similar to topology_st_gssapi but for two suppliers. Configures Kerberos
+    realm, principals and keytabs for ldap/ldapkdc1.<domain> and ldap/ldapkdc2.<domain>,
+    SASL mappings, and disables SSL port on both instances so GSSAPI can be used.
+    """
+    hostname = socket.gethostname().split('.', 1)
+    assert len(hostname) == 2
+    domain = hostname[1]
+    REALM = domain.upper()
+    host_supplier_1 = 'ldapkdc1.' + domain
+    host_supplier_2 = 'ldapkdc2.' + domain
+
+    topology = create_topology({ReplicaRole.SUPPLIER: 2}, request=request,
+                               cleanup_cb=lambda x: krb.destroy_realm())
+
+    supplier1 = topology.ms["supplier1"]
+    supplier2 = topology.ms["supplier2"]
+    supplier1.host = host_supplier_1
+    supplier2.host = host_supplier_2
+
+    krb = MitKrb5(realm=REALM, debug=DEBUGGING)
+    if krb.check_realm():
+        krb.destroy_realm()
+    krb.create_realm()
+
+    krb.create_principal(principal=f'ldap/{host_supplier_1}')
+    krb.create_principal(principal=f'ldap/{host_supplier_2}')
+    krb.create_keytab(principal=f'ldap/{host_supplier_1}', keytab='/etc/krb5.keytab')
+    krb.create_keytab(principal=f'ldap/{host_supplier_2}', keytab='/etc/krb5.keytab')
+
+    os.chown('/etc/krb5.keytab', supplier1.get_user_uid(), supplier1.get_group_gid())
+
+    for inst, host in [(supplier1, host_supplier_1), (supplier2, host_supplier_2)]:
+        saslmappings = SaslMappings(inst)
+        for m in saslmappings.list():
+            m.delete()
+        saslmappings.create(properties={
+            'cn': 'suffix map',
+            'nsSaslMapRegexString': '\\(.*\\)',
+            'nsSaslMapBaseDNTemplate': inst.creation_suffix,
+            'nsSaslMapFilterTemplate': '(uid=\\1)'
+        })
+        inst.realm = krb
+        inst.config.set('nsslapd-localhost', host)
+        inst.sslport = None
+
+    supplier1.restart()
+    supplier2.restart()
+    supplier1.clearTmpDir(__file__)
+    supplier2.clearTmpDir(__file__)
+
+    topology.logcap = LogCapture()
+    return topology
+
 
 @pytest.fixture(scope="module")
 def topology_m3(request):
