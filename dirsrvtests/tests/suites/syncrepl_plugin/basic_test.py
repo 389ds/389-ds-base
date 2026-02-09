@@ -217,7 +217,10 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
         ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
         ldap_connection = TestSyncer(self.inst.toLDAPURL())
         ldap_connection.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
-        ldap_connection.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+        # Use FIPS approved TLS versions, ciphers
+        ldap_connection.set_option(ldap.OPT_X_TLS_CIPHER_SUITE, "AES256-GCM-SHA384:AES128-GCM-SHA256")
+        ldap_connection.set_option(ldap.OPT_X_TLS_PROTOCOL_MIN, ldap.OPT_X_TLS_PROTOCOL_TLS1_2)
+
         ldap_connection.simple_bind_s('cn=directory manager', 'password')
         ldap_search = ldap_connection.syncrepl_search(
             "dc=example,dc=com",
