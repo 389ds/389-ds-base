@@ -239,6 +239,12 @@ only.
         assert not self._db_exists()
         return True
 
+    def only_warning(text):
+        for line in text.split('\n'):
+            if line and not 'warning' in line.lower():
+                return False
+        return True
+
     def openssl_rehash(self, certdir):
         """
         Compatibly run c_rehash (on old openssl versions) or openssl rehash (on
@@ -259,7 +265,11 @@ only.
             cmd = ['/usr/bin/c_rehash', certdir]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:
-            check_output(cmd, stderr=subprocess.STDOUT)
+            res = run(cmd, stderr=subprocess.STDOUT)
+            self.log.debug("nss cmd: %s returned %d STDOUT=%s",
+                           format_cmd_list(cmd), res.returncode, res.stdout)
+            if res.returncode != 1 or not only_warning(res.stdout):
+                res.check_returncode()
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
 

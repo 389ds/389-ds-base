@@ -40,9 +40,13 @@ def rpm_is_older(pkg, version):
             try:
                 if int(n1) < int(n2):
                     return True
+                if int(n1) > int(n2):
+                    return False
             except ValueError:
                 if n1 < n2:
                     return True
+                if n1 > n2:
+                    return False
     return False
 
 
