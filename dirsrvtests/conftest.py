@@ -126,6 +126,8 @@ def pytest_runtest_makereport(item, call):
                     text = asan_report.read()
                     extra.append(pytest_html.extras.text(text, name=os.path.basename(f)))
             for f in glob.glob(f'{p.log_dir.split("/slapd",1)[0]}/*/*'):
+                if not os.path.isfile(f):
+                    continue
                 if f.endswith('gz'):
                     with gzip.open(f, 'rb') as dirsrv_log:
                         text = dirsrv_log.read()
