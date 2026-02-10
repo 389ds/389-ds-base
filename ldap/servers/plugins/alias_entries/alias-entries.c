@@ -128,10 +128,6 @@ alias_entry_srch(Slapi_PBlock *pb)
             return SLAPI_PLUGIN_FAILURE;
         }
 
-<<<<<<< HEAD
-    if (dn1 == search_target) {
-        /* Source dn is not an alias */\
-=======
         /* Free dn1, only when we are done using it */
         if (dn1 != NULL && dn1 != search_target) {
             slapi_sdn_free(&dn1);
@@ -143,7 +139,6 @@ alias_entry_srch(Slapi_PBlock *pb)
     /* If we hit MAXALIASCHAIN, free last node if not search_target */
     if (dn2 != NULL && dn1 != search_target) {
         slapi_sdn_free(&dn1);
->>>>>>> f7156790d (Issue 7128 - memory corruption in alias entry plugin (#7131))
         slapi_sdn_free(&dn2);
         return 0;
     }
