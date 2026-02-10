@@ -309,8 +309,10 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
 
 /* avlapply callback to open/create the dbi needed to handle an index */
 static int
-add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
+add_index_dbi(caddr_t attr, caddr_t otx)
 {
+    struct attrinfo *ai = (struct attrinfo *)attr;
+    dbi_open_ctx_t *octx = (dbi_open_ctx_t *)otx;
     int flags = octx->ctx->readonly ? MDB_RDONLY: MDB_CREATE;
     char *rcdbname = NULL;
 
@@ -419,7 +421,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         if (avl_apply(inst->inst_attrs, add_index_dbi, &octx, STOP_AVL_APPLY, AVL_INORDER)) {
             TST(octx.rc);
         }
-        vlv_getindices((IFP)add_index_dbi, &octx, be);
+        vlv_getindices(add_index_dbi, &octx, be);
     }
 
 error:

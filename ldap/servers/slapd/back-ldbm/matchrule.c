@@ -79,7 +79,7 @@ int
 destroy_matchrule_indexer(Slapi_PBlock *pb)
 {
     Slapi_Value **keys = NULL;
-    IFP mrDESTROY = NULL;
+    int32_t (*mrDESTROY)(Slapi_PBlock *) = NULL;
     if (!slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY)) {
         if (mrDESTROY != NULL) {
             mrDESTROY(pb);
@@ -109,7 +109,7 @@ destroy_matchrule_indexer(Slapi_PBlock *pb)
 int
 matchrule_values_to_keys(Slapi_PBlock *pb, Slapi_Value **input_values, struct berval ***output_values)
 {
-    IFP mrINDEX = NULL;
+    int32_t (*mrINDEX)(Slapi_PBlock *) = NULL;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, input_values);
@@ -130,7 +130,7 @@ matchrule_values_to_keys(Slapi_PBlock *pb, Slapi_Value **input_values, struct be
 int
 matchrule_values_to_keys_sv(Slapi_PBlock *pb, Slapi_Value **input_values, Slapi_Value ***output_values)
 {
-    IFP mrINDEX = NULL;
+    int32_t (*mrINDEX)(Slapi_PBlock *) = NULL;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX);
     if (NULL == mrINDEX) { /* old school - does not have SV function */

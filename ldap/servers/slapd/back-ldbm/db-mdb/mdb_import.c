@@ -293,9 +293,11 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 }
 
 /* Function used to gather a list of indexed attrs */
-static int
-dbmdb_import_attr_callback(void *node, void *param)
+static int32_t
+dbmdb_import_attr_callback(caddr_t n, caddr_t p)
 {
+    void *node = (void *)n;
+    void *param  = (void *)p;
     ImportJob *job = (ImportJob *)param;
     struct attrinfo *a = (struct attrinfo *)node;
 
@@ -714,6 +716,7 @@ dbmdb_import_all_done(ImportJob *job, int ret)
     return ret;
 }
 
+
 int
 dbmdb_public_dbmdb_import_main(void *arg)
 {
@@ -755,9 +758,9 @@ dbmdb_public_dbmdb_import_main(void *arg)
         /* Here, we get an AVL tree which contains nodes for all attributes
          * in the schema.  Given this tree, we need to identify those nodes
          * which are marked for indexing. */
-        avl_apply(job->inst->inst_attrs, (IFP)dbmdb_import_attr_callback,
+        avl_apply(job->inst->inst_attrs, dbmdb_import_attr_callback,
                   (caddr_t)job, -1, AVL_INORDER);
-        vlv_getindices((IFP)dbmdb_import_attr_callback, (void *)job, be);
+        vlv_getindices(dbmdb_import_attr_callback, (void *)job, be);
     }
 
     /* insure all dbi get open */
@@ -777,6 +780,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
             pthread_cond_signal(&job->wire_cv);
             pthread_mutex_unlock(&job->wire_lock);
             break;
+
         default:
             break;
     }
