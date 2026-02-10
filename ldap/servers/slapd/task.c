@@ -2035,7 +2035,7 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
 
-    rv = (be->be_database->plg_upgradedb)(&mypb);
+    rv = (be->be_database->plg_upgradedb)(mypb);
     if (rv == 0) {
         slapi_entry_attr_set_charptr(e, TASK_LOG_NAME, "");
         slapi_entry_attr_set_charptr(e, TASK_STATUS_NAME, "");

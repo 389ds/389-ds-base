@@ -68,7 +68,7 @@ attrinfo_delete(struct attrinfo **pp)
 }
 
 static int
-attrinfo_internal_delete(caddr_t data, caddr_t arg __attribute__((unused)))
+attrinfo_internal_delete(caddr_t data)
 {
     struct attrinfo *n = (struct attrinfo *)data;
     attrinfo_delete(&n);
@@ -85,16 +85,19 @@ attrinfo_deletetree(ldbm_instance *inst)
 static int
 ainfo_type_cmp(
     char *type,
-    struct attrinfo *a)
+    caddr_t val)
 {
+    struct attrinfo *a = (struct attrinfo *)val;
     return (strcasecmp(type, a->ai_type));
 }
 
 static int
 ainfo_cmp(
-    struct attrinfo *a,
-    struct attrinfo *b)
+    caddr_t val1,
+    caddr_t val2)
 {
+    struct attrinfo *a = (struct attrinfo *)val1;
+    struct attrinfo *b = (struct attrinfo *)val2;
     return (strcasecmp(a->ai_type, b->ai_type));
 }
 
@@ -102,7 +105,7 @@ void
 attrinfo_delete_from_tree(backend *be, struct attrinfo *ai)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    avl_delete(&inst->inst_attrs, ai, ainfo_cmp);
+    avl_delete(&inst->inst_attrs, (caddr_t)ai, ainfo_cmp);
 }
 
 /*
@@ -117,9 +120,12 @@ attrinfo_delete_from_tree(backend *be, struct attrinfo *ai)
 
 static int
 ainfo_dup(
-    struct attrinfo *a,
-    struct attrinfo *b)
+    caddr_t val1,
+    caddr_t val2)
 {
+    struct attrinfo *a = (struct attrinfo *)val1;
+    struct attrinfo *b = (struct attrinfo *)val2;
+
     /* merge duplicate indexing information */
     if (b->ai_indexmask == 0 || b->ai_indexmask == INDEX_OFFLINE) {
         a->ai_indexmask = INDEX_OFFLINE; /* turns off all indexes */
@@ -203,7 +209,7 @@ attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo
     char *lasts = NULL;
     char *val;
     int syntaxcheck = config_get_syntaxcheck();
-    IFP syntax_validate_fn = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
+    int32_t (*syntax_validate_fn)(struct berval *) = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
     char staticfiltstrbuf[1024];                     /* for small filter strings */
     char *filtstrbuf = staticfiltstrbuf;             /* default if not malloc'd */
     size_t filtstrbuflen = sizeof(staticfiltstrbuf); /* default if not malloc'd */
@@ -880,7 +886,7 @@ attr_index_config(
                 *  It would improve speed to save the indexer, for future use.
                 * But, for simplicity, we destroy it now:
                 */
-                IFP mrDESTROY = NULL;
+                int32_t (*mrDESTROY)(Slapi_PBlock *) = NULL;
                 if (!slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
                     mrDESTROY != NULL) {
                     mrDESTROY(pb);
@@ -941,7 +947,7 @@ attr_index_config(
         }
     }
 
-    if (avl_insert(&inst->inst_attrs, a, ainfo_cmp, ainfo_dup) != 0) {
+    if (avl_insert(&inst->inst_attrs, (caddr_t)a, ainfo_cmp, ainfo_dup) != 0) {
         /* duplicate - existing version updated */
         attrinfo_delete(&a);
     }
@@ -964,7 +970,7 @@ attr_create_empty(backend *be, char *type, struct attrinfo **ai)
     struct attrinfo *a = attrinfo_new();
     slapi_attr_init(&a->ai_sattr, type);
     a->ai_type = slapi_ch_strdup(type);
-    if (avl_insert(&inst->inst_attrs, a, ainfo_cmp, ainfo_dup) != 0) {
+    if (avl_insert(&inst->inst_attrs, (caddr_t)a, ainfo_cmp, ainfo_dup) != 0) {
         /* duplicate - existing version updated */
         attrinfo_delete(&a);
         ainfo_get(be, type, &a);

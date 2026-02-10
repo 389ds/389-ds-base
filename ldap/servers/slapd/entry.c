@@ -709,7 +709,7 @@ entry_attrs_add(entry_attrs *ea, const char *atname, int atarrayindex)
     ead->ead_attrarrayindex = atarrayindex;
     ead->ead_attrtypename = atname; /* a reference, not a strdup! */
 
-    avl_insert(&(ea->ea_attrlist), ead, attr_type_node_cmp, avl_dup_error);
+    avl_insert(&(ea->ea_attrlist), (caddr_t)ead, attr_type_node_cmp, avl_dup_error);
 }
 
 /*
@@ -723,7 +723,7 @@ entry_attrs_find(entry_attrs *ea, char *type)
     entry_attr_data *foundead;
 
     tmpead.ead_attrtypename = type;
-    foundead = (entry_attr_data *)avl_find(ea->ea_attrlist, &tmpead,
+    foundead = (entry_attr_data *)avl_find(ea->ea_attrlist, (caddr_t)&tmpead,
                                            attr_type_node_cmp);
     return (NULL != foundead) ? foundead->ead_attrarrayindex : -1;
 }

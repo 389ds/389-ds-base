@@ -233,14 +233,14 @@ __acllist_add_aci(aci_t *aci)
     slapi_sdn_set_ndn_byval(aciListHead->acic_sdn, slapi_sdn_get_ndn(aci->aci_sdn));
 
     /* insert the aci */
-    switch (avl_insert(&acllistRoot, aciListHead, __acllist_aciContainer_node_cmp,
+    switch (avl_insert(&acllistRoot, (caddr_t)aciListHead, __acllist_aciContainer_node_cmp,
                        __acllist_aciContainer_node_dup)) {
 
     case 1: /* duplicate ACL on the same entry */
 
         /* Find the node that contains the acl. */
-        if (NULL == (head = (AciContainer *)avl_find(acllistRoot, aciListHead,
-                                                     (IFP)__acllist_aciContainer_node_cmp))) {
+        if (NULL == (head = (AciContainer *)avl_find(acllistRoot, (caddr_t)aciListHead,
+                                                     __acllist_aciContainer_node_cmp))) {
             slapi_log_err(SLAPI_PLUGIN_ACL, plugin_name,
                           "__acllist_add_aci - Can't insert the acl in the tree\n");
             rv = 1;
@@ -356,8 +356,8 @@ acllist_remove_aci_needsLock(const Slapi_DN *sdn, const struct berval *attr)
     slapi_sdn_set_ndn_byval(aciListHead->acic_sdn, slapi_sdn_get_ndn(sdn));
 
     /* now find it */
-    if (NULL == (root = (AciContainer *)avl_find(acllistRoot, aciListHead,
-                                                 (IFP)__acllist_aciContainer_node_cmp))) {
+    if (NULL == (root = (AciContainer *)avl_find(acllistRoot, (caddr_t)aciListHead,
+                                                 __acllist_aciContainer_node_cmp))) {
         /* In that case we don't have any acl for this entry. cool !!! */
 
         acllist_free_aciContainer(&aciListHead);
@@ -389,7 +389,7 @@ acllist_remove_aci_needsLock(const Slapi_DN *sdn, const struct berval *attr)
     slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                   "acllist_remove_aci_needsLock - Removing container[%d]=%s\n", root->acic_index,
                   slapi_sdn_get_ndn(root->acic_sdn));
-    dContainer = (AciContainer *)avl_delete(&acllistRoot, aciListHead,
+    dContainer = (AciContainer *)avl_delete(&acllistRoot, (caddr_t)aciListHead,
                                             __acllist_aciContainer_node_cmp);
     acllist_free_aciContainer(&dContainer);
 
@@ -472,8 +472,9 @@ acllist_done_aciContainer(AciContainer *head)
 }
 
 static int
-free_aci_avl_container(AciContainer *data)
+free_aci_avl_container(caddr_t d)
 {
+    AciContainer *data = (AciContainer *)d;
     aci_t *head, *next = NULL;
 
     head = data->acic_list;
@@ -658,7 +659,7 @@ acllist_init_scan(Slapi_PBlock *pb, int scope __attribute__((unused)), const cha
 
         root = (AciContainer *)avl_find(acllistRoot,
                                         (caddr_t)aclpb->aclpb_aclContainer,
-                                        (IFP)__acllist_aciContainer_node_cmp);
+                                        __acllist_aciContainer_node_cmp);
         if (index >= aclpb_max_selected_acls - 2) {
             aclpb->aclpb_handles_index[0] = -1;
             slapi_ch_free_string(&basedn);
@@ -750,7 +751,7 @@ acllist_aciscan_update_scan(Acl_PBlock *aclpb, char *edn)
 
             root = (AciContainer *)avl_find(acllistRoot,
                                             (caddr_t)aclpb->aclpb_aclContainer,
-                                            (IFP)__acllist_aciContainer_node_cmp);
+                                            __acllist_aciContainer_node_cmp);
 
             slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                           "acllist_aciscan_update_scan - Searching AVL tree for update:%s: container:%d\n",
@@ -910,8 +911,8 @@ acllist_moddn_aci_needsLock(Slapi_DN *oldsdn, char *newdn)
     slapi_sdn_free(&aciListHead->acic_sdn);
     aciListHead->acic_sdn = oldsdn;
 
-    if (NULL == (head = (AciContainer *)avl_find(acllistRoot, aciListHead,
-                                                 (IFP)__acllist_aciContainer_node_cmp))) {
+    if (NULL == (head = (AciContainer *)avl_find(acllistRoot, (caddr_t)aciListHead,
+                                                 __acllist_aciContainer_node_cmp))) {
 
         slapi_log_err(SLAPI_PLUGIN_ACL, plugin_name,
                       "acllist_moddn_aci_needsLock - Can't find the acl in the tree for moddn operation:olddn%s\n",

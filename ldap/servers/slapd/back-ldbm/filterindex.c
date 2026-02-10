@@ -461,7 +461,7 @@ extensible_candidates(
         case SLAPI_OP_EQUAL:
         case SLAPI_OP_GREATER_OR_EQUAL:
         case SLAPI_OP_GREATER: {
-            IFP mrINDEX = NULL;
+            int32_t (*mrINDEX)(Slapi_PBlock *) = NULL;
             void *mrOBJECT = NULL;
             struct berval **mrVALUES = NULL;
             char *mrOID = NULL;
