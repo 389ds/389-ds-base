@@ -25,9 +25,9 @@ def list_client_cas(inst, log, args):
 
 def list_cas(inst, log, args):
     tls = NssSsl(dirsrv=inst)
-    # This turns an array of [('CA', 'C,,')]
+    # Returns a list of cert dicts, eg {'cn': 'nickname', etc}
     for c in tls.list_ca_certs():
-        log.info(c[0])
+        log.info(c['cn'])
 
 
 def show_cert(inst, log, args):
