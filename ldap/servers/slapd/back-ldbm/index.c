@@ -1072,10 +1072,25 @@ index_read_ext_allids(
         idl = idl_fetch_ext(be, db, &key, db_txn, ai, err, allidslimit);
         if (*err == DBI_RC_RETRY) {
             ldbm_nasty("index_read_ext_allids", "index read retrying transaction", 1045, *err);
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "index_read_ext_allids",
+                          "DBI_RC_RETRY on retry %d/%d for %s\n",
+                          retry_count + 1, IDL_FETCH_RETRY_COUNT, basetype);
 #ifdef FIX_TXN_DEADLOCKS
 #error can only retry here if txn == NULL - otherwise, have to abort and retry txn
 #endif
-            interval = PR_MillisecondsToInterval(slapi_rand() % 100);
+            /* Exponential backoff with jitter, capped at 200ms */
+            {
+                PRUint32 backoff_ms = 10;
+                int i;
+                for (i = 0; i < retry_count && backoff_ms < 200; i++) {
+                    backoff_ms *= 2;
+                }
+                if (backoff_ms > 200) {
+                    backoff_ms = 200;
+                }
+                backoff_ms += slapi_rand() % (backoff_ms + 1);
+                interval = PR_MillisecondsToInterval(backoff_ms);
+            }
             DS_Sleep(interval);
             continue;
         } else if (*err == DBI_RC_NOTFOUND) {
