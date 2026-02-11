@@ -239,6 +239,7 @@ only.
         assert not self._db_exists()
         return True
 
+    @staticmethod
     def only_warning(text):
         for line in text.split('\n'):
             if line and not 'warning' in line.lower():
@@ -265,7 +266,7 @@ only.
             cmd = ['/usr/bin/c_rehash', certdir]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:
-            res = run(cmd, stderr=subprocess.STDOUT)
+            res = run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.log.debug("nss cmd: %s returned %d STDOUT=%s",
                            format_cmd_list(cmd), res.returncode, res.stdout)
             if res.returncode != 1 or not only_warning(res.stdout):
