@@ -15,9 +15,8 @@ from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM)
-from dateutil.parser import parse as dt_parse
 from lib389.config import Config
-import datetime
+import datetime as dt
 
 pytestmark = pytest.mark.tier1
 
@@ -351,7 +350,7 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
     old_ts = user.get_attr_val_utf8('passwordExpirationTime')
     log.info("Old passwordExpirationTime: {}".format(old_ts))
 
-    new_ts = (dt_parse(old_ts) - datetime.timedelta(31)).strftime('%Y%m%d%H%M%SZ')
+    new_ts = (dt.datetime.strptime(old_ts, '%Y%m%d%H%M%SZ') - dt.timedelta(31)).strftime('%Y%m%d%H%M%SZ')
     log.info("New passwordExpirationTime: {}".format(new_ts))
     user.replace('passwordExpirationTime', new_ts)
 
