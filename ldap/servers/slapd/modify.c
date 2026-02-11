@@ -87,7 +87,7 @@ static struct attr_value_check
     {CONFIG_PW_WARNING_ATTRIBUTE, check_pw_duration_value, 0, -1},
     {CONFIG_PW_MINLENGTH_ATTRIBUTE, attr_check_minmax, 2, 512},
     {CONFIG_PW_MAXFAILURE_ATTRIBUTE, attr_check_minmax, 1, 32767},
-    {CONFIG_PW_INHISTORY_ATTRIBUTE, attr_check_minmax, 1, 24},
+    {CONFIG_PW_INHISTORY_ATTRIBUTE, attr_check_minmax, 0, 24},
     {CONFIG_PW_LOCKDURATION_ATTRIBUTE, check_pw_duration_value, -1, -1},
     {CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, check_pw_resetfailurecount_value, -1, -1},
     {CONFIG_PW_GRACELIMIT_ATTRIBUTE, attr_check_minmax, 0, -1},
