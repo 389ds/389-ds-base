@@ -100,6 +100,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
         "memberof",
     ]
     args.dry_run = False
+    args.exclude_check = []
 
     # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
     if (
