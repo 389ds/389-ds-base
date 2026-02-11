@@ -1535,7 +1535,18 @@ update_pw_history(Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw)
     pwpolicy = new_passwdPolicy(pb, dn);
 
     if (pwpolicy->pw_inhistory == 0){
-        /* We are only enforcing the current password, just return */
+        /* We are only enforcing the current password, just return but first
+         * cleanup any old passwords in the history */
+        attribute.mod_type = "passwordHistory";
+        attribute.mod_op = LDAP_MOD_REPLACE;
+        attribute.mod_values = NULL;
+        list_of_mods[0] = &attribute;
+        list_of_mods[1] = NULL;
+        mod_pb = slapi_pblock_new();
+        slapi_modify_internal_set_pb_ext(mod_pb, sdn, list_of_mods, NULL, NULL, pw_get_componentID(), 0);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_destroy(mod_pb);
+
         return res;
     }
 

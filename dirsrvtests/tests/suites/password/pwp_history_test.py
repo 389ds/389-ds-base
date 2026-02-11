@@ -189,9 +189,9 @@ def test_history_is_not_overwritten(topology_st, user):
 
 
 @pytest.mark.parametrize('policy',
-                          [(pytest.param('global', marks=pytest.mark.xfail(reason="DS7052"))),
-                           (pytest.param('subtree', marks=pytest.mark.xfail(reason="DS7066, DS7052"))),
-                           (pytest.param('user', marks=pytest.mark.xfail(reason="DS7066, DS7052")))])
+                          [(pytest.param('global')),
+                           (pytest.param('subtree')),
+                           (pytest.param('user'))])
 def test_basic(topology_st, user, policy):
     """Test basic password policy history feature functionality with dynamic count reduction
 
@@ -282,6 +282,7 @@ def test_basic(topology_st, user, policy):
     # Password history [password3, password4], current password is "password1"
 
     # Reset password by Directory Manager(admin reset)
+    dm = DirectoryManager(topology_st.standalone)
     dm.rebind()
     time.sleep(.5)
     change_password(user, 'password-reset', success=True)
