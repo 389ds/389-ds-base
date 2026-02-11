@@ -490,8 +490,8 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
         *err = ldbm_ancestorid_read(be, txn, id, &idl);
 
         slapi_sdn_done(&sdn);
-        if (idl == NULL) {
-            if (DB_NOTFOUND == *err) {
+        if (idl == NULL || IDL_NIDS(idl) == 0) {
+            if (*err == 0 || DB_NOTFOUND == *err) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
                               "bdb_fetch_subtrees", "Entry id %u has no descendants according to ancestorid. "
                               "Index file created by this reindex will be empty.\n",
@@ -502,6 +502,7 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
                               "bdb_fetch_subtrees", "ancestorid not indexed on %u\n",
                               id);
             }
+            idl_free(&idl);
             continue;
         }
 
