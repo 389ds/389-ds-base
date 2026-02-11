@@ -62,6 +62,9 @@ tls_enabled = False
 def utcdate():
     return datetime.datetime.utcnow()
 
+def fix_crash_issue_7227(inst):
+    """Work around to avoid ns-slapd crash in CERT_VerifyCertificateNow()"""
+    inst.restart()
 
 def rpm_is_older(pkg, version):
     """Check if an RPM package version is older than specified version"""
@@ -663,6 +666,7 @@ def test_search_with_filters(topo, setup_tls):
         5. get_cert_details returns detailed info
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_filter_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -1101,6 +1105,7 @@ def test_mldsa_dynamic_certificates(topo, setup_tls, with_private_key):
         10. Certificates appear in list operations
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     key_suffix = 'with_key' if with_private_key else 'without_key'
     dir = f'/tmp/dyncert_mldsa_test_{key_suffix}'
     os.makedirs(dir, 0o700, exist_ok=True)
