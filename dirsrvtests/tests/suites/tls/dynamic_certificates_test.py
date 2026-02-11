@@ -44,7 +44,7 @@ from lib389.topologies import topology_st as topo
 from lib389.utils import ds_is_older, ensure_str, pem_to_der
 from lib389.dyncerts import (
     DynamicCerts, DynamicCert, DYNCERT_SUFFIX,
-    DYCATTR_CERTDER, DYCATTR_PKEYDER )
+    DYCATTR_CN, DYCATTR_CERTDER, DYCATTR_PKEYDER )
 from tempfile import NamedTemporaryFile
 
 pytestmark = pytest.mark.tier1
@@ -514,8 +514,7 @@ def test_private_key_detection(topo, setup_tls):
         cert_obj = dyncerts.get_cert_obj(cert.nickname)
         has_key = cert_obj.get_attr_val_utf8_l('dsDynamicCertificateHasPrivateKey')
         log.info(f"Server cert hasPrivateKey: {has_key}")
-        # No private key because MLDSA key not yet supported by python cryptography
-        assert has_key == 'false'
+        assert has_key == 'true'
 
         # Check if isServerCert attribute exists
         is_server = cert_obj.get_attr_val_utf8_l('dsDynamicCertificateIsServerCert')
@@ -1072,7 +1071,8 @@ def pem_file_to_der(pem_file_path):
 
 @pytest.mark.skipif(rpm_is_older("openssl", "3.5"), reason="OpenSSL too old to support PQC")
 @pytest.mark.skipif(rpm_is_older("nss", "3.119.1"), reason="NSS too old to support PQC")
-def test_mldsa_dynamic_certificates(topo, setup_tls):
+@pytest.mark.parametrize("with_private_key", [False, pytest.param(True, marks=pytest.mark.xfail(reason='cryptography module does not support ML-DSA keys')),])
+def test_mldsa_dynamic_certificates(topo, setup_tls, with_private_key):
     """Test ML-DSA (post-quantum) certificates with Dynamic Certificates feature
 
     :id: f2a3b4c5-2222-3333-4444-555555555555
@@ -1081,27 +1081,28 @@ def test_mldsa_dynamic_certificates(topo, setup_tls):
         1. Generate ML-DSA-87 Root CA certificate using OpenSSL
         2. Generate ML-DSA-65 server certificate signed by CA
         3. Add CA certificate dynamically using DynamicCerts
-        4. Add server certificate dynamically using DynamicCerts
+        4. Add server certificate dynamically using DynamicCerts (with or without private key)
         5. Verify CA key algorithm shows ML-DSA
         6. Verify server cert key algorithm shows ML-DSA
         7. Verify all certificate metadata is correctly extracted
         8. Verify CA is identified correctly
-        9. Verify server cert has private key
+        9. Verify server cert has private key based on parameter
         10. Test certificate listing operations
     :expectedresults:
         1. ML-DSA CA generated successfully
         2. ML-DSA server cert generated successfully
         3. CA added without error
-        4. Server cert added without error
+        4. Server cert added without error (with or without key)
         5. CA key algorithm contains ML-DSA
         6. Server cert key algorithm contains ML-DSA
         7. All metadata attributes present and correct
         8. isCA is TRUE for CA
-        9. hasPrivateKey is TRUE for server cert
+        9. hasPrivateKey matches with_private_key parameter
         10. Certificates appear in list operations
     """
     inst = setup_tls
-    dir = '/tmp/dyncert_mldsa_test'
+    key_suffix = 'with_key' if with_private_key else 'without_key'
+    dir = f'/tmp/dyncert_mldsa_test_{key_suffix}'
     os.makedirs(dir, 0o700, exist_ok=True)
 
     ca_config = """
@@ -1271,12 +1272,44 @@ extendedKeyUsage = clientAuth, serverAuth
         log.info("Adding ML-DSA CA certificate to Dynamic Certificates...")
         dyncerts.add_cert(f'{dir}/ca.pem', 'TestMLDSA_CA', ca=True)
 
-        # Add server certificate with private key
-        log.info("Adding ML-DSA server certificate to Dynamic Certificates...")
-        # Note: cannot import private key with dyncerts.add_cert because python3 cryptography
-        # module does not yet support ML-DSA (failure when decoding the pkcs12)
-        # dyncerts.add_cert(f'{dir}/cert.p12', 'TestMLDSA_Cert', pkcs12_password='mldsa123')
-        dyncerts.add_cert(f'{dir}/cert.pem', 'TestMLDSA_Cert')
+        # Add server certificate (with or without private key based on parameter)
+        if with_private_key:
+            log.info("Adding ML-DSA server certificate WITH private key to Dynamic Certificates...")
+            # Note: cannot use dyncerts.add_cert with PKCS12 because python3 cryptography
+            # module does not yet support ML-DSA. Instead, use OpenSSL to convert to DER
+            # and use DynamicCerts.create() directly
+            # dyncerts.add_cert(f'{dir}/cert.p12', 'TestMLDSA_Cert', pkcs12_password='mldsa123')
+
+            # Convert certificate to DER using OpenSSL
+            result = subprocess.run(
+                ['openssl', 'x509', '-in', f'{dir}/cert.pem', '-outform', 'DER', '-out', f'{dir}/cert.der'],
+                capture_output=True, text=True, check=True
+            )
+
+            # Convert private key to DER PrivateKeyInfo (PKCS#8) using OpenSSL
+            result = subprocess.run(
+                ['openssl', 'pkcs8', '-topk8', '-nocrypt', '-in', f'{dir}/cert.key',
+                 '-outform', 'DER', '-out', f'{dir}/cert_key.der'],
+                capture_output=True, text=True, check=True
+            )
+
+            # Read DER data
+            with open(f'{dir}/cert.der', 'rb') as f:
+                cert_der = f.read()
+            with open(f'{dir}/cert_key.der', 'rb') as f:
+                key_der = f.read()
+
+            # Create entry directly with DER data
+            properties = {
+                DYCATTR_CN: 'TestMLDSA_Cert',
+                DYCATTR_CERTDER: cert_der,
+                DYCATTR_PKEYDER: key_der,
+            }
+            rdn = f"{DYCATTR_CN}=TestMLDSA_Cert"
+            dyncerts.create(rdn=rdn, properties=properties)
+        else:
+            log.info("Adding ML-DSA server certificate WITHOUT private key to Dynamic Certificates...")
+            dyncerts.add_cert(f'{dir}/cert.pem', 'TestMLDSA_Cert')
 
         # Verify CA certificate metadata
         log.info("Verifying CA certificate metadata...")
@@ -1333,10 +1366,12 @@ extendedKeyUsage = clientAuth, serverAuth
         assert cert_key_algo is not None
         assert 'ML-DSA' in cert_key_algo.upper()
 
-        # Verify server cert has private key (PKCS12 contains key)
+        # Verify server cert has private key based on parameter
         cert_has_key = cert_obj.get_attr_val_utf8_l('dsDynamicCertificateHasPrivateKey')
         log.info(f"Server Cert hasPrivateKey: {cert_has_key}")
-        assert cert_has_key == 'false'
+        expected_has_key = 'true' if with_private_key else 'false'
+        assert cert_has_key == expected_has_key, \
+            f"Expected hasPrivateKey={expected_has_key}, got {cert_has_key}"
 
         # Verify serial numbers are present
         ca_serial = ca_obj.get_attr_val_utf8('dsDynamicCertificateSerialNumber')
@@ -1396,7 +1431,8 @@ extendedKeyUsage = clientAuth, serverAuth
         dyncerts.del_cert('TestMLDSA_CA')
         dyncerts.del_cert('TestMLDSA_Cert')
 
-        log.info("ML-DSA Dynamic Certificates test completed successfully!")
+        key_status = "with private key" if with_private_key else "without private key"
+        log.info(f"ML-DSA Dynamic Certificates test ({key_status}) completed successfully!")
 
     except subprocess.CalledProcessError as e:
         log.error(f"OpenSSL command failed: {e}")
