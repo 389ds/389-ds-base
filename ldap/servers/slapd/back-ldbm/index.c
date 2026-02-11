@@ -1078,6 +1078,11 @@ index_read_ext_allids(
             interval = PR_MillisecondsToInterval(slapi_rand() % 100);
             DS_Sleep(interval);
             continue;
+        } else if (*err == DBI_RC_NOTFOUND) {
+            /* Key not found in index - this is normal, not an error */
+            idl_free(&idl);
+            idl = idl_alloc(0);
+            break;
         } else if (*err != 0 || idl == NULL) {
             /* The database might not exist. We have to assume it means empty set */
             slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "Failed to access idl index for %s\n", basetype);
