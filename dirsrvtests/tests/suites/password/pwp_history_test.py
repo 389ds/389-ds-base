@@ -108,8 +108,12 @@ def test_history_is_not_overwritten(topology_st, user):
         user.set('userpassword', USER_PWD)
 
 
-def test_basic(topology_st, user):
-    """Test basic password policy history feature functionality
+@pytest.mark.parametrize('policy',
+                         [(pytest.param('global')),
+                          (pytest.param('subtree')),
+                          (pytest.param('user'))])
+def test_basic(topology_st, user, policy):
+    """Test basic password policy history feature functionality with dynamic count reduction
 
     :id: 83d74f7d-3036-4944-8839-1b40bbf265ff
     :setup: Standalone instance, a test user
@@ -238,7 +242,6 @@ def test_basic(topology_st, user):
 
     #
     # Reset password by Directory Manager(admin reset)
-    #
     dm = DirectoryManager(topology_st.standalone)
     dm.rebind()
     time.sleep(.5)
