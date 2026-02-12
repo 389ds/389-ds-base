@@ -2985,7 +2985,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def db2index(self, bename=None, suffixes=None, attrs=None, vlvTag=None):
+    def db2index(self, bename, suffixes=None, attrs=None, vlvTag=None):
         """
         @param bename - The backend name to reindex
         @param suffixes - List/tuple of suffixes to reindex, currently unused
@@ -2998,34 +2998,18 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status():
             self.log.error("db2index: Can not operate while directory server is running")
             return False
-        cmd = [prog, ]
-        # No backend specified, do an upgrade on all backends
-        # Backend and no attrs specified, reindex with all backend indexes
-        # Backend and attr/s specified, reindex backend with attr/s
-        if bename:
-            cmd.append('db2index')
-            cmd.append('-n')
-            cmd.append(bename)
-            if attrs:
-                 for attr in attrs:
-                        cmd.append('-t')
-                        cmd.append(attr)
-            else:
-                dse_ldif = DSEldif(self)
-                indexes = dse_ldif.get_indexes(bename)
-                if indexes:
-                    for idx in indexes:
-                        cmd.append('-t')
-                        cmd.append(idx)
+        cmd = [prog, 'db2index', '-n', bename, '-D', self.get_config_dir()]
+        if attrs:
+            for attr in attrs:
+                cmd.append('-t')
+                cmd.append(attr)
         else:
-            cmd.append('upgradedb')
-            cmd.append('-a')
-            now = datetime.now().isoformat()
-            cmd.append(os.path.join(self.get_bak_dir(), 'reindex_%s' % now))
-            cmd.append('-f')
-
-        cmd.append('-D')
-        cmd.append(self.get_config_dir())
+            dse_ldif = DSEldif(self)
+            indexes = dse_ldif.get_indexes(bename)
+            if indexes:
+                for idx in indexes:
+                    cmd.append('-t')
+                    cmd.append(idx)
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
