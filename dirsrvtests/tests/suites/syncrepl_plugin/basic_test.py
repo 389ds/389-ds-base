@@ -20,7 +20,7 @@ from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.paths import Paths
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, is_fips
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
@@ -214,6 +214,12 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
     def run(self):
         """Start a sync repl client"""
         ldap_connection = TestSyncer(self.inst.toLDAPURL())
+        ldap_connection.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+        ldap_connection.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
+        if is_fips():
+            ldap_connection.set_option(ldap.OPT_X_TLS_PROTOCOL_MIN, ldap.OPT_X_TLS_PROTOCOL_TLS1_2)
+        ldap_connection.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+
         ldap_connection.simple_bind_s('cn=directory manager', 'password')
         ldap_search = ldap_connection.syncrepl_search(
             "dc=example,dc=com",
@@ -253,6 +259,7 @@ def test_sync_repl_mep(topology, request):
         5. Success
     """
     inst = topology[0]
+    inst.enable_tls()
 
     # Enable/configure retroCL
     plugin = RetroChangelogPlugin(inst)
@@ -338,6 +345,7 @@ def test_sync_repl_cookie(topology, init_sync_repl_plugins, request):
       5.: succeeds
     """
     inst = topology[0]
+    inst.enable_tls()
 
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
@@ -404,6 +412,8 @@ def test_sync_repl_cookie_add_del(topology, init_sync_repl_plugins, request):
       6.: succeeds
     """
     inst = topology[0]
+    inst.enable_tls()
+
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
     sync_repl.start()
@@ -548,6 +558,7 @@ def test_sync_repl_cenotaph(topo_m2, request):
         5. Should succeeds
     """
     m1 = topo_m2.ms["supplier1"]
+    m1.enable_tls()
     # Enable/configure retroCL
     plugin = RetroChangelogPlugin(m1)
     plugin.disable()
@@ -589,6 +600,74 @@ def test_sync_repl_cenotaph(topo_m2, request):
                 pass
 
     request.addfinalizer(fin)
+
+def test_sync_repl_dynamic_plugin(topology, request):
+    """Test sync_repl with dynamic plugin
+
+    :id: d4f84913-c18a-459f-8525-110f610ca9e6
+    :setup: install a standalone instance
+    :steps:
+        1. reset instance to standard (no retroCL, no sync_repl, no dynamic plugin)
+        2. Enable dynamic plugin
+        3. Enable retroCL/content_sync
+        4. Establish a sync_repl req
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+    """
+    topology.standalone.enable_tls()
+    # Reset the instance in a default config
+    # Disable content sync plugin
+    topology.standalone.plugins.disable(name=PLUGIN_REPL_SYNC)
+
+    # Disable retro changelog
+    topology.standalone.plugins.disable(name=PLUGIN_RETRO_CHANGELOG)
+
+    # Disable dynamic plugins
+    topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'off')])
+    topology.standalone.restart()
+
+    # Now start the test
+    # Enable dynamic plugins
+    try:
+        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
+    except ldap.LDAPError as e:
+        log.error('Failed to enable dynamic plugin! {}'.format(e.args[0]['desc']))
+        assert False
+
+    # Enable retro changelog
+    topology.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+
+    # Enbale content sync plugin
+    topology.standalone.plugins.enable(name=PLUGIN_REPL_SYNC)
+
+    # create a sync repl client and wait 5 seconds to be sure it is running
+    sync_repl = Sync_persist(topology.standalone)
+    sync_repl.start()
+    time.sleep(5)
+
+    # create users
+    users = UserAccounts(topology.standalone, DEFAULT_SUFFIX)
+    users_set = []
+    for i in range(10001, 10004):
+        users_set.append(users.create_test_user(uid=i))
+
+    time.sleep(10)
+    # delete users, that automember/memberof will generate nested updates
+    for user in users_set:
+        user.delete()
+    # stop the server to get the sync_repl result set (exit from while loop).
+    # Only way I found to acheive that.
+    # and wait a bit to let sync_repl thread time to set its result before fetching it.
+    topology.standalone.stop()
+    sync_repl.get_result()
+    sync_repl.join()
+    log.info('test_sync_repl_dynamic_plugin: PASS\n')
+
+    # Success
+    log.info('Test complete')
 
 def test_sync_repl_invalid_cookie(topology, request):
     """Test sync_repl with invalid cookie
