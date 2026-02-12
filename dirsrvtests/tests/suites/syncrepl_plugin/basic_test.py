@@ -20,7 +20,7 @@ from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.paths import Paths
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, is_fips
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
@@ -214,6 +214,12 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
     def run(self):
         """Start a sync repl client"""
         ldap_connection = TestSyncer(self.inst.toLDAPURL())
+        ldap_connection.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+        ldap_connection.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
+        if is_fips():
+            ldap_connection.set_option(ldap.OPT_X_TLS_PROTOCOL_MIN, ldap.OPT_X_TLS_PROTOCOL_TLS1_2)
+        ldap_connection.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+
         ldap_connection.simple_bind_s('cn=directory manager', 'password')
         ldap_search = ldap_connection.syncrepl_search(
             "dc=example,dc=com",
@@ -253,6 +259,7 @@ def test_sync_repl_mep(topology, request):
         5. Success
     """
     inst = topology[0]
+    inst.enable_tls()
 
     # Enable/configure retroCL
     plugin = RetroChangelogPlugin(inst)
@@ -338,6 +345,7 @@ def test_sync_repl_cookie(topology, init_sync_repl_plugins, request):
       5.: succeeds
     """
     inst = topology[0]
+    inst.enable_tls()
 
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
@@ -404,6 +412,8 @@ def test_sync_repl_cookie_add_del(topology, init_sync_repl_plugins, request):
       6.: succeeds
     """
     inst = topology[0]
+    inst.enable_tls()
+
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
     sync_repl.start()
@@ -547,6 +557,7 @@ def test_sync_repl_cenotaph(topo_m2, request):
         5. Should succeeds
     """
     m1 = topo_m2.ms["supplier1"]
+    m1.enable_tls()
     # Enable/configure retroCL
     plugin = RetroChangelogPlugin(m1)
     plugin.disable()
@@ -605,7 +616,7 @@ def test_sync_repl_dynamic_plugin(topology, request):
         3. Should succeeds
         4. Should succeeds
     """
-
+    topology.standalone.enable_tls()
     # Reset the instance in a default config
     # Disable content sync plugin
     topology.standalone.plugins.disable(name=PLUGIN_REPL_SYNC)
