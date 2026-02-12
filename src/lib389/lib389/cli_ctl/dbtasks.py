@@ -26,32 +26,18 @@ class IndexOrdering(Enum):
 
 
 def dbtasks_db2index(inst, log, args):
-    rtn = False
-    if not args.backend:
-        if not inst.db2index():
-            rtn = False
-        else:
-            rtn = True
-    elif args.backend and not args.attr:
-        if not inst.db2index(bename=args.backend):
-            rtn = False
-        else:
-            rtn = True
-    else:
-        if not inst.db2index(bename=args.backend, attrs=args.attr):
-            rtn = False
-        else:
-            rtn = True
-    if rtn:
-        log.info("db2index successful")
-        return rtn
-    else:
+    inst.log = log
+    if not inst.db2index(bename=args.backend, attrs=args.attr):
         log.fatal("db2index failed")
-        return rtn
+        return False
+    else:
+        log.info("db2index successful")
+        return True
 
 
 def dbtasks_db2bak(inst, log, args):
     # Needs an output name?
+    inst.log = log
     if not inst.db2bak(args.archive):
         log.fatal("db2bak failed")
         return False
@@ -61,6 +47,7 @@ def dbtasks_db2bak(inst, log, args):
 
 def dbtasks_bak2db(inst, log, args):
     # Needs the archive to restore.
+    inst.log = log
     if not inst.bak2db(args.archive):
         log.fatal("bak2db failed")
         return False
@@ -70,6 +57,7 @@ def dbtasks_bak2db(inst, log, args):
 
 def dbtasks_db2ldif(inst, log, args):
     # If export filename is provided, check if file path exists
+    inst.log = log
     if args.ldif:
         path = Path(args.ldif)
         parent = path.parent.absolute()
@@ -88,6 +76,7 @@ def dbtasks_db2ldif(inst, log, args):
 
 def dbtasks_ldif2db(inst, log, args):
     # Check if ldif file exists
+    inst.log = log
     if not os.path.exists(args.ldif):
         raise ValueError("The LDIF file does not exist: " + args.ldif)
 
@@ -103,6 +92,7 @@ def dbtasks_ldif2db(inst, log, args):
 
 
 def dbtasks_backups(inst, log, args):
+    inst.log = log
     if args.delete:
         # Delete backup
         inst.del_backup(args.delete[0])
@@ -117,6 +107,7 @@ def dbtasks_backups(inst, log, args):
 
 
 def dbtasks_ldifs(inst, log, args):
+    inst.log = log
     if args.delete:
         # Delete LDIF file
         inst.del_ldif(args.delete[0])
@@ -131,6 +122,7 @@ def dbtasks_ldifs(inst, log, args):
 
 
 def dbtasks_verify(inst, log, args):
+    inst.log = log
     if not inst.dbverify(bename=args.backend):
         log.fatal("dbverify failed")
         return False
@@ -521,9 +513,8 @@ def dbtasks_index_check(inst, log, args):
 
 def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
-    # db2index_parser.add_argument('suffix', help="The suffix to reindex. IE dc=example,dc=com.")
-    db2index_parser.add_argument('backend', nargs="?", help="The backend to reindex. IE userRoot", default=False)
-    db2index_parser.add_argument('--attr', nargs="*", help="The attribute's to reindex. IE --attr aci cn givenname", default=False)
+    db2index_parser.add_argument('backend', help="The backend to reindex. IE userRoot")
+    db2index_parser.add_argument('--attr', action='append', help="An attribute to reindex. IE: --attr member --attr cn ...")
     db2index_parser.set_defaults(func=dbtasks_db2index)
 
     db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
