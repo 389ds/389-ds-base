@@ -111,6 +111,8 @@ def pytest_runtest_makereport(item, call):
     extra = getattr(report, 'extra', [])
     if report.when == 'call' and pytest_html is not None:
         for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
+            if not os.path.isfile(f):
+                continue
             with open(f) as asan_report:
                 text = asan_report.read()
                 extra.append(pytest_html.extras.text(text, name=os.path.basename(f)))
