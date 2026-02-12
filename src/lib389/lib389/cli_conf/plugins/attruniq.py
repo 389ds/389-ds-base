@@ -127,7 +127,7 @@ def _add_parser_args(parser):
                         help='Sets the DN under which the plug-in checks for uniqueness of '
                              'the attributes value. This attribute is multi-valued (uniqueness-subtrees)')
     parser.add_argument('--exclude-subtree', nargs='+',
-                        help='Sets subtrees that should not excludedfrom attribute uniqueness. '
+                        help='Sets subtrees that should be excluded from attribute uniqueness checks. '
                              'This attribute is multi-valued (uniqueness-exclude-subtrees)')
     parser.add_argument('--across-all-subtrees', choices=['on', 'off'], type=str.lower,
                         help='If enabled (on), the plug-in checks that the attribute is unique across all subtrees '
