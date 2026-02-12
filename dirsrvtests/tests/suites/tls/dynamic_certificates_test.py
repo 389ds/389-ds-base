@@ -18,12 +18,10 @@ import base64
 import copy
 import datetime
 import ipaddress
-import itertools
 import ldap
 import ldapurl
 import logging
 import pytest
-import rpm
 import secrets
 import shutil
 import socket
@@ -41,7 +39,7 @@ from lib389.cli_base import FakeArgs
 from lib389._constants import DN_DM, PW_DM
 from lib389.dseldif import DSEldif
 from lib389.topologies import topology_st as topo
-from lib389.utils import ds_is_older, ensure_str, pem_to_der
+from lib389.utils import ds_is_older, ensure_str, pem_to_der, rpm_is_older
 from lib389.dyncerts import (
     DynamicCerts, DynamicCert, DYNCERT_SUFFIX,
     DYCATTR_CN, DYCATTR_CERTDER, DYCATTR_PKEYDER )
@@ -65,25 +63,6 @@ def utcdate():
 def fix_crash_issue_7227(inst):
     """Work around to avoid ns-slapd crash in CERT_VerifyCertificateNow()"""
     inst.restart()
-
-def rpm_is_older(pkg, version):
-    """Check if an RPM package version is older than specified version"""
-    ts = rpm.TransactionSet()
-    mi = ts.dbMatch('name', pkg)
-    for h in mi:
-        log.debug(f"{pkg} {h['version']} {version}")
-        for n1,n2 in itertools.zip_longest(h['version'].split('.'), version.split('.'), fillvalue=""):
-            try:
-                if int(n1) < int(n2):
-                    return True
-                if int(n1) > int(n2):
-                    return False
-            except ValueError:
-                if n1 < n2:
-                    return True
-                if n1 > n2:
-                    return False
-    return False
 
 
 class RSA_Certificate:
