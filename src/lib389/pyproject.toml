@@ -5,7 +5,6 @@ requires = [
     "argparse-manpage[setuptools]",
     "pyasn1",
     "pyasn1-modules",
-    "python-dateutil",
     "argcomplete",
     "python-ldap",
     "distro",
@@ -43,7 +42,6 @@ classifiers = [
 dependencies = [
     "pyasn1",
     "pyasn1-modules",
-    "python-dateutil",
     "argcomplete",
     "python-ldap",
     "distro",

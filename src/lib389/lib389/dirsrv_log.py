@@ -10,11 +10,11 @@
 """
 
 import copy
+import datetime as dt
 import json
 import glob
 import re
 import gzip
-from dateutil.parser import parse as dt_parse
 from lib389.utils import ensure_bytes
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import (
@@ -34,8 +34,8 @@ MONTH_LOOKUP = {
     'Jun': 6,
     'Jul': 7,
     'Aug': 8,
-    'Oct': 9,
-    'Sep': 10,
+    'Sep': 9,
+    'Oct': 10,
     'Nov': 11,
     'Dec': 12,
 }
@@ -50,9 +50,9 @@ class DirsrvLog(DSLint):
         """
         self.dirsrv = dirsrv
         self.log = self.dirsrv.log
-        self.prog_timestamp = re.compile(r'\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')   # noqa
+        self.prog_timestamp = re.compile(r'\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d{4})')   # noqa
         #  JSON timestamp uses strftime %FT%T --> 2025-02-12T17:00:47.663123181 -0500
-        self.prog_json_timestamp = re.compile(r'(?P<year>\d*)-(?P<month>\w*)-(?P<day>\d*)T(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')   # noqa
+        self.prog_json_timestamp = re.compile(r'(?P<year>\d*)-(?P<month>\w*)-(?P<day>\d*)T(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d{4})')   # noqa
         self.prog_datetime = re.compile(r'^(?P<timestamp>\[.*\])')
         self.jsonFormat = False
 
@@ -157,20 +157,32 @@ class DirsrvLog(DSLint):
         else:
             timedata = self.prog_timestamp.match(ts).groupdict()
 
-        # Now, have to convert month to an int.
-        dt_str = '{YEAR}-{MONTH}-{DAY} {HOUR}-{MINUTE}-{SECOND} {TZ}'.format(
-            YEAR=timedata['year'],
-            MONTH=timedata['month'],
-            DAY=timedata['day'],
-            HOUR=timedata['hour'],
-            MINUTE=timedata['minute'],
-            SECOND=timedata['second'],
-            TZ=timedata['tz'],
-            )
-        dt = dt_parse(dt_str)
+        # Convert month to an int.
+        month = timedata['month']
+        if not month.isdigit():
+            month = MONTH_LOOKUP[month]
+        else:
+            month = int(month)
+
+        # Parse timezone offset string (e.g. "+1000" or "-0500") into a timezone
+        tz_str = timedata['tz']
+        tz_sign = 1 if tz_str[0] == '+' else -1
+        tz_hours = int(tz_str[1:3])
+        tz_minutes = int(tz_str[3:5])
+        tz = dt.timezone(dt.timedelta(hours=tz_sign * tz_hours, minutes=tz_sign * tz_minutes))
+
+        parsed_dt = dt.datetime(
+            int(timedata['year']),
+            month,
+            int(timedata['day']),
+            int(timedata['hour']),
+            int(timedata['minute']),
+            int(timedata['second']),
+            tzinfo=tz
+        )
         if timedata['nanosecond']:
-            dt = dt.replace(microsecond=int(int(timedata['nanosecond']) / 1000))
-        return dt
+            parsed_dt = parsed_dt.replace(microsecond=int(timedata['nanosecond']) // 1000)
+        return parsed_dt
 
     def get_time_in_secs(self, log_line):
         """Take the timestamp (not the date) from a DS access log and convert
