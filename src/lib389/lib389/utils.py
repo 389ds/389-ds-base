@@ -21,12 +21,14 @@ import ldap
 import mmap
 import socket
 import ipaddress
+import itertools
 import time
 import stat
 from datetime import (datetime, timedelta)
 import sys
 import filecmp
 import pwd
+import rpm
 import shlex
 import operator
 import subprocess
@@ -2129,4 +2131,22 @@ def get_timeout_scale():
     except ValueError:
         log.error(f"DS_TIMEOUT_SCALE should be a valid float. Using default value: {scale_factor}")
         return scale_factor
+
+
+def rpm_is_older(pkg, version):
+    """Check if an RPM package version is older than specified version"""
+    ts = rpm.TransactionSet()
+    mi = ts.dbMatch('name', pkg)
+    for h in mi:
+        log.debug(f"{pkg} {h['version']} {version}")
+        for n1,n2 in itertools.zip_longest(h['version'].split('.'), version.split('.'), fillvalue=""):
+            try:
+                if int(n1) < int(n2):
+                    return True
+            except ValueError:
+                if n1 < n2:
+                    return True
+                if n1 > n2:
+                    return False
+    return False
 

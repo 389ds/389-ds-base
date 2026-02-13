@@ -247,6 +247,13 @@ only.
         code. Instead, we parse the output of `openssl version` and try to
         figure out if we have a new enough version to unconditionally run rehash.
         """
+
+        def only_warning(text):
+            for line in text.split('\n'):
+                if line and not 'warning' in line.lower():
+                    return False
+            return True
+
         try:
             openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
         except subprocess.CalledProcessError as e:
@@ -259,9 +266,13 @@ only.
             cmd = ['/usr/bin/c_rehash', certdir]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:
-            check_output(cmd, stderr=subprocess.STDOUT)
+            res = run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.log.debug("nss cmd: %s returned %d STDOUT=%s",
+                           format_cmd_list(cmd), res.returncode, res.stdout)
+            if res.returncode != 1 or not only_warning(res.stdout):
+                res.check_returncode()
         except subprocess.CalledProcessError as e:
-            raise ValueError(e.output.decode('utf-8').rstrip())
+            raise ValueError(e.output.rstrip())
 
     def create_rsa_ca(self, months=VALID):
         """
