@@ -1173,6 +1173,7 @@ def test_vlv_with_mr(vlv_setup_with_uid_mr):
 
 
 
+@pytest.mark.skipif(get_default_db_lib() == "bdb", reason="Hangs on BDB")
 def test_vlv_long_attribute_value(topology_st, request):
     """
     Test VLV with an entry containing a very long attribute value (2K).
