@@ -28,7 +28,6 @@ from datetime import (datetime, timedelta)
 import sys
 import filecmp
 import pwd
-import rpm
 import shlex
 import operator
 import subprocess
@@ -2135,6 +2134,8 @@ def get_timeout_scale():
 
 def rpm_is_older(pkg, version):
     """Check if an RPM package version is older than specified version"""
+    # rpm module is not installed in build environment so let import it only when used.
+    import rpm
     ts = rpm.TransactionSet()
     mi = ts.dbMatch('name', pkg)
     for h in mi:
