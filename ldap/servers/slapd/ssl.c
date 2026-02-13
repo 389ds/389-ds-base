@@ -732,31 +732,25 @@ SSLPLCY_Install(void)
 {
 
     SECStatus s = 0;
-#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
     int flags = NSS_USE_ALG_IN_SIGNATURE | NSS_USE_ALG_IN_SSL;
-    static const SECOidTag oids[] = {
-        SEC_OID_ML_DSA_44,
-        SEC_OID_ML_DSA_65,
-        SEC_OID_ML_DSA_87,
-    };
-#endif
+    SECOidData *oid = NULL;
 
     s = NSS_SetDomesticPolicy();
 
-#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
     /* Should rely on the crypto module policy in FIPS mode */
     if (!slapd_pk11_isFIPS()) {
         /* Set explicitly PQC algorithm policy if it is not set by default */
-        for (size_t i=0; s == SECSuccess && i < PR_ARRAY_SIZE(oids); i++) {
-            PRUint32 oflags = 0;
-            (void) NSS_GetAlgorithmPolicy(oids[i], &oflags);
-            if ((oflags & flags) != flags) {
-                s = NSS_SetAlgorithmPolicy(oids[i], flags, 0);
+        for (SECOidTag tag = 1; s == SECSuccess && (oid = SECOID_FindOIDByTag(tag)) != NULL; tag++) {
+            if (oid->mechanism != CKM_INVALID_MECHANISM &&
+                PL_strncasecmp(oid->desc, "ML-DSA-", 7) == 0) {
+                PRUint32 oflags = 0;
+                (void) NSS_GetAlgorithmPolicy(tag, &oflags);
+                if ((oflags & flags) != flags) {
+                    s = NSS_SetAlgorithmPolicy(tag, flags, 0);
+                }
             }
         }
     }
-#endif
-
     return s ? PR_FAILURE : PR_SUCCESS;
 }
 
