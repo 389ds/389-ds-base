@@ -231,7 +231,7 @@ ldbm_instance_create_default_indexes(backend *be)
      * ancestorid is special, there is actually no such attr type
      * but we still want to use the attr index file APIs.
      */
-    e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
+    e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, 0);
     attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
     slapi_entry_free(e);
 
