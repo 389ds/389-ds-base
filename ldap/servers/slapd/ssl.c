@@ -740,7 +740,7 @@ SSLPLCY_Install(void)
     /* Should rely on the crypto module policy in FIPS mode */
     if (!slapd_pk11_isFIPS()) {
         /* Set explicitly PQC algorithm policy if it is not set by default */
-        for (SECOidTag tag = 1; s == 0 && (oid = SECOID_FindOIDByTag(tag)) != NULL; tag++) {
+        for (SECOidTag tag = 1; s == SECSuccess && (oid = SECOID_FindOIDByTag(tag)) != NULL; tag++) {
             if (oid->mechanism != CKM_INVALID_MECHANISM &&
                 PL_strncasecmp(oid->desc, "ML-DSA-", 7) == 0) {
                 PRUint32 oflags = 0;
