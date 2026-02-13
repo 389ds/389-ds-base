@@ -738,6 +738,22 @@ main(int argc, char **argv)
 
         mcfg.n_port = config_get_port();
         mcfg.s_port = config_get_secureport();
+
+        /*
+         * This step checks for any updates and changes on upgrade
+         * specifically, it manages assumptions about what plugins should exist,
+         * and their configurations, and potentially even the state of
+         * configurations on the server and their removal and deprecation.
+         *
+         * Has to be after dse to change config, but before plugins start
+         * so we can adjust these configurations.
+         */
+        if (upgrade_server() != UPGRADE_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "Server upgrade check failed. Please check the error log for more information.\n");
+            return_value = 1;
+            goto cleanup;
+        }
     }
 
     raise_process_limits(); /* should be done ASAP once config file read */
