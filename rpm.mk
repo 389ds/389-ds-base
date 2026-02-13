@@ -1,4 +1,4 @@
-PWD ?= $(shell pwd)
+PWD := $(shell pwd)
 RPMBUILD ?= $(PWD)/rpmbuild
 RPM_VERSION ?= $(shell $(PWD)/rpm/rpmverrel.sh version)
 RPM_RELEASE := $(shell $(PWD)/rpm/rpmverrel.sh release)

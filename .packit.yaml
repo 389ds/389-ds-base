@@ -1,0 +1,54 @@
+---
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+specfile_path: rpm/389-ds-base.spec
+upstream_project_url: https://github.com/389ds/389-ds-base
+upstream_package_name: 389-ds-base
+downstream_package_name: 389-ds-base
+
+# See: https://packit.dev/docs/configuration/#upstream_tag_template
+upstream_tag_template: "389-ds-base-{version}"
+
+# See: https://packit.dev/docs/configuration/#release_suffix
+release_suffix: "{PACKIT_PROJECT_BRANCH}"
+
+srpm_build_deps:
+  - make
+  - cargo
+  - npm
+  - rsync
+
+actions:
+  post-upstream-clone:
+    - cargo install cargo-license
+    - make -f rpm.mk rpmspec
+  create-archive:
+    - make -f rpm.mk download-cargo-dependencies tarballs
+    - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
+    - "bash -c 'ls -1 dist/sources/389-ds-base*.tar.bz2'"
+  get-current-version:
+    - rpmspec -q --qf "%{Version}" --srpm rpm/389-ds-base.spec
+
+files_to_sync:
+  - rpm/389-ds-base.spec
+  - .packit.yaml
+
+allowed_pr_authors:
+  - packit
+  - all_admins
+
+notifications:
+  pull_request:
+    successful_build: true
+
+jobs:
+- job: copr_build
+  trigger: pull_request
+  targets:
+    - fedora-all
+
+- job: copr_build
+  trigger: commit
+  branch: main
+  targets:
+    - fedora-all

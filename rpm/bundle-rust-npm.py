@@ -241,14 +241,20 @@ if __name__ == '__main__':
         log.error(f"Path {args.npm_path} does not exist or is not a directory")
         sys.exit(1)
 
-    if shutil.which("cargo-license") is None:
+    cargo_license_path = shutil.which("cargo-license")
+    if cargo_license_path is None:
+        # cargo install puts binaries in $HOME/.cargo/bin which may not be in PATH
+        home_cargo_bin = os.path.join(os.path.expanduser("~"), ".cargo", "bin")
+        cargo_license_path = shutil.which("cargo-license", path=home_cargo_bin)
+    if cargo_license_path is None:
         log.error("cargo-license is not installed. Please install it with 'cargo install cargo-license' and try again.")
         sys.exit(1)
+    log.debug(f"Found cargo-license at: {cargo_license_path}")
     if shutil.which("npm") is None:
         log.error("npm is not installed. Please install it with 'dnf install npm' and try again.")
         sys.exit(1)
 
-    rust_output = run_cmd(["cargo", "license", "--json", "--current-dir", args.cargo_path])
+    rust_output = run_cmd([cargo_license_path, "--json", "--current-dir", args.cargo_path])
     npm_output = run_cmd(["npx", "--yes", "license-checker", "--production", "--json", "--start", args.npm_path])
 
     if rust_output is None or npm_output is None:
