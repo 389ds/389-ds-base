@@ -420,11 +420,11 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         else:
             # Use _get_actions_usage_parts() for Python 3.13 and later
             action_parts = self._get_actions_usage_parts(parent_arguments, [])
-            if sys.version_info >= (3, 15):
-                # Python 3.15 returns a tuple (list of actions, count of actions)
+            if isinstance(action_parts, tuple):
+                # Python 3.14.3+ and 3.15+ return a tuple (list of actions, count of actions)
                 formatted_options = ' '.join(action_parts[0])
             else:
-                # Python 3.13 and 3.14 return a list of actions
+                # Earlier versions return a list of actions
                 formatted_options = ' '.join(action_parts)
 
         # If formatted_options already in usage - remove them
