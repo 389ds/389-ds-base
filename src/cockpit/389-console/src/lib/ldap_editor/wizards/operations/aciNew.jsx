@@ -986,8 +986,8 @@ class AddNewAci extends React.Component {
                                         isChecked={row.selected}
                                         onChange={(checked) => this.handleRightsOnSelect(null, checked, rowIndex)}
                                         aria-label={`Select ${row.cells[0]}`}
+                                        label={row.cells[0]}
                                     />
-                                    {row.cells[0]}
                                 </Td>
                                 <Td>{row.cells[1]}</Td>
                             </Tr>
