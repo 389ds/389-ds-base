@@ -298,7 +298,9 @@ export class SecurityAddCertModal extends React.Component {
                                 <FormSelect
                                     value={selectCertName}
                                     id="selectCertName"
-                                    onChange={handleCertSelect}
+                                    onChange={(e, str) => {
+                                        handleCertSelect(str);
+                                    }}
                                     aria-label="FormSelect Input"
                                     className="ds-cert-select"
                                     validated={selectValidated}
