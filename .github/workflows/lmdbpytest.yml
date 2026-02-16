@@ -120,7 +120,7 @@ jobs:
         sudo docker exec $CID sh -c "systemctl enable --now cockpit.socket"
         sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
         sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
-        sudo docker exec -e WEBUI=1 -e NSSLAPD_DB_LIB=mdb -e DEBUG=pw:api -e PASSWD="${PASSWD}" GSSAPI_ACK=1 $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec -e WEBUI=1 -e NSSLAPD_DB_LIB=mdb -e DEBUG=pw:api -e PASSWD="${PASSWD}" -e GSSAPI_ACK=1 $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
     - name: Make the results file readable by all
       if: always()
