@@ -4,7 +4,6 @@ import {
     Grid,
     GridItem,
     Pagination,
-    PaginationVariant,
     SearchInput,
     Tooltip,
 } from '@patternfly/react-core';
@@ -94,10 +93,10 @@ class KeyTable extends React.Component {
     ];
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -127,7 +126,7 @@ class KeyTable extends React.Component {
                 >
                     <a className="ds-font-size-sm">{_("What is an orphan key?")}</a>
                 </Tooltip>
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="orph key table"
                     variant="compact"
@@ -135,7 +134,7 @@ class KeyTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -163,7 +162,7 @@ class KeyTable extends React.Component {
                                 )}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -224,7 +223,7 @@ class CSRTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
         this.setState({
@@ -316,7 +315,7 @@ class CSRTable extends React.Component {
                         onClear={(evt) => this.handleSearchChange(evt, '')}
                     />
                 }
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="csr table"
                     variant="compact"
@@ -324,7 +323,7 @@ class CSRTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -352,7 +351,7 @@ class CSRTable extends React.Component {
                                 )}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -418,41 +417,11 @@ class CertTable extends React.Component {
     }
 
     handleSort(_event, columnIndex, direction) {
-        const sorted_rows = [];
-        const rows = [];
-        let count = 0;
+        const rows = [...this.state.rows];
 
-        // Convert the rows pairings into a sortable array
-        for (let idx = 0; idx < this.state.rows.length; idx += 2) {
-            sorted_rows.push({
-                expandedRow: this.state.rows[idx + 1],
-                1: this.state.rows[idx].cells[0].content,
-                2: this.state.rows[idx].cells[1].content,
-                3: this.state.rows[idx].cells[2].content,
-                issuer: this.state.rows[idx].issuer,
-                flags: this.state.rows[idx].flags
-            });
-        }
-
-        sorted_rows.sort((a, b) => (a[columnIndex + 1] > b[columnIndex + 1]) ? 1 : -1);
+        rows.sort((a, b) => (a.cells[columnIndex].content > b.cells[columnIndex].content) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
-            sorted_rows.reverse();
-        }
-
-        for (const srow of sorted_rows) {
-            rows.push({
-                isOpen: false,
-                cells: [
-                    { content: srow[1] },
-                    { content: srow[2] },
-                    { content: srow[3] }
-                ],
-                issuer: srow.issuer,
-                flags: srow.flags,
-            });
-            srow.expandedRow.parent = count;
-            rows.push(srow.expandedRow);
-            count += 2;
+            rows.reverse();
         }
 
         this.setState({
@@ -534,18 +503,16 @@ class CertTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    cells: [
+                        { content: cert.attrs.nickname },
+                        { content: cert.attrs.subject },
+                        { content: cert.attrs.expires }
+                    ],
                     issuer: cert.attrs.issuer,
                     flags: cert.attrs.flags,
-
-                },
-                {
-                    parent: count,
-                    fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
-                },
+                }
             );
-            count += 2;
+            count += 1;
         }
 
         this.setState({
@@ -587,7 +554,7 @@ class CertTable extends React.Component {
                         onChange={this.handleSearchChange}
                         onClear={(evt) => this.handleSearchChange(evt, '')}
                     />}
-                <Table 
+                <Table
                     aria-label="cert table"
                     variant='compact'
                 >
@@ -626,7 +593,7 @@ class CertTable extends React.Component {
                                         </Td>
                                     ))}
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -646,7 +613,7 @@ class CertTable extends React.Component {
                 </Table>
                 {hasRows &&
                     <Pagination
-                        itemCount={this.state.rows.length / 2}
+                        itemCount={this.state.rows.length}
                         widgetId="pagination-options-menu-bottom"
                         perPage={perPage}
                         page={page}
@@ -728,7 +695,7 @@ class CRLTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        
+
         for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
@@ -806,14 +773,14 @@ class CRLTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     aria-label="CRL Table"
                     variant="compact"
                 >
                     <Thead>
                         <Tr>
                             {this.state.columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -836,7 +803,7 @@ class CRLTable extends React.Component {
                                     ))}
                                     {this.state.hasRows && (
                                         <Td isActionCell>
-                                            <ActionsColumn 
+                                            <ActionsColumn
                                                 items={this.getActionsForRow(row)}
                                             />
                                         </Td>
