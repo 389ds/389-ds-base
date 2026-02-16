@@ -13,6 +13,8 @@ import { LocalPwPolicy } from "./lib/database/localPwp.jsx";
 import {
     Button,
     Card,
+    ProgressStepper,
+    ProgressStep,
     Form,
     FormGroup,
     FormSelect,
@@ -42,6 +44,9 @@ import {
 import { PropTypes } from "prop-types";
 import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
 import { PlusIcon } from '@patternfly/react-icons/dist/js/icons/plus-icon';
+import InProgressIcon from '@patternfly/react-icons/dist/esm/icons/in-progress-icon';
+import PendingIcon from '@patternfly/react-icons/dist/esm/icons/pending-icon';
+import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon';
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
@@ -93,6 +98,14 @@ export class Database extends React.Component {
             chainingLoading: false,
             // Suffix
             suffixLoading: false,
+            suffixConfigLoaded: false,
+            suffixConfigLoading: false,
+            suffixVlvLoaded: false,
+            suffixVlvLoading: false,
+            suffixAttrEncLoaded: false,
+            suffixAttrEncLoading: false,
+            suffixIndexesLoaded: false,
+            suffixIndexesLoading: false,
             modalSpinning: false,
             attributes: [],
             objectClasses: [],
@@ -107,6 +120,20 @@ export class Database extends React.Component {
             suffixList: [],
             pwdStorageSchemes: [],
             loaded: false,
+            globalConfigLoaded: false,
+            globalConfigLoading: false,
+            chainingConfigLoaded: false,
+            chainingConfigLoading: false,
+            ldifsLoaded: false,
+            ldifsLoading: false,
+            backupsLoaded: false,
+            backupsLoading: false,
+            pwdSchemesLoaded: false,
+            pwdSchemesLoading: false,
+            suffixListLoaded: false,
+            suffixListLoading: false,
+            suffixTreeLoaded: false,
+            suffixTreeLoading: false,
         };
 
         // General
@@ -140,29 +167,49 @@ export class Database extends React.Component {
         // Other
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
+        this.resetLoadProgress = this.resetLoadProgress.bind(this);
+    }
+
+    resetLoadProgress() {
+        this.setState({
+            loaded: false,
+            globalConfigLoaded: false,
+            globalConfigLoading: false,
+            chainingConfigLoaded: false,
+            chainingConfigLoading: false,
+            ldifsLoaded: false,
+            ldifsLoading: false,
+            backupsLoaded: false,
+            backupsLoading: false,
+            pwdSchemesLoaded: false,
+            pwdSchemesLoading: false,
+            suffixListLoaded: false,
+            suffixListLoading: false,
+            suffixTreeLoaded: false,
+            suffixTreeLoading: false,
+        });
     }
 
     componentDidUpdate(prevProps) {
         if (this.props.wasActiveList.includes(2)) {
             if (this.state.firstLoad) {
                 if (!this.state.loaded) {
+                    this.resetLoadProgress();
                     this.loadGlobalConfig();
-                    this.loadChainingConfig();
-                    this.loadLDIFs();
-                    this.loadBackups();
-                    this.loadSuffixList();
-                    this.loadPwdStorageSchemes();
+                } else {
+                    this.loadSuffixTree(false);
                 }
-                this.loadSuffixTree(false);
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
-                    this.loadSuffixTree(false);
+                    this.resetLoadProgress();
+                    this.loadGlobalConfig();
                 }
             }
         }
     }
 
-    loadSuffixList () {
+    loadSuffixList (reloading = false) {
+        this.setState({ suffixListLoading: true });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "suffix", "list", "--suffix"
@@ -173,12 +220,35 @@ export class Database extends React.Component {
                 .done(content => {
                     const suffixList = JSON.parse(content);
                     this.setState(() => (
-                        { suffixList: suffixList.items }
-                    ));
+                        {
+                            suffixList: suffixList.items,
+                            suffixListLoaded: true,
+                            suffixListLoading: false,
+                        }
+                    ), () => {
+                        if (!reloading) {
+                            this.loadSuffixTree(false);
+                        }
+                    });
+                }).fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading suffix list - $0"), errMsg.desc)
+                    );
+                    this.setState({
+                        suffixListLoaded: true,
+                        suffixListLoading: false,
+                    }, () => {
+                        if (!reloading) {
+                            this.loadSuffixTree(false);
+                        }
+                    });
                 });
     }
 
-    loadPwdStorageSchemes () {
+    loadPwdStorageSchemes (reloading = false) {
+        this.setState({ pwdSchemesLoading: true });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "pwpolicy", "list-schemes"
@@ -189,15 +259,34 @@ export class Database extends React.Component {
                 .done(content => {
                     const schemes = JSON.parse(content);
                     this.setState(() => (
-                        { pwdStorageSchemes: schemes.items }
-                    ));
+                        {
+                            pwdStorageSchemes: schemes.items,
+                            pwdSchemesLoaded: true,
+                            pwdSchemesLoading: false,
+                        }
+                    ), () => {
+                        if (!reloading) {
+                            this.loadSuffixList();
+                        }
+                    });
+                }).fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading password storage schemes - $0"), errMsg.desc)
+                    );
+                    this.setState({
+                        pwdSchemesLoaded: true,
+                        pwdSchemesLoading: false,
+                    }, () => {
+                        if (!reloading) {
+                            this.loadSuffixList();
+                        }
+                    });
                 });
     }
 
-    loadNDN() {
-        this.setState({
-            loaded: false,
-        });
+    loadNDN(reloading = false) {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get", "nsslapd-ndn-cache-max-size", "nsslapd-ndn-cache-enabled"
@@ -215,9 +304,14 @@ export class Database extends React.Component {
                             ndncachemaxsize: attrs['nsslapd-ndn-cache-max-size'][0],
                             ndn_cache_enabled: ndn_cache_enabled,
                         },
+                        globalConfigLoaded: true,
+                        globalConfigLoading: false,
                         configUpdated: 0,
-                        loaded: true,
-                    }));
+                    }), () => {
+                        if (!reloading) {
+                            this.loadChainingConfig();
+                        }
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -226,15 +320,21 @@ export class Database extends React.Component {
                         cockpit.format(_("Error loading server configuration for database- $0"), errMsg.desc)
                     );
                     this.setState({
-                        loaded: true,
+                        globalConfigLoaded: true,
+                        globalConfigLoading: false,
+                    }, () => {
+                        if (!reloading) {
+                            this.loadChainingConfig();
+                        }
                     });
                 });
     }
 
-    loadGlobalConfig (activeTab) {
+    loadGlobalConfig (activeTab, reloading = false) {
         if (this.state.firstLoad) {
             this.setState({ firstLoad: false });
         }
+        this.setState({ globalConfigLoading: true });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "config", "get"
@@ -303,7 +403,9 @@ export class Database extends React.Component {
                                         dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
                                     },
                                 configUpdated: 1
-                            }), () => { this.loadNDN() });
+                            }), () => {
+                                this.loadNDN(reloading);
+                            });
                     } else if (dbimplement === BE_IMPL_MDB) {
                         let db_cache_auto = false;
                         if ('nsslapd-directory' in attrs) {
@@ -336,7 +438,9 @@ export class Database extends React.Component {
                                         dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
                                     },
                                 configUpdated: 1
-                            }), () => { this.loadNDN() });
+                            }), () => {
+                                this.loadNDN(reloading);
+                            });
                     }
                 }
                 )
@@ -346,6 +450,7 @@ export class Database extends React.Component {
                         "error",
                         cockpit.format(_("Error loading database configuration - $0"), errMsg.desc)
                     );
+                    this.loadNDN(reloading); // updates the loading state
                 });
     }
 
@@ -439,7 +544,8 @@ export class Database extends React.Component {
                 });
     }
 
-    loadChainingConfig(tabIdx) {
+    loadChainingConfig(tabIdx, reloading = false) {
+        this.setState({ chainingConfigLoading: true });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get"
@@ -473,8 +579,29 @@ export class Database extends React.Component {
                                 availableComps
                             },
                             chainingActiveKey: activeKey,
+                            chainingConfigLoaded: true,
+                            chainingConfigLoading: false,
                         }
-                    ), this.loadDefaultConfig());
+                    ), () => {
+                        this.loadDefaultConfig();
+                        if (!reloading) {
+                            this.loadLDIFs();
+                        }
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading chaining configuration - $0"), errMsg.desc)
+                    );
+                    this.setState({
+                        chainingConfigLoading: false,
+                        chainingConfigLoaded: true,
+                    });
+                    if (!reloading) {
+                        this.loadLDIFs();
+                    }
                 });
     }
 
@@ -495,7 +622,8 @@ export class Database extends React.Component {
         }
     }
 
-    loadSuffixTree(fullReset) {
+    loadSuffixTree(fullReset, reloading = false) {
+        this.setState({ suffixTreeLoading: true });
         const treeData = [
             {
                 name: _("Global Database Configuration"),
@@ -572,6 +700,8 @@ export class Database extends React.Component {
                     this.setState(() => ({
                         nodes: treeData,
                         node_name: current_node,
+                        suffixTreeLoaded: true,
+                        suffixTreeLoading: false,
                     }), this.loadSchema);
                 })
                 .fail(err => {
@@ -584,6 +714,8 @@ export class Database extends React.Component {
                     this.setState(() => ({
                         nodes: treeData,
                         node_name: current_node,
+                        suffixTreeLoaded: true,
+                        suffixTreeLoading: false,
                     }), this.loadSchema);
                 });
     }
@@ -875,7 +1007,7 @@ export class Database extends React.Component {
                     );
                     // Refresh tree
                     this.loadSuffixTree(false);
-                    this.loadSuffixList();
+                    this.loadSuffixList(true);
                     this.setState({
                         modalSpinning: false
                     });
@@ -1042,7 +1174,15 @@ export class Database extends React.Component {
         // the loading is finished
         this.setState({
             activeKey: 1,
-            suffixLoading: true
+            suffixLoading: true,
+            suffixConfigLoaded: false,
+            suffixConfigLoading: true,
+            suffixVlvLoaded: false,
+            suffixVlvLoading: false,
+            suffixAttrEncLoaded: false,
+            suffixAttrEncLoading: false,
+            suffixIndexesLoaded: false,
+            suffixIndexesLoading: false,
         }, this.loadSchema());
 
         const cmd = [
@@ -1079,7 +1219,10 @@ export class Database extends React.Component {
                             dbstate: config.attrs['nsslapd-state'][0],
                             readOnly: readonly,
                             requireIndex: requireindex,
-                        }
+                        },
+                        suffixConfigLoaded: true,
+                        suffixConfigLoading: false,
+                        suffixVlvLoading: true,
                     }, this.getAutoTuning(suffix));
 
                     // Now load VLV indexes
@@ -1097,6 +1240,12 @@ export class Database extends React.Component {
                                         ...this.state[suffix],
                                         vlvItems: config.items,
                                     }
+                                }, () => {
+                                    this.setState({
+                                        suffixVlvLoaded: true,
+                                        suffixVlvLoading: false,
+                                        suffixAttrEncLoading: true,
+                                    });
                                 });
 
                                 const cmd = [
@@ -1117,6 +1266,12 @@ export class Database extends React.Component {
                                                     ...this.state[suffix],
                                                     encAttrsRows: rows
                                                 }
+                                            }, () => {
+                                                this.setState({
+                                                    suffixAttrEncLoaded: true,
+                                                    suffixAttrEncLoading: false,
+                                                    suffixIndexesLoading: true,
+                                                });
                                             });
                                             const index_cmd = [
                                                 "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -1158,6 +1313,8 @@ export class Database extends React.Component {
                                                                 indexRows: rows,
                                                                 systemIndexRows: systemRows,
                                                             },
+                                                            suffixIndexesLoaded: true,
+                                                            suffixIndexesLoading: false,
                                                             suffixLoading: false
                                                         });
                                                     })
@@ -1168,6 +1325,7 @@ export class Database extends React.Component {
                                                             cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg.desc)
                                                         );
                                                         this.setState({
+                                                            suffixIndexesLoading: false,
                                                             suffixLoading: false
                                                         });
                                                     });
@@ -1179,6 +1337,7 @@ export class Database extends React.Component {
                                                 cockpit.format(_("Error attribute encryption for $0 - $1"), suffix, errMsg.desc)
                                             );
                                             this.setState({
+                                                suffixAttrEncLoading: false,
                                                 suffixLoading: false
                                             });
                                         });
@@ -1190,6 +1349,7 @@ export class Database extends React.Component {
                                     cockpit.format(_("Error loading VLV indexes for $0 - $1"), suffix, errMsg.desc)
                                 );
                                 this.setState({
+                                    suffixVlvLoading: false,
                                     suffixLoading: false
                                 });
                             });
@@ -1201,12 +1361,14 @@ export class Database extends React.Component {
                         cockpit.format(_("Error loading config for $0 - $1"), suffix, errMsg.desc)
                     );
                     this.setState({
+                        suffixConfigLoading: false,
                         suffixLoading: false
                     });
                 });
     }
 
-    loadLDIFs() {
+    loadLDIFs(reloading = false) {
+        this.setState({ ldifsLoading: true });
         const cmd = [
             "dsctl", "-j", this.props.serverId, "ldifs"
         ];
@@ -1222,16 +1384,37 @@ export class Database extends React.Component {
                     this.setState({
                         LDIFRows: rows,
                         backupRefreshing: false,
+                        ldifsLoaded: true,
+                        ldifsLoading: false,
+                    }, () => {
+                        if (!reloading) {
+                            this.loadBackups();
+                        }
                     });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading LDIF files - $0"), errMsg.desc)
+                    );
+                    this.setState({
+                        ldifsLoading: false,
+                        ldifsLoaded: true,
+                    });
+                    if (!reloading) {
+                        this.loadBackups();
+                    }
                 });
     }
 
-    loadBackups(refreshing) {
+    loadBackups(refreshing, reloading = false) {
         if (refreshing) {
             this.setState({
                 backupRefreshing: true
             });
         }
+        this.setState({ backupsLoading: true });
         const cmd = [
             "dsctl", "-j", this.props.serverId, "backups"
         ];
@@ -1246,7 +1429,29 @@ export class Database extends React.Component {
                     }
                     this.setState({
                         BackupRows: rows,
-                    }, this.loadLDIFs());
+                        backupsLoaded: true,
+                        backupsLoading: false,
+                        backupRefreshing: false
+                    }, () => {
+                        if (!reloading && !refreshing) {
+                            this.loadPwdStorageSchemes();
+                        }
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading backups - $0"), errMsg.desc)
+                    );
+                    this.setState({
+                        backupsLoading: false,
+                        backupRefreshing: false,
+                        backupsLoaded: true,
+                    });
+                    if (!reloading && !refreshing) {
+                        this.loadPwdStorageSchemes();
+                    }
                 });
     }
 
@@ -1289,10 +1494,16 @@ export class Database extends React.Component {
                                 this.setState({
                                     attributes: attrs,
                                     objectClasses: ocs,
-                                    attributesFullData: attrContent.items,
-                                    loaded: true
+                                    attributesFullData: attrContent.items
                                 }, this.update_tree_nodes);
                             })
+                }).fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading schema - $0"), errMsg.desc)
+                    );
+                    this.update_tree_nodes();
                 });
     }
 
@@ -1317,12 +1528,13 @@ export class Database extends React.Component {
                         <GlobalDatabaseConfig
                             serverId={this.props.serverId}
                             addNotification={this.props.addNotification}
-                            reload={this.loadGlobalConfig}
+                            reload={(activeTab) => this.loadGlobalConfig(activeTab, true)}
                             data={this.state.globalDBConfig}
                             enableTree={this.enableTree}
                             key={this.state.configUpdated}
                             objectClasses={this.state.objectClasses}
                             attributes={this.state.attributesFullData}
+                            loading={this.state.globalConfigLoading}
                         />
                     );
                 } else if (this.state.backendImplement === BE_IMPL_MDB) {
@@ -1330,12 +1542,13 @@ export class Database extends React.Component {
                         <GlobalDatabaseConfigMDB
                             serverId={this.props.serverId}
                             addNotification={this.props.addNotification}
-                            reload={this.loadGlobalConfig}
+                            reload={(activeTab) => this.loadGlobalConfig(activeTab, true)}
                             data={this.state.globalDBConfig}
                             enableTree={this.enableTree}
                             key={this.state.configUpdated}
                             attributes={this.state.attributesFullData}
                             objectClasses={this.state.objectClasses}
+                            loading={this.state.globalConfigLoading}
                         />
                     );
                 }
@@ -1344,7 +1557,7 @@ export class Database extends React.Component {
                     <ChainingDatabaseConfig
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
-                        reload={this.loadChainingConfig}
+                        reload={(tabIdx) => this.loadChainingConfig(tabIdx, true)}
                         data={this.state.chainingConfig}
                         enableTree={this.enableTree}
                         activeKey={this.state.chainingActiveKey}
@@ -1380,7 +1593,7 @@ export class Database extends React.Component {
                         suffixes={this.state.suffixList}
                         ldifs={this.state.LDIFRows}
                         enableTree={this.enableTree}
-                        handleReload={this.loadBackups}
+                        handleReload={(refreshing) => this.loadBackups(refreshing, true)}
                         refreshing={this.state.backupRefreshing}
                     />
                 );
@@ -1393,9 +1606,55 @@ export class Database extends React.Component {
                                 <TextContent>
                                     <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
                                         {_("Loading suffix configuration for ")}<b>{this.state.node_text} ...</b>
+                                        <Spinner isInline className="ds-left-margin" size="lg" />
                                     </Text>
                                 </TextContent>
-                                <Spinner className="ds-margin-top-lg" size="xl" />
+                                <ProgressStepper
+                                    className="ds-margin-top-lg"
+                                    aria-label="Progress stepper for suffix loading stages"
+                                    isCenterAligned
+                                >
+                                    <ProgressStep
+                                        isCurrent={this.state.suffixConfigLoading}
+                                        variant={this.state.suffixConfigLoaded ? "success" : "pending"}
+                                        icon={!this.state.suffixConfigLoaded ? this.state.suffixConfigLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                                        id="suffixConfigLoading"
+                                        titleId="load suffix configuration"
+                                        aria-label="Loading suffix configuration step"
+                                    >
+                                        {!this.state.suffixConfigLoaded ? _("Loading Suffix Config") : _("Suffix Config Loaded")}
+                                    </ProgressStep>
+                                    <ProgressStep
+                                        isCurrent={this.state.suffixVlvLoading}
+                                        variant={this.state.suffixVlvLoaded ? "success" : "pending"}
+                                        icon={!this.state.suffixVlvLoaded ? this.state.suffixVlvLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                                        id="suffixVlvLoading"
+                                        titleId="load suffix vlv indexes"
+                                        aria-label="Loading suffix vlv indexes step"
+                                    >
+                                        {!this.state.suffixVlvLoaded ? _("Loading VLV Indexes") : _("VLV Indexes Loaded")}
+                                    </ProgressStep>
+                                    <ProgressStep
+                                        isCurrent={this.state.suffixAttrEncLoading}
+                                        variant={this.state.suffixAttrEncLoaded ? "success" : "pending"}
+                                        icon={!this.state.suffixAttrEncLoaded ? this.state.suffixAttrEncLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                                        id="suffixAttrEncLoading"
+                                        titleId="load suffix attribute encryption"
+                                        aria-label="Loading suffix attribute encryption step"
+                                    >
+                                        {!this.state.suffixAttrEncLoaded ? _("Loading Attribute Encryption") : _("Attribute Encryption Loaded")}
+                                    </ProgressStep>
+                                    <ProgressStep
+                                        isCurrent={this.state.suffixIndexesLoading}
+                                        variant={this.state.suffixIndexesLoaded ? "success" : "pending"}
+                                        icon={!this.state.suffixIndexesLoaded ? this.state.suffixIndexesLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                                        id="suffixIndexesLoading"
+                                        titleId="load suffix indexes"
+                                        aria-label="Loading suffix indexes step"
+                                    >
+                                        {!this.state.suffixIndexesLoaded ? _("Loading Indexes") : _("Indexes Loaded")}
+                                    </ProgressStep>
+                                </ProgressStepper>
                             </div>
                         );
                     } else {
@@ -1412,7 +1671,7 @@ export class Database extends React.Component {
                                 vlvTableKey={this.state.vlvTableKey}
                                 reloadAttrEnc={this.loadAttrEncrypt}
                                 addNotification={this.props.addNotification}
-                                reloadLDIFs={this.loadLDIFs}
+                                reloadLDIFs={() => this.loadLDIFs(true)}
                                 LDIFRows={this.state.LDIFRows}
                                 dbtype={this.state.dbtype}
                                 data={this.state[this.state.node_text]}
@@ -1474,9 +1733,85 @@ export class Database extends React.Component {
                     <TextContent>
                         <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
                             {_("Loading Database Configuration ...")}
+                            <Spinner isInline className="ds-left-margin" size="lg" />
                         </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top" size="xl" />
+                    <ProgressStepper
+                        className="ds-margin-top-lg"
+                        aria-label="Progress stepper for database loading stages"
+                        isCenterAligned
+                    >
+                        <ProgressStep
+                            isCurrent={this.state.globalConfigLoading}
+                            variant={this.state.globalConfigLoaded ? "success" : "pending"}
+                            icon={!this.state.globalConfigLoaded ? this.state.globalConfigLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="globalConfigLoading"
+                            titleId="load database global configuration"
+                            aria-label="Loading database global configuration step"
+                        >
+                            {!this.state.globalConfigLoaded ? _("Loading Global Config") : _("Global Config Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.chainingConfigLoading}
+                            variant={this.state.chainingConfigLoaded ? "success" : "pending"}
+                            icon={!this.state.chainingConfigLoaded ? this.state.chainingConfigLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="chainingConfigLoading"
+                            titleId="load database chaining configuration"
+                            aria-label="Loading database chaining configuration step"
+                        >
+                            {!this.state.chainingConfigLoaded ? _("Loading Chaining Config") : _("Chaining Config Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.ldifsLoading}
+                            variant={this.state.ldifsLoaded ? "success" : "pending"}
+                            icon={!this.state.ldifsLoaded ? this.state.ldifsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="ldifLoading"
+                            titleId="load ldif files"
+                            aria-label="Loading ldif files step"
+                        >
+                            {!this.state.ldifsLoaded ? _("Loading LDIFs") : _("LDIFs Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.backupsLoading}
+                            variant={this.state.backupsLoaded ? "success" : "pending"}
+                            icon={!this.state.backupsLoaded ? this.state.backupsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="backupLoading"
+                            titleId="load backup files"
+                            aria-label="Loading backup files step"
+                        >
+                            {!this.state.backupsLoaded ? _("Loading Backups") : _("Backups Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.pwdSchemesLoading}
+                            variant={this.state.pwdSchemesLoaded ? "success" : "pending"}
+                            icon={!this.state.pwdSchemesLoaded ? this.state.pwdSchemesLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="pwdSchemesLoading"
+                            titleId="load password storage schemes"
+                            aria-label="Loading password storage schemes step"
+                        >
+                            {!this.state.pwdSchemesLoaded ? _("Loading Password Schemes") : _("Password Schemes Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.suffixListLoading}
+                            variant={this.state.suffixListLoaded ? "success" : "pending"}
+                            icon={!this.state.suffixListLoaded ? this.state.suffixListLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="suffixListLoading"
+                            titleId="load suffix list"
+                            aria-label="Loading suffix list step"
+                        >
+                            {!this.state.suffixListLoaded ? _("Loading Suffix List") : _("Suffix List Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.suffixTreeLoading}
+                            variant={this.state.suffixTreeLoaded ? "success" : "pending"}
+                            icon={!this.state.suffixTreeLoaded ? this.state.suffixTreeLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="suffixTreeLoading"
+                            titleId="load suffix tree"
+                            aria-label="Loading suffix tree step"
+                        >
+                            {!this.state.suffixTreeLoaded ? _("Loading Suffix Tree") : _("Suffix Tree Loaded")}
+                        </ProgressStep>
+                    </ProgressStepper>
                 </div>
             );
         }
