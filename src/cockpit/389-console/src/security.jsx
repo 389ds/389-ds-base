@@ -12,6 +12,8 @@ import {
 	Form,
 	Grid,
 	GridItem,
+	ProgressStepper,
+	ProgressStep,
 	Spinner,
 	Switch,
 	Tab,
@@ -25,6 +27,9 @@ import {
 import TypeaheadSelect from "./dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import { SyncAltIcon } from '@patternfly/react-icons';
+import InProgressIcon from '@patternfly/react-icons/dist/esm/icons/in-progress-icon';
+import PendingIcon from '@patternfly/react-icons/dist/esm/icons/pending-icon';
+import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon';
 
 const _ = cockpit.gettext;
 
@@ -101,6 +106,44 @@ export class Security extends React.Component {
             _nssslpersonalityssl: '',
             _nssslpersonalityssllist: "",
             _nstlsallowclientrenegotiation: true,
+            isServerCertOpen: false,
+            // progress steps
+            configLoaded: false,
+            configLoading: false,
+            ciphersLoaded: false,
+            ciphersLoading: false,
+            certsLoaded: false,
+            certsLoading: false,
+            caCertsLoaded: false,
+            caCertsLoading: false,
+            csrsLoaded: false,
+            csrsLoading: false,
+            orphanKeysLoaded: false,
+            orphanKeysLoading: false,
+        };
+
+        // Server Cert
+        this.handleServerCertSelect = (event, selection) => {
+            let disableSaveBtn = !this.configChanged();
+            if (this.state._nssslpersonalityssl !== selection) {
+                disableSaveBtn = false;
+            }
+            this.setState({
+                nssslpersonalityssl: selection,
+                isServerCertOpen: false,
+                disableSaveBtn,
+            });
+        };
+        this.handleServerCertToggle = (_event, isServerCertOpen) => {
+        this.setState({
+            isServerCertOpen
+        });
+        };
+        this.handleServerCertClear = () => {
+            this.setState({
+                nssslpersonalityssl: '',
+                isServerCertOpen: false
+            });
         };
 
         // Toggle currently active tab
@@ -238,11 +281,26 @@ export class Security extends React.Component {
 
     handleReloadConfig () {
         this.setState({
-            loaded: false
+            loaded: false,
+            configLoaded: false,
+            ciphersLoaded: false,
+            certsLoaded: false,
+            caCertsLoaded: false,
+            csrsLoaded: false,
+            orphanKeysLoaded: false,
+            configLoading: false,
+            ciphersLoading: false,
+            certsLoading: false,
+            caCertsLoading: false,
+            csrsLoading: false,
+            orphanKeysLoading: false,
         }, this.loadSecurityConfig);
     }
 
     loadSupportedCiphers () {
+        this.setState({
+            ciphersLoading: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "ciphers", "list", "--supported"
@@ -281,6 +339,8 @@ export class Security extends React.Component {
                     const config = JSON.parse(content);
                     this.setState({
                         enabledCiphers: config.items,
+                        ciphersLoaded: true,
+                        ciphersLoading: false,
                     }, this.loadCerts);
                 })
                 .fail(err => {
@@ -297,6 +357,9 @@ export class Security extends React.Component {
     }
 
     loadCACerts () {
+        this.setState({
+            caCertsLoading: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "ca-certificate", "list",
@@ -309,6 +372,8 @@ export class Security extends React.Component {
                     this.setState(() => (
                         {
                             CACerts: certs,
+                            caCertsLoaded: true,
+                            caCertsLoading: false,
                         }), this.loadCSRs
                     );
                 })
@@ -326,6 +391,9 @@ export class Security extends React.Component {
     }
 
     loadCerts () {
+        this.setState({
+            certsLoading: true,
+        });
         // Set loaded: true
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -344,6 +412,8 @@ export class Security extends React.Component {
                         {
                             serverCerts: certs,
                             serverCertNames: certNames,
+                            certsLoaded: true,
+                            certsLoading: false,
                         }), this.loadCACerts
                     );
                 })
@@ -361,6 +431,9 @@ export class Security extends React.Component {
     }
 
     loadCSRs () {
+        this.setState({
+            csrsLoading: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "csr", "list",
@@ -373,6 +446,8 @@ export class Security extends React.Component {
                     this.setState(() => (
                         {
                             serverCSRs: csrs,
+                            csrsLoaded: true,
+                            csrsLoading: false,
                         }), this.loadOrphanKeys
                     );
                 })
@@ -390,6 +465,9 @@ export class Security extends React.Component {
     }
 
     loadOrphanKeys () {
+        this.setState({
+            orphanKeysLoading: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "key", "list", "--orphan"
@@ -399,10 +477,14 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const keys = JSON.parse(content);
-                    this.setState({
-                        serverOrphanKeys: keys,
-                        loaded: true
-                    }, this.props.enableTree());
+                    this.setState(() => (
+                        {
+                            serverOrphanKeys: keys,
+                            loaded: true,
+                            orphanKeysLoaded: true,
+                            orphanKeysLoading: false,
+                        }), this.props.enableTree()
+                    );
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -434,6 +516,8 @@ export class Security extends React.Component {
                         {
                             nssslpersonalityssl: nickname,
                             _nssslpersonalityssl: nickname,
+                            configLoaded: true,
+                            configLoading: false,
                         }
                     ), this.loadSupportedCiphers);
                 })
@@ -451,6 +535,9 @@ export class Security extends React.Component {
     }
 
     loadSecurityConfig(saving) {
+        this.setState({
+            configLoading: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "get"
@@ -1237,13 +1324,79 @@ export class Security extends React.Component {
             );
         } else {
             securityPage = (
-                <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
+                <div className="ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            {_("Loading Security Information ...")}
+                            {_("Loading Security Information")}
+                            <Spinner isInline className="ds-left-margin" size="lg" />
                         </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top-lg" size="lg" />
+                    <ProgressStepper
+                        className="ds-margin-top-lg"
+                        aria-label="Progress stepper for all the various security related info"
+                        isCenterAligned
+                    >
+                        <ProgressStep
+                            isCurrent={this.state.configLoading}
+                            variant={this.state.configLoaded ? "success" : "pending"}
+                            id="configLoading"
+                            titleId="load all the core security information"
+                            aria-label="Loading the core security information step"
+                            icon={this.state.configLoading ? <InProgressIcon /> : <CheckCircleIcon />}
+                        >
+                            {!this.state.configLoaded ? _("Loading Configuration") : _("Configuration Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.ciphersLoading}
+                            variant={this.state.ciphersLoaded ? "success" : "pending"}
+                            icon={!this.state.ciphersLoaded ? this.state.ciphersLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="cipherLoading"
+                            titleId="load all the cipher information"
+                            aria-label="Loading the cipher information step"
+                        >
+                            {!this.state.ciphersLoaded ? _("Loading Ciphers") : _("Ciphers Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.certsLoading}
+                            variant={this.state.certsLoaded ? "success" : "pending"}
+                            icon={!this.state.certsLoaded ? this.state.certsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="loadCerts"
+                            titleId="load all the certificate information"
+                            aria-label="Loading the certificate information step"
+                        >
+                            {!this.state.certsLoaded ? _("Loading Certificates") : _("Certificates Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.caCertsLoading}
+                            variant={this.state.caCertsLoaded ? "success" : "pending"}
+                            icon={!this.state.caCertsLoaded ? this.state.caCertsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="caCertsLoading"
+                            titleId="load all the CA certificate information"
+                            aria-label="Loading the CA certificate information step"
+                        >
+                            {!this.state.caCertsLoaded ? _("Loading CA Certificates") : _("CA Certificates Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.csrsLoading}
+                            variant={this.state.csrsLoaded ? "success" : "pending"}
+                            icon={!this.state.csrsLoaded ? this.state.csrsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="csrLoading"
+                            titleId="load all the CSR information"
+                            aria-label="Loading the CSR information step"
+                        >
+                            {!this.state.csrsLoaded ? _("Loading CSRs") : _("CSRs Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.orphanKeysLoading}
+                            variant={this.state.orphanKeysLoaded ? "success" : "pending"}
+                            icon={!this.state.orphanKeysLoaded ? this.state.orphanKeysLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="orphanKeysLoading"
+                            titleId="load all the orphan key information"
+                            aria-label="Loading the orphan key information step"
+                        >
+                            {!this.state.orphanKeysLoaded ? _("Loading Orphan Keys") : _("Orphan Keys Loaded")}
+                        </ProgressStep>
+                    </ProgressStepper>
                 </div>
             );
         }
