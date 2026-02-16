@@ -1757,8 +1757,6 @@ export class EnableReplModal extends React.Component {
                                     handleChange(syntheticEvent);
                                 }}
                                 options={[_("Supplier"), _("Hub"), _("Consumer")]}
-                                isOpen={false}
-                                onToggle={() => {}}
                                 placeholder={_("Select role...")}
                                 ariaLabel="Replication role selection"
                                 isMulti={false}
