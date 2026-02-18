@@ -34,6 +34,8 @@ def testuser(topology_st_gssapi):
     })
     # Give them a krb princ
     user.create_keytab()
+    # Make krb5 config readable by everyone for the tests to work
+    os.chmod(user._instance.realm.krb5confrealm, 0o644)
     return user
 
 @gssapi_ack
