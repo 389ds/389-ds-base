@@ -178,7 +178,8 @@ def test_missing_parentid(topology_st, log_buffering_enabled):
 
 
 def test_missing_matching_rule(topology_st, log_buffering_enabled):
-    """Check if healthcheck returns DSBLE0007 code when parentId index is missing integerOrderingMatch
+    """Check that healthcheck does NOT report DSBLE0007 when parentId index is missing integerOrderingMatch.
+    Both lexicographic and integer orderings are valid for parentid.
 
     :id: 7ffa71db-8995-430a-bed8-59bce944221c
     :setup: Standalone instance
@@ -188,19 +189,14 @@ def test_missing_matching_rule(topology_st, log_buffering_enabled):
         3. Use healthcheck without --json option
         4. Use healthcheck with --json option
         5. Re-add the matching rule
-        6. Use healthcheck without --json option
-        7. Use healthcheck with --json option
     :expectedresults:
         1. Success
         2. Success
-        3. healthcheck reports DSBLE0007 code and related details
-        4. healthcheck reports DSBLE0007 code and related details
+        3. healthcheck reports no issues found
+        4. healthcheck reports no issues found
         5. Success
-        6. healthcheck reports no issues found
-        7. healthcheck reports no issues found
     """
 
-    RET_CODE = "DSBLE0007"
     PARENTID_DN = "cn=parentid,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
 
     standalone = topology_st.standalone
@@ -209,15 +205,12 @@ def test_missing_matching_rule(topology_st, log_buffering_enabled):
     parentid_index = Index(standalone, PARENTID_DN)
     parentid_index.remove("nsMatchingRule", "integerOrderingMatch")
 
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
     log.info("Re-add the integerOrderingMatch matching rule")
     parentid_index = Index(standalone, PARENTID_DN)
     parentid_index.add("nsMatchingRule", "integerOrderingMatch")
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
 def test_usn_plugin_missing_entryusn(topology_st, usn_plugin_enabled, log_buffering_enabled):
@@ -907,7 +900,9 @@ def test_index_check_fixes_ancestorid_config(topology_st):
 
 
 def test_index_check_fixes_missing_matching_rule(topology_st):
-    """Check if dsctl index-check --fix adds missing integerOrderingMatch
+    """Check that removing integerOrderingMatch from parentid config is not
+    flagged as an issue when disk ordering cannot be determined.
+    Both lexicographic and integer orderings are valid for parentid.
 
     :id: 6c1d4e9f-0a3b-4d5c-1e7f-8a9b0c2d3e4f
     :setup: Standalone instance
@@ -915,18 +910,14 @@ def test_index_check_fixes_missing_matching_rule(topology_st):
         1. Create DS instance
         2. Stop the server
         3. Remove integerOrderingMatch from parentid index using DSEldif
-        4. Run dsctl index-check (should detect issue)
-        5. Run dsctl index-check --fix
-        6. Verify integerOrderingMatch was added back
-        7. Start the server
+        4. Run dsctl index-check (should NOT detect issue since disk ordering is unknown)
+        5. Start the server
     :expectedresults:
         1. Success
         2. Success
         3. Success
-        4. index-check returns False and detects missing matching rule
-        5. index-check returns True after fix
-        6. integerOrderingMatch is present
-        7. Success
+        4. index-check returns True (no issues, disk ordering unknown)
+        5. Success
     """
     from lib389.cli_ctl.dbtasks import dbtasks_index_check
     from lib389.dseldif import DSEldif
@@ -960,34 +951,20 @@ def test_index_check_fixes_missing_matching_rule(topology_st):
                 f"integerOrderingMatch should be removed, but found: {mr}"
     log.info("integerOrderingMatch removed from parentid index")
 
-    log.info("Run index-check without --fix (should detect issue)")
+    log.info("Run index-check (should NOT detect issue - disk ordering unknown)")
     args = FakeArgs()
     args.backend = "userRoot"
     args.fix = False
 
     result = dbtasks_index_check(standalone, topology_st.logcap.log, args)
-    assert result is False, "index-check should detect missing matching rule"
-    assert topology_st.logcap.contains("missing integerOrderingMatch")
+    assert result is True, \
+        "index-check should not flag missing integerOrderingMatch when disk ordering is unknown"
+    assert topology_st.logcap.contains("could not determine disk ordering")
     topology_st.logcap.flush()
 
-    log.info("Run index-check with --fix")
-    args.fix = True
-    result = dbtasks_index_check(standalone, topology_st.logcap.log, args)
-    assert result is True, "index-check --fix should succeed"
-    assert topology_st.logcap.contains("integerOrderingMatch")
-    topology_st.logcap.flush()
-
-    log.info("Verify integerOrderingMatch was added back")
-    dse_ldif = DSEldif(standalone)  # Reload to get fresh data
-    matching_rules = dse_ldif.get(parentid_dn, "nsMatchingRule")
-    assert matching_rules is not None, "nsMatchingRule should be present"
-    found_int_order = False
-    for mr in matching_rules:
-        if "integerorderingmatch" in mr.lower():
-            found_int_order = True
-            break
-    assert found_int_order, f"integerOrderingMatch should be present, got: {matching_rules}"
-    log.info("integerOrderingMatch successfully added back")
+    log.info("Restore integerOrderingMatch and start the server")
+    dse_ldif = DSEldif(standalone)
+    dse_ldif.add(parentid_dn, "nsMatchingRule", "integerOrderingMatch")
 
     log.info("Start the server")
     standalone.start()
@@ -1077,7 +1054,7 @@ def test_index_check_fixes_multiple_issues(topology_st):
     :steps:
         1. Create DS instance
         2. Stop the server
-        3. Add multiple issues: scanlimit, ancestorid config, missing matching rule
+        3. Add multiple issues: scanlimit and ancestorid config
         4. Run dsctl index-check (should detect all issues)
         5. Run dsctl index-check --fix
         6. Verify all issues were fixed
@@ -1119,14 +1096,6 @@ def test_index_check_fixes_multiple_issues(topology_st):
     ]
     dse_ldif.add_entry(ancestorid_entry)
 
-    log.info("Add issue 3: Remove integerOrderingMatch from parentid")
-    dse_ldif = DSEldif(standalone)  # Reload
-    matching_rules = dse_ldif.get(parentid_dn, "nsMatchingRule")
-    if matching_rules:
-        for mr in matching_rules:
-            if "integerorderingmatch" in mr.lower():
-                dse_ldif.delete(parentid_dn, "nsMatchingRule", mr)
-
     log.info("Run index-check without --fix (should detect all issues)")
     args = FakeArgs()
     args.backend = "userRoot"
@@ -1156,16 +1125,6 @@ def test_index_check_fixes_multiple_issues(topology_st):
     # Check ancestorid config removed
     cn_value = dse_ldif.get(ancestorid_dn, "cn", single=True)
     assert cn_value is None, f"ancestorid config should be removed, got: {cn_value}"
-
-    # Check matching rule added back
-    matching_rules = dse_ldif.get(parentid_dn, "nsMatchingRule")
-    found_int_order = False
-    if matching_rules:
-        for mr in matching_rules:
-            if "integerorderingmatch" in mr.lower():
-                found_int_order = True
-                break
-    assert found_int_order, f"integerOrderingMatch should be present, got: {matching_rules}"
 
     log.info("All issues verified as fixed")
 
