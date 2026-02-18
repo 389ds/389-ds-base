@@ -696,6 +696,44 @@ slapi_is_duration_valid(const char *value)
     } else {
         rc = 0;
     }
+
+bail:
+    return rc;
+}
+
+/*
+ * The duration MUST contain a "unit" as the last character,
+ * and the first digit can not be a zero
+ */
+int
+slapi_is_duration_valid_strict(const char *value)
+{
+    int rc = 1; /* valid */
+    const char *p = value;
+    const char *last = NULL;
+
+    if (!(p && *p && isdigit(*p)) || *p == '0') {
+        rc = 0;
+        goto bail;
+    }
+
+    while (*p) {
+        last = p;
+        p++;
+    }
+
+    if (last == value || !is_valid_duration_unit(*last)) {
+        rc = 0;
+        goto bail;
+    }
+
+    for (p = value; p < last; p++) {
+        if (!isdigit(*p)) {
+            rc = 0;
+            goto bail;
+        }
+    }
+
 bail:
     return rc;
 }

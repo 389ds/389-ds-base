@@ -176,7 +176,7 @@ changelog5_config_add(Slapi_PBlock *pb __attribute__((unused)),
     slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
                   "changelog5_config_add - Separate changelog no longer supported; "
                   "use cn=changelog,<backend> instead\n");
- 
+
     if (returntext) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Changelog configuration is part of the backend configuration");
     }
@@ -198,7 +198,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
     slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
                   "changelog5_config_modify - Separate changelog no longer supported; "
                   "request ignored\n");
- 
+
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
 }
@@ -217,7 +217,7 @@ changelog5_config_delete(Slapi_PBlock *pb __attribute__((unused)),
     slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
                   "changelog5_config_delete - Separate changelog no longer supported; "
                   "request ignored\n");
- 
+
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
 }
@@ -280,15 +280,17 @@ cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
                         config.maxEntries = 0;
                     }
                 } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE) == 0) {
-                    if (slapi_is_duration_valid(config_attr_value)) {
+                    if (config_attr_value &&
+                        (strcmp(config_attr_value, CL5_STR_IGNORE) == 0 ||
+                         slapi_is_duration_valid_strict(config_attr_value)))
+                    {
                         slapi_ch_free_string(&config.maxAge);
                         config.maxAge = slapi_ch_strdup(config_attr_value);
                     } else {
                         if (returntext) {
                             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
+                                        "%s: invalid value \"%s\", %s must be \"-1\" or a range from 1 to %lld and end with a duration unit[sSmMhHdDwW]",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
-                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
                                         (long long int)LONG_MAX);
                         }
                         *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -428,15 +430,22 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
     }
 
     max_age = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
-    if (max_age) {
-        if (slapi_is_duration_valid(max_age)) {
+    if (max_age && strcmp(max_age, CL5_STR_IGNORE) != 0) {
+        if (slapi_is_duration_valid_strict(max_age)) {
             config->maxAge = max_age;
         } else {
-            slapi_ch_free_string(&max_age);
-            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
-                          "changelog5_extract_config - %s: invalid value \"%s\", ignoring the change.\n",
-                          CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, max_age);
-            config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
+            if (slapi_is_duration_valid(max_age)) {
+                slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+                    "changelog5_extract_config - %s: missing duration unit - assuming seconds (%ss)\n",
+                    CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, max_age);
+                config->maxAge = max_age;
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                    "changelog5_extract_config - %s: invalid value \"%s\", trimming will not be done based on age.\n",
+                    CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, max_age);
+                config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
+                slapi_ch_free_string(&max_age);
+            }
         }
     } else {
         config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);

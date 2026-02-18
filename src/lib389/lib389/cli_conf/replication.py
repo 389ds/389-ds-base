@@ -17,7 +17,9 @@ from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
 from lib389.cli_base import _get_arg, CustomHelpFormatter
-from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog, get_passwd_from_file
+from lib389.utils import (
+    is_a_dn, copy_with_permissions, ds_supports_new_changelog,
+    get_passwd_from_file, validate_max_age)
 from lib389.repltools import ReplicationLogAnalyzer
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
@@ -717,6 +719,9 @@ def set_per_backend_cl(inst, basedn, log, args):
         del args.disable_encrypt
         did_something = True
         log.info("You must restart the server for this to take effect")
+
+    if args.max_age:
+        validate_max_age(args.max_age, ignore_value="-1")
 
     for attr, value in attrs.items():
         if value == "":
@@ -1525,7 +1530,9 @@ def create_parser(subparsers):
     repl_set_per_backend_cl.set_defaults(func=set_per_backend_cl)
     repl_set_per_backend_cl.add_argument('--suffix', required=True, help='Sets the suffix that uses the changelog')
     repl_set_per_backend_cl.add_argument('--max-entries', help="Sets the maximum number of entries to get in the replication changelog")
-    repl_set_per_backend_cl.add_argument('--max-age', help="Set the maximum age of a replication changelog entry")
+    repl_set_per_backend_cl.add_argument('--max-age',
+                                         help='Specifies the maximum age of any entry in the changelog. '
+                                              'The value must be a number followed by a duration unit [sSmMhHdDwW].')
     repl_set_per_backend_cl.add_argument('--trim-interval', help="Sets the interval to check if the replication changelog can be trimmed")
     repl_set_per_backend_cl.add_argument('--encrypt', action='store_true',
                                          help="Sets the replication changelog to use encryption. You must export and "

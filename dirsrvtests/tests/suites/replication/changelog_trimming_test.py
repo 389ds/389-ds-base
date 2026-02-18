@@ -77,11 +77,11 @@ def setup_max_age(topo, request):
     supplier.config.loglevel((ErrorLog.REPLICA,), 'error')
 
     if ds_supports_new_changelog():
-        set_value(supplier, MAXAGE, '5')
+        set_value(supplier, MAXAGE, '5s')
         set_value(supplier, TRIMINTERVAL, '300')
     else:
         cl = Changelog5(supplier)
-        cl.set_max_age('5')
+        cl.set_max_age('5s')
         cl.set_trim_interval('300')
 
 def test_max_age(topo, setup_max_age):
@@ -253,11 +253,11 @@ def test_cl_trim_ignore_empty_ruv_element(topology_m1c1):
     # - Step 8 - set Triming interval to 2sec to have frequent trimming
     # and max-age to 8sec to not wait too long
     if ds_supports_new_changelog():
-        set_value(s1, MAXAGE, '8')
+        set_value(s1, MAXAGE, '8s')
         set_value(s1, TRIMINTERVAL, '2')
     else:
         cl = Changelog5(s1)
-        cl.set_max_age('8')
+        cl.set_max_age('8s')
         cl.set_trim_interval('2')
 
     # - Step 9 - Wait for the trimming to occur
