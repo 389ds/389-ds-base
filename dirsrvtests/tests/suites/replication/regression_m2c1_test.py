@@ -22,7 +22,7 @@ pytestmark = pytest.mark.tier1
 
 CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
 MAXAGE_ATTR = 'nsslapd-changelogmaxage'
-MAXAGE_VALUE = '5'
+MAXAGE_VALUE = '5s'
 TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
 TRIMINTERVAL_VALUE = '15'
 MAX_USERS = 10
@@ -94,7 +94,7 @@ def test_changelog_trimming(topo_m2c1):
     log.info("Create updates on S1 and S2")
     users_s1 = UserAccounts(S1, DEFAULT_SUFFIX)
     users_s2 = UserAccounts(S2, DEFAULT_SUFFIX)
-    
+
     for idx in range(1, MAX_USERS):
         user_properties = TEST_USER_PROPERTIES.copy()
         user_properties.update({'uid': f'user_{idx}'})
@@ -107,7 +107,7 @@ def test_changelog_trimming(topo_m2c1):
         user.replace('description', 'value from S2')
 
     log.info("Wait for maxage")
-    time.sleep(int(MAXAGE_VALUE))
+    time.sleep(int(MAXAGE_VALUE[:-1]))
 
     log.info("Pause replica agreement S1->S2")
     agreement_s1_s2 = S1.agreement.list(suffix=DEFAULT_SUFFIX, consumer_host=S2.host, consumer_port=S2.port)[0]
