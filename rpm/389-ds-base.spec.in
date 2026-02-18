@@ -731,9 +731,6 @@ for dir in "$instbase"/slapd-* ; do
     else
        echo "instance $inst is not running" >> "$output" 2>&1 || :
     fi
-    # Run index-check on all instances (running or not)
-    # This fixes index ordering mismatches from older versions
-    dsctl "$inst_name" index-check --fix >> "$output2" 2>&1 || :
     ninst=$((ninst + 1))
 done
 
