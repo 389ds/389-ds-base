@@ -100,7 +100,7 @@ def set_changelog_trimming(instance):
         cl = Changelog(instance, DEFAULT_SUFFIX)
     else:
         cl = Changelog5(instance)
-    cl.replace('nsslapd-changelogmaxage', '30')
+    cl.replace('nsslapd-changelogmaxage', '30d')
 
 
 def test_healthcheck_disabled_suffix(topology_st):

@@ -720,7 +720,18 @@ export class Replication extends React.Component {
                                         clMaxEntries = val;
                                     }
                                     if (attr === "nsslapd-changelogmaxage") {
-                                        clMaxAge = val;
+                                        // Add duration value if missing
+                                        if (val !== "-1") {
+                                            const unit = val[val.length - 1];
+                                            if (unit >= '0' && unit <= '9') {
+                                                // Missing duration unit, assume seconds
+                                                clMaxAge = val + "s";
+                                            } else {
+                                                clMaxAge = val;
+                                            }
+                                        } else {
+                                            clMaxAge = val;
+                                        }
                                     }
                                     if (attr === "nsslapd-changelogtrim-interval") {
                                         clTrimInt = val;

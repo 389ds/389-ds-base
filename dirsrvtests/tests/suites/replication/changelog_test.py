@@ -570,8 +570,10 @@ def test_changelog_maxage(topo, changelog_init):
             '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
-        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '12345','10s','30M','12h','2D','4w'
-        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '-123','xyz'
+        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values:
+           '100s','100S','30m','30M','12h','12H','2d','2D','4w','4W'
+        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values:
+           '12345', 'd', '-123', '-123d', '345345xyz', '0d', 'xyz'
 
     :expectedresults:
         1. Operation should be successful
@@ -583,13 +585,22 @@ def test_changelog_maxage(topo, changelog_init):
     topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
     topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, CHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '100s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '100S', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '30m', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '30M', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12H', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '2d', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '2D', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '4W', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12345', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, 'd', False)
     add_and_check(topo, CHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '-123d', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '345345xyz', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '0d', False)
     add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
 
 
@@ -668,9 +679,9 @@ def test_retrochangelog_maxage(topo, changelog_init):
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
-           '12345','10s','30M','12h','2D','4w'
+           '100s','100S','30m','30M','12h','12H','2d','2D','4w','4W'
         2. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
-           '-123','xyz'
+           '12345', 'd', '-123', '-123d', '345345xyz', '0d', 'xyz'
 
     :expectedresults:
         1. Operation should be successful
@@ -682,13 +693,22 @@ def test_retrochangelog_maxage(topo, changelog_init):
     topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
     topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '100s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '100S', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '30m', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '30M', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12H', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '2d', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '2D', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '4W', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, 'd', False)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123d', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '345345xyz', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '0d', False)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, 'xyz', False)
 
     topo.ms["supplier1"].log.info("ticket47669 was successfully verified.")

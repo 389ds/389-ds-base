@@ -31,14 +31,14 @@ export class Changelog extends React.Component {
             saveBtnDisabled: true,
             // Changelog settings
             clMaxEntries: Number(this.props.clMaxEntries) === 0 ? -1 : Number(this.props.clMaxEntries),
-            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
-            clMaxAgeUnit: this.props.clMaxAge !== "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 || this.props.clMaxAge === "-1" ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            clMaxAgeUnit: this.props.clMaxAge !== "" && this.props.clMaxAge !== "-1" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
             clTrimInt: Number(this.props.clTrimInt) === 0 ? -1 : Number(this.props.clTrimInt),
             clEncrypt: this.props.clEncrypt,
             // Preserve original settings
             _clMaxEntries: Number(this.props.clMaxEntries) === 0 ? -1 : Number(this.props.clMaxEntries),
-            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
-            _clMaxAgeUnit: this.props.clMaxAge !== "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 || this.props.clMaxAge === "-1" ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            _clMaxAgeUnit: this.props.clMaxAge !== "" && this.props.clMaxAge !== "-1" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
             _clTrimInt: Number(this.props.clTrimInt) === 0 ? -1 : Number(this.props.clTrimInt),
             _clEncrypt: this.props.clEncrypt,
         };
@@ -47,22 +47,46 @@ export class Changelog extends React.Component {
         this.maxValue = 20000000;
 
         this.onMinus = (id) => {
-            this.setState({
-                [id]: Number(this.state[id]) - 1
-            }, () => { this.validateSaveBtn() });
+            if (id === "clMaxAge" && this.state.clMaxAge === 1) {
+                // Skip zero and go right to the miniumum
+                this.setState({
+                    [id]: this.minValue,
+                }, () => { this.validateSaveBtn() });
+            } else {
+                if (this.state[id] === this.minValue) {
+                    return;
+                }
+                this.setState({
+                    [id]: Number(this.state[id]) - 1
+                }, () => { this.validateSaveBtn() });
+            }
         };
 
         this.onChange = (event, id) => {
-            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            if (id === "clMaxAge" && event.target.value === "0") {
+                // We do not allow zero for the max age
+                return;
+            }
+            const newValue = isNaN(event.target.value) || event.target.value === "" ? -1 : Number(event.target.value);
             this.setState({
                 [id]: newValue > this.maxValue ? this.maxValue : newValue < this.minValue ? this.minValue : newValue
             }, () => { this.validateSaveBtn() });
         };
 
         this.onPlus = (id) => {
-            this.setState({
-                [id]: Number(this.state[id]) + 1
-            }, () => { this.validateSaveBtn() });
+            if (id === "clMaxAge" && this.state.clMaxAge === -1) {
+                // Skip zero and go right to 1
+                this.setState({
+                    [id]: 1
+                }, () => { this.validateSaveBtn() });
+            } else {
+                if (this.state[id] === this.maxValue) {
+                    return;
+                }
+                this.setState({
+                    [id]: Number(this.state[id]) + 1
+                }, () => { this.validateSaveBtn() });
+            }
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -81,7 +105,12 @@ export class Changelog extends React.Component {
             cmd.push("--max-entries=" + this.state.clMaxEntries);
         }
         if (this.state.clMaxAge !== this.state._clMaxAge || this.state.clMaxAgeUnit !== this.state._clMaxAgeUnit) {
-            cmd.push("--max-age=" + this.state.clMaxAge + this.state.clMaxAgeUnit);
+            if (this.state.clMaxAge === -1) {
+                // For -1 we do not include the unit
+                cmd.push("--max-age=" + this.state.clMaxAge);
+            } else {
+                cmd.push("--max-age=" + this.state.clMaxAge + this.state.clMaxAgeUnit);
+            }
         }
         if (this.state.clTrimInt !== this.state._clTrimInt) {
             cmd.push("--trim-interval=" + this.state.clTrimInt);
@@ -179,8 +208,13 @@ export class Changelog extends React.Component {
                         if (attr === "nsslapd-changelogmaxentries") {
                             clMaxEntries = val;
                         } else if (attr === "nsslapd-changelogmaxage") {
-                            clMaxAge = val.slice(0, -1);
-                            clMaxAgeUnit = val.slice(-1).toLowerCase();
+                            if (val !== "-1") {
+                                clMaxAge = val.slice(0, -1);
+                                clMaxAgeUnit = val.slice(-1).toLowerCase();
+                            } else {
+                                clMaxAge = val;
+                                clMaxAgeUnit = "s";
+                            }
                         } else if (attr === "nsslapd-changelogtrim-interval") {
                             clTrimInt = val;
                         } else if (attr === "nsslapd-encryptionalgorithm") {
