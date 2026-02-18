@@ -617,9 +617,10 @@ class Backend(DSLdapObject):
         # Default system indexes taken from ldap/servers/slapd/back-ldbm/instance.c
         # Note: entryrdn and ancestorid are internal system indexes that are not
         # exposed in cn=config - they are managed internally by the server.
-        # Only parentid has a DSE config entry (for the integerOrderingMatch rule).
+        # parentid works correctly with both lexicographic and integer ordering,
+        # so integerOrderingMatch is not required.
         expected_system_indexes = {
-            'parentid': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'},
+            'parentid': {'types': ['eq'], 'matching_rule': None},
             'objectClass': {'types': ['eq'], 'matching_rule': None},
             'aci': {'types': ['pres'], 'matching_rule': None},
             'nscpEntryDN': {'types': ['eq'], 'matching_rule': None},
