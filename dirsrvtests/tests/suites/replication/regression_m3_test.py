@@ -28,7 +28,7 @@ NEW_SUFFIX = 'o={}'.format(NEW_SUFFIX_NAME)
 NEW_BACKEND = 'repl_base'
 CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
 MAXAGE_ATTR = 'nsslapd-changelogmaxage'
-MAXAGE_STR = '30'
+MAXAGE_STR = '30s'
 TRIMINTERVAL_STR = '5'
 TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
 
