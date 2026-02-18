@@ -2063,3 +2063,14 @@ def get_timeout_scale():
         log.error(f"DS_TIMEOUT_SCALE should be a valid float. Using default value: {scale_factor}")
         return scale_factor
 
+
+# Validate the max-age settings for changelogs.
+# The value must be a number followed by a duration unit [sSmMhHdDwW].
+# The first digit can not be a zero.
+def validate_max_age(value, ignore_value=None):
+    if ignore_value is not None and value == ignore_value:
+        return
+
+    # check value using digits except for the last character which must be a duration unit
+    if not re.match(r'^\d+[sSmMhHdDwW]$', value) or value[0] == '0':
+        raise ValueError(f"Invalid max age value: {value}")
