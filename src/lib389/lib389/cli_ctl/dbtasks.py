@@ -10,6 +10,7 @@
 import glob
 import os
 import re
+import signal
 import subprocess
 from enum import Enum
 from lib389._constants import TaskWarning
@@ -271,27 +272,39 @@ def _check_disk_ordering(db_dir, backend, index_name, dbscan_path, is_mdb, log):
         if not index_file:
             return IndexOrdering.UNKNOWN
 
+    # Only read the first 100 lines from dbscan to avoid scanning the
+    # entire index (which can take hours on large databases).
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             [dbscan_path, "-f", index_file],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
-            timeout=60,
         )
 
-        if result.returncode != 0:
-            log.warning("  dbscan returned non-zero exit code for %s", index_file)
-            return IndexOrdering.UNKNOWN
-
-        # Parse keys from dbscan output
         keys = []
-        for line in result.stdout.split("\n"):
+        line_count = 0
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            line_count += 1
+            if line_count > 100:
+                break
             line = line.strip()
             if line.startswith("="):
                 match = re.match(r"^=(\d+)", line)
                 if match:
                     keys.append(int(match.group(1)))
+
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+
+        if proc.returncode not in (0, -signal.SIGTERM):
+            log.warning("  dbscan returned non-zero exit code for %s", index_file)
+            return IndexOrdering.UNKNOWN
 
         if len(keys) < 2:
             return IndexOrdering.UNKNOWN
@@ -299,17 +312,13 @@ def _check_disk_ordering(db_dir, backend, index_name, dbscan_path, is_mdb, log):
         # Check if keys are in integer order by looking for decreasing numeric values
         # (which would indicate lexicographic ordering, e.g., "3" < "30" < "4")
         prev_id = keys[0]
-        for i in range(1, min(len(keys), 100)):
-            current_id = keys[i]
+        for current_id in keys[1:]:
             if prev_id > current_id:
                 return IndexOrdering.LEXICOGRAPHIC
             prev_id = current_id
 
         return IndexOrdering.INTEGER
 
-    except subprocess.TimeoutExpired:
-        log.warning("  dbscan timed out for %s", index_file)
-        return IndexOrdering.UNKNOWN
     except OSError as e:
         log.warning("  Error running dbscan: %s", e)
         return IndexOrdering.UNKNOWN
@@ -383,8 +392,7 @@ def dbtasks_index_check(inst, log, args):
 
     # Track all issues found
     all_ok = True
-    mismatches = []  # (backend, index_name) tuples needing reindex
-    missing_matching_rules = []  # (backend, index_name) tuples missing integerOrderingMatch
+    config_fixes = []  # (backend, index_name, action) tuples: action is "add_mr" or "remove_mr"
     scan_limits_to_remove = []  # (backend, index_name) tuples with nsIndexIDListScanLimit
     ancestorid_configs_to_remove = []  # backend names with ancestorid config entries
     remove_ancestorid_from_defaults = False  # Flag to remove from cn=default indexes
@@ -417,13 +425,6 @@ def dbtasks_index_check(inst, log, args):
 
             if disk_ordering == IndexOrdering.UNKNOWN:
                 log.info("  %s - could not determine disk ordering, skipping", index_name)
-                # For parentid, still check if matching rule is missing
-                if index_name == "parentid":
-                    config_has_int_order = _has_integer_ordering_match(dse_ldif, backend, index_name)
-                    if not config_has_int_order:
-                        log.warning("  %s - missing integerOrderingMatch in config", index_name)
-                        missing_matching_rules.append((backend, index_name))
-                        all_ok = False
                 continue
 
             config_has_int_order = _has_integer_ordering_match(dse_ldif, backend, index_name)
@@ -431,18 +432,15 @@ def dbtasks_index_check(inst, log, args):
             log.info("  %s - config: %s, disk: %s",
                      index_name, config_desc, disk_ordering.value)
 
-            # For parentid, the desired state is always integer ordering
+            # Both orderings are valid for parentid, but config must match disk.
             if index_name == "parentid":
-                if not config_has_int_order:
-                    log.warning("  %s - missing integerOrderingMatch in config", index_name)
-                    if (backend, index_name) not in missing_matching_rules:
-                        missing_matching_rules.append((backend, index_name))
+                if config_has_int_order and disk_ordering == IndexOrdering.LEXICOGRAPHIC:
+                    log.warning("  %s - MISMATCH: config has integerOrderingMatch but disk is lexicographic", index_name)
+                    config_fixes.append((backend, index_name, "remove_mr"))
                     all_ok = False
-
-                if disk_ordering == IndexOrdering.LEXICOGRAPHIC:
-                    log.warning("  %s - disk ordering is lexicographic, needs reindex", index_name)
-                    if (backend, index_name) not in mismatches:
-                        mismatches.append((backend, index_name))
+                elif not config_has_int_order and disk_ordering == IndexOrdering.INTEGER:
+                    log.warning("  %s - MISMATCH: config is lexicographic but disk has integer ordering", index_name)
+                    config_fixes.append((backend, index_name, "add_mr"))
                     all_ok = False
 
     # Handle issues
@@ -488,26 +486,27 @@ def dbtasks_index_check(inst, log, args):
                     log.error("  Failed to remove ancestorid config from backend %s: %s", backend, e)
                     return False
 
-            # Add missing matching rules to dse.ldif
-            for backend, index_name in missing_matching_rules:
+            # Fix config-vs-disk ordering mismatches by adjusting config to match disk
+            for backend, index_name, action in config_fixes:
                 index_dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
                     index_name, backend
                 )
-                log.info("  Adding integerOrderingMatch to %s in backend %s...", index_name, backend)
-                try:
-                    dse_ldif.add(index_dn, "nsMatchingRule", "integerOrderingMatch")
-                    log.info("  Updated dse.ldif with integerOrderingMatch for %s", index_name)
-                except Exception as e:
-                    log.error("  Failed to update dse.ldif for %s: %s", index_name, e)
-                    return False
-
-            # Reindex indexes with disk ordering issues
-            for backend, index_name in mismatches:
-                log.info("  Reindexing %s in backend %s...", index_name, backend)
-                if not inst.db2index(bename=backend, attrs=[index_name]):
-                    log.error("  Failed to reindex %s", index_name)
-                    return False
-                log.info("  Reindex of %s completed successfully", index_name)
+                if action == "add_mr":
+                    log.info("  Adding integerOrderingMatch to %s in backend %s...", index_name, backend)
+                    try:
+                        dse_ldif.add(index_dn, "nsMatchingRule", "integerOrderingMatch")
+                        log.info("  Updated dse.ldif with integerOrderingMatch for %s", index_name)
+                    except Exception as e:
+                        log.error("  Failed to update dse.ldif for %s: %s", index_name, e)
+                        return False
+                elif action == "remove_mr":
+                    log.info("  Removing integerOrderingMatch from %s in backend %s...", index_name, backend)
+                    try:
+                        dse_ldif.delete(index_dn, "nsMatchingRule", "integerOrderingMatch")
+                        log.info("  Removed integerOrderingMatch from %s", index_name)
+                    except Exception as e:
+                        log.error("  Failed to remove integerOrderingMatch from %s: %s", index_name, e)
+                        return False
 
             log.info("All issues fixed")
             return True
@@ -572,5 +571,5 @@ def create_parser(subcommands):
     index_check_parser.add_argument('backend', nargs='?', default=None,
         help="Backend to check. If not specified, all backends are checked.")
     index_check_parser.add_argument('--fix', action='store_true', default=False,
-        help="Fix mismatches by reindexing affected indexes")
+        help="Fix mismatches by adjusting config to match on-disk data")
     index_check_parser.set_defaults(func=dbtasks_index_check)
