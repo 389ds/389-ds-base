@@ -1461,6 +1461,7 @@ char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
 time_t slapi_parse_duration(const char *value);
 long long slapi_parse_duration_longlong(const char *value) __attribute__((deprecated));
 int slapi_is_duration_valid(const char *value);
+int slapi_is_duration_valid_strict(const char *value);
 
 /**
  * Possible results of a cachesize check

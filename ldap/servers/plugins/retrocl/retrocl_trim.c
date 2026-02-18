@@ -431,17 +431,26 @@ retrocl_init_trimming(void)
     int trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL;
 
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
-    if (cl_maxage) {
-        if (slapi_is_duration_valid(cl_maxage)) {
+    if (cl_maxage && strcmp(cl_maxage, "0") != 0) {
+        if (slapi_is_duration_valid_strict(cl_maxage)) {
             ageval = slapi_parse_duration(cl_maxage);
             slapi_ch_free_string((char **)&cl_maxage);
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                          "retrocl_init_trimming: ignoring invalid %s value %s; "
-                          "not trimming retro changelog.\n",
-                          CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
-            slapi_ch_free_string((char **)&cl_maxage);
-            return;
+            if (slapi_is_duration_valid(cl_maxage)) {
+                slapi_log_err(SLAPI_LOG_NOTICE, RETROCL_PLUGIN_NAME,
+                    "retrocl_init_trimming - %s: missing duration unit - assuming seconds (%ss)\n",
+                    CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
+                ageval = slapi_parse_duration(cl_maxage);
+                slapi_ch_free_string((char **)&cl_maxage);
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                    "retrocl_init_trimming: ignoring invalid %s value %s; "
+                    "not trimming retro changelog.\n",
+                    CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
+                slapi_ch_free_string((char **)&cl_maxage);
+                return;
+            }
+
         }
     }
 
