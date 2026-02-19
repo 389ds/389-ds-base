@@ -1084,7 +1084,7 @@ attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo 
     int ret = 0;
     struct berval *out_berval = NULL;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    size_t final_key_len = in->bv_len + strlen(prefix) + 2;
+    size_t final_key_len = INDEX_KEY_LENGHT(in->bv_len, strlen(prefix));
 
     /* If the index key is too long (i.e mdb case) we must hash it */
     if (final_key_len >=  li->li_max_key_len) {
@@ -1107,8 +1107,6 @@ attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo 
             /* Compute hash for the key without the prefix */
             PK11_DigestOp(c, (unsigned char *)in->bv_val, in->bv_len);
             PK11_DigestFinal(c, hash, &hashLen, sizeof hash);
-            /* Add HASH_PREFIX before the prefix */
-            /* slapi_ch_smprintf looks buggy "%c%s" does not produce expected result */
 
             /* Build the key: hash value in hexa */
             hkey = slapi_ch_malloc(1+2*sizeof hash);
