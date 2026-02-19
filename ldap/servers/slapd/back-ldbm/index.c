@@ -881,6 +881,67 @@ index_read(
     return index_read_ext(be, (char *)type, indextype, val, txn, err, NULL);
 }
 
+/* Prepare an index key (hashed if too long, encrypted if needed from attribute value */
+int
+prepare_key(backend *be, struct attrinfo *a, char **buf, size_t *buflen,
+            int flags, const char *prefix, const struct berval *bvp, dbi_val_t *key)
+{
+    /* Key format is [Hash?] [prefix] [val] [\0] */
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    size_t plen = strlen(prefix);
+    struct berval *hashed_bvp = NULL;
+    struct berval *encrypted_bvp = NULL;
+    int rc = 0;
+
+    /* Hash large index key if necessary */
+    if (bvp->bv_len+plen+2 >=  li->li_max_key_len) {
+        rc = attrcrypt_hash_large_index_key(be, prefix, a, bvp, &hashed_bvp);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
+                          "Failed to hash large index key for %s\n", a->ai_type);
+            return rc;
+        } else {
+            bvp = hashed_bvp;
+        }
+    }
+
+    /* Encrypt the index key if necessary */
+    if (rc == 0 && a->ai_attrcrypt && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
+        rc = attrcrypt_encrypt_index_key(be, a, bvp, &encrypted_bvp);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "addordel_values_sv",
+                          "Failed to encrypt index key for %s\n", a->ai_type);
+        } else {
+            bvp = encrypted_bvp;
+        }
+    }
+    if (hashed_bvp) {
+        prefix = slapi_ch_smprintf("%c%s",HASH_PREFIX, prefix);
+        plen++;
+    }
+    if (buf && buflen) {
+        if (plen+bvp->bv_len+1 > *buflen) {
+            *buflen = plen+bvp->bv_len+1;
+            *buf = slapi_ch_realloc(*buf, *buflen);
+        }
+        dblayer_value_concat(be, key, *buf, *buflen, prefix, plen, bvp->bv_val, bvp->bv_len, "", 1);
+    } else {
+        dblayer_value_concat(be, key, NULL, 0, prefix, plen, bvp->bv_val, bvp->bv_len, "", 1);
+    }
+
+    if (hashed_bvp) {
+        ber_bvfree(hashed_bvp);
+        hashed_bvp = NULL;
+        slapi_ch_free_string((char**)&prefix);
+    }
+    if (encrypted_bvp) {
+        ber_bvfree(encrypted_bvp);
+        encrypted_bvp = NULL;
+    }
+    return rc;
+}
+
+
 /*
  * Extended version of index_read.
  * The unindexed flag can be used to distinguish between a
@@ -917,7 +978,6 @@ index_read_ext_allids(
     struct berval *hashed_val = NULL;
     int is_and = 0;
     unsigned int ai_flags = 0;
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
     *err = 0;
 
@@ -1028,36 +1088,7 @@ index_read_ext_allids(
     }
 
     if (val != NULL) {
-        size_t vlen;
-        int ret = 0;
-
-        /* If necessary, hash this index key */
-        if (val->bv_len >=  li->li_max_key_len) {
-            ret = attrcrypt_hash_large_index_key(be, &prefix, ai, val, &hashed_val);
-            if (ret) {
-                slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
-                              "Failed to hash large index key for %s\n", basetype);
-                *err = DBI_RC_OTHER;
-                index_free_prefix(prefix);
-                slapi_ch_free_string(&basetmp);
-                return (NULL);
-            }
-            if (hashed_val) {
-                val = hashed_val;
-            }
-        }
-        /* If necessary, encrypt this index key */
-        ret = attrcrypt_encrypt_index_key(be, ai, val, &encrypted_val);
-        if (ret) {
-            slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
-                          "Failed to encrypt index key for %s\n", basetype);
-        }
-        if (encrypted_val) {
-            val = encrypted_val;
-        }
-        vlen = val->bv_len;
-        dblayer_value_concat(be, &key, buf, sizeof(buf),
-            prefix, strlen(prefix), val->bv_val, vlen, "", 1);
+        (void) prepare_key(be, ai, NULL, 0, 0, prefix, val, &key);
     } else {
         dblayer_value_concat(be, &key, buf, sizeof(buf), prefix, strlen(prefix),
             "", 1, NULL, 0);
@@ -1824,6 +1855,7 @@ index_range_read(
     return index_range_read_ext(pb, be, type, indextype, operator, val, nextval, range, txn, err, 0);
 }
 
+
 static int
 addordel_values_sv(
     backend *be,
@@ -1842,15 +1874,10 @@ addordel_values_sv(
     int i = 0;
     dbi_val_t key = {0};
     dbi_txn_t *db_txn = NULL;
-    size_t plen, vlen, len;
     char *tmpbuf = NULL;
     size_t tmpbuflen = 0;
-    char *realbuf;
     char *prefix = NULL;
     const struct berval *bvp;
-    struct berval *hashed_bvp = NULL;
-    struct berval *encrypted_bvp = NULL;
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     char *index_id = get_index_name(be, db, a);
 
     slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values\n",
@@ -1889,65 +1916,13 @@ addordel_values_sv(
         return (rc);
     }
 
-    plen = strlen(prefix);
     for (i = 0; vals[i] != NULL; i++) {
         bvp = slapi_value_get_berval(vals[i]);
 
-        /* Hash large index key if necessary */
-        if (bvp->bv_len >=  li->li_max_key_len) {
-            rc = attrcrypt_hash_large_index_key(be, &prefix, a, bvp, &hashed_bvp);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
-                              "Failed to hash large index key for %s\n", a->ai_type);
-                break;
-            } else {
-                bvp = hashed_bvp;
-                plen = strlen(prefix);
-            }
+        rc = prepare_key(be, a, &tmpbuf, &tmpbuflen, flags, prefix, bvp, &key);
+        if (rc) {
+            break;
         }
-        /* Encrypt the index key if necessary */
-        {
-            if (a->ai_attrcrypt && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
-                rc = attrcrypt_encrypt_index_key(be, a, bvp, &encrypted_bvp);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "addordel_values_sv",
-                                  "Failed to encrypt index key for %s\n", a->ai_type);
-                } else {
-                    bvp = encrypted_bvp;
-                }
-            }
-        }
-
-        vlen = bvp->bv_len;
-        len = plen + vlen;
-
-        if (len < tmpbuflen) {
-            realbuf = tmpbuf;
-        } else {
-            tmpbuf = slapi_ch_realloc(tmpbuf, len + 1);
-            tmpbuflen = len + 1;
-            realbuf = tmpbuf;
-        }
-
-        assert(realbuf); /* For coverity */
-        memcpy(realbuf, prefix, plen);
-        memcpy(realbuf + plen, bvp->bv_val, vlen);
-        realbuf[len] = '\0';
-        /* Free the encrypted berval if necessary */
-        if (hashed_bvp) {
-            ber_bvfree(hashed_bvp);
-            hashed_bvp = NULL;
-        }
-        if (encrypted_bvp) {
-            ber_bvfree(encrypted_bvp);
-            encrypted_bvp = NULL;
-        }
-        /* should be okay to use USERMEM here because we know what
-         * the key is and it should never return a different value
-         * than the one we pass in.
-         */
-        dblayer_value_set_buffer(be, &key, realbuf, plen + vlen + 1);
-        key.ulen = tmpbuflen;
 
         if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
             char encbuf[BUFSIZ];
@@ -1980,10 +1955,6 @@ addordel_values_sv(
         if (rc != 0) {
             ldbm_nasty(NASTY_MSG("addordel_values_sv"), index_id, 1130, rc);
             break;
-        }
-        if (NULL != key.dptr && realbuf != key.dptr) { /* realloc'ed */
-            tmpbuf = key.dptr;
-            tmpbuflen = key.size;
         }
     }
     index_free_prefix(prefix);

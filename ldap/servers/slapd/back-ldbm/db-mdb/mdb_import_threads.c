@@ -4281,6 +4281,10 @@ dup_writer_queue_item(WriterQueueData_t *wqd)
 
 void dbmdb_import_writeq_push(ImportCtx_t *ctx, WriterQueueData_t *wqd)
 {
+    struct ldbminfo *li = (struct ldbminfo *)ctx->job->inst->inst_be->be_database->plg_private;
+    if (wqd->key.mv_size >= li->li_max_key_len) {
+        *(char*)1 = 1;
+    }
     dbmdb_import_q_push(&ctx->writerq, wqd);
 }
 
