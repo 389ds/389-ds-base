@@ -15,7 +15,7 @@ import pytest
 import time
 from lib389.backend import Backend
 from lib389.config import Config
-from lib389.cli_conf.pwpolicy import list_policies
+from lib389.cli_conf.pwpolicy import list_policies, create_subtree_policy, create_user_policy, del_local_policy
 from lib389.cli_base import FakeArgs
 from lib389.topologies import topology_st as topo
 from lib389.topologies import topology_m1
@@ -1598,6 +1598,122 @@ def test_pwpolicy_list(topo, request):
             backend_entry.delete()
         except Exception:
             pass
+
+    request.addfinalizer(fin)
+
+def test_duplicate_pwpolicy(topo, request):
+    """Verify that duplicate local password policies are not created
+    or listed for subtree and user password policies, and that updates
+    correctly modify existing policy entries.
+
+    :id: 42847a30-5d86-489c-af70-f6cc361a288b
+    :setup: Standalone
+    :steps:
+        1. Ensure OU exists
+        2. Create a subtree pwp on ou=people
+        3. Attempt to create the same subtree pwp again
+        4. Update the existing subtree pwp with new attributes
+        5. List all local pwps and verify no duplicates exist
+        6. Delete subtree pwp
+        7. Create a test user under ou=people
+        8. Create a user pwp for the test user
+        9. Attempt to create the same user pwp again
+        10. Update the existing user pwp with new attributes
+        11. List all local pwps and verify no duplicates exist
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Duplicate subtree pwp returns a no change message
+        4. Subtree pwp entry is updated
+        5. No duplicate pwp entries
+        6. Success
+        7. Success
+        8. Success
+        9. Duplicate user pwp returns a no change message
+        10. User pwp entry is updated
+        11. No duplicate pwp entries
+    """
+    inst = topo.standalone
+
+    def _cli_args(dn, **extraargs):
+        args = FakeArgs()
+        args.DN = dn
+        args.suffix = False
+        args.json = False
+        args.verbose = False
+        args.pwdchange = None
+        args.passwordlockout = None
+        for key, value in extraargs.items():
+            setattr(args, key, value)
+        return args
+
+    def _assert_no_duplicate_in_logs(logcap):
+        logged_output = []
+        for rec in logcap.outputs:
+            msg = rec.getMessage()
+            for line in msg.splitlines():
+                if line.strip():
+                    logged_output.append(line)
+        assert len(logged_output) == len(set(logged_output))
+
+    # Ensure OU exists
+    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    ous.ensure_state(properties={'ou': 'people'})
+    people = ous.get("People")
+    assert people.exists()
+
+    # Add subtree pwp
+    topo.logcap.flush()
+    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+    assert topo.logcap.contains("Successfully created new password policy")
+
+    # Try to add the same pwp again
+    topo.logcap.flush()
+    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+    assert topo.logcap.contains("Password policy is already up to date")
+
+    # Update an existing subtree pwp
+    topo.logcap.flush()
+    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn], pwdchange='on', passwordlockout='on'))
+    assert topo.logcap.contains("Password policy successfully updated")
+
+    # Verify there are no duplicates listed
+    topo.logcap.flush()
+    list_policies(inst, None, topo.logcap.log, _cli_args(None))
+    _assert_no_duplicate_in_logs(topo.logcap)
+
+    # Delete subtree pwp
+    topo.logcap.flush()
+    del_local_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+    assert topo.logcap.contains("Successfully deleted subtree policy")
+
+    # Create test user
+    test_user = create_user(inst, 'testuser', 'test user', 'User', 'Test', 'Secret', '1234', "ou=people")
+
+    # Add user pwp
+    topo.logcap.flush()
+    create_user_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn]))
+    assert topo.logcap.contains("Successfully created new password policy")
+
+    # Try add the same pwp again
+    topo.logcap.flush()
+    create_user_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn]))
+    assert topo.logcap.contains("Password policy is already up to date")
+
+    # Update an existing user pwp
+    topo.logcap.flush()
+    create_user_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn], pwdchange='on', passwordlockout='on'))
+    assert topo.logcap.contains("Password policy successfully updated")
+
+    # Verify there are no duplicates listed
+    topo.logcap.flush()
+    list_policies(inst, None, topo.logcap.log, _cli_args(None))
+    _assert_no_duplicate_in_logs(topo.logcap)
+
+    # Cleanup
+    def fin():
+            del_local_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn]))
+            test_user.delete()
 
     request.addfinalizer(fin)
 
