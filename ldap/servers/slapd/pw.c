@@ -3564,10 +3564,8 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
      * Does the entry have a pw?
      */
     if (e == NULL || slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &pw) != 0 || pw == NULL) {
-        slapi_log_err(SLAPI_LOG_WARNING,
-                      "update_pw_encoding", "Could not read password attribute on '%s'\n",
-                      dn);
-        res = -1;
+        /* The entry does not have a userpassword attribute so there is nothing to do.
+         * This typically happens when chaining is involved. */
         goto free_and_return;
     }
 
