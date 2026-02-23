@@ -23,6 +23,7 @@
 
 #include "repl5.h"
 #include "repl5_prot_private.h"
+#include "slap.h"
 
 #define PROTOCOL_5_INCREMENTAL 1
 #define PROTOCOL_5_TOTAL 2
@@ -237,6 +238,8 @@ prot_thread_main(void *arg)
         return;
     }
 
+    g_incr_active_threadcnt();
+
     set_thread_private_agmtname(agmt_get_long_name(agmt));
 
     done = 0;
@@ -301,6 +304,8 @@ prot_thread_main(void *arg)
             done = 1;
         }
     }
+
+    g_decr_active_threadcnt();
 }
 
 /*

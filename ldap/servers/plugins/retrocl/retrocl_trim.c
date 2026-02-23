@@ -243,6 +243,8 @@ trim_changelog(void)
 
     now_interval = slapi_current_rel_time_t(); /* monotonic time for interval */
 
+    g_incr_active_threadcnt();
+
     PR_Lock(ts.ts_s_trim_mutex);
     max_age = ts.ts_c_max_age;
     trim_interval = ts.ts_c_trim_interval;
@@ -257,7 +259,7 @@ trim_changelog(void)
          */
         done = 0;
         now_maxage = slapi_current_utc_time(); /* real time for trim candidates */
-        while (!done && retrocl_trimming == 1) {
+        while (!done && retrocl_trimming == 1 && !slapi_is_shutting_down()) {
             int did_delete;
 
             did_delete = 0;
@@ -309,6 +311,9 @@ trim_changelog(void)
                       "trim_changelog: removed %d change records\n",
                       num_deleted);
     }
+
+    g_decr_active_threadcnt();
+
     return rc;
 }
 
