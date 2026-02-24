@@ -3247,7 +3247,7 @@ msgid ""
 msgstr ""
 "ルートユーザがディレクトリサーバへのアクセスに使用できないIPアドレス(IPv4 ま"
 "たは IPv6)を設定します。ワイルドカードが使用できます。設定されていないIPアド"
-"レスは暗黙的に拒否されます。(rootdn-allow-ip)IPアドレスが、rootdn-allow-ip属"
+"レスは暗黙的に許可されます。(rootdn-deny-ip)IPアドレスが、rootdn-allow-ip属"
 "性とrootdn-deny-ip属性の両方に設定されている場合、アクセスは拒否されます。"
 
 #: src/lib/plugins/rootDNAccessControl.jsx:601
@@ -3670,8 +3670,8 @@ msgid ""
 "Specifies backends or multiple-nested suffixes for the MemberOf plug-in to "
 "work on (memberOfEntryScope)"
 msgstr ""
-"グループメンバーのDNを識別するために使用するグループエントリの属性を指定しま"
-"す。(memberOfGroupAttr)"
+"MemberOfプラグインが動作するバックエンドまたはネストされたサフィックスを指定"
+"します。(memberOfEntryScope)"
 
 #: src/lib/plugins/memberOf.jsx:1353 src/lib/plugins/memberOf.jsx:1394
 #: src/lib/plugins/memberOf.jsx:1523 src/lib/plugins/memberOf.jsx:1564
@@ -5872,7 +5872,7 @@ msgstr ""
 #: src/lib/database/localPwp.jsx:878 src/lib/database/localPwp.jsx:3112
 #: src/lib/database/globalPwp.jsx:1595
 msgid "Password Valid From"
-msgstr "パスワードの有効期限"
+msgstr "パスワードの有効開始日"
 
 #: src/lib/database/localPwp.jsx:902
 msgid "Create New Policy"
@@ -10500,7 +10500,7 @@ msgstr "エントリ名の変更に成功しました！"
 
 #: src/lib/ldap_editor/wizards/operations/renameEntry.jsx:82
 msgid "Failed to rename entry, error: "
-msgstr "エントリの削除に失敗しました、エラー: "
+msgstr "エントリ名の変更に失敗しました、エラー: "
 
 #: src/lib/ldap_editor/wizards/operations/renameEntry.jsx:93
 msgid ""
@@ -10832,7 +10832,7 @@ msgstr "グループの更新に失敗しました、エラーコード: "
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:354
 msgid "Successfully updated group"
-msgstr "グループの更新に成功しました"
+msgstr "グループの更新に失敗しました"
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:461
 msgid "Switch To Generic Editor"
@@ -11560,7 +11560,7 @@ msgstr "証明書のエクスポート:"
 #: src/lib/security/securityModals.jsx:58
 msgid ""
 "Enter the full path and file name, if the path portion is omitted the "
-"cetificate is written to the server's certificate directory "
+"certificate is written to the server's certificate directory "
 msgstr ""
 "ファイル名を含むフルパスを入力してください。パス部分を省略した場合、証明書は"
 "サーバの証明書ディレクトリに書き込まれます。"
@@ -14302,7 +14302,7 @@ msgstr "設定アップファイル $0 の権限設定に失敗しました: $1"
 
 #: src/dsModals.jsx:299
 msgid "Failed to populate installation file! $0"
-msgstr "インストールファイルの作成に失敗しました！ $0"
+msgstr "インストールファイルへのデータ入力に失敗しました！ $0"
 
 #: src/dsModals.jsx:336
 msgid "Successfully created instance: slapd-$0"
@@ -14868,15 +14868,15 @@ msgstr ""
 
 #: src/schema.jsx:1550
 msgid "Delete An Objectclass"
-msgstr "属性を削除"
+msgstr "オブジェクトクラスを削除"
 
 #: src/schema.jsx:1551
 msgid "Are you sure you want to delete this Objectclass?"
-msgstr "このオブジェクトを削除しますか？"
+msgstr "このオブジェクトクラスを削除しますか？"
 
 #: src/schema.jsx:1552
 msgid "Deleting objectclass ..."
-msgstr "オブジェクトを削除しています..."
+msgstr "オブジェクトクラスを削除しています..."
 
 #: src/schema.jsx:1563
 msgid "Delete An Attribute"
