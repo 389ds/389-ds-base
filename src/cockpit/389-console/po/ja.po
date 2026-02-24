@@ -11560,7 +11560,7 @@ msgstr "証明書のエクスポート:"
 #: src/lib/security/securityModals.jsx:58
 msgid ""
 "Enter the full path and file name, if the path portion is omitted the "
-"cetificate is written to the server's certificate directory "
+"certificate is written to the server's certificate directory "
 msgstr ""
 "ファイル名を含むフルパスを入力してください。パス部分を省略した場合、証明書は"
 "サーバの証明書ディレクトリに書き込まれます。"
