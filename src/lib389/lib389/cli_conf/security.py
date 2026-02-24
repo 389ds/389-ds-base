@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,9 +8,10 @@
 
 from collections import OrderedDict, namedtuple
 import json
+import ldap
 import os
-from lib389.config import Config, Encryption, RSA
-from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
+from lib389.nss_ssl import NssSsl, CA_NAME
+from lib389.config import Config, Encryption, RSA, EncryptionModules
 from lib389.cli_base import _warn, CustomHelpFormatter
 
 
@@ -475,6 +476,120 @@ def export_cert(inst, basedn, log, args):
     tls.export_cert(nickname, output_file, der_format)
 
 
+def encryption_module_add(inst, basedn, log, args):
+    """Add an encryption module
+    """
+    properties = {
+        'cn': args.name,
+        'nsSSLActivation': "on" if args.activated else "off",
+        'nsSSLPersonalitySSL': args.cert_nickname,
+        'nsSSLToken': args.token
+    }
+    if args.server_key_extract_file is not None:
+        properties['ServerKeyExtractFile'] = args.server_key_extract_file
+    if args.server_cert_extract_file is not None:
+        properties['ServerCertExtractFile'] = args.server_cert_extract_file
+    encryption_modules = EncryptionModules(instance=inst)
+    encryption_modules.create(properties=properties)
+    log.info("Successfully added encryption module")
+
+
+def encryption_module_delete(inst, basedn, log, args):
+    """Delete an encryption module
+    """
+    if args.name.lower() == "rsa":
+        log.error("Cannot delete RSA encryption module")
+        return
+
+    try:
+        encryption_module = EncryptionModules(instance=inst).get(args.name)
+    except ldap.NO_SUCH_OBJECT as e:
+        log.error(f"Failed to get encryption module '{args.name}'")
+        return
+
+    encryption_module.delete()
+    log.info("Successfully deleted encryption module")
+
+
+def encryption_module_edit(inst, basedn, log, args):
+    """Edit an encryption module
+    """
+    try:
+        encryption_module = EncryptionModules(instance=inst).get(args.name)
+    except ldap.NO_SUCH_OBJECT as e:
+        log.error(f"Failed to get encryption module '{args.name}'")
+        return
+
+    if args.activate and args.deactivate:
+        log.error("Cannot activate and deactivate an encryption module at the same time")
+        return
+
+    replace_list = []
+    if args.cert_nickname is not None:
+        replace_list.append(['nsSSLPersonalitySSL', args.cert_nickname])
+    if args.activate:
+        replace_list.append(['nsSSLActivation', 'on'])
+    if args.deactivate:
+        replace_list.append(['nsSSLActivation', 'off'])
+    if args.token is not None:
+        replace_list.append(['nsSSLToken', args.token])
+    if args.server_key_extract_file is not None:
+        replace_list.append(['ServerKeyExtractFile', args.server_key_extract_file])
+    if args.server_cert_extract_file is not None:
+        replace_list.append(['ServerCertExtractFile', args.server_cert_extract_file])
+
+    if len(replace_list) > 0:
+        encryption_module.replace_many(*replace_list)
+    else:
+        raise ValueError("There are no changes to set for this encryption module")
+
+    log.info("Successfully updated encryption module")
+
+
+def encryption_module_list(inst, basedn, log, args):
+    """List encryption module names
+    """
+    encryption_modules = EncryptionModules(instance=inst)
+    encryption_modules_list = encryption_modules.list()
+
+    if args.json:
+        entry_list = []
+        for encryption_module in encryption_modules_list:
+            if args.just_names:
+                entry_list.append(encryption_module.get_attr_val_utf8('cn'))
+            else:
+                entry_list.append(json.loads(encryption_module.get_all_attrs_json()))
+
+        log.info(json.dumps({"type": "list", "items": entry_list}, indent=4))
+    else:
+        for encryption_module in encryption_modules_list:
+            if args.just_names:
+                log.info(encryption_module.get_attr_val_utf8('cn'))
+            else:
+                entry = encryption_module.display()
+                updated_entry = entry[:-1]  # remove \n
+                log.info(updated_entry)
+
+
+def encryption_module_get(inst, basedn, log, args):
+    """Get an encryption module
+    """
+    try:
+        encryption_module = EncryptionModules(instance=inst).get(args.name)
+    except ldap.NO_SUCH_OBJECT as e:
+        log.error(f"Failed to get encryption module '{args.name}'")
+        return
+
+    if args.json:
+        entry = encryption_module.get_all_attrs_json()
+        entry_dict = json.loads(entry)
+        log.info(json.dumps(entry_dict, indent=4))
+    else:
+        entry = encryption_module.display()
+        updated_entry = entry[:-1]  # remove \n
+        log.info(updated_entry)
+
+
 def create_parser(subparsers):
     security = subparsers.add_parser('security', help='Manage security settings', formatter_class=CustomHelpFormatter)
     security_sub = security.add_subparsers(help='security')
@@ -573,6 +688,51 @@ def create_parser(subparsers):
          '\n\nTo enable/disable RSA you can use enable and disable commands instead.'))
     _security_generic_get_parser(rsa_sub, RSA_ATTRS_MAP, 'Get RSA security options')
     _security_generic_toggle_parsers(rsa_sub, RSA, 'nsSSLActivation', '{} RSA')
+
+    # Encryption module management (Should replace RSA at some point)
+    encryption_module = security_sub.add_parser('encryption-module', help='Manage encryption modules',
+                                                formatter_class=CustomHelpFormatter)
+    encryption_module_sub = encryption_module.add_subparsers(help='encryption-module')
+    # Add an encryption module
+    encryption_module_add_parser = encryption_module_sub.add_parser('add', help='Add an encryption module',
+            description=('Add a new encryption module to the encryption module list.'))
+    encryption_module_add_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_add_parser.add_argument('--cert-nickname', help='The personality or nickname of the server certificate',
+                                              required=True)
+    encryption_module_add_parser.add_argument('--activated', action='store_true',
+                                              help='Activate the encryption module.')
+    encryption_module_add_parser.add_argument('--token', help='The token of the encryption module. Default is "internal (software)".',
+                                              default='internal (software)')
+    encryption_module_add_parser.add_argument('--server-key-extract-file', help='The file name of the server key extract file')
+    encryption_module_add_parser.add_argument('--server-cert-extract-file', help='The file name of the server cert extract file')
+    encryption_module_add_parser.set_defaults(func=encryption_module_add)
+    # delete an encryption module
+    encryption_module_delete_parser = encryption_module_sub.add_parser('delete', help='Delete an encryption module',
+        description=('Delete an encryption module from the encryption module list.'))
+    encryption_module_delete_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_delete_parser.set_defaults(func=encryption_module_delete)
+    # edit an encryption module
+    encryption_module_edit_parser = encryption_module_sub.add_parser('edit', help='Edit an encryption module',
+        description=('Edit an encryption module in the encryption module list.'))
+    encryption_module_edit_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_edit_parser.add_argument('--cert-nickname', help='The personality or nickname of the server certificate')
+    encryption_module_edit_parser.add_argument('--activate', action='store_true', help='Activate the encryption module')
+    encryption_module_edit_parser.add_argument('--deactivate', action='store_true', help='Deactivate the encryption module')
+    encryption_module_edit_parser.add_argument('--token', help='The token of the encryption module.')
+    encryption_module_edit_parser.add_argument('--server-key-extract-file', help='The file name of the server key extract file')
+    encryption_module_edit_parser.add_argument('--server-cert-extract-file', help='The file name of the server cert extract file')
+    encryption_module_edit_parser.set_defaults(func=encryption_module_edit)
+    # list encryption modules
+    encryption_module_list_parser = encryption_module_sub.add_parser('list', help='List encryption modules',
+        description=('List all encryption modules in the encryption module list.'))
+    encryption_module_list_parser.add_argument('--just-names', action='store_true',
+                                               help='Just list the modules by its name and not the full entry')
+    encryption_module_list_parser.set_defaults(func=encryption_module_list)
+    # Get an encryption module
+    encryption_module_get_parser = encryption_module_sub.add_parser('get', help='Get an encryption module',
+        description=('Get an encryption module from the encryption module list.'))
+    encryption_module_get_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_get_parser.set_defaults(func=encryption_module_get)
 
     # Cipher management
     ciphers = security_sub.add_parser('ciphers', help='Manage secure ciphers', formatter_class=CustomHelpFormatter)
