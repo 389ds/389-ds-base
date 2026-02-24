@@ -10832,7 +10832,7 @@ msgstr "グループの更新に失敗しました、エラーコード: "
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:354
 msgid "Successfully updated group"
-msgstr "グループの更新に失敗しました"
+msgstr "グループの更新に成功しました"
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:461
 msgid "Switch To Generic Editor"
