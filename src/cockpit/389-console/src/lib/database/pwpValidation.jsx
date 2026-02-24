@@ -92,7 +92,7 @@ export const renderValidationError = (fieldName, invalidFields) => {
             : _("Value must be a non-negative integer");
     return (
         <GridItem span={5}>
-            <FormHelperText isError isHidden={false}>
+            <FormHelperText className="ds-left-margin" isError isHidden={false}>
                 {msg}
             </FormHelperText>
         </GridItem>
