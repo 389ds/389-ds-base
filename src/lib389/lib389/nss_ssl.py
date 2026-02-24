@@ -672,7 +672,7 @@ only.
                     have_user = True
         return have_user
 
-    def create_rsa_key_and_cert(self, alt_names=[], months=VALID):
+    def create_rsa_key_and_cert(self, alt_names=[], months=VALID, name=CERT_NAME):
         """
         Create a key and a cert that is signed by the self signed ca
 
@@ -691,7 +691,7 @@ only.
             '/usr/bin/certutil',
             '-S',
             '-n',
-            CERT_NAME,
+            name,
             '-s',
             subject,
             # We MUST issue with SANs else ldap wont verify the name.
@@ -719,15 +719,12 @@ only.
         self.log.debug("nss output: %s", result)
         return True
 
-    def create_rsa_key_and_csr(self, alt_names=[], subject=None, name=None):
+    def create_rsa_key_and_csr(self, alt_names=[], subject=None, name=CERT_NAME):
         """Create a new RSA key and the certificate signing request. This
         request can be submitted to a CA for signing. The returned certificate
         can be added with import_rsa_crt.
         """
-        if name is None:
-            csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
-        else:
-            csr_path = os.path.join(self._certdb, '%s.csr' % name)
+        csr_path = os.path.join(self._certdb, '%s.csr' % name)
 
         if len(alt_names) == 0:
             alt_names = self.detect_alt_names(alt_names)
@@ -805,7 +802,7 @@ only.
 
         return (ca_path, crt_path)
 
-    def import_rsa_crt(self, ca=None, crt=None):
+    def import_rsa_crt(self, ca=None, crt=None, name=CERT_NAME):
         """Given a signed certificate from a ca, import the CA and certificate
         to our database.
 
@@ -845,7 +842,7 @@ only.
             cmd = [
                 '/usr/bin/certutil',
                 '-A',
-                '-n', CERT_NAME,
+                '-n', name,
                 '-t', ",,",
                 '-a',
                 '-i', crt,
@@ -862,7 +859,7 @@ only.
                 '/usr/bin/certutil',
                 '-V',
                 '-d', self._certdb,
-                '-n', CERT_NAME,
+                '-n', name,
                 '-u', 'YCV'
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
@@ -1297,7 +1294,7 @@ only.
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
 
-    def add_server_key_and_cert(self, input_key, input_cert):
+    def add_server_key_and_cert(self, input_key, input_cert, name=CERT_NAME):
         if not os.path.exists(input_key):
             raise ValueError("The key file ({}) does not exist".format(input_key))
         if not os.path.exists(input_cert):
@@ -1319,7 +1316,7 @@ only.
             '-in', input_cert,
             '-inkey', input_key,
             '-out', p12_bundle,
-            '-name', CERT_NAME,
+            '-name', name,
             '-passout', 'pass:',
             '-aes128'
         ]
@@ -1330,7 +1327,7 @@ only.
             raise ValueError(e.output.decode('utf-8').rstrip())
         # Remove the server-cert if it exists, because else the import name fails.
         try:
-            self.del_cert(CERT_NAME)
+            self.del_cert(name)
         except:
             pass
         try:

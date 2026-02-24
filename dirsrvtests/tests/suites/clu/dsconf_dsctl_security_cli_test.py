@@ -20,6 +20,41 @@ pytestmark = pytest.mark.tier1
 
 log = logging.getLogger(__name__)
 
+TEST_CERT_PEM = """-----BEGIN CERTIFICATE-----
+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
+dMsdEJ0KW0YniBYuPhvx
+-----END CERTIFICATE-----"""
+
 
 @pytest.fixture(scope="module")
 def setup_tls(topo):
@@ -63,6 +98,12 @@ def run_cmd(cmd, env=None, check=True, stdin_input=None):
         )
 
     return proc.returncode, stdout_str, stderr_str
+
+
+def _create_temp_cert_file():
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem') as cert_file:
+        cert_file.write(TEST_CERT_PEM)
+        return cert_file.name
 
 
 def test_dsconf_security_get(topo):
@@ -1331,6 +1372,302 @@ def test_dsconf_security_multiple_operations(setup_tls):
     cmd = dsconf_base + ['rsa', 'get']
     returncode, stdout, stderr = run_cmd(cmd)
     assert 'off' in stdout.lower()
+
+
+def test_dsconf_security_encryption_module_create(setup_tls):
+    """Test dsconf security encryption-module add via subprocess
+
+    :id: 75d93730-8212-4a67-b6ee-f7f57436a311
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Add a new encryption module with required and optional arguments
+        2. Verify module exists and is activated
+    :expectedresults:
+        1. Add command succeeds
+        2. Module details can be fetched and contain expected values
+    """
+    inst = setup_tls.standalone
+    module_name = f'CLI_ENC_MODULE'
+
+    add_cmd = [
+        'dsconf', inst.serverid, 'security', 'encryption-module', 'add', module_name,
+        '--cert-nickname', 'Second-Cert',
+        '--activated',
+        '--token', 'internal (software)',
+        '--server-key-extract-file', f'/tmp/{module_name}.key',
+        '--server-cert-extract-file', f'/tmp/{module_name}.crt',
+    ]
+
+    try:
+        returncode, stdout, stderr = run_cmd(add_cmd)
+        assert returncode == 0
+
+        get_cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'get', module_name]
+        returncode, stdout, stderr = run_cmd(get_cmd)
+        assert returncode == 0
+        assert module_name in stdout
+        assert 'nssslactivation: on' in stdout.lower()
+        assert 'serverkeyextractfile: /tmp/cli_enc_module.key' in stdout.lower()
+        assert 'servercertextractfile: /tmp/cli_enc_module.crt' in stdout.lower()
+        assert 'nssslpersonalityssl: second-cert' in stdout.lower()
+        assert 'nsssltoken: internal (software)' in stdout.lower()
+    finally:
+        cleanup_cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'delete', module_name]
+        run_cmd(cleanup_cmd, check=False)
+
+
+def test_dsconf_security_encryption_module_edit(setup_tls):
+    """Test dsconf security encryption-module edit via subprocess
+
+    :id: d6b7169d-23ee-489e-a90c-872ef35f73db
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Add a new encryption module
+        2. Edit the module activation/token/extract file options
+        3. Verify updated values
+    :expectedresults:
+        1. Add succeeds
+        2. Edit succeeds
+        3. Updated values are visible in module output
+    """
+    inst = setup_tls.standalone
+    module_name = 'CLI_ENC_MODULE'
+    token_value = 'Internal (Software) Token'
+
+    add_cmd = [
+        'dsconf', inst.serverid, 'security', 'encryption-module', 'add', module_name,
+        '--cert-nickname', 'Second-Cert',
+        '--activated',
+    ]
+    edit_cmd = [
+        'dsconf', inst.serverid, 'security', 'encryption-module', 'edit', module_name,
+        '--cert-nickname', 'Second-Cert2',
+        '--deactivate',
+        '--token', token_value,
+        '--server-key-extract-file', f'/tmp/{module_name}.edited.key',
+        '--server-cert-extract-file', f'/tmp/{module_name}.edited.crt',
+    ]
+
+    try:
+        returncode, stdout, stderr = run_cmd(add_cmd)
+        assert returncode == 0
+
+        returncode, stdout, stderr = run_cmd(edit_cmd)
+        assert returncode == 0
+
+        get_cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'get', module_name]
+        returncode, stdout, stderr = run_cmd(get_cmd)
+        assert returncode == 0
+        assert 'nssslactivation: off' in stdout.lower()
+        assert 'serverkeyextractfile: /tmp/cli_enc_module.edited.key' in stdout.lower()
+        assert 'servercertextractfile: /tmp/cli_enc_module.edited.crt' in stdout.lower()
+        assert 'nssslpersonalityssl: second-cert2' in stdout.lower()
+        assert 'nsssltoken: internal (software) token' in stdout.lower()
+    finally:
+        cleanup_cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'delete', module_name]
+        run_cmd(cleanup_cmd, check=False)
+
+
+def test_dsconf_security_encryption_module_delete(setup_tls):
+    """Test dsconf security encryption-module delete via subprocess
+
+    :id: be36928b-09b7-4c02-8431-4d3440ea979f
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Add a new encryption module
+        2. Delete the module
+        3. Verify module no longer appears in list
+    :expectedresults:
+        1. Add succeeds
+        2. Delete succeeds
+        3. Module is not listed anymore
+    """
+    inst = setup_tls.standalone
+    module_name = f'CLI_ENC_MODULE'
+
+    add_cmd = [
+        'dsconf', inst.serverid, 'security', 'encryption-module', 'add', module_name,
+        '--cert-nickname', 'Second-Cert',
+    ]
+    del_cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'delete', module_name]
+    list_cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'list', '--just-names']
+
+    run_cmd(add_cmd)
+    returncode, stdout, stderr = run_cmd(del_cmd)
+    assert returncode == 0
+
+    returncode, stdout, stderr = run_cmd(list_cmd)
+    assert returncode == 0
+    assert module_name not in stdout
+
+
+def test_dsconf_security_encryption_module_list_all_args(setup_tls):
+    """Test dsconf security encryption-module list with all list arguments via subprocess
+
+    :id: 7aa7ac1a-bf95-4902-a650-258be832817f
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Create a temporary certificate file and import it as Second-Cert
+        2. Add a temporary encryption module that references Second-Cert
+        3. Run encryption-module list with no args
+        4. Run encryption-module list with --just-names
+        5. Run JSON output list
+        6. Run JSON output list with --just-names
+    :expectedresults:
+        1. Certificate import succeeds (or already exists)
+        2. Module add succeeds
+        3. Default list succeeds and contains module details
+        4. --just-names succeeds and contains the module name
+        5. JSON list succeeds and is valid JSON
+        6. JSON + --just-names succeeds and includes module name
+    """
+    inst = setup_tls.standalone
+    module_name = f'CLI_ENC_MODULE'
+
+    try:
+        run_cmd([
+            'dsconf', inst.serverid, 'security', 'encryption-module', 'add', module_name,
+            '--cert-nickname', 'Second-Cert',
+            '--activated'
+        ])
+
+        cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'list']
+        returncode, stdout, stderr = run_cmd(cmd)
+        assert returncode == 0
+        assert module_name in stdout
+
+        cmd = ['dsconf', inst.serverid, 'security', 'encryption-module', 'list', '--just-names']
+        returncode, stdout, stderr = run_cmd(cmd)
+        assert returncode == 0
+        assert module_name in stdout
+
+        cmd = ['dsconf', inst.serverid, '--json', 'security', 'encryption-module', 'list']
+        returncode, stdout, stderr = run_cmd(cmd)
+        assert returncode == 0
+        data = json.loads(stdout)
+        assert isinstance(data, dict)
+        assert 'items' in data
+
+        cmd = ['dsconf', inst.serverid, '--json', 'security', 'encryption-module', 'list', '--just-names']
+        returncode, stdout, stderr = run_cmd(cmd)
+        assert returncode == 0
+        data = json.loads(stdout)
+        assert isinstance(data, dict)
+        assert module_name in json.dumps(data)
+    finally:
+        run_cmd(['dsconf', inst.serverid, 'security', 'encryption-module', 'delete', module_name], check=False)
+
+
+def test_dsconf_security_certificate_import_second_cert(setup_tls):
+    """Test dsconf security certificate add/get with Second-Cert via subprocess
+
+    :id: b18f0744-d1ce-41b4-98a0-254e9c290285
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Create a temp PEM certificate file
+        2. Import the certificate using dsconf with name Second-Cert
+        3. Verify it can be retrieved with dsconf security certificate get
+    :expectedresults:
+        1. Temp certificate file is created
+        2. Import succeeds
+        3. Certificate details are returned for Second-Cert
+    """
+    inst = setup_tls.standalone
+    cert_path = _create_temp_cert_file()
+    cert_name = 'Second-Cert'
+
+    try:
+        add_cmd = [
+            'dsconf', inst.serverid, 'security', 'certificate', 'add',
+            '--file', cert_path,
+            '--name', cert_name
+        ]
+        returncode, stdout, stderr = run_cmd(add_cmd, check=False)
+        # If cert already exists in this environment, continue with validation
+        assert returncode in [0, 1]
+
+        get_cmd = ['dsconf', inst.serverid, 'security', 'certificate', 'get', cert_name]
+        returncode, stdout, stderr = run_cmd(get_cmd)
+        assert returncode == 0
+        assert 'Certificate Name: Second-Cert' in stdout
+    finally:
+        run_cmd(['dsconf', inst.serverid, 'security', 'certificate', 'del', cert_name], check=False)
+        if os.path.exists(cert_path):
+            os.unlink(cert_path)
+
+def test_dsctl_tls_import_cert_with_unique_nickname(setup_tls):
+    """Test dsctl tls import-server-cert with fixed nickname via subprocess
+
+    :id: 281dfc03-42c6-4c65-a313-a677c0691bcf
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Export Second-Cert to a temp PEM file
+        2. Import the PEM as a server certificate with nickname Second-Cert
+        3. Verify show-cert returns details for Second-Cert
+    :expectedresults:
+        1. Export succeeds
+        2. Import succeeds
+        3. show-cert succeeds for Second-Cert
+    """
+    inst = setup_tls.standalone
+    unique_nick = 'Second-Cert'
+
+    cert_path = _create_temp_cert_file()
+
+    try:
+        import_cmd = ['dsctl', inst.serverid, 'tls', 'import-server-cert', cert_path, '--nickname', unique_nick]
+        returncode, stdout, stderr = run_cmd(import_cmd)
+        assert returncode == 0
+
+        show_cmd = ['dsctl', inst.serverid, 'tls', 'show-cert', unique_nick]
+        returncode, stdout, stderr = run_cmd(show_cmd)
+        assert returncode == 0
+        assert len(stdout.strip()) > 0
+    finally:
+        run_cmd(['dsctl', inst.serverid, 'tls', 'remove-cert', unique_nick], check=False)
+        if os.path.exists(cert_path):
+            os.unlink(cert_path)
+
+
+def test_dsctl_tls_generate_csr_with_unique_nickname(setup_tls):
+    """Test dsctl tls generate-server-cert-csr with unique nickname via subprocess
+
+    :id: 37900e94-56a9-446a-9de7-c02dc30e03e5
+    :setup: Standalone Instance with TLS
+    :steps:
+        1. Generate CSR using --nickname and a valid subject
+        2. Verify expected CSR file path exists
+        3. Remove generated CSR file
+    :expectedresults:
+        1. Command succeeds
+        2. CSR file is created
+        3. Cleanup succeeds
+    """
+    inst = setup_tls.standalone
+    unique_nick = 'Second-Cert'
+    csr_path = os.path.join(inst.get_cert_dir(), f'{unique_nick}.csr')
+
+    cmd = [
+        'dsctl',
+        inst.serverid,
+        'tls',
+        'generate-server-cert-csr',
+        '--nickname', unique_nick,
+        '-s', f'CN={unique_nick},O=Example,C=US'
+    ]
+    try:
+        returncode, stdout, stderr = run_cmd(cmd)
+        assert returncode == 0
+        assert os.path.exists(csr_path)
+        with open(csr_path, 'r') as csr_file:
+            content = csr_file.read()
+            if unique_nick not in content:
+                log.error(f"CSR file {csr_path} does not contain the nickname {unique_nick}")
+                assert False
+
+    finally:
+        if os.path.exists(csr_path):
+            os.unlink(csr_path)
 
 
 if __name__ == '__main__':

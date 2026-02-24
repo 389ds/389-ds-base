@@ -13,7 +13,8 @@ from lib389.cli_base import _warn, CustomHelpFormatter
 
 def show_servercert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
-    log.info(tls.display_cert_details(CERT_NAME))
+    nickname = getattr(args, 'nickname', CERT_NAME)
+    log.info(tls.display_cert_details(nickname))
 
 
 def list_client_cas(inst, log, args):
@@ -32,14 +33,14 @@ def list_cas(inst, log, args):
 
 def show_cert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
-    nickname = args.nickname
+    nickname = getattr(args, 'nickname', CERT_NAME)
     log.info(tls.display_cert_details(nickname))
 
 
 def import_client_ca(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     cert_path = args.cert_path
-    nickname = args.nickname
+    nickname = getattr(args, 'nickname', CERT_NAME)
     if nickname.lower() == CERT_NAME.lower() or nickname.lower() == CA_NAME.lower():
         log.error("You may not import a CA with the nickname %s or %s" % (CERT_NAME, CA_NAME))
         return
@@ -59,21 +60,24 @@ def import_key_cert_pair(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     key_path = args.key_path
     cert_path = args.cert_path
-    tls.add_server_key_and_cert(key_path, cert_path)
+    nickname = getattr(args, 'nickname', CERT_NAME)
+    tls.add_server_key_and_cert(key_path, cert_path, nickname)
 
 
 def generate_key_csr(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     alt_names = args.alt_names
     subject = args.subject
-    out_path = tls.create_rsa_key_and_csr(alt_names, subject)
+    nickname = getattr(args, 'nickname', CERT_NAME)
+    out_path = tls.create_rsa_key_and_csr(alt_names, subject, name=nickname)
     log.info(out_path)
 
 
 def import_server_cert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     cert_path = args.cert_path
-    tls.import_rsa_crt(crt=cert_path)
+    nickname = getattr(args, 'nickname', CERT_NAME)
+    tls.import_rsa_crt(crt=cert_path, name=nickname)
 
 
 def remove_cert(inst, log, args, warn=True):
@@ -108,6 +112,7 @@ def create_parser(subparsers):
     list_client_ca_parser.set_defaults(func=list_client_cas)
 
     show_servercert_parser = subcommands.add_parser('show-server-cert', help='Show the active server certificate that clients will see and verify', formatter_class=CustomHelpFormatter)
+    show_servercert_parser.add_argument('--nickname', help="The nickname (friendly name) of the certificate to display if different than 'Server-Cert'")
     show_servercert_parser.set_defaults(func=show_servercert)
 
     show_cert_parser = subcommands.add_parser('show-cert', help='Show a certificate\'s details referenced by it\'s nickname. This is analogous to certutil -L -d <path> -n <nickname>', formatter_class=CustomHelpFormatter)
@@ -124,6 +129,7 @@ def create_parser(subparsers):
         help="Certificate Subject field to use")
     generate_server_cert_csr_parser.add_argument('alt_names', nargs='*',
         help="Certificate requests subject alternative names. These are auto-detected if not provided")
+    generate_server_cert_csr_parser.add_argument('--nickname', help="The name of the certificate if different than 'Server-Cert'")
     generate_server_cert_csr_parser.set_defaults(func=generate_key_csr)
 
     import_client_ca_parser = subcommands.add_parser(
@@ -154,6 +160,7 @@ def create_parser(subparsers):
     )
     import_server_cert_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as Server-Cert")
+    import_server_cert_parser.add_argument('--nickname', help="The name of the certificate if different than 'Server-Cert'")
     import_server_cert_parser.set_defaults(func=import_server_cert)
 
     import_server_key_cert_parser = subcommands.add_parser(
@@ -165,6 +172,7 @@ def create_parser(subparsers):
         help="The path to the x509 cert to import as Server-Cert")
     import_server_key_cert_parser.add_argument('key_path',
         help="The path to the x509 key to import associated to Server-Cert")
+    import_server_key_cert_parser.add_argument('--nickname', help="The name of the certificate if different than 'Server-Cert'")
     import_server_key_cert_parser.set_defaults(func=import_key_cert_pair)
 
     remove_cert_parser = subcommands.add_parser(
