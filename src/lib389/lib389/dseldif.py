@@ -407,7 +407,7 @@ class DSEldif(DSLint):
             'endian': endian,
             'rid': str(rid),
             'gen_time': str(sampled_time),
-            'gencsn': "%08x%04d%04d0000" % (sampled_time, seq_num, rid),
+            'gencsn': "%08x%04x%04x0000" % (sampled_time, seq_num, rid),
             'gen_time_str': time.ctime(sampled_time),
             'local_offset': str(local_offset),
             'local_offset_str': print_nice_time(local_offset),
