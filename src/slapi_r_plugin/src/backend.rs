@@ -1,12 +1,11 @@
 use crate::dn::SdnRef;
 use crate::pblock::Pblock;
-// use std::ops::Deref;
 
-extern "C" {
-    fn slapi_back_transaction_begin(pb: *const libc::c_void) -> i32;
-    fn slapi_back_transaction_commit(pb: *const libc::c_void);
-    fn slapi_back_transaction_abort(pb: *const libc::c_void);
-    fn slapi_be_select_exact(sdn: *const libc::c_void) -> *const libc::c_void;
+unsafe extern "C" {
+    unsafe fn slapi_back_transaction_begin(pb: *const libc::c_void) -> i32;
+    unsafe fn slapi_back_transaction_commit(pb: *const libc::c_void);
+    unsafe fn slapi_back_transaction_abort(pb: *const libc::c_void);
+    unsafe fn slapi_be_select_exact(sdn: *const libc::c_void) -> *const libc::c_void;
 }
 
 pub struct BackendRef {
@@ -15,24 +14,24 @@ pub struct BackendRef {
 
 impl BackendRef {
     pub fn new(dn: &SdnRef) -> Result<Self, ()> {
-        let raw_be = unsafe { slapi_be_select_exact(dn.as_ptr()) };
+        let raw_be: *const libc::c_void = unsafe { slapi_be_select_exact(dn.as_ptr()) };
         if raw_be.is_null() {
             Err(())
         } else {
-            Ok(BackendRef { raw_be })
+            Ok(Self { raw_be })
         }
     }
 
-    pub(crate) fn as_ptr(&self) -> *const libc::c_void {
+    pub(crate) const fn as_ptr(&self) -> *const libc::c_void {
         self.raw_be
     }
 
     pub fn begin_txn(self) -> Result<BackendRefTxn, ()> {
-        let mut pb = Pblock::new();
+        let mut pb: Pblock = Pblock::new();
         if pb.set_op_backend(&self) != 0 {
             return Err(());
         }
-        let rc = unsafe { slapi_back_transaction_begin(pb.as_ptr()) };
+        let rc: i32 = unsafe { slapi_back_transaction_begin(pb.as_ptr()) };
         if rc != 0 {
             Err(())
         } else {
@@ -63,7 +62,7 @@ impl BackendRefTxn {
 
 impl Drop for BackendRefTxn {
     fn drop(&mut self) {
-        if self.committed == false {
+        if !self.committed {
             unsafe {
                 slapi_back_transaction_abort(self.pb.as_ptr());
             }

@@ -10,8 +10,8 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 use std::ptr;
 
-extern "C" {
-    fn slapi_register_plugin_ext(
+unsafe extern "C" {
+    unsafe fn slapi_register_plugin_ext(
         plugintype: *const c_char,
         enabled: i32,
         initsymbol: *const c_char,
@@ -28,20 +28,15 @@ pub struct PluginIdRef {
 }
 
 pub fn register_plugin_ext(
-    ptype: PluginType,
+    ptype: &PluginType,
     plugname: &str,
     initfnname: &str,
     initfn: extern "C" fn(*const libc::c_void) -> i32,
 ) -> i32 {
-    let c_plugname = match CString::new(plugname) {
-        Ok(c) => c,
-        Err(_) => return 1,
-    };
-    let c_initfnname = match CString::new(initfnname) {
-        Ok(c) => c,
-        Err(_) => return 1,
-    };
-    let argv = [c_plugname.as_ptr(), ptr::null()];
+    let Ok(c_plugname) = CString::new(plugname) else { return 1 };
+    let Ok(c_initfnname) = CString::new(initfnname) else { return 1 };
+
+    let argv: [*const c_char; 2] = [c_plugname.as_ptr(), ptr::null()];
     let value_ptr: *const libc::c_void = initfn as *const libc::c_void;
 
     unsafe {
@@ -51,7 +46,7 @@ pub fn register_plugin_ext(
             c_initfnname.as_ptr(),
             value_ptr,
             c_plugname.as_ptr(),
-            &argv as *const *const c_char,
+            (&raw const argv).cast(),
             ptr::null(),
             PLUGIN_DEFAULT_PRECEDENCE,
         )

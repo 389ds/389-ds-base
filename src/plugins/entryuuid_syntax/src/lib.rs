@@ -17,7 +17,7 @@ impl SlapiSyntaxPlugin1 for EntryUuidSyntax {
     }
 
     fn attr_compat_oids() -> Vec<&'static str> {
-        Vec::new()
+        vec![]
     }
 
     fn attr_supported_names() -> Vec<&'static str> {
@@ -50,12 +50,12 @@ impl SlapiSyntaxPlugin1 for EntryUuidSyntax {
         bval_filter: &BerValRef,
         vals: &ValueArrayRef,
     ) -> Result<bool, PluginError> {
-        let u = match bval_filter.try_into() {
+        let u: Uuid = match bval_filter.try_into() {
             Ok(u) => u,
             Err(_e) => return Ok(false),
         };
 
-        let r = vals.iter().fold(false, |acc, va| {
+        let r: bool = vals.iter().fold(false, |acc, va| {
             if acc {
                 acc
             } else {
@@ -114,7 +114,7 @@ impl SlapiOrdMr for EntryUuidSyntax {
             Err(_e) => return Ok(None),
         };
 
-        let r = vals.iter().fold(None, |acc, va| {
+        let r: Option<Ordering> = vals.iter().fold(None, |acc, va| {
             if acc.is_some() {
                 acc
             } else {

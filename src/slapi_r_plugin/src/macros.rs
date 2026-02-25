@@ -59,7 +59,7 @@ macro_rules! slapi_r_plugin_hooks {
                 let mut pb = PblockRef::new(raw_pb);
                 log_error!(ErrorLevel::Trace, "it's alive!\n");
 
-                match pb.set_plugin_version(PluginVersion::V03) {
+                match pb.set_plugin_version(&PluginVersion::V03) {
                     0 => {},
                     e => return e,
                 };
@@ -372,7 +372,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
                 let mut pb = PblockRef::new(raw_pb);
                 log_error!(ErrorLevel::Trace, "slapi_r_syntax_plugin_hooks => begin");
                 // Setup our plugin
-                match pb.set_plugin_version(PluginVersion::V01) {
+                match pb.set_plugin_version(&PluginVersion::V01) {
                     0 => {},
                     e => return e,
                 };
@@ -398,7 +398,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
 
                 // Now setup the MR's
                 match register_plugin_ext(
-                    PluginType::MatchingRule,
+                    &PluginType::MatchingRule,
                     $hooks_ident::eq_mr_name(),
                     concat!(stringify!($mod_ident), "_plugin_eq_mr_init"),
                     [<$mod_ident _plugin_eq_mr_init>]
@@ -409,7 +409,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
 
                 if $hooks_ident::sub_mr_oid().is_some() {
                     match register_plugin_ext(
-                        PluginType::MatchingRule,
+                        &PluginType::MatchingRule,
                         $hooks_ident::sub_mr_name(),
                         concat!(stringify!($mod_ident), "_plugin_ord_mr_init"),
                         [<$mod_ident _plugin_ord_mr_init>]
@@ -421,7 +421,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
 
                 if $hooks_ident::ord_mr_oid().is_some() {
                     match register_plugin_ext(
-                        PluginType::MatchingRule,
+                        &PluginType::MatchingRule,
                         $hooks_ident::ord_mr_name(),
                         concat!(stringify!($mod_ident), "_plugin_ord_mr_init"),
                         [<$mod_ident _plugin_ord_mr_init>]
@@ -542,7 +542,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
             ) -> i32 {
                 let mut pb = PblockRef::new(raw_pb);
                 log_error!(ErrorLevel::Trace, concat!(stringify!($mod_ident), "_plugin_eq_mr_init => begin"));
-                match pb.set_plugin_version(PluginVersion::V01) {
+                match pb.set_plugin_version(&PluginVersion::V01) {
                     0 => {},
                     e => return e,
                 };
@@ -785,7 +785,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
             ) -> i32 {
                 let mut pb = PblockRef::new(raw_pb);
                 log_error!(ErrorLevel::Trace, concat!(stringify!($mod_ident), "_plugin_ord_mr_init => begin"));
-                match pb.set_plugin_version(PluginVersion::V01) {
+                match pb.set_plugin_version(&PluginVersion::V01) {
                     0 => {},
                     e => return e,
                 };
