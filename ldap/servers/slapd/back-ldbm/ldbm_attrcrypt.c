@@ -1079,15 +1079,15 @@ attrcrypt_decrypt_index_key(backend *be,
  *                  :     NULL - no hash or failure
  */
 int
-attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, const struct berval *in, struct berval **out)
+attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo *ai, const struct berval *in, struct berval **out)
 {
     int ret = 0;
     struct berval *out_berval = NULL;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    char *new_prefix;
+    size_t final_key_len = INDEX_KEY_LENGTH(in->bv_len, strlen(prefix));
 
     /* If the index key is too long (i.e mdb case) we must hash it */
-    if (in->bv_len >=  li->li_max_key_len) {
+    if (final_key_len >=  li->li_max_key_len) {
         PK11Context *c = PK11_CreateDigestContext(SEC_OID_MD5);
         if (c != NULL) {
             unsigned char hash[32];
@@ -1101,16 +1101,13 @@ attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, 
                 return ENOMEM;
             }
             slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_hash_large_index_key",
-                          "Key lenght (%lu) >= max key lenght (%lu) so key must be hashed\n", in->bv_len, li->li_max_key_len);
+                          "Key lenght (%lu) >= max key lenght (%lu) so key must be hashed\n", final_key_len, li->li_max_key_len);
             slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
             PK11_DigestBegin(c);
             /* Compute hash for the key without the prefix */
             PK11_DigestOp(c, (unsigned char *)in->bv_val, in->bv_len);
             PK11_DigestFinal(c, hash, &hashLen, sizeof hash);
-            /* Add HASH_PREFIX before the prefix */
-            new_prefix = slapi_ch_smprintf("%c%s", HASH_PREFIX, *prefix);
-            index_free_prefix(*prefix);
-            *prefix = new_prefix;
+
             /* Build the key: hash value in hexa */
             hkey = slapi_ch_malloc(1+2*sizeof hash);
             out_berval->bv_val = hkey;

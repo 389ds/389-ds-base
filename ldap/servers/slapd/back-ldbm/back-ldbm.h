@@ -104,6 +104,8 @@ typedef unsigned short u_int16_t;
  */
 #define BE_CHANGELOG_FILE     "replication_changelog"
 
+#define INDEX_KEY_LENGTH(lenval,lenprefix)  (lenval+lenprefix+2)
+
 #define BDB_IMPL              "bdb"
 #define BDB_BACKEND           "libback-ldbm" /* This backend plugin */
 #define BDB_NEWIDL            "newidl"       /* new idl format */

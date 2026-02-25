@@ -1123,6 +1123,21 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
     return dnrc;
 }
 
+/* Log wqelmt details */
+void
+log_wqelmt(int loglvl, char *fname, WorkerQueueData_t *wqelmt)
+{
+    if (wqelmt->dn) {
+        slapi_log_err(loglvl, fname, "log_wqelmt: dn=%s\n", wqelmt->dn);
+    }
+    if (wqelmt->filename && wqelmt->lineno) {
+        slapi_log_err(loglvl, fname, "log_wqelmt: ldif=%s[%d]\n", wqelmt->filename, wqelmt->lineno);
+    }
+    if (wqelmt->data) {
+        size_t len = wqelmt->datalen ? wqelmt->datalen : strlen(wqelmt->data);
+        slapi_log_hexadump(loglvl, "log_wqelmt:data", wqelmt->data, len);
+    }
+}
 
 /* producer thread for ldif import case:
  * read through the given file list, parsing entries (str2entry), assigning
@@ -1255,6 +1270,7 @@ dbmdb_import_producer(void *param)
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_producer",
                                   "ns_slapd software error: unexpected dbmdb_import_entry_info return code: %d.",
                                   wqelmt.dnrc);
+                log_wqelmt(SLAPI_LOG_ERR, "dbmdb_import_producer", &wqelmt);
                 abort();
             case DNRC_OK:
             case DNRC_SUFFIX:
@@ -1758,6 +1774,7 @@ dbmdb_index_producer(void *param)
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_index_producer",
                                   "ns_slapd software error: unexpected dbmdb_import_entry_info return code: %d.",
                                   tmpslot.dnrc);
+                log_wqelmt(SLAPI_LOG_ERR, "dbmdb_index_producer", &tmpslot);
                 abort();
             case DNRC_OK:
             case DNRC_SUFFIX:
@@ -3936,10 +3953,24 @@ dbmdb_import_writer(void*param)
             if (!txn) {
                 MDB_STAT_STEP(stats, MDB_STAT_TXNSTART, stats_enabled);
                 rc = TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                                  "Failed to begin a txn. Error is 0x%x: %s.\n",
+                                  rc, mdb_strerror(rc));
+                }
             }
             if (!rc) {
                 MDB_STAT_STEP(stats, MDB_STAT_WRITE, stats_enabled);
                 rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                                  "Failed to write record in dbi %s. Error is 0x%x: %s.\n",
+                                  slot->dbi->dbname, rc, mdb_strerror(rc));
+                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:key", 
+                                       slot->key.mv_data, slot->key.mv_size);
+                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:data", 
+                                       slot->data.mv_data, slot->data.mv_size);
+                }
             }
             MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
             nextslot = slot->next;
@@ -3953,6 +3984,9 @@ dbmdb_import_writer(void*param)
             rc = TXN_COMMIT(txn);
             MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
             if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                              "Failed to commit the txn. Error is 0x%x: %s.\n",
+                              rc, mdb_strerror(rc));
                 break;
             }
             count = 0;
@@ -3965,6 +3999,10 @@ dbmdb_import_writer(void*param)
         MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         if (!rc) {
             txn = NULL;
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                          "Failed to commit the txn. Error is 0x%x: %s.\n",
+                          rc, mdb_strerror(rc));
         }
     }
     if (txn) {
@@ -3977,13 +4015,17 @@ dbmdb_import_writer(void*param)
     if (!rc) {
         /* Ensure that all data are written on disk */
         rc = mdb_env_sync(ctx->ctx->env, 1);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                          "mdb_env_sync failed. Error is 0x%x: %s.\n",
+                          rc, mdb_strerror(rc));
+        }
     }
     MDB_STAT_END(stats, stats_enabled);
 
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
-                "Failed to write in the database. Error is 0x%x: %s.\n",
-                rc, mdb_strerror(rc));
+                "Aborting import after failure.\n");
         thread_abort(info);
     } else if (stats_enabled) {
         char buf[200];
