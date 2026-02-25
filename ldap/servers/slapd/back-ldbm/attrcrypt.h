@@ -10,7 +10,7 @@
 #include <config.h>
 #endif
 
-/* Private tructures and #defines used in the attribute encryption code. */
+/* Private structures and #defines used in the attribute encryption code. */
 
 #ifndef _ATTRCRYPT_H_
 #define _ATTRCRYPT_H_

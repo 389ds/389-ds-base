@@ -75,9 +75,9 @@ static IDList *bdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a,
 #define DEBUG_SUBCOUNT_MSG(msg, ...) { debug_subcount(__FUNCTION__, __LINE__, (msg), __VA_ARGS__); }
 #define DUMP_SUBCOUNT_KEY(msg, key, ret) { debug_subcount(__FUNCTION__, __LINE__, "ret=%d size=%u ulen=%u doff=%u dlen=%u", \
                                                ret, (key).size, (key).ulen, (key).doff, (key).dlen); \
-                                           if (ret == 0) hexadump(msg, (key).data, 0, (key).size); \
+                                           if (ret == 0) slapi_log_hexadump(SLAPI_LOG_INFO, msg, (key).data, (key).size); \
                                            else if (ret == DB_BUFFER_SMALL) \
-                                                hexadump(msg, (key).data, 0, (key).ulen); }
+                                                slapi_log_hexadump(SLAPI_LOG_INFO, msg, (key).data, (key).ulen); }
 
 static void
 debug_subcount(const char *funcname, int line, char *msg, ...)
@@ -90,41 +90,6 @@ debug_subcount(const char *funcname, int line, char *msg, ...)
     slapi_log_err(SLAPI_LOG_INFO, (char*)funcname, "DEBUG SUBCOUNT [%d] %s\n", line, buff);
 }
 
-/*
- * Dump a memory buffer in hexa and ascii in error log
- *
- * addr - The memory buffer address.
- * len - The memory buffer lenght.
- */
-static void
-hexadump(char *msg, const void *addr, size_t offset, size_t len)
-{
-#define  HEXADUMP_TAB 4
-/* 4 characters per bytes:  2 hexa digits, 1 space and the ascii  */
-#define  HEXADUMP_BUF_SIZE (4*16+HEXADUMP_TAB)
-    char hexdigit[] = "0123456789ABCDEF";
-
-    const unsigned char *pt = addr;
-    char buff[HEXADUMP_BUF_SIZE+1];
-    memset (buff, ' ', HEXADUMP_BUF_SIZE);
-    buff[HEXADUMP_BUF_SIZE] = '\0';
-    while (len > 0) {
-        int dpl;
-        for (dpl = 0; dpl < 16 && len>0; dpl++, len--) {
-           buff[3*dpl] = hexdigit[((*pt) >> 4) & 0xf];
-           buff[3*dpl+1] = hexdigit[(*pt) & 0xf];
-           buff[3*16+HEXADUMP_TAB+dpl] = (*pt>=0x20 && *pt<0x7f) ? *pt : '.';
-           pt++;
-        }
-        for (;dpl < 16; dpl++) {
-           buff[3*dpl] = ' ';
-           buff[3*dpl+1] = ' ';
-           buff[3*16+HEXADUMP_TAB+dpl] = ' ';
-        }
-        slapi_log_err(SLAPI_LOG_INFO, msg, "[0x%08lx]  %s\n", offset, buff);
-        offset += 16;
-    }
-}
 #else
 #define DEBUG_SUBCOUNT_MSG(msg, ...)
 #define DUMP_SUBCOUNT_KEY(msg, key, ret)

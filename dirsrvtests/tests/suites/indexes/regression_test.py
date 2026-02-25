@@ -1022,6 +1022,64 @@ def test_idl_range_limit(topo, add_some_entries):
     assert len(entries) == 3
 
 
+def test_large_multivalued_sn_attribute(topo):
+    """Test adding a user entry with 512 values for sn attribute, each 512 bytes
+
+    :id: 8f2a9b3c-e8d7-11ef-9a5f-482ae39447e5
+    :setup: Standalone Instance
+    :steps:
+        1. Create a user with 512 sn values, each 512 bytes long
+        2. Verify the user was created successfully
+        3. Search for the user and verify all sn values are present
+        4. Clean up the user entry
+    :expectedresults:
+        1. User is created successfully
+        2. User entry exists
+        3. All 512 sn values are present and have correct length
+        4. User is deleted successfully
+    """
+
+    inst = topo.standalone
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+
+    log.info("Creating user with 512 sn values, each 512 bytes")
+
+    # Generate 512 unique sn values, each 512 bytes long
+    # Use a pattern that makes each value unique but predictable
+    sn_values = []
+    for i in range(512):
+        # Create a 512-byte value with unique identifier at the start
+        value = f'sn_value_{i:04d}_' + 'x' * (512 - len(f'sn_value_{i:04d}_'))
+        sn_values.append(value)
+
+    # Create the user with first sn value
+    user_name = 'test_user_large_sn'
+    user = users.create(properties={
+        'uid': user_name,
+        'cn': user_name,
+        'sn': sn_values,
+        'uidNumber': '99999',
+        'gidNumber': '99999',
+        'homeDirectory': f'/home/{user_name}'
+    })
+
+    # Verify the entry was created and has all sn values
+    log.info("Verifying all sn values are present")
+    sn_attr_values = user.get_attr_vals_utf8('sn')
+
+    assert len(sn_attr_values) == 512, f"Expected 512 sn values, got {len(sn_attr_values)}"
+
+    # Verify each value has the correct length
+    for idx, value in enumerate(sn_attr_values):
+        assert len(value) == 512, f"sn value {idx} has length {len(value)}, expected 512"
+
+    log.info("Successfully created and verified user with 512 sn values of 512 bytes each")
+
+    # Clean up
+    user.delete()
+    log.info("User entry deleted successfully")
+
+
 if __name__ == "__main__":
     # Run isolated
     # -s for DEBUG mode
