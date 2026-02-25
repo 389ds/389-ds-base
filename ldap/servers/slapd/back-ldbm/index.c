@@ -894,7 +894,7 @@ prepare_key(backend *be, struct attrinfo *a, char **buf, size_t *buflen,
     int rc = 0;
 
     /* Hash large index key if necessary */
-    if (INDEX_KEY_LENGHT(bvp->bv_len,plen) >=  li->li_max_key_len) {
+    if (INDEX_KEY_LENGTH(bvp->bv_len,plen) >=  li->li_max_key_len) {
         rc = attrcrypt_hash_large_index_key(be, prefix, a, bvp, &hashed_bvp);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",

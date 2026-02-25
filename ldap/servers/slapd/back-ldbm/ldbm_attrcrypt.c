@@ -1084,7 +1084,7 @@ attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo 
     int ret = 0;
     struct berval *out_berval = NULL;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    size_t final_key_len = INDEX_KEY_LENGHT(in->bv_len, strlen(prefix));
+    size_t final_key_len = INDEX_KEY_LENGTH(in->bv_len, strlen(prefix));
 
     /* If the index key is too long (i.e mdb case) we must hash it */
     if (final_key_len >=  li->li_max_key_len) {
