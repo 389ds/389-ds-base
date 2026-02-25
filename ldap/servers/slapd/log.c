@@ -93,6 +93,10 @@ static int slapi_log_map[] = {
 #define FLUSH PR_TRUE
 #define NO_FLUSH PR_FALSE
 
+#define  HEXADUMP_TAB 4
+/* 4 characters per bytes:  2 hexa digits, 1 space and the ascii  */
+#define  HEXADUMP_BUF_SIZE (4*16+HEXADUMP_TAB)
+
 /**************************************************************************
  * PROTOTYPES
  *************************************************************************/
@@ -3132,6 +3136,45 @@ slapi_log_backtrace(int loglevel)
         }
     }
 }
+
+/*
+ * Dump a memory buffer in hexa and ascii in error log
+ *
+ * addr - The memory buffer address.
+ * len - The memory buffer lenght.
+ */
+void
+slapi_log_hexadump(int loglevel, char *fname, const void *addr, size_t len)
+{
+    char hexdigit[] = "0123456789ABCDEF";
+    const unsigned char *pt = addr;
+    char buff[HEXADUMP_BUF_SIZE+1];
+    size_t offset = 0;
+
+    if (!slapi_is_loglevel_set(loglevel)) {
+        return;
+    }
+    memset (buff, ' ', HEXADUMP_BUF_SIZE);
+    buff[HEXADUMP_BUF_SIZE] = '\0';
+    while (len > 0) {
+        int dpl;
+        for (dpl = 0; dpl < 16 && len>0; dpl++, len--) {
+           buff[3*dpl] = hexdigit[((*pt) >> 4) & 0xf];
+           buff[3*dpl+1] = hexdigit[(*pt) & 0xf];
+           buff[3*16+HEXADUMP_TAB+dpl] = (*pt>=0x20 && *pt<0x7f) ? *pt : '.';
+           pt++;
+        }
+        for (;dpl < 16; dpl++) {
+           buff[3*dpl] = ' ';
+           buff[3*dpl+1] = ' ';
+           buff[3*16+HEXADUMP_TAB+dpl] = ' ';
+        }
+        slapi_log_err(loglevel, fname, "[0x%08lx]  %s\n", offset, buff);
+        offset += 16;
+    }
+}
+
+
 
 /******************************************************************************
 * write in the access log
