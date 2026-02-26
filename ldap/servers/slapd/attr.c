@@ -932,8 +932,20 @@ attr_check_minmax(const char *attr_name, char *value, long minval, long maxval, 
 {
     int retVal = LDAP_SUCCESS;
     long val;
+    char *endptr = NULL;
 
-    val = strtol(value, NULL, 0);
+    if (!value || *value == '\0') {
+        slapi_create_errormsg(errorbuf, ebuflen, "%s: attr value is NULL.", attr_name);
+        return LDAP_CONSTRAINT_VIOLATION;
+    }
+
+    errno = 0;
+    val = strtol(value, &endptr, 0);
+    if (endptr == value || *endptr != '\0' || errno != 0) {
+        slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid value \"%s\".", attr_name, value);
+        return LDAP_CONSTRAINT_VIOLATION;
+    }
+
     if ((minval != -1 ? (val < minval ? 1 : 0) : 0) ||
         (maxval != -1 ? (val > maxval ? 1 : 0) : 0)) {
         slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid value \"%s\".", attr_name, value);
