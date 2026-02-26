@@ -6,20 +6,24 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import pytest
 import time
+import ldap
+import logging
 from lib389.topologies import topology_st as topo
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.account import Account
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.group import Groups
+
+from ..clu.dbmon_test import _set_dbsizes
 from lib389.config import Config
 from lib389.idm.organizationalunit import OrganizationalUnits, OrganizationalUnit
 from lib389.plugins import MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.domain import Domain
-import ldap
-import logging
+from lib389.utils import get_default_db_lib
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -521,6 +525,76 @@ def test_managed_entry_removal(topo):
     # Check that the managing entry can be deleted too
     managing_entry.delete()
     assert not managing_entry.exists()
+
+
+MAX_ACCOUNTS = 2
+
+
+@pytest.mark.skipif(
+    get_default_db_lib() == "mdb",
+    reason="nsslapd-db-page-size is BDB-specific; ticket 47976 scenario uses BDB",
+)
+def test_managed_entry_delete_after_reimport(topo, _create_inital):
+    """User delete must not hang after reimport with large page size.
+
+    With MEP (posixAccount -> posixGroup), reimporting the DB with a very large page size
+    can place a user and its managed group on the same page. Deleting the user then
+    triggers MEP post-op to delete the group causing a deadlock.
+
+    :id: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+    :setup: Standalone Instance
+    :steps:
+        1. Create two users under cn=Users (MEP creates private groups in cn=Groups)
+        2. Set BDB page size and reimport the DB (user + group on same page)
+        3. Delete each user with short timeout
+        4. Verify users are deleted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Should not hang
+        4. Success
+    """
+    inst = topo.standalone
+
+    users_ou = f"cn=Users,{DEFAULT_SUFFIX}"
+
+    # Create users (MEP creates private groups in cn=Groups)
+    users = UserAccounts(inst, DEFAULT_SUFFIX, rdn="cn=Users")
+    for i in range(MAX_ACCOUNTS):
+        users.create(
+            rdn=f"uid=user{i}",
+            properties={
+                "uid": f"user{i}",
+                "cn": f"user{i}",
+                "sn": f"user{i}",
+                "uidNumber": "1",
+                "gidNumber": "1",
+                "homeDirectory": f"/home/user{i}",
+            },
+        )
+
+    # Set large BDB page size and reimport DB so user + managed group can end up on same page
+    _set_dbsizes(inst, 64 * 1024, 80960)
+
+    # Delete users with short timeout; must not hang
+    inst.set_option(ldap.OPT_TIMEOUT, 5)
+    for i in range(MAX_ACCOUNTS):
+        name = f"user{i}"
+        user_dn = f"uid={name},{users_ou}"
+        user = UserAccount(inst, user_dn)
+        try:
+            user.delete()
+        except ldap.TIMEOUT:
+            log.fatal("Timeout on delete")
+            pytest.fail("Delete hung")
+
+    # Verify users are gone
+    for i in range(MAX_ACCOUNTS):
+        name = f"user{i}"
+        user_dn = f"uid={name},{users_ou}"
+        user = UserAccount(inst, user_dn)
+        assert not user.exists(), f"Expected {user_dn} to be deleted"
+        log.info(f"{name} was correctly deleted")
 
 
 if __name__ == '__main__':
