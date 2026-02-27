@@ -3,6 +3,7 @@ import React from "react";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
+import EncryptionModules from "./lib/security/encryptionModules.jsx";
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
 import {
@@ -37,6 +38,7 @@ const configAttrs = [
     'checkHostname',
     'allowWeakCipher',
     'nstlsallowclientrenegotiation',
+    'extractPEMFiles',
 ];
 
 const configCoreAttrs = [
@@ -101,32 +103,6 @@ export class Security extends React.Component {
             _nssslpersonalityssl: '',
             _nssslpersonalityssllist: "",
             _nstlsallowclientrenegotiation: true,
-
-            isServerCertOpen: false,
-        };
-
-        // Server Cert
-        this.handleServerCertSelect = (event, selection) => {
-            let disableSaveBtn = !this.configChanged();
-            if (this.state._nssslpersonalityssl !== selection) {
-                disableSaveBtn = false;
-            }
-            this.setState({
-                nssslpersonalityssl: selection,
-                isServerCertOpen: false,
-                disableSaveBtn,
-            });
-        };
-        this.handleServerCertToggle = (_event, isServerCertOpen) => {
-        this.setState({
-            isServerCertOpen
-        });
-        };
-        this.handleServerCertClear = () => {
-            this.setState({
-                nssslpersonalityssl: '',
-                isServerCertOpen: false
-            });
         };
 
         // Toggle currently active tab
@@ -430,12 +406,10 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const keys = JSON.parse(content);
-                    this.setState(() => (
-                        {
-                            serverOrphanKeys: keys,
-                            loaded: true
-                        }), this.props.enableTree()
-                    );
+                    this.setState({
+                        serverOrphanKeys: keys,
+                        loaded: true
+                    }, this.props.enableTree());
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -502,6 +476,7 @@ export class Security extends React.Component {
                     let allowWeak = false;
                     let renegot = true;
                     let checkHostname = false;
+                    let extractPEMFiles = false;
 
                     if ('nstlsallowclientrenegotiation' in config.items) {
                         if (config.items.nstlsallowclientrenegotiation === "off") {
@@ -543,6 +518,11 @@ export class Security extends React.Component {
                             cipherPref = attrs.nsssl3ciphers;
                         }
                     }
+                    if ('nsslapd-extract-pemfiles' in attrs) {
+                        if (attrs['nsslapd-extract-pemfiles'].toLowerCase() === "on") {
+                            extractPEMFiles = true;
+                        }
+                    }
 
                     this.setState(() => (
                         {
@@ -557,6 +537,7 @@ export class Security extends React.Component {
                             allowWeakCipher: allowWeak,
                             cipherPref,
                             nstlsallowclientrenegotiation: renegot,
+                            extractPEMFiles,
                             _nstlsallowclientrenegotiation: renegot,
                             _securityEnabled: secEnabled,
                             _requireSecureBinds: secReqSecBinds,
@@ -567,6 +548,7 @@ export class Security extends React.Component {
                             _sslVersionMin: attrs.sslversionmin,
                             _sslVersionMax: attrs.sslversionmax,
                             _allowWeakCipher: allowWeak,
+                            _extractPEMFiles: extractPEMFiles,
                             disableSaveBtn: true,
                         }
                     ), function() {
@@ -845,7 +827,13 @@ export class Security extends React.Component {
             }
             cmd.push("--require-secure-authentication=" + val);
         }
-
+        if (this.state._extractPEMFiles !== this.state.extractPEMFiles) {
+            let val = "off";
+            if (this.state.extractPEMFiles) {
+                val = "on";
+            }
+            cmd.push("--extract-pemfiles=" + val);
+        }
         if (this.state._nstlsallowclientrenegotiation !== this.state.nstlsallowclientrenegotiation) {
             let val = "off";
             if (this.state.nstlsallowclientrenegotiation) {
@@ -992,7 +980,6 @@ export class Security extends React.Component {
 
     render() {
         let securityPage = "";
-        const serverCert = [this.state.nssslpersonalityssl];
         let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
         if (this.state.saving) {
@@ -1006,26 +993,6 @@ export class Security extends React.Component {
                 configPage = (
                     <div className="ds-margin-bottom-md">
                         <Form isHorizontal autoComplete="off">
-                            <Grid
-                                title={_("The name, or nickname, of the server certificate inthe NSS database the server should use (nsSSLPersonalitySSL).")}
-                            >
-                                <GridItem className="ds-label" span={3}>
-                                    {_("Server Certificate Name")}
-                                </GridItem>
-                                <GridItem span={8}>
-                                    <TypeaheadSelect
-                                        selected={serverCert}
-                                        onSelect={this.handleServerCertSelect}
-                                        onClear={this.handleServerCertClear}
-                                        options={this.state.serverCertNames}
-                                        isOpen={this.state.isServerCertOpen}
-                                        onToggle={this.handleServerCertToggle}
-                                        placeholder={_("Type a sever certificate nickname...")}
-                                        noResultsText={_("There are no matching entries")}
-                                        ariaLabel="Type a server certificate nickname"
-                                    />
-                                </GridItem>
-                            </Grid>
                             <Grid
                                 title={_("The minimum SSL/TLS version the server will accept (sslversionmin).")}
                             >
@@ -1171,6 +1138,20 @@ export class Security extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
+                            <Grid
+                                title={_("At server shutdown extract the server\'s certificates and keys to PEM files (nsslapd-extract-pemfiles).")}
+                            >
+                                <GridItem className="ds-label" span={4}>
+                                    <Checkbox
+                                        id="extractPEMFiles"
+                                        isChecked={this.state.extractPEMFiles}
+                                        onChange={(e, checked) => {
+                                            this.handleChange(e);
+                                        }}
+                                        label={_("Extract PEM Files")}
+                                    />
+                                </GridItem>
+                            </Grid>
                         </Form>
                         <Button
                             variant="primary"
@@ -1248,6 +1229,15 @@ export class Security extends React.Component {
                                         enabledCiphers={this.state.enabledCiphers}
                                         addNotification={this.props.addNotification}
                                         reload={this.loadSecurityConfig}
+                                    />
+                                </div>
+                            </Tab>
+                            <Tab eventKey={3} title={<TabTitleText>{_("Encryption Modules")}</TabTitleText>}>
+                                <div className="ds-indent ds-tab-table">
+                                    <EncryptionModules
+                                        serverId={this.props.serverId}
+                                        addNotification={this.props.addNotification}
+                                        serverCertNames={this.state.serverCertNames}
                                     />
                                 </div>
                             </Tab>
