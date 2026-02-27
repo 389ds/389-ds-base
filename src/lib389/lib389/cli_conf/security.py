@@ -41,6 +41,9 @@ SECURITY_ATTRS_MAP = OrderedDict([
     ('check-hostname', Props(Config, 'nsslapd-ssl-check-hostname',
                              'Checks the subject of remote certificate against the hostname',
                              onoff)),
+    ('extract-pemfiles', Props(Config, 'nsslapd-extract-pemfiles',
+                               'At server shutdown extract the server\'s certificates and keys to PEM files',
+                               onoff)),
     ('verify-cert-chain-on-startup', Props(Config, 'nsslapd-validate-cert',
                                            'Validates the server certificate during startup',
                                            ('warn', *onoff))),
@@ -100,7 +103,7 @@ def _security_generic_set(inst, basedn, log, args, attrs_map):
             dsobj.replace(props.attr, arg)
         else:
             dsobj.remove_all(props.attr)
-    log.info(f"Successfully updated security configuration ({props.attr})")
+    log.info("Successfully updated security configuration")
 
 
 def _security_generic_get_parser(parent, attrs_map, help):
@@ -120,9 +123,8 @@ def _security_generic_set_parser(parent, attrs_map, help, description):
 def _security_ciphers_change(mode, ciphers, inst, log):
     log = log.getChild('_security_ciphers_change')
     if ('default' in ciphers) or ('all' in ciphers):
-        log.error(('Use ciphers\' names only. Keywords "default" and "all" are ignored. '
-                   'Please, instead specify them manually using \'set\' command.'))
-        return
+        raise ValueError("Use ciphers' names only. Keywords 'default' and 'all' are "
+                         "ignored. Please, instead specify them manually using 'set' command.")
     enc = Encryption(inst)
     if enc.change_ciphers(mode, ciphers) is False:
         log.error('Setting new ciphers failed.')
@@ -498,14 +500,14 @@ def encryption_module_delete(inst, basedn, log, args):
     """Delete an encryption module
     """
     if args.name.lower() == "rsa":
-        log.error("Cannot delete RSA encryption module")
-        return
+        # Currently RSA is hardcoded into attribute encryption so it can not
+        # be deleted at this time
+        raise ValueError("Deletion of RSA encryption module is not allowed")
 
     try:
         encryption_module = EncryptionModules(instance=inst).get(args.name)
     except ldap.NO_SUCH_OBJECT as e:
-        log.error(f"Failed to get encryption module '{args.name}'")
-        return
+        raise ValueError(f"Encryption module '{args.name}' not found")
 
     encryption_module.delete()
     log.info("Successfully deleted encryption module")
@@ -517,12 +519,10 @@ def encryption_module_edit(inst, basedn, log, args):
     try:
         encryption_module = EncryptionModules(instance=inst).get(args.name)
     except ldap.NO_SUCH_OBJECT as e:
-        log.error(f"Failed to get encryption module '{args.name}'")
-        return
+        raise ValueError(f"Encryption module '{args.name}' not found")
 
     if args.activate and args.deactivate:
-        log.error("Cannot activate and deactivate an encryption module at the same time")
-        return
+        raise ValueError("Cannot activate and deactivate an encryption module at the same time")
 
     replace_list = []
     if args.cert_nickname is not None:
@@ -577,8 +577,7 @@ def encryption_module_get(inst, basedn, log, args):
     try:
         encryption_module = EncryptionModules(instance=inst).get(args.name)
     except ldap.NO_SUCH_OBJECT as e:
-        log.error(f"Failed to get encryption module '{args.name}'")
-        return
+        raise ValueError(f"Encryption module '{args.name}' not found")
 
     if args.json:
         entry = encryption_module.get_all_attrs_json()
