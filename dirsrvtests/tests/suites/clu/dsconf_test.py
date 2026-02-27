@@ -8,13 +8,15 @@
 #
 """Test dsconf CLI with LDAPS"""
 
-import subprocess
 import logging
 import os
-from lib389.cli_base import LogCapture
+import subprocess
+import tempfile
 import pytest
 import ldap
-from lib389._constants import DEFAULT_SUFFIX, DN_DM, ReplicaRole
+from lib389.cli_base import LogCapture
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD, ReplicaRole
+from lib389.pwpolicy import PwPolicyEntry
 from lib389.topologies import create_topology
 
 
@@ -244,3 +246,45 @@ def test_check_replica_id_accepted_hub_consumer(topology_st, instance_role, repl
     log.info(f'output message : {msg}')
     assert "Replication successfully enabled for" in msg
     log.info(f"Test PASSED: --replica-id option is accepted for {instance_role}.")
+
+
+def test_dsconf_localpwp_list_nonstandard_policy(topology_st):
+    """Verify a non-standard policy is listed by 'dsconf localpwp list' without
+    resulting in an error.
+
+    :id: a7f2c91e-4b5d-4e8a-9c3f-1d6e8a2b4c70
+    :setup: Standalone instance
+    :steps:
+        1. Enable local password policy (nsslapd-pwpolicy-local on).
+        2. Create a password policy at cn=passwordpolicy,<suffix> using PwPolicyEntry.create().
+        3. Run 'dsconf localpwp list' and verify exit code 0 and that the policy DN is listed.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = topology_st.standalone
+
+    inst.simple_bind_s(DN_DM, PASSWORD)
+    inst.config.set("nsslapd-pwpolicy-local", "on")
+
+    # Create a non-standard password policy
+    policy_dn = f"cn=passwordpolicy,{DEFAULT_SUFFIX}"
+    policy = PwPolicyEntry(inst, dn=policy_dn)
+    policy.create(properties={'cn': 'passwordpolicy','passwordChange': 'on'})
+
+    # Verify dsconf localpwp list succeeds and lists the policy
+    dsconf_cmd = ["/usr/sbin/dsconf", inst.serverid, "localpwp", "list"]
+    proc = subprocess.run(
+        dsconf_cmd,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert proc.returncode == 0, (
+        f"dsconf localpwp list failed: rc={proc.returncode} stderr={proc.stderr!r}"
+    )
+    assert policy_dn in proc.stdout, (
+        f"Policy not found in list output: {proc.stdout!r}"
+    )
+    log.info(f"dsconf localpwp list succeeded and listed policy {policy_dn}")
