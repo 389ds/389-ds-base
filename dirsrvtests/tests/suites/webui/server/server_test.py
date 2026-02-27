@@ -344,6 +344,39 @@ def test_security_log_availability(topology_st, page, browser_name):
     assert frame.get_by_text('Log Archive Exceeds (in MB)').is_visible()
 
 
+def test_security_encryption_modules_availability(topology_st, page, browser_name):
+    """ Test Encryption Modules tab visibility and controls
+
+    :id: b8a36f2e-381a-49ce-bf3a-4fe25a83f02a
+    :setup: Standalone instance
+    :steps:
+         1. Click on Security button on the side panel and check if Security Configuration tab is visible.
+         2. Click on Encryption Modules tab and check if Add Encryption Module button is visible.
+         3. Check if table headers Module Name and Server Certificate Name are visible.
+    :expectedresults:
+         1. Element is visible.
+         2. Element is visible.
+         3. Elements are visible.
+    """
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+
+    log.info('Click on Security button and check if element is loaded.')
+    frame.locator('#security-config').click()
+    frame.get_by_role('tab', name='Security Configuration').wait_for()
+    assert frame.get_by_role('tab', name='Security Configuration').is_visible()
+
+    log.info('Click on Encryption Modules tab and check if Add Encryption Module button is visible.')
+    frame.get_by_role('tab', name='Encryption Modules').click()
+    frame.get_by_role('button', name='Add Encryption Module').wait_for()
+    assert frame.get_by_role('button', name='Add Encryption Module').is_visible()
+
+    log.info('Check if encryption modules table headers are visible.')
+    assert frame.get_by_role('columnheader', name='Module Name').is_visible()
+    assert frame.get_by_role('columnheader', name='Server Certificate Name').is_visible()
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

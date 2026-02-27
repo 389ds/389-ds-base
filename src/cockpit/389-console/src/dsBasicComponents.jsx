@@ -477,6 +477,7 @@ const TypeaheadSelect = ({
                                 className={option.className}
                                 id={createItemId(option.value)}
                                 value={option.value}
+                                isDisabled={option.isDisabled}
                                 isSelected={isSelected}
                                 hasCheckbox={isMulti && hasCheckbox}
                                 ref={null}
@@ -504,7 +505,9 @@ TypeaheadSelect.propTypes = {
             PropTypes.shape({
                 value: PropTypes.string.isRequired,
                 label: PropTypes.string,
-                description: PropTypes.string
+                description: PropTypes.string,
+                isDisabled: PropTypes.bool,
+                className: PropTypes.string,
             })
         ])
     ),
