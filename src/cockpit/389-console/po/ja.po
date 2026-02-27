@@ -5878,7 +5878,7 @@ msgstr "パスワードの有効開始日"
 msgid "Create New Policy"
 msgstr "ポリシーを作成"
 
-#: src/lib/database/localPwp.jsx:1396
+#: src/lib/database/localPwp.jsx:1451
 msgid "Successfully created new password policy"
 msgstr "新しいパスワードポリシーの作成に成功しました"
 

@@ -121,6 +121,11 @@ class DSLdapObject(DSLogging, DSLint):
     :type dn: str
     """
 
+    # Outcome results for ensure_state operations
+    ENSURE_ADDED = "added"
+    ENSURE_UPDATED = "updated"
+    ENSURE_UNCHANGED= "unchanged"
+
     # TODO: Automatically create objects when they are requested to have properties added
     def __init__(self, instance, dn=None):
         self._instance = instance
@@ -140,6 +145,7 @@ class DSLdapObject(DSLogging, DSLint):
         self._server_controls = None
         self._client_controls = None
         self._object_filter = '(objectClass=*)'
+        self._ensure_status = self.ENSURE_UNCHANGED
 
     def __unicode__(self):
         val = self._dn
@@ -467,6 +473,10 @@ class DSLdapObject(DSLogging, DSLint):
         """
         if self.present(attr, value):
             self.remove(attr, value)
+
+    @property
+    def ensure_status(self):
+        return self._ensure_status
 
     def ensure_attr_state(self, state):
         """
@@ -1036,7 +1046,7 @@ class DSLdapObject(DSLogging, DSLint):
         # Do we need to do extra dn validation here?
         return (tdn, str_props)
 
-    def _create(self, rdn=None, properties=None, basedn=None, ensure=False):
+    def _create(self, rdn=None, properties=None, basedn=None, ensure=False, strict=False):
         """Internal implementation of create. This is used by ensure
         and create, to prevent code duplication. You should *never* call
         this method directly.
@@ -1064,11 +1074,85 @@ class DSLdapObject(DSLogging, DSLint):
             # update properties
             self._log.debug('Exists %s' % dn)
             self._dn = dn
-            # Now use replace_many to setup our values
-            mods = []
-            for k, v in list(valid_props.items()):
-                mods.append((ldap.MOD_REPLACE, k, v))
-            _modify_ext_s(self._instance,self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
+
+            # Non strict mode, replace all attributes
+            if not strict:
+                # Now use replace_many to setup our values
+                mods = []
+                for k, v in list(valid_props.items()):
+                    mods.append((ldap.MOD_REPLACE, k, v))
+                _modify_ext_s(self._instance,self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
+
+                self._ensure_status = self.ENSURE_UPDATED
+                return self
+            # Strict mode, compare and update only the differences
+            else:
+                # Get existing attributes
+                current_attrs_raw = self.get_all_attrs_utf8()
+                current_attrs = {}
+                for k, v in current_attrs_raw.items():
+                    key = k.lower()
+                    if not isinstance(v, list):
+                        values = [v]
+                    else:
+                        values = v
+
+                    normalised = []
+                    for x in values:
+                        # Handle DN valued attributes
+                        if is_a_dn(x):
+                            x = ldap.dn.dn2str(ldap.dn.str2dn(x))
+                        normalised.append(ensure_str(x))
+                    current_attrs[key] = normalised
+
+                # Get requested attributes
+                requested_attrs = {}
+                for k, v in valid_props.items():
+                    key = k.lower()
+                    if not isinstance(v, list):
+                        values = [v]
+                    else:
+                        values = v
+
+                    normalised = []
+                    for x in values:
+                        # Handle DN valued attributes
+                        if is_a_dn(x):
+                            x = ldap.dn.dn2str(ldap.dn.str2dn(x))
+                        normalised.append(ensure_str(x))
+                    requested_attrs[key] = normalised
+
+                # Remove operational attributes
+                for attr in self._compare_exclude:
+                    current_attrs.pop(attr, None)
+
+                # Compare current with requested
+                matches = True
+                mods = []
+                for k, v in requested_attrs.items():
+                    current_val = current_attrs.get(k, [])
+                    if not isinstance(current_val, list):
+                        current_val = [current_val]
+                    if set(current_val) != set(v):
+                        matches = False
+                        mods.append((ldap.MOD_REPLACE, k, ensure_list_bytes(v)))
+
+                # Its a match, nothing to do
+                if matches:
+                    self._ensure_status = self.ENSURE_UNCHANGED
+                    return self
+
+                if mods:
+                    _modify_ext_s(self._instance, self._dn, mods,
+                                serverctrls=self._server_controls,
+                                clientctrls=self._client_controls,
+                                escapehatch='i am sure')
+                    self._ensure_status = self.ENSURE_UPDATED
+                else:
+                    self._ensure_status = self.ENSURE_UNCHANGED
+
+                return self
+
         elif not exists:
             # This case is reached in two cases. One is we are in ensure mode, and we KNOW the entry
             # doesn't exist.
@@ -1085,12 +1169,13 @@ class DSLdapObject(DSLogging, DSLint):
             # we may not have a self reference yet (just created), it may have changed (someone
             # set dn, but validate altered it).
             self._dn = dn
+            self._ensure_status = self.ENSURE_ADDED
+            return self
         else:
             # This case can't be reached now that we only check existance on ensure.
             # However, it's good to keep it for "complete" behaviour, exhausting all states.
             # We could highlight bugs ;)
             raise AssertionError("Impossible State Reached in _create")
-        return self
 
     def create(self, rdn=None, properties=None, basedn=None):
         """Add a new entry
@@ -1106,7 +1191,7 @@ class DSLdapObject(DSLogging, DSLint):
         """
         return self._create(rdn, properties, basedn, ensure=False)
 
-    def ensure_state(self, rdn=None, properties=None, basedn=None):
+    def ensure_state(self, rdn=None, properties=None, basedn=None, strict=False):
         """Ensure an entry exists with the following state, created
         if necessary.
 
@@ -1119,7 +1204,7 @@ class DSLdapObject(DSLogging, DSLint):
 
         :returns: DSLdapObject of the created entry
         """
-        return self._create(rdn, properties, basedn, ensure=True)
+        return self._create(rdn, properties, basedn, ensure=True, strict=strict)
 
 
 # A challenge of this, is how do we manage indexes? They have two naming attributes....
@@ -1369,7 +1454,7 @@ class DSLdapObjects(DSLogging, DSLints):
         # Now actually commit the creation req
         return co.create(rdn, properties, self._basedn)
 
-    def ensure_state(self, rdn=None, properties=None):
+    def ensure_state(self, rdn=None, properties=None, strict=False):
         """Create an object under base DN of our entry, or
         assert it exists and update it's properties.
 
@@ -1389,7 +1474,7 @@ class DSLdapObjects(DSLogging, DSLints):
         self._rdn_attribute = co._rdn_attribute
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
-        return co.ensure_state(rdn, properties, self._basedn)
+        return co.ensure_state(rdn, properties, self._basedn, strict=strict)
 
     def filter(self, search, attrlist=None, scope=None, strict=False):
         # This will yield and & filter for objectClass with as many terms as needed.

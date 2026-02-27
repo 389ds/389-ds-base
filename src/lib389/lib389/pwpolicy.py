@@ -150,12 +150,12 @@ class PwPolicyManager(object):
 
         # Create the pwp container if needed
         pwp_containers = nsContainers(self._instance, basedn=parentdn)
-        pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'})
+        pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'}, strict=True)
 
         # Create or update the policy entry
         properties['cn'] = 'cn=nsPwPolicyEntry_user,%s' % dn
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
-        pwp_entry = pwp_entries.ensure_state(properties=properties)
+        pwp_entry = pwp_entries.ensure_state(properties=properties, strict=True)
         try:
             # Add policy to the entry
             user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
@@ -188,12 +188,12 @@ class PwPolicyManager(object):
 
         # Create the pwp container if needed
         pwp_containers = nsContainers(self._instance, basedn=dn)
-        pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'})
+        pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'}, strict=True)
 
         # Create or update the policy entry
         properties['cn'] = 'cn=nsPwPolicyEntry_subtree,%s' % dn
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
-        pwp_entry = pwp_entries.ensure_state(properties=properties)
+        pwp_entry = pwp_entries.ensure_state(properties=properties, strict=True)
 
         # Ensure the CoS template entry (nsPwTemplateEntry) that points to the
         # password policy entry
@@ -202,7 +202,7 @@ class PwPolicyManager(object):
             'cosPriority': '1',
             'pwdpolicysubentry': pwp_entry.dn,
             'cn': 'cn=nsPwTemplateEntry,%s' % dn
-        })
+        }, strict=True)
 
         # Ensure the CoS specification entry at the subtree level
         cos_pointer_defs = CosPointerDefinitions(self._instance, dn)
@@ -210,7 +210,7 @@ class PwPolicyManager(object):
             'cosAttribute': 'pwdpolicysubentry default operational-default',
             'cosTemplateDn': cos_template.dn,
             'cn': 'nsPwPolicy_CoS'
-        })
+        }, strict=True)
 
         # make sure that local policies are enabled
         self.set_global_policy({'nsslapd-pwpolicy-local': 'on'})
