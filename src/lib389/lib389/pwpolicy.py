@@ -157,8 +157,10 @@ class PwPolicyManager(object):
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
         pwp_entry = pwp_entries.ensure_state(properties=properties, strict=True)
         try:
-            # Add policy to the entry
-            user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
+            # Add policy to the entry if needed
+            user_pwp_dn = user_entry.get_attr_val_utf8('pwdpolicysubentry', [])
+            if user_pwp_dn != [pwp_entry.dn]:
+                user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
         except ldap.LDAPError as e:
             # failure, undo what we have done
             pwp_entry.delete()
@@ -206,7 +208,7 @@ class PwPolicyManager(object):
 
         # Ensure the CoS specification entry at the subtree level
         cos_pointer_defs = CosPointerDefinitions(self._instance, dn)
-        cos_pointer_defs.ensure_state(properties={
+        cos_pointer_def = cos_pointer_defs.ensure_state(properties={
             'cosAttribute': 'pwdpolicysubentry default operational-default',
             'cosTemplateDn': cos_template.dn,
             'cn': 'nsPwPolicy_CoS'
@@ -214,6 +216,23 @@ class PwPolicyManager(object):
 
         # make sure that local policies are enabled
         self.set_global_policy({'nsslapd-pwpolicy-local': 'on'})
+
+        # Capture the outcome of each ensure_state call
+        ensure_status = [
+            pwp_container.ensure_status,
+            pwp_entry.ensure_status,
+            cos_template.ensure_status,
+            cos_pointer_def.ensure_status,
+        ]
+
+        # Determine overall status
+        if all(s == DSLdapObject.ENSURE_UNCHANGED for s in ensure_status):
+            pwp_entry._ensure_status = DSLdapObject.ENSURE_UNCHANGED
+        elif all(s == DSLdapObject.ENSURE_ADDED for s in ensure_status):
+            pwp_entry._ensure_status = DSLdapObject.ENSURE_ADDED
+        else:
+            # If any component was added/updated, consider it UPDATED (repair or modification)
+            pwp_entry._ensure_status = DSLdapObject.ENSURE_UPDATED
 
         return pwp_entry
 

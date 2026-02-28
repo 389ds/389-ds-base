@@ -25,7 +25,7 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.pwpolicy import PwPolicyManager, PwPolicyEntries
 from lib389.idm.account import Account
-from lib389.idm.nscontainer import nsContainers
+from lib389.idm.nscontainer import nsContainers, nsContainer
 from lib389.cos import CosPointerDefinitions, CosTemplates
 import ldap
 
@@ -114,8 +114,11 @@ def policy_qoutes_setup(topology_m1, request):
     USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
     ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
     suffix = Domain(inst, DEFAULT_SUFFIX)
-    suffix.add('aci', USER_SELF_MOD_ACI)
-    suffix.add('aci', ANON_ACI)
+    existing_acis = suffix.get_attr_vals_utf8('aci') or []
+    if USER_SELF_MOD_ACI not in existing_acis:
+        suffix.add('aci', USER_SELF_MOD_ACI)
+    if ANON_ACI not in existing_acis:
+        suffix.add('aci', ANON_ACI)
 
     ous = []
     for suffix, ou in [(DEFAULT_SUFFIX, 'dirsec'), (f'ou=people,{DEFAULT_SUFFIX}', 'others')]:
@@ -124,6 +127,7 @@ def policy_qoutes_setup(topology_m1, request):
         })
         ous.append(created_ou)
 
+    users = []
     for uid, cn, sn, givenname, userpasseord, gid, ou in [
         ('dbyers', 'Danny Byers', 'Byers', 'Danny', 'dby3rs1', '10001', 'ou=dirsec'),
         ('orla', 'Orla Hegarty', 'Hegarty', 'Orla', '000rla1', '10002', 'ou=dirsec'),
@@ -134,7 +138,8 @@ def policy_qoutes_setup(topology_m1, request):
         ('accntlusr', 'AccountControl User', 'ControlUser', 'Account', 'AcControl123', '10007', 'ou=dirsec'),
         ('nocntlusr', 'NoAccountControl User', 'ControlUser', 'NoAccount', 'NoControl123', '10008', 'ou=dirsec')
     ]:
-        create_user(inst, uid, cn, sn, givenname, userpasseord, gid, ou)
+        users.append(create_user(inst, uid, cn, sn, givenname, userpasseord, gid, ou))
+
     policy_props = {'passwordexp': 'off',
                     'passwordchange': 'off',
                     'passwordmustchange': 'off',
@@ -152,24 +157,32 @@ def policy_qoutes_setup(topology_m1, request):
                     'passwordStorageScheme': 'CLEAR',
                     'passwordwarning': '86400'
                     }
+    pwp_dns = []
     pwp = PwPolicyManager(inst)
     for dn_dn in (f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}',
                   f'uid=joe,ou=People,{DEFAULT_SUFFIX}'):
+        pwp_dns.append(dn_dn)
         pwp.create_user_policy(dn_dn, policy_props)
 
     # The function creates PwPolicyEntry with cn: "<DN>" value instead of <DN>
     create_subtree_policy_custom(inst, f'ou=People,{DEFAULT_SUFFIX}', policy_props)
 
     def fin():
-        # Remove the OrganizationalUnits that was created for this test case
+        for dn in pwp_dns:
+            pwp.delete_local_policy(dn)
+
+        for user in users:
+            user.delete()
+
         for ou in ous:
-            inst.delete_branch_s(ou.dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+            ou.delete()
+
     request.addfinalizer(fin)
 
     return pwp
 
-@pytest.fixture(scope="module")
-def policy_setup(topo):
+@pytest.fixture(scope="function")
+def policy_setup(topo, request):
     """
     Will do pretest setup.
     """
@@ -178,13 +191,19 @@ def policy_setup(topo):
     USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
     ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
     suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
-    suffix.add('aci', USER_SELF_MOD_ACI)
-    suffix.add('aci', ANON_ACI)
+    existing_acis = suffix.get_attr_vals_utf8('aci') or []
+    if USER_SELF_MOD_ACI not in existing_acis:
+        suffix.add('aci', USER_SELF_MOD_ACI)
+    if ANON_ACI not in existing_acis:
+        suffix.add('aci', ANON_ACI)
 
+    ous = []
     for suffix, ou in [(DEFAULT_SUFFIX, 'dirsec'), (f'ou=people,{DEFAULT_SUFFIX}', 'others')]:
-        OrganizationalUnits(topo.standalone, suffix).create(properties={
+        ous.append(OrganizationalUnits(topo.standalone, suffix).create(properties={
             'ou': ou
-        })
+        }))
+
+    users = []
     for uid, cn, sn, givenname, userpasseord, gid, ou in [
         ('dbyers', 'Danny Byers', 'Byers', 'Danny', 'dby3rs1', '10001', 'ou=dirsec'),
         ('orla', 'Orla Hegarty', 'Hegarty', 'Orla', '000rla1', '10002', 'ou=dirsec'),
@@ -195,7 +214,8 @@ def policy_setup(topo):
         ('accntlusr', 'AccountControl User', 'ControlUser', 'Account', 'AcControl123', '10007', 'ou=dirsec'),
         ('nocntlusr', 'NoAccountControl User', 'ControlUser', 'NoAccount', 'NoControl123', '10008', 'ou=dirsec')
     ]:
-        create_user(topo.standalone, uid, cn, sn, givenname, userpasseord, gid, ou)
+        users.append(create_user(topo.standalone, uid, cn, sn, givenname, userpasseord, gid, ou))
+
     policy_props = {'passwordexp': 'off',
                     'passwordchange': 'off',
                     'passwordmustchange': 'off',
@@ -213,11 +233,28 @@ def policy_setup(topo):
                     'passwordStorageScheme': 'CLEAR',
                     'passwordwarning': '86400'
                     }
+    pwp_dns = []
     pwp = PwPolicyManager(topo.standalone)
     for dn_dn in (f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}',
                   f'uid=joe,ou=People,{DEFAULT_SUFFIX}'):
+        pwp_dns.append(dn_dn)
         pwp.create_user_policy(dn_dn, policy_props)
+
     pwp.create_subtree_policy(f'ou=People,{DEFAULT_SUFFIX}', policy_props)
+
+    def fin():
+        pwp.delete_local_policy(f'ou=People,{DEFAULT_SUFFIX}')
+
+        for dn in pwp_dns:
+            pwp.delete_local_policy(dn)
+
+        for user in users:
+            user.delete()
+
+        for ou in ous:
+            ou.delete()
+
+    request.addfinalizer(fin)
 
 
 def change_password(topo, user_password_new_pass_list):
@@ -287,6 +324,26 @@ def fixture_for_password_change(request, topo):
         ])
         request.addfinalizer(final_task)
 
+def _cli_args(dn, **extraargs):
+    args = FakeArgs()
+    args.DN = dn
+    args.suffix = False
+    args.json = False
+    args.verbose = False
+    args.pwdchange = None
+    args.pwdlockout = None
+    for key, value in extraargs.items():
+        setattr(args, key, value)
+    return args
+
+def _assert_no_duplicate_in_logs(logcap):
+    logged_output = []
+    for rec in logcap.outputs:
+        msg = rec.getMessage()
+        for line in msg.splitlines():
+            if line.strip():
+                logged_output.append(line)
+    assert len(logged_output) == len(set(logged_output))
 
 def test_password_change_section(topo, policy_setup, fixture_for_password_change):
     """Password Change Section.
@@ -1595,6 +1652,14 @@ def test_pwpolicy_list(topo, request):
     # Cleanup
     def fin():
         try:
+            del_local_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+        except Exception:
+            pass
+        try:
+            people.delete()
+        except Exception:
+            pass
+        try:
             backend_entry.delete()
         except Exception:
             pass
@@ -1635,30 +1700,8 @@ def test_duplicate_pwpolicy(topo, request):
     """
     inst = topo.standalone
 
-    def _cli_args(dn, **extraargs):
-        args = FakeArgs()
-        args.DN = dn
-        args.suffix = False
-        args.json = False
-        args.verbose = False
-        args.pwdchange = None
-        args.passwordlockout = None
-        for key, value in extraargs.items():
-            setattr(args, key, value)
-        return args
-
-    def _assert_no_duplicate_in_logs(logcap):
-        logged_output = []
-        for rec in logcap.outputs:
-            msg = rec.getMessage()
-            for line in msg.splitlines():
-                if line.strip():
-                    logged_output.append(line)
-        assert len(logged_output) == len(set(logged_output))
-
-    # Ensure OU exists
-    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
-    ous.ensure_state(properties={'ou': 'people'})
+    # Verify OU exists
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
     people = ous.get("People")
     assert people.exists()
 
@@ -1674,8 +1717,8 @@ def test_duplicate_pwpolicy(topo, request):
 
     # Update an existing subtree pwp
     topo.logcap.flush()
-    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn], pwdchange='on', passwordlockout='on'))
-    assert topo.logcap.contains("Password policy successfully updated")
+    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn], pwdchange='on', pwdlockout='on'))
+    assert topo.logcap.contains("Successfully updated password policy")
 
     # Verify there are no duplicates listed
     topo.logcap.flush()
@@ -1702,8 +1745,8 @@ def test_duplicate_pwpolicy(topo, request):
 
     # Update an existing user pwp
     topo.logcap.flush()
-    create_user_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn], pwdchange='on', passwordlockout='on'))
-    assert topo.logcap.contains("Password policy successfully updated")
+    create_user_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn], pwdchange='on', pwdlockout='on'))
+    assert topo.logcap.contains("Successfully updated password policy")
 
     # Verify there are no duplicates listed
     topo.logcap.flush()
@@ -1712,10 +1755,75 @@ def test_duplicate_pwpolicy(topo, request):
 
     # Cleanup
     def fin():
+        try:
             del_local_policy(inst, None, topo.logcap.log, _cli_args([test_user.dn]))
             test_user.delete()
+        except Exception:
+            pass
 
     request.addfinalizer(fin)
+
+def test_subtree_pwpolicy_cos_repair(topo, request):
+    """Verify that a missing or corrupted CoS entry is repaired when
+    create_subtree_policy() is run again.
+
+    :id: da15d1d9-5e45-4af1-9d5d-9db93ef0f552
+    :setup: Standalone
+    :steps:
+        1. Ensure OU exists
+        2. Create subtree password policy
+        3. Manually delete the related CoS template entry
+        4. Run create_subtree_policy again
+        5. Verify CoS entry is recreated
+        6. Verify repair/update status is reported
+    :expectedresults:
+        1. Success
+        2. Success
+        3. CoS entry deleted
+        4. Policy command runs successfully
+        5. CoS entry exists again
+        6. Repair/update message reported
+    """
+    inst = topo.standalone
+
+    # Verify OU exists
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
+    people = ous.get("People")
+    assert people.exists()
+
+    # Add subtree pwp
+    topo.logcap.flush()
+    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+    assert topo.logcap.contains("Successfully created new password policy")
+
+    # Verify the pwp subtree container exists
+    pwp_container = nsContainer(inst, 'cn=nsPwPolicyContainer,%s' % people.dn)
+    assert pwp_container.exists()
+
+    # Break the pwp cos chain by deleting the cos template
+    cos_templates = CosTemplates(inst, pwp_container.dn)
+    cos_template = cos_templates.get('cn=nsPwTemplateEntry,%s' % people.dn)
+    assert cos_template.exists()
+    cos_template.delete()
+    assert not cos_template.exists()
+
+    # Create a subtree pwp to repair the broken pwp CoS chain
+    topo.logcap.flush()
+    create_subtree_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+    assert topo.logcap.contains("Successfully updated password policy")
+
+    cos_template = cos_templates.get('cn=nsPwTemplateEntry,%s' % people.dn)
+    assert cos_template.exists()
+
+    # Cleanup
+    def fin():
+        try:
+            del_local_policy(inst, None, topo.logcap.log, _cli_args([people.dn]))
+        except Exception:
+            pass
+
+    request.addfinalizer(fin)
+
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

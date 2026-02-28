@@ -67,6 +67,24 @@ def _gen_filter(attrtypes, values, extra=None):
     return filt
 
 
+def _normalise_attrs(attrs_dict):
+    result = {}
+
+    for k, v in attrs_dict.items():
+        key = k.lower()
+        # v is always a list
+        values = v
+        normalised = []
+        for x in values:
+            # Handle DN valued attributes
+            if is_a_dn(x):
+                x = ldap.dn.dn2str(ldap.dn.str2dn(x))
+            normalised.append(ensure_str(x))
+        result[key] = normalised
+
+    return result
+
+
 # Define wrappers around the ldap operation to have a clear diagnostic
 def _ldap_op_s(inst, f, fname, *args, **kwargs):
     # f.__name__ says 'inner' so the wanted name is provided as argument
@@ -1088,39 +1106,10 @@ class DSLdapObject(DSLogging, DSLint):
             # Strict mode, compare and update only the differences
             else:
                 # Get existing attributes
-                current_attrs_raw = self.get_all_attrs_utf8()
-                current_attrs = {}
-                for k, v in current_attrs_raw.items():
-                    key = k.lower()
-                    if not isinstance(v, list):
-                        values = [v]
-                    else:
-                        values = v
-
-                    normalised = []
-                    for x in values:
-                        # Handle DN valued attributes
-                        if is_a_dn(x):
-                            x = ldap.dn.dn2str(ldap.dn.str2dn(x))
-                        normalised.append(ensure_str(x))
-                    current_attrs[key] = normalised
+                current_attrs = _normalise_attrs(self.get_all_attrs_utf8())
 
                 # Get requested attributes
-                requested_attrs = {}
-                for k, v in valid_props.items():
-                    key = k.lower()
-                    if not isinstance(v, list):
-                        values = [v]
-                    else:
-                        values = v
-
-                    normalised = []
-                    for x in values:
-                        # Handle DN valued attributes
-                        if is_a_dn(x):
-                            x = ldap.dn.dn2str(ldap.dn.str2dn(x))
-                        normalised.append(ensure_str(x))
-                    requested_attrs[key] = normalised
+                requested_attrs = _normalise_attrs(valid_props)
 
                 # Remove operational attributes
                 for attr in self._compare_exclude:
@@ -1131,8 +1120,6 @@ class DSLdapObject(DSLogging, DSLint):
                 mods = []
                 for k, v in requested_attrs.items():
                     current_val = current_attrs.get(k, [])
-                    if not isinstance(current_val, list):
-                        current_val = [current_val]
                     if set(current_val) != set(v):
                         matches = False
                         mods.append((ldap.MOD_REPLACE, k, ensure_list_bytes(v)))
@@ -1148,8 +1135,6 @@ class DSLdapObject(DSLogging, DSLint):
                                 clientctrls=self._client_controls,
                                 escapehatch='i am sure')
                     self._ensure_status = self.ENSURE_UPDATED
-                else:
-                    self._ensure_status = self.ENSURE_UNCHANGED
 
                 return self
 
