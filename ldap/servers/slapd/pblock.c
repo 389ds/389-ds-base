@@ -1,12 +1,12 @@
-/** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005-2025 Red Hat, Inc.
- * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
- * All rights reserved.
- *
- * License: GPL (version 3 or any later version).
- * See LICENSE for details.
- * END COPYRIGHT BLOCK **/
+ /** BEGIN COPYRIGHT BLOCK
+  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+  * Copyright (C) 2026 Red Hat, Inc.
+  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+  * All rights reserved.
+  *
+  * License: GPL (version 3 or any later version).
+  * See LICENSE for details.
+  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -1005,6 +1005,13 @@ static int32_t
 slapi_pblock_get_plugin_close_fn(Slapi_PBlock *pblock, void *value)
 {
     (*(IFP *)value) = pblock->pb_plugin->plg_close;
+    return 0;
+}
+
+static int32_t
+slapi_pblock_get_plugin_pre_close_fn(Slapi_PBlock *pblock, void *value)
+{
+    (*(IFP *)value) = pblock->pb_plugin->plg_pre_close;
     return 0;
 }
 
@@ -4101,6 +4108,13 @@ slapi_pblock_set_plugin_close_fn(Slapi_PBlock *pblock, void *value)
 }
 
 static int32_t
+slapi_pblock_set_plugin_pre_close_fn(Slapi_PBlock *pblock, void *value)
+{
+    pblock->pb_plugin->plg_pre_close = (IFP)value;
+    return 0;
+}
+
+static int32_t
 slapi_pblock_set_plugin_cleanup_fn(Slapi_PBlock *pblock, void *value)
 {
     pblock->pb_plugin->plg_cleanup = value;
@@ -6948,7 +6962,7 @@ static int32_t (*get_cbtable[])(Slapi_PBlock *, void *) = {
     slapi_pblock_get_plugin_db_abandon_fn,
     slapi_pblock_get_plugin_db_config_fn,
     slapi_pblock_get_plugin_close_fn,
-    NULL, /* slot 211 available */
+    slapi_pblock_get_plugin_pre_close_fn,
     slapi_pblock_get_plugin_start_fn,
     slapi_pblock_get_plugin_db_seq_fn,
     slapi_pblock_get_plugin_db_entry_fn,
@@ -8923,7 +8937,7 @@ static int32_t (*set_cbtable[])(Slapi_PBlock *, void *) = {
     slapi_pblock_set_plugin_db_abandon_fn,
     slapi_pblock_set_plugin_db_config_fn,
     slapi_pblock_set_plugin_close_fn,
-    NULL, /* slot 211 available */
+    slapi_pblock_set_plugin_pre_close_fn,
     slapi_pblock_set_plugin_start_fn,
     slapi_pblock_set_plugin_db_seq_fn,
     slapi_pblock_set_plugin_db_entry_fn,
