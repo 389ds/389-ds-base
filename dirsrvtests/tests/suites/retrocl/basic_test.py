@@ -119,6 +119,7 @@ def test_retrocl_exclude_attr_add(topology_st):
     args.bindpw = None
     args.prompt = False
     args.exclude_attrs = ATTR_HOMEPHONE
+    args.max_age = None
     args.func = retrochangelog_add
     dsrc_inst = dsrc_arg_concat(args, None)
     inst = connect_instance(dsrc_inst, False, args)
@@ -252,6 +253,7 @@ def test_retrocl_exclude_attr_mod(topology_st):
     args.bindpw = None
     args.prompt = False
     args.exclude_attrs = ATTR_CARLICENSE
+    args.max_age = None
     args.func = retrochangelog_add
     dsrc_inst = dsrc_arg_concat(args, None)
     inst = connect_instance(dsrc_inst, False, args)
@@ -418,6 +420,126 @@ def test_retrocl_trimming_interval(topology_st, request):
         inst.config.set('nsslapd-accesslog-level','256')
 
     request.addfinalizer(fin)
+
+
+def test_retrocl_trimming_entries(topology_st):
+    """Test retrocl trimming reduces changelog entries after maxage timeout
+
+    :id: d7b7cf72-f47c-4b43-b25d-10f7f0ad86f2
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog with aggressive trimming settings
+        2. Count existing changelog entries before test
+        3. Add multiple entries to create new changelog records
+        4. Verify we added the expected number of entries
+        5. Enable plugin logging and wait for trimming to occur
+        6. Verify changelog entries were reduced by checking error log and count
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    inst = topology_st.standalone
+    max_entries = 10
+
+    log.info('Enable retro changelog plugin')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+
+    log.info('Configure aggressive trimming: 10s maxage, 5s trim interval')
+    rcl.replace('nsslapd-changelogmaxage', '10s')
+    rcl.replace('nsslapd-changelog-trim-interval', '5s')
+
+    log.info('Restart instance to apply changes')
+    inst.restart()
+
+    log.info('Count existing changelog entries before test')
+    retro_changelog = DSLdapObjects(inst, basedn=RETROCL_SUFFIX)
+    initial_entries = retro_changelog.filter('(changenumber=*)')
+    initial_count = len(initial_entries)
+    log.info(f'Found {initial_count} existing changelog entries')
+
+    log.info(f'Add {max_entries} user entries to generate changelog records')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    for idx in range(max_entries):
+        user_name = f'trimtest{idx}'
+        users.create(properties={
+            'uid': user_name,
+            'cn': user_name,
+            'sn': user_name,
+            'uidNumber': str(3000 + idx),
+            'gidNumber': str(4000 + idx),
+            'homeDirectory': f'/home/{user_name}',
+            'userPassword': 'password'
+        })
+
+    log.info('Verify we added the expected number of changelog entries')
+    entries = retro_changelog.filter('(changenumber=*)')
+    new_count = len(entries)
+    added_entries = new_count - initial_count
+    assert added_entries == max_entries
+    log.info(f'Successfully added {added_entries} changelog entries (total: {new_count})')
+
+    log.info('Enable plugin logging to monitor trimming')
+    inst.config.set('nsslapd-errorlog-level', '65536')
+    inst.restart()
+
+    log.info('Wait for entries to age and trimming to occur')
+    for attempt in range(1, 4):
+        time.sleep(6)
+        if inst.searchErrorsLog("trim_changelog: removed "):
+            log.info(f'Trimming detected after {attempt * 6} seconds')
+            break
+
+    log.info('Verify trimming occurred by checking error log')
+    assert inst.searchErrorsLog("trim_changelog: removed ")
+
+    log.info('Verify changelog entries have been reduced')
+    entries = retro_changelog.filter('(changenumber=*)')
+    final_count = len(entries)
+    assert final_count < new_count
+    log.info(f'Trimming successful: reduced from {new_count} to {final_count} entries')
+
+
+def test_retrocl_changelogmaxage_validation(topology_st):
+    """Verify retro changelog max age validation rejects invalid values
+
+    :id: 4fd38573-3718-4f03-8f32-fd0c9f52e0ac
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog plugin
+        2. Try setting invalid nsslapd-changelogmaxage values
+        3. Verify each invalid value is rejected with UNWILLING_TO_PERFORM
+        4. Try setting valid nsslapd-changelogmaxage values
+        5. Verify valid values are accepted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topology_st.standalone
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    inst.restart()
+
+    invalid_values = ["-1", "1", "d", "1dd", "-12W"]
+    valid_values = ["0", "1h", "1H", "1d", "2D", "1w", "2W", "1m", "2M"]
+
+    for value in invalid_values:
+        log.info(f"Verify invalid nsslapd-changelogmaxage value is rejected: {value}")
+        with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+            rcl.replace('nsslapd-changelogmaxage', value)
+
+    for value in valid_values:
+        log.info(f"Verify valid nsslapd-changelogmaxage value is accepted: {value}")
+        rcl.replace('nsslapd-changelogmaxage', value)
+
 
 if __name__ == '__main__':
     # Run isolated
