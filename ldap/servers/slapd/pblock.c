@@ -1,12 +1,12 @@
-/** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005-2025 Red Hat, Inc.
- * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
- * All rights reserved.
- *
- * License: GPL (version 3 or any later version).
- * See LICENSE for details.
- * END COPYRIGHT BLOCK **/
+ /** BEGIN COPYRIGHT BLOCK
+  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+  * Copyright (C) 2026 Red Hat, Inc.
+  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+  * All rights reserved.
+  *
+  * License: GPL (version 3 or any later version).
+  * See LICENSE for details.
+  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -2524,6 +2524,14 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         break;
 
+    case SLAPI_PLUGIN_PRE_CLOSE_FN:
+        if (pblock->pb_plugin != NULL) {
+            (*(IFP *)value) = pblock->pb_plugin->plg_pre_close;
+        } else {
+            (*(IFP *)value) = NULL;
+        }
+        break;
+
     default:
         slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get", "Unknown parameter block argument %d\n", arg);
         PR_ASSERT(0);
@@ -4207,6 +4215,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_ACI_TARGET_CHECK:
         _pblock_assert_pb_misc(pblock);
         pblock->pb_misc->pb_aci_target_check = *((int *)value);
+        break;
+
+    case SLAPI_PLUGIN_PRE_CLOSE_FN:
+        pblock->pb_plugin->plg_pre_close = (IFP)value;
         break;
 
     default:
