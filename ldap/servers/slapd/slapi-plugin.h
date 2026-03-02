@@ -1,6 +1,6 @@
 /* BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -7082,6 +7082,7 @@ typedef struct slapi_plugindesc
 
 /* miscellaneous plugin functions */
 #define SLAPI_PLUGIN_CLOSE_FN     210
+#define SLAPI_PLUGIN_PRE_CLOSE_FN 211
 #define SLAPI_PLUGIN_START_FN     212
 #define SLAPI_PLUGIN_CLEANUP_FN   232
 #define SLAPI_PLUGIN_POSTSTART_FN 233
