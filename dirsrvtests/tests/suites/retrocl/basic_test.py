@@ -119,6 +119,7 @@ def test_retrocl_exclude_attr_add(topology_st):
     args.bindpw = None
     args.prompt = False
     args.exclude_attrs = ATTR_HOMEPHONE
+    args.max_age = None
     args.func = retrochangelog_add
     dsrc_inst = dsrc_arg_concat(args, None)
     inst = connect_instance(dsrc_inst, False, args)
@@ -252,6 +253,7 @@ def test_retrocl_exclude_attr_mod(topology_st):
     args.bindpw = None
     args.prompt = False
     args.exclude_attrs = ATTR_CARLICENSE
+    args.max_age = None
     args.func = retrochangelog_add
     dsrc_inst = dsrc_arg_concat(args, None)
     inst = connect_instance(dsrc_inst, False, args)
@@ -501,6 +503,42 @@ def test_retrocl_trimming_entries(topology_st):
     final_count = len(entries)
     assert final_count < new_count
     log.info(f'Trimming successful: reduced from {new_count} to {final_count} entries')
+
+
+def test_retrocl_changelogmaxage_validation(topology_st):
+    """Verify retro changelog max age validation rejects invalid values
+
+    :id: 4fd38573-3718-4f03-8f32-fd0c9f52e0ac
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog plugin
+        2. Try setting invalid nsslapd-changelogmaxage values
+        3. Verify each invalid value is rejected with UNWILLING_TO_PERFORM
+        4. Try setting valid nsslapd-changelogmaxage values
+        5. Verify valid values are accepted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topology_st.standalone
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    inst.restart()
+
+    invalid_values = ["-1", "1", "d", "1dd", "-12W"]
+    valid_values = ["0", "1h", "1H", "1d", "2D", "1w", "2W", "1m", "2M"]
+
+    for value in invalid_values:
+        log.info(f"Verify invalid nsslapd-changelogmaxage value is rejected: {value}")
+        with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+            rcl.replace('nsslapd-changelogmaxage', value)
+
+    for value in valid_values:
+        log.info(f"Verify valid nsslapd-changelogmaxage value is accepted: {value}")
+        rcl.replace('nsslapd-changelogmaxage', value)
 
 
 if __name__ == '__main__':

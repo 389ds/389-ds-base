@@ -35,7 +35,6 @@ nsslapd-plugindescription: Retrocl Plugin
 
 #include "retrocl.h"
 
-
 void *g_plg_identity[PLUGIN_MAX];
 Slapi_Backend *retrocl_be_changelog = NULL;
 PRLock *retrocl_internal_lock = NULL;
@@ -45,6 +44,7 @@ char **retrocl_attributes = NULL;
 char **retrocl_aliases = NULL;
 int retrocl_log_deleted = 0;
 int retrocl_nexclude_attrs = 0;
+static int legacy_initialised = 0;
 
 static Slapi_DN **retrocl_includes = NULL;
 static Slapi_DN **retrocl_excludes = NULL;
@@ -55,7 +55,9 @@ static char **retrocl_exclude_attrs = NULL;
 static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, DS_PACKAGE_VERSION, "Retrocl Plugin"};
 static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", VENDOR, DS_PACKAGE_VERSION, "retrocl post-operation plugin"};
 static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", VENDOR, DS_PACKAGE_VERSION, "retrocl internal post-operation plugin"};
-static int legacy_initialised = 0;
+
+static int retrocl_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+
 
 /*
  * Function: retrocl_*
@@ -182,6 +184,9 @@ retrocl_rootdse_init(Slapi_PBlock *pb)
     slapi_config_register_callback_plugin(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN, "",
                                           LDAP_SCOPE_BASE, "(objectclass=*)",
                                           retrocl_rootdse_search, NULL, pb);
+    slapi_config_register_callback_plugin(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, RETROCL_PLUGIN_DN,
+                                          LDAP_SCOPE_BASE, "(objectclass=*)", retrocl_config_modify,
+                                          NULL, pb);
     return return_value;
 }
 
@@ -734,4 +739,79 @@ retrocl_attr_in_exclude_attrs(char *attr, int attrlen)
         }
     }
     return 0;
+}
+
+static int
+retrocl_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+{
+    LDAPMod **mods;
+    *returncode = LDAP_SUCCESS;
+
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+    for (size_t i = 0; mods && mods[i] != NULL; i++) {
+        if (mods[i]->mod_op & LDAP_MOD_DELETE) {
+            continue;
+        } else if (mods[i]->mod_values == NULL) {
+            if (returntext) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "%s: no value provided",
+                            mods[i]->mod_type ? mods[i]->mod_type : "<unknown attribute>");
+            }
+            *returncode = LDAP_UNWILLING_TO_PERFORM;
+            goto done;
+        } else {
+            for (size_t j = 0; mods[i]->mod_values[j]; j++) {
+                char *config_attr, *config_attr_value;
+                config_attr = (char *)mods[i]->mod_type;
+                config_attr_value = (char *)mods[i]->mod_bvalues[j]->bv_val;
+
+                if (slapi_attr_is_last_mod(config_attr)) {
+                    continue;
+                }
+
+                if (strcasecmp(config_attr, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE) == 0) {
+                    if (config_attr_value == NULL ||
+                        (!slapi_is_duration_valid_strict(config_attr_value) && strcmp(config_attr_value, "0") != 0)) {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must be \"0\" or a range from 1 to %lld and end with a duration unit[sSmMhHdDwW]",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
+                                        (long long int)LONG_MAX);
+                        }
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
+                    }
+                } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_TRIM_INTERVAL) == 0 &&
+                           config_attr_value && config_attr_value[0] != '\0')
+                {
+                    errno = 0;
+                    if (strtol(config_attr_value, (char **)NULL, 10) < 0 ||
+                        errno != 0 ||
+                        !slapi_is_duration_valid(config_attr_value))
+                    {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must be between 0 and %d",
+                                        CONFIG_CHANGELOG_TRIM_INTERVAL, config_attr_value ? config_attr_value : "null",
+                                        CONFIG_CHANGELOG_TRIM_INTERVAL,
+                                        INT_MAX);
+                        }
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
+                    }
+                }
+            }
+        }
+    }
+
+done:
+    if (*returncode == LDAP_SUCCESS) {
+        if (returntext) {
+            returntext[0] = '\0';
+        }
+        return SLAPI_DSE_CALLBACK_OK;
+    }
+
+    return SLAPI_DSE_CALLBACK_ERROR;
 }
