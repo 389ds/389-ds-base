@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1842,6 +1842,28 @@ plugin_dependency_closeall(void)
                 slapi_pblock_destroy(pb);
             }
             plugins_closed++;
+        }
+        index++;
+    }
+}
+
+/* Call the pre close functions of all the plugins */
+void
+plugin_pre_closeall(void)
+{
+    Slapi_PBlock *pb = NULL;
+    int plugins_pre_closed = 0;
+    int index = 0;
+
+    while (plugins_pre_closed < global_plugins_started) {
+        if (global_plugin_shutdown_order[index].name) {
+            if (!global_plugin_shutdown_order[index].removed) {
+                pb = slapi_pblock_new();
+                plugin_call_one(global_plugin_shutdown_order[index].plugin,
+                                SLAPI_PLUGIN_PRE_CLOSE_FN, pb);
+                slapi_pblock_destroy(pb);
+            }
+            plugins_pre_closed++;
         }
         index++;
     }
