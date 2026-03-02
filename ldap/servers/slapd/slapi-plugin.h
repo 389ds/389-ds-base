@@ -1,6 +1,6 @@
 /* BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -6789,7 +6789,7 @@ time_t slapi_current_time(void) __attribute__((deprecated));
  * and should NOT be used for timer information.
  */
 int32_t slapi_clock_gettime(struct timespec *tp);
-/* 
+/*
  * slapi_clock_gettime should have better been called
  * slapi_clock_utc_gettime but sice the function pre-existed
  * we are just adding an alias (to avoid risking to break
@@ -7093,6 +7093,7 @@ typedef struct slapi_plugindesc
 
 /* miscellaneous plugin functions */
 #define SLAPI_PLUGIN_CLOSE_FN     210
+#define SLAPI_PLUGIN_PRE_CLOSE_FN 211
 #define SLAPI_PLUGIN_START_FN     212
 #define SLAPI_PLUGIN_CLEANUP_FN   232
 #define SLAPI_PLUGIN_POSTSTART_FN 233

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -1020,6 +1020,7 @@ struct slapdplugin
     char *plg_libpath;                      /* library path for dll/so */
     char *plg_initfunc;                     /* init symbol */
     IFP plg_close;                          /* close function */
+    IFP plg_pre_close;                      /* pre close function */
     Slapi_PluginDesc plg_desc;              /* vendor's info */
     char *plg_name;                         /* used for plugin rdn in cn=config */
     struct slapdplugin *plg_next;           /* for plugin lists */

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -121,6 +121,8 @@ static int multimaster_started_flag = 0;
 static PRUintn thread_private_agmtname; /* thread private index for logging*/
 static PRUintn thread_private_cache;
 static PRUintn thread_primary_csn;
+
+static int multisupplier_pre_stop(Slapi_PBlock *pb __attribute__((unused)));
 
 char *
 get_thread_private_agmtname()
@@ -832,10 +834,6 @@ multimaster_stop(Slapi_PBlock *pb __attribute__((unused)))
     int rc = 0; /* OK */
 
     if (!multimaster_stopped_flag) {
-        if (!is_ldif_dump) {
-            /* Shut down replication agreements */
-            agmtlist_shutdown();
-        }
         /* if we are cleaning a ruv, stop */
         stop_ruv_cleaning();
         /* unregister backend state change notification */
@@ -849,6 +847,16 @@ multimaster_stop(Slapi_PBlock *pb __attribute__((unused)))
     return rc;
 }
 
+static int
+multisupplier_pre_stop(Slapi_PBlock *pb __attribute__((unused)))
+{
+    if (!multisupplier_stopped_flag) {
+        /* Shut down replication agreements which will stop all the
+         * replication protocol threads */
+        agmtlist_shutdown();
+    }
+    return 0;
+}
 
 PRBool
 multimaster_started()
@@ -896,7 +904,7 @@ replication_multimaster_plugin_init(Slapi_PBlock *pb)
         rc = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterdesc);
         rc = slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)multimaster_start);
         rc = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)multimaster_stop);
-
+        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_CLOSE_FN, (void *)multisupplier_pre_stop);
         /* Register the plugin interfaces we implement */
         /* preop acquires csn generator handle */
         rc = slapi_register_plugin("preoperation", 1 /* Enabled */,

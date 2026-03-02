@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021-2025 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -960,6 +960,7 @@ int plugin_call_exop_plugins(Slapi_PBlock *pb, struct slapdplugin *p);
 Slapi_Backend *plugin_extended_op_getbackend(Slapi_PBlock *pb, struct slapdplugin *p);
 const char *plugin_extended_op_oid2string(const char *oid);
 void plugin_closeall(int close_backends, int close_globals);
+void plugin_pre_closeall(void);
 void plugin_dependency_freeall(void);
 void plugin_startall(int argc, char **argv, char **plugin_list);
 void plugin_get_plugin_dependencies(char *plugin_name, char ***names);
