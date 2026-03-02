@@ -291,6 +291,7 @@ cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
                             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                                         "%s: invalid value \"%s\", %s must be \"-1\" or a range from 1 to %lld and end with a duration unit[sSmMhHdDwW]",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
                                         (long long int)LONG_MAX);
                         }
                         *returncode = LDAP_UNWILLING_TO_PERFORM;
