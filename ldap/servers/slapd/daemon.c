@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1416,6 +1416,10 @@ slapd_daemon(daemon_ports_t *ports)
         task_cancel_all();
     }
 
+    /* Call plugin pre close functions */
+    plugin_pre_closeall();
+
+    /* Now wait for active threads to terminate */
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
@@ -3178,7 +3182,7 @@ void
 wait4certs_refresh(daemon_ports_t *ports)
 {
     /*
-     * Block listening and accept threads until 
+     * Block listening and accept threads until
      *  certificates refresh is complete
      * Note:
      *  Listening threads have a NULL ports
