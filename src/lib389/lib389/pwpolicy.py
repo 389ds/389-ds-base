@@ -158,8 +158,8 @@ class PwPolicyManager(object):
         pwp_entry = pwp_entries.ensure_state(properties=properties, strict=True)
         try:
             # Add policy to the entry if needed
-            user_pwp_dn = user_entry.get_attr_val_utf8('pwdpolicysubentry', [])
-            if user_pwp_dn != [pwp_entry.dn]:
+            user_pwp_dn = user_entry.get_attr_val_utf8('pwdpolicysubentry')
+            if user_pwp_dn != pwp_entry.dn:
                 user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
         except ldap.LDAPError as e:
             # failure, undo what we have done
