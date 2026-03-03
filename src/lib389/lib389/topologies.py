@@ -34,9 +34,9 @@ else:
 log = logging.getLogger(__name__)
 
 
-# Github kills workflow after 6 hours so lets keep 1 hour margin
+# Github kills workflow after 90 minutes so lets keep 5 minutes margin
 # For workflow and test initialization, and artifacts collection
-DEFAULT_TEST_TIMEOUT = 5 * 3600
+DEFAULT_TEST_TIMEOUT = 85 * 60
 
 _test_timeout = DEFAULT_TEST_TIMEOUT
 

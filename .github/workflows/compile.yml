@@ -5,9 +5,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions: 
+permissions:
   actions: read
   packages: read
   contents: read
@@ -15,6 +15,7 @@ permissions:
 jobs:
   compile:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -62,7 +63,7 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Checkout and configure
         run: autoreconf -fvi && ./configure
         env:
@@ -72,11 +73,11 @@ jobs:
           CXXFLAGS: ${{ matrix.cxxflags || env.CXXFLAGS }}
           LDFLAGS: ${{ matrix.ldflags || env.LDFLAGS }}
 
-      - uses: ammaraskar/gcc-problem-matcher@master
+      - uses: ammaraskar/gcc-problem-matcher@0.3.0
       - name: Build using ${{ matrix.compiler }}
         run: bash -c "(make V=0 2> >(tee /dev/stderr)) > log.txt"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: log.txt
