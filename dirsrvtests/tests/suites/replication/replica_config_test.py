@@ -17,6 +17,7 @@ from lib389.topologies import topology_st as topo
 from lib389.replica import Replicas
 from lib389.agreement import Agreements
 from lib389.utils import ds_is_older
+from lib389 import Entry
 
 pytestmark = pytest.mark.tier1
 
@@ -38,6 +39,7 @@ replica_dict = {'nsDS5ReplicaRoot': 'dc=example,dc=com',
                 'nsds5ReplicaPurgeDelay': '604800',
                 'nsDS5ReplicaBindDN': 'cn=u',
                 'cn': 'replica'}
+
 
 agmt_dict = {'cn': 'test_agreement',
              'nsDS5ReplicaRoot': 'dc=example,dc=com',
@@ -191,6 +193,45 @@ def test_replica_num_modify(topo, attr, too_small, too_big, overflow, notnum, va
     # Value is valid
     replica.replace(attr, valid)
 
+def test_replica_config_add_nonexistent_replicaroot(topo):
+    """Test that adding a replica config entry with a non existent
+     nsds5replicaroot is correctly rejected.
+
+    :id: 8eec4244-8ebb-40e1-b6f7-364b85a1862b
+    :parametrized: no
+    :setup: standalone instance
+    :steps:
+        1. Attempt to add a replica config entry with an invalid nsds5replicaroot
+        2. Verify that no replica entry is created
+        3. Verify the server is still running
+    :expectedresults:
+        1. The operation is rejected with UNWILLING_TO_PERFORM
+        2. Success
+        3. Success
+    """
+    inst = topo.standalone
+    dn = "cn=replica,cn=dc\\3Dexample\\2Cdc\\3Dcom,cn=mapping tree,cn=config"
+
+    entry = Entry((dn, {
+        'objectclass': [
+            'top',
+            'nsds5replica',
+            'extensibleObject'
+        ],
+        'cn': 'replica',
+        'nsds5replicaroot': 'ou=idontexist',
+        'nsds5replicaid': '65535',
+        'nsds5replicatype': '2',
+        'nsds5ReplicaBindDN': 'cn=replication manager,cn=config',
+        'nsds5flags': '0',
+    }))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM ):
+        inst.add_s(entry)
+
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        inst.getEntry(dn, ldap.SCOPE_BASE, '(objectClass=*)')
+
+    assert inst.status()
 
 @pytest.mark.xfail(reason="Agreement validation current does not work.")
 @pytest.mark.parametrize("attr, too_small, too_big, overflow, notnum, valid", agmt_attrs)
