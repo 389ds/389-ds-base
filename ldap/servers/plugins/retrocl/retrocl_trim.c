@@ -334,6 +334,7 @@ static int retrocl_active_threads;
 static void
 changelog_trim_thread_fn(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("retrocl-trim");
     PR_AtomicIncrement(&retrocl_active_threads);
     trim_changelog();
     PR_AtomicDecrement(&retrocl_active_threads);

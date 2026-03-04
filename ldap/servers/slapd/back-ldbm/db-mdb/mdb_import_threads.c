@@ -1149,6 +1149,7 @@ log_wqelmt(int loglvl, char *fname, WorkerQueueData_t *wqelmt)
 void
 dbmdb_import_producer(void *param)
 {
+    slapi_set_thread_name("import-prod");
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
@@ -3286,6 +3287,7 @@ init_pseudo_txn(ImportCtx_t *ctx)
 void
 dbmdb_import_worker(void *param)
 {
+    slapi_set_thread_name("import-worker");
     WorkerQueueData_t *wqelmnt = (WorkerQueueData_t*)param;
     ImportWorkerInfo *info = &wqelmnt->winfo;
     ImportJob *job = info->job;
@@ -3923,6 +3925,7 @@ cmp_key_addr(const void *i1, const void *i2)
 void
 dbmdb_import_writer(void*param)
 {
+    slapi_set_thread_name("import-writer");
     ImportWorkerInfo *info = (ImportWorkerInfo*)param;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
@@ -3966,9 +3969,9 @@ dbmdb_import_writer(void*param)
                     slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
                                   "Failed to write record in dbi %s. Error is 0x%x: %s.\n",
                                   slot->dbi->dbname, rc, mdb_strerror(rc));
-                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:key", 
+                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:key",
                                        slot->key.mv_data, slot->key.mv_size);
-                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:data", 
+                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:data",
                                        slot->data.mv_data, slot->data.mv_size);
                 }
             }

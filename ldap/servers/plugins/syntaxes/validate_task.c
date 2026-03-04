@@ -166,6 +166,7 @@ syntax_validate_task_destructor(Slapi_Task *task)
 static void
 syntax_validate_task_thread(void *arg)
 {
+    slapi_set_thread_name("syntax-valid");
     int rc = 0;
     Slapi_Task *task = (Slapi_Task *)arg;
     task_data *td = NULL;

@@ -105,6 +105,7 @@ repl5_tot_log_operation_failure(int ldap_error, char *ldap_error_string, const c
 static void
 repl5_tot_result_threadmain(void *param)
 {
+    slapi_set_thread_name("repl-tot-res");
     callback_data *cb = (callback_data *)param;
     ConnResult conres = 0;
     Repl_Connection *conn = cb->prp->conn;
