@@ -43,12 +43,12 @@ def test_thread_names_present(topology_st):
     :setup: Standalone instance
     :steps:
         1. Get the server PID
-        2. Read thread names from /proc/<pid>/task/*/comm
+        2. Read thread names from /proc/{pid}/task/{tid}/comm
         3. Verify expected thread names are present
     :expectedresults:
         1. PID is obtained
         2. Thread names are readable
-        3. Core thread names (listener, worker-*, ct-list-*, event-q,
+        3. Core thread names (listener, worker, ct-list, event-q,
            housekeep) are found
     """
     inst = topology_st.standalone
