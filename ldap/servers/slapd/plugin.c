@@ -3647,6 +3647,7 @@ plugin_invoke_plugin_pb(struct slapdplugin *plugin, int operation, Slapi_PBlock 
     if (operation == SLAPI_PLUGIN_START_FN ||
         operation == SLAPI_PLUGIN_POSTSTART_FN ||
         operation == SLAPI_PLUGIN_CLOSE_FN ||
+        operation == SLAPI_PLUGIN_PRE_CLOSE_FN ||
         operation == SLAPI_PLUGIN_CLEANUP_FN ||
         operation == SLAPI_PLUGIN_BE_PRE_CLOSE_FN ||
         operation == SLAPI_PLUGIN_BE_POST_OPEN_FN ||
