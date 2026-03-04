@@ -1788,11 +1788,17 @@ bdb_get_page_count(dbi_db_t *db, uint32_t *count)
     rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, 0);
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "bdb_get_page_count",
-                      "Failed to get bd statistics: db error - %d %s\n",
+                      "Failed to get db statistics: db error - %d %s\n",
                       rc, db_strerror(rc));
         rc = DBI_RC_OTHER;
+        *count = 0;
+    } else if (stats == NULL) {
+        slapi_log_err(SLAPI_LOG_INFO, "bdb_get_page_count",
+                      "Failed to get db statistics: stats is NULL, defaulting page count to 0\n");
+        *count = 0;
+    } else {
+        *count = stats->bt_pagecnt;
     }
-    *count = rc ? 0 : stats->bt_pagecnt;
     slapi_ch_free((void **)&stats);
     return rc;
 }
@@ -7077,11 +7083,17 @@ bdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
     rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, 0);
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "bdb_get_entries_count",
-                      "Failed to get bd statistics: db error - %d %s\n",
+                      "Failed to get db statistics: db error - %d %s\n",
                       rc, db_strerror(rc));
         rc = DBI_RC_OTHER;
+        *count = 0;
+    } else if (stats == NULL) {
+        slapi_log_err(SLAPI_LOG_INFO, "bdb_get_entries_count",
+                      "Failed to get db statistics: stats is NULL, defaulting entries count to 0\n");
+        *count = 0;
+    } else {
+        *count = stats->bt_ndata;
     }
-    *count = rc ? 0 : stats->bt_ndata;
     slapi_ch_free((void **)&stats);
     return rc;
 }
