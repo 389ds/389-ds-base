@@ -1397,8 +1397,11 @@ common_return:
                 struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
                                                      addingentry->ep_id);
                 if (bdn) { /* already in the dncache */
+                    if (is_remove_from_cache) {
+                        CACHE_REMOVE(&inst->inst_dncache, bdn);
+                    }
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
-                } else { /* not in the dncache yet */
+                } else if (!is_remove_from_cache) { /* not in the dncache yet */
                     Slapi_DN *addingsdn =
                         slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
                     if (addingsdn) {
