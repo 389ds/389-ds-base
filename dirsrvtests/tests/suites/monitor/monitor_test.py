@@ -369,6 +369,8 @@ def test_monitor_busy_workers_concurrent(topo):
         f"maxbusyworkers should be > 0 after concurrent load, got {max_bw_after}"
     assert max_bw_after >= max_bw_before, \
         f"maxbusyworkers should not decrease: before={max_bw_before}, after={max_bw_after}"
+    assert cur_bw_after < NUM_THREADS, \
+        f"currentbusyworkers should drop back after load completes, got {cur_bw_after}"
 
 
 if __name__ == '__main__':

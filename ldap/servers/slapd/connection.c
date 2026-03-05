@@ -1741,7 +1741,7 @@ connection_threadmain(void *arg)
     int doshutdown = 0;
     int maxthreads = 0;
     long bypasspollcnt = 0;
-    int is_busy = 0;
+    bool is_busy = false;
 
 #if defined(hpux)
     /* Arrange to ignore SIGPIPE signals. */
@@ -1769,7 +1769,7 @@ connection_threadmain(void *arg)
 
             /* Mark this worker as idle before blocking on the work queue */
             if (is_busy) {
-                is_busy = 0;
+                is_busy = false;
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
 
@@ -1870,14 +1870,14 @@ connection_threadmain(void *arg)
         }
         /* Once we're here we have a pb - mark this worker as busy */
         if (!is_busy) {
-            is_busy = 1;
+            is_busy = true;
             int32_t val = slapi_atomic_incr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             /*
              * Best-effort high-water mark: without a CAS primitive two threads
              * could race and briefly regress the value, but it self-corrects on
              * the next higher peak.  Acceptable for a monitoring-only metric.
              */
-            if (val > slapi_atomic_load_32(&max_busy_workers, __ATOMIC_RELAXED)) {
+            while (val > slapi_atomic_load_32(&max_busy_workers, __ATOMIC_RELAXED)) {
                 slapi_atomic_store_32(&max_busy_workers, val, __ATOMIC_RELAXED);
             }
         }
