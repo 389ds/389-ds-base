@@ -1124,6 +1124,7 @@ out:
 void
 replica_abort_task_thread(void *arg)
 {
+    slapi_set_thread_name("abort-ruv");
     cleanruv_data *data = (cleanruv_data *)arg;
     Repl_Agmt *agmt;
     Object *agmt_obj;
@@ -2068,6 +2069,7 @@ done:
 void
 replica_cleanallruv_thread_ext(void *arg)
 {
+    slapi_set_thread_name("clean-ruv-ext");
     replica_cleanallruv_thread(arg);
 }
 
@@ -2086,6 +2088,7 @@ replica_cleanallruv_thread_ext(void *arg)
 static void
 replica_cleanallruv_thread(void *arg)
 {
+    slapi_set_thread_name("clean-ruv");
     cleanruv_data *data = arg;
     Object *agmt_obj = NULL;
     Object *ruv_obj = NULL;

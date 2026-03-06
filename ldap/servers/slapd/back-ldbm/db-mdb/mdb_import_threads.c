@@ -1133,6 +1133,7 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
 void
 dbmdb_import_producer(void *param)
 {
+    slapi_set_thread_name("import-prod");
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
@@ -3268,6 +3269,7 @@ init_pseudo_txn(ImportCtx_t *ctx)
 void
 dbmdb_import_worker(void *param)
 {
+    slapi_set_thread_name("import-worker");
     WorkerQueueData_t *wqelmnt = (WorkerQueueData_t*)param;
     ImportWorkerInfo *info = &wqelmnt->winfo;
     ImportJob *job = info->job;
@@ -3908,6 +3910,7 @@ cmp_key_addr(const void *i1, const void *i2)
 void
 dbmdb_import_writer(void*param)
 {
+    slapi_set_thread_name("import-writer");
     ImportWorkerInfo *info = (ImportWorkerInfo*)param;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;

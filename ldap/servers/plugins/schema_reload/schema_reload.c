@@ -125,6 +125,7 @@ typedef struct _task_data
 static void
 schemareload_thread(void *arg)
 {
+    slapi_set_thread_name("schema-reload");
     Slapi_Task *task = (Slapi_Task *)arg;
     int rv = 0;
     int total_work = 2;

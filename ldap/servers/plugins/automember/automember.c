@@ -2301,6 +2301,7 @@ automember_task_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __at
 void
 automember_task_abort_thread(void *arg)
 {
+    slapi_set_thread_name("automem-abort");
     Slapi_Task *task = (Slapi_Task *)arg;
 
     slapi_task_inc_refcount(task);
@@ -2457,6 +2458,7 @@ out:
 void
 automember_rebuild_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-rebld");
     Slapi_Task *task = (Slapi_Task *)arg;
     struct configEntry *config = NULL;
     Slapi_PBlock *search_pb = NULL;
@@ -2760,6 +2762,7 @@ out:
 void
 automember_export_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-exprt");
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
@@ -2950,6 +2953,7 @@ out:
 void
 automember_map_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-map");
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_Entry *e = NULL;
     int result = SLAPI_DSE_CALLBACK_OK;

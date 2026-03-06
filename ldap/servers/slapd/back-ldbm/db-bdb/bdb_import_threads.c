@@ -343,6 +343,7 @@ bdb_import_add_created_attrs(Slapi_Entry *e)
 void
 bdb_import_producer(void *param)
 {
+    slapi_set_thread_name("bdb-imp-prod");
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ID id = job->first_ID, id_filestart = id;
@@ -2317,6 +2318,7 @@ bdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
 void
 bdb_import_foreman(void *param)
 {
+    slapi_set_thread_name("bdb-imp-frmn");
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ldbm_instance *inst = job->inst;
@@ -2615,6 +2617,7 @@ error:
 void
 bdb_import_worker(void *param)
 {
+    slapi_set_thread_name("bdb-imp-work");
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ldbm_instance *inst = job->inst;
