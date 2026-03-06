@@ -431,6 +431,7 @@ disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space)
 void
 disk_monitoring_thread(void *nothing __attribute__((unused)))
 {
+    slapi_set_thread_name("disk-mon");
     char **dirs = NULL;
     char *dirstr = NULL;
     uint64_t previous_mark = 0;
@@ -810,6 +811,7 @@ handle_listeners(struct POLL_STRUCT *fds)
 void
 accept_thread(void *vports)
 {
+    slapi_set_thread_name("listener");
     daemon_ports_t *ports = (daemon_ports_t *)vports;
     Connection_Table *ct = the_connection_table;
     PRIntn num_poll = 0;
@@ -1352,6 +1354,9 @@ void
 ct_list_thread(uint64_t threadnum)
 {
     uint64_t threadid = (uint64_t) threadnum;
+    char tname[16];
+    snprintf(tname, sizeof(tname), "ct-list-%lu", (unsigned long)threadid);
+    slapi_set_thread_name(tname);
 
     while (!slapi_is_shutting_down()) {
          int select_return = 0;

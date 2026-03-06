@@ -2235,6 +2235,13 @@ cache_built:
     return NULL;
 }
 
+static void *
+dbmdb_recno_cache_build_thread(void *arg)
+{
+    slapi_set_thread_name("recno-cache");
+    return dbmdb_recno_cache_build(arg);
+}
+
 /* Find nearest recno cache record from the key */
 int dbmdb_recno_cache_lookup(dbi_cursor_t *cursor, MDB_val *cache_key, dbmdb_recno_cache_elmt_t **rce)
 {
@@ -2263,7 +2270,7 @@ int dbmdb_recno_cache_lookup(dbi_cursor_t *cursor, MDB_val *cache_key, dbmdb_rec
             rc = rcctx.rc;
         } else if (rcctx.mode == RCMODE_USE_NEW_THREAD) {
             pthread_t tid;
-            rc = pthread_create(&tid, NULL, dbmdb_recno_cache_build, &rcctx);
+            rc = pthread_create(&tid, NULL, dbmdb_recno_cache_build_thread, &rcctx);
             if (rc ==0) {
                 rc = pthread_join(tid, NULL);
             }

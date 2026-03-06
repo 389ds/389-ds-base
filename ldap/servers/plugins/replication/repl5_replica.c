@@ -3244,6 +3244,7 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
 static void
 _replica_reap_tombstones(void *arg)
 {
+    slapi_set_thread_name("tomb-reap");
     const char *replica_name = (const char *)arg;
     Slapi_PBlock *pb = NULL;
     Replica *replica = NULL;
