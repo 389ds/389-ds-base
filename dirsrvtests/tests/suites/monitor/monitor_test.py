@@ -7,8 +7,10 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
+import ldap
 import pytest
 import os
+import threading
 from lib389.monitor import *
 from lib389.backend import Backends, DatabaseConfig
 from lib389._constants import *
@@ -211,6 +213,164 @@ def test_monitor_connections(topo):
     finally:
         conn.close()
         log.info("LDAP monitoring connection closed via conn.close()")
+
+
+def test_monitor_work_queue(topo):
+    """Verify work queue metrics are exposed via cn=monitor
+
+    :id: 7e2f74ac-e662-4e70-b4f3-a010295d8b99
+    :setup: Standalone Instance
+    :steps:
+        1. Query cn=monitor for work queue attributes
+        2. Verify all 4 attributes are present and parseable as integers
+        3. Verify current values are non-negative
+        4. Verify max values >= current values
+        5. Generate some load and verify maxbusyworkers > 0
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+    monitor = Monitor(inst)
+
+    # Get work queue metrics
+    (currentworkqueue, maxworkqueue,
+     currentbusyworkers, maxbusyworkers) = monitor.get_work_queue()
+
+    # Verify all attributes are present and parseable as integers
+    cur_wq = int(currentworkqueue[0])
+    max_wq = int(maxworkqueue[0])
+    cur_bw = int(currentbusyworkers[0])
+    max_bw = int(maxbusyworkers[0])
+
+    log.info(f"currentworkqueue={cur_wq}, maxworkqueue={max_wq}, "
+             f"currentbusyworkers={cur_bw}, maxbusyworkers={max_bw}")
+
+    # Verify non-negative values
+    assert cur_wq >= 0, f"currentworkqueue should be >= 0, got {cur_wq}"
+    assert max_wq >= 0, f"maxworkqueue should be >= 0, got {max_wq}"
+    assert cur_bw >= 0, f"currentbusyworkers should be >= 0, got {cur_bw}"
+    assert max_bw >= 0, f"maxbusyworkers should be >= 0, got {max_bw}"
+
+    # Verify max >= current
+    assert max_wq >= cur_wq, f"maxworkqueue ({max_wq}) should be >= currentworkqueue ({cur_wq})"
+    assert max_bw >= cur_bw, f"maxbusyworkers ({max_bw}) should be >= currentbusyworkers ({cur_bw})"
+
+    # Generate some load - several searches to ensure at least one worker was busy
+    for _ in range(10):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=*)')
+
+    # Re-check - maxbusyworkers should now be > 0
+    (_, _, _, maxbusyworkers) = monitor.get_work_queue()
+    max_bw = int(maxbusyworkers[0])
+    log.info(f"After load: maxbusyworkers={max_bw}")
+    assert max_bw > 0, f"maxbusyworkers should be > 0 after generating load, got {max_bw}"
+
+    # Also verify the attributes appear in get_status()
+    status = monitor.get_status()
+    assert 'currentworkqueue' in status
+    assert 'maxworkqueue' in status
+    assert 'currentbusyworkers' in status
+    assert 'maxbusyworkers' in status
+
+
+def test_monitor_busy_workers_concurrent(topo):
+    """Verify currentbusyworkers increments under concurrent operations
+
+    :id: b86971df-3627-499a-975c-f46c47b199fc
+    :setup: Standalone Instance
+    :steps:
+        1. Record maxbusyworkers before load
+        2. Launch multiple threads performing searches concurrently
+        3. While threads are running, sample currentbusyworkers
+        4. Verify maxbusyworkers increased and currentbusyworkers
+           returns to a low value after threads finish
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+    inst = topo.standalone
+    monitor = Monitor(inst)
+
+    NUM_THREADS = 10
+    SEARCHES_PER_THREAD = 50
+    errors = []
+    peak_busy = [0]
+    peak_lock = threading.Lock()
+
+    def search_worker():
+        """Perform repeated searches to keep a worker thread busy"""
+        try:
+            conn = ldap.initialize(inst.ldapuri)
+            conn.simple_bind_s(DN_DM, PW_DM)
+            for _ in range(SEARCHES_PER_THREAD):
+                conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                              '(objectclass=*)')
+            conn.unbind_s()
+        except Exception as e:
+            errors.append(str(e))
+
+    def monitor_sampler(stop_event):
+        """Sample currentbusyworkers while load is running"""
+        while not stop_event.is_set():
+            try:
+                (_, _, currentbusyworkers, _) = monitor.get_work_queue()
+                val = int(currentbusyworkers[0])
+                with peak_lock:
+                    if val > peak_busy[0]:
+                        peak_busy[0] = val
+            except Exception:
+                pass
+
+    # Record baseline
+    (_, _, _, maxbusyworkers_before) = monitor.get_work_queue()
+    max_bw_before = int(maxbusyworkers_before[0])
+    log.info(f"Before concurrent load: maxbusyworkers={max_bw_before}")
+
+    # Start the monitor sampler
+    stop_event = threading.Event()
+    sampler = threading.Thread(target=monitor_sampler, args=(stop_event,))
+    sampler.start()
+
+    # Launch concurrent search threads
+    threads = []
+    for _ in range(NUM_THREADS):
+        t = threading.Thread(target=search_worker)
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    # Stop the sampler
+    stop_event.set()
+    sampler.join()
+
+    assert not errors, f"Search threads reported errors: {errors}"
+
+    # Check that we observed concurrent busy workers
+    log.info(f"Peak sampled currentbusyworkers during load: {peak_busy[0]}")
+    assert peak_busy[0] > 0, \
+        "currentbusyworkers was never > 0 during concurrent load"
+
+    # Verify maxbusyworkers reflects the concurrent activity
+    (_, _, currentbusyworkers, maxbusyworkers) = monitor.get_work_queue()
+    max_bw_after = int(maxbusyworkers[0])
+    cur_bw_after = int(currentbusyworkers[0])
+    log.info(f"After concurrent load: maxbusyworkers={max_bw_after}, "
+             f"currentbusyworkers={cur_bw_after}")
+
+    assert max_bw_after > 0, \
+        f"maxbusyworkers should be > 0 after concurrent load, got {max_bw_after}"
+    assert max_bw_after >= max_bw_before, \
+        f"maxbusyworkers should not decrease: before={max_bw_before}, after={max_bw_after}"
+    assert cur_bw_after < NUM_THREADS, \
+        f"currentbusyworkers should drop back after load completes, got {cur_bw_after}"
 
 
 if __name__ == '__main__':
