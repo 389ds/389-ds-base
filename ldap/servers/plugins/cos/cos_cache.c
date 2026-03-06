@@ -373,6 +373,7 @@ out:
 static void
 cos_cache_wait_on_change(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("cos-cache");
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_wait_on_change thread\n");
 
     slapi_lock_mutex(stop_lock);

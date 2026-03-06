@@ -551,6 +551,7 @@ clearCSNList(CSN ***csnList, int count)
 static void
 threadMain(void *data)
 {
+    slapi_set_thread_name("cl5-test");
     int entryCount = *(int *)data;
     CSN **csnList;
 

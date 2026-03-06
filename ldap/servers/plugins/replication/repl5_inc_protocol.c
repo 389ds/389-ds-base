@@ -237,6 +237,7 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char *ldap_e
 static void
 repl5_inc_result_threadmain(void *param)
 {
+    slapi_set_thread_name("repl-inc-res");
     result_data *rd = (result_data *)param;
     ConnResult conres = 0;
     Repl_Connection *conn = rd->prp->conn;

@@ -3156,6 +3156,7 @@ do_cl_compact(time_t when, void *arg)
 static int
 _cl5TrimMain(void *param __attribute__((unused)))
 {
+    slapi_set_thread_name("cl-trim");
     time_t timePrev = slapi_current_utc_time();
     time_t timeCompactPrev = slapi_current_utc_time();
     time_t timeNow;

@@ -226,6 +226,7 @@ finished                (any)                   finished
 static void
 prot_thread_main(void *arg)
 {
+    slapi_set_thread_name("repl-prot");
     Repl_Protocol *rp = (Repl_Protocol *)arg;
     int done;
     Repl_Agmt *agmt = NULL;

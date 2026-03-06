@@ -426,6 +426,7 @@ disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space)
 void
 disk_monitoring_thread(void *nothing __attribute__((unused)))
 {
+    slapi_set_thread_name("disk-mon");
     char **dirs = NULL;
     char *dirstr = NULL;
     uint64_t previous_mark = 0;
@@ -946,6 +947,7 @@ convert_pbe_des_to_aes(void)
 void
 accept_thread(void *vports)
 {
+    slapi_set_thread_name("listener");
     daemon_ports_t *ports = (daemon_ports_t *)vports;
     Connection_Table *ct = the_connection_table;
     PRIntn num_poll = 0;

@@ -2909,6 +2909,7 @@ bdb_start_perf_thread(struct ldbminfo *li)
 static int
 perf_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-perf");
     struct ldbminfo *li = NULL;
 
     PR_ASSERT(NULL != param);
@@ -2959,6 +2960,7 @@ bdb_start_locks_monitoring_thread(struct ldbminfo *li)
 static int
 locks_monitoring_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-lock-mon");
     int ret = 0;
     uint64_t current_locks = 0;
     uint64_t max_locks = 0;
@@ -3169,6 +3171,7 @@ txn_test_init_cfg(txn_test_cfg *cfg)
 static int
 txn_test_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-txn-test");
     struct ldbminfo *li = NULL;
     Object *inst_obj;
     int rc = 0;
@@ -3467,6 +3470,7 @@ bdb_start_txn_test_thread(struct ldbminfo *li)
 static int
 deadlock_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-deadlock");
     int rval = -1;
     struct ldbminfo *li = NULL;
     PRIntervalTime interval; /*NSPR timeout stuffy*/
@@ -3564,6 +3568,7 @@ bdb_start_log_flush_thread(struct ldbminfo *li)
 static int
 log_flush_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-logflush");
     PRIntervalTime interval_flush, interval_def;
     PRIntervalTime last_flush = 0;
     int i;
@@ -3761,6 +3766,7 @@ bdb_start_checkpoint_thread(struct ldbminfo *li)
 static int
 checkpoint_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-chkpoint");
     PRIntervalTime interval;
     int rval = -1;
     struct ldbminfo *li = NULL;
@@ -3964,6 +3970,7 @@ bdb_start_trickle_thread(struct ldbminfo *li)
 static int
 trickle_threadmain(void *param)
 {
+    slapi_set_thread_name("bdb-trickle");
     PRIntervalTime interval; /*NSPR timeout stuffy*/
     int rval = -1;
     dblayer_private *priv = NULL;
