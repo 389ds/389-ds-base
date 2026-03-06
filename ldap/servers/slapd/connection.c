@@ -78,6 +78,8 @@ static PRStack *work_q_stack;         /* stack of work_q structs so we don't hav
 static PRInt32 work_q_stack_size;     /* size of work_q_stack */
 static PRInt32 work_q_stack_size_max; /* max size of work_q_stack */
 static PRInt32 op_shutdown = 0;       /* if non-zero, server is shutting down */
+static int32_t current_busy_workers = 0;   /* workers currently processing ops */
+static int32_t max_busy_workers = 0;       /* high water mark of busy workers */
 
 #define LDAP_SOCKET_IO_BUFFER_SIZE 512 /* Size of the buffer we give to the I/O system for reads */
 
@@ -1742,6 +1744,7 @@ connection_threadmain(void *arg)
     int doshutdown = 0;
     int maxthreads = 0;
     long bypasspollcnt = 0;
+    bool is_busy = false;
 
 #if defined(hpux)
     /* Arrange to ignore SIGPIPE signals. */
@@ -1756,6 +1759,9 @@ connection_threadmain(void *arg)
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                           "op_thread received shutdown signal\n");
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -1763,6 +1769,12 @@ connection_threadmain(void *arg)
 
         if (!thread_turbo_flag && !more_data) {
 	        Connection *pb_conn = NULL;
+
+            /* Mark this worker as idle before blocking on the work queue */
+            if (is_busy) {
+                is_busy = false;
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
 
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
@@ -1777,6 +1789,9 @@ connection_threadmain(void *arg)
             case CONN_SHUTDOWN:
                 slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                               "op_thread received shutdown signal\n");
+                if (is_busy) {
+                    slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+                }
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
                 return;
@@ -1789,6 +1804,9 @@ connection_threadmain(void *arg)
                 slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
                 if (pb_conn == NULL) {
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
+                    if (is_busy) {
+                        slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+                    }
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
                     return;
@@ -1853,11 +1871,26 @@ connection_threadmain(void *arg)
                 slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
             }
         }
-        /* Once we're here we have a pb */
+        /* Once we're here we have a pb - mark this worker as busy */
+        if (!is_busy) {
+            is_busy = true;
+            int32_t val = slapi_atomic_incr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            /*
+             * Best-effort high-water mark: without a CAS primitive two threads
+             * could race and briefly regress the value, but it self-corrects on
+             * the next higher peak.  Acceptable for a monitoring-only metric.
+             */
+            while (val > slapi_atomic_load_32(&max_busy_workers, __ATOMIC_RELAXED)) {
+                slapi_atomic_store_32(&max_busy_workers, val, __ATOMIC_RELAXED);
+            }
+        }
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
         if (conn == NULL || op == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -2062,6 +2095,9 @@ connection_threadmain(void *arg)
 
     done:
         if (doshutdown) {
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
             pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
             connection_make_readable_nolock(conn);
@@ -2266,6 +2302,36 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
     destroy_work_q(&tmp);
 
     return (wqitem);
+}
+
+/* Work queue metric getters - lock-free reads using atomics */
+
+int32_t
+get_work_q_size(void)
+{
+    int32_t val = slapi_atomic_load_32((int32_t *)&work_q_size, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_work_q_size_max(void)
+{
+    int32_t val = slapi_atomic_load_32((int32_t *)&work_q_size_max, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_busy_worker_count(void)
+{
+    int32_t val = slapi_atomic_load_32(&current_busy_workers, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_max_busy_worker_count(void)
+{
+    int32_t val = slapi_atomic_load_32(&max_busy_workers, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
 }
 
 /* Helper functions common to both varieties of connection code: */

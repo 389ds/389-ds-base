@@ -1563,6 +1563,10 @@ int connection_is_active_nolock(Connection *conn);
 ber_slen_t openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len);
 int32_t connection_has_psearch(Connection *c);
 void free_worker_thread_indexes(void);
+int32_t get_work_q_size(void);
+int32_t get_work_q_size_max(void);
+int32_t get_busy_worker_count(void);
+int32_t get_max_busy_worker_count(void);
 
 /*
  * saslbind.c
