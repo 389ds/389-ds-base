@@ -601,11 +601,13 @@ class CertTable extends React.Component {
                                             {cell.content}
                                         </Td>
                                     ))}
-                                    <Td isActionCell>
-                                        <ActionsColumn
-                                            items={this.getActionsForRow(row)}
-                                        />
-                                    </Td>
+                                    {hasRows && (
+                                        <Td isActionCell>
+                                            <ActionsColumn
+                                                items={this.getActionsForRow(row)}
+                                            />
+                                        </Td>
+                                    )}
                                 </Tr>
                                 {row.isOpen && (
                                     <Tr isExpanded={true}>
