@@ -786,7 +786,7 @@ export class GlobalDatabaseConfig extends React.Component {
         }
 
         let spinner = "";
-        if (this.state.loading) {
+        if (this.props.loading) {
             spinner = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
@@ -794,7 +794,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             Loading global database configuration ...
                         </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="md" />
                 </div>
             );
         }
@@ -820,7 +820,7 @@ export class GlobalDatabaseConfig extends React.Component {
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
+                <div className={this.props.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
                         <Text className="ds-config-header" component={TextVariants.h2}>
                             {_("Global Database Configuration")}
@@ -1659,7 +1659,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         let spinner = "";
         let db_cache_form;
         let db_auto_checked = false;
-        if (this.state.loading) {
+        if (this.props.loading) {
             spinner = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
@@ -1667,7 +1667,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             Loading global database configuration ...
                         </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="md" />
                 </div>
             );
         }
@@ -1729,7 +1729,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
+                <div className={this.props.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
                         <Text className="ds-config-header" component={TextVariants.h2}>
                             {_("Global Database Configuration")}
