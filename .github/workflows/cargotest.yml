@@ -9,9 +9,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions: 
+permissions:
   actions: read
   packages: read
   contents: read
@@ -20,21 +20,22 @@ jobs:
   rust-tests:
     name: Cargo Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     container:
       image: quay.io/389ds/ci-images:fedora
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        
+        uses: actions/checkout@v6
+
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      
+
       - name: Setup and build
         run: |
           autoreconf -fvi
           ./configure --enable-debug
           make V=0
-        
+
       - name: Run Rust tests
         run: make check-local

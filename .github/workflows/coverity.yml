@@ -12,7 +12,7 @@ jobs:
       image: quay.io/389ds/ci-images:fedora
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Checkout and configure
         run: autoreconf -fvi && ./configure
 

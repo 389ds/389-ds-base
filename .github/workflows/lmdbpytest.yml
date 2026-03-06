@@ -18,7 +18,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   actions: read
@@ -29,13 +29,14 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     container:
       image: quay.io/389ds/ci-images:test
     outputs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -51,7 +52,7 @@ jobs:
         run: tar -cvf dist.tar dist/
 
       - name: Upload RPMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpms
           path: dist.tar
@@ -59,6 +60,7 @@ jobs:
   test:
     name: LMDB Test
     runs-on: ubuntu-22.04
+    timeout-minutes: 90
     needs: build
     strategy:
       fail-fast: false
@@ -66,7 +68,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
@@ -98,7 +100,7 @@ jobs:
         df -h
 
     - name: Download RPMs
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: rpms
 
@@ -133,7 +135,7 @@ jobs:
 
     - name: Upload pytest test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
         path: |
