@@ -634,6 +634,30 @@ export class ServerMonitor extends React.Component {
                             <GridItem span={2}>
                                 <b>{numToCommas(this.props.data.maxthreadsperconnhits)}</b>
                             </GridItem>
+                            <GridItem span={3} title="Worker threads currently processing an operation">
+                                {_("Busy Workers")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{numToCommas(this.props.data.currentbusyworkers)}</b>
+                            </GridItem>
+                            <GridItem span={3} title="Peak number of busy worker threads since startup">
+                                {_("Max Busy Workers")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{numToCommas(this.props.data.maxbusyworkers)}</b>
+                            </GridItem>
+                            <GridItem span={3} title="Operations currently waiting in the work queue">
+                                {_("Work Queue Size")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{numToCommas(this.props.data.currentworkqueue)}</b>
+                            </GridItem>
+                            <GridItem span={3} title="High-water mark of work queue depth since startup">
+                                {_("Max Work Queue Size")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{numToCommas(this.props.data.maxworkqueue)}</b>
+                            </GridItem>
                             <GridItem span={3}>
                                 {_("Total Connections")}
                             </GridItem>
