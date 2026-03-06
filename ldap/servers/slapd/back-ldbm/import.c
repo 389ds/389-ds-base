@@ -412,6 +412,13 @@ db2ldif_skip_all(void *args)
     return NULL;
 }
 
+static void *
+db2ldif_skip_all_thread(void *args)
+{
+    slapi_set_thread_name("db2ldif-skip");
+    return db2ldif_skip_all(args);
+}
+
 bool
 db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst)
 {
@@ -459,7 +466,7 @@ db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst)
      */
     g_incr_active_threadcnt();  /* decreased in db2ldif_skip_all */
     if (task->task_dn == NULL ||
-        pthread_create(&tid, NULL, db2ldif_skip_all, task) != 0) {
+        pthread_create(&tid, NULL, db2ldif_skip_all_thread, task) != 0) {
             db2ldif_skip_all(task);
     } else {
         pthread_detach(tid);

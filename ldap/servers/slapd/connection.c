@@ -1727,6 +1727,9 @@ connection_threadmain(void *arg)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     int32_t *snmp_vars_idx = (int32_t *) arg;
+    char tname[16];
+    snprintf(tname, sizeof(tname), "worker-%d", *snmp_vars_idx);
+    slapi_set_thread_name(tname);
     /* wait forever for new pb until one is available or shutdown */
     int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;

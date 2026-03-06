@@ -1165,6 +1165,7 @@ error:
 void
 dbmdb_import_main(void *arg)
 {
+    slapi_set_thread_name("import");
     /* For online import tasks increment/decrement the global thread count */
     g_incr_active_threadcnt();
     dbmdb_public_dbmdb_import_main(arg);

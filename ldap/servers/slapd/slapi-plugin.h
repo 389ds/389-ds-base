@@ -6109,6 +6109,9 @@ int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout) __attribute
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 int slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout);
 
+/* Set OS-level thread name for visibility in ps, top, perf, etc. (max 15 chars) */
+void slapi_set_thread_name(const char *name);
+
 /**
  * Creates a new read/write lock
  * If prio_writer the rwlock gives priority on writers

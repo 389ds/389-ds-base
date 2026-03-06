@@ -1018,6 +1018,7 @@ is_memberof_plugin_started(struct slapdplugin **plg_addr)
 void
 deferred_thread_func(void *arg)
 {
+    slapi_set_thread_name("memberof-def");
     MemberofDeferredList *deferred_list = (MemberofDeferredList *) arg;
     MemberofDeferredTask *task;
     struct slapdplugin *plg = NULL;
@@ -3923,6 +3924,7 @@ memberof_qsort_compare(const void *a, const void *b)
 void
 memberof_fixup_task_thread(void *arg)
 {
+    slapi_set_thread_name("memberof-fix");
     MemberOfConfig configCopy = {0};
     Slapi_Task *task = (Slapi_Task *)arg;
     task_data *td = NULL;

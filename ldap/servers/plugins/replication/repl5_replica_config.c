@@ -1313,6 +1313,7 @@ _replica_config_get_mtnode_ext(const Slapi_Entry *e)
 void
 replica_csngen_test_thread(void *arg)
 {
+    slapi_set_thread_name("csn-test");
     csngen_test_data *data = (csngen_test_data *)arg;
     int rc = 0;
     if (data->task) {

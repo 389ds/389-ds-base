@@ -298,6 +298,7 @@ eq_call_all_rel(void)
 static void
 eq_loop_rel(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("event-q");
     while (eq_rel_running) {
         time_t curtime = slapi_current_rel_time_t();
         int until;

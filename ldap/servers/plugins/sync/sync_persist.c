@@ -195,7 +195,7 @@ ignore_op_pl(Slapi_PBlock *pb)
  * of the completed operation.
  * When all operations are completed, if the primary operation is successful it
  * flushes (enqueue) the operations to the sync repl queue(s), else it just free
- * the pending list (skipping enqueue). 
+ * the pending list (skipping enqueue).
  */
 static void
 sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t op_tag, char *label)
@@ -221,7 +221,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
         ignore_op_pl(pb);
         return;
     }
-    
+
     /* Retrieve the result of the operation */
     if (slapi_op_internal(pb)) {
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -287,11 +287,11 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
         }
     }
     if (!curr_op) {
-        slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "%s - operation (op=0x%lx, idx_pl=%d) not found on the pendling list\n", 
+        slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "%s - operation (op=0x%lx, idx_pl=%d) not found on the pendling list\n",
                       label, (ulong) pb_op, ident->idx_pl);
         PR_ASSERT(curr_op);
     }
-    
+
     /* for diagnostic of the pending list, dump its content if it is too long */
     for (count = 0, curr_op = prim_op; curr_op; count++, curr_op = curr_op->next);
     if (loglevel_is_set(SLAPI_LOG_PLUGIN) && (count > 10)) {
@@ -368,7 +368,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
             if (enqueue_it) {
                 sync_queue_change(curr_op);
             }
-            
+
             /* now free this pending operation */
             next = curr_op->next;
             slapi_entry_free(curr_op->entry);
@@ -920,6 +920,7 @@ sync_release_connection(Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operatio
 static void
 sync_send_results(void *arg)
 {
+    slapi_set_thread_name("sync-send");
     SyncRequest *req = (SyncRequest *)arg;
     SyncQueueNode *qnode, *qnodenext;
     int conn_acq_flag = 0;

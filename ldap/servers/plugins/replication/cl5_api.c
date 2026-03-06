@@ -2487,6 +2487,7 @@ _cl5DBClose(void)
 static int
 _cl5TrimMain(void *param)
 {
+    slapi_set_thread_name("cl-trim");
     struct timespec current_time = {0};
     struct timespec prev_time = {0};
     Replica *replica = (Replica *)param;

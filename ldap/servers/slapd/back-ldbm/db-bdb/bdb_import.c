@@ -2573,6 +2573,7 @@ error:
 void
 bdb_import_main(void *arg)
 {
+    slapi_set_thread_name("bdb-import");
     /* For online import tasks increment/decrement the global thread count */
     g_incr_active_threadcnt();
     import_main_offline(arg);

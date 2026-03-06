@@ -263,6 +263,7 @@ pe_ch_free(PSEQNode **pe)
 static void
 ps_send_results(void *arg)
 {
+    slapi_set_thread_name("ps-send");
     PSearch *ps = (PSearch *)arg;
     PSEQNode *peq, *peqnext;
     struct slapi_filter *filter = 0;
