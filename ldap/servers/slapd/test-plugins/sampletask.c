@@ -48,6 +48,10 @@
  * [...] - Sample task finished.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "slapi-plugin.h"
 #include "nspr.h"
 
@@ -88,6 +92,7 @@ task_sampletask_start(Slapi_PBlock *pb)
 static void
 task_sampletask_thread(void *arg)
 {
+    slapi_set_thread_name("sample-task");
     Slapi_Task *task = (Slapi_Task *)arg;
     char *myarg = NULL;
     int i, rv = 0;

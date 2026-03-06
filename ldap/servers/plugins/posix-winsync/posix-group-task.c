@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <string.h>
 #include "posix-wsp-ident.h"
 #include "posix-group-func.h"
@@ -426,6 +430,7 @@ bail:
 static void
 posix_group_fixup_task_thread(void *arg)
 {
+    slapi_set_thread_name("posix-grp-fix");
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                   "_task_thread ==>\n");
 
