@@ -55,6 +55,18 @@ class Monitor(DSLdapObject):
         maxthreadsperconnhits = self.get_attr_vals_utf8('maxthreadsperconnhits')
         return (threads, currentconnectionsatmaxthreads, maxthreadsperconnhits)
 
+    def get_work_queue(self):
+        """Get work queue related attributes value for cn=monitor
+
+        :returns: Values of currentworkqueue, maxworkqueue,
+                  currentbusyworkers, maxbusyworkers attributes of cn=monitor
+        """
+        currentworkqueue = self.get_attr_vals_utf8('currentworkqueue')
+        maxworkqueue = self.get_attr_vals_utf8('maxworkqueue')
+        currentbusyworkers = self.get_attr_vals_utf8('currentbusyworkers')
+        maxbusyworkers = self.get_attr_vals_utf8('maxbusyworkers')
+        return (currentworkqueue, maxworkqueue, currentbusyworkers, maxbusyworkers)
+
     def get_backends(self):
         """Get backends related attributes value for cn=monitor
 
@@ -190,6 +202,10 @@ class Monitor(DSLdapObject):
             'currenttime',
             'starttime',
             'nbackends',
+            'currentworkqueue',
+            'maxworkqueue',
+            'currentbusyworkers',
+            'maxbusyworkers',
         ])
         status.update(stats)
 

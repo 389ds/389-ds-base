@@ -116,6 +116,22 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
 
     slapi_ch_free((void **)&cookie);
 
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_work_q_size());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "currentworkqueue", vals);
+
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_work_q_size_max());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "maxworkqueue", vals);
+
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_busy_worker_count());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "currentbusyworkers", vals);
+
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_max_busy_worker_count());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "maxbusyworkers", vals);
+
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
 }
