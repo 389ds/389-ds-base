@@ -1340,8 +1340,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.maxValue = 2147483647;
         this.onMinusConfig = (id) => {
             if (id === "mdbmaxsize") {
+                const currentMB = Number(this.state[id]);
+                const value = Math.max(currentMB - 1, 100);
                 this.setState({
-                    [id]: Number(this.state[id]) - (1024 * 1024),
+                    [id]: value
                 }, () => { this.validateSaveBtn() });
             } else {
                 this.setState({
@@ -1369,7 +1371,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
         this.onRangeConfigChangeBlur = (id, special, lower, upper) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
+            if (special !== null && value === special) {
                 // nothing to do
             } else if (value < lower) {
                 value = lower;
@@ -1410,8 +1412,11 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
         this.onPlusConfig = (id) => {
             if (id === "mdbmaxsize") {
+                const currentMB = Number(this.state[id]);
+                const maxsizeMB = Math.floor(this.state.availDbSizeBytes / (1024 * 1024));
+                const value = Math.min(currentMB + 1, maxsizeMB);
                 this.setState({
-                    [id]: Number(this.state[id]) + (1024 * 1024),
+                    [id]: value
                 }, () => { this.validateSaveBtn() });
             } else {
                 this.setState({
@@ -1573,7 +1578,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
         }
         if (this.state._mdbmaxsize !== this.state.mdbmaxsize) {
-            cmd.push("--mdb-max-size=" + this.state.mdbmaxsize);
+            const mdbmaxsizeMB = this.state.mdbmaxsize * 1024 * 1024;
+            cmd.push("--mdb-max-size=" + mdbmaxsizeMB);
             requireRestart = true;
         }
         if (this.state._mdbmaxreaders !== this.state.mdbmaxreaders) {
@@ -1726,6 +1732,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
         );
 
+        const mdbMaxMB = Math.floor(this.state.availDbSizeBytes / (1024 * 1024));
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
@@ -1758,11 +1765,12 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={Math.floor(this.state.mdbmaxsize / (1024 * 1024))}
-                                                min={104857600 / (1024 * 1024)}
-                                                max={Math.floor(this.state.availDbSizeBytes / (1024 * 1024))}
+                                                value={this.state.mdbmaxsize}
+                                                min={100}
+                                                max={mdbMaxMB}
                                                 onMinus={() => { this.onMinusConfig("mdbmaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 104857600, this.state.availDbSizeBytes) }}
+                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxsize") }}
+                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxsize", null, 100, mdbMaxMB) }}
                                                 onPlus={() => { this.onPlusConfig("mdbmaxsize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
