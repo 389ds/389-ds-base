@@ -215,14 +215,10 @@ def add_and_check(topo, plugin, attr, val, isvalid):
                 log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
                 assert False
         else:
-            if plugin == CHANGELOG:
-                if entries[0].hasValue(attr, val):
-                    log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
-                    assert False
-            else:
-                if not entries[0].hasValue(attr, val):
-                    log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
-                    assert False
+            if entries[0].hasValue(attr, val):
+                log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
+                assert False
+
     except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (plugin, e.message['desc']))
         assert False
