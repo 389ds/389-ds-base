@@ -1435,10 +1435,28 @@ export class LocalPwPolicy extends React.Component {
                     this.setState({
                         loading: false,
                     });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully created new password policy")
-                    );
+                    let message;
+                    let type = "success";
+
+                    const response = JSON.parse(content);
+                    if (response) {
+                        switch (response.ensure_status) {
+                            case "UNCHANGED":
+                                message = _("Password policy is already up to date");
+                                break;
+                            case "UPDATED":
+                                message = _("Successfully updated password policy");
+                                break;
+                            case "ADDED":
+                                message = _("Successfully created new password policy");
+                                break;
+                            default:
+                                message = _("Unknown password policy operation");
+                                type = "error";
+                                break;
+                        }
+                    }
+                    this.props.addNotification(type, message);
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);

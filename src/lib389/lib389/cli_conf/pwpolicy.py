@@ -74,6 +74,31 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         log.info(response)
 
 
+def _log_policy_result(log, entry, use_json=None):
+    """
+    Logs the result of creating/updating a password policy
+    in json or text format.
+    """
+    status = entry.ensure_status
+    if status == entry.ENSURE_UNCHANGED:
+        message = 'Password policy is already up to date'
+        ensure = "UNCHANGED"
+    elif status == entry.ENSURE_UPDATED:
+        message = 'Successfully updated password policy'
+        ensure = "UPDATED"
+    elif status == entry.ENSURE_ADDED:
+        message = 'Successfully created new password policy'
+        ensure = "ADDED"
+    else:
+        message = "Unknown password policy operation"
+        ensure = "UNKNOWN"
+
+    if use_json:
+        log.info(json.dumps({"ensure_status": ensure, "message": message}, indent=4))
+    else:
+        log.info(message)
+
+
 def list_policies(inst, basedn, log, args):
     log = log.getChild('list_policies')
 
@@ -165,18 +190,16 @@ def create_subtree_policy(inst, basedn, log, args):
     # Gather the attributes
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_subtree_policy(args.DN[0], attrs)
-
-    log.info('Successfully created subtree password policy')
+    pwp_entry = pwp_manager.create_subtree_policy(args.DN[0], attrs)
+    _log_policy_result(log, pwp_entry, args.json)
 
 
 def create_user_policy(inst, basedn, log, args):
     log = log.getChild('create_user_policy')
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_user_policy(args.DN[0], attrs)
-
-    log.info('Successfully created user password policy')
+    pwp_entry = pwp_manager.create_user_policy(args.DN[0], attrs)
+    _log_policy_result(log, pwp_entry, args.json)
 
 
 def set_global_policy(inst, basedn, log, args):
