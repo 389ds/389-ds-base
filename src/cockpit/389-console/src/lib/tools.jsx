@@ -1,5 +1,7 @@
 import cockpit from "cockpit";
 
+const _ = cockpit.gettext;
+
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
         const filteredRows = [];
