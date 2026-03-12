@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     ConflictTable,
@@ -125,10 +125,10 @@ export class ReplMonConflict extends React.Component {
                     this.closeConfirmConvertConflict();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to convert conflict entry entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
+                        cockpit.format(_("Failed to convert conflict entry entry: $0 - $1"), this.state.conflictEntry, errMsg)
                     );
                     this.closeConfirmConvertConflict();
                 });
@@ -153,10 +153,10 @@ export class ReplMonConflict extends React.Component {
                     this.closeConfirmSwapConflict();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to swap in conflict entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
+                        cockpit.format(_("Failed to swap in conflict entry: $0 - $1"), this.state.conflictEntry, errMsg)
                     );
                     this.closeConfirmSwapConflict();
                 });
@@ -182,10 +182,10 @@ export class ReplMonConflict extends React.Component {
                     this.closeConfirmConvertConflict();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete conflict entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
+                        cockpit.format(_("Failed to delete conflict entry: $0 - $1"), this.state.conflictEntry, errMsg)
                     );
                     this.closeConfirmDeleteConflict();
                 });
@@ -243,10 +243,10 @@ export class ReplMonConflict extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get conflict entries: $0 - $1"), dn, errMsg.desc)
+                        cockpit.format(_("Failed to get conflict entries: $0 - $1"), dn, errMsg)
                     );
                 });
     }
@@ -292,10 +292,10 @@ export class ReplMonConflict extends React.Component {
                     this.closeConfirmConvertGlue();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to convert glue entry: $0 - $1"), this.state.glueEntry, errMsg.desc)
+                        cockpit.format(_("Failed to convert glue entry: $0 - $1"), this.state.glueEntry, errMsg)
                     );
                     this.closeConfirmConvertGlue();
                 });
@@ -333,10 +333,10 @@ export class ReplMonConflict extends React.Component {
                     this.closeConfirmDeleteGlue();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete glue entry: $0 - $1"), this.state.glueEntry, errMsg.desc)
+                        cockpit.format(_("Failed to delete glue entry: $0 - $1"), this.state.glueEntry, errMsg)
                     );
                     this.closeConfirmDeleteGlue();
                 });

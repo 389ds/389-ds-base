@@ -22,7 +22,7 @@ import {
 import { AutoMembershipDefinitionTable, AutoMembershipRegexTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, listsEqual, valid_dn } from "../tools.jsx";
+import { log_cmd, listsEqual, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -358,9 +358,9 @@ class AutoMembership extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadDefinitions failed", errMsg.desc);
+                        console.log("loadDefinitions failed", errMsg);
                     }
                 });
     }
@@ -405,9 +405,9 @@ class AutoMembership extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadRegexes failed", errMsg.desc);
+                        console.log("loadRegexes failed", errMsg);
                     }
                 });
     }
@@ -626,11 +626,11 @@ class AutoMembership extends React.Component {
                         this.props.toggleLoadingHandler();
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
-                        if (errMsg.desc.indexOf("nothing to set") === 0) {
+                        const errMsg = getApiErrorMessage(err);
+                        if (errMsg.indexOf("nothing to set") === 0) {
                             this.props.addNotification(
                                 "error",
-                                cockpit.format(_("Error during the definition entry $0 operation - $1"), action, errMsg.desc)
+                                cockpit.format(_("Error during the definition entry $0 operation - $1"), action, errMsg)
                             );
                         } else {
                             this.purgeRegexUpdate();
@@ -677,10 +677,10 @@ class AutoMembership extends React.Component {
                         );
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error during the regex \"$0\" entry delete operation - $1"), regexToDelete, errMsg.desc)
+                            cockpit.format(_("Error during the regex \"$0\" entry delete operation - $1"), regexToDelete, errMsg)
                         );
                     });
         }
@@ -769,10 +769,10 @@ class AutoMembership extends React.Component {
                         );
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error during the regex \"$0\" entry $1 operation - $2"), regexName, action, errMsg.desc)
+                            cockpit.format(_("Error during the regex \"$0\" entry $1 operation - $2"), regexName, action, errMsg)
                         );
                     });
         }
@@ -826,10 +826,10 @@ class AutoMembership extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg)
                     );
                     this.loadDefinitions();
                     this.closeConfirmDelete();

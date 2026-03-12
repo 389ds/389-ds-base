@@ -21,7 +21,7 @@ import {
 } from "@patternfly/react-core";
 import { SyncAltIcon, TreeIcon, CloneIcon, LeafIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, callCmdStreamPassword } from "../tools.jsx";
+import { log_cmd, valid_dn, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -275,10 +275,10 @@ export class ReplSuffix extends React.Component {
                     this.setState({
                         modalSpinning: false
                     });
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to disable replication for $0 - $1"), this.props.suffix, errMsg.desc)
+                        cockpit.format(_("Failed to disable replication for $0 - $1"), this.props.suffix, errMsg)
                     );
                 });
     }

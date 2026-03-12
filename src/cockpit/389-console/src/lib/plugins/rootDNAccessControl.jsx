@@ -12,7 +12,7 @@ import {
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd, listsEqual } from "../tools.jsx";
+import { log_cmd, listsEqual, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -409,10 +409,10 @@ class RootDNAccessControl extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update RootDN Access Control Plugin - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update RootDN Access Control Plugin - $0"), errMsg)
                     );
                     this.props.pluginListHandler();
                     this.setState({

@@ -25,7 +25,7 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { DNATable, DNASharedTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -234,9 +234,9 @@ class DNAPlugin extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadConfigs failed", errMsg.desc);
+                        console.log("loadConfigs failed", errMsg);
                     }
                     this.setState({
                         loading: false,
@@ -276,9 +276,9 @@ class DNAPlugin extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadSharedConfigs failed", errMsg.desc);
+                        console.log("loadSharedConfigs failed", errMsg);
                     }
                 });
     }
@@ -553,11 +553,11 @@ class DNAPlugin extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (muteError !== true) {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                            cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                         );
                     }
                     this.loadConfigs();
@@ -601,10 +601,10 @@ class DNAPlugin extends React.Component {
                     this.handleCloseModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.closeDeleteConfirm();
                     this.loadConfigs();
@@ -760,10 +760,10 @@ class DNAPlugin extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry set operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry set operation - $0"), errMsg)
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.handleCloseSharedModal();
@@ -807,10 +807,10 @@ class DNAPlugin extends React.Component {
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the shared config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the shared config entry removal operation - $0"), errMsg)
                     );
                     this.closeSharedDeleteConfirm();
                     this.loadSharedConfigs(this.state.sharedConfigEntry);

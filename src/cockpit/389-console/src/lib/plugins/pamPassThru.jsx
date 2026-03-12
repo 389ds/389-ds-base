@@ -17,7 +17,7 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -270,9 +270,9 @@ class PAMPassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadPAMConfigs failed", errMsg.desc);
+                        console.log("loadPAMConfigs failed", errMsg);
                     }
                     this.props.toggleLoadingHandler();
                 });
@@ -476,10 +476,10 @@ class PAMPassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the pamConfig entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the pamConfig entry removal operation - $0"), errMsg)
                     );
                     this.loadPAMConfigs();
                     this.closeConfirmDeleteConfig();
@@ -585,10 +585,10 @@ class PAMPassthroughAuthentication extends React.Component {
                     this.handleClosePAMModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the pamConfig entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the pamConfig entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadPAMConfigs();
                     this.handleClosePAMModal();

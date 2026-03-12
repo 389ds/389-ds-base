@@ -16,7 +16,7 @@ import {
 	TextVariants
 } from '@patternfly/react-core';
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
-import { log_cmd } from "../../lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -180,10 +180,10 @@ export class Ciphers extends React.Component {
                     this.props.reload();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
+                    const errMsg = getApiErrorMessage(err);
+                    let msg = errMsg;
                     if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
+                        msg = errMsg + " - " + errMsg.info;
                     }
                     this.props.addNotification(
                         "error",

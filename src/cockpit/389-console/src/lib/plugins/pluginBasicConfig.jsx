@@ -11,7 +11,7 @@ import {
     TextVariants,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -134,10 +134,10 @@ class PluginBasicConfig extends React.Component {
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     addNotification(
                         "error",
-                        cockpit.format(_("Error during $0 plugin modification - $1"), pluginName, errMsg.desc)
+                        cockpit.format(_("Error during $0 plugin modification - $1"), pluginName, errMsg)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });

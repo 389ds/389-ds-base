@@ -23,7 +23,7 @@ import {
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd, valid_dn, listsEqual, parentExists, valid_filter } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, parentExists, valid_filter, getApiErrorMessage } from "../tools.jsx";
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { MemberOfTable } from "./pluginTables.jsx";
 import {
@@ -739,10 +739,10 @@ class MemberOf extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Fixup task for $0 has failed $1"), this.state.fixupDN, errMsg.desc)
+                            cockpit.format(_("Fixup task for $0 has failed $1"), this.state.fixupDN, errMsg)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -1070,10 +1070,10 @@ class MemberOf extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                            cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                         );
                         this.props.pluginListHandler();
                         this.handleCloseModal();
@@ -1119,10 +1119,10 @@ class MemberOf extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -1388,11 +1388,11 @@ class MemberOf extends React.Component {
                     this.props.pluginListHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    let errMsg = getApiErrorMessage(err);
                     if ('info' in errMsg) {
-                        errMsg = errMsg.desc + " " + errMsg.info;
+                        errMsg = errMsg + " " + errMsg.info;
                     } else {
-                        errMsg = errMsg.desc;
+                        errMsg = errMsg;
                     }
                     this.props.addNotification(
                         "error", cockpit.format(_("Error during update - $0"), errMsg)
@@ -1509,11 +1509,11 @@ class MemberOf extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    let errMsg = getApiErrorMessage(err);
                     if ('info' in errMsg) {
-                        errMsg = errMsg.desc + " " + errMsg.info;
+                        errMsg = errMsg + " " + errMsg.info;
                     } else {
-                        errMsg = errMsg.desc;
+                        errMsg = errMsg;
                     }
                     this.props.addNotification(
                         "error", cockpit.format(_("Error during update - $0"), errMsg)
