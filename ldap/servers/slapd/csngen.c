@@ -166,6 +166,14 @@ csngen_free(CSNGen **gen)
     slapi_ch_free((void **)gen);
 }
 
+void
+csngen_set_gettime(CSNGen *gen, int32_t (*gettime)(struct timespec *tp))
+{
+    if (gen) {
+        gen->gettime = gettime;
+    }
+}
+
 int
 csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify)
 {
