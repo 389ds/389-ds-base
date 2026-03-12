@@ -14,7 +14,7 @@ import {
     TextInput,
     ValidatedOptions,
 } from "@patternfly/react-core";
-import { log_cmd, valid_port, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_port, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -123,11 +123,11 @@ export class SuffixReferrals extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting referral - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting referral - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -162,12 +162,12 @@ export class SuffixReferrals extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.closeRefModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure creating referral - $0"), errMsg.desc)
+                        cockpit.format(_("Failure creating referral - $0"), errMsg)
                     );
                     this.setState({
                         saving: false

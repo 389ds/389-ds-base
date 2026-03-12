@@ -1061,10 +1061,10 @@ export class ReplAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg.desc)
+                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg)
                     );
                 });
     }
@@ -1225,10 +1225,10 @@ export class ReplAgmts extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        cockpit.format(_("Failed to poke replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to poke replication agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1256,10 +1256,10 @@ export class ReplAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        cockpit.format(_("Failed to initialize replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to initialize replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmInitAgmt: false
@@ -1314,10 +1314,10 @@ export class ReplAgmts extends React.Component {
                         _("Successfully enabled replication agreement"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to enabled replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to enabled replication agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1339,10 +1339,10 @@ export class ReplAgmts extends React.Component {
                         _("Successfully disabled replication agreement"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to disable replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to disable replication agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1366,10 +1366,10 @@ export class ReplAgmts extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to delete replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmDeleteAgmt: false,

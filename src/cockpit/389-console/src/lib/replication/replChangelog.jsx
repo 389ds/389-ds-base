@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -144,14 +144,14 @@ export class Changelog extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.reloadChangelog();
                         this.setState({
                             saving: false
                         });
-                        let msg = errMsg.desc;
+                        let msg = errMsg;
                         if ('info' in errMsg) {
-                            msg = errMsg.desc + " - " + errMsg.info;
+                            msg = errMsg + " - " + errMsg.info;
                         }
                         this.props.addNotification(
                             "error",
@@ -238,10 +238,10 @@ export class Changelog extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to reload changelog for \"$0\" - $1"), this.props.suffix, errMsg.desc)
+                        cockpit.format(_("Failed to reload changelog for \"$0\" - $1"), this.props.suffix, errMsg)
                     );
                     this.setState({
                         loading: false,

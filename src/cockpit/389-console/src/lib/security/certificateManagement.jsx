@@ -24,7 +24,7 @@ import {
     ExportCertModal,
 } from "./securityModals.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../../lib/tools.jsx";
+import { getApiErrorMessage, log_cmd } from "../../lib/tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -365,11 +365,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         showExportModal: false,
                         exportNickname: '',
@@ -488,11 +484,7 @@ export class CertificateManagement extends React.Component {
                                     this.closeAddModal();
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
-                                    let msg = errMsg.desc;
-                                    if ('info' in errMsg) {
-                                        msg = errMsg.desc + " - " + errMsg.info;
-                                    }
+                                    const msg = getApiErrorMessage(err);
                                     this.deleteTmpCert(certFile);
                                     this.closeAddCAModal();
                                     this.closeAddModal();
@@ -549,11 +541,7 @@ export class CertificateManagement extends React.Component {
                         );
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
-                        let msg = errMsg.desc;
-                        if ('info' in errMsg) {
-                            msg = errMsg.desc + " - " + errMsg.info;
-                        }
+                        const msg = getApiErrorMessage(err);
                         this.closeAddCAModal();
                         this.closeAddModal();
                         this.setState({
@@ -598,8 +586,8 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if (errMsg.desc.includes('certutil -s: improperly formatted name:')) {
+                    const errMsg = getApiErrorMessage(err);
+                    if (errMsg.includes('certutil -s: improperly formatted name:')) {
                         this.props.addNotification(
                             "error",
                             _("Error Improperly formatted subject")
@@ -607,7 +595,7 @@ export class CertificateManagement extends React.Component {
                     } else {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error creating CSR - $0"), errMsg.desc)
+                            cockpit.format(_("Error creating CSR - $0"), errMsg)
                         );
                     }
                     this.setState({
@@ -641,10 +629,10 @@ export class CertificateManagement extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error displaying CSR - $0"), errMsg.desc)
+                        cockpit.format(_("Error displaying CSR - $0"), errMsg)
                     );
                 });
     }
@@ -701,11 +689,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         certName: '',
                         modalSpinning: false,
@@ -744,11 +728,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         csrName: '',
                         csrSubject: '',
@@ -787,11 +767,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         keyID: '',
                         modalSpinning: false,
@@ -882,11 +858,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         showEditModal: false,
                         flags: '',
@@ -1092,11 +1064,7 @@ export class CertificateManagement extends React.Component {
                     }, this.getCertFiles);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error loading server certificates - $0"), msg)
@@ -1123,11 +1091,7 @@ export class CertificateManagement extends React.Component {
                     }, this.reloadOrphanKeys);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error loading CSRs - $0"), msg)
@@ -1156,11 +1120,11 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if (!errMsg.desc.includes('certutil: no keys found')) {
+                    const errMsg = getApiErrorMessage(err);
+                    if (!errMsg.includes('certutil: no keys found')) {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error loading Orphan Keys - $0"), errMsg.desc)
+                            cockpit.format(_("Error loading Orphan Keys - $0"), errMsg)
                         );
                     }
                     this.setState({
@@ -1186,11 +1150,7 @@ export class CertificateManagement extends React.Component {
                     }, this.reloadCerts);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error loading CA certificates - $0"), msg)

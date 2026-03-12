@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import PropTypes from "prop-types";
 import ServerMonitor from "./lib/monitor/serverMonitor.jsx";
 import { DatabaseMonitor, DatabaseMonitorMDB } from "./lib/monitor/dbMonitor.jsx";
@@ -643,8 +643,8 @@ export class Monitor extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log("getDBEngine - Error detecting DB implementation type -", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("getDBEngine - Error detecting DB implementation type -", errMsg);
                 });
     }
 
@@ -832,8 +832,8 @@ export class Monitor extends React.Component {
                 })
                 .fail(err => {
                     // No dsrc file, thats ok
-                    const errMsg = JSON.parse(err);
-                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg.desc}`);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg}`);
                     this.setState({
                         replLoading: false,
                     });

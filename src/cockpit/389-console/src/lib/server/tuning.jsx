@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -194,13 +194,13 @@ export class ServerTuning extends React.Component {
                     }, this.props.enableTree());
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg)
                     );
                 });
     }
@@ -240,11 +240,11 @@ export class ServerTuning extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating tuning configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating tuning configuration - $0"), errMsg)
                     );
                 });
     }
