@@ -1342,7 +1342,7 @@ export class Security extends React.Component {
                         </Text>
                     </TextContent>
                     <ProgressStepper
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-xlg"
                         aria-label="Progress stepper for all the various security related info"
                         isCenterAligned
                     >

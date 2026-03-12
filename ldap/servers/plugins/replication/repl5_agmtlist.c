@@ -26,6 +26,8 @@
 #define CONFIG_FILTER "(objectclass=nsds5replicationagreement)"
 #define WINDOWS_CONFIG_FILTER "(objectclass=nsdsWindowsreplicationagreement)"
 #define GLOBAL_CONFIG_FILTER "(|" CONFIG_FILTER WINDOWS_CONFIG_FILTER " )"
+#define AGMT_OK 0
+#define AGMT_ERROR -1
 
 
 PRCallOnceType once = {0};
@@ -123,24 +125,29 @@ agmtlist_agmt_exists(const Repl_Agmt *ra)
     return exists;
 }
 
-
 /*
  * Note: when we add the new object, we have a reference to it. We hold
  * on to this reference until the agreement is deleted (or until the
  * server is shut down).
+ * Return AGMT_OK on success
+ * Return AGMT_ERROR on generic error
  */
-int
-add_new_agreement(Slapi_Entry *e)
+static int
+add_new_agreement(Slapi_Entry *e, char **err_buffer)
 {
-    int rc = 0;
+    int rc = AGMT_OK;
     Repl_Agmt *ra = agmt_new_from_entry(e);
     Slapi_DN *replarea_sdn = NULL;
     Replica *replica = NULL;
     Object *ro = NULL;
+    char *agmt_hostname = NULL;
+    char *err_str = NULL;
+    char *server_err_str = NULL;
+    int agmt_port = 0;
 
     /* tell search result handler callback this entry was not sent */
     if (ra == NULL)
-        return 1;
+        return AGMT_ERROR;
 
     ro = object_new((void *)ra, agmt_delete);
     objset_add_obj(agmt_set, ro);
@@ -149,13 +156,43 @@ add_new_agreement(Slapi_Entry *e)
     /* get the replica for this agreement */
     replarea_sdn = agmt_get_replarea(ra);
     if (!replarea_sdn) {
-        return 1;
+        *err_buffer = slapi_ch_smprintf("problem getting the replica suffix for the agreement");
+        return AGMT_ERROR;
     }
     replica = replica_get_replica_from_dn(replarea_sdn);
     slapi_sdn_free(&replarea_sdn);
 
-    rc = replica_start_agreement(replica, ra);
+    agmt_hostname = agmt_get_hostname(ra);
+    agmt_port = agmt_get_port(ra);
 
+    if (replica && slapi_is_local_host(agmt_hostname, &err_str, &server_err_str) &&
+        (agmt_port == replica_get_port(replica) || agmt_port == replica_get_secure_port(replica)) )
+    {
+        /* You can not create an agreement that points to the local server */
+        *err_buffer = slapi_ch_smprintf("agreement hostname points to the local server instance: %s",
+                                        agmt_hostname);
+        slapi_ch_free_string(&agmt_hostname);
+        return AGMT_ERROR;
+    }
+
+    /* Log warnings if there is an issue checking the agreement or local hostname */
+    if (err_str) {
+        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "add_new_agreement - "
+                      "(%s) problem with the agreement hostname (%s) - %s",
+                      slapi_entry_get_dn(e), agmt_hostname, err_str);
+    }
+    if (server_err_str) {
+        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "add_new_agreement - "
+                      "(%s) problem checking the server's hostname - %s",
+                      slapi_entry_get_dn(e), server_err_str);
+    }
+    slapi_ch_free_string(&agmt_hostname);
+
+    /* All good, start the agreement */
+    rc = replica_start_agreement(replica, ra);
+    if (rc != 0) {
+        *err_buffer = slapi_ch_strdup("Problem starting the agreement");
+    }
     return rc;
 }
 
@@ -216,19 +253,29 @@ agmtlist_add_callback(Slapi_PBlock *pb,
                       Slapi_Entry *e,
                       Slapi_Entry *entryAfter __attribute__((unused)),
                       int *returncode,
-                      char *returntext __attribute__((unused)),
+                      char *returntext,
                       void *arg __attribute__((unused)))
 {
+    char buff[SLAPI_DSE_RETURNTEXT_SIZE];
+    char *err_buff = NULL;
+    char *errortext = returntext ? returntext : buff;
     int rc;
+
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "agmt_add: begin\n");
 
-    rc = add_new_agreement(e);
-    if (0 != rc) {
+    rc = add_new_agreement(e, &err_buff);
+    if (AGMT_OK != rc) {
         Slapi_DN *sdn = NULL;
         slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_add_callback - "
-                                                       "Can't start agreement \"%s\"\n",
-                      slapi_sdn_get_dn(sdn));
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmtlist_add_callback - (%s) %s\n",
+                      slapi_sdn_get_dn(sdn),
+                      err_buff ? err_buff : "Unknown error adding agreement");
+        if (err_buff) {
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "%s", err_buff);
+            slapi_ch_free_string(&err_buff);
+        }
+
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -704,19 +751,21 @@ static int
 handle_agmt_search(Slapi_Entry *e, void *callback_data)
 {
     int *agmtcount = (int *)callback_data;
+    char *err_buff = NULL;
     int rc;
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                   "handle_agmt_search - Found replication agreement named \"%s\".\n",
                   slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
-    rc = add_new_agreement(e);
-    if (0 == rc) {
+    rc = add_new_agreement(e, &err_buff);
+    if (rc == AGMT_OK) {
         (*agmtcount)++;
     } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "handle_agmt_search - "
-                                                        "The replication agreement named \"%s\" could not be correctly parsed. No "
-                                                        "replication will occur with this replica.\n",
-                      slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
+                      "The replication agreement named \"%s\" could not be correctly parsed. No "
+                      "replication will occur with this replica. Error: %s\n",
+                      slapi_sdn_get_dn(slapi_entry_get_sdn(e)), err_buff);
+        slapi_ch_free_string(&err_buff);
     }
 
     return rc;
