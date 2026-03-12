@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import PropTypes from "prop-types";
 import { ServerSettings } from "./lib/server/settings.jsx";
 import { ServerTuning } from "./lib/server/tuning.jsx";
@@ -122,13 +122,13 @@ export class Server extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg)
                     );
                 });
     }
@@ -149,10 +149,10 @@ export class Server extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading server configuration - $0"), errMsg)
                     );
                 });
     }

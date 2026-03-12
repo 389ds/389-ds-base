@@ -14,7 +14,7 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -181,9 +181,9 @@ class LinkedAttributes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadConfigs failed", errMsg.desc);
+                        console.log("loadConfigs failed", errMsg);
                     }
                 });
     }
@@ -324,10 +324,10 @@ class LinkedAttributes extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -368,10 +368,10 @@ class LinkedAttributes extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();

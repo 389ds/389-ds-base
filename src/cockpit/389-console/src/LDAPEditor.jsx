@@ -45,7 +45,7 @@ import EditorTreeView from './lib/ldap_editor/treeView.jsx';
 import { SearchDatabase } from './lib/ldap_editor/search.jsx';
 import GenericWizard from './lib/ldap_editor/wizards/genericWizard.jsx';
 import { SyncAltIcon } from '@patternfly/react-icons';
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -311,15 +311,15 @@ export class LDAPEditor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     console.error(
                         "handleLockUnlockEntry",
                         `${entryType} ${operationType} operation failed -`,
-                        errMsg.desc
+                        errMsg
                     );
                     this.props.addNotification(
-                        `${errMsg.desc.includes(`is already ${operationType === "unlock" ? "active" : "locked"}`) ? 'warning' : 'error'}`,
-                        `${errMsg.desc}`
+                        `${errMsg.includes(`is already ${operationType === "unlock" ? "active" : "locked"}`) ? 'warning' : 'error'}`,
+                        `${errMsg}`
                     );
                     this.setState({
                         entryMenuIsOpen: !this.state.entryMenuIsOpen,
@@ -653,12 +653,12 @@ export class LDAPEditor extends React.Component {
                             }
                         })
                         .fail(err => {
-                            const errMsg = JSON.parse(err);
-                            if ((entryDn !== 'Root DSE') && (entryStateIcon !== "") && !(errMsg.desc.includes("Root suffix can't be locked or unlocked"))) {
+                            const errMsg = getApiErrorMessage(err);
+                            if ((entryDn !== 'Root DSE') && (entryStateIcon !== "") && !(errMsg.includes("Root suffix can't be locked or unlocked"))) {
                                 console.error(
                                     "handleCollapse",
                                     `${isRole ? "role" : "account"} account entry-status operation failed`,
-                                    errMsg.desc
+                                    errMsg
                                 );
                                 entryState = _("error: please, check browser logs");
                                 entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle" />;

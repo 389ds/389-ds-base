@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     AgmtTable,
@@ -43,10 +43,10 @@ export class ReplAgmtMonitor extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to poke replication agreement $0 - $1"), agmt_name, errMsg.desc)
+                        cockpit.format(_("Failed to poke replication agreement $0 - $1"), agmt_name, errMsg)
                     );
                 });
     }

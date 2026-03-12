@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { displayBytes, log_cmd } from "../tools.jsx";
+import { displayBytes, log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Alert,
     Button,
@@ -350,14 +350,14 @@ export class GlobalDatabaseConfig extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -523,14 +523,14 @@ export class GlobalDatabaseConfig extends React.Component {
                         this.save_ndn_cache(requireRestart);
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -1520,14 +1520,14 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -1617,14 +1617,14 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         this.save_ndn_cache(requireRestart);
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {

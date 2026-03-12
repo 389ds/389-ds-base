@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
@@ -1459,14 +1459,14 @@ export class LocalPwPolicy extends React.Component {
                     this.props.addNotification(type, message);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadPolicies();
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating password policy - $0"), errMsg)
                     );
                 });
     }
@@ -1537,14 +1537,14 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1615,14 +1615,14 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1693,14 +1693,14 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1803,14 +1803,14 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1873,14 +1873,14 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         saving: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1907,11 +1907,11 @@ export class LocalPwPolicy extends React.Component {
                 })
 
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadPolicies();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting local password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting local password policy - $0"), errMsg)
                     );
                 });
     }
@@ -2125,26 +2125,26 @@ export class LocalPwPolicy extends React.Component {
                                     }, this.props.enableTree);
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.setState({
                                         loaded: true,
                                         loading: false,
                                     });
                                     this.props.addNotification(
                                         "error",
-                                        cockpit.format(_("Error loading global password storage scheme - $0"), errMsg.desc)
+                                        cockpit.format(_("Error loading global password storage scheme - $0"), errMsg)
                                     );
                                 });
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true,
                         loading: false,
                     }, this.props.enableTree);
                     console.log(
-                        `Error loading local password policies - ${errMsg.desc}`
+                        `Error loading local password policies - ${errMsg}`
                     );
                 });
     }
@@ -2435,14 +2435,14 @@ export class LocalPwPolicy extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true,
                         loading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading local password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading local password policy - $0"), errMsg)
                     );
                 });
     }

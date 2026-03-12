@@ -32,7 +32,7 @@ import {
 import { ManagedDefinitionTable, ManagedTemplateTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -332,9 +332,9 @@ class ManagedEntries extends React.Component {
                                 });
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 if (err !== 0) {
-                                    console.log("loadConfigs failed getting definitions", errMsg.desc);
+                                    console.log("loadConfigs failed getting definitions", errMsg);
                                 }
                                 this.setState({
                                     loading: false
@@ -342,9 +342,9 @@ class ManagedEntries extends React.Component {
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadConfigs failed getting templates", errMsg.desc);
+                        console.log("loadConfigs failed getting templates", errMsg);
                     }
                     this.setState({
                         loading: false
@@ -663,10 +663,10 @@ class ManagedEntries extends React.Component {
                     this.loadConfigs();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg)
                     );
                     this.loadConfigs();
                 });
@@ -720,10 +720,10 @@ class ManagedEntries extends React.Component {
                     this.handleCloseDefModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadConfigs();
                     this.handleCloseDefModal();
@@ -804,11 +804,11 @@ class ManagedEntries extends React.Component {
                     this.handleCloseTempModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleCloseTempModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the template entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the template entry $0 operation - $1"), action, errMsg)
                     );
                     this.toggleLoading();
                 });
@@ -844,10 +844,10 @@ class ManagedEntries extends React.Component {
                     this.closeTempDeleteConfirm();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the template entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the template entry removal operation - $0"), errMsg)
                     );
                     this.closeTempDeleteConfirm();
                     this.toggleLoading();
@@ -885,8 +885,8 @@ class ManagedEntries extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification("error", cockpit.format(_("Failed to get attributes - $0"), errMsg.desc));
+                    const errMsg = getApiErrorMessage(err);
+                    this.props.addNotification("error", cockpit.format(_("Failed to get attributes - $0"), errMsg));
                 });
     }
 
