@@ -504,7 +504,8 @@ class LDIFTable extends React.Component {
                 { title: _("LDIF File"), sortable: true },
                 { title: _("Creation Date"), sortable: true },
                 { title: _("File Size"), sortable: true },
-                { title: _("Actions"), screenReaderText: _("LDIF file actions") }
+                { title: _("Suffix"), sortable: true },
+                { title: "", screenReaderText: _("Import the LDIF file") }
             ],
         };
 
@@ -532,6 +533,7 @@ class LDIFTable extends React.Component {
                     this.props.confirmImport(name);
                 }}
                 title={_("Initialize the database with this LDIF file")}
+                size="sm"
             >
                 {_("Import")}
             </Button>
@@ -568,13 +570,6 @@ class LDIFTable extends React.Component {
             page: 1,
         });
     }
-
-    getActionsForRow = (rowData) => [
-        {
-            title: _("Import LDIF File"),
-            onClick: () => this.props.confirmImport(rowData[0])
-        }
-    ];
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
@@ -618,9 +613,7 @@ class LDIFTable extends React.Component {
                                 {/* Only render the action column if we have rows */}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn
-                                            items={this.getActionsForRow(row)}
-                                        />
+                                        {this.getImportButton(row[0])}
                                     </Td>
                                 )}
                             </Tr>
