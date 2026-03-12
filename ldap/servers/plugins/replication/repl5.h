@@ -715,7 +715,8 @@ void replica_set_updatedn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 void replica_set_groupdn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 char *replica_get_generation(const Replica *r);
 bool replica_check_validity(Replica *replica);
-
+int replica_get_port(Replica *r);
+int replica_get_secure_port(Replica *r);
 
 /* currently supported flags */
 #define REPLICA_LOG_CHANGES 0x1 /* enable change logging */
