@@ -228,6 +228,48 @@ slapi_mtn_get_dn(mapping_tree_node *node)
     return (node->mtn_subtree);
 }
 
+
+static char *
+get_referral_aci(Slapi_Entry *e)
+{
+    Slapi_RDN *rdn = slapi_entry_get_srdn(e);
+    char *theType = NULL;
+    char *value = NULL;
+    char **attrs = NULL;
+    char **pt = NULL;
+    char *pt2 = NULL;
+    char *attrlist = NULL;
+    int index = slapi_rdn_get_first(rdn, &theType, &value);
+    size_t len = 0;
+    char *aci = NULL;
+    /* Build 'ref' and rdn attributes list */
+    slapi_ch_array_add_ext(&attrs, slapi_ch_strdup("ref"));
+    while (index != -1) {
+        if (!charray_inlist(attrs, theType)) {
+            slapi_ch_array_add_ext(&attrs, slapi_ch_strdup(theType));
+        }
+        index = slapi_rdn_get_next(rdn, index, &theType, &value);
+    }
+    slapi_rdn_done(rdn);
+    for (pt=attrs; *pt; pt++) {
+        len += strlen(*pt) + 1;
+    }
+    attrlist = slapi_ch_malloc(len);
+    pt2 = attrlist;
+    for (pt=attrs; *pt; pt++) {
+        strcpy(pt2, *pt);
+        pt2 += strlen(pt2);
+        *pt2++ = ',';
+    }
+    slapi_ch_array_free(attrs);
+    PR_ASSERT(pt2>attrlist);
+    pt2[-1] = 0;
+    aci = slapi_ch_smprintf("(targetattr = \"%s\")(version 3.0; aci \"anon read access for referral\"; allow(read) userdn=\"ldap:///anyone\";)", attrlist);
+    slapi_ch_free_string(&attrlist);
+    return aci;
+}
+
+
 /* this will turn an array of url into a referral entry */
 static Slapi_Entry *
 referral2entry(char **url_array, Slapi_DN *target_sdn)
@@ -235,6 +277,7 @@ referral2entry(char **url_array, Slapi_DN *target_sdn)
     int i;
     struct berval bv0, bv1, *bvals[3];
     Slapi_Entry *anEntry;
+    char *aci;
 
     if (url_array == NULL)
         return NULL;
@@ -250,13 +293,16 @@ referral2entry(char **url_array, Slapi_DN *target_sdn)
     bv0.bv_val = "top";
     bv0.bv_len = strlen(bv0.bv_val);
     slapi_entry_add_values(anEntry, "objectClass", bvals);
-
     bvals[1] = NULL;
     for (i = 0; url_array[i]; i++) {
         bv0.bv_val = url_array[i];
         bv0.bv_len = strlen(bv0.bv_val);
         slapi_entry_attr_merge(anEntry, "ref", bvals);
     }
+    aci = get_referral_aci(anEntry);
+    slapi_entry_add_string(anEntry, "aci", aci);
+    slapi_ch_free_string(&aci);
+
     return anEntry;
 }
 
@@ -2667,6 +2713,7 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
                 *be = NULL;
                 if (referral) {
                     *referral = (target_node->mtn_referral_entry ? slapi_entry_dup(target_node->mtn_referral_entry) : NULL);
+                    *be = defbackend_get_backend();
                 }
                 (*index)++;
             } else if ((*index == SLAPI_BE_NO_BACKEND) || (*index >= target_node->mtn_be_count)) {
