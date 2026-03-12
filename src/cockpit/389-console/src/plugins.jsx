@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import {
     Grid,
@@ -151,8 +151,8 @@ export class Plugins extends React.Component {
                                 });
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
-                                this.props.addNotification("error", cockpit.format(_("Failed to get objectClasses - $0"), errMsg.desc));
+                                const errMsg = getApiErrorMessage(err);
+                                this.props.addNotification("error", cockpit.format(_("Failed to get objectClasses - $0"), errMsg));
                             });
                 });
     }
@@ -207,10 +207,10 @@ export class Plugins extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("$0 error during plugin loading"), errMsg.desc)
+                        cockpit.format(_("$0 error during plugin loading"), errMsg)
                     );
                 });
     }
@@ -268,13 +268,13 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if (errMsg.desc.indexOf("nothing to set") >= 0) {
+                    const errMsg = getApiErrorMessage(err);
+                    if (errMsg.indexOf("nothing to set") >= 0) {
                         nothingToSetErr = true;
                     } else {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("$0 error during $1 modification"), errMsg.desc, data.name)
+                            cockpit.format(_("$0 error during $1 modification"), errMsg, data.name)
                         );
                     }
                     this.closePluginModal();
@@ -306,10 +306,10 @@ export class Plugins extends React.Component {
                                     console.info("savePlugin", "Result", content);
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     if (
-                                        (errMsg.desc.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
-                                errMsg.desc.indexOf("nothing to set") < 0
+                                        (errMsg.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
+                                errMsg.indexOf("nothing to set") < 0
                                     ) {
                                         if (basicPluginSuccess) {
                                             this.props.addNotification(
@@ -320,7 +320,7 @@ export class Plugins extends React.Component {
                                         }
                                         this.props.addNotification(
                                             "error",
-                                            cockpit.format(_("$0 error during $1 modification"), errMsg.desc, data.name)
+                                            cockpit.format(_("$0 error during $1 modification"), errMsg, data.name)
                                         );
                                     }
                                     this.toggleLoading();
@@ -378,10 +378,10 @@ export class Plugins extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during $0 plugin modification - $1"), this.state.togglePluginName, errMsg.desc)
+                        cockpit.format(_("Error during $0 plugin modification - $1"), this.state.togglePluginName, errMsg)
                     );
                     // toggleLoadingHandler();
                     this.setState({

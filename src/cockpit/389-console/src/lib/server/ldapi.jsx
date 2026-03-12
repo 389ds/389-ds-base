@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -181,13 +181,13 @@ export class ServerLDAPI extends React.Component {
                     }, this.handleLoadConfig);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg)
                     );
                 });
     }
@@ -229,13 +229,13 @@ export class ServerLDAPI extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loading: false
                     }, this.reloadConfig);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating LDAPI configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating LDAPI configuration - $0"), errMsg)
                     );
                 });
     }

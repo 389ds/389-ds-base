@@ -17,7 +17,7 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { ExclamationCircleIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -328,10 +328,10 @@ class RetroChangelog extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update Retro Changelog Plugin - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update Retro Changelog Plugin - $0"), errMsg)
                     );
                     this.props.pluginListHandler();
                     this.setState({

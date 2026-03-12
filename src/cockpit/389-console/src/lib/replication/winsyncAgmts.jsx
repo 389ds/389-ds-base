@@ -3,10 +3,7 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReplAgmtTable } from "./replTables.jsx";
 import { WinsyncAgmtModal } from "./replModals.jsx";
-import {
-    log_cmd, valid_dn, valid_port,
-    listsEqual, callCmdStreamPassword
-} from "../tools.jsx";
+import { log_cmd, valid_dn, valid_port, listsEqual, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
@@ -744,10 +741,10 @@ export class WinsyncAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg.desc)
+                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg)
                     );
                 });
     }
@@ -881,10 +878,10 @@ export class WinsyncAgmts extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        cockpit.format(_("Failed to poke winsync agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to poke winsync agreement - $0"), errMsg)
                     );
                 });
     }
@@ -913,10 +910,10 @@ export class WinsyncAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        cockpit.format(_("Failed to initialize winsync agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to initialize winsync agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmInitAgmt: false
@@ -971,10 +968,10 @@ export class WinsyncAgmts extends React.Component {
                         _("Successfully enabled winsync agreement"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to enabled winsync agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to enabled winsync agreement - $0"), errMsg)
                     );
                 });
     }
@@ -996,10 +993,10 @@ export class WinsyncAgmts extends React.Component {
                         _("Successfully disabled winsync agreement"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to disable winsync agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to disable winsync agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1024,10 +1021,10 @@ export class WinsyncAgmts extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete winsync agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to delete winsync agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmDeleteAgmt: false,

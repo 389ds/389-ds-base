@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, isValidIpAddress, isValidIpAddressOrCIDR, is_port_in_use } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress, isValidIpAddressOrCIDR, is_port_in_use, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -567,11 +567,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadRootDN();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating Directory Manager configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating Directory Manager configuration - $0"), errMsg)
                     );
                 });
     }
@@ -604,13 +604,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         rootDNReloading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading Directory Manager configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading Directory Manager configuration - $0"), errMsg)
                     );
                 });
     }
@@ -648,11 +648,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating Disk Monitoring configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating Disk Monitoring configuration - $0"), errMsg)
                     );
                 });
     }
@@ -695,13 +695,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         diskMonReloading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading Disk Monitoring configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading Disk Monitoring configuration - $0"), errMsg)
                     );
                 });
     }
@@ -732,11 +732,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                                     );
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.reloadAdvanced();
                                     this.props.addNotification(
                                         "error",
-                                        `Error updating Advanced configuration - ${errMsg.desc}`
+                                        `Error updating Advanced configuration - ${errMsg}`
                                     );
                                 });
                     } else {
@@ -748,11 +748,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
-                        `Error updating Advanced configuration - ${errMsg.desc}`
+                        `Error updating Advanced configuration - ${errMsg}`
                     );
                 });
     }
@@ -811,11 +811,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating Advanced configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating Advanced configuration - $0"), errMsg)
                     );
                 });
     }
@@ -912,10 +912,10 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading Advanced configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading Advanced configuration - $0"), errMsg)
                     );
                     this.setState({
                         advReloading: false,
@@ -951,11 +951,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleReloadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating server configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1005,10 +1005,10 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading server configuration - $0"), errMsg)
                     );
                     this.setState({
                         configReloading: false,
