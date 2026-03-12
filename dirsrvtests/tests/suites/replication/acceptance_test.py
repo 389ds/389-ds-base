@@ -688,6 +688,22 @@ def test_invalid_agmt(topo_m4):
         assert False
 
 
+def test_reject_self_referential_agmt(topo_m4):
+    """Test that creating a replication agreement pointing to self is rejected
+
+    :id: 7df2f91a-878b-4a7e-86f7-4f72ef5726c6
+    :setup: MMR with four suppliers
+    :steps:
+        1. Try to add an agreement on supplier1 that points to supplier1 host/port
+    :expectedresults:
+        1. Agreement creation should fail with UNWILLING_TO_PERFORM
+    """
+    m1 = topo_m4.ms["supplier1"]
+
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        m1.agreement.create(suffix=DEFAULT_SUFFIX, host=m1.host, port=m1.port)
+
+
 def test_warning_for_invalid_replica(topo_m4):
     """Testing logs to indicate the inconsistency when configuration is performed.
 
