@@ -1330,8 +1330,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
+        this.isFieldValid = this.isFieldValid.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
-        this.validateFieldRange = this.validateFieldRange.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
         this.loadAvailableDiskSpace = this.loadAvailableDiskSpace.bind(this);
@@ -1389,25 +1389,42 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
         this.onConfigMinus = (id, special, lower) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === lower) {
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules[id];
+            const min = rules ? rules.getRange().min : 0;
+
+            if (special !== null && value === lower) {
                 value = special;
+            } else if (special !== null && value === special) {
+                return;
+            } else if (value <= min) {
+                return;
             } else {
                 value -= 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
+                [id]: value,
+                error
             }, () => { this.validateSaveBtn(id) });
         };
 
         this.onConfigChange = (event, id) => {
             const value = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            let error = { ...this.state.error };
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
+                [id]: value,
+                error
             }, () => { this.validateSaveBtn(id) });
         };
 
         this.onConfigChangeBlur = (id, special, lower, upper) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
+            let error = { ...this.state.error };
+
             if (special !== null && value === special) {
                 // nothing to do
             } else if (value < lower) {
@@ -1415,20 +1432,32 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             } else if (value > upper) {
                 value = upper;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
+                [id]: value,
+                error
             }, () => { this.validateSaveBtn(id) });
         };
 
         this.onConfigPlus = (id, special, lower) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules[id];
+            const max = rules ? rules.getRange().max : this.maxValue;
+
+            if (special !== null && value === special) {
                 value = lower;
+            } else if (value >= max) {
+                return;
             } else {
                 value += 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
+                [id]: value,
+                error
             }, () => { this.validateSaveBtn(id) });
         };
 
@@ -1440,19 +1469,17 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         };
     }
 
-    // Validate range for a specific field using configuration rules
-    validateFieldRange(fieldId, value) {
+    isFieldValid(fieldId, value) {
         const rules = this.fieldValidationRules[fieldId];
-        if (!rules) return true; // No validation rules defined for this field
+        if (!rules) {
+            return true;
+        }
 
         const numValue = Number(value);
-
-        // Check if it's a special value (like 0 for auto-tune, -1 for unlimited)
         if (rules.specialValues && rules.specialValues.includes(numValue)) {
             return true;
         }
 
-        // Check range
         const { min, max } = rules.getRange();
         return numValue >= min && numValue <= max;
     }
@@ -1481,36 +1508,34 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         for (const config_attr of check_attrs) {
             if (this.state[config_attr].toString() !== this.state['_' + config_attr].toString()) {
                 saveBtnDisabled = false;
-                break
+                break;
             }
         }
 
         // Check if have any errors on our attributes
         for (const config_attr of check_attrs) {
-            if (config_attr in this.state.error && this.state.error[config_attr]) {
+            if (this.state.error[config_attr]) {
                 saveBtnDisabled = true;
                 break;
             }
         }
 
-        // Validate range for the specific field that triggered this validation
-        if (!saveBtnDisabled && !this.validateFieldRange(fieldId, this.state[fieldId])) {
-            saveBtnDisabled = true;
-        }
-
-        this.setState({
-            saveBtnDisabled
-        });
+        this.setState({ saveBtnDisabled });
     }
 
     handleChange(e, str) {
         // Generic
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
+        const error = { ...this.state.error };
 
+        error[attr] = !this.isFieldValid(attr, value);
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn(attr) });
+            error
+        }, () => {
+            this.validateSaveBtn(attr);
+        });
     }
 
     save_ndn_cache(requireRestart) {
