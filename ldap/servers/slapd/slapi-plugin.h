@@ -35,6 +35,7 @@ extern "C" {
 #include "nspr.h"
 #include <syslog.h>
 #include <plhash.h>
+#include <stdbool.h>
 
 #ifdef __GNUC__
     #define __ATTRIBUTE__(x) __attribute__(x)
@@ -8485,6 +8486,16 @@ const char * slapi_fetch_attr(Slapi_Entry *e, char *attrname, char *default_val)
  * \return - ldap result code
  */
 int32_t slapi_search_get_entry(Slapi_PBlock **pb, Slapi_DN *dn, char **attrs, Slapi_Entry **ret_entry, void *component_identity);
+
+/**
+ * Take a hostname and verify if it's the local host
+ *
+ * \param hostname - the hostname to verify
+ * \param err_str - store the error string from checking the hostname
+ * \param server_err_str - store the error string when trying to get the server's hostname info
+ * \return true if the hostname is the local host, false otherwise
+ */
+bool slapi_is_local_host(char *hostname, char **err_str, char **server_err_str);
 
 /**
  * Free the resources allocated by slapi_search_get_entry()

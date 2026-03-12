@@ -248,28 +248,6 @@ connection_cleanup(Connection *conn)
     conn->c_ns_close_jobs = 0;
 }
 
-static char *
-get_ip_str(struct sockaddr *addr, char *str, size_t str_size)
-{
-    switch(addr->sa_family) {
-        case AF_INET:
-            if (str_size < INET_ADDRSTRLEN) {
-                break;
-            }
-            inet_ntop(AF_INET, &(((struct sockaddr_in *)addr)->sin_addr), str, INET_ADDRSTRLEN);
-            break;
-
-        case AF_INET6:
-            if (str_size < INET6_ADDRSTRLEN) {
-                break;
-            }
-            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)addr)->sin6_addr), str, INET6_ADDRSTRLEN);
-            break;
-    }
-
-    return str;
-}
-
 /*
  * Callers of connection_reset() must hold the conn->c_mutex lock.
  */
