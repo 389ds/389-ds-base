@@ -26,6 +26,7 @@
 #include "snmp_collator.h"
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <ifaddrs.h>
 #include <errno.h>
 
 #define UTIL_ESCAPE_NONE 0
@@ -1847,4 +1848,75 @@ slapi_db_is_lmdb(void)
     slapi_pblock_destroy(search_pb);
 
     return is_lmdb;
+}
+
+char *
+get_ip_str(struct sockaddr *addr, char *str, size_t str_size)
+{
+    if (addr == NULL) {
+        return str;
+    }
+
+    switch(addr->sa_family) {
+        case AF_INET:
+            if (str_size < INET_ADDRSTRLEN) {
+                break;
+            }
+            inet_ntop(AF_INET, &(((struct sockaddr_in *)addr)->sin_addr), str, INET_ADDRSTRLEN);
+            break;
+
+        case AF_INET6:
+            if (str_size < INET6_ADDRSTRLEN) {
+                break;
+            }
+            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)addr)->sin6_addr), str, INET6_ADDRSTRLEN);
+            break;
+    }
+
+    return str;
+}
+
+/* Take a hostname and verify if it's the local host */
+bool
+slapi_is_local_host(char *hostname, char **err_str, char **server_err_str)
+{
+    struct addrinfo *info = NULL;
+    struct ifaddrs *ifap = NULL;
+    char ip_str[64] = {0};
+    char local_ip_str[64] = {0};
+    int32_t rc = 0;
+    bool is_localhost = false;
+
+    /* Get the provided hostname info */
+    rc = getaddrinfo(hostname, NULL, NULL, &info);
+    if (rc != 0) {
+        *err_str = (char *)gai_strerror(rc);
+        return false;
+    }
+
+    /* Get the local host info */
+    errno = 0;
+    rc = getifaddrs(&ifap);
+    if (rc != 0) {
+        *server_err_str = strerror(errno);
+        freeaddrinfo(info);
+        return false;
+    }
+
+    /* Compare the provided hostname info with the local host info */
+    for (struct addrinfo *ai = info; ai && !is_localhost; ai = ai->ai_next) {
+        get_ip_str(ai->ai_addr, ip_str, sizeof(ip_str));
+        for (struct ifaddrs *ifa = ifap; ifa; ifa = ifa->ifa_next) {
+            get_ip_str(ifa->ifa_addr, local_ip_str, sizeof(local_ip_str));
+            if (strcasecmp(ip_str, local_ip_str) == 0) {
+                is_localhost = true;
+                break;
+            }
+        }
+    }
+
+    freeaddrinfo(info);
+    freeifaddrs(ifap);
+
+    return is_localhost;
 }
