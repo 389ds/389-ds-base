@@ -2,7 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { VLVTable } from "./databaseTables.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -191,12 +191,12 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeCreateSortIndex();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to add VLV index entry - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to add VLV index entry - $0"), errMsg)
                     );
                     this.setState({
                         updating: false,
@@ -246,12 +246,12 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeDeleteSortIndexConfirm();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete VLV sort index - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to delete VLV sort index - $0"), errMsg)
                     );
                     this.setState({
                         updating: false,
@@ -289,11 +289,11 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeVLVModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed create VLV search entry - $0"), errMsg.desc)
+                        cockpit.format(_("Failed create VLV search entry - $0"), errMsg)
                     );
                     this.setState({
                         saving: false
@@ -336,11 +336,11 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to deletre VLV index - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to deletre VLV index - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false
@@ -383,11 +383,11 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to index VLV index - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to index VLV index - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false

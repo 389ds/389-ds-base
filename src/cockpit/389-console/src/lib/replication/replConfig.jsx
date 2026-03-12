@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, callCmdStreamPassword } from "../tools.jsx";
+import { log_cmd, valid_dn, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ManagerTable } from "./replTables.jsx";
 import { AddEditManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
@@ -161,11 +161,11 @@ export class ReplConfig extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to $0 replica - $1"), action, errMsg.desc)
+                        cockpit.format(_("Failed to $0 replica - $1"), action, errMsg)
                     );
                     this.setState({
                         roleChangeSpinning: false,
@@ -434,11 +434,11 @@ export class ReplConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reloadConfig(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure removing Replication Manager - $0"), errMsg.desc)
+                        cockpit.format(_("Failure removing Replication Manager - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false
@@ -507,14 +507,14 @@ export class ReplConfig extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reloadConfig(this.props.suffix);
                         this.setState({
                             saving: false
                         });
-                        let msg = errMsg.desc;
+                        let msg = errMsg;
                         if ('info' in errMsg) {
-                            msg = errMsg.desc + " - " + errMsg.info;
+                            msg = errMsg + " - " + errMsg.info;
                         }
                         this.props.addNotification(
                             "error",

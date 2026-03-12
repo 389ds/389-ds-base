@@ -44,7 +44,7 @@ import {
 } from './lib/utils.jsx';
 import { ENTRY_MENU } from './lib/constants.jsx';
 import EditorTableView from './tableView.jsx';
-import { log_cmd, valid_dn } from '../tools.jsx';
+import { getApiErrorMessage, log_cmd, valid_dn } from '../tools.jsx';
 import GenericWizard from './wizards/genericWizard.jsx';
 
 const _ = cockpit.gettext;
@@ -365,12 +365,12 @@ export class SearchDatabase extends React.Component {
                                 }
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
-                                if ((info.isLockable) && !(errMsg.desc.includes("Root suffix can't be locked or unlocked"))) {
+                                const errMsg = getApiErrorMessage(err);
+                                if ((info.isLockable) && !(errMsg.includes("Root suffix can't be locked or unlocked"))) {
                                     console.error(
                                         "processResults",
                                         `${info.isRole ? "role" : "account"} account entry-status operation failed`,
-                                        errMsg.desc
+                                        errMsg
                                     );
                                     entryState = "error: please, check browser logs";
                                     entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle" />;
@@ -571,15 +571,15 @@ export class SearchDatabase extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     console.error(
                         "handleLockUnlockEntry",
                         `${entryType} ${operationType} operation failed -`,
-                        errMsg.desc
+                        errMsg
                     );
                     this.props.addNotification(
-                        `${errMsg.desc.includes(`is already ${operationType === "unlock" ? "active" : "locked"}`) ? 'warning' : 'error'}`,
-                        `${errMsg.desc}`
+                        `${errMsg.includes(`is already ${operationType === "unlock" ? "active" : "locked"}`) ? 'warning' : 'error'}`,
+                        `${errMsg}`
                     );
                     this.setState({
                         entryMenuIsOpen: !this.state.entryMenuIsOpen,

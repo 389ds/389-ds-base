@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Accordion,
@@ -677,7 +677,7 @@ export class ReplLogAnalysis extends React.Component {
             .fail(err => {
                 let errMsg;
                 try {
-                    const errorObj = JSON.parse(err);
+                    const errorObj = getApiErrorMessage(err);
                     errMsg = errorObj.desc || errorObj.message || err.toString();
                 } catch (e) {
                     errMsg = err.toString();

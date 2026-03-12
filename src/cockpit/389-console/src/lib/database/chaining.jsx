@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd, callCmdStreamPassword } from "../tools.jsx";
+import { log_cmd, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -273,11 +273,11 @@ export class ChainingDatabaseConfig extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload();
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating chaining configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating chaining configuration - $0"), errMsg)
                         );
                         this.setState({
                             saving: false
@@ -340,7 +340,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         modalSpinning: false,
                     });
@@ -348,7 +348,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     this.props.reload(1);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating chaining controls - $0,"), errMsg.desc)
+                        cockpit.format(_("Error updating chaining controls - $0,"), errMsg)
                     );
                 });
     }
@@ -386,11 +386,11 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error removing chaining controls - $0"), errMsg.desc)
+                        cockpit.format(_("Error removing chaining controls - $0"), errMsg)
                     );
                 });
     }
@@ -459,7 +459,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeCompsModal();
                     this.props.reload();
                     this.setState({
@@ -467,7 +467,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating chaining components - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating chaining components - $0"), errMsg)
                     );
                 });
     }
@@ -496,11 +496,11 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error removing chaining components - $0"), errMsg.desc)
+                        cockpit.format(_("Error removing chaining components - $0"), errMsg)
                     );
                 });
     }
@@ -1331,11 +1331,11 @@ export class ChainingConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete database link - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to delete database link - $0"), errMsg)
                     );
                 });
     }

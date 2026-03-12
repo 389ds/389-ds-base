@@ -22,7 +22,7 @@ import {
     TextVariants,
     ValidatedOptions,
 } from "@patternfly/react-core";
-import { log_cmd, bad_file_name } from "../tools.jsx";
+import { log_cmd, bad_file_name, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -275,11 +275,11 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeConfirmLDIFImport();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure importing LDIF - $0"), errMsg.desc)
+                        cockpit.format(_("Failure importing LDIF - $0"), errMsg)
                     );
                 });
     }
@@ -304,12 +304,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.closeConfirmLDIFDelete();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting LDIF file - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting LDIF file - $0"), errMsg)
                     );
                 });
     }
@@ -368,25 +368,25 @@ export class Backups extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "success",
                                     _("Server has been backed up.")
                                 );
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg.desc)
+                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg)
                                 );
                             });
                 }
                 )
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.closeBackupModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
+                        cockpit.format(_("Failure backing up server - $0"), errMsg)
                     );
                 });
     }
@@ -418,11 +418,11 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeRestoreSpinningModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
+                        cockpit.format(_("Failure restoring up server - $0"), errMsg)
                     );
                 });
     }
@@ -446,12 +446,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.closeConfirmBackupDelete();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting backup - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting backup - $0"), errMsg)
                     );
                 });
     }
@@ -553,24 +553,24 @@ export class Backups extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "success",
                                     _("Database export complete.")
                                 );
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg.desc)
+                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg)
                                 );
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.closeExportModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error exporting database - $0"), errMsg.desc)
+                        cockpit.format(_("Error exporting database - $0"), errMsg)
                     );
                     this.setState({
                         showExportModal: false,

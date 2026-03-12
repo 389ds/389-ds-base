@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { EncryptionModuleTable } from "./securityTables.jsx";
 
@@ -63,7 +63,7 @@ function EncryptionModules({ addNotification, serverId, serverCertNames }) {
     // Parse dsconf JSON errors and fallback safely for unexpected output.
     const parseCmdError = React.useCallback(err => {
         try {
-            const errObj = JSON.parse(err);
+            const errObj = getApiErrorMessage(err);
             let msg = errObj.desc;
             if ("info" in errObj) {
                 msg = `${errObj.desc} - ${errObj.info}`;

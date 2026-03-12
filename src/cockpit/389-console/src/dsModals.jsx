@@ -9,7 +9,8 @@ import {
     bad_file_name,
     valid_dn,
     valid_db_name,
-    callCmdStreamPassword
+    callCmdStreamPassword,
+    getApiErrorMessage
 } from "./lib/tools.jsx";
 import {
     Button,
@@ -230,11 +231,11 @@ export class CreateInstanceModal extends React.Component {
         cockpit
                 .spawn(hostname_cmd, { superuser: true, err: "message" })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loadingCreate: false
                     });
-                    addNotification("error", cockpit.format(_("Failed to get hostname! $0"), errMsg.desc));
+                    addNotification("error", cockpit.format(_("Failed to get hostname! $0"), errMsg));
                 })
                 .done(data => {
                     /*
@@ -312,14 +313,14 @@ export class CreateInstanceModal extends React.Component {
                                                                     err: "message"
                                                                 })
                                                                 .fail(err => {
-                                                                    const errMsg = JSON.parse(err.message);
+                                                                    const errMsg = getApiErrorMessage(err.message);
                                                                     cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
                                                                     this.setState({
                                                                         loadingCreate: false
                                                                     });
                                                                     addNotification(
                                                                         "error",
-                                                                        `${errMsg.desc}`
+                                                                        `${errMsg}`
                                                                     );
                                                                 })
                                                                 .done(() => {
@@ -720,8 +721,8 @@ export class SchemaReloadModal extends React.Component {
                     closeHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    addNotification("error", cockpit.format(_("Failed to reload schema files - $0"), errMsg.desc));
+                    const errMsg = getApiErrorMessage(err);
+                    addNotification("error", cockpit.format(_("Failed to reload schema files - $0"), errMsg));
                     closeHandler();
                 });
     }
@@ -965,24 +966,24 @@ export class ManageBackupsModal extends React.Component {
                                                 );
                                             })
                                             .fail(err => {
-                                                const errMsg = JSON.parse(err);
+                                                const errMsg = getApiErrorMessage(err);
                                                 this.props.addNotification(
                                                     "success",
                                                     _("Server has been backed up.")
                                                 );
                                                 this.props.addNotification(
                                                     "error",
-                                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg.desc)
+                                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg)
                                                 );
                                             });
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.props.reload();
                                     this.closeBackupModal();
                                     this.props.addNotification(
                                         "error",
-                                        cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
+                                        cockpit.format(_("Failure backing up server - $0"), errMsg)
                                     );
                                 });
                     } else {
@@ -1006,19 +1007,19 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", _("Server has been backed up"));
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.props.reload();
                                     this.closeBackupModal();
                                     this.props.addNotification(
                                         "error",
-                                        cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
+                                        cockpit.format(_("Failure backing up server - $0"), errMsg)
                                     );
                                 });
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log("Failed to check the server status", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("Failed to check the server status", errMsg);
                 });
     }
 
@@ -1048,11 +1049,11 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", _("Server has been restored"));
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.closeConfirmRestore();
                                     this.props.addNotification(
                                         "error",
-                                        cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
+                                        cockpit.format(_("Failure restoring up server - $0"), errMsg)
                                     );
                                 });
                     } else {
@@ -1071,18 +1072,18 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", _("Server has been restored"));
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.closeRestoreSpinningModal();
                                     this.props.addNotification(
                                         "error",
-                                        cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
+                                        cockpit.format(_("Failure restoring up server - $0"), errMsg)
                                     );
                                 });
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log("Failed to check the server status", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("Failed to check the server status", errMsg);
                 });
     }
 
@@ -1109,12 +1110,12 @@ export class ManageBackupsModal extends React.Component {
                     this.props.addNotification("success", _("Backup was successfully deleted"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload();
                     this.setState({
                         modalSpinning: false,
                     });
-                    this.props.addNotification("error", cockpit.format(_("Failure deleting backup - $0"), errMsg.desc));
+                    this.props.addNotification("error", cockpit.format(_("Failure deleting backup - $0"), errMsg));
                 });
     }
 
