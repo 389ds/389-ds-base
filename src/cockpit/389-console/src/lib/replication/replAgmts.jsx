@@ -3,7 +3,7 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReplAgmtTable } from "./replTables.jsx";
 import { ReplAgmtModal } from "./replModals.jsx";
-import { log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
+import { getApiErrorMessage, log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
@@ -1165,6 +1165,7 @@ export class ReplAgmts extends React.Component {
         log_cmd('saveAgmt', 'edit agmt', cmd);
 
         let buffer = "";
+        let error = null;
         const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
         proc
                 .done(data => {
@@ -1180,20 +1181,29 @@ export class ReplAgmts extends React.Component {
                         _("Successfully updated replication agreement")
                     );
                 })
-                .fail(_ => {
+                .fail(() => {
+                    const errMsg = getApiErrorMessage(error);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update replication agreement - $0"), buffer)
+                        cockpit.format(_("Failed to update replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         savingAgmt: false
                     });
                 })
                 .stream(data => {
+                    try {
+                        // If data is JSON then it's an error
+                        JSON.parse(data);
+                        error = data; // we'll parse this later in fail()
+                        return;
+                    } catch (e) {
+                        // Ok not an JSON error proceed as normal
+                    }
                     buffer += data;
                     const lines = buffer.split("\n");
                     const last_line = lines[lines.length - 1].toLowerCase();
-                    if (last_line.includes("bootstrap")) {
+                    if (bootstrap_passwd !== "") {
                         proc.input(bootstrap_passwd + "\n", true);
                     } else {
                         proc.input(passwd + "\n", true);
@@ -1425,8 +1435,8 @@ export class ReplAgmts extends React.Component {
             if (this.state.agmtBootstrapBindDN !== "") {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
-            if (this.state.agmtBootstrapBindDNPW !== "") {
-                bootstrap_passwd = this.state.agmtBootstrapBindDNPW;
+            if (this.state.agmtBootstrapBindPW !== "") {
+                bootstrap_passwd = this.state.agmtBootstrapBindPW;
             }
             if (this.state.agmtBootstrapBindMethod !== "") {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
@@ -1453,6 +1463,7 @@ export class ReplAgmts extends React.Component {
         log_cmd('createAgmt', 'Create agmt', cmd);
 
         let buffer = "";
+        let error = null;
         const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
         proc
                 .done(data => {
@@ -1471,20 +1482,29 @@ export class ReplAgmts extends React.Component {
                         this.initAgmt(this.state.agmtName);
                     }
                 })
-                .fail(_ => {
+                .fail(() => {
+                    const errMsg = getApiErrorMessage(error);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to create replication agreement - $0"), buffer)
+                        cockpit.format(_("Failed to create replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         savingAgmt: false
                     });
                 })
                 .stream(data => {
+                    try {
+                        // If data is JSON then it's an error
+                        JSON.parse(data);
+                        error = data; // we'll parse this later in fail()
+                        return;
+                    } catch (e) {
+                        // Ok not an JSON error proceed as normal
+                    }
                     buffer += data;
                     const lines = buffer.split("\n");
                     const last_line = lines[lines.length - 1].toLowerCase();
-                    if (last_line.includes("bootstrap")) {
+                    if (bootstrap_passwd !== "") {
                         proc.input(bootstrap_passwd + "\n", true);
                     } else {
                         proc.input(passwd + "\n", true);

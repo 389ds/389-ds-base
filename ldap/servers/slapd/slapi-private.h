@@ -1267,6 +1267,7 @@ const char *ldif_getline_ro( const char **next);
 void dup_ldif_line(struct berval *copy, const char *line, const char *endline);
 const char *get_oid_name(const char *oid);
 bool slapi_db_is_lmdb(void);
+char *get_ip_str(struct sockaddr *addr, char *str, size_t str_size);
 
 /* slapi-memberof.c */
 int slapi_memberof(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_MemberOfResult *result);
