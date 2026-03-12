@@ -1610,7 +1610,7 @@ export class Database extends React.Component {
                                     </Text>
                                 </TextContent>
                                 <ProgressStepper
-                                    className="ds-margin-top-lg"
+                                    className="ds-margin-top-xlg"
                                     aria-label="Progress stepper for suffix loading stages"
                                     isCenterAligned
                                 >
@@ -1737,7 +1737,7 @@ export class Database extends React.Component {
                         </Text>
                     </TextContent>
                     <ProgressStepper
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-xlg"
                         aria-label="Progress stepper for database loading stages"
                         isCenterAligned
                     >
