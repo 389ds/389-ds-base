@@ -68,6 +68,8 @@ struct replica
     uint64_t abort_session;            /* Abort the current replica session */
     cldb_Handle *cldb;                 /* database info for the changelog */
     int64_t keepalive_update_interval; /* interval to do dummy update to keep RUV fresh */
+    int repl_port;                     /* The port of the replica */
+    int repl_secure_port;              /* The secure port of the replica */
 };
 
 
@@ -173,6 +175,7 @@ int
 replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **rp)
 {
     Replica *r;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int rc = LDAP_SUCCESS;
 
     if (e == NULL) {
@@ -283,6 +286,10 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
                                                slapi_current_rel_time_t() + r->tombstone_reap_interval,
                                                1000 * r->tombstone_reap_interval);
     }
+
+    /* Set the host and port numbers for the replica */
+    r->repl_port = slapdFrontendConfig->port;
+    r->repl_secure_port = slapdFrontendConfig->secureport;
 
 done:
     if (rc != LDAP_SUCCESS && r) {
@@ -4349,4 +4356,16 @@ replica_set_cl_info(Replica *r, void *cl)
 {
     r->cldb = (cldb_Handle *)cl;
     return 0;
+}
+
+int
+replica_get_port(Replica *r)
+{
+    return r->repl_port;
+}
+
+int
+replica_get_secure_port(Replica *r)
+{
+    return r->repl_secure_port;
 }
