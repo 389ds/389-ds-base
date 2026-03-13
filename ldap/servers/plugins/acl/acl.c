@@ -4170,7 +4170,6 @@ acl_skip_access_check(Slapi_PBlock *pb, Slapi_Entry *e __attribute__((unused)), 
 {
     int rv, isRoot, accessCheckDisabled;
     void *conn = NULL;
-    Slapi_Backend *be;
     struct acl_pblock *aclpb = NULL;
 
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isRoot);
@@ -4195,15 +4194,6 @@ acl_skip_access_check(Slapi_PBlock *pb, Slapi_Entry *e __attribute__((unused)), 
         if  ( slapi_is_rootdse ( edn ) ) return ACL_TRUE;
     }
     */
-
-    /* GB : when referrals are directly set in the mappin tree
-     * we can reach this code without a backend in the pblock
-     * in such a case, allow access for now
-     * we may want to reconsider this is NULL DSE implementation happens
-     */
-    rv = slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    if (be == NULL)
-        return ACL_TRUE;
 
     rv = slapi_pblock_get(pb, SLAPI_PLUGIN_DB_NO_ACL, &accessCheckDisabled);
     if (rv != -1 && accessCheckDisabled)
