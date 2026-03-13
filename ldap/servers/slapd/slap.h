@@ -58,6 +58,7 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 
 #define DEFBACKEND_TYPE "default"
 #define DEFBACKEND_NAME "DirectoryServerDefaultBackend"
+#define REFBACKEND_NAME "DirectoryServerReferralBackend"
 
 #define LDAP_SYSLOG
 #include <syslog.h>
