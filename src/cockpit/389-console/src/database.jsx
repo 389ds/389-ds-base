@@ -427,7 +427,7 @@ export class Database extends React.Component {
                                         pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
                                         pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
                                         rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
-                                        mdbmaxsize: attrs['nsslapd-mdb-max-size'][0],
+                                        mdbmaxsize: Math.floor(attrs['nsslapd-mdb-max-size'][0] / (1024 * 1024)),
                                         mdbmaxreaders: attrs['nsslapd-mdb-max-readers'][0],
                                         mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
                                         dbhomedir: dbhome,

@@ -1330,6 +1330,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
+        this.isFieldValid = this.isFieldValid.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
@@ -1338,98 +1339,126 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
                                "1.3.6.1.4.1.1466.115.121.1.12"];
         this.maxValue = 2147483647;
-        this.onMinusConfig = (id) => {
-            if (id === "mdbmaxsize") {
-                this.setState({
-                    [id]: Number(this.state[id]) - (1024 * 1024),
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) - 1,
-                }, () => { this.validateSaveBtn() });
+
+        // Field validation rules configuration
+        this.fieldValidationRules = {
+            mdbmaxsize: {
+                getRange: () => ({
+                    min: 100,
+                    max: Math.floor(this.state.availDbSizeBytes / (1024 * 1024))
+                }),
+                specialValues: []
+            },
+            mdbmaxreaders: {
+                getRange: () => ({ min: 26, max: 200 }),
+                specialValues: [0]  // 0 = auto-tune
+            },
+            mdbmaxdbs: {
+                getRange: () => ({ min: 131, max: 5000 }),
+                specialValues: [0]  // 0 = auto-tune
+            },
+            autosize: {
+                getRange: () => ({ min: 1, max: 100 }),
+                specialValues: [0]  // 0 = auto-tune
+            },
+            looklimit: {
+                getRange: () => ({ min: 0, max: this.maxValue }),
+                specialValues: [-1]  // -1 = unlimited
+            },
+            ndncachemaxsize: {
+                getRange: () => ({ min: 1000000, max: this.maxValue }),
+                specialValues: []
+            },
+            idscanlimit: {
+                getRange: () => ({ min: 100, max: this.maxValue }),
+                specialValues: []
+            },
+            pagelooklimit: {
+                getRange: () => ({ min: 0, max: this.maxValue }),
+                specialValues: [-1]  // -1 = unlimited
+            },
+            pagescanlimit: {
+                getRange: () => ({ min: 0, max: this.maxValue }),
+                specialValues: [-1]  // -1 = unlimited
+            },
+            rangelooklimit: {
+                getRange: () => ({ min: 0, max: this.maxValue }),
+                specialValues: [-1]  // -1 = unlimited
             }
         };
 
-        this.onRangeConfigMinus = (id, special, lower) => {
+        this.onConfigMinus = (id, special, lower) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === lower) {
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules[id];
+            const min = rules ? rules.getRange().min : 0;
+
+            if (special !== null && value === lower) {
                 value = special;
+            } else if (special !== null && value === special) {
+                return;
+            } else if (value <= min) {
+                return;
             } else {
                 value -= 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onRangeConfigChange = (event, id) => {
+        this.onConfigChange = (event, id) => {
             const value = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            this.setState({ [id]: value });
+            let error = { ...this.state.error };
+
+            error[id] = !this.isFieldValid(id, value);
+            this.setState({
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onRangeConfigChangeBlur = (id, special, lower, upper) => {
+        this.onConfigChangeBlur = (id, special, lower, upper) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
+            let error = { ...this.state.error };
+
+            if (special !== null && value === special) {
                 // nothing to do
             } else if (value < lower) {
                 value = lower;
             } else if (value > upper) {
                 value = upper;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onConfigChange = (event, id, min, max) => {
-            let maxValue = this.maxValue;
-            if (max !== 0) {
-                maxValue = max;
-            }
-            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            if (id === "mdbmaxsize") {
-                const newValueBytes = newValue * (1024 * 1024);
-                this.setState({
-                    [id]: (newValueBytes > max ? max : newValueBytes < min ? min : newValueBytes)
-                }, () => { this.validateSaveBtn() });
-            } else {
-                let error = this.state.error;
-                let badValue = false;
-                const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
-                if (newValue > maxValue || newValue < min) {
-                    badValue = true;
-
-                }
-                error[id] = badValue;
-                this.setState({
-                    [id]: newValue,
-                    error,
-                }, () => { this.validateSaveBtn() });
-            }
-        };
-
-        this.onPlusConfig = (id) => {
-            if (id === "mdbmaxsize") {
-                this.setState({
-                    [id]: Number(this.state[id]) + (1024 * 1024),
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) + 1,
-                }, () => { this.validateSaveBtn() });
-            }
-        };
-
-        this.onRangeConfigPlus = (id, special, lower) => {
+        this.onConfigPlus = (id, special, lower) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules[id];
+            const max = rules ? rules.getRange().max : this.maxValue;
+
+            if (special !== null && value === special) {
                 value = lower;
+            } else if (value >= max) {
+                return;
             } else {
                 value += 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
         // Toggle currently active tab
@@ -1438,6 +1467,21 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 activeTabKey: tabIndex
             });
         };
+    }
+
+    isFieldValid(fieldId, value) {
+        const rules = this.fieldValidationRules[fieldId];
+        if (!rules) {
+            return true;
+        }
+
+        const numValue = Number(value);
+        if (rules.specialValues && rules.specialValues.includes(numValue)) {
+            return true;
+        }
+
+        const { min, max } = rules.getRange();
+        return numValue >= min && numValue <= max;
     }
 
     componentDidMount() {
@@ -1450,7 +1494,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.ismounted = false;
     }
 
-    validateSaveBtn() {
+    validateSaveBtn(fieldId) {
         let saveBtnDisabled = true;
         const check_attrs = [
             "looklimit", "idscanlimit", "pagelooklimit",
@@ -1464,31 +1508,34 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         for (const config_attr of check_attrs) {
             if (this.state[config_attr].toString() !== this.state['_' + config_attr].toString()) {
                 saveBtnDisabled = false;
-                break
+                break;
             }
         }
 
         // Check if have any errors on our attributes
         for (const config_attr of check_attrs) {
-            if (config_attr in this.state.error && this.state.error[config_attr]) {
+            if (this.state.error[config_attr]) {
                 saveBtnDisabled = true;
                 break;
             }
         }
 
-        this.setState({
-            saveBtnDisabled
-        });
+        this.setState({ saveBtnDisabled });
     }
 
     handleChange(e, str) {
         // Generic
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
+        const error = { ...this.state.error };
 
+        error[attr] = !this.isFieldValid(attr, value);
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn() });
+            error
+        }, () => {
+            this.validateSaveBtn(attr);
+        });
     }
 
     save_ndn_cache(requireRestart) {
@@ -1573,7 +1620,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
         }
         if (this.state._mdbmaxsize !== this.state.mdbmaxsize) {
-            cmd.push("--mdb-max-size=" + this.state.mdbmaxsize);
+            const mdbmaxsizeMB = this.state.mdbmaxsize * 1024 * 1024;
+            cmd.push("--mdb-max-size=" + mdbmaxsizeMB);
             requireRestart = true;
         }
         if (this.state._mdbmaxreaders !== this.state.mdbmaxreaders) {
@@ -1692,11 +1740,12 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         <GridItem span={9}>
                             <NumberInput
                                 value={this.state.autosize}
-                                min={0}
+                                min={1}
                                 max={100}
-                                onMinus={() => { this.onMinusConfig("autosize") }}
-                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
-                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                onMinus={() => { this.onConfigMinus("autosize", 0, 1) }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                onBlur={() => { this.onConfigChangeBlur("autosize", 0, 1, 100) }}
+                                onPlus={() => { this.onConfigPlus("autosize", 0, 1) }}
                                 inputName="input"
                                 inputAriaLabel="number input"
                                 minusBtnAriaLabel="minus"
@@ -1726,6 +1775,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
         );
 
+        const mdbmaxsizeMB = Math.floor(this.state.availDbSizeBytes / (1024 * 1024));
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
@@ -1758,12 +1808,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={Math.floor(this.state.mdbmaxsize / (1024 * 1024))}
-                                                min={104857600 / (1024 * 1024)}
-                                                max={Math.floor(this.state.availDbSizeBytes / (1024 * 1024))}
-                                                onMinus={() => { this.onMinusConfig("mdbmaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 104857600, this.state.availDbSizeBytes) }}
-                                                onPlus={() => { this.onPlusConfig("mdbmaxsize") }}
+                                                value={this.state.mdbmaxsize}
+                                                min={100}
+                                                max={mdbmaxsizeMB}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxsize", null, 100) }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxsize", null, 100, mdbmaxsizeMB) }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxsize", null, 100) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1794,9 +1845,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.looklimit}
                                                 min={-1}
                                                 max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("looklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "looklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("looklimit") }}
+                                                onMinus={() => { this.onConfigMinus("looklimit", -1, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "looklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("looklimit", -1, 0, this.maxValue) }}
+                                                onPlus={() => { this.onConfigPlus("looklimit", -1, 0) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1821,9 +1873,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.idscanlimit}
                                                 min={100}
                                                 max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("idscanlimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 100, 0) }}
-                                                onPlus={() => { this.onPlusConfig("idscanlimit") }}
+                                                onMinus={() => { this.onConfigMinus("idscanlimit", null, 100) }}
+                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("idscanlimit", null, 100, this.maxValue) }}
+                                                onPlus={() => { this.onConfigPlus("idscanlimit", null, 100) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1848,9 +1901,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.pagelooklimit}
                                                 min={-1}
                                                 max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("pagelooklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("pagelooklimit") }}
+                                                onMinus={() => { this.onConfigMinus("pagelooklimit", -1, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("pagelooklimit", -1, 0, this.maxValue) }}
+                                                onPlus={() => { this.onConfigPlus("pagelooklimit", -1, 0) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1875,9 +1929,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.pagescanlimit}
                                                 min={-1}
                                                 max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("pagescanlimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("pagescanlimit") }}
+                                                onMinus={() => { this.onConfigMinus("pagescanlimit", -1, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("pagescanlimit", -1, 0, this.maxValue) }}
+                                                onPlus={() => { this.onConfigPlus("pagescanlimit", -1, 0) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1902,9 +1957,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.rangelooklimit}
                                                 min={-1}
                                                 max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("rangelooklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("rangelooklimit") }}
+                                                onMinus={() => { this.onConfigMinus("rangelooklimit", -1, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("rangelooklimit", -1, 0, this.maxValue) }}
+                                                onPlus={() => { this.onConfigPlus("rangelooklimit", -1, 0) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1951,9 +2007,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.ndncachemaxsize}
                                                 min={1000000}
                                                 max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("ndncachemaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize", 1000000, 0) }}
-                                                onPlus={() => { this.onPlusConfig("ndncachemaxsize") }}
+                                                onMinus={() => { this.onConfigMinus("ndncachemaxsize", null, 1000000) }}
+                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("ndncachemaxsize", null, 1000000, this.maxValue) }}
+                                                onPlus={() => { this.onConfigPlus("ndncachemaxsize", null, 1000000) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -2014,10 +2071,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.mdbmaxreaders}
                                                 min={0}
                                                 max={200}
-                                                onMinus={() => { this.onRangeConfigMinus("mdbmaxreaders", 0, 26) }}
-                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxreaders") }}
-                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxreaders", 0, 26, 200) }}
-                                                onPlus={() => { this.onRangeConfigPlus("mdbmaxreaders", 0, 26) }}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxreaders", 0, 26) }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxreaders") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxreaders", 0, 26, 200) }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxreaders", 0, 26) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -2042,10 +2099,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.mdbmaxdbs}
                                                 min={0}
                                                 max={5000}
-                                                onMinus={() => { this.onRangeConfigMinus("mdbmaxdbs", 0, 131) }}
-                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxdbs") }}
-                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxdbs", 0, 131, 5000) }}
-                                                onPlus={() => { this.onRangeConfigPlus("mdbmaxdbs", 0, 131) }}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxdbs", 0, 131) }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxdbs") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxdbs", 0, 131, 5000) }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxdbs", 0, 131) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -2070,9 +2127,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 value={this.state.autosize}
                                                 min={0}
                                                 max={100}
-                                                onMinus={() => { this.onMinusConfig("autosize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
-                                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                                onMinus={() => { this.onConfigMinus("autosize", 0, 1) }}
+                                                onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("autosize", 0, 1, 100) }}
+                                                onPlus={() => { this.onConfigPlus("autosize", 0, 1) }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
