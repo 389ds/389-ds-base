@@ -58,7 +58,7 @@ import GenericPagination from './lib/genericPagination.jsx';
 import LdapNavigator from './lib/ldapNavigator.jsx';
 import CreateRootSuffix from './lib/rootSuffix.jsx';
 import { ENTRY_MENU } from './lib/constants.jsx';
-import { log_cmd } from "../tools.jsx";
+import { getApiErrorMessage, log_cmd } from "../tools.jsx";
 import {
     showCertificate,
     b64DecodeUnicode
@@ -334,12 +334,12 @@ class EditorTreeView extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if ((entryDn !== 'Root DSE') && (entryStateIcon !== "") && !(errMsg.desc.includes("Root suffix can't be locked or unlocked"))) {
+                    const errMsg = getApiErrorMessage(err);
+                    if ((entryDn !== 'Root DSE') && (entryStateIcon !== "") && !(errMsg.includes("Root suffix can't be locked or unlocked"))) {
                         console.error(
                             "updateEntryRow",
                             `${isRole ? "role" : "account"} account entry-status operation failed`,
-                            errMsg.desc
+                            errMsg
                         );
                         entryState = "error: please, check browser logs";
                         entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle" />;

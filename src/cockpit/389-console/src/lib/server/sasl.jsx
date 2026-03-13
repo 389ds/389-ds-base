@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd, listsEqual } from "../tools.jsx";
+import { log_cmd, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -408,11 +408,11 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating new SASL Mapping - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating new SASL Mapping - $0"), errMsg)
                     );
                 });
     }
@@ -464,22 +464,22 @@ export class ServerSASL extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.closeMapping();
                                 this.handleLoadConfig();
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error updating SASL Mapping - $0"), errMsg.desc)
+                                    cockpit.format(_("Error updating SASL Mapping - $0"), errMsg)
                                 );
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.closeMapping();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error replacing SASL Mapping - $0"), errMsg.desc)
+                        cockpit.format(_("Error replacing SASL Mapping - $0"), errMsg)
                     );
                 });
     }
@@ -515,12 +515,12 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.closeConfirmDelete();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting SASL Mapping - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting SASL Mapping - $0"), errMsg)
                     );
                 });
     }
@@ -572,11 +572,11 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating SASL configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating SASL configuration - $0"), errMsg)
                     );
                 });
     }

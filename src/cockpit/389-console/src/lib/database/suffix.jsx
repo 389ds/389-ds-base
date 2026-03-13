@@ -6,7 +6,7 @@ import { SuffixConfig } from "./suffixConfig.jsx";
 import { SuffixReferrals } from "./referrals.jsx";
 import { SuffixIndexes } from "./indexes.jsx";
 import { VLVIndexes } from "./vlvIndexes.jsx";
-import { log_cmd, bad_file_name } from "../tools.jsx";
+import { log_cmd, bad_file_name, getApiErrorMessage } from "../tools.jsx";
 import {
     ImportModal,
     ExportModal,
@@ -277,10 +277,10 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error importing LDIF file - $0"), errMsg.desc)
+                        cockpit.format(_("Error importing LDIF file - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -389,23 +389,23 @@ export class Suffix extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "success",
                                     _("Database export complete.")
                                 );
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg.desc)
+                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg)
                                 );
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reloadLDIFs();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error exporting database - $0"), errMsg.desc)
+                        cockpit.format(_("Error exporting database - $0"), errMsg)
                     );
                     this.setState({
                         showExportModal: false,
@@ -453,10 +453,10 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to reindex database - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to reindex database - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -516,12 +516,12 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.loadSuffixTree(false);
                     this.closeSubSuffixModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating sub-suffix - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating sub-suffix - $0"), errMsg)
                     );
                     this.setState({
                         subSuffixSaving: false
@@ -578,12 +578,12 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.loadSuffixTree(false);
                     this.closeLinkModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating database link - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating database link - $0"), errMsg)
                     );
                     this.setState({
                         linkSaving: false
@@ -759,12 +759,12 @@ export class Suffix extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.loadSuffixTree(true);
                     this.closeDeleteConfirm();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting database - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting database - $0"), errMsg)
                     );
                 });
     }
@@ -829,11 +829,11 @@ export class Suffix extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.props.suffix);
-                        let msg = errMsg.desc;
+                        let msg = errMsg;
                         if ('info' in errMsg) {
-                            msg = errMsg.desc + " - " + errMsg.info;
+                            msg = errMsg + " - " + errMsg.info;
                         }
                         this.props.addNotification(
                             "error",

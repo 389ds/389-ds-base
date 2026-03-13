@@ -2,7 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { IndexTable } from "./databaseTables.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -194,19 +194,19 @@ export class SuffixIndexes extends React.Component {
                                             }
                                         })
                                         .fail(err => {
-                                            const errMsg = JSON.parse(err);
+                                            const errMsg = getApiErrorMessage(err);
                                             this.props.addNotification(
                                                 "error",
-                                                cockpit.format(_("Failed to get attributes - $0"), errMsg.desc)
+                                                cockpit.format(_("Failed to get attributes - $0"), errMsg)
                                             );
                                         });
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get matching rules - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to get matching rules - $0"), errMsg)
                     );
                 });
     }
@@ -341,12 +341,12 @@ export class SuffixIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.closeIndexModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating index - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating index - $0"), errMsg)
                     );
                     this.setState({
                         saving: false,
@@ -423,10 +423,10 @@ export class SuffixIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error indexing attribute $0 - $1"), attr, errMsg.desc)
+                        cockpit.format(_("Error indexing attribute $0 - $1"), attr, errMsg)
                     );
                     this.setState({
                         saving: false,
@@ -518,12 +518,12 @@ export class SuffixIndexes extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.props.suffix);
                         this.closeEditIndexModal();
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error editing index - $0"), errMsg.desc)
+                            cockpit.format(_("Error editing index - $0"), errMsg)
                         );
                         this.setState({
                             saving: false,
@@ -592,11 +592,11 @@ export class SuffixIndexes extends React.Component {
                     this.closeConfirmDeleteIndex();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting index - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting index - $0"), errMsg)
                     );
                     this.closeConfirmDeleteIndex();
                 });

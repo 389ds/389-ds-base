@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, bad_file_name } from "../tools.jsx";
+import { log_cmd, bad_file_name, getApiErrorMessage } from "../tools.jsx";
 import { RUVTable } from "./replTables.jsx";
 import { ExportCLModal } from "./replModals.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -153,10 +153,10 @@ export class ReplRUV extends React.Component {
                     this.closeConfirmCleanRUV();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to start CleanAllRUV task - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to start CleanAllRUV task - $0"), errMsg)
                     );
                     this.closeConfirmCleanRUV();
                 });
@@ -218,10 +218,10 @@ export class ReplRUV extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error importing changelog LDIF - $0"), errMsg.desc)
+                        cockpit.format(_("Error importing changelog LDIF - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmCLImport: false,
@@ -271,10 +271,10 @@ export class ReplRUV extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error importing changelog LDIF - $0"), errMsg.desc)
+                        cockpit.format(_("Error importing changelog LDIF - $0"), errMsg)
                     );
                     this.setState({
                         showCLExport: false,
