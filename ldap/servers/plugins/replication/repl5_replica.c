@@ -87,7 +87,7 @@ static int _replica_check_validity(const Replica *r);
 static int _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext);
 static int _replica_update_entry(Replica *r, Slapi_Entry *e, char *errortext);
 static int _replica_config_changelog(Replica *r);
-static int _replica_configure_ruv(Replica *r, PRBool isLocked);
+static int _replica_configure_ruv(Replica *r, PRBool isLocked, char *errortext);
 static char *_replica_get_config_dn(const Slapi_DN *root);
 static char *_replica_type_as_string(const Replica *r);
 /* DBDB, I think this is probably bogus : */
@@ -222,9 +222,11 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
     }
 
     /* configure ruv */
-    rc = _replica_configure_ruv(r, PR_FALSE);
+    rc = _replica_configure_ruv(r, PR_FALSE, errortext);
     if (rc != 0) {
-        rc = LDAP_OTHER;
+        if (rc != LDAP_UNWILLING_TO_PERFORM) {
+                rc = LDAP_OTHER;
+        }
         goto done;
     } else {
         rc = LDAP_SUCCESS;
@@ -1624,7 +1626,7 @@ replica_reload_ruv(Replica *r)
 
     r->repl_ruv = NULL;
 
-    rc = _replica_configure_ruv(r, PR_TRUE);
+    rc = _replica_configure_ruv(r, PR_TRUE, NULL);
 
     replica_unlock(r->repl_lock);
 
@@ -2577,6 +2579,50 @@ _replica_config_changelog(Replica *replica)
     return rc;
 }
 
+/* Checks that the suffix entry exists in the database */
+static int
+_suffix_entry_check(Replica *r)
+{
+    Slapi_PBlock *pb = NULL;
+    Slapi_Entry **entries = NULL;
+    int return_value = -1;
+    int rc;
+
+    pb = slapi_pblock_new();
+    if (!pb) {
+         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                       "_suffix_entry_found - Out of memory\n");
+         goto done;
+    }
+
+    slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(r->repl_root),
+                                 LDAP_SCOPE_BASE, "objectclass=*",
+                                 NULL, 0, NULL, NULL,
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (NULL == entries || NULL == entries[0]) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "_suffix_entry_check - suffix entry %s not retrieved\n",
+                          slapi_sdn_get_dn(r->repl_root));
+            goto done;
+        }
+        return_value = 0;
+    } else if (rc == LDAP_NO_SUCH_OBJECT) {
+        goto done;
+    }
+
+
+done:
+    if (pb) {
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+    }
+    return return_value;
+}
+
 /* This function retrieves RUV from the root of the replicated tree.
  * The attribute can be missing if
  * (1) this replica is the first supplier and replica generation has not been assigned
@@ -2586,7 +2632,7 @@ _replica_config_changelog(Replica *replica)
  * Returns 0 on success, -1 on failure. If 0 is returned, the RUV is present in the replica.
  */
 static int
-_replica_configure_ruv(Replica *r, PRBool isLocked __attribute__((unused)))
+_replica_configure_ruv(Replica *r, PRBool isLocked __attribute__((unused)), char *errortext)
 {
     Slapi_PBlock *pb = NULL;
     char *attrs[2];
@@ -2598,6 +2644,15 @@ _replica_configure_ruv(Replica *r, PRBool isLocked __attribute__((unused)))
     CSN *csn = NULL;
     ReplicaId rid = 0;
 
+    if (_suffix_entry_check(r)) {
+        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
+                      "_replica_configure_ruv - suffix entry must exist before creating the RUV\n");
+        if (errortext) {
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Suffix entry is missing for %s\n", slapi_sdn_get_dn(r->repl_root));
+        }
+        return_value = LDAP_UNWILLING_TO_PERFORM;
+        goto done;
+    }
     /* read ruv state from the ruv tombstone entry */
     pb = slapi_pblock_new();
     if (!pb) {
@@ -3000,7 +3055,7 @@ replica_write_ruv(Replica *r)
     if (rc == LDAP_NO_SUCH_OBJECT) {
         /* this includes an internal operation - but since this only happens
            during server startup - its ok that we have lock around it */
-        rc = _replica_configure_ruv(r, PR_TRUE);
+        rc = _replica_configure_ruv(r, PR_TRUE, NULL);
     } else if (rc != LDAP_SUCCESS) { /* error */
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "replica_write_ruv - Failed to update RUV tombstone for %s; "
