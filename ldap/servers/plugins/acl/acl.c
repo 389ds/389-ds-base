@@ -1521,6 +1521,11 @@ acl_check_mods(
 
         case LDAP_MOD_REPLACE:
             if (!lastmod) {
+                if (be == NULL) {
+                    if (slapi_pblock_get(pb, SLAPI_BACKEND, &be)) {
+                        be = NULL;
+                    }
+                }
                 if (be != NULL)
                     slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
             }
