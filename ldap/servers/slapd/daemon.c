@@ -600,7 +600,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
 
         /* If we are low, set all of the backends to readonly mode
          * Some file system, hosting backend, are possibly not full but we switch them readonly as well.
-         * Only exception are in memory backend dse, schema, defaut_backend.
+         * Only exception are in memory backend dse, schema, defaut_backend, referral_backend.
          */
         if (readonly_on_threshold) {
             be = slapi_get_first_backend(&cookie);
@@ -608,6 +608,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                 if (strcasecmp(be->be_name, DSE_BACKEND) != 0 &&
                     strcasecmp(be->be_name, DSE_SCHEMA) != 0 &&
                     strcasecmp(be->be_name, DEFBACKEND_NAME) != 0 &&
+                    strcasecmp(be->be_name, REFBACKEND_NAME) != 0 &&
                     !slapi_be_get_readonly(be))
                 {
                     if (be_list_count == BE_LIST_SIZE) { /* error - too many backends */
