@@ -30,8 +30,8 @@
 /*
  * ---------------- Static Variables -----------------------------------------
  */
+static struct slapdplugin defbackend_plugin = {0};
 static Slapi_Backend *defbackend_backend = NULL;
-static Slapi_Backend *refbackend_backend = NULL;
 
 
 /*
@@ -49,25 +49,22 @@ static int defbackend_next_search_entry(Slapi_PBlock *pb);
  */
 
 /*
- * new_default_backend:  instantiate a backend with default behavior
+ * defbackend_init:  instantiate the default backend
  */
-static Slapi_Backend *
-new_default_backend(const char *bename)
+void
+defbackend_init(void)
 {
     int rc;
     char *errmsg;
     Slapi_PBlock *pb = slapi_pblock_new();
-    Slapi_Backend *be = NULL;
-    struct slapdplugin *plugin = 
-        (struct slapdplugin *) slapi_ch_calloc(1, sizeof (struct slapdplugin));
 
-    slapi_log_err(SLAPI_LOG_TRACE, "new_default_backend", "<==(%s)\n", bename);
+    slapi_log_err(SLAPI_LOG_TRACE, "defbackend_init", "<==\n");
 
     /*
      * create a new backend
      */
-    be = slapi_be_new(DEFBACKEND_TYPE, bename, 1 /* Private */, 0 /* Do Not Log Changes */);
-    if ((rc = slapi_pblock_set(pb, SLAPI_BACKEND, be)) != 0) {
+    defbackend_backend = slapi_be_new(DEFBACKEND_TYPE, DEFBACKEND_NAME, 1 /* Private */, 0 /* Do Not Log Changes */);
+    if ((rc = slapi_pblock_set(pb, SLAPI_BACKEND, defbackend_backend)) != 0) {
         errmsg = "slapi_pblock_set SLAPI_BACKEND failed";
         goto cleanup_and_return;
     }
@@ -76,16 +73,16 @@ new_default_backend(const char *bename)
      * create a plugin structure for this backend since the
      * slapi_pblock_set()/slapi_pblock_get() functions assume there is one.
      */
-    plugin->plg_type = SLAPI_PLUGIN_DATABASE;
-    be->be_database = plugin;
-    if ((rc = slapi_pblock_set(pb, SLAPI_PLUGIN, plugin)) != 0) {
+    defbackend_plugin.plg_type = SLAPI_PLUGIN_DATABASE;
+    defbackend_backend->be_database = &defbackend_plugin;
+    if ((rc = slapi_pblock_set(pb, SLAPI_PLUGIN, &defbackend_plugin)) != 0) {
         errmsg = "slapi_pblock_set SLAPI_PLUGIN failed";
         goto cleanup_and_return;
     }
 
     /* default backend is managed as if it would */
     /* contain remote data.             */
-    slapi_be_set_flag(be, SLAPI_BE_FLAG_REMOTE_DATA);
+    slapi_be_set_flag(defbackend_backend, SLAPI_BE_FLAG_REMOTE_DATA);
 
     /*
      * install handler functions, etc.
@@ -118,21 +115,9 @@ cleanup_and_return:
 
     slapi_pblock_destroy(pb);
     if (rc != 0) {
-        slapi_ch_free((void**)&plugin);
-        slapi_log_err(SLAPI_LOG_ERR, "new_default_backend", "(%s) failed (%s)\n", bename, errmsg);
+        slapi_log_err(SLAPI_LOG_ERR, "defbackend_init", "Failed (%s)\n", errmsg);
         exit(1);
     }
-    return be;
-}
-
-/*
- * defbackend_init:  instantiate the default backend and referral backend
- */
-void
-defbackend_init(void)
-{
-    defbackend_backend = new_default_backend(DEFBACKEND_NAME);
-    refbackend_backend = new_default_backend(REFBACKEND_NAME);
 }
 
 
@@ -144,12 +129,6 @@ Slapi_Backend *
 defbackend_get_backend(void)
 {
     return (defbackend_backend);
-}
-
-Slapi_Backend *
-refbackend_get_backend(void)
-{
-    return (refbackend_backend);
 }
 
 
