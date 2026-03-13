@@ -46,6 +46,12 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_haproxy_netmask_precomputation),
         cmocka_unit_test(test_haproxy_ip_matches_cidr),
         cmocka_unit_test(test_haproxy_ipv4_mask_edge_cases),
+        /* CSN Generator clock error tests (Bug 1837105) */
+        cmocka_unit_test(test_libslapd_csngen_clock_failure),
+        cmocka_unit_test(test_libslapd_csngen_large_time_jump),
+        cmocka_unit_test(test_libslapd_csngen_time_backwards),
+        cmocka_unit_test(test_libslapd_csngen_multiple_clock_failures),
+        cmocka_unit_test(test_libslapd_csngen_seqnum_handling),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
