@@ -2713,7 +2713,7 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
                 *be = NULL;
                 if (referral) {
                     *referral = (target_node->mtn_referral_entry ? slapi_entry_dup(target_node->mtn_referral_entry) : NULL);
-                    *be = defbackend_get_backend();
+                    *be = refbackend_get_backend();
                 }
                 (*index)++;
             } else if ((*index == SLAPI_BE_NO_BACKEND) || (*index >= target_node->mtn_be_count)) {

@@ -1373,6 +1373,7 @@ void set_entry_points(void);
  */
 void defbackend_init(void);
 Slapi_Backend *defbackend_get_backend(void);
+Slapi_Backend *refbackend_get_backend(void);
 
 /*
  * plugin_internal_op.c
