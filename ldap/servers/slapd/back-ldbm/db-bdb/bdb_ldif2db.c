@@ -684,6 +684,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     export_args eargs = {0};
     int32_t suffix_written = 0;
     int32_t skip_ruv = 0;
+    int return_orig_dn = config_get_return_orig_dn();
 
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2ldif", "=>\n");
 
@@ -1067,6 +1068,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
             char *dn = NULL;
             struct backdn *bdn = NULL;
             Slapi_RDN psrdn = {0};
+            bool free_dn = false;
 
             /* get a parent pid */
             rc = get_value_from_string((const char *)data.dptr,
@@ -1125,6 +1127,11 @@ bdb_db2ldif(Slapi_PBlock *pb)
                 dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
                 slapi_rdn_done(&psrdn);
+            } else if (return_orig_dn &&
+                       get_value_from_string((const char *)data.dptr, "dsentrydn", &dn) == 0)
+            {
+                /* Use the DN from dsEntryDN, but we need to free it later */
+                free_dn = true;
             } else {
                 int myrc = 0;
                 Slapi_DN *sdn = NULL;
@@ -1192,6 +1199,9 @@ bdb_db2ldif(Slapi_PBlock *pb)
             ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
                                                str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
             slapi_ch_free_string(&rdn);
+            if (free_dn) {
+                slapi_ch_free_string(&dn);
+            }
         }
 
         slapi_ch_free(&(data.data));
