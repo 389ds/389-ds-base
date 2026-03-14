@@ -9,6 +9,8 @@
 import os
 import pytest
 import subprocess
+import ldap
+from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.utils import *
@@ -133,3 +135,49 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path_output(topo):
 
     log.info("Restarting the instance...")
     topo.standalone.start()
+
+
+def test_db2ldif_preserves_dn_case_in_exported_ldif(topo):
+    """Ensure db2ldif keeps the original DN case in exported LDIF.
+
+    :id: a3af2131-1134-43d2-9cf5-838bf53ec23f
+    :setup: Standalone Instance
+    :steps:
+        1. Add an organizational unit with DN "ou=test_dn_case,dc=EXAMPLE,dc=COM"
+        2. Stop the server
+        3. Perform offline db2ldif export
+        4. Verify the exported LDIF contains the DN with unchanged case
+    :expectedresults:
+        1. Entry is added successfully
+        2. Server stops cleanly
+        3. Offline export succeeds
+        4. DN case is preserved in the exported LDIF file
+    """
+    topo.standalone.start()
+
+    test_dn = "ou=test_dn_case,dc=EXAMPLE,dc=COM"
+    test_rdn_value = "test_dn_case"
+    export_ldif = os.path.join(topo.standalone.get_ldif_dir(), "export_dn_case.ldif")
+    test_ou = OrganizationalUnit(topo.standalone, test_dn)
+
+    log.info("Adding test entry with mixed-case DN suffix")
+    test_ou.create(properties={'ou': test_rdn_value})
+
+    log.info("Stopping the instance...")
+    topo.standalone.stop()
+    try:
+        log.info("Running offline db2ldif export")
+        assert topo.standalone.db2ldif(DEFAULT_BENAME, (DEFAULT_SUFFIX,), None, None, None, export_ldif)
+    finally:
+        log.info("Restarting the instance...")
+        topo.standalone.start()
+
+    log.info("Checking exported LDIF preserves the exact DN case")
+    with open(export_ldif, "r", encoding="utf-8") as export_file:
+        content = export_file.read()
+    assert f"dn: {test_dn}" in content
+
+    # Cleanup test artifacts
+    test_ou.delete()
+    if os.path.exists(export_ldif):
+        os.remove(export_ldif)

@@ -489,7 +489,7 @@ dbmdb_export_one_entry(struct ldbminfo *li,
         slapi_ch_free_string(&pw);
     }
     data.mv_data = slapi_entry2str_with_options(expargs->ep->ep_entry,
-                                             &len, expargs->options);
+                                                &len, expargs->options);
     data.mv_size = len + 1;
 
     if (expargs->printkey & EXPORT_PRINTKEY) {
@@ -594,6 +594,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
     dbmdb_cursor_t cur = {0};
     uint size = 0;
     int wrc = 0;
+    int return_orig_dn = config_get_return_orig_dn();
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2ldif", "=>\n");
 
@@ -960,6 +961,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
             char *dn = NULL;
             struct backdn *bdn = NULL;
             Slapi_RDN psrdn = {0};
+            bool free_dn = false;
 
             /* get a parent pid */
             rc = get_value_from_string((const char *)data.mv_data,
@@ -1015,7 +1017,14 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                 dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
                 slapi_rdn_done(&psrdn);
+            } else if (return_orig_dn &&
+                       get_value_from_string((const char *)data.mv_data, "dsentrydn", &dn) == 0)
+            {
+                /* Use the DN from dsEntryDN, but we need to free it later */
+                free_dn = true;
             } else {
+                /* Did not find a DN in dsEntryDN attribute, so build it from
+                 * scratch using the entryrdn index. */
                 int myrc = 0;
                 Slapi_DN *sdn = NULL;
                 rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
@@ -1080,8 +1089,11 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                 }
             }
             ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.mv_data,
-                                            str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
+                                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
             slapi_ch_free_string(&rdn);
+            if (free_dn) {
+                slapi_ch_free_string(&dn);
+            }
         }
 
         if ((ep->ep_entry) != NULL) {
@@ -1150,10 +1162,11 @@ bye:
         close(fd);
     }
     if (wrc) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file. errno=%d\n", inst->inst_name, errno);
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry",
+                      "export %s: Failed to write in export file. errno=%d\n",
+                      inst->inst_name, errno);
         return_value = wrc;
     }
-
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2ldif", "<=\n");
 
