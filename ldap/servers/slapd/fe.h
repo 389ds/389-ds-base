@@ -169,4 +169,7 @@ int sasl_map_done(void);
 void sasl_map_read_lock(void);
 void sasl_map_read_unlock(void);
 
+void fgot_start(struct op *op, fgot_id_t fgot_id);
+void fgot_end(struct op *op, fgot_id_t fgot_id);
+
 #endif

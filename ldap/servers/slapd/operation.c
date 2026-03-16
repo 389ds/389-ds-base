@@ -780,3 +780,24 @@ operation_get_result_controls(const Operation *o)
 {
     return o->o_results.result_controls;
 }
+
+void
+fgot_start(struct op *op, fgot_id_t fgot_id)
+{
+    if (config_check_fgot(fgot_id)) {
+        op->o_fgots[fgot_id].enabled = true;
+        clock_gettime(CLOCK_MONOTONIC, &op->o_fgots[fgot_id].s);
+    }
+}
+
+void
+fgot_end(struct op *op, fgot_id_t fgot_id)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        struct timespec now;
+        struct timespec elapsed;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        slapi_timespec_diff(&now, &op->o_fgots[fgot_id].s, &elapsed);
+        slapi_timespec_add(&op->o_fgots[fgot_id].c, &elapsed);
+    }
+}
