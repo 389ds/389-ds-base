@@ -556,6 +556,7 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount, PRIntn flags, PRIn
     PRInt32 ret = 0;
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
+    Operation *op = c->c_ops; /* In theory during bind there is only a single active operation */
 
     slapi_log_err(SLAPI_LOG_CONNS,
                   "sasl_io_send", "Writing %d bytes\n", amount);
@@ -585,8 +586,10 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount, PRIntn flags, PRIn
             PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
             return PR_FAILURE;
         }
+        fgot_start(op, FGOT_WRITE);
         ret = PR_Send(fd->lower, sp->send_buffer + sp->send_offset,
                       sp->send_size - sp->send_offset, flags, timeout);
+        fgot_end(op, FGOT_WRITE);
         /* we need to return the amount of cleartext sent */
         if (ret == (sp->send_size - sp->send_offset)) {
             ret = amount;        /* sent amount of data requested by caller */
@@ -606,7 +609,9 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount, PRIntn flags, PRIn
         }
         /* else - ret is error - caller will handle */
     } else {
+        fgot_start(op, FGOT_WRITE);
         ret = PR_Send(fd->lower, buf, amount, flags, timeout);
+        fgot_end(op, FGOT_WRITE);
     }
 
     return ret;

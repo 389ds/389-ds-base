@@ -2256,6 +2256,7 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     new_work_q->work_item = wqitem;
     new_work_q->op_stack_obj = op_stack_obj;
     new_work_q->next_work_item = NULL;
+    fgot_start(op_stack_obj->op, FGOT_WQ);
 
     pthread_mutex_lock(&work_q_lock);
     if (tail_work_q == NULL) {
@@ -2300,6 +2301,7 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
     PR_AtomicDecrement(&work_q_size); /* decrement q size */
     /* Free the memory used by the item found. */
     destroy_work_q(&tmp);
+    fgot_end((*op_stack_obj)->op, FGOT_WQ);
 
     return (wqitem);
 }

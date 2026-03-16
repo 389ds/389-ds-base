@@ -88,6 +88,8 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <time.h> /* For timespec definitions */
+#include "intrinsics.h"
+
 
 /* Macros for paged results lock parameter */
 #define PR_LOCKED true
@@ -249,6 +251,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_INVALID_SOCKET_INDEX (-1)
 
 #define ETIME_BUFSIZ 42 /* room for struct timespec */
+#define FGOT_BUFSIZ 200 /* room for fine grtain operation timing */
 
 /* ============================================================================
  *       CONFIGURATION DEFAULTS
@@ -1648,6 +1651,7 @@ typedef struct op
     struct slapi_operation_results o_results;
     int o_pagedresults_sizelimit;
     int o_reverse_search_state;
+    fgot_t o_fgots[FGOT_MAX];                        /* Fine grain operation timing counters */
 } Operation;
 
 /*
@@ -2416,6 +2420,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_RETURN_DEFAULT_OPATTR "nsslapd-return-default-opattr"
 #define CONFIG_REFERRAL_CHECK_PERIOD "nsslapd-referral-check-period"
 #define CONFIG_RETURN_ENTRY_DN "nsslapd-return-original-entrydn"
+#define CONFIG_FGOT_ATTRIBUTE "ds-fine-grain-operation-timing"
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
@@ -2786,6 +2791,8 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t return_orig_dn;
     slapi_onoff_t pw_admin_skip_info;
     char *auditlog_display_attrs;
+    char *fgot;
+    uint64_t fgot_flags;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
@@ -2903,8 +2910,6 @@ extern char *attr_dataversion;
 #endif /* USE_TIMERS */
 
 #define LDIF_CSNPREFIX_MAXLENGTH 6 /* sizeof(xxcsn-) */
-
-#include "intrinsics.h"
 
 /* printkey: import & export */
 #define EXPORT_PRINTKEY 0x1

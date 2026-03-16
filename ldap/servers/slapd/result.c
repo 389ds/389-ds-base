@@ -1924,9 +1924,11 @@ flush_ber(
     } else {
         ber_get_option(ber, LBER_OPT_BYTES_TO_WRITE, &bytes);
 
+        fgot_start(op, FGOT_WRITE);
         PR_Lock(conn->c_pdumutex);
         rc = ber_flush(conn->c_sb, ber, 1);
         PR_Unlock(conn->c_pdumutex);
+        fgot_end(op, FGOT_WRITE);
 
         if (rc != 0) {
             int oserr = errno;
@@ -2182,7 +2184,6 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
-
                 for (key_info = op_stat->search_stat->keys_lookup; key_info; key_info = key_info->next) {
                     slapi_timespec_diff(&key_info->key_lookup_end, &key_info->key_lookup_start, &duration);
                     snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
@@ -2295,6 +2296,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
     time_t start_time;
     int32_t log_format = config_get_accesslog_log_format();
     slapd_log_pblock logpb = {0};
+    char buff_fgot[FGOT_BUFSIZ];
 
     get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
@@ -2331,7 +2333,6 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
     /* op time */
     slapi_operation_op_time_elapsed(op, &o_hr_time_end);
     snprintf(optime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
-
     operation_notes = slapi_pblock_get_operation_notes(pb);
     if (0 == operation_notes) {
         notes_str = "";
@@ -2351,6 +2352,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 sprintf(csn_str, " csn=%s", csn_as_string(operationcsn, PR_FALSE, tmp_csn_str));
             }
         }
+        slapi_log_fgot_text(op, buff_fgot, FGOT_BUFSIZ);
     } else {
         /* Start prepping the JSON result block */
         slapd_log_pblock_init(&logpb, log_format, pb);
@@ -2364,6 +2366,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
         logpb.msg = NULL;
         logpb.sid = sessionTrackingId;
         logpb.tag = tag;
+        slapi_log_fgot_json(op, &logpb);
     }
 
 #define LOG_CONN_OP_FMT_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d) RESULT err=%d"
@@ -2382,11 +2385,11 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 slapi_log_access(LDAP_DEBUG_STATS,
                                  "conn=%" PRIu64 " op=%d RESULT err=%d"
                                  " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s"
-                                 ", SASL bind in progress\n",
+                                 "%s, SASL bind in progress\n",
                                  op->o_connid,
                                  op->o_opid,
                                  err, tag, nentries,
-                                 wtime, optime, etime,
+                                 wtime, optime, etime, buff_fgot,
                                  notes_str, csn_str, session_str);
             }
         } else {
@@ -2401,7 +2404,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_result(&logpb);
             } else {
-#define LOG_SASLMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s, SASL bind in progress\n"
+#define LOG_SASLMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s, SASL bind in progress\n"
                 slapi_log_access(LDAP_DEBUG_ARGS,
                                  connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_SASLMSG_FMT :
                                            LOG_CONN_OP_FMT_EXT_INT LOG_SASLMSG_FMT,
@@ -2410,7 +2413,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                                  op_internal_id,
                                  op_nested_count,
                                  err, tag, nentries,
-                                 wtime, optime, etime,
+                                 wtime, optime, etime, buff_fgot,
                                  notes_str, csn_str, session_str);
             }
         }
@@ -2430,12 +2433,12 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             } else {
                 slapi_log_access(LDAP_DEBUG_STATS,
                                  "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                 " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s"
+                                 " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s"
                                  " dn=\"%s\"\n",
                                  op->o_connid,
                                  op->o_opid,
                                  err, tag, nentries,
-                                 wtime, optime, etime,
+                                 wtime, optime, etime, buff_fgot,
                                  notes_str, csn_str, session_str, dn ? dn : "");
             }
         } else {
@@ -2451,7 +2454,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_result(&logpb);
             } else {
-#define LOG_BINDMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s dn=\"%s\"\n"
+#define LOG_BINDMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s dn=\"%s\"\n"
                 slapi_log_access(LDAP_DEBUG_ARGS,
                                  connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_BINDMSG_FMT :
                                                LOG_CONN_OP_FMT_EXT_INT LOG_BINDMSG_FMT,
@@ -2460,7 +2463,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                                  op_internal_id,
                                  op_nested_count,
                                  err, tag, nentries,
-                                 wtime, optime, etime,
+                                 wtime, optime, etime, buff_fgot,
                                  notes_str, csn_str, session_str, dn ? dn : "");
             }
         }
@@ -2476,12 +2479,12 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 } else {
                     slapi_log_access(LDAP_DEBUG_STATS,
                                      "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                     " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s"
+                                     " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s"
                                      " pr_idx=%d pr_cookie=%d\n",
                                      op->o_connid,
                                      op->o_opid,
                                      err, tag, nentries,
-                                     wtime, optime, etime, session_str,
+                                     wtime, optime, etime, buff_fgot, session_str,
                                      notes_str, csn_str, pr_idx, pr_cookie);
                 }
             } else {
@@ -2497,7 +2500,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                     logpb.level = LDAP_DEBUG_ARGS;
                     slapd_log_access_result(&logpb);
                 } else {
-#define LOG_PRMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s pr_idx=%d pr_cookie=%d \n"
+#define LOG_PRMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s pr_idx=%d pr_cookie=%d \n"
                     slapi_log_access(LDAP_DEBUG_ARGS,
                                      connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_PRMSG_FMT :
                                                    LOG_CONN_OP_FMT_EXT_INT LOG_PRMSG_FMT,
@@ -2506,7 +2509,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                                      op_internal_id,
                                      op_nested_count,
                                      err, tag, nentries,
-                                     wtime, optime, etime,
+                                     wtime, optime, etime, buff_fgot,
                                      notes_str, csn_str, session_str, pr_idx, pr_cookie);
                 }
             }
@@ -2528,11 +2531,11 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             } else {
                 slapi_log_access(LDAP_DEBUG_STATS,
                                  "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                 " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s\n",
+                                 " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s%s\n",
                                  op->o_connid,
                                  op->o_opid,
                                  err, tag, nentries,
-                                 wtime, optime, etime,
+                                 wtime, optime, etime, buff_fgot,
                                  notes_str, csn_str, ext_str, session_str);
             }
             if (pbtxt) {
@@ -2553,7 +2556,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_result(&logpb);
             } else {
-#define LOG_MSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s\n"
+#define LOG_MSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s\n"
                 slapi_log_access(LDAP_DEBUG_ARGS,
                                  connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_MSG_FMT :
                                                LOG_CONN_OP_FMT_EXT_INT LOG_MSG_FMT,
@@ -2562,7 +2565,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                                  op_internal_id,
                                  op_nested_count,
                                  err, tag, nentries,
-                                 wtime, optime, etime,
+                                 wtime, optime, etime, buff_fgot,
                                  notes_str, csn_str, session_str);
             }
             /*
