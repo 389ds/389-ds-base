@@ -1543,9 +1543,12 @@ typedef struct fgot_t {
 } fgot_t;
 
 typedef enum fgot_id_t {
-    FGOT_WQ, /* Time spent in Work Queue */
-    FGOT_WRITE, /* Time spent sending data over the network */
-    FGOT_MAX /* Should be the last one */
+    FGOT_WQ,     /* Time spent in Work Queue */
+    FGOT_W,      /* Time spent before starting processing the operation */
+    FGOT_OP,     /* Time spent after starting processing the operation */
+    FGOT_WRITE,  /* Time spent sending data over the network */
+    FGOT_ETIME,  /* Time spent to fully process an operation */
+    FGOT_MAX     /* Fgot table size - Should be the last enum */
 } fgot_id_t;
 
 typedef struct slapd_log_pblock {

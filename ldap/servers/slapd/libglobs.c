@@ -1471,7 +1471,7 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.fgot,
      CONFIG_STRING, (ConfigGetFunc)config_get_fgot,
-     NULL, NULL /* deletion is not allowed */}
+     SLAPD_DEFAULT_FGOT, NULL }
     /* End config */
     };
 
@@ -2089,6 +2089,10 @@ FrontendConfig_init(void)
     /* Initialize parsed HAProxy trusted IP entries */
     cfg->haproxy_trusted_ip_parsed = NULL;
     cfg->haproxy_trusted_ip_parsed_count = 0;
+
+    /* Initialize Fine Grain Operation Timing */
+    cfg->fgot = slapi_ch_strdup(SLAPD_DEFAULT_FGOT);
+    cfg->fgot_flags = SLAPD_DEFAULT_FGOT_FLAGS;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -10271,6 +10275,12 @@ static struct {
     { "wq", FGOT_WQ },
     { "writetime", FGOT_WRITE },
     { "write", FGOT_WRITE },
+    { "optime", FGOT_OP },
+    { "op", FGOT_OP },
+    { "etime", FGOT_ETIME },
+    { "e", FGOT_ETIME },
+    { "wtime", FGOT_W },
+    { "w", FGOT_W },
     { 0 }
 };
 
