@@ -2421,6 +2421,8 @@ typedef struct _slapdEntryPoints
 #define CONFIG_REFERRAL_CHECK_PERIOD "nsslapd-referral-check-period"
 #define CONFIG_RETURN_ENTRY_DN "nsslapd-return-original-entrydn"
 #define CONFIG_FGOT_ATTRIBUTE "ds-fine-grain-operation-timing"
+#define SLAPD_DEFAULT_FGOT "wtime+wqtime+optime+etime"
+#define SLAPD_DEFAULT_FGOT_FLAGS ((1UL<<FGOT_W)|(1UL<<FGOT_WQ)|(1UL<<FGOT_OP)|(1UL<<FGOT_ETIME))
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
