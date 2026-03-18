@@ -213,6 +213,8 @@ def test_replica_config_add_nonexistent_replicaroot(topo):
     """
     inst = topo.standalone
     dn = "cn=replica,cn=dc\\3Dexample\\2Cdc\\3Dcom,cn=mapping tree,cn=config"
+    
+    replica_reset(topo)
 
     entry = Entry((dn, {
         'objectclass': [
