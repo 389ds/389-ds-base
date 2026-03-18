@@ -1178,9 +1178,17 @@ def test_basic_referrals(topology_st, import_example_ldif):
     assert bev.get_attr_val_utf8('nsslapd-state') == 'referral'
 
     log.info('Testing that a referral error is returned...')
+    log.info('When bound as directory manager')
     topology_st.standalone.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
     with pytest.raises(ldap.REFERRAL):
         topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=top')
+    log.info('When anonymous')
+    ldc = ldap.initialize(f'ldap://localhost:{topology_st.standalone.port}')
+    ldc.set_option(ldap.OPT_TIMEOUT, 5)
+    ldc.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
+    with pytest.raises(ldap.REFERRAL):
+        ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=top')
+    ldc.unbind
 
     # Make sure server can restart in referral mode
     log.info('Restarting the server...')
