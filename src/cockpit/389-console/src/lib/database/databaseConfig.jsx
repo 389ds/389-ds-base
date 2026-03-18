@@ -90,6 +90,7 @@ class DynamicLists extends React.Component {
                             onChange={this.props.handleChange}
                             aria-label="Dynamic List Objectclass"
                             ouiaId="DynamicListObjectclassSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
                         >
                             {this.props.objectClasses.map((option, index) => (
                                 <FormSelectOption key={index} value={option.toLowerCase()} label={option} />
@@ -111,6 +112,7 @@ class DynamicLists extends React.Component {
                             onChange={this.props.handleChange}
                             aria-label="Dynamic List URL Attribute"
                             ouiaId="DynamicListURL Attr Select AttributeSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
                         >
                             {this.props.urlAttrs.map((option, index) => (
                                 <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
@@ -132,6 +134,7 @@ class DynamicLists extends React.Component {
                             onChange={this.props.handleChange}
                             aria-label="Dynamic List Attribute"
                             ouiaId="DynamicListAttributeSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
                         >
                             {this.props.dnAttrs.map((option, index) => (
                                 <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
@@ -1339,6 +1342,15 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
                                "1.3.6.1.4.1.1466.115.121.1.12"];
 
+        // All fields that participate in change tracking
+        this.validationFields = [
+            "looklimit", "idscanlimit", "pagelooklimit",
+            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
+            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize",
+            "dynamiclistsenabled", "dynamiclistattr", "dynamicoc",
+            "dynamicurlattr",
+        ];
+
         // Field validation rules configuration
         this.fieldValidationRules = (fieldId) => {
             switch(fieldId) {
@@ -1363,11 +1375,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 case 'pagelooklimit':
                     return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
                 case 'pagescanlimit':
-                    return { min: 100, max: this.maxValue, special: -1 };  // -1 = unlimited
+                    return { min: 100, max: this.maxValue, special: 0 };
                 case 'rangelooklimit':
                     return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
                 default:
-                    console.warn(`No validation rules for field: ${fieldId}. Using default values.`);
                     return { min: 0, max: this.maxValue, special: null };
             }
         };
@@ -1463,6 +1474,12 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         };
     }
 
+    // Helper method to determine if a field has specific validation rules (NumberInput) or uses defaults (text field)
+    hasValidationRules(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        return !(rules.min === 0 && rules.max === this.maxValue && rules.special === null);
+    }
+
     isFieldValid(fieldId, value) {
         const rules = this.fieldValidationRules(fieldId);
         const numValue = Number(value);
@@ -1507,46 +1524,36 @@ export class GlobalDatabaseConfigMDB extends React.Component {
     }
 
     validateSaveBtn(fieldId) {
-        let saveBtnDisabled = true;
-        const check_attrs = [
-            "looklimit", "idscanlimit", "pagelooklimit",
-            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
-            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize",
-            "dynamiclistsenabled", "dynamiclistattr", "dynamicoc",
-            "dynamicurlattr",
-        ];
+        let hasChanges = false;
+        let hasErrors = false;
+        let hasValidationErrors = false;
 
-        // Check if a setting was changed, if so enable the save button
-        for (const config_attr of check_attrs) {
-            if (this.state[config_attr].toString() !== this.state['_' + config_attr].toString()) {
-                saveBtnDisabled = false;
-                break;
+        // Single loop to check all conditions efficiently
+        for (const fieldName of this.validationFields) {
+            // Check for changes
+            if (!hasChanges && this.state[fieldName].toString() !== this.state['_' + fieldName].toString()) {
+                hasChanges = true;
             }
-        }
 
-        // Check if have any errors on our attributes
-        for (const config_attr of check_attrs) {
-            if (this.state.error[config_attr]) {
-                saveBtnDisabled = true;
-                break;
+            // Check for existing errors
+            if (!hasErrors && this.state.error[fieldName]) {
+                hasErrors = true;
             }
-        }
 
-        // prevent saving invalid values
-        if (!saveBtnDisabled) {
-            const numberInputFields = [
-                "looklimit", "idscanlimit", "pagelooklimit",
-                "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
-                "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize"
-            ];
-            for (const config_attr of numberInputFields) {
-                if (!this.isFieldValid(config_attr, this.state[config_attr])) {
-                    saveBtnDisabled = true;
-                    break;
+            // Check for NumberInput validation errors (only if we have changes and no existing errors)
+            if (!hasValidationErrors && hasChanges && !hasErrors) {
+                if (this.hasValidationRules(fieldName) && !this.isFieldValid(fieldName, this.state[fieldName])) {
+                    hasValidationErrors = true;
                 }
             }
+
+            // Early exit if we already know the button should be disabled
+            if (hasErrors || (hasChanges && hasValidationErrors)) {
+                break;
+            }
         }
 
+        const saveBtnDisabled = !hasChanges || hasErrors || hasValidationErrors;
         this.setState({ saveBtnDisabled });
     }
 
@@ -1556,7 +1563,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         const attr = e.target.id;
         const error = { ...this.state.error };
 
-        error[attr] = !this.isFieldValid(attr, value);
+        error[attr] = this.hasValidationRules(attr) ? !this.isFieldValid(attr, value) : false;
+
         this.setState({
             [attr]: value,
             error
@@ -2151,9 +2159,9 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.autosize}
-                                                min={0}
-                                                max={100}
+                                                value={Number(this.state.autosize)}
+                                                min={this.getFieldMinValue("autosize")}
+                                                max={this.getFieldMaxValue("autosize")}
                                                 onMinus={() => { this.onConfigMinus("autosize") }}
                                                 onChange={(e) => { this.onConfigChange(e, "autosize") }}
                                                 onBlur={() => { this.onConfigChangeBlur("autosize") }}
