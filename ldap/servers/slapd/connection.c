@@ -322,7 +322,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
             PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&addr)->sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
             PRLDAP_SET_PORT(conn->cin_addr, ((struct sockaddr_in *)&addr)->sin_port);
-            str_ip = get_ip_str(&addr, buf_ip);
+            str_ip = get_ip_str(&addr, buf_ip, sizeof(buf_ip));
         } else {
             str_ip = str_unknown;
         }
@@ -376,7 +376,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             PRLDAP_SET_PORT(conn->cin_destaddr, ((struct sockaddr_in *)&destaddr)->sin_port);
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
             PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&destaddr)->sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
-            str_destip = get_ip_str(&destaddr, buf_destip);
+            str_destip = get_ip_str(&destaddr, buf_destip, sizeof(buf_destip));
         } else {
             str_destip = str_unknown;
         }
