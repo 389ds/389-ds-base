@@ -1575,12 +1575,12 @@ def test_dsconf_security_certificate_import_second_cert(setup_tls):
     inst = setup_tls.standalone
     cert_path = _create_temp_cert_file()
     cert_name = 'Second-Cert'
-
     try:
         add_cmd = [
             'dsconf', inst.serverid, 'security', 'certificate', 'add',
             '--file', cert_path,
-            '--name', cert_name
+            '--name', cert_name,
+            '--do-it'
         ]
         returncode, stdout, stderr = run_cmd(add_cmd, check=False)
         # If cert already exists in this environment, continue with validation
