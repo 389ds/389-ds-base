@@ -804,7 +804,7 @@ def test_basic_db2index(topology_st):
     for indexNum, index in enumerate(indexes):
         if index in ["entryrdn", "ancestorid"]:
             assert topology_st.standalone.searchErrorsLog(
-                f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing {index}')
+                f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing: {index}')
         else:
             assert topology_st.standalone.searchErrorsLog(
                 f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing attribute: {index}')

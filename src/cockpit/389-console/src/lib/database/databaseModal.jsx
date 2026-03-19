@@ -60,8 +60,8 @@ class CreateLinkModal extends React.Component {
                     >
                         {saveBtnName}
                     </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
+                    <Button key="close" variant="link" onClick={closeHandler}>
+                        {_("Close")}
                     </Button>
                 ]}
             >
@@ -278,8 +278,8 @@ class CreateSubSuffixModal extends React.Component {
                     >
                         {saveBtnName}
                     </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
+                    <Button key="close" variant="link" onClick={closeHandler}>
+                        {_("Close")}
                     </Button>
                 ]}
             >
@@ -361,14 +361,30 @@ class ExportModal extends React.Component {
             includeReplData,
             saveHandler,
             spinning,
-            error
+            item,
+            error,
+            exportCompleted
         } = this.props;
         let saveBtnName = _("Export Database");
         const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = _("Exporting ...");
-            extraPrimaryProps.spinnerAriaValueText = _("Creating");
+            extraPrimaryProps.spinnerAriaValueText = _("Exporting");
         }
+
+        const actions = [];
+        if (!exportCompleted) {
+            actions.push(
+                <Button key="confirm" variant="primary" onClick={saveHandler} isDisabled={this.props.saveBtnDisabled || spinning} {...extraPrimaryProps}>
+                    {saveBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
 
         return (
             <Modal
@@ -376,22 +392,7 @@ class ExportModal extends React.Component {
                 title={_("Export Database To LDIF File")}
                 isOpen={showModal}
                 onClose={closeHandler}
-                actions={[
-                    <Button
-                        key="export"
-                        variant="primary"
-                        onClick={saveHandler}
-                        isLoading={spinning}
-                        spinnerAriaValueText={spinning ? _("Creating Suffix") : undefined}
-                        {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled || spinning}
-                    >
-                        {saveBtnName}
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
-                    </Button>
-                ]}
+                actions={actions}
             >
                 <Form isHorizontal autoComplete="off">
                     <Grid title={_("Name of exported LDIF file.")}>
@@ -403,6 +404,7 @@ class ExportModal extends React.Component {
                                 type="text"
                                 id="ldifLocation"
                                 aria-describedby="horizontal-form-name-helper"
+                                isDisabled={spinning || exportCompleted}
                                 name="ldifLocation"
                                 onChange={(e, val) => {
                                     handleChange(e);
@@ -419,10 +421,12 @@ class ExportModal extends React.Component {
                                     handleChange(e);
                                 }}
                                 isChecked={includeReplData}
+                                isDisabled={spinning || exportCompleted}
                                 label={_("Include Replication Data")}
                             />
                         </GridItem>
                     </Grid>
+                    {item}
                 </Form>
             </Modal>
         );
@@ -454,8 +458,8 @@ class ImportModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
+                    <Button key="close" variant="link" onClick={closeHandler}>
+                        {_("Close")}
                     </Button>
                 ]}
             >
@@ -536,13 +540,15 @@ ExportModal.propTypes = {
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     error: PropTypes.object,
-    spinning: PropTypes.bool
+    spinning: PropTypes.bool,
+    item: PropTypes.node,
 };
 
 ExportModal.defaultProps = {
     showModal: false,
     error: {},
-    spinning: false
+    spinning: false,
+    item: null
 };
 
 ImportModal.propTypes = {

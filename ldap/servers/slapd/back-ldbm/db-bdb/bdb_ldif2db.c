@@ -1478,15 +1478,15 @@ bdb_db2index(Slapi_PBlock *pb)
                 /* the ai was added above, if it didn't already exist */
                 PR_ASSERT(ai != NULL);
                 if (strcasecmp(attrs[i] + 1, LDBM_ANCESTORID_STR) == 0) {
-                    slapi_task_log_notice(task, "%s: Indexing %s",
+                    slapi_task_log_notice(task, "%s: Indexing: %s",
                         inst->inst_name, LDBM_ANCESTORID_STR);
-                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing %s\n",
+                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing: %s\n",
                                   inst->inst_name, LDBM_ANCESTORID_STR);
                     index_ext |= DB2INDEX_ANCESTORID;
                 } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYRDN_STR) == 0) {
-                    slapi_task_log_notice(task, "%s: Indexing %s",
+                    slapi_task_log_notice(task, "%s: Indexing: %s",
                                           inst->inst_name, LDBM_ENTRYRDN_STR);
-                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing %s\n",
+                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing: %s\n",
                                   inst->inst_name, LDBM_ENTRYRDN_STR);
                     index_ext |= DB2INDEX_ENTRYRDN;
                 } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYDN_STR) == 0) {
