@@ -43,6 +43,19 @@ export class DoubleConfirmModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
+        const actions = [];
+        if (btnName) {
+            actions.push(
+                <Button key="confirm" variant="primary" onClick={actionHandler} isDisabled={saveDisabled || spinning} {...extraPrimaryProps}>
+                    {btnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
         return (
             <Modal
                 variant={ModalVariant.small}
@@ -51,22 +64,7 @@ export class DoubleConfirmModal extends React.Component {
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
-                actions={[
-                    <Button
-                        key="confirm"
-                        isLoading={spinning}
-                        spinnerAriaValueText={spinning ? _("Loading") : undefined}
-                        variant="primary"
-                        onClick={actionHandler}
-                        isDisabled={saveDisabled || spinning}
-                        {...extraPrimaryProps}
-                    >
-                        {btnName}
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
-                    </Button>
-                ]}
+                actions={actions}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
@@ -79,18 +77,21 @@ export class DoubleConfirmModal extends React.Component {
                             <i>{item}</i>
                         </Text>
                     </TextContent>
-                    <Grid className="ds-margin-top-xlg">
-                        <GridItem sm={12} className="ds-center">
-                            <Checkbox
-                                id="modalChecked"
-                                isChecked={checked}
-                                onChange={(e, checked) => {
-                                    handleChange(e);
-                                }}
-                                label={<><b>{_("Yes")}</b>{_(", I am sure.")}</>}
-                            />
-                        </GridItem>
-                    </Grid>
+                    {btnName && (
+                        <Grid className="ds-margin-top-xlg">
+                            <GridItem sm={12} className="ds-center">
+                                <Checkbox
+                                        id="modalChecked"
+                                        isChecked={checked}
+                                        isDisabled={spinning}
+                                        onChange={(e, checked) => {
+                                            handleChange(e);
+                                        }}
+                                        label={<><b>{_("Yes")}</b>{_(", I am sure.")}</>}
+                                    />
+                            </GridItem>
+                        </Grid>
+                    )}
                 </Form>
             </Modal>
         );

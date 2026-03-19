@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -39,7 +39,7 @@ def dbtasks_db2index(inst, log, args):
 def dbtasks_db2bak(inst, log, args):
     # Needs an output name?
     inst.log = log
-    if not inst.db2bak(args.archive):
+    if not inst.db2bak(args.archive, watch=args.watch):
         log.fatal("db2bak failed")
         return False
     else:
@@ -49,7 +49,7 @@ def dbtasks_db2bak(inst, log, args):
 def dbtasks_bak2db(inst, log, args):
     # Needs the archive to restore.
     inst.log = log
-    if not inst.bak2db(args.archive):
+    if not inst.bak2db(args.archive, watch=args.watch):
         log.fatal("bak2db failed")
         return False
     else:
@@ -68,7 +68,8 @@ def dbtasks_db2ldif(inst, log, args):
 
     # Export backend
     if not inst.db2ldif(bename=args.backend, encrypt=args.encrypted, repl_data=args.replication,
-                        outputfile=args.ldif, suffixes=None, excludeSuffixes=None, export_cl=False):
+                        outputfile=args.ldif, suffixes=None, excludeSuffixes=None, export_cl=False,
+                        watch=args.watch):
         log.fatal("db2ldif failed")
         return False
     else:
@@ -82,7 +83,7 @@ def dbtasks_ldif2db(inst, log, args):
         raise ValueError("The LDIF file does not exist: " + args.ldif)
 
     ret = inst.ldif2db(bename=args.backend, encrypt=args.encrypted, import_file=args.ldif,
-                        suffixes=None, excludeSuffixes=None, import_cl=False)
+                       suffixes=None, excludeSuffixes=None, import_cl=False, watch=args.watch)
     if not ret:
         log.fatal("ldif2db failed")
         return False
@@ -519,6 +520,7 @@ def create_parser(subcommands):
     db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     db2bak_parser.add_argument('archive', help="The destination for the archive. This will be created during the db2bak process.",
                                nargs='?', default=None)
+    db2bak_parser.add_argument('--watch', action='store_true', help='Watch the status of the db2bak task')
     db2bak_parser.set_defaults(func=dbtasks_db2bak)
 
     db2ldif_parser = subcommands.add_parser('db2ldif', help="Initialise an LDIF dump of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
@@ -530,6 +532,7 @@ def create_parser(subcommands):
     #                                                         "This option also implies the '--replication' option is set.",
     #                             default=False, action='store_true')
     db2ldif_parser.add_argument('--encrypted', help="Export encrypted attributes", default=False, action='store_true')
+    db2ldif_parser.add_argument('--watch', action='store_true', help='Watch the status of the db2ldif task')
     db2ldif_parser.set_defaults(func=dbtasks_db2ldif)
 
     dbverify_parser = subcommands.add_parser('dbverify', help="Perform a db verification. You should only do this at direction of support", formatter_class=CustomHelpFormatter)
@@ -538,6 +541,7 @@ def create_parser(subcommands):
 
     bak2db_parser = subcommands.add_parser('bak2db', help="Restore a BDB backup of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     bak2db_parser.add_argument('archive', help="The archive to restore. This will erase all current server databases.")
+    bak2db_parser.add_argument('--watch', action='store_true', help='Watch the status of the bak2db task')
     bak2db_parser.set_defaults(func=dbtasks_bak2db)
 
     ldif2db_parser = subcommands.add_parser('ldif2db', help="Restore an LDIF dump of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
@@ -546,6 +550,7 @@ def create_parser(subcommands):
     ldif2db_parser.add_argument('--encrypted', help="Import encrypted attributes", default=False, action='store_true')
     # ldif2db_parser.add_argument('--include-changelog', help="Include a replication changelog LDIF file if present.  It must be named like this in order for the import to include it:  <ldif_file_name>_cl.ldif.",
     #                            default=False, action='store_true')
+    ldif2db_parser.add_argument('--watch', action='store_true', help='Watch the status of the ldif2db task')
     ldif2db_parser.set_defaults(func=dbtasks_ldif2db)
 
     backups_parser = subcommands.add_parser('backups', help="List backup's found in the server's default backup directory", formatter_class=CustomHelpFormatter)
