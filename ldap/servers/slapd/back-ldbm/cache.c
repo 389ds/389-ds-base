@@ -278,6 +278,53 @@ remove_hash(Hashtable *ht, const void *key, uint32_t keylen)
     return 0;
 }
 
+/*
+ * cache_remove_dn_hash - Remove an entry from the DN hash table
+ * using its current normalized DN.
+ *
+ * This must be called while holding the cache lock (CACHE_LOCK).
+ */
+void
+cache_remove_dn_hash(struct cache *cache, struct backentry *e)
+{
+    const char *ndn = slapi_sdn_get_ndn(backentry_get_sdn(e));
+    if (ndn) {
+        remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn));
+    }
+}
+
+/*
+ * remove_hash_entry - Remove a specific entry pointer from a hash table,
+ * using a saved key to locate the correct hash slot.
+ *
+ * This is used when an entry's DN has been changed in-place after it was added
+ * to c_dntable.
+ *
+ * Returns 1 if the entry was found and removed, 0 otherwise.
+ */
+static int
+remove_hash_entry(Hashtable *ht, const void *key, uint32_t keylen, void *entry)
+{
+    u_long val = HASH_VALUE(key, keylen);
+    u_long slot = val % ht->size;
+    void *e = ht->slot[slot];
+    void *laste = NULL;
+
+    while (e) {
+        if (e == entry) {
+            if (laste)
+                HASH_NEXT(ht, laste) = HASH_NEXT(ht, e);
+            else
+                ht->slot[slot] = HASH_NEXT(ht, e);
+            HASH_NEXT(ht, e) = NULL;
+            return 1;
+        }
+        laste = e;
+        e = HASH_NEXT(ht, e);
+    }
+    return 0;
+}
+
 #ifdef LDAP_CACHE_DEBUG
 void
 dump_hash(Hashtable *ht)
@@ -1762,6 +1809,36 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
     }
 
     cache_lock(cache);
+
+    /*
+     * If we are confirming a tentative add (state==0, entry is CREATING),
+     * the entry is already in c_dntable under its original DN. If the DN
+     * was changed between cache_add_tentative() and this CACHE_ADD() call
+     * (e.g. by the bz628300 parent-DN adjustment in id2entry_add_ext, or
+     * by a betxn pre-add plugin), we must remove the stale old-DN hash
+     * reference BEFORE inserting under the new DN. Otherwise the entry
+     * ends up in two hash slots and the old slot becomes a dangling pointer
+     * after the entry is freed -> use-after-free crash in entry_same_dn().
+     */
+    if ((e->ep_state & ENTRY_STATE_CREATING) && (state == 0)) {
+        if (e->ep_dn_hash_ndn) {
+            if (remove_hash_entry(cache->c_dntable,
+                    e->ep_dn_hash_ndn,
+                    strlen(e->ep_dn_hash_ndn), e)) {
+                /*
+                 * Set `already_in = 1` because the entry *is* already in the
+                 * cache (it was tentatively added). This flag is checked
+                 * later when `add_hash(cache->c_idtable, ...)` fails
+                 * (the ID is already in `c_idtable` from the tentative add,
+                 * so the failure is expected and we return success instead
+                 * of an error.
+                 */
+                already_in = 1;
+            }
+            slapi_ch_free_string(&e->ep_dn_hash_ndn);
+        }
+    }
+
     if (!add_hash(cache->c_dntable, (void *)ndn, strlen(ndn), e,
                   (void **)&my_alt)) {
         LOG("entry \"%s\" already in dn cache\n", ndn);
@@ -1888,6 +1965,16 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
 
     e->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
     e->ep_state |= state;
+
+    /*
+     * When this is a tentative add, save the NDN,
+     * so we can remove the entry from `c_dntable` later
+     * if the DN is changed in-place before confirmation.
+     */
+    if (state == ENTRY_STATE_CREATING) {
+        slapi_ch_free_string(&e->ep_dn_hash_ndn);
+        e->ep_dn_hash_ndn = slapi_ch_strdup(ndn);
+    }
 
     if (!already_in) {
         e->ep_refcnt = 1;
