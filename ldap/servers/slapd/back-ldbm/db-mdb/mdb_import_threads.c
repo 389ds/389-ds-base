@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -3431,8 +3431,11 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
     if (ctx->role == IM_INDEX) {
         /* Required by CI test */
         if (a->flags & MII_NOATTR) {
+            if (job->task) {
+                slapi_task_log_notice(job->task, "%s: Indexing: %s", job->inst->inst_name, mii->name);
+            }
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
-                          "%s: Indexing %s\n", job->inst->inst_name, mii->name);
+                          "%s: Indexing: %s\n", job->inst->inst_name, mii->name);
         } else {
             if (ii->ai->ai_indexmask == INDEX_VLV) {
                 if (job->task) {
