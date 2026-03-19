@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -310,12 +310,12 @@ export class ServerAccessLog extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload();
                     this.refreshConfig(1);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error saving Access Log settings - $0"), errMsg.desc)
+                        cockpit.format(_("Error saving Access Log settings - $0"), errMsg)
                     );
                 });
     }
@@ -409,10 +409,10 @@ export class ServerAccessLog extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading Access Log configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading Access Log configuration - $0"), errMsg)
                     );
                     this.setState({
                         loading: false,

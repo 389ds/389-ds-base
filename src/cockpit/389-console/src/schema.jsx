@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, searchFilter, listsEqual } from "./lib/tools.jsx";
+import { log_cmd, searchFilter, listsEqual, getApiErrorMessage } from "./lib/tools.jsx";
 import {
     ObjectClassesTable,
     AttributesTable,
@@ -395,8 +395,8 @@ export class Schema extends React.Component {
                 })
                 .fail(err => {
                     if (err !== 0) {
-                        const errMsg = JSON.parse(err);
-                        console.log("loadSyntaxes failed: ", errMsg.desc);
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("loadSyntaxes failed: ", errMsg);
                     }
                 });
     }
@@ -483,8 +483,8 @@ export class Schema extends React.Component {
                 })
                 .fail(err => {
                     if (err !== 0) {
-                        const errMsg = JSON.parse(err);
-                        console.log("loadSchemaData failed: ", errMsg.desc);
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("loadSchemaData failed: ", errMsg);
                     }
                     if (initialLoading) {
                         this.toggleLoading("allSchema");
@@ -663,10 +663,10 @@ export class Schema extends React.Component {
                     this.closeConfirmOCDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during ObjectClass removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during ObjectClass removal operation - $0"), errMsg)
                     );
                     this.loadSchemaData();
                     this.closeConfirmOCDelete();
@@ -740,11 +740,11 @@ export class Schema extends React.Component {
                         this.toggleLoading("ocModal");
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        let errMsg = getApiErrorMessage(err);
                         if ('info' in errMsg) {
-                            errMsg = errMsg.desc + " " + errMsg.info;
+                            errMsg = errMsg + " " + errMsg.info;
                         } else {
-                            errMsg = errMsg.desc;
+                            errMsg = errMsg;
                         }
                         this.props.addNotification(
                             "error",
@@ -957,10 +957,10 @@ export class Schema extends React.Component {
                     this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during Attribute removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during Attribute removal operation - $0"), errMsg)
                     );
                     this.loadSchemaData();
                     this.closeConfirmAttrDelete();
@@ -1057,11 +1057,11 @@ export class Schema extends React.Component {
                     this.toggleLoading("atModal");
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    let errMsg = getApiErrorMessage(err);
                     if ('info' in errMsg) {
-                        errMsg = errMsg.desc + " " + errMsg.info;
+                        errMsg = errMsg + " " + errMsg.info;
                     } else {
-                        errMsg = errMsg.desc;
+                        errMsg = errMsg;
                     }
                     this.props.addNotification(
                         "error",
@@ -1168,11 +1168,11 @@ export class Schema extends React.Component {
                     this.toggleLoading("atModal");
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    let errMsg = getApiErrorMessage(err);
                     if ('info' in errMsg) {
-                        errMsg = errMsg.desc + " " + errMsg.info;
+                        errMsg = errMsg + " " + errMsg.info;
                     } else {
-                        errMsg = errMsg.desc;
+                        errMsg = errMsg;
                     }
                     this.props.addNotification(
                         "error",

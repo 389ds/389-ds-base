@@ -14,7 +14,7 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -109,10 +109,10 @@ class WinSync extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Fixup task for $0 has failed $1"), this.state.fixupDN, errMsg.desc)
+                        cockpit.format(_("Fixup task for $0 has failed $1"), this.state.fixupDN, errMsg)
                     );
                     this.setState({
                         fixupModalShow: false,
@@ -261,10 +261,10 @@ class WinSync extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update Posix winsync plugin - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update Posix winsync plugin - $0"), errMsg)
                     );
                     this.props.pluginListHandler();
                     this.setState({

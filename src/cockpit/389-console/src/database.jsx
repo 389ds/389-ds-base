@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, valid_db_name } from "./lib/tools.jsx";
+import { log_cmd, valid_dn, valid_db_name, getApiErrorMessage } from "./lib/tools.jsx";
 import {
     ChainingConfig,
     ChainingDatabaseConfig
@@ -231,10 +231,10 @@ export class Database extends React.Component {
                         }
                     });
                 }).fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading suffix list - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading suffix list - $0"), errMsg)
                     );
                     this.setState({
                         suffixListLoaded: true,
@@ -270,10 +270,10 @@ export class Database extends React.Component {
                         }
                     });
                 }).fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading password storage schemes - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading password storage schemes - $0"), errMsg)
                     );
                     this.setState({
                         pwdSchemesLoaded: true,
@@ -314,10 +314,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading server configuration for database- $0"), errMsg.desc)
+                        cockpit.format(_("Error loading server configuration for database- $0"), errMsg)
                     );
                     this.setState({
                         globalConfigLoaded: true,
@@ -445,10 +445,10 @@ export class Database extends React.Component {
                 }
                 )
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading database configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading database configuration - $0"), errMsg)
                     );
                     this.loadNDN(reloading); // updates the loading state
                 });
@@ -533,10 +533,10 @@ export class Database extends React.Component {
                     ), this.loadAvailableControls());
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading default chaining configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading default chaining configuration - $0"), errMsg)
                     );
                     this.setState({
                         loading: false
@@ -590,10 +590,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading chaining configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading chaining configuration - $0"), errMsg)
                     );
                     this.setState({
                         chainingConfigLoading: false,
@@ -785,10 +785,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error getting chaining link configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error getting chaining link configuration - $0"), errMsg)
                     );
                 });
     }
@@ -1013,10 +1013,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating suffix - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating suffix - $0"), errMsg)
                     );
                     this.closeSuffixModal();
                     this.setState({
@@ -1138,10 +1138,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg.desc)
+                        cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg)
                     );
                 });
     }
@@ -1319,10 +1319,10 @@ export class Database extends React.Component {
                                                         });
                                                     })
                                                     .fail(err => {
-                                                        const errMsg = JSON.parse(err);
+                                                        const errMsg = getApiErrorMessage(err);
                                                         this.props.addNotification(
                                                             "error",
-                                                            cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg.desc)
+                                                            cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg)
                                                         );
                                                         this.setState({
                                                             suffixIndexesLoading: false,
@@ -1331,10 +1331,10 @@ export class Database extends React.Component {
                                                     });
                                         })
                                         .fail(err => {
-                                            const errMsg = JSON.parse(err);
+                                            const errMsg = getApiErrorMessage(err);
                                             this.props.addNotification(
                                                 "error",
-                                                cockpit.format(_("Error attribute encryption for $0 - $1"), suffix, errMsg.desc)
+                                                cockpit.format(_("Error attribute encryption for $0 - $1"), suffix, errMsg)
                                             );
                                             this.setState({
                                                 suffixAttrEncLoading: false,
@@ -1343,10 +1343,10 @@ export class Database extends React.Component {
                                         });
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error loading VLV indexes for $0 - $1"), suffix, errMsg.desc)
+                                    cockpit.format(_("Error loading VLV indexes for $0 - $1"), suffix, errMsg)
                                 );
                                 this.setState({
                                     suffixVlvLoading: false,
@@ -1355,10 +1355,10 @@ export class Database extends React.Component {
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading config for $0 - $1"), suffix, errMsg.desc)
+                        cockpit.format(_("Error loading config for $0 - $1"), suffix, errMsg)
                     );
                     this.setState({
                         suffixConfigLoading: false,
@@ -1393,10 +1393,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading LDIF files - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading LDIF files - $0"), errMsg)
                     );
                     this.setState({
                         ldifsLoading: false,
@@ -1439,10 +1439,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading backups - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading backups - $0"), errMsg)
                     );
                     this.setState({
                         backupsLoading: false,
@@ -1498,10 +1498,10 @@ export class Database extends React.Component {
                                 }, this.update_tree_nodes);
                             })
                 }).fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading schema - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading schema - $0"), errMsg)
                     );
                     this.update_tree_nodes();
                 });

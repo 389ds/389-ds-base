@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Alert,
 	Button,
@@ -212,14 +212,14 @@ export class GlobalPwPolicy extends React.Component {
                 );
             })
             .fail(err => {
-                const errMsg = JSON.parse(err);
+                const errMsg = getApiErrorMessage(err);
                 this.handleLoadGlobal();
                 this.setState({
                     saving: false
                 });
                 this.props.addNotification(
                     "error",
-                    cockpit.format(_("Error updating number of iterations for password storage scheme - $0"), errMsg.desc)
+                    cockpit.format(_("Error updating number of iterations for password storage scheme - $0"), errMsg)
                 );
             });
     }
@@ -308,14 +308,14 @@ export class GlobalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -413,14 +413,14 @@ export class GlobalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -491,14 +491,14 @@ export class GlobalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -602,14 +602,14 @@ export class GlobalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -672,14 +672,14 @@ export class GlobalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
                     );
                 });
     }
@@ -734,7 +734,7 @@ export class GlobalPwPolicy extends React.Component {
                 this.setState(stateUpdates);
             })
             .fail(err => {
-                const errMsg = JSON.parse(err);
+                const errMsg = getApiErrorMessage(err);
                 this.setState({
                     loading: false,
                     'nsslapd-pwdpbkdf2numiterations': '',
@@ -742,7 +742,7 @@ export class GlobalPwPolicy extends React.Component {
                 });
                 this.props.addNotification(
                     "error",
-                    cockpit.format(_("Error loading password storage settings - $0"), errMsg.desc)
+                    cockpit.format(_("Error loading password storage settings - $0"), errMsg)
                 );
             });
     }
@@ -957,14 +957,14 @@ export class GlobalPwPolicy extends React.Component {
                         });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true,
                         loading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading global password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading global password policy - $0"), errMsg)
                     );
                 });
     }

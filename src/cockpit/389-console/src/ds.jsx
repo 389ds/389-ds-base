@@ -9,7 +9,7 @@ import { Server } from "./server.jsx";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
 import { LDAPEditor } from "./LDAPEditor.jsx";
-import { log_cmd } from "./lib/tools.jsx";
+import { getApiErrorMessage, log_cmd } from "./lib/tools.jsx";
 import {
 	Alert,
 	AlertGroup,
@@ -289,8 +289,8 @@ export class DSInstance extends React.Component {
                                                 }
                                             })
                                             .fail(err => {
-                                                const errMsg = JSON.parse(err);
-                                                console.log("setServerId failed: ", errMsg.desc);
+                                                const errMsg = getApiErrorMessage(err);
+                                                console.log("setServerId failed: ", errMsg);
                                                 this.setState(
                                                     {
                                                         pageLoadingState: {
@@ -313,8 +313,8 @@ export class DSInstance extends React.Component {
                                             });
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
-                                    console.log("setServerId failed: ", errMsg.desc);
+                                    const errMsg = getApiErrorMessage(err);
+                                    console.log("setServerId failed: ", errMsg);
                                     this.setState(
                                         {
                                             pageLoadingState: {
@@ -355,8 +355,8 @@ export class DSInstance extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log("setServerId failed: ", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("setServerId failed: ", errMsg);
                     this.setState(
                         {
                             pageLoadingState: {
@@ -478,12 +478,12 @@ export class DSInstance extends React.Component {
                 })
                 .fail(err => {
                     this.updateProgress(25);
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (!initializing) {
                         // Don't log an error when first initializing the UI
                         this.addNotification(
                             "error",
-                            cockpit.format(_("Load Backups operation failed - $0"), errMsg.desc)
+                            cockpit.format(_("Load Backups operation failed - $0"), errMsg)
                         );
                     }
                     this.setState({
@@ -528,11 +528,11 @@ export class DSInstance extends React.Component {
                     this.addNotification("success", _("Instance was successfully removed"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadInstanceList();
                     this.addNotification(
                         "error",
-                        cockpit.format(_("Error during instance remove operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during instance remove operation - $0"), errMsg)
                     );
                 });
         this.closeDeleteConfirm();
@@ -576,20 +576,20 @@ export class DSInstance extends React.Component {
                                     this.addNotification("success", cockpit.format(_("Instance was successfully $0"), action + "ed"));
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.addNotification(
                                         "error",
-                                        cockpit.format(_("Error during instance $0 operation - $1"), action, errMsg.desc)
+                                        cockpit.format(_("Error during instance $0 operation - $1"), action, errMsg)
                                     );
                                     this.loadInstanceList(this.state.serverId, action);
                                 });
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.addNotification(
                         "error",
-                        cockpit.format(_("Error during instance check status operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during instance check status operation - $0"), errMsg)
                     );
                     this.loadInstanceList(this.state.serverId, action);
                 });

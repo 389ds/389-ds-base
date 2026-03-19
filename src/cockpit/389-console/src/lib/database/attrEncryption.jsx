@@ -9,7 +9,7 @@ import {
 } from '@patternfly/react-core';
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -98,11 +98,11 @@ export class AttrEncryption extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to add encrypted attribute - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to add encrypted attribute - $0"), errMsg)
                     );
                     this.setState({
                         saving: false,
@@ -131,11 +131,11 @@ export class AttrEncryption extends React.Component {
                     this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting encrypted attribute - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting encrypted attribute - $0"), errMsg)
                     );
                     this.closeConfirmAttrDelete();
                 });

@@ -24,7 +24,7 @@ import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -309,8 +309,8 @@ class AttributeUniqueness extends React.Component {
                 })
                 .fail(err => {
                     if (err !== 0) {
-                        const errMsg = JSON.parse(err);
-                        console.log("loadConfigs failed", errMsg.desc);
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("loadConfigs failed", errMsg);
                     }
                 });
     }
@@ -581,10 +581,10 @@ class AttributeUniqueness extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -644,10 +644,10 @@ class AttributeUniqueness extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.loadConfigs();
                     this.closeConfirmDelete();

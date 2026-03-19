@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     ReportCredentialsTable,
@@ -232,8 +232,8 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg.desc}`);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg}`);
                     this.setState({
                         loadingDSRC: false,
                     });
@@ -280,10 +280,10 @@ export class ReplMonitor extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: $0"), errMsg.desc)
+                            cockpit.format(_("Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: $0"), errMsg)
                         );
                     });
         }
@@ -756,21 +756,21 @@ export class ReplMonitor extends React.Component {
                                             );
                                         })
                                         .fail(err => {
-                                            const errMsg = JSON.parse(err);
+                                            const errMsg = getApiErrorMessage(err);
                                             this.setState({
                                                 showConfirmOverwriteDSRC: false
                                             });
                                             this.props.addNotification(
                                                 "error",
-                                                cockpit.format(_("Failed to delete from .dsrc file: $0"), errMsg.desc)
+                                                cockpit.format(_("Failed to delete from .dsrc file: $0"), errMsg)
                                             );
                                         });
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Failed to add to .dsrc content: $0"), errMsg.desc)
+                                    cockpit.format(_("Failed to add to .dsrc content: $0"), errMsg)
                                 );
                                 this.setState({
                                     showConfirmOverwriteDSRC: false
@@ -778,10 +778,10 @@ export class ReplMonitor extends React.Component {
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get .dsrc content: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to get .dsrc content: $0"), errMsg)
                     );
                     this.setState({
                         showConfirmOverwriteDSRC: false
@@ -918,10 +918,10 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(() => {
-                    const errMsg = JSON.parse(buffer);
+                    const errMsg = getApiErrorMessage(buffer);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Sync report has failed - $0"), errMsg.desc)
+                        cockpit.format(_("Sync report has failed - $0"), errMsg)
                     );
                     this.setState({
                         dynamicCredentialsList: [],
@@ -1142,10 +1142,10 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1168,10 +1168,10 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1206,10 +1206,10 @@ export class ReplMonitor extends React.Component {
                     this.loadDSRC();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1237,10 +1237,10 @@ export class ReplMonitor extends React.Component {
                     this.loadDSRC();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });

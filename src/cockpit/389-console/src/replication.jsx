@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
 import PropTypes from "prop-types";
 import {
@@ -652,11 +652,11 @@ export class Replication extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if (errMsg.desc !== "No such object") {
+                    const errMsg = getApiErrorMessage(err);
+                    if (errMsg !== "No such object") {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg.desc)
+                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg)
                         );
                     }
                     this.setState({
@@ -994,12 +994,12 @@ export class Replication extends React.Component {
                                                                     });
                                                                 })
                                                                 .fail(err => {
-                                                                    const errMsg = JSON.parse(err);
-                                                                    if (errMsg.desc !== "No such object" &&
-                                                                        !errMsg.desc.includes('There is no RUV for suffix')) {
+                                                                    const errMsg = getApiErrorMessage(err);
+                                                                    if (errMsg !== "No such object" &&
+                                                                        !errMsg.includes('There is no RUV for suffix')) {
                                                                         this.props.addNotification(
                                                                             "error",
-                                                                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg.desc)
+                                                                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg)
                                                                         );
                                                                     }
                                                                     this.setState({
@@ -1012,10 +1012,10 @@ export class Replication extends React.Component {
                                                                 });
                                                     })
                                                     .fail(err => {
-                                                        const errMsg = JSON.parse(err);
+                                                        const errMsg = getApiErrorMessage(err);
                                                         this.props.addNotification(
                                                             "error",
-                                                            cockpit.format(_("Error loading winsync agreements - $0"), errMsg.desc)
+                                                            cockpit.format(_("Error loading winsync agreements - $0"), errMsg)
                                                         );
                                                         this.setState({
                                                             winsyncLoading: false,
@@ -1027,10 +1027,10 @@ export class Replication extends React.Component {
                                                     });
                                             })
                                             .fail(err => {
-                                                const errMsg = JSON.parse(err);
+                                                const errMsg = getApiErrorMessage(err);
                                                 this.props.addNotification(
                                                     "error",
-                                                    cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg.desc)
+                                                    cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg)
                                                 );
                                                 this.setState({
                                                     agmtsLoading: false,
@@ -1043,10 +1043,10 @@ export class Replication extends React.Component {
                             })
                             .fail(err => {
                                 // changelog failure
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error loading replication changelog configuration - $0"), errMsg.desc)
+                                    cockpit.format(_("Error loading replication changelog configuration - $0"), errMsg)
                                 );
                                 this.setState({
                                     changelogLoading: false,
@@ -1093,10 +1093,10 @@ export class Replication extends React.Component {
                         attrsLoading: false,
                     });
                 }).fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading attributes - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading attributes - $0"), errMsg)
                     );
                     this.setState({
                         attributes: [],
