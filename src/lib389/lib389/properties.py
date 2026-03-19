@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -453,6 +453,7 @@ INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
 ####################################
 
 TASK_WAIT = "wait"
+TASK_WATCH = "watch"
 TASK_TOMB_STRIP = "strip-csn"
 EXPORT_REPL_INFO = "repl-info"
 

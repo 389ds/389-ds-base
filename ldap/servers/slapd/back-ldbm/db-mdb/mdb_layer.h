@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2025 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -379,7 +379,7 @@ int dbmdb_idl_new_compare_dups(dbmdb_dbi_t * db __attribute__((unused)), const M
 
 int dbmdb_delete_indices(ldbm_instance *inst);
 uint32_t dbmdb_get_optimal_block_size(struct ldbminfo *li);
-int dbmdb_copyfile(char *source, char *destination, int overwrite, int mode);
+int dbmdb_copyfile(char *source, char *destination, int overwrite, int mode, Slapi_Task *task);
 int dbmdb_delete_instance_dir(backend *be);
 uint64_t dbmdb_database_size(struct ldbminfo *li);
 

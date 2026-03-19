@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -166,7 +166,13 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         return -1;
     }
 
-    directory = rel2abspath(rawdirectory);
+    if(!is_abspath(rawdirectory)) {
+        char *bakdir = config_get_bakdir();
+        directory = slapi_ch_smprintf("%s/%s", bakdir, rawdirectory);
+        slapi_ch_free_string(&bakdir);
+    } else {
+        directory = slapi_ch_strdup(rawdirectory);
+    }
 
     /* No ldbm be's exist until we process the config information. */
     if (run_from_cmdline) {
@@ -309,7 +315,13 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
     }
 
     /* Initialize directory */
-    directory = rel2abspath(rawdirectory);
+    if (!is_abspath(rawdirectory)) {
+        char *bakdir = config_get_bakdir();
+        directory = slapi_ch_smprintf("%s/%s", bakdir, rawdirectory);
+        slapi_ch_free_string(&bakdir);
+    } else {
+        directory = slapi_ch_strdup(rawdirectory);
+    }
 
     if (stat(directory, &sbuf) == 0) {
         if (slapd_comp_path(directory, li->li_directory) == 0) {

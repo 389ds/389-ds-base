@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,7 +13,7 @@ import ldap
 from lib389._constants import DN_LDBM, DN_CHAIN, DN_PLUGIN, DEFAULT_BENAME
 from lib389.properties import BACKEND_OBJECTCLASS_VALUE, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_CHAIN_BIND_DN, \
                               BACKEND_CHAIN_BIND_PW, BACKEND_CHAIN_URLS, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_NAME, \
-                              BACKEND_SUFFIX, BACKEND_SAMPLE_ENTRIES, TASK_WAIT
+                              BACKEND_SUFFIX, BACKEND_SAMPLE_ENTRIES, TASK_WAIT, TASK_WATCH
 from lib389.utils import normalizeDN, ensure_str, assert_c
 from lib389 import Entry
 
@@ -1017,14 +1017,13 @@ class Backend(DSLdapObject):
         if reindex:
             self.reindex(attr_name)
 
-    def reindex(self, attrs=None, wait=False):
+    def reindex(self, attrs=None, wait=False, watch=False):
         """Reindex the attributes for this backend
         :param attrs - an optional list of attributes to index
         :param wait - Set to true to wait for task to complete
         """
-        args = None
-        if wait:
-            args = {TASK_WAIT: True}
+        args = {TASK_WAIT: wait, TASK_WATCH: watch}
+
         bename = self.get_attr_val_utf8('cn')
         reindex_task = Tasks(self._instance)
         reindex_task.reindex(benamebase=bename, attrname=attrs, args=args)

@@ -1,5 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
+import { LogViewer } from '@patternfly/react-log-viewer';
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { AttrEncryption } from "./attrEncryption.jsx";
 import { SuffixConfig } from "./suffixConfig.jsx";
@@ -72,13 +73,18 @@ export class Suffix extends React.Component {
             showExportModal: false,
             ldifLocation: "",
             attrEncryption: false,
-            exportSpinner: false,
             showConfirmLDIFImport: false,
             importLDIFName: "",
             deleleLDIFName: "",
             modalChecked: false,
             modalSpinning: false,
             includeReplData: false,
+            importBuffer: "",
+            exportBuffer: "",
+            reindexBuffer: "",
+            importCompleted: false,
+            exportCompleted: false,
+            reindexCompleted: false,
             // Reindex all
             showReindexConfirm: false,
             // Create Sub Suffix
@@ -184,12 +190,15 @@ export class Suffix extends React.Component {
             attrEncryption: false,
             showImportModal: true,
             errObj: {},
+            importCompleted: false,
         });
     }
 
     closeImportModal() {
         this.setState({
-            showImportModal: false
+            showImportModal: false,
+            importBuffer: "",
+            importCompleted: false,
         });
     }
 
@@ -248,6 +257,8 @@ export class Suffix extends React.Component {
             showConfirmLDIFImport: false,
             modalChecked: false,
             modalSpinning: false,
+            importBuffer: "",
+            importCompleted: false,
         });
     }
 
@@ -255,16 +266,20 @@ export class Suffix extends React.Component {
         // Do import
         const import_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "import", this.props.suffix, this.state.importLDIFName, "--encrypted"
+            "backend", "import", this.props.suffix, this.state.importLDIFName, "--encrypted",
+            "--watch"
         ];
 
         this.setState({
             modalSpinning: true,
+            importBuffer: "",
         });
+
+        let buffer = "";
 
         log_cmd("doImport", "Do online import", import_cmd);
         cockpit
-                .spawn(import_cmd, { superuser: true, err: "message" })
+                .spawn(import_cmd, { pty: true, superuser: true, err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -272,8 +287,8 @@ export class Suffix extends React.Component {
                     );
                     this.setState({
                         modalSpinning: false,
-                        showConfirmLDIFImport: false,
                         showImportModal: false,
+                        importCompleted: true,
                     });
                 })
                 .fail(err => {
@@ -284,7 +299,13 @@ export class Suffix extends React.Component {
                     );
                     this.setState({
                         modalSpinning: false,
-                        showConfirmLDIFImport: false
+                        importCompleted: true,
+                    });
+                })
+                .stream(line => {
+                    buffer += line;
+                    this.setState({
+                        importBuffer: buffer
                     });
                 });
     }
@@ -307,16 +328,19 @@ export class Suffix extends React.Component {
             ldifLocation: "",
             attrEncryption: false,
             showExportModal: true,
-            exportSpinner: false,
+            modalSpinning: false,
             includeReplData: false,
             errObj: {},
+            exportCompleted: false,
         });
     }
 
     closeExportModal() {
         this.setState({
             showExportModal: false,
-            exportSpinner: false
+            modalSpinning: false,
+            exportBuffer: "",
+            exportCompleted: false,
         });
     }
 
@@ -350,7 +374,8 @@ export class Suffix extends React.Component {
         // Do Export
         const export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation
+            "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation,
+            "--watch"
         ];
 
         if (this.state.attrEncryption) {
@@ -362,22 +387,26 @@ export class Suffix extends React.Component {
         }
 
         this.setState({
-            exportSpinner: true,
+            modalSpinning: true,
+            exportBuffer: "",
         });
+        let buffer = "";
 
         log_cmd("doExport", "Do online export", export_cmd);
         cockpit
-                .spawn(export_cmd, { superuser: true, err: "message" })
+                .spawn(export_cmd, { pty: true, superuser: true, err: "message" })
                 .done(content => {
                     this.props.reloadLDIFs();
                     this.setState({
-                        showExportModal: false,
+                        modalSpinning: false,
+                        exportCompleted: true,
                     });
+
                     const cmd = [
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                         "config", "get", "nsslapd-ldifdir"
                     ];
-                    log_cmd("doExport", "Get the backup directory", cmd);
+                    log_cmd("doExport", "Get the ldif directory", cmd);
                     cockpit
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
@@ -398,7 +427,8 @@ export class Suffix extends React.Component {
                                     "error",
                                     cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg)
                                 );
-                            });
+                            })
+
                 })
                 .fail(err => {
                     const errMsg = getApiErrorMessage(err);
@@ -408,7 +438,14 @@ export class Suffix extends React.Component {
                         cockpit.format(_("Error exporting database - $0"), errMsg)
                     );
                     this.setState({
-                        showExportModal: false,
+                        modalSpinning: false,
+                        exportCompleted: true,
+                    });
+                })
+                .stream(line => {
+                    buffer += line;
+                    this.setState({
+                        exportBuffer: buffer
                     });
                 });
     }
@@ -421,6 +458,7 @@ export class Suffix extends React.Component {
             showReindexConfirm: true,
             modalChecked: false,
             modalSpinning: false,
+            reindexCompleted: false,
         });
     }
 
@@ -429,19 +467,22 @@ export class Suffix extends React.Component {
             showReindexConfirm: false,
             modalChecked: false,
             modalSpinning: false,
+            reindexCompleted: false,
         });
     }
 
     doReindex() {
         // Show index status modal
         this.setState({
-            modalSpinning: true
+            modalSpinning: true,
+            reindexBuffer: "",
         });
+        let buffer = "";
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "index", "reindex", "--wait", this.props.suffix];
+            "backend", "index", "reindex", "--watch", this.props.suffix];
         log_cmd("doReindex", "Reindex all attributes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -449,7 +490,7 @@ export class Suffix extends React.Component {
                     );
                     this.setState({
                         modalSpinning: false,
-                        showReindexConfirm: false,
+                        reindexCompleted: true,
                     });
                 })
                 .fail(err => {
@@ -460,7 +501,13 @@ export class Suffix extends React.Component {
                     );
                     this.setState({
                         modalSpinning: false,
-                        showReindexConfirm: false,
+                        reindexCompleted: true,
+                    });
+                })
+                .stream(line => {
+                    buffer += line;
+                    this.setState({
+                        reindexBuffer: buffer
                     });
                 });
     }
@@ -878,13 +925,44 @@ export class Suffix extends React.Component {
             </DropdownItem>,
         ];
 
+        let confirmImportItem = this.state.importLDIFName;
+        if (this.state.importBuffer !== "") {
+            confirmImportItem = <LogViewer
+                data={this.state.importBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.importBuffer.length}
+                height="200px"
+            />;
+        }
+        let exportItem = null;
+        if (this.state.exportBuffer !== "") {
+            exportItem = <LogViewer
+                data={this.state.exportBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.exportBuffer.length}
+                height="200px"
+            />;
+        }
+        let reindexItem = null;
+        if (this.state.reindexBuffer !== "") {
+            reindexItem = <LogViewer
+                data={this.state.reindexBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.reindexBuffer.length}
+                height="200px"
+            />;
+        }
+
         return (
             <div id="suffix-page">
                 <Grid>
                     <GridItem className="ds-suffix-header" span={9}>
                         <SuffixIcon />
                         &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh suffix")}
                             onClick={() => this.props.reload(this.props.suffix)}
@@ -1022,22 +1100,24 @@ export class Suffix extends React.Component {
                     handleChange={this.onChange}
                     actionHandler={this.importLDIF}
                     spinning={this.state.modalSpinning}
-                    item={this.state.importLDIFName}
+                    item={confirmImportItem}
                     checked={this.state.modalChecked}
                     mTitle={_("Initialize Database From LDIF")}
                     mMsg={_("Are you sure you want to initialize the database (it will permanently overwrite the current database)?")}
                     mSpinningMsg={_("Initializing Database ...")}
-                    mBtnName={_("Initialize Database")}
+                    mBtnName={this.state.importCompleted ? null : _("Initialize Database")}
                 />
                 <ExportModal
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
                     handleChange={this.onExportChange}
                     saveHandler={this.doExport}
-                    spinning={this.state.exportSpinner}
+                    spinning={this.state.modalSpinning}
+                    item={exportItem}
                     error={this.state.errObj}
                     includeReplData={this.state.includeReplData}
                     saveBtnDisabled={this.state.ldifLocation === ""}
+                    exportCompleted={this.state.exportCompleted}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
@@ -1045,12 +1125,12 @@ export class Suffix extends React.Component {
                     handleChange={this.onChange}
                     actionHandler={this.doReindex}
                     spinning={this.state.modalSpinning}
-                    item={this.props.suffix}
+                    item={reindexItem}
                     checked={this.state.modalChecked}
                     mTitle={_("Reindex All Attributes")}
                     mMsg={_("Are you sure you want to reindex all the attribute indexes?")}
                     mSpinningMsg={_("Reindexing Database ...")}
-                    mBtnName={_("Reindex")}
+                    mBtnName={this.state.reindexCompleted ? null : _("Reindex")}
                 />
             </div>
         );

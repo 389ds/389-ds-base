@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2025 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -801,7 +801,7 @@ dbmdb_database_size(struct ldbminfo *li)
  */
 
 int
-dbmdb_copyfile(char *source, char *destination, int overwrite __attribute__((unused)), int mode)
+dbmdb_copyfile(char *source, char *destination, int overwrite __attribute__((unused)), int mode, Slapi_Task *task)
 {
 #ifdef DB_USE_64LFS
 #define OPEN_FUNCTION dbmdb_open_large
@@ -824,6 +824,10 @@ dbmdb_copyfile(char *source, char *destination, int overwrite __attribute__((unu
     if (-1 == source_fd) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_copyfile", "Failed to open source file %s by \"%s\"\n",
                       source, strerror(errno));
+        if (task) {
+            slapi_task_log_notice(task, "Failed to open source file %s by \"%s\"",
+                                  source, strerror(errno));
+        }
         goto error;
     }
     /* Open destination file */
@@ -831,10 +835,17 @@ dbmdb_copyfile(char *source, char *destination, int overwrite __attribute__((unu
     if (-1 == dest_fd) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_copyfile", "Failed to open dest file %s by \"%s\"\n",
                       destination, strerror(errno));
+        if (task) {
+            slapi_task_log_notice(task, "Failed to open dest file %s by \"%s\"",
+                                  destination, strerror(errno));
+        }
         goto error;
     }
     slapi_log_err(SLAPI_LOG_INFO,
                   "dbmdb_copyfile", "Copying %s to %s\n", source, destination);
+    if (task) {
+        slapi_task_log_notice(task, "Copying %s to %s", source, destination);
+    }
     /* Loop round reading data and writing it */
     while (1) {
         int i;
@@ -845,6 +856,10 @@ dbmdb_copyfile(char *source, char *destination, int overwrite __attribute__((unu
             if (return_value < 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_copyfile", "Failed to read by \"%s\": rval = %d\n",
                               strerror(errno), return_value);
+                if (task) {
+                    slapi_task_log_notice(task, "Failed to read by \"%s\": rval = %d",
+                                          strerror(errno), return_value);
+                }
             }
             break;
         }
@@ -859,10 +874,17 @@ dbmdb_copyfile(char *source, char *destination, int overwrite __attribute__((unu
                 /* means error */
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %d bytes\n",
                               strerror(errno), return_value, bytes_to_write);
+                if (task) {
+                    slapi_task_log_notice(task, "Failed to write by \"%s\"; real: %d bytes, exp: %d bytes",
+                                          strerror(errno), return_value, bytes_to_write);
+                }
                 if (return_value > 0) {
                     bytes_to_write -= return_value;
                     ptr += return_value;
                     slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_copyfile", "Retrying to write %d bytes\n", bytes_to_write);
+                    if (task) {
+                        slapi_task_log_notice(task, "Retrying to write %d bytes", bytes_to_write);
+                    }
                 } else {
                     break;
                 }
@@ -960,7 +982,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     if (task) {
         slapi_task_log_notice(task, "Backing up file (%s)", pathname2);
     }
-    return_value = dbmdb_copyfile(pathname1, pathname2, 0, li->li_mode | 0400);
+    return_value = dbmdb_copyfile(pathname1, pathname2, 0, li->li_mode | 0400, task);
     if (0 > return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dbmdb_backup", "Error in copying version file "
@@ -982,8 +1004,11 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     /* Backup the config files */
     if (ldbm_archive_config(dest_dir, task) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup",
-                "Backup of config files failed or is incomplete\n");
-         if (0 == return_value) {
+                      "Backup of config files failed or is incomplete\n");
+        if (task) {
+            slapi_task_log_notice(task, "Backup of config files failed or is incomplete");
+        }
+        if (0 == return_value) {
             return_value = -1;
         }
     }
@@ -1022,7 +1047,7 @@ dbmdb_restore_file(struct ldbminfo *li, Slapi_Task *task, const char *src_dir, c
 {
     char *pathname1 = slapi_ch_smprintf("%s/%s", src_dir, filename);
     char *pathname2 = slapi_ch_smprintf("%s/%s", MDB_CONFIG(li)->home, filename);
-    int return_value = dbmdb_copyfile(pathname1, pathname2, PR_TRUE, li->li_mode);
+    int return_value = dbmdb_copyfile(pathname1, pathname2, PR_TRUE, li->li_mode, task);
     if (return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dbmdb_restore", "Failed to copy database map file to %s.\n", pathname2);
@@ -1065,8 +1090,8 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         }
         return LDAP_UNWILLING_TO_PERFORM;
     } else if (!S_ISDIR(sbuf.st_mode)) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Backup directory %s is not "
-                                                        "a directory.\n",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore",
+                      "Backup directory %s is not a directory.\n",
                       src_dir);
         if (task) {
             slapi_task_log_notice(task, "Restore: backup directory %s is not a directory.",
@@ -1129,14 +1154,21 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         goto error_out;
     }
 
-    if (0 != tmp_rval)
+    if (0 != tmp_rval) {
         slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_restore", "Unable to verify the index configuration\n");
+        if (task) {
+            slapi_task_log_notice(task, "Unable to verify the index configuration");
+        }
+    }
 
     if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* command line: close the database down again */
         tmp_rval = dblayer_close(li, dbmode);
         if (0 != tmp_rval) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Failed to close database\n");
+            if (task) {
+                slapi_task_log_notice(task, "Failed to close database");
+            }
         }
     } else {
         allinstance_set_busy(li); /* on-line mode */
