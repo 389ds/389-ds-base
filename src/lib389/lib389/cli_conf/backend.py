@@ -271,7 +271,7 @@ def backend_import(inst, basedn, log, args):
                           exclude_suffixes=args.exclude_suffixes)
     if args.watch:
         task.watch()
-    elif args.wait:
+    else:
         task.wait(timeout=args.timeout)
     result = task.get_exit_code()
     warning = task.get_task_warn()
@@ -309,7 +309,7 @@ def backend_export(inst, basedn, log, args):
                           include_suffixes=args.include_suffixes, exclude_suffixes=args.exclude_suffixes)
     if args.watch:
         task.watch()
-    elif args.wait:
+    else:
         task.wait(timeout=args.timeout)
     result = task.get_exit_code()
 

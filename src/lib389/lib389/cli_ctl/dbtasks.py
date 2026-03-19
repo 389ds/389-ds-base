@@ -28,7 +28,7 @@ class IndexOrdering(Enum):
 
 def dbtasks_db2index(inst, log, args):
     inst.log = log
-    if not inst.db2index(bename=args.backend, attrs=args.attr, watch=args.watch):
+    if not inst.db2index(bename=args.backend, attrs=args.attr):
         log.fatal("db2index failed")
         return False
     else:
@@ -68,7 +68,8 @@ def dbtasks_db2ldif(inst, log, args):
 
     # Export backend
     if not inst.db2ldif(bename=args.backend, encrypt=args.encrypted, repl_data=args.replication,
-                        outputfile=args.ldif, suffixes=None, excludeSuffixes=None, export_cl=False):
+                        outputfile=args.ldif, suffixes=None, excludeSuffixes=None, export_cl=False,
+                        watch=args.watch):
         log.fatal("db2ldif failed")
         return False
     else:
@@ -514,7 +515,6 @@ def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     db2index_parser.add_argument('backend', help="The backend to reindex. IE userRoot")
     db2index_parser.add_argument('--attr', action='append', help="An attribute to reindex. IE: --attr member --attr cn ...")
-    db2index_parser.add_argument('--watch', action='store_true', help='Watch the status of the db2index task')
     db2index_parser.set_defaults(func=dbtasks_db2index)
 
     db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)

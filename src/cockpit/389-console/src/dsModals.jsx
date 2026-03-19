@@ -1018,8 +1018,9 @@ export class ManageBackupsModal extends React.Component {
                                 return;
                             }
                             cmd.push(this.state.backupName);
-                            cmd.push("--watch");
                         }
+                        cmd.push("--watch");
+
                         log_cmd("doBackup", "Doing backup of the server offline", cmd);
                         cockpit
                                 .spawn(cmd, { pty: true, superuser: true, err: "message" })

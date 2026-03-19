@@ -101,16 +101,28 @@ class Task(DSLdapObject):
             time_passed = time_passed + sleep_interval
             time.sleep(sleep_interval)
 
-    def watch(self, sleep_interval=2):
+    def watch(self, timeout=None):
+        """
+        Watch the task status and display new log output until the task is
+        complete or timeout is reached.
+        """
+        time_passed = 0
+        if timeout is None or timeout == 0:
+            timeout = None
+            self._log.debug("No timeout is set, this may take a long time ...")
+
         log = self.get_attr_val_utf8("nsTaskLog")
         if log is None:
             log = ""
         while not self.is_complete():
-            time.sleep(sleep_interval)
+            time.sleep(1)
             next_log = self.get_attr_val_utf8("nsTaskLog")
             if next_log is None:
                 next_log = ""
 
+            # We only want to display "new" output and not write the entire
+            # task log value. So we need to get a diff of the previous log
+            # value and the new one
             split_log = log.splitlines()
             split_next_log = next_log.splitlines()
             log_diff = []
@@ -119,11 +131,16 @@ class Task(DSLdapObject):
                     log_diff.append(line + "\n")
             log_out = ''.join(log_diff)
 
-            # Advance the log to the latest output
+            # Advance the "log" to the latest output for the next pass
             log = next_log
 
             if log_out != "":
                 self._log.info(log_out[:-1])
+
+            time_passed = time_passed + 1
+            if timeout is not None and time_passed >= timeout:
+                self._log.warning("Timeout reached, stopping watch ...")
+                break
 
     def create(self, rdn=None, properties={}, basedn=None):
         """Create a Task entry
@@ -476,7 +493,11 @@ class Tasks(object):
         '''check task status - task is complete when the nsTaskExitCode attr
         is set return a 2 tuple (true/false,code) first is false if task is
         running, true if done - if true, second is the exit code - if dowait
-        is True, this function will block until the task is complete'''
+        is True, this function will block until the task is complete
+
+        If "watch" is True then we wait for the task to finish and write status
+        updates to stdout.
+        '''
         attrlist = ['nsTaskLog', 'nsTaskStatus', 'nsTaskExitCode',
                     'nsTaskCurrentItem', 'nsTaskTotalItems', 'nsTaskWarning']
         done = False

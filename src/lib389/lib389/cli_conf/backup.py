@@ -30,7 +30,7 @@ def backup_create(inst, basedn, log, args):
     if args.watch:
         log.info("Creating backup: %s", archive)
         backup_task.watch()
-    elif args.wait:
+    else:
         backup_task.wait(timeout=args.timeout)
 
     result = backup_task.get_exit_code()
@@ -54,7 +54,7 @@ def backup_restore(inst, basedn, log, args):
     if args.watch:
         log.info("Restoring backup: %s", args.archive)
         restore_task.watch()
-    elif args.wait:
+    else:
         restore_task.wait(timeout=args.timeout)
 
     result = restore_task.get_exit_code()

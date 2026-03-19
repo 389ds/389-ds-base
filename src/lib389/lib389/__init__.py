@@ -2963,7 +2963,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def db2index(self, bename, suffixes=None, attrs=None, vlvTag=None, watch=False):
+    def db2index(self, bename, suffixes=None, attrs=None, vlvTag=None):
         """
         @param bename - The backend name to reindex
         @param suffixes - List/tuple of suffixes to reindex, currently unused
@@ -2988,9 +2988,6 @@ class DirSrv(SimpleLDAPObject, object):
                 for idx in indexes:
                     cmd.append('-t')
                     cmd.append(idx)
-
-        if watch:
-            cmd.append('-V')
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
