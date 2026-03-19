@@ -229,6 +229,13 @@ textarea {
     min-height: 250px;
     font-size: 14px !important;
     font-family: monospace !important;
+
+}
+
+.ds-progress-textarea {
+    min-height: 125px;
+    font-size: 12px !important;
+    font-family: monospace !important;
 }
 
 .ds-logarea {

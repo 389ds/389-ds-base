@@ -18,6 +18,7 @@ import {
     TabTitleText,
     TextInput,
     Text,
+    TextArea,
     TextContent,
     TextVariants,
     ValidatedOptions,
@@ -36,18 +37,18 @@ export class Backups extends React.Component {
             showConfirmBackup: false,
             showConfirmRestoreReplace: false,
             showConfirmLDIFReplace: false,
-            showRestoreSpinningModal: false,
-            showDelBackupSpinningModal: false,
             showBackupModal: false,
             backupSpinning: false,
             backupName: "",
             deleteBackup: "",
+            backupBuffer: "",
+            importBuffer: "",
+            exportBuffer: "",
+            restoreBuffer: "",
             // LDIF
             showConfirmLDIFDelete: false,
             showConfirmLDIFImport: false,
             showConfirmRestore: false,
-            showLDIFSpinningModal: false,
-            showLDIFDeleteSpinningModal: false,
             showExportModal: false,
             exportSpinner: false,
             includeReplData: false,
@@ -93,10 +94,30 @@ export class Backups extends React.Component {
         this.closeExportModal = this.closeExportModal.bind(this);
         this.validateLDIF = this.validateLDIF.bind(this);
         this.closeConfirmLDIFReplace = this.closeConfirmLDIFReplace.bind(this);
+
+        this.textAreaExportRef = React.createRef();
+        this.textAreaImportRef = React.createRef();
+        this.textAreaRestoreRef = React.createRef();
+        this.textAreaBackupRef = React.createRef();
     }
 
     componentDidMount() {
         this.props.enableTree();
+    }
+
+    componentDidUpdate() {
+        if (this.textAreaExportRef.current) {
+            this.textAreaExportRef.current.scrollTop = this.textAreaExportRef.current.scrollHeight;
+        }
+        if (this.textAreaImportRef.current) {
+            this.textAreaImportRef.current.scrollTop = this.textAreaImportRef.current.scrollHeight;
+        }
+        if (this.textAreaRestoreRef.current) {
+            this.textAreaRestoreRef.current.scrollTop = this.textAreaRestoreRef.current.scrollHeight;
+        }
+        if (this.textAreaBackupRef.current) {
+            this.textAreaBackupRef.current.scrollTop = this.textAreaBackupRef.current.scrollHeight;
+        }
     }
 
     handleShowExportModal () {
@@ -106,30 +127,20 @@ export class Backups extends React.Component {
             ldifName: "",
             ldifSuffix: this.props.suffixes[0],
             includeReplData: false,
+            exportBuffer: "",
         });
     }
 
     closeExportModal () {
         this.setState({
-            showExportModal: false
+            showExportModal: false,
+            exportBuffer: "",
         });
     }
 
     closeConfirmLDIFReplace () {
         this.setState({
             showConfirmLDIFReplace: false
-        });
-    }
-
-    showRestoreSpinningModal () {
-        this.setState({
-            showRestoreSpinningModal: true
-        });
-    }
-
-    closeRestoreSpinningModal () {
-        this.setState({
-            showRestoreSpinningModal: false
         });
     }
 
@@ -144,6 +155,7 @@ export class Backups extends React.Component {
     closeBackupModal () {
         this.setState({
             showBackupModal: false,
+            backupBuffer: "",
         });
     }
 
@@ -153,7 +165,8 @@ export class Backups extends React.Component {
             ldifName: name,
             ldifSuffix: suffix,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            importBuffer: "",
         });
     }
 
@@ -162,7 +175,8 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmLDIFImport: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            importBuffer: "",
         });
     }
 
@@ -191,7 +205,8 @@ export class Backups extends React.Component {
             showConfirmBackup: true,
             backupName: name,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: "",
         });
     }
 
@@ -200,7 +215,8 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmBackup: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: "",
         });
     }
 
@@ -209,7 +225,8 @@ export class Backups extends React.Component {
             showConfirmRestore: true,
             backupName: name,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            restoreBuffer: "",
         });
     }
 
@@ -218,7 +235,8 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmRestore: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            restoreBuffer: "",
         });
     }
 
@@ -245,7 +263,8 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmRestoreReplace: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: "",
         });
     }
 
@@ -257,16 +276,19 @@ export class Backups extends React.Component {
 
     importLDIF() {
         this.setState({
-            modalSpinning: true
+            modalSpinning: true,
+            importBuffer: "",
         });
 
+        let importBuffer = "";
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "import", this.state.ldifSuffix, this.state.ldifName, "--encrypted"
+            "backend", "import", this.state.ldifSuffix, this.state.ldifName, "--encrypted",
+            "--watch"
         ];
         log_cmd("importLDIF", "Importing LDIF", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                 .done(content => {
                     this.closeConfirmLDIFImport();
                     this.props.addNotification(
@@ -281,6 +303,12 @@ export class Backups extends React.Component {
                         "error",
                         cockpit.format(_("Failure importing LDIF - $0"), errMsg.desc)
                     );
+                })
+                .stream(data => {
+                    importBuffer += data;
+                    this.setState({
+                        importBuffer: importBuffer
+                    });
                 });
     }
 
@@ -341,14 +369,17 @@ export class Backups extends React.Component {
             }
             cmd.push(this.state.backupName);
         }
+        cmd.push("--watch");
 
+        let backupBuffer = "";
         this.setState({
-            backupSpinning: true
+            backupSpinning: true,
+            backupBuffer: "",
         });
 
         log_cmd("doBackup", "Add backup task", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.closeBackupModal();
@@ -377,9 +408,15 @@ export class Backups extends React.Component {
                                     "error",
                                     cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg.desc)
                                 );
+                                this.closeBackupModal();
                             });
-                }
-                )
+                })
+                .stream(data => {
+                    backupBuffer += data;
+                    this.setState({
+                        backupBuffer: backupBuffer
+                    });
+                })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.handleReload();
@@ -401,15 +438,17 @@ export class Backups extends React.Component {
         }
 
         this.setState({
-            modalSpinning: true
+            modalSpinning: true,
+            restoreBuffer: "",
         });
+        let restoreBuffer = "";
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backup", "restore", this.state.backupName
+            "backup", "restore", this.state.backupName, "--watch"
         ];
         log_cmd("restoreBackup", "Restoring server", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                 .done(content => {
                     this.closeConfirmRestore();
                     this.props.addNotification(
@@ -419,11 +458,17 @@ export class Backups extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.closeRestoreSpinningModal();
+                    this.closeConfirmRestore();
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
                     );
+                })
+                .stream(data => {
+                    restoreBuffer += data;
+                    this.setState({
+                        restoreBuffer: restoreBuffer
+                    });
                 });
     }
 
@@ -517,7 +562,8 @@ export class Backups extends React.Component {
         // Do import
         const export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "export", this.state.ldifSuffix, "--encrypted", "--ldif=" + this.state.ldifName
+            "backend", "export", this.state.ldifSuffix, "--encrypted", "--ldif=" + this.state.ldifName,
+            "--watch"
         ];
 
         if (this.state.includeReplData) {
@@ -526,8 +572,10 @@ export class Backups extends React.Component {
 
         this.setState({
             exportSpinner: true,
+            exportBuffer: "",
         });
 
+        let exportBuffer = "";
         log_cmd("doExport", "Do online export", export_cmd);
         cockpit
                 .spawn(export_cmd, { superuser: true, err: "message" })
@@ -575,6 +623,12 @@ export class Backups extends React.Component {
                     this.setState({
                         showExportModal: false,
                     });
+                })
+                .stream(data => {
+                    exportBuffer += data;
+                    this.setState({
+                        exportBuffer: exportBuffer
+                    });
                 });
     }
 
@@ -584,6 +638,44 @@ export class Backups extends React.Component {
         if (this.props.refreshing) {
             refreshBtnName = _("Refreshing ...");
             extraPrimaryProps.spinnerAriaValueText = _("Refreshing");
+        }
+
+        let restoreBufferItem = null;
+        if (this.state.restoreBuffer !== "") {
+            restoreBufferItem = <TextArea
+                className="ds-progress-textarea"
+                ref={this.textAreaRestoreRef}
+                aria-label="restore progress text area"
+                value={this.state.restoreBuffer} readOnly
+            />;
+        }
+
+        let exportBufferItem = null;
+        if (this.state.exportBuffer !== "") {
+            exportBufferItem = <TextArea
+                className="ds-progress-textarea"
+                ref={this.textAreaExportRef}
+                aria-label="export progress text area"
+                value={this.state.exportBuffer} readOnly
+            />;
+        }
+        let importBufferItem = null;
+        if (this.state.importBuffer !== "") {
+            importBufferItem = <TextArea
+                className="ds-progress-textarea"
+                ref={this.textAreaImportRef}
+                aria-label="import progress text area"
+                value={this.state.importBuffer} readOnly
+            />;
+        }
+        let backupBufferItem = null;
+        if (this.state.backupBuffer !== "") {
+            backupBufferItem = <TextArea
+                className="ds-progress-textarea"
+                ref={this.textAreaBackupRef}
+                aria-label="backup progress text area"
+                value={this.state.backupBuffer} readOnly
+            />;
         }
 
         return (
@@ -671,6 +763,7 @@ export class Backups extends React.Component {
                     includeReplData={this.state.includeReplData}
                     ldifSuffix={this.state.ldifSuffix}
                     ldifName={this.state.ldifName}
+                    watchBuffer={exportBufferItem}
                 />
                 <BackupModal
                     showModal={this.state.showBackupModal}
@@ -678,12 +771,8 @@ export class Backups extends React.Component {
                     handleChange={this.onChange}
                     saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
+                    watchBuffer={backupBufferItem}
                     error={this.state.errObj}
-                />
-                <ImportingModal
-                    showModal={this.state.showLDIFSpinningModal}
-                    closeHandler={this.closeLDIFSpinningModal}
-                    msg={this.state.ldifName}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFDelete}
@@ -704,7 +793,7 @@ export class Backups extends React.Component {
                     handleChange={this.onConfirmChange}
                     actionHandler={this.importLDIF}
                     spinning={this.state.modalSpinning}
-                    item={this.state.ldifName}
+                    item={importBufferItem ? importBufferItem : this.state.ldifName}
                     checked={this.state.modalChecked}
                     mTitle={_("Import LDIF File")}
                     mMsg={_("Are you sure you want to import this LDIF?")}
@@ -717,7 +806,7 @@ export class Backups extends React.Component {
                     handleChange={this.onConfirmChange}
                     actionHandler={this.restoreBackup}
                     spinning={this.state.modalSpinning}
-                    item={this.state.backupName}
+                    item={restoreBufferItem ? restoreBufferItem : this.state.backupName}
                     checked={this.state.modalChecked}
                     mTitle={_("Restore Database")}
                     mMsg={_("Are you sure you want to restore from this backup?")}
@@ -756,7 +845,7 @@ export class Backups extends React.Component {
                     handleChange={this.onConfirmChange}
                     actionHandler={this.doExport}
                     spinning={this.state.modalSpinning}
-                    item={this.state.ldifName}
+                    item={exportBufferItem ? exportBufferItem : this.state.ldifName}
                     checked={this.state.modalChecked}
                     mTitle={_("Replace Existing LDIF File")}
                     mMsg={_("A LDIF file already exists with the same name, do you want to replace it?")}
@@ -780,6 +869,8 @@ class ExportModal extends React.Component {
             error,
             ldifSuffix,
             ldifName,
+            includeReplData,
+            watchBuffer,
         } = this.props;
         let createBtnName = _("Create LDIF");
         const extraPrimaryProps = {};
@@ -860,13 +951,16 @@ class ExportModal extends React.Component {
                             <Checkbox
                                 id="includeReplData"
                                 className="ds-indent ds-margin-top"
-                                isChecked={this.props.includeReplData}
+                                isChecked={includeReplData}
                                 onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 title={_("Include the replication metadata needed to restore or initialize another replica.")}
                                 label={_("Include Replication Data")}
                             />
+                        </GridItem>
+                        <GridItem span={12} className="ds-margin-top-lg">
+                            {watchBuffer}
                         </GridItem>
                     </Grid>
                     {exportMsg}
@@ -884,6 +978,7 @@ export class BackupModal extends React.Component {
             handleChange,
             saveHandler,
             spinning,
+            watchBuffer,
             error
         } = this.props;
         let createBtnName = _("Create Backup");
@@ -943,40 +1038,11 @@ export class BackupModal extends React.Component {
                                 validated={error.backupName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
+                        <GridItem span={12} className="ds-margin-top-lg">
+                            {watchBuffer}
+                        </GridItem>
                     </Grid>
                     {exportMsg}
-                </Form>
-            </Modal>
-        );
-    }
-}
-
-export class ImportingModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            msg
-        } = this.props;
-
-        return (
-            <Modal
-                variant={ModalVariant.small}
-                title={_("Import LDIF File")}
-                isOpen={showModal}
-                aria-labelledby="ds-modal"
-                onClose={closeHandler}
-                actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Close")}
-                    </Button>
-                ]}
-            >
-                <Form horizontal autoComplete="off">
-                    <div className="ds-modal-spinner">
-                        <Spinner size="md" />{_("Importing LDIF ")}<b>{msg}</b> ...
-                        <p className="ds-margin-top"><font size="2">{_("(You can safely close this window)")})</font></p>
-                    </div>
                 </Form>
             </Modal>
         );
@@ -992,7 +1058,11 @@ ExportModal.propTypes = {
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
-    suffixes: PropTypes.array
+    suffixes: PropTypes.array,
+    includeReplData: PropTypes.bool,
+    ldifSuffix: PropTypes.string,
+    ldifName: PropTypes.string,
+    watchBuffer: PropTypes.node,
 };
 
 BackupModal.propTypes = {
@@ -1002,12 +1072,7 @@ BackupModal.propTypes = {
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
-};
-
-ImportingModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    msg: PropTypes.string
+    watchBuffer: PropTypes.node,
 };
 
 Backups.propTypes = {

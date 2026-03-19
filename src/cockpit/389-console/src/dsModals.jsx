@@ -25,6 +25,7 @@ import {
     Modal,
     ModalVariant,
     NumberInput,
+    TextArea,
     TextInput,
     ValidatedOptions,
     Spinner,
@@ -800,7 +801,8 @@ export class ManageBackupsModal extends React.Component {
             deleteBackup: "",
             modalSpinning: false,
             modalChecked: false,
-            errObj: {}
+            errObj: {},
+            backupBuffer: ""
         };
 
         this.handleNavSelect = this.handleNavSelect.bind(this);
@@ -820,6 +822,14 @@ export class ManageBackupsModal extends React.Component {
         this.closeBackupModal = this.closeBackupModal.bind(this);
         this.validateBackup = this.validateBackup.bind(this);
         this.closeConfirmRestoreReplace = this.closeConfirmRestoreReplace.bind(this);
+
+        this.textAreaBackupRef = React.createRef();
+    }
+
+    componentDidUpdate() {
+        if (this.textAreaBackupRef.current) {
+            this.textAreaBackupRef.current.scrollTop = this.textAreaBackupRef.current.scrollHeight;
+        }
     }
 
     closeExportModal() {
@@ -840,7 +850,8 @@ export class ManageBackupsModal extends React.Component {
 
     closeBackupModal() {
         this.setState({
-            showBackupModal: false
+            showBackupModal: false,
+            backupBuffer: ""
         });
     }
 
@@ -867,6 +878,7 @@ export class ManageBackupsModal extends React.Component {
             backupName: name,
             modalChecked: false,
             modalSpinning: false,
+            backupBuffer: ""
         });
     }
 
@@ -875,7 +887,8 @@ export class ManageBackupsModal extends React.Component {
         this.setState({
             showConfirmRestore: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: ""
         });
     }
 
@@ -916,7 +929,8 @@ export class ManageBackupsModal extends React.Component {
 
     doBackup() {
         this.setState({
-            backupSpinning: true
+            backupSpinning: true,
+            backupBuffer: ""
         });
 
         const cmd = ["dsctl", "-j", this.props.serverId, "status"];
@@ -942,10 +956,12 @@ export class ManageBackupsModal extends React.Component {
                             }
                             cmd.push(this.state.backupName);
                         }
+                        cmd.push("--watch");
 
+                        let backupBuffer = "";
                         log_cmd("doBackup", "Add backup task online", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                                 .done(content => {
                                     this.props.reload();
                                     this.closeBackupModal();
@@ -967,13 +983,12 @@ export class ManageBackupsModal extends React.Component {
                                             .fail(err => {
                                                 const errMsg = JSON.parse(err);
                                                 this.props.addNotification(
-                                                    "success",
-                                                    _("Server has been backed up.")
-                                                );
-                                                this.props.addNotification(
                                                     "error",
-                                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg.desc)
+                                                    cockpit.format(_("Error while trying to get the server's backup directory - $0"), errMsg.desc)
                                                 );
+                                                this.setState({
+                                                    backupBuffer: ""
+                                                });
                                             });
                                 })
                                 .fail(err => {
@@ -984,8 +999,15 @@ export class ManageBackupsModal extends React.Component {
                                         "error",
                                         cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     } else {
+                        let backupBuffer = "";
                         const cmd = ["dsctl", "-j", this.props.serverId, "db2bak"];
                         if (this.state.backupName !== "") {
                             if (bad_file_name(this.state.backupName)) {
@@ -996,10 +1018,11 @@ export class ManageBackupsModal extends React.Component {
                                 return;
                             }
                             cmd.push(this.state.backupName);
+                            cmd.push("--watch");
                         }
                         log_cmd("doBackup", "Doing backup of the server offline", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true })
+                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                                 .done(content => {
                                     this.props.reload();
                                     this.closeBackupModal();
@@ -1013,6 +1036,12 @@ export class ManageBackupsModal extends React.Component {
                                         "error",
                                         cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     }
                 })
@@ -1024,8 +1053,10 @@ export class ManageBackupsModal extends React.Component {
 
     restoreBackup() {
         this.setState({
-            modalSpinning: true
+            modalSpinning: true,
+            backupBuffer: ""
         });
+        let backupBuffer = "";
         const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
                 .spawn(cmd, { superuser: true })
@@ -1038,11 +1069,12 @@ export class ManageBackupsModal extends React.Component {
                             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                             "backup",
                             "restore",
-                            this.state.backupName
+                            this.state.backupName,
+                            "--watch"
                         ];
                         log_cmd("restoreBackup", "Restoring server online", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                                 .done(content => {
                                     this.closeConfirmRestore();
                                     this.props.addNotification("success", _("Server has been restored"));
@@ -1054,6 +1086,12 @@ export class ManageBackupsModal extends React.Component {
                                         "error",
                                         cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     } else {
                         const cmd = [
@@ -1061,11 +1099,12 @@ export class ManageBackupsModal extends React.Component {
                             "-j",
                             this.props.serverId,
                             "bak2db",
-                            this.state.backupName
+                            this.state.backupName,
+                            "--watch"
                         ];
                         log_cmd("restoreBackup", "Restoring server offline", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
                                 .done(content => {
                                     this.closeRestoreSpinningModal();
                                     this.props.addNotification("success", _("Server has been restored"));
@@ -1077,6 +1116,12 @@ export class ManageBackupsModal extends React.Component {
                                         "error",
                                         cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     }
                 })
@@ -1139,6 +1184,16 @@ export class ManageBackupsModal extends React.Component {
     render() {
         const { showModal, closeHandler, backups } = this.props;
 
+        let bufferItem = null;
+        if (this.state.backupBuffer !== "") {
+            bufferItem = <TextArea
+                className="ds-progress-textarea"
+                ref={this.textAreaBackupRef}
+                aria-label="backup progress text area"
+                value={this.state.backupBuffer} readOnly
+            />;
+        }
+
         return (
             <div>
                 <Modal
@@ -1167,6 +1222,7 @@ export class ManageBackupsModal extends React.Component {
                     handleChange={this.onModalChange}
                     saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
+                    watchBuffer={bufferItem}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
@@ -1175,7 +1231,7 @@ export class ManageBackupsModal extends React.Component {
                     handleChange={this.onModalChange}
                     actionHandler={this.restoreBackup}
                     spinning={this.state.modalSpinning}
-                    item={this.state.backupName}
+                    item={bufferItem ? bufferItem : this.state.backupName}
                     checked={this.state.modalChecked}
                     mTitle={_("Restore Backup")}
                     mMsg={_("Are you sure you want to restore this backup?")}
@@ -1201,7 +1257,7 @@ export class ManageBackupsModal extends React.Component {
                     handleChange={this.onModalChange}
                     actionHandler={this.deleteBackup}
                     spinning={this.state.modalSpinning}
-                    item={this.state.doBackup}
+                    item={bufferItem ? bufferItem : this.state.backupName}
                     checked={this.state.modalChecked}
                     mTitle={_("Replace Existing Backup")}
                     mMsg={_(" backup already eixsts with the same name, do you want to replace it?")}

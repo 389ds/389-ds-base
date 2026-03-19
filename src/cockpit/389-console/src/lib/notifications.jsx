@@ -84,6 +84,7 @@ export class DoubleConfirmModal extends React.Component {
                             <Checkbox
                                 id="modalChecked"
                                 isChecked={checked}
+                                isDisabled={spinning}
                                 onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
