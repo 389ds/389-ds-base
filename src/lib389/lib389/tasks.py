@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import time
-import os.path
+import os
 import ldap
 from datetime import datetime
 from lib389 import Entry
@@ -16,9 +16,9 @@ from lib389.utils import ensure_str
 from lib389.exceptions import Error
 from lib389._constants import *
 from lib389.properties import (
-        TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
-        TASK_TOMB_STRIP
-        )
+    TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
+    TASK_TOMB_STRIP, TASK_WATCH
+)
 
 
 class Task(DSLdapObject):
@@ -71,7 +71,7 @@ class Task(DSLdapObject):
         return None
 
     def get_task_log(self):
-        """Return task's exit code if task is complete, else None."""
+        """Return task's log, else None."""
         if self.is_complete():
             try:
                 return (self._task_log)
@@ -100,6 +100,30 @@ class Task(DSLdapObject):
                 break
             time_passed = time_passed + sleep_interval
             time.sleep(sleep_interval)
+
+    def watch(self, sleep_interval=2):
+        log = self.get_attr_val_utf8("nsTaskLog")
+        if log is None:
+            log = ""
+        while not self.is_complete():
+            time.sleep(sleep_interval)
+            next_log = self.get_attr_val_utf8("nsTaskLog")
+            if next_log is None:
+                next_log = ""
+
+            split_log = log.splitlines()
+            split_next_log = next_log.splitlines()
+            log_diff = []
+            for line in split_next_log:
+                if line not in split_log:
+                    log_diff.append(line + "\n")
+            log_out = ''.join(log_diff)
+
+            # Advance the log to the latest output
+            log = next_log
+
+            if log_out != "":
+                self._log.info(log_out[:-1])
 
     def create(self, rdn=None, properties={}, basedn=None):
         """Create a Task entry
@@ -448,7 +472,7 @@ class Tasks(object):
         if name in Tasks.proxied_methods:
             return DirSrv.__getattr__(self.conn, name)
 
-    def checkTask(self, entry, dowait=False):
+    def checkTask(self, entry, dowait=False, watch=False):
         '''check task status - task is complete when the nsTaskExitCode attr
         is set return a 2 tuple (true/false,code) first is false if task is
         running, true if done - if true, second is the exit code - if dowait
@@ -459,7 +483,12 @@ class Tasks(object):
         exitCode = 0
         warningCode = 0
         dn = entry.dn
+
+        task = Task(self.conn, dn)
         while not done:
+            if watch:
+                task.watch()
+
             entry = self.conn.getEntry(dn, attrlist=attrlist)
             self.log.debug("task entry %r", entry)
 
@@ -841,8 +870,8 @@ class Tasks(object):
 
         exitCode = 0
         warningCode = 0
-        if args is not None and args.get(TASK_WAIT, False):
-            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
+        if args is not None and (args.get(TASK_WAIT, False) or args.get(TASK_WATCH, False)):
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True, args.get(TASK_WATCH, False))
 
         if exitCode:
             self.log.error("Error: index task %s exited with %d",

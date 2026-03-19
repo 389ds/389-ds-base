@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -2746,7 +2746,7 @@ class DirSrv(SimpleLDAPObject, object):
     # server is stopped)
     #
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
-                import_file, import_cl=False):
+                import_file, import_cl=False, watch=False):
         """
         @param bename - The backend name of the database to import
         @param suffixes - List/tuple of suffixes to import
@@ -2792,6 +2792,8 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append('-E')
         if import_cl:
             cmd.append('-R')
+        if watch:
+            cmd.append('-V')
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
@@ -2808,7 +2810,7 @@ class DirSrv(SimpleLDAPObject, object):
         return True
 
     def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
-                outputfile, export_cl=False):
+                outputfile, export_cl=False, watch=False):
         """
         @param bename - The backend name of the database to export
         @param suffixes - List/tuple of suffixes to export
@@ -2864,6 +2866,10 @@ class DirSrv(SimpleLDAPObject, object):
             else:
                 ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s.ldif" % (self.serverid, tnow))
             cmd.append(ldifname)
+
+        if watch:
+            cmd.append('-V')
+
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
@@ -2878,7 +2884,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def bak2db(self, archive_dir):
+    def bak2db(self, archive_dir, watch=False):
         """
         @param archive_dir - The directory containing the backup
         @param bename - The backend name to restore
@@ -2902,6 +2908,8 @@ class DirSrv(SimpleLDAPObject, object):
                    'archive2db',
                    '-a', archive_dir,
                    '-D', self.get_config_dir()]
+            if watch:
+                cmd.append('-V')
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
@@ -2915,7 +2923,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def db2bak(self, archive_dir):
+    def db2bak(self, archive_dir, watch=False):
         """
         @param archive_dir - The directory to write the backup to
         @return - True if the backup succeeded
@@ -2940,6 +2948,8 @@ class DirSrv(SimpleLDAPObject, object):
                    'db2archive',
                    '-a', archive_dir,
                    '-D', self.get_config_dir()]
+            if watch:
+                cmd.append('-V')
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
@@ -2953,7 +2963,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def db2index(self, bename, suffixes=None, attrs=None, vlvTag=None):
+    def db2index(self, bename, suffixes=None, attrs=None, vlvTag=None, watch=False):
         """
         @param bename - The backend name to reindex
         @param suffixes - List/tuple of suffixes to reindex, currently unused
@@ -2978,6 +2988,9 @@ class DirSrv(SimpleLDAPObject, object):
                 for idx in indexes:
                     cmd.append('-t')
                     cmd.append(idx)
+
+        if watch:
+            cmd.append('-V')
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')

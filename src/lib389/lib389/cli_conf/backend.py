@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -269,7 +269,10 @@ def backend_import(inst, basedn, log, args):
     task = mc.import_ldif(ldifs=args.ldifs, chunk_size=args.chunks_size, encrypted=args.encrypted,
                           gen_uniq_id=args.gen_uniq_id, only_core=args.only_core, include_suffixes=args.include_suffixes,
                           exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=args.timeout)
+    if args.watch:
+        task.watch()
+    elif args.wait:
+        task.wait(timeout=args.timeout)
     result = task.get_exit_code()
     warning = task.get_task_warn()
 
@@ -304,7 +307,10 @@ def backend_export(inst, basedn, log, args):
                           encrypted=args.encrypted, min_base64=args.min_base64, no_dump_uniq_id=args.no_dump_uniq_id,
                           replication=args.replication, not_folded=args.not_folded, no_seq_num=args.no_seq_num,
                           include_suffixes=args.include_suffixes, exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=args.timeout)
+    if args.watch:
+        task.watch()
+    elif args.wait:
+        task.wait(timeout=args.timeout)
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
@@ -675,7 +681,7 @@ def backend_del_index(inst, basedn, log, args):
 
 def backend_reindex(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
-    be.reindex(attrs=args.attr, wait=args.wait)
+    be.reindex(attrs=args.attr, wait=args.wait, watch=args.watch)
     log.info("Successfully reindexed database")
 
 
@@ -973,6 +979,7 @@ def create_parser(subparsers):
     reindex_parser.set_defaults(func=backend_reindex)
     reindex_parser.add_argument('--attr', action='append', help='Sets the name of the attribute to re-index. Omit this argument to re-index all attributes')
     reindex_parser.add_argument('--wait', action='store_true', help='Waits for the index task to complete and reports the status')
+    reindex_parser.add_argument('--watch', action='store_true', help='Watch the status of the reindexing task')
     reindex_parser.add_argument('be_name', help='The backend name or suffix')
 
     #############################################
@@ -1166,6 +1173,8 @@ def create_parser(subparsers):
                                help="Specifies the suffixes to be excluded")
     import_parser.add_argument('--timeout', type=int, default=0,
                                help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
+    import_parser.add_argument('-w', '--watch', action='store_true',
+                               help="Watch the status of the import")
 
     #######################################################
     # Export LDIF
@@ -1197,6 +1206,8 @@ def create_parser(subparsers):
                                help="Specifies the suffixes to be excluded")
     export_parser.add_argument('--timeout', default=0, type=int,
                                help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
+    export_parser.add_argument('-w', '--watch', action='store_true',
+                               help="Watch the status of the export")
 
     #######################################################
     # Create a new backend database

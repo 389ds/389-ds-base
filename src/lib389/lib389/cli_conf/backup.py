@@ -1,21 +1,40 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import os
+from datetime import datetime
 from lib389.cli_base import CustomHelpFormatter
+from lib389.tasks import BackupTask, RestoreTask
 
 def backup_create(inst, basedn, log, args):
     log = log.getChild('backup_create')
 
-    task = inst.backup_online(archive=args.archive, db_type=args.db_type)
-    task.wait(timeout=args.timeout)
-    result = task.get_exit_code()
+    backup_task = BackupTask(inst)
 
-    if task.is_complete() and result == 0:
+    if args.archive is None:
+        backup_dir_name = "backup-%s" % datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        archive = os.path.join(inst.ds_paths.backup_dir, backup_dir_name)
+    else:
+        archive = args.archive
+    task_properties = {'nsArchiveDir': archive}
+
+    if args.db_type is not None:
+        task_properties['nsDatabaseType'] = args.db_type
+
+    backup_task.create(properties=task_properties)
+    if args.watch:
+        log.info("Creating backup: %s", archive)
+        backup_task.watch()
+    elif args.wait:
+        backup_task.wait(timeout=args.timeout)
+
+    result = backup_task.get_exit_code()
+    if backup_task.is_complete() and result == 0:
         log.info("The backup create task has finished successfully")
     else:
         if result is None:
@@ -27,12 +46,21 @@ def backup_create(inst, basedn, log, args):
 def backup_restore(inst, basedn, log, args):
     log = log.getChild('backup_restore')
 
-    task = inst.restore_online(archive=args.archive, db_type=args.db_type)
-    task.wait(timeout=args.timeout)
-    result = task.get_exit_code()
-    task_log = task.get_task_log()
+    restore_task = RestoreTask(inst)
+    task_properties = {'nsArchiveDir': args.archive}
+    if args.db_type is not None:
+        task_properties['nsDatabaseType'] = args.db_type
+    restore_task.create(properties=task_properties)
+    if args.watch:
+        log.info("Restoring backup: %s", args.archive)
+        restore_task.watch()
+    elif args.wait:
+        restore_task.wait(timeout=args.timeout)
 
-    if task.is_complete() and result == 0:
+    result = restore_task.get_exit_code()
+    task_log = restore_task.get_task_log()
+
+    if restore_task.is_complete() and result == 0:
         log.info("The backup restore task has finished successfully")
     else:
         if result is None:
@@ -56,6 +84,7 @@ def create_parser(subparsers):
                                       help="Sets the database type. Default: ldbm database")
     create_backup_parser.add_argument('--timeout', type=int, default=120,
                                       help="Sets the task timeout.  Default is 120 seconds,")
+    create_backup_parser.add_argument('--watch', action='store_true', help='Watch the status of the backup task')
 
     restore_parser = subcommands.add_parser('restore', help="Restores a database from a backup", formatter_class=CustomHelpFormatter)
     restore_parser.set_defaults(func=backup_restore)
@@ -64,3 +93,4 @@ def create_parser(subparsers):
                                 help="Sets the database type. Default: ldbm database")
     restore_parser.add_argument('--timeout', type=int, default=120,
                                 help="Sets the task timeout.  Default is 120 seconds.")
+    restore_parser.add_argument('--watch', action='store_true', help='Watch the status of the restore task')
