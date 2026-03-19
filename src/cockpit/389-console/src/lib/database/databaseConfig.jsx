@@ -90,6 +90,7 @@ class DynamicLists extends React.Component {
                             onChange={this.props.handleChange}
                             aria-label="Dynamic List Objectclass"
                             ouiaId="DynamicListObjectclassSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
                         >
                             {this.props.objectClasses.map((option, index) => (
                                 <FormSelectOption key={index} value={option.toLowerCase()} label={option} />
@@ -111,6 +112,7 @@ class DynamicLists extends React.Component {
                             onChange={this.props.handleChange}
                             aria-label="Dynamic List URL Attribute"
                             ouiaId="DynamicListURL Attr Select AttributeSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
                         >
                             {this.props.urlAttrs.map((option, index) => (
                                 <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
@@ -132,6 +134,7 @@ class DynamicLists extends React.Component {
                             onChange={this.props.handleChange}
                             aria-label="Dynamic List Attribute"
                             ouiaId="DynamicListAttributeSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
                         >
                             {this.props.dnAttrs.map((option, index) => (
                                 <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
@@ -1330,6 +1333,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
+        this.isFieldValid = this.isFieldValid.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
@@ -1337,99 +1341,129 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
         this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
                                "1.3.6.1.4.1.1466.115.121.1.12"];
-        this.maxValue = 2147483647;
-        this.onMinusConfig = (id) => {
-            if (id === "mdbmaxsize") {
-                this.setState({
-                    [id]: Number(this.state[id]) - (1024 * 1024),
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) - 1,
-                }, () => { this.validateSaveBtn() });
+
+        // All fields that participate in change tracking
+        this.validationFields = [
+            "looklimit", "idscanlimit", "pagelooklimit",
+            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
+            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize",
+            "dynamiclistsenabled", "dynamiclistattr", "dynamicoc",
+            "dynamicurlattr",
+        ];
+
+        // Field validation rules configuration
+        this.fieldValidationRules = (fieldId) => {
+            switch(fieldId) {
+                case 'mdbmaxsize':
+                    return {
+                        min: 100,
+                        max: Math.floor(this.state.availDbSizeBytes / (1024 * 1024)),
+                        special: null
+                    };
+                case 'mdbmaxreaders':
+                    return { min: 26, max: 200, special: 0 };  // 0 = auto-tune
+                case 'mdbmaxdbs':
+                    return { min: 131, max: 5000, special: 0 };  // 0 = auto-tune
+                case 'autosize':
+                    return { min: 1, max: 100, special: 0 };  // 0 = auto-tune
+                case 'looklimit':
+                    return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
+                case 'ndncachemaxsize':
+                    return { min: 1024000, max: this.maxValue, special: null };
+                case 'idscanlimit':
+                    return { min: 100, max: this.maxValue, special: null };
+                case 'pagelooklimit':
+                    return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
+                case 'pagescanlimit':
+                    return { min: 100, max: this.maxValue, special: 0 };
+                case 'rangelooklimit':
+                    return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
+                default:
+                    return { min: 0, max: this.maxValue, special: null };
             }
         };
 
-        this.onRangeConfigMinus = (id, special, lower) => {
+        this.onConfigMinus = (id) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === lower) {
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules(id);
+            const { min, special } = rules;
+
+            if (special !== null && value === special) {
+                // at special, cant go any lower
+                return;
+            } else if (value === min && special !== null && special < min) {
+                // min to special
                 value = special;
+            } else if (value <= min) {
+                // at min or below, cant go any lower
+                return;
             } else {
                 value -= 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onRangeConfigChange = (event, id) => {
+        this.onConfigChange = (event, id) => {
             const value = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            this.setState({ [id]: value });
-        };
+            let error = { ...this.state.error };
 
-        this.onRangeConfigChangeBlur = (id, special, lower, upper) => {
-            let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
-                // nothing to do
-            } else if (value < lower) {
-                value = lower;
-            } else if (value > upper) {
-                value = upper;
-            }
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onConfigChange = (event, id, min, max) => {
-            let maxValue = this.maxValue;
-            if (max !== 0) {
-                maxValue = max;
-            }
-            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            if (id === "mdbmaxsize") {
-                const newValueBytes = newValue * (1024 * 1024);
-                this.setState({
-                    [id]: (newValueBytes > max ? max : newValueBytes < min ? min : newValueBytes)
-                }, () => { this.validateSaveBtn() });
-            } else {
-                let error = this.state.error;
-                let badValue = false;
-                const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
-                if (newValue > maxValue || newValue < min) {
-                    badValue = true;
-
-                }
-                error[id] = badValue;
-                this.setState({
-                    [id]: newValue,
-                    error,
-                }, () => { this.validateSaveBtn() });
-            }
-        };
-
-        this.onPlusConfig = (id) => {
-            if (id === "mdbmaxsize") {
-                this.setState({
-                    [id]: Number(this.state[id]) + (1024 * 1024),
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) + 1,
-                }, () => { this.validateSaveBtn() });
-            }
-        };
-
-        this.onRangeConfigPlus = (id, special, lower) => {
+        this.onConfigChangeBlur = (id) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
-                value = lower;
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules(id);
+            const { min, max, special } = rules;
+
+            if (special !== null && value === special) {
+                // at special, nothing to do
+            } else if (value < min) {
+                // below min, clamp to min
+                value = min;
+            } else if (value > max) {
+                // above max, clamp to max
+                value = max;
+            }
+
+            error[id] = !this.isFieldValid(id, value);
+            this.setState({
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
+        };
+
+        this.onConfigPlus = (id) => {
+            let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules(id);
+            const { min, max, special } = rules;
+
+            if (special !== null && value === special) {
+                // special to min
+                value = min;
+            } else if (value >= max) {
+                // at max, cant go any higher
+                return;
             } else {
                 value += 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
         // Toggle currently active tab
@@ -1438,6 +1472,45 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 activeTabKey: tabIndex
             });
         };
+    }
+
+    // Helper method to determine if a field has specific validation rules (NumberInput) or uses defaults (text field)
+    hasValidationRules(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        return !(rules.min === 0 && rules.max === this.maxValue && rules.special === null);
+    }
+
+    isFieldValid(fieldId, value) {
+        const rules = this.fieldValidationRules(fieldId);
+        const numValue = Number(value);
+
+        if (rules.special !== null && rules.special === numValue) {
+            return true;
+        }
+
+        const { min, max } = rules;
+        return numValue >= min && numValue <= max;
+    }
+
+    getFieldMinValue(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        const { min, special } = rules;
+
+        if (special !== null && special < min) {
+            return special;
+        }
+
+        return min;
+    }
+
+    getFieldMaxValue(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        return rules.max;
+    }
+
+    // int32 max
+    get maxValue() {
+        return 2147483647;
     }
 
     componentDidMount() {
@@ -1450,45 +1523,54 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.ismounted = false;
     }
 
-    validateSaveBtn() {
-        let saveBtnDisabled = true;
-        const check_attrs = [
-            "looklimit", "idscanlimit", "pagelooklimit",
-            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
-            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize",
-            "dynamiclistsenabled", "dynamiclistattr", "dynamicoc",
-            "dynamicurlattr",
-        ];
+    validateSaveBtn(fieldId) {
+        let hasChanges = false;
+        let hasErrors = false;
+        let hasValidationErrors = false;
 
-        // Check if a setting was changed, if so enable the save button
-        for (const config_attr of check_attrs) {
-            if (this.state[config_attr].toString() !== this.state['_' + config_attr].toString()) {
-                saveBtnDisabled = false;
-                break
+        // Single loop to check all conditions efficiently
+        for (const fieldName of this.validationFields) {
+            // Check for changes
+            if (!hasChanges && this.state[fieldName].toString() !== this.state['_' + fieldName].toString()) {
+                hasChanges = true;
             }
-        }
 
-        // Check if have any errors on our attributes
-        for (const config_attr of check_attrs) {
-            if (config_attr in this.state.error && this.state.error[config_attr]) {
-                saveBtnDisabled = true;
+            // Check for existing errors
+            if (!hasErrors && this.state.error[fieldName]) {
+                hasErrors = true;
+            }
+
+            // Check for NumberInput validation errors (only if we have changes and no existing errors)
+            if (!hasValidationErrors && hasChanges && !hasErrors) {
+                if (this.hasValidationRules(fieldName) && !this.isFieldValid(fieldName, this.state[fieldName])) {
+                    hasValidationErrors = true;
+                }
+            }
+
+            // Early exit if we already know the button should be disabled
+            if (hasErrors || (hasChanges && hasValidationErrors)) {
                 break;
             }
         }
 
-        this.setState({
-            saveBtnDisabled
-        });
+        const saveBtnDisabled = !hasChanges || hasErrors || hasValidationErrors;
+        this.setState({ saveBtnDisabled });
     }
 
     handleChange(e, str) {
         // Generic
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
+        const error = { ...this.state.error };
+
+        error[attr] = this.hasValidationRules(attr) ? !this.isFieldValid(attr, value) : false;
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn() });
+            error
+        }, () => {
+            this.validateSaveBtn(attr);
+        });
     }
 
     save_ndn_cache(requireRestart) {
@@ -1573,7 +1655,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
         }
         if (this.state._mdbmaxsize !== this.state.mdbmaxsize) {
-            cmd.push("--mdb-max-size=" + this.state.mdbmaxsize);
+            const mdbmaxsizeMB = this.state.mdbmaxsize * 1024 * 1024;
+            cmd.push("--mdb-max-size=" + mdbmaxsizeMB);
             requireRestart = true;
         }
         if (this.state._mdbmaxreaders !== this.state.mdbmaxreaders) {
@@ -1691,12 +1774,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
-                                value={this.state.autosize}
-                                min={0}
-                                max={100}
-                                onMinus={() => { this.onMinusConfig("autosize") }}
-                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
-                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                value={Number(this.state.autosize)}
+                                min={this.getFieldMinValue("autosize")}
+                                max={this.getFieldMaxValue("autosize")}
+                                onMinus={() => { this.onConfigMinus("autosize") }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                onBlur={() => { this.onConfigChangeBlur("autosize") }}
+                                onPlus={() => { this.onConfigPlus("autosize") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
                                 minusBtnAriaLabel="minus"
@@ -1726,6 +1810,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
         );
 
+        const mdbmaxsizeMB = Math.floor(this.state.availDbSizeBytes / (1024 * 1024));
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
@@ -1758,12 +1843,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={Math.floor(this.state.mdbmaxsize / (1024 * 1024))}
-                                                min={104857600 / (1024 * 1024)}
-                                                max={Math.floor(this.state.availDbSizeBytes / (1024 * 1024))}
-                                                onMinus={() => { this.onMinusConfig("mdbmaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 104857600, this.state.availDbSizeBytes) }}
-                                                onPlus={() => { this.onPlusConfig("mdbmaxsize") }}
+                                                value={Number(this.state.mdbmaxsize)}
+                                                min={this.getFieldMinValue("mdbmaxsize")}
+                                                max={this.getFieldMaxValue("mdbmaxsize")}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxsize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxsize") }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxsize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1791,12 +1877,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.looklimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("looklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "looklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("looklimit") }}
+                                                value={Number(this.state.looklimit)}
+                                                min={this.getFieldMinValue("looklimit")}
+                                                max={this.getFieldMaxValue("looklimit")}
+                                                onMinus={() => { this.onConfigMinus("looklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "looklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("looklimit") }}
+                                                onPlus={() => { this.onConfigPlus("looklimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1818,12 +1905,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.idscanlimit}
-                                                min={100}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("idscanlimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 100, 0) }}
-                                                onPlus={() => { this.onPlusConfig("idscanlimit") }}
+                                                value={Number(this.state.idscanlimit)}
+                                                min={this.getFieldMinValue("idscanlimit")}
+                                                max={this.getFieldMaxValue("idscanlimit")}
+                                                onMinus={() => { this.onConfigMinus("idscanlimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("idscanlimit") }}
+                                                onPlus={() => { this.onConfigPlus("idscanlimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1845,12 +1933,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.pagelooklimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("pagelooklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("pagelooklimit") }}
+                                                value={Number(this.state.pagelooklimit)}
+                                                min={this.getFieldMinValue("pagelooklimit")}
+                                                max={this.getFieldMaxValue("pagelooklimit")}
+                                                onMinus={() => { this.onConfigMinus("pagelooklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("pagelooklimit") }}
+                                                onPlus={() => { this.onConfigPlus("pagelooklimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1872,12 +1961,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.pagescanlimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("pagescanlimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("pagescanlimit") }}
+                                                value={Number(this.state.pagescanlimit)}
+                                                min={this.getFieldMinValue("pagescanlimit")}
+                                                max={this.getFieldMaxValue("pagescanlimit")}
+                                                onMinus={() => { this.onConfigMinus("pagescanlimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("pagescanlimit") }}
+                                                onPlus={() => { this.onConfigPlus("pagescanlimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1899,12 +1989,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.rangelooklimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("rangelooklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("rangelooklimit") }}
+                                                value={Number(this.state.rangelooklimit)}
+                                                min={this.getFieldMinValue("rangelooklimit")}
+                                                max={this.getFieldMaxValue("rangelooklimit")}
+                                                onMinus={() => { this.onConfigMinus("rangelooklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("rangelooklimit") }}
+                                                onPlus={() => { this.onConfigPlus("rangelooklimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1948,12 +2039,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.ndncachemaxsize}
-                                                min={1000000}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("ndncachemaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize", 1000000, 0) }}
-                                                onPlus={() => { this.onPlusConfig("ndncachemaxsize") }}
+                                                value={Number(this.state.ndncachemaxsize)}
+                                                min={this.getFieldMinValue("ndncachemaxsize")}
+                                                max={this.getFieldMaxValue("ndncachemaxsize")}
+                                                onMinus={() => { this.onConfigMinus("ndncachemaxsize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("ndncachemaxsize") }}
+                                                onPlus={() => { this.onConfigPlus("ndncachemaxsize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -2011,13 +2103,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.mdbmaxreaders}
-                                                min={0}
-                                                max={200}
-                                                onMinus={() => { this.onRangeConfigMinus("mdbmaxreaders", 0, 26) }}
-                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxreaders") }}
-                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxreaders", 0, 26, 200) }}
-                                                onPlus={() => { this.onRangeConfigPlus("mdbmaxreaders", 0, 26) }}
+                                                value={Number(this.state.mdbmaxreaders)}
+                                                min={this.getFieldMinValue("mdbmaxreaders")}
+                                                max={this.getFieldMaxValue("mdbmaxreaders")}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxreaders") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxreaders") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxreaders") }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxreaders") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -2039,13 +2131,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.mdbmaxdbs}
-                                                min={0}
-                                                max={5000}
-                                                onMinus={() => { this.onRangeConfigMinus("mdbmaxdbs", 0, 131) }}
-                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxdbs") }}
-                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxdbs", 0, 131, 5000) }}
-                                                onPlus={() => { this.onRangeConfigPlus("mdbmaxdbs", 0, 131) }}
+                                                value={Number(this.state.mdbmaxdbs)}
+                                                min={this.getFieldMinValue("mdbmaxdbs")}
+                                                max={this.getFieldMaxValue("mdbmaxdbs")}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxdbs") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxdbs") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxdbs") }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxdbs") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -2067,12 +2159,13 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.autosize}
-                                                min={0}
-                                                max={100}
-                                                onMinus={() => { this.onMinusConfig("autosize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
-                                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                                value={Number(this.state.autosize)}
+                                                min={this.getFieldMinValue("autosize")}
+                                                max={this.getFieldMaxValue("autosize")}
+                                                onMinus={() => { this.onConfigMinus("autosize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("autosize") }}
+                                                onPlus={() => { this.onConfigPlus("autosize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
