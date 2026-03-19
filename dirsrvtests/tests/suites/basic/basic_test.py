@@ -1188,7 +1188,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
     ldc.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
     with pytest.raises(ldap.REFERRAL):
         ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=top')
-    ldc.unbind
+    ldc.unbind()
 
     # Make sure server can restart in referral mode
     log.info('Restarting the server...')
