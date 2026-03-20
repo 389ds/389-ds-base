@@ -361,6 +361,7 @@ class ExportModal extends React.Component {
             includeReplData,
             saveHandler,
             spinning,
+            item,
             error
         } = this.props;
         let saveBtnName = _("Export Database");
@@ -419,10 +420,12 @@ class ExportModal extends React.Component {
                                     handleChange(e);
                                 }}
                                 isChecked={includeReplData}
+                                isDisabled={spinning}
                                 label={_("Include Replication Data")}
                             />
                         </GridItem>
                     </Grid>
+                    {item}
                 </Form>
             </Modal>
         );
@@ -536,13 +539,15 @@ ExportModal.propTypes = {
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     error: PropTypes.object,
-    spinning: PropTypes.bool
+    spinning: PropTypes.bool,
+    item: PropTypes.node,
 };
 
 ExportModal.defaultProps = {
     showModal: false,
     error: {},
-    spinning: false
+    spinning: false,
+    item: null
 };
 
 ImportModal.propTypes = {
