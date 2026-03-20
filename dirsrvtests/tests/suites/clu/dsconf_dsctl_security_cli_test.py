@@ -1580,11 +1580,11 @@ def test_dsconf_security_certificate_import_second_cert(setup_tls):
         add_cmd = [
             'dsconf', inst.serverid, 'security', 'certificate', 'add',
             '--file', cert_path,
-            '--name', cert_name
+            '--name', cert_name,
+            '--do-it'
         ]
-        returncode, stdout, stderr = run_cmd(add_cmd, check=False)
-        # If cert already exists in this environment, continue with validation
-        assert returncode in [0, 1]
+        returncode, stdout, stderr = run_cmd(add_cmd)
+        assert returncode == 0
 
         get_cmd = ['dsconf', inst.serverid, 'security', 'certificate', 'get', cert_name]
         returncode, stdout, stderr = run_cmd(get_cmd)
