@@ -11,12 +11,15 @@
 import logging
 import pytest
 import os
+import time
+import ldap
+import ldapurl
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.plugins import DNAPlugin, DNAPluginSharedConfigs, DNAPluginConfigs
+from lib389.dseldif import DSEldif
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.topologies import topology_st
-import ldap
 
 pytestmark = pytest.mark.tier1
 
@@ -188,6 +191,130 @@ def test_dna_exclude_scope_functionality(topology_st):
     invalid_dn = f"invalidDN,{DEFAULT_SUFFIX}"
     with pytest.raises(ldap.INVALID_SYNTAX):
         dna_config.add('dnaExcludeScope', invalid_dn)
+
+
+def test_dna_no_shared_config_when_isolated(topology_st):
+    """Test that DNA plugin does not create shared config entries when
+    the server is isolated (port=0 and security=off).
+
+    :id: e0ad2f90-bf94-46c0-8caf-46f1448cb181
+    :setup: Standalone Instance
+    :steps:
+        1. Configure DNA plugin with shared config using unique names
+        2. Enable plugin, restart, and verify shared config entry
+        3. Stop instance, set nsslapd-port=0 and nsslapd-security=off offline
+        4. Start instance in isolated mode, connect via LDAPI
+        5. Wait for DNA event and verify no dnaPortNum=0 entry was created
+           and original shared config entry with correct port persists
+        6. Stop instance, restore port and security to original values offline
+        7. Start normally and verify shared config entry is recreated
+    :expectedresults:
+        1. Successful
+        2. Shared config entry exists with the instance port
+        3. dse.ldif modified successfully
+        4. Instance starts in isolated mode
+        5. No dnaPortNum=0 entry exists, original entry persists
+        6. dse.ldif restored to original values
+        7. Shared config entry with correct port exists
+    """
+
+    inst = topology_st.standalone
+    plugin = DNAPlugin(inst)
+    original_port = str(inst.port)
+    original_security = inst.config.get_attr_val_utf8('nsslapd-security') or 'off'
+
+    log.info("Creating \"ou=isolated-ranges\" for shared config...")
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
+    ou_ranges = ous.create(properties={'ou': 'isolated-ranges'})
+    ou_people = ous.get("People")
+
+    log.info("Add DNA plugin config entry with shared config...")
+    configs = DNAPluginConfigs(inst, plugin.dn)
+    dna_config = configs.create(properties={
+        'cn': 'dna isolated config',
+        'dnaType': 'description',
+        'dnaMaxValue': '10000',
+        'dnaMagicRegen': '0',
+        'dnaFilter': '(objectclass=top)',
+        'dnaScope': ou_people.dn,
+        'dnaNextValue': '500',
+        'dnaSharedCfgDN': ou_ranges.dn})
+
+    log.info("Enable the DNA plugin and restart...")
+    plugin.enable()
+    inst.restart()
+
+    log.info("Waiting for DNA plugin shared config event to fire...")
+    time.sleep(35)
+
+    log.info("Verify shared config entry exists with correct port...")
+    shared_configs = DNAPluginSharedConfigs(inst, ou_ranges.dn)
+    entries = shared_configs.list()
+    valid_entry = None
+    for entry in entries:
+        if entry.get_attr_val_utf8('dnaPortNum') == original_port:
+            valid_entry = entry
+            break
+    assert valid_entry is not None, \
+        f"Expected shared config entry with port {original_port}"
+
+    try:
+        log.info("Stopping instance to simulate isolated mode...")
+        inst.stop()
+
+        log.info("Editing dse.ldif: nsslapd-port=0, nsslapd-security=off...")
+        dse = DSEldif(inst)
+        dse.replace('cn=config', 'nsslapd-port', '0')
+        dse.replace('cn=config', 'nsslapd-security', 'off')
+
+        log.info("Starting instance in isolated mode (LDAPI only)...")
+        inst.start(post_open=False)
+
+        ldapi_uri = f"ldapi://{ldapurl.ldapUrlEscape(inst.ds_paths.ldapi)}"
+        log.info(f"Connecting via LDAPI: {ldapi_uri}")
+        inst.open(uri=ldapi_uri)
+
+        log.info("Waiting for DNA plugin shared config event...")
+        time.sleep(35)
+
+        log.info("Checking that no dnaPortNum=0 shared config entry was created...")
+        shared_configs = DNAPluginSharedConfigs(inst, ou_ranges.dn)
+        entries = shared_configs.list()
+        for entry in entries:
+            entry_port = entry.get_attr_val_utf8('dnaPortNum')
+            assert entry_port != '0', \
+                f"DNA plugin should not create shared config with port 0 " \
+                f"when server is isolated, but found: {entry.dn}"
+
+        log.info("Verify original shared config entry persists during isolated mode...")
+        original_persists = any(
+            e.get_attr_val_utf8('dnaPortNum') == original_port for e in entries
+        )
+        assert original_persists, \
+            f"Original shared config entry with port {original_port} " \
+            f"should persist during isolated mode"
+    finally:
+        log.info("Restoring instance to normal state...")
+        if inst.status():
+            inst.stop()
+
+        dse = DSEldif(inst)
+        dse.replace('cn=config', 'nsslapd-port', original_port)
+        dse.replace('cn=config', 'nsslapd-security', original_security)
+        inst.start()
+
+    time.sleep(35)
+
+    log.info("Verify shared config entry is recreated with correct port...")
+    shared_configs = DNAPluginSharedConfigs(inst, ou_ranges.dn)
+    entries = shared_configs.list()
+    valid_found = False
+    for entry in entries:
+        if entry.get_attr_val_utf8('dnaPortNum') == original_port:
+            valid_found = True
+            break
+    assert valid_found, \
+        f"Shared config entry with port {original_port} should exist after restore"
 
 
 if __name__ == '__main__':
