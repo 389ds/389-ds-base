@@ -32,6 +32,10 @@ from lib389.topologies import create_topology
 
 log = logging.getLogger(__name__)
 
+PREFIX = os.getenv("PREFIX", default="")
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+
 @pytest.fixture(scope="class", params=["default", "json"])
 def topo_shared(request):
     """Create DS standalone instance"""
@@ -39,9 +43,10 @@ def topo_shared(request):
     topology = create_topology({ReplicaRole.STANDALONE: 1})
     topology.standalone.config.set('nsslapd-accesslog-logbuffering', "off")
     topology.standalone.config.set('nsslapd-accesslog-log-format', log_format)
+    topology.standalone.config.set("nsslapd-accesslog-level", "256")
 
     def fin():
-        if topology.standalone.exists():
+        if not DEBUGGING and topology.standalone.exists():
             topology.standalone.delete()
     request.addfinalizer(fin)
 
@@ -254,7 +259,7 @@ class TestLogconv:
                 errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
 
         if errors:
-            print("\n".join(errors))
+            log.error("\n".join(errors))
             return False
 
         return True
@@ -719,7 +724,7 @@ class TestLogconv:
 
         self.inst.config.set('nsslapd-ldapilisten', 'on')
         self.inst.config.set('nsslapd-ldapiautobind', 'on')
-        self.inst.config.set('nsslapd-ldapifilepath', f'/var/run/slapd-{self.inst.serverid}.socket')
+        self.inst.config.set('nsslapd-ldapifilepath', f'{PREFIX}/var/run/slapd-{self.inst.serverid}.socket')
 
         expected = {
             "mods": 3,

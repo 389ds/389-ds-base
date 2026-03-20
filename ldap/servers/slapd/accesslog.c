@@ -638,10 +638,11 @@ slapi_log_fgot_text(struct op *op, char *buff, size_t buflen)
             snprintf(tbuff, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "",
                      (int64_t)(t->tv_sec), (int64_t)(t->tv_nsec));
             size_t len = strlen(name)+strlen(tbuff)+2;
-            if (buff+len < buffend) {
-                sprintf(buff, " %s=%s", name, tbuff);
-                buff += len;
+            if (buff+len >= buffend) {
+                break;
             }
+            sprintf(buff, " %s=%s", name, tbuff);
+            buff += len;
         }
     }
 }
