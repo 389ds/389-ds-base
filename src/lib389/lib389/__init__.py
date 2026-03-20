@@ -2807,6 +2807,11 @@ class DirSrv(SimpleLDAPObject, object):
                                format_cmd_list(cmd), e.returncode, e.output)
                 return False
 
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+
         return True
 
     def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
@@ -2877,10 +2882,15 @@ class DirSrv(SimpleLDAPObject, object):
                            format_cmd_list(cmd), e.returncode, e.output)
             return False
 
-        self.log.debug("db2ldif output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("db2ldif output: END")
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+        else:
+            self.log.debug("db2ldif output: BEGIN")
+            for line in result.split("\n"):
+                self.log.debug(line)
+            self.log.debug("db2ldif output: END")
 
         return True
 
@@ -2916,10 +2926,15 @@ class DirSrv(SimpleLDAPObject, object):
                            format_cmd_list(cmd), e.returncode, e.output)
             return False
 
-        self.log.debug("bak2db output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("bak2db output: END")
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+        else:
+            self.log.debug("bak2db output: BEGIN")
+            for line in result.split("\n"):
+                self.log.debug(line)
+            self.log.debug("bak2db output: END")
 
         return True
 
@@ -2956,10 +2971,15 @@ class DirSrv(SimpleLDAPObject, object):
                            format_cmd_list(cmd), e.returncode, e.output)
             return False
 
-        self.log.debug("db2bak output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("db2bak output: END")
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+        else:
+            self.log.debug("db2bak output: BEGIN")
+            for line in result.split("\n"):
+                self.log.debug(line)
+            self.log.debug("db2bak output: END")
 
         return True
 
