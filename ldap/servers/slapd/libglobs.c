@@ -271,6 +271,7 @@ slapi_onoff_t init_enable_ldapssotoken;
 slapi_onoff_t init_return_orig_dn;
 slapi_onoff_t init_pw_admin_skip_info;
 
+
 static int
 isInt(ConfigVarType type)
 {
@@ -1466,6 +1467,11 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.return_orig_dn,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_dn, &init_return_orig_dn, NULL},
+    {CONFIG_FGOT_ATTRIBUTE, config_set_fgot,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.fgot,
+     CONFIG_STRING, (ConfigGetFunc)config_get_fgot,
+     SLAPD_DEFAULT_FGOT, NULL }
     /* End config */
     };
 
@@ -2083,6 +2089,10 @@ FrontendConfig_init(void)
     /* Initialize parsed HAProxy trusted IP entries */
     cfg->haproxy_trusted_ip_parsed = NULL;
     cfg->haproxy_trusted_ip_parsed_count = 0;
+
+    /* Initialize Fine Grain Operation Timing */
+    cfg->fgot = slapi_ch_strdup(SLAPD_DEFAULT_FGOT);
+    cfg->fgot_flags = SLAPD_DEFAULT_FGOT_FLAGS;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -10256,6 +10266,125 @@ config_get_malloc_mmap_threshold()
     retVal = slapdFrontendConfig->malloc_mmap_threshold;
     return retVal;
 }
+
+static struct {
+    const char *name;
+    fgot_id_t id;
+} fgot_allowed_values_table[] = {
+    { "wqtime", FGOT_WQ },
+    { "wq", FGOT_WQ },
+    { "writetime", FGOT_WRITE },
+    { "write", FGOT_WRITE },
+    { "optime", FGOT_OP },
+    { "op", FGOT_OP },
+    { "etime", FGOT_ETIME },
+    { "e", FGOT_ETIME },
+    { "wtime", FGOT_W },
+    { "w", FGOT_W },
+    { 0 }
+};
+
+const char *
+fgot_allowed_values()
+{
+    static char names[20];
+    size_t len = 0;
+    if (!names[0]) {
+        for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
+            size_t len2 = strlen(fgot_allowed_values_table[i].name);
+            if (len+len2+1 < sizeof names) {
+                strcpy(names+len, fgot_allowed_values_table[i].name);
+                len += len2;
+                if (fgot_allowed_values_table[i+1].name) {
+                    names[len++] = ',';
+                }
+            }
+        }
+    }
+    return names;
+}
+
+const char *
+fgot_get_name(fgot_id_t id)
+{
+    for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
+        if (fgot_allowed_values_table[i].id == id) {
+            return fgot_allowed_values_table[i].name;
+        }
+    }
+    return "???";
+}
+
+static bool
+fgot_is_allowed(const char *name, uint64_t *flags)
+{
+    for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
+        if (strcasecmp(name, fgot_allowed_values_table[i].name) == 0) {
+            fgot_id_t id = fgot_allowed_values_table[i].id;
+            *flags |= 1UL << id;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+config_check_fgot(fgot_id_t fgot_id)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return ((1UL<<fgot_id) & slapdFrontendConfig->fgot_flags);
+}
+
+char *
+config_get_fgot()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = config_copy_strval(slapdFrontendConfig->fgot);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    uint64_t flags = 0;
+
+    if (value != NULL) {
+        char *pt = slapi_ch_strdup(value);
+        const char *delim = " \t\n+|,";
+        char *iter = NULL;
+        for(char *elem=ldap_utf8strtok_r(pt, delim, &iter);
+            elem != NULL && retVal == LDAP_SUCCESS;
+            elem=ldap_utf8strtok_r(NULL, delim, &iter)) {
+            if (*elem == 0) {
+                /* Ignore empty elements */
+                continue;
+            }
+            if (!fgot_is_allowed(elem, &flags)) {
+                retVal = LDAP_UNWILLING_TO_PERFORM;
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
+                    "(%s) value (%s) is invalid. Should be a subset of %s\n",
+                    attrname, value, fgot_allowed_values());
+            }
+        }
+    }
+    if (apply && retVal == LDAP_SUCCESS) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free((void **)&slapdFrontendConfig->fgot);
+        slapdFrontendConfig->fgot = slapi_ch_strdup(value);
+        slapdFrontendConfig->fgot_flags = flags;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+
 #endif
 #endif
 

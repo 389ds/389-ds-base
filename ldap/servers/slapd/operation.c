@@ -642,8 +642,8 @@ slapi_operation_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
     struct timespec o_hr_time_now;
     clock_gettime(CLOCK_MONOTONIC, &o_hr_time_now);
-
-    slapi_timespec_diff(&o_hr_time_now, &(o->o_hr_time_rel), elapsed);
+    fgot_compute(o, FGOT_ETIME, &o_hr_time_now, &o->o_hr_time_rel);
+    *elapsed = o->o_fgots[FGOT_ETIME].c;
 }
 
 void
@@ -758,15 +758,16 @@ slapi_operation_op_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
     struct timespec o_hr_time_now;
     clock_gettime(CLOCK_MONOTONIC, &o_hr_time_now);
-
-    slapi_timespec_diff(&o_hr_time_now, &(o->o_hr_time_started_rel), elapsed);
+    fgot_compute(o, FGOT_OP, &o_hr_time_now, &o->o_hr_time_started_rel);
+    *elapsed = o->o_fgots[FGOT_OP].c;
 }
 
 /* The time diff the operation waited in the work queue */
 void
 slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
-    slapi_timespec_diff(&(o->o_hr_time_started_rel), &(o->o_hr_time_rel), elapsed);
+    fgot_compute(o, FGOT_W, &o->o_hr_time_started_rel, &o->o_hr_time_rel);
+    *elapsed = o->o_fgots[FGOT_W].c;
 }
 
 LDAPControl **
@@ -779,4 +780,38 @@ LDAPControl **
 operation_get_result_controls(const Operation *o)
 {
     return o->o_results.result_controls;
+}
+
+/* Add t1-t2 in cumulative fine grain operation timing slot */
+void
+fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2)
+{
+    struct timespec elapsed;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    if (config_check_fgot(fgot_id) || op->o_fgots[fgot_id].enabled) {
+        op->o_fgots[fgot_id].enabled = true;
+        slapi_timespec_diff(t1, t2, &elapsed);
+        slapi_timespec_add(&op->o_fgots[fgot_id].c, &elapsed);
+    }
+}
+
+/* Start cumulative fine grain operation timing */
+void
+fgot_start(struct op *op, fgot_id_t fgot_id)
+{
+    if (config_check_fgot(fgot_id)) {
+        op->o_fgots[fgot_id].enabled = true;
+        clock_gettime(CLOCK_MONOTONIC, &op->o_fgots[fgot_id].s);
+    }
+}
+
+/* End cumulative fine grain operation timing */
+void
+fgot_end(struct op *op, fgot_id_t fgot_id)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        fgot_compute(op, fgot_id, &now, &op->o_fgots[fgot_id].s);
+    }
 }
