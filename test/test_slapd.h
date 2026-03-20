@@ -68,6 +68,13 @@ void test_haproxy_netmask_precomputation(void **state);
 void test_haproxy_ip_matches_cidr(void **state);
 void test_haproxy_ipv4_mask_edge_cases(void **state);
 
+/* libslapd-csngen-clock-error (Bug 1837105 / Issue #4148) */
+void test_libslapd_csngen_clock_failure(void **state);
+void test_libslapd_csngen_large_time_jump(void **state);
+void test_libslapd_csngen_time_backwards(void **state);
+void test_libslapd_csngen_multiple_clock_failures(void **state);
+void test_libslapd_csngen_seqnum_handling(void **state);
+
 /* plugins */
 
 void test_plugin_hello(void **state);

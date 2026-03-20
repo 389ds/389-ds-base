@@ -1988,6 +1988,7 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/operation/v3_compat.c \
 	test/libslapd/spal/meminfo.c \
 	test/libslapd/haproxy/parse.c \
+	test/libslapd/csngen/clock_error.c \
 	test/plugins/test.c \
 	test/plugins/pwdstorage/pbkdf2.c
 
