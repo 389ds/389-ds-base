@@ -72,6 +72,7 @@ def get_last_logs(inst, nblines, jsonlog):
 
 def test_wqtime(setup_json):
     """Check wqtime impact when not having enough worker threads
+
     :id: 8559e688-220b-11f1-b2cc-c85309d5c3e3
     :setup: Standalone instance with very few working threads
     :steps:
@@ -101,6 +102,7 @@ def test_wqtime(setup_json):
 @pytest.mark.parametrize("tested_key", tested_keys)
 def test_fgot_config(setup_json, tested_key):
     """Check fine grain operation timing configuration
+
     :id: 38af4f8a-26c0-11f1-920b-c85309d5c3e3
     :setup: Standalone instance with very few working threads
     :steps:
