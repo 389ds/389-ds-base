@@ -403,8 +403,8 @@ dbmdb_fetch_subtrees(backend *be, char **include, int *err)
             *err = ldbm_ancestorid_read(be, txn, id, &idl);
         }
         slapi_sdn_done(&sdn);
-        if (idl == NULL) {
-            if (MDB_NOTFOUND == *err) {
+        if (idl == NULL || IDL_NIDS(idl) == 0) {
+            if (*err == 0 || MDB_NOTFOUND == *err) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
                               "dbmdb_fetch_subtrees", "Entry id %u has no descendants according to %s. "
                                                      "Index file created by this reindex will be empty.\n",
@@ -415,6 +415,7 @@ dbmdb_fetch_subtrees(backend *be, char **include, int *err)
                               "dbmdb_fetch_subtrees", "%s not indexed on %u\n",
                               entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid", id);
             }
+            idl_free(&idl);
             continue;
         }
 
