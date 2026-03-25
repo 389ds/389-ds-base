@@ -201,7 +201,7 @@ class CreateLinkModal extends React.Component {
                             {_("Bind Method")}
                         </GridItem>
                         <GridItem span={9}>
-                            <FormSelect value={bindMech} onChange={handleSelectChange} aria-label="FormSelect Input">
+                            <FormSelect value={bindMech} onChange={(event, value) => handleSelectChange(value)} aria-label="FormSelect Input">
                                 <FormSelectOption key={1} value="SIMPLE" label="SIMPLE" />
                                 <FormSelectOption key={2} value="SASL/DIGEST-MD5" label="SASL/DIGEST-MD5" />
                                 <FormSelectOption key={3} value="SASL/GSSAPI" label="SASL/GSSAPI" />
@@ -339,7 +339,7 @@ class CreateSubSuffixModal extends React.Component {
                             {_("Initialization Option")}
                         </GridItem>
                         <GridItem span={9}>
-                            <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
+                            <FormSelect value={initOption} onChange={(event, value) => handleSelectChange(value)} aria-label="FormSelect Input">
                                 <FormSelectOption key={1} value="noInit" label={_("Do Not Initialize Database")} />
                                 <FormSelectOption key={2} value="addSuffix" label={_("Create The Top Sub-Suffix Entry")} />
                                 <FormSelectOption key={3} value="addSample" label={_("Add Sample Entries")} />

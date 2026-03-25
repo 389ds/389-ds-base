@@ -591,7 +591,7 @@ export class Suffix extends React.Component {
                 });
     }
 
-    onLinkOnSelect(value, event) {
+    onLinkOnSelect(value) {
         this.setState({
             createNsbindmechanism: value,
         });
@@ -655,7 +655,7 @@ export class Suffix extends React.Component {
         });
     }
 
-    onSubSuffixOnSelect(value, event) {
+    onSubSuffixOnSelect(value) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
@@ -884,7 +884,7 @@ export class Suffix extends React.Component {
                     <GridItem className="ds-suffix-header" span={9}>
                         <SuffixIcon />
                         &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh suffix")}
                             onClick={() => this.props.reload(this.props.suffix)}
