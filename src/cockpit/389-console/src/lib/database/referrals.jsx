@@ -56,13 +56,13 @@ export class SuffixReferrals extends React.Component {
         this.onLdapChange = this.onLdapChange.bind(this);
     }
 
-    onScopeChange(value, event) {
+    onScopeChange(event, value) {
         this.setState({
             refScope: value,
         });
     }
 
-    onLdapChange(value, event) {
+    onLdapChange(event, value) {
         this.setState({
             refProtocol: value,
         });
