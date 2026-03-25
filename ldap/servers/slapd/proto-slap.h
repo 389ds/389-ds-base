@@ -656,7 +656,6 @@ int config_get_tcp_fin_timeout(void);
 int config_set_tcp_keepalive_time(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_tcp_keepalive_time(void);
 
-bool config_check_fgot(fgot_id_t fgot_id);
 int32_t config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply);
 char * config_get_fgot(void);
 

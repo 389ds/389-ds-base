@@ -10328,13 +10328,6 @@ fgot_is_allowed(const char *name, uint64_t *flags)
     return false;
 }
 
-bool
-config_check_fgot(fgot_id_t fgot_id)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return ((1UL<<fgot_id) & slapdFrontendConfig->fgot_flags);
-}
-
 char *
 config_get_fgot()
 {
