@@ -477,3 +477,28 @@ export function parentExists(params) {
             })
     });
 }
+
+// Parse a cockpit spawn API error message it can be a string or a JSON object
+export function getApiErrorMessage(err) {
+    const fallback = _("Unknown error");
+    if (err === null || err === undefined) {
+        return fallback;
+    }
+
+    // cockpit.spawn with err:"message" can return either JSON or plain text.
+    const raw = typeof err === "string" ? err : err.toString();
+    try {
+        const errObj = JSON.parse(raw);
+        if (errObj && typeof errObj === "object") {
+            let msg = errObj.desc || errObj.message || raw;
+            if ("info" in errObj && errObj.info) {
+                msg = `${msg} - ${errObj.info}`;
+            }
+            return msg;
+        }
+    } catch (e) {
+        // JSON errors fall through and are returned as plain text.
+    }
+
+    return raw || fallback;
+}
