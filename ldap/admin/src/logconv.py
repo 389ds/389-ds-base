@@ -503,7 +503,7 @@ class logAnalyser:
                 \serr=(?P<err>\d+)                                  # err=int
                 \stag=(?P<tag>\d+)                                  # tag=int
                 \snentries=(?P<nentries>\d+)                        # nentries=int
-                (?:\s[^=]+time=[^ ]+)*                              # fine grain operation timing
+                (?:\s[a-z]+time=[^ ]+)*                             # fine grain operation timing
                 (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="strings"
                 (?:,\s+(?P<sasl_msg>SASL\s+bind\s+in\s+progress))?  # Optional: SASL bind in progress
                 (?:\s+notes=(?P<notes>[A-Z]))?                      # Optional: notes[A-Z]
@@ -881,7 +881,7 @@ class logAnalyser:
                     return False
 
                 # Read Fine Grain Operation Timing
-                pattern = rf'.*\s([^=]+time)=(\S+)\s'
+                pattern = rf'.*\s([a-z]+time)=(\S+)\s'
                 for key,val in re.findall(pattern, line):
                     groups[key] = val
 
@@ -3395,7 +3395,7 @@ def main():
         wqtimes = sorted(db.result.wqtime_duration, reverse=True)
         num_wqtimes = len(wqtimes)
         if num_wqtimes > 0:
-            print(f"\n----- Top {db.size_limit} Longest wtimes (wait times) -----\n")
+            print(f"\n----- Top {db.size_limit} Longest wqtimes (work queue times) -----\n")
             for num, wqtime in enumerate(wqtimes):
                 if num >= db.size_limit:
                     break
@@ -3405,7 +3405,7 @@ def main():
         writetimes = sorted(db.result.writetime_duration, reverse=True)
         num_writetimes = len(writetimes)
         if num_writetimes > 0:
-            print(f"\n----- Top {db.size_limit} Longest writetimes (wait times) -----\n")
+            print(f"\n----- Top {db.size_limit} Longest writetimes (write I/O times) -----\n")
             for num, writetime in enumerate(writetimes):
                 if num >= db.size_limit:
                     break
@@ -3526,7 +3526,7 @@ def main():
                 rec_count += 1
 
             if round(avg_writetime, 9) > 0.5:
-                print(f"\n {rec_count}. Your average writetime is {avg_wtime:.9f}. Maybe the application is not reading the results in a timely way.\n")
+                print(f"\n {rec_count}. Your average writetime is {avg_writetime:.9f}. Maybe the application is not reading the results in a timely way.\n")
                 rec_count += 1
 
             if round(avg_optime, 9) > 0:

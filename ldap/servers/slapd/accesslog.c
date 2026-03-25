@@ -615,13 +615,22 @@ slapd_log_access_modrdn(slapd_log_pblock *logpb)
 }
 
 void
-slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb)
+slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb, char *buff, size_t buflen)
 {
     for (fgot_id_t id=0; id<FGOT_MAX; id++) {
+        if (buflen < ETIME_BUFSIZ) {
+            break;
+        }
         if (op->o_fgots[id].enabled) {
             struct timespec *t = &op->o_fgots[id].c;
-            logpb->fgot[id] = slapi_ch_smprintf("%" PRId64 ".%.09" PRId64 "",
+            size_t len;
+            snprintf(buff, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "",
                      (int64_t)(t->tv_sec), (int64_t)(t->tv_nsec));
+            logpb->fgot[id] = buff;
+            len = strlen(buff);
+            buff[len++] = 0;
+            buff += len;
+            buflen -= len;
         }
     }
 }

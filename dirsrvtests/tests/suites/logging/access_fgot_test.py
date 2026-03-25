@@ -96,7 +96,7 @@ def test_wqtime(setup_json):
         ratio = int(100 * wqtime / etime)
         if (ratio > max_wqtime_ratio):
             max_wqtime_ratio = ratio
-    assert ratio > 50
+    assert max_wqtime_ratio > 50
 
 
 @pytest.mark.parametrize("tested_key", tested_keys)

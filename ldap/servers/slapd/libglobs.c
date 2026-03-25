@@ -10373,6 +10373,7 @@ config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply)
                     attrname, value, fgot_allowed_values());
             }
         }
+        slapi_ch_free_string(&pt);
     }
     if (apply && retVal == LDAP_SUCCESS) {
         CFG_LOCK_WRITE(slapdFrontendConfig);

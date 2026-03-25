@@ -2357,7 +2357,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
         logpb.msg = NULL;
         logpb.sid = sessionTrackingId;
         logpb.tag = tag;
-        slapi_log_fgot_json(op, &logpb);
+        slapi_log_fgot_json(op, &logpb, buff_fgot, FGOT_BUFSIZ);
     }
 
 #define LOG_CONN_OP_FMT_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d) RESULT err=%d"

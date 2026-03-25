@@ -787,7 +787,6 @@ void
 fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2)
 {
     struct timespec elapsed;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     if (config_check_fgot(fgot_id) || op->o_fgots[fgot_id].enabled) {
         op->o_fgots[fgot_id].enabled = true;
         slapi_timespec_diff(t1, t2, &elapsed);

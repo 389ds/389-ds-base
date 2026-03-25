@@ -1680,7 +1680,7 @@ int32_t slapd_log_access_extop_info(slapd_log_pblock *logpb);
 int32_t slapd_log_access_sort(slapd_log_pblock *logpb);
 int32_t slapd_log_access_tls(slapd_log_pblock *logpb);
 int32_t slapd_log_access_tls_client_auth(slapd_log_pblock *logpb);
-void slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb);
+void slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb, char *buff, size_t buflen);
 void slapi_log_fgot_text(struct op *op, char *buff, size_t buflen);
 const char*fgot_get_name(fgot_id_t id);
 
