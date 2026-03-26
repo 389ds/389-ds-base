@@ -804,7 +804,7 @@ class MemberOfPlugin(Plugin):
                     # Is this backend suffix in scope
                     in_scope = False
                     for scope in scopes:
-                        if scope.endswith(suffix):
+                        if suffix.endswith(scope):
                             in_scope = True
                             break
 
@@ -857,7 +857,7 @@ class MemberOfPlugin(Plugin):
                     # Is this backend suffix in scope
                     in_scope = False
                     for scope in scopes:
-                        if scope.endswith(suffix):
+                        if suffix.endswith(scope):
                             in_scope = True
                             break
 
