@@ -541,6 +541,73 @@ def test_retrocl_changelogmaxage_validation(topology_st):
         rcl.replace('nsslapd-changelogmaxage', value)
 
 
+def test_retrocl_trimming_shutdown_crash(topology_st):
+    """Test that shutting down while retrocl trimming is active does not crash
+
+    :id: a178e71b-2f3a-4b12-9c01-ef7d3a5b8c42
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog with aggressive trimming settings
+        2. Generate changelog entries
+        3. Wait for entries to age past maxage
+        4. Perform multiple rapid stop/start cycles during trim activity
+        5. Check for disorderly shutdown (crash) after each cycle
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. No crash detected on any cycle
+        5. No crash detected
+    """
+    inst = topology_st.standalone
+    NUM_ENTRIES = 50
+    NUM_RESTART_CYCLES = 10
+
+    log.info('Enable retro changelog with aggressive trimming')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    rcl.replace('nsslapd-changelogmaxage', '5s')
+    rcl.replace('nsslapd-changelog-trim-interval', '1')
+    inst.restart()
+
+    log.info(f'Generate {NUM_ENTRIES} changelog entries')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    for idx in range(NUM_ENTRIES):
+        users.create(properties={
+            'uid': f'crashtest{idx}',
+            'cn': f'crashtest{idx}',
+            'sn': f'crashtest{idx}',
+            'uidNumber': str(5000 + idx),
+            'gidNumber': str(6000 + idx),
+            'homeDirectory': f'/home/crashtest{idx}',
+            'userPassword': 'password'
+        })
+
+    log.info('Wait for changelog entries to age past maxage')
+    time.sleep(6)
+
+    log.info(f'Perform {NUM_RESTART_CYCLES} rapid stop/start cycles')
+    for cycle in range(NUM_RESTART_CYCLES):
+        suffix = Domain(inst, DEFAULT_SUFFIX)
+        for j in range(5):
+            suffix.replace('description', f'cycle{cycle}_update{j}')
+
+        time.sleep(1)
+        inst.stop()
+
+        log.info(f'Cycle {cycle + 1}/{NUM_RESTART_CYCLES}: checking for crash')
+        assert not inst.detectDisorderlyShutdown(), \
+            f'Server crashed during shutdown cycle {cycle + 1}'
+
+        inst.start()
+
+    log.info('Final shutdown and crash check')
+    inst.stop()
+    assert not inst.detectDisorderlyShutdown(), \
+        'Server crashed during final shutdown'
+    inst.start()
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
