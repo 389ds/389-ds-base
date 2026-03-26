@@ -650,8 +650,8 @@ slapi_operation_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
     struct timespec o_hr_time_now;
     clock_gettime(CLOCK_MONOTONIC, &o_hr_time_now);
-    fgot_compute(o, FGOT_ETIME, &o_hr_time_now, &o->o_hr_time_rel);
-    *elapsed = o->o_fgots[FGOT_ETIME].c;
+
+    slapi_timespec_diff(&o_hr_time_now, &(o->o_hr_time_rel), elapsed);
 }
 
 void
@@ -766,16 +766,15 @@ slapi_operation_op_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
     struct timespec o_hr_time_now;
     clock_gettime(CLOCK_MONOTONIC, &o_hr_time_now);
-    fgot_compute(o, FGOT_OP, &o_hr_time_now, &o->o_hr_time_started_rel);
-    *elapsed = o->o_fgots[FGOT_OP].c;
+
+    slapi_timespec_diff(&o_hr_time_now, &(o->o_hr_time_started_rel), elapsed);
 }
 
 /* The time diff the operation waited in the work queue */
 void
 slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
-    fgot_compute(o, FGOT_W, &o->o_hr_time_started_rel, &o->o_hr_time_rel);
-    *elapsed = o->o_fgots[FGOT_W].c;
+    slapi_timespec_diff(&(o->o_hr_time_started_rel), &(o->o_hr_time_rel), elapsed);
 }
 
 LDAPControl **
@@ -790,13 +789,21 @@ operation_get_result_controls(const Operation *o)
     return o->o_results.result_controls;
 }
 
+/* Set t in cumulative fine grain operation timing slot */
+void
+fgot_set(struct op *op, fgot_id_t fgot_id, struct timespec *t)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        op->o_fgots[fgot_id].c = *t;
+    }
+}
+
 /* Add t1-t2 in cumulative fine grain operation timing slot */
 void
 fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2)
 {
-    struct timespec elapsed;
     if (op->o_fgots[fgot_id].enabled) {
-        op->o_fgots[fgot_id].enabled = true;
+        struct timespec elapsed;
         slapi_timespec_diff(t1, t2, &elapsed);
         slapi_timespec_add(&op->o_fgots[fgot_id].c, &elapsed);
     }

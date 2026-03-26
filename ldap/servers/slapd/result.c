@@ -2184,6 +2184,7 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
+
                 for (key_info = op_stat->search_stat->keys_lookup; key_info; key_info = key_info->next) {
                     slapi_timespec_diff(&key_info->key_lookup_end, &key_info->key_lookup_start, &duration);
                     snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
@@ -2321,12 +2322,16 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
 
     /* total elapsed time */
     slapi_operation_time_elapsed(op, &o_hr_time_end);
+    fgot_set(op, FGOT_ETIME, &o_hr_time_end);
 
     /* wait time */
     slapi_operation_workq_time_elapsed(op, &o_hr_time_end);
+    fgot_set(op, FGOT_W, &o_hr_time_end);
 
     /* op time */
     slapi_operation_op_time_elapsed(op, &o_hr_time_end);
+    fgot_set(op, FGOT_OP, &o_hr_time_end);
+
     operation_notes = slapi_pblock_get_operation_notes(pb);
     if (0 == operation_notes) {
         notes_str = "";

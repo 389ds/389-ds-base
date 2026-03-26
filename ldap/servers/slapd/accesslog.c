@@ -763,9 +763,6 @@ slapd_log_access_result(slapd_log_pblock *logpb)
 
     /* Done with JSON object - free it */
     json_object_put(json_obj);
-    for (fgot_id_t id=0; id<FGOT_MAX; id++) {
-        slapi_ch_free_string(&logpb->fgot[id]);
-    }
 
     return rc;
 }

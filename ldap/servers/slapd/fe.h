@@ -172,6 +172,7 @@ void sasl_map_read_unlock(void);
 /*
  * operation.c
  */
+void fgot_set(struct op *op, fgot_id_t fgot_id, struct timespec *t);
 void fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2);
 void fgot_start(struct op *op, fgot_id_t fgot_id);
 void fgot_end(struct op *op, fgot_id_t fgot_id);

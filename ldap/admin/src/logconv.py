@@ -881,7 +881,7 @@ class logAnalyser:
                     return False
 
                 # Read Fine Grain Operation Timing
-                pattern = rf'.*\s([a-z]+time)=(\S+)\s'
+                pattern = rf'\s([a-z]+time)=([0-9.]+)'
                 for key,val in re.findall(pattern, line):
                     groups[key] = val
 
