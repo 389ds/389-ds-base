@@ -1367,8 +1367,11 @@ def test_grace_limit_section(topo, policy_setup, _fixture_for_grace_limit):
     for att1, att2 in [('passwordGraceLimit', '10')]:
         _do_transaction_for_pwp(topo, att1, att2)
     # removing the passwordgracelimit attribute should make it default to 0
-    for att1, att2 in [('passwordGraceLimit', ' ')]:
-        _do_transaction_for_pwp(topo, att1, att2)
+    pwp = PwPolicyManager(topo.standalone)
+    for dn in [f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}',
+               f'uid=joe,ou=people,{DEFAULT_SUFFIX}',
+               f'ou=people,{DEFAULT_SUFFIX}']:
+        pwp.get_pwpolicy_entry(dn).remove_all('passwordGraceLimit')
     change_password_with_admin(topo, [
         ('uid=orla,ou=dirsec', '000rLb1'),
         ('uid=joe,ou=people', '00J0e1'),
