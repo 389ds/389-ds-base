@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": ["dependencies"],
+  "schedule": ["before 9am on monday"],
+  "cargo": {
+    "enabled": true,
+    "fileMatch": ["^src/.*/Cargo\\.toml$", "^src/Cargo\\.toml$"]
+  },
+  "pip_requirements": {
+    "enabled": true,
+    "fileMatch": ["(^|/)requirements\\.txt$"]
+  },
+  "github-actions": {
+    "enabled": true,
+    "fileMatch": ["^\\.github/workflows/[^/]+\\.ya?ml$"]
+  },
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions updates and pin to SHA digests",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "pinDigests": true,
+      "automerge": false
+    },
+    {
+      "description": "Group all Rust/Cargo dependency updates",
+      "matchManagers": ["cargo"],
+      "groupName": "rust-dependencies",
+      "automerge": false
+    },
+    {
+      "description": "Group all npm updates for the cockpit-389-ds",
+      "matchManagers": ["npm"],
+      "groupName": "cockpit-389-ds-npm",
+      "automerge": false
+    },
+    {
+      "description": "Group all Python dependency updates",
+      "matchManagers": ["pip_requirements"],
+      "groupName": "python-dependencies",
+      "automerge": false
+    }
+  ]
+}
