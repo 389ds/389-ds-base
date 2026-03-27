@@ -638,7 +638,7 @@ export class Suffix extends React.Component {
                 });
     }
 
-    onLinkOnSelect(value, event) {
+    onLinkOnSelect(value) {
         this.setState({
             createNsbindmechanism: value,
         });
@@ -702,7 +702,7 @@ export class Suffix extends React.Component {
         });
     }
 
-    onSubSuffixOnSelect(value, event) {
+    onSubSuffixOnSelect(value) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
