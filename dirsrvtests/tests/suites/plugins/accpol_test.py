@@ -1001,15 +1001,24 @@ def test_glinact_nsact(topology_st, accpol_global):
 
     log.info('AccountInactivityLimit set to 12. Account will be inactivated if not accessed in 12 secs')
     add_users(topology_st, suffix, subtree, userid, nousrs, 0)
-    log.info('Sleep for 3 secs to check if account is not inactivated, expected value 0')
+
+    log.info('Sleep for 3 secs to check if account is not inactivated')
     time.sleep(3)
+
+    log.info('Try to unlock account that is still active, should fail')
     nsact_inact(topology_st, suffix, subtree, userid, nousrs, "unlock", "")
-    log.info('Sleep for 10 secs to check if account is inactivated, expected value 19')
+
+    log.info('Sleep for 10 secs so the account becomes inactivated')
     time.sleep(10)
-    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "unlock", "")
+
+    log.info('Verify account is inactive BEFORE unlocking')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
-    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "entry-status",
-                "inactivity limit exceeded")
+    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "entry-status", "inactivity limit exceeded")
+
+    log.info('Unlock account')
+    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "unlock", "")
+
+    log.info('Replace the lastLoginTime attribute and check the account is now active')
     add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
     nsact_inact(topology_st, suffix, subtree, userid, nousrs, "entry-status", "activated")
