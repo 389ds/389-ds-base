@@ -1206,6 +1206,23 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         {renderValidationError("passwordmaxclasschars", this.state.invalidFields)}
+                        <GridItem className="ds-label" offset={6} span={3}>
+                            {_("Minimum Token Length")}
+                        </GridItem>
+                        <GridItem span={1} title={_("The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).")}>
+                            <TextInput
+                                type="number"
+                                value={this.state.passwordmintokenlength}
+                                id="passwordmintokenlength"
+                                aria-describedby="passwordmintokenlength"
+                                name="passwordmintokenlength"
+                                onChange={(e, str) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                {...getValidationProps("passwordmintokenlength", this.state.invalidFields)}
+                            />
+                        </GridItem>
+                        {renderValidationError("passwordmintokenlength", this.state.invalidFields)}
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
