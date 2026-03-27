@@ -6,8 +6,8 @@ use std::ffi::CString;
 use std::ops::Deref;
 use std::os::raw::c_char;
 
-extern "C" {
-    fn slapi_search_internal_set_pb_ext(
+unsafe extern "C" {
+    unsafe fn slapi_search_internal_set_pb_ext(
         pb: *const libc::c_void,
         base: *const libc::c_void,
         scope: i32,
@@ -19,7 +19,7 @@ extern "C" {
         plugin_ident: *const libc::c_void,
         op_flags: i32,
     );
-    fn slapi_search_internal_callback_pb(
+    unsafe fn slapi_search_internal_callback_pb(
         pb: *const libc::c_void,
         cb_data: *const libc::c_void,
         cb_result_ptr: *const libc::c_void,
@@ -61,7 +61,7 @@ impl Search {
         basedn: &SdnRef,
         scope: SearchScope,
         filter: &str,
-        plugin_id: PluginIdRef,
+        plugin_id: &PluginIdRef,
         cbdata: &T,
         mapfn: extern "C" fn(*const libc::c_void, *const libc::c_void) -> i32,
     ) -> Result<Self, PluginError>
@@ -69,8 +69,8 @@ impl Search {
         T: Send,
     {
         // Configure a search based on the requested type.
-        let pb = Pblock::new();
-        let raw_filter = CString::new(filter).map_err(|_| PluginError::InvalidFilter)?;
+        let pb: Pblock = Pblock::new();
+        let raw_filter: CString = CString::new(filter).map_err(|_| PluginError::InvalidFilter)?;
 
         unsafe {
             slapi_search_internal_set_pb_ext(
@@ -84,20 +84,20 @@ impl Search {
                 std::ptr::null(),
                 plugin_id.raw_pid,
                 0,
-            )
+            );
         };
 
-        Ok(Search {
+        Ok(Self {
             pb,
             filter: Some(raw_filter),
-            stype: SearchType::InternalMapEntry(mapfn, cbdata as *const _ as *const libc::c_void),
+            stype: SearchType::InternalMapEntry(mapfn, (&raw const cbdata).cast()),
         })
     }
 
     // Consume self, do the search
     pub fn execute(self) -> Result<SearchResult, LDAPError> {
         // Deconstruct self
-        let Search {
+        let Self {
             mut pb,
             filter: _filter,
             stype,
@@ -114,10 +114,10 @@ impl Search {
                     std::ptr::null(),
                 );
             },
-        };
+        }
 
         // now check the result, and map to what we need.
-        let result = pb.get_op_result();
+        let result: i32 = pb.get_op_result();
 
         match result {
             0 => Ok(SearchResult { _pb: pb }),
