@@ -10287,7 +10287,7 @@ static struct {
 const char *
 fgot_allowed_values()
 {
-    static char names[20];
+    static char names[128];
     size_t len = 0;
     if (!names[0]) {
         for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
