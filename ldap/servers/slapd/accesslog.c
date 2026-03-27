@@ -614,6 +614,47 @@ slapd_log_access_modrdn(slapd_log_pblock *logpb)
     return rc;
 }
 
+void
+slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb, char *buff, size_t buflen)
+{
+    for (fgot_id_t id=0; id<FGOT_MAX; id++) {
+        if (buflen < ETIME_BUFSIZ) {
+            break;
+        }
+        if (op->o_fgots[id].enabled) {
+            struct timespec *t = &op->o_fgots[id].c;
+            size_t len;
+            snprintf(buff, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "",
+                     (int64_t)(t->tv_sec), (int64_t)(t->tv_nsec));
+            logpb->fgot[id] = buff;
+            len = strlen(buff);
+            buff[len++] = 0;
+            buff += len;
+            buflen -= len;
+        }
+    }
+}
+
+void
+slapi_log_fgot_text(struct op *op, char *buff, size_t buflen)
+{
+    char *buffend = buff+buflen-1;
+    for (fgot_id_t id=0; id<FGOT_MAX; id++) {
+        const char *name = fgot_get_name(id);
+        if (op->o_fgots[id].enabled) {
+            char tbuff[ETIME_BUFSIZ];
+            struct timespec *t = &op->o_fgots[id].c;
+            snprintf(tbuff, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "",
+                     (int64_t)(t->tv_sec), (int64_t)(t->tv_nsec));
+            size_t len = strlen(name)+strlen(tbuff)+2;
+            if (buff+len >= buffend) {
+                break;
+            }
+            sprintf(buff, " %s=%s", name, tbuff);
+            buff += len;
+        }
+    }
+}
 
 /*
  * RESULT
@@ -709,6 +750,12 @@ slapd_log_access_result(slapd_log_pblock *logpb)
     }
     json_add_str(json_obj, "sid", logpb->sid);
     json_add_str(json_obj, "bind_dn", logpb->bind_dn);
+    for (fgot_id_t id=0; id<FGOT_MAX; id++) {
+        if (logpb->fgot[id]) {
+            const char *name = fgot_get_name(id);
+            json_add_str(json_obj, name, logpb->fgot[id]);
+        }
+    }
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);

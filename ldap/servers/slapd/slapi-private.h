@@ -1535,6 +1535,22 @@ void slapi_log_hexadump(int loglevel, char *fname, const void *addr, size_t len)
 /*
  * accesslog.c
  */
+/* Fine grain operation timing */
+typedef struct fgot_t {
+    bool enabled;
+    struct timespec c;  /* Cumuled time */
+    struct timespec s;  /* Start time */
+} fgot_t;
+
+typedef enum fgot_id_t {
+    FGOT_WQ,     /* Time spent in Work Queue */
+    FGOT_W,      /* Time spent before starting processing the operation */
+    FGOT_OP,     /* Time spent after starting processing the operation */
+    FGOT_WRITE,  /* Time spent sending data over the network */
+    FGOT_ETIME,  /* Time spent to fully process an operation */
+    FGOT_MAX     /* Fgot table size - Should be the last enum */
+} fgot_id_t;
+
 typedef struct slapd_log_pblock {
     int32_t log_format;
     Slapi_PBlock *pb;
@@ -1636,6 +1652,7 @@ typedef struct slapd_log_pblock {
     const char *err_str;
     LDAPControl **request_controls;
     LDAPControl **response_controls;
+    char *fgot[FGOT_MAX];
 } slapd_log_pblock;
 
 int32_t slapd_log_access_abandon(slapd_log_pblock *logpb);
@@ -1663,6 +1680,9 @@ int32_t slapd_log_access_extop_info(slapd_log_pblock *logpb);
 int32_t slapd_log_access_sort(slapd_log_pblock *logpb);
 int32_t slapd_log_access_tls(slapd_log_pblock *logpb);
 int32_t slapd_log_access_tls_client_auth(slapd_log_pblock *logpb);
+void slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb, char *buff, size_t buflen);
+void slapi_log_fgot_text(struct op *op, char *buff, size_t buflen);
+const char*fgot_get_name(fgot_id_t id);
 
 #ifdef __cplusplus
 }

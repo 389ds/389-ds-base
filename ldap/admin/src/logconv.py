@@ -307,11 +307,15 @@ class ResultData:
 
     total_etime: float = 0.0
     total_wtime: float = 0.0
+    total_wqtime: float = 0.0
+    total_writetime: float = 0.0
     total_optime: float = 0.0
     etime_stat: float = 0.0
 
     etime_duration: List[float] = field(default_factory=list)
     wtime_duration: List[float] = field(default_factory=list)
+    wqtime_duration: List[float] = field(default_factory=list)
+    writetime_duration: List[float] = field(default_factory=list)
     optime_duration: List[float] = field(default_factory=list)
 
     nentries_num: List[int] = field(default_factory=list)
@@ -499,9 +503,7 @@ class logAnalyser:
                 \serr=(?P<err>\d+)                                  # err=int
                 \stag=(?P<tag>\d+)                                  # tag=int
                 \snentries=(?P<nentries>\d+)                        # nentries=int
-                \swtime=(?P<wtime>\d+\.\d+)                         # wtime=float
-                \soptime=(?P<optime>\d+\.\d+)                       # optime=float
-                \setime=(?P<etime>\d+\.\d+)                         # etime=float
+                (?:\s[a-z]+time=[^ ]+)*                             # fine grain operation timing
                 (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="strings"
                 (?:,\s+(?P<sasl_msg>SASL\s+bind\s+in\s+progress))?  # Optional: SASL bind in progress
                 (?:\s+notes=(?P<notes>[A-Z]))?                      # Optional: notes[A-Z]
@@ -878,6 +880,11 @@ class logAnalyser:
                     self.logger.error(f"Failed to get group from match line: {line} - {e}.")
                     return False
 
+                # Read Fine Grain Operation Timing
+                pattern = rf'\s([a-z]+time)=([0-9.]+)'
+                for key,val in re.findall(pattern, line):
+                    groups[key] = val
+
                 timestamp_raw = groups.get('timestamp')
                 if timestamp_raw:
                     try:
@@ -1097,6 +1104,8 @@ class logAnalyser:
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "etime": log_entry.get('etime', None),
             "wtime": log_entry.get('wtime', None),
+            "wqtime": log_entry.get('wqtime', None),
+            "writetime": log_entry.get('writetime', None),
             "optime": log_entry.get('optime', None),
             "nentries": self.convert_to_int(log_entry.get('nentries', None)),
             "tag": self.convert_to_int(log_entry.get('tag', None)),
@@ -1133,6 +1142,8 @@ class logAnalyser:
         bind_dn = log_entry.get("bind_dn", "")
         etime = log_entry.get("etime", "")
         wtime = log_entry.get("wtime", "")
+        wqtime = log_entry.get("wqtime", "")
+        writetime = log_entry.get("writetime", "")
         optime = log_entry.get("optime", "")
         nentries = log_entry.get("nentries", None)
         tag = log_entry.get("tag", None)
@@ -1181,6 +1192,26 @@ class logAnalyser:
                 self.result.total_wtime += wtime_f
             except ValueError:
                 self.logger.debug(f"Invalid wtime format: {wtime}")
+
+        if wqtime and isinstance(wqtime, str):
+            try:
+                wqtime_f = float(wqtime)
+                heapq.heappush(self.result.wqtime_duration, wqtime_f)
+                if len(self.result.wqtime_duration) > self.size_limit:
+                    heapq.heappop(self.result.wqtime_duration)
+                self.result.total_wqtime += wqtime_f
+            except ValueError:
+                self.logger.debug(f"Invalid wqtime format: {wqtime}")
+
+        if writetime and isinstance(writetime, str):
+            try:
+                writetime_f = float(writetime)
+                heapq.heappush(self.result.writetime_duration, writetime_f)
+                if len(self.result.writetime_duration) > self.size_limit:
+                    heapq.heappop(self.result.writetime_duration)
+                self.result.total_writetime += writetime_f
+            except ValueError:
+                self.logger.debug(f"Invalid writetime format: {writetime}")
 
         if optime and isinstance(optime, str):
             try:
@@ -3002,6 +3033,8 @@ def main():
     num_time_count = db.result.counters['timestamp']
     if num_time_count:
         avg_wtime = round(db.result.total_wtime/num_time_count, 9)
+        avg_wqtime = round(db.result.total_wqtime/num_time_count, 9)
+        avg_writetime = round(db.result.total_writetime/num_time_count, 9)
         avg_optime = round(db.result.total_optime/num_time_count, 9)
         avg_etime = round(db.result.total_etime/num_time_count, 9)
     num_fd_taken = db.connection.counters['fd_taken']
@@ -3105,6 +3138,8 @@ def main():
 
     if num_time_count:
         print(f"\nAverage wtime (wait time):      {avg_wtime:.9f}")
+        print(f"Average wqtime (work queue wait time):     {avg_wqtime:.9f}")
+        print(f"Average writetime (write I/O time):  {avg_writetime:.9f}")
         print(f"Average optime (op time):       {avg_optime:.9f}")
         print(f"Average etime (elapsed time):   {avg_etime:.9f}")
     print(f"\nMulti-factor Authentications:   {db.result.counters['notesM']}")
@@ -3356,6 +3391,26 @@ def main():
                     break
                 print(f"wtime={wtime:<12}")
 
+        # Longest work queue times
+        wqtimes = sorted(db.result.wqtime_duration, reverse=True)
+        num_wqtimes = len(wqtimes)
+        if num_wqtimes > 0:
+            print(f"\n----- Top {db.size_limit} Longest wqtimes (work queue times) -----\n")
+            for num, wqtime in enumerate(wqtimes):
+                if num >= db.size_limit:
+                    break
+                print(f"wqtime={wqtime:<12}")
+
+        # Longest write I/O times
+        writetimes = sorted(db.result.writetime_duration, reverse=True)
+        num_writetimes = len(writetimes)
+        if num_writetimes > 0:
+            print(f"\n----- Top {db.size_limit} Longest writetimes (write I/O times) -----\n")
+            for num, writetime in enumerate(writetimes):
+                if num >= db.size_limit:
+                    break
+                print(f"writetime={writetime:<12}")
+
         # Longest operation times
         optimes = sorted(db.result.optime_duration, reverse=True)
         num_optimes = len(optimes)
@@ -3464,6 +3519,14 @@ def main():
 
             if round(avg_wtime, 9) > 0.5:
                 print(f"\n {rec_count}. Your average wtime is {avg_wtime:.9f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
+                rec_count += 1
+
+            if round(avg_wqtime, 9) > 0.5:
+                print(f"\n {rec_count}. Your average wqtime is {avg_wqtime:.9f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
+                rec_count += 1
+
+            if round(avg_writetime, 9) > 0.5:
+                print(f"\n {rec_count}. Your average writetime is {avg_writetime:.9f}. Maybe the application is not reading the results in a timely way.\n")
                 rec_count += 1
 
             if round(avg_optime, 9) > 0:

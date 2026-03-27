@@ -656,6 +656,9 @@ int config_get_tcp_fin_timeout(void);
 int config_set_tcp_keepalive_time(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_tcp_keepalive_time(void);
 
+int32_t config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply);
+char * config_get_fgot(void);
+
 int is_abspath(const char *);
 char *rel2abspath(char *);
 char *rel2abspath_ext(char *, char *);
