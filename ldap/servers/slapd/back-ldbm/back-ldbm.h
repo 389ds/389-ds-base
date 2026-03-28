@@ -361,6 +361,9 @@ struct backentry
     uint64_t ep_weight;             /* for cache eviction */
     bool ep_is_dynamic;             /* is the entry a dynamic entry and must be
                                      * removed from cache asap */
+    char *ep_dn_hash_ndn;           /* saved NDN from tentative add, used to
+                                     * remove stale hash entry if the DN was
+                                     * changed in-place */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
