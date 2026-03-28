@@ -247,8 +247,10 @@ def test_replication(topo_m2):
         # Step 6: Start S1
         S1.start()
         # Step 7: Restore S1 from backup
+        # and restart the instance to take into account the restored backend
         rc = S1.tasks.bak2db(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
         assert rc == 0
+        S1.restart()
         # Step 8: Wait until replication is in sync
         # Must replicate first from S2 to S1 to resync S1
         repl.wait_for_replication(S2, S1)
