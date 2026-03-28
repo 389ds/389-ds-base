@@ -794,16 +794,21 @@ class MemberOfPlugin(Plugin):
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
             attrs = self.get_attr_vals_utf8_l("memberofgroupattr")
-            container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
+            scopes = self.get_attr_vals_utf8_l("memberofentryscope")
             for backend in backends:
                 suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
                 if suffix == "cn=changelog":
                     # Always skip retro changelog
                     continue
-                if container is not None:
-                    # Check if this backend is in the scope
-                    if not container.endswith(suffix):
-                        # skip this backend that is not in the scope
+                if scopes:
+                    # Is this backend suffix in scope
+                    in_scope = False
+                    for scope in scopes:
+                        if suffix.endswith(scope):
+                            in_scope = True
+                            break
+
+                    if not in_scope:
                         continue
                 indexes = backend.get_indexes()
                 for attr in attrs:
@@ -842,16 +847,21 @@ class MemberOfPlugin(Plugin):
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
             membership_attrs = ['member', 'uniquemember']
-            container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
+            scopes = self.get_attr_vals_utf8_l("memberofentryscope")
             for backend in backends:
                 suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
                 if suffix == "cn=changelog":
                     # Always skip retro changelog
                     continue
-                if container is not None:
-                    # Check if this backend is in the scope
-                    if not container.endswith(suffix):
-                        # skip this backend that is not in the scope
+                if scopes:
+                    # Is this backend suffix in scope
+                    in_scope = False
+                    for scope in scopes:
+                        if suffix.endswith(scope):
+                            in_scope = True
+                            break
+
+                    if not in_scope:
                         continue
                 indexes = backend.get_indexes()
                 for attr in membership_attrs:
