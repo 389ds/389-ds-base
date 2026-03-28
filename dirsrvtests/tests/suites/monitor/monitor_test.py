@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,11 +11,16 @@ import ldap
 import pytest
 import os
 import threading
+import time
 from lib389.monitor import *
 from lib389.backend import Backends, DatabaseConfig
 from lib389._constants import *
 from lib389.topologies import topology_st as topo
 from lib389._mapped_object import DSLdapObjects
+from lib389.utils import get_default_db_lib
+from lib389.plugins import MemberOfPlugin
+from lib389.idm.user import UserAccounts
+from lib389.idm.group import Groups
 
 pytestmark = pytest.mark.tier1
 
@@ -371,6 +376,99 @@ def test_monitor_busy_workers_concurrent(topo):
         f"maxbusyworkers should not decrease: before={max_bw_before}, after={max_bw_after}"
     assert cur_bw_after < NUM_THREADS, \
         f"currentbusyworkers should drop back after load completes, got {cur_bw_after}"
+
+
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
+def test_monitor_memberof(topo):
+    """Test MemberOf plugin deferred processing monitoring with real activity
+    :id: 1c4b382a-ebaf-4d80-9232-67e1b3ab58d4
+    :setup: Single instance
+    :steps:
+        1. Enable MemberOf plugin and verify default state
+        2. Verify monitoring unavailable when deferred disabled
+        3. Enable deferred processing and verify monitor creation
+        4. Generate memberof activity and verify stats update
+        5. Disable deferred processing and verify monitor cleanup
+    :expectedresults:
+        1. Plugin enabled, deferred setting is None by default
+        2. ValueError raised for unavailable monitoring
+        3. Monitor accessible with expected attributes
+        4. TotalAdded counter increases with activity
+        5. Monitoring becomes unavailable after disable
+    """
+    inst = topo.standalone
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+
+    # Verify plugin is enabled
+    enabled = memberof.get_attr_val_utf8('nsslapd-pluginEnabled')
+    assert enabled
+
+    # Verify deferred processing is disabled by default (None = unset)
+    deferred = memberof.get_memberofdeferredupdate()
+    assert deferred is None
+
+    # Verify monitoring not available when deferred disabled
+    with pytest.raises(ValueError, match="not available"):
+        MonitorMemberOf(inst).get_status()
+
+    # Enable deferred processing
+    memberof.set_memberofdeferredupdate('on')
+    inst.restart()
+
+    # Verify deferred processing is now enabled
+    deferred = memberof.get_memberofdeferredupdate()
+    assert deferred and deferred.lower() == "on"
+
+    # Verify monitor is now accessible
+    monitor = MonitorMemberOf(inst)
+    stats = monitor.get_status()
+    assert 'CurrentTasks' in stats
+    assert 'TotalAdded' in stats
+    assert 'TotalRemoved' in stats
+    assert 'ThreadStatus' in stats
+
+    # Get baseline stats before generating activity
+    added_before = int(stats.get('TotalAdded', ['0'])[0])
+
+    # Generate memberof activity to trigger deferred processing
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    groups = Groups(inst, DEFAULT_SUFFIX)
+    user1 = users.create_test_user(uid=1000)
+    user2 = users.create_test_user(uid=1001)
+
+    # Creating group with members triggers deferred memberof processing
+    group = groups.create(properties={
+        'cn': 'testgroup',
+        'member': [user1.dn, user2.dn]
+    })
+
+    # Wait for deferred processing to complete
+    time.sleep(2)
+
+    # Verify stats were updated by the activity
+    updated_stats = monitor.get_status()
+    added_after = int(updated_stats.get('TotalAdded', ['0'])[0])
+
+    # Stats should definitely increase with activity
+    assert added_after > added_before, f"Expected TotalAdded to increase from {added_before}, got {added_after}"
+
+    # Clean up test data
+    group.delete()
+    user1.delete()
+    user2.delete()
+
+    # Disable deferred processing
+    memberof.set_memberofdeferredupdate('off')
+    inst.restart()
+
+    # Verify deferred processing is now disabled
+    deferred = memberof.get_memberofdeferredupdate()
+    assert deferred and deferred.lower() == "off"
+
+    # Verify monitoring is no longer available
+    with pytest.raises(ValueError, match="not available"):
+        monitor.get_status()
 
 
 if __name__ == '__main__':
