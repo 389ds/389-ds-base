@@ -1997,7 +1997,7 @@ bdb_db2index(Slapi_PBlock *pb)
         /*
          * Update the ancestorid and entryrdn index
          */
-        if (index_ext & DB2INDEX_ANCESTORID) {
+        if ((index_ext & DB2INDEX_ANCESTORID) && !istombstone) {
             rc = ldbm_ancestorid_index_entry(be, ep, BE_INDEX_ADD, NULL);
             if (rc != 0) {
                 slapi_log_err(SLAPI_LOG_ERR,
