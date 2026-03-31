@@ -20,6 +20,28 @@ static int sync_persist_register_operation_extension(void);
 
 static PRUintn thread_primary_op;
 
+/*
+ * Destructor for the per-thread primary operation list HEAD node.
+ * Called by NSPR when a thread exits, to free the HEAD node
+ * and any remaining linked list entries.
+ */
+static void
+sync_thread_primary_op_destructor(void *priv)
+{
+    OPERATION_PL_CTX_T *head = (OPERATION_PL_CTX_T *)priv;
+    if (head) {
+        OPERATION_PL_CTX_T *curr_op = head->next;
+        while (curr_op) {
+            OPERATION_PL_CTX_T *next = curr_op->next;
+            slapi_entry_free(curr_op->entry);
+            slapi_entry_free(curr_op->eprev);
+            slapi_ch_free((void **)&curr_op);
+            curr_op = next;
+        }
+        slapi_ch_free((void **)&head);
+    }
+}
+
 int
 sync_init(Slapi_PBlock *pb)
 {
@@ -211,7 +233,7 @@ sync_start(Slapi_PBlock *pb)
      * only contains one operation. For nested, the list contains the operations
      * in the order that they were applied
      */
-    PR_NewThreadPrivateIndex(&thread_primary_op, NULL);
+    PR_NewThreadPrivateIndex(&thread_primary_op, sync_thread_primary_op_destructor);
     sync_persist_initialize(argc, argv);
 
     return (0);
