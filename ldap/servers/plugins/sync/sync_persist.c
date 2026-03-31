@@ -41,6 +41,69 @@ static void sync_node_free(SyncQueueNode **node);
 static int sync_acquire_connection(Slapi_Connection *conn);
 static int sync_release_connection(Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release);
 
+/*
+ * Free all resources owned by a SyncRequest and the request itself.
+ * Caller must remove the request from the list (sync_remove_request)
+ * before calling this, if it was added.
+ */
+static void
+sync_request_free(SyncRequest **reqp)
+{
+    SyncRequest *req;
+    SyncQueueNode *qnode, *qnodenext;
+
+    if (reqp == NULL || *reqp == NULL) {
+        return;
+    }
+    req = *reqp;
+
+    if (req->req_pblock) {
+        char **attrs_dup = NULL;
+        char *strFilter = NULL;
+        LDAPControl **ctrls = NULL;
+        Slapi_DN *sdn = NULL;
+
+        slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_TARGET_SDN, &sdn);
+        slapi_sdn_free(&sdn);
+        slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_TARGET_SDN, NULL);
+
+        slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_ATTRS, &attrs_dup);
+        slapi_ch_array_free(attrs_dup);
+        slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_ATTRS, NULL);
+
+        slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_STRFILTER, &strFilter);
+        slapi_ch_free((void **)&strFilter);
+        slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_STRFILTER, NULL);
+
+        slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, &ctrls);
+        if (ctrls) {
+            ldap_controls_free(ctrls);
+            slapi_pblock_set(req->req_pblock, SLAPI_REQCONTROLS, NULL);
+        }
+
+        slapi_pblock_destroy(req->req_pblock);
+        req->req_pblock = NULL;
+    }
+
+    slapi_ch_free((void **)&req->req_orig_base);
+    slapi_filter_free(req->req_filter, 1);
+    req->req_filter = NULL;
+
+    for (qnode = req->ps_eq_head; qnode; qnode = qnodenext) {
+        qnodenext = qnode->sync_next;
+        sync_node_free(&qnode);
+    }
+    req->ps_eq_head = NULL;
+    req->ps_eq_tail = NULL;
+
+    if (req->req_lock) {
+        PR_DestroyLock(req->req_lock);
+        req->req_lock = NULL;
+    }
+
+    slapi_ch_free((void **)reqp);
+}
+
 /* This routine appends the operation at the end of the
  * per thread pending list of nested operation..
  * being a betxn_preop the pending list has the same order
@@ -665,10 +728,7 @@ sync_persist_add(Slapi_PBlock *pb)
                               prerr, slapi_pr_strerror(prerr));
                 /* Now remove the ps from the list so call the function ps_remove */
                 sync_remove_request(req);
-                PR_DestroyLock(req->req_lock);
-                req->req_lock = NULL;
-                slapi_ch_free((void **)&req->req_pblock);
-                slapi_ch_free((void **)&req);
+                sync_request_free(&req);
             } else {
                 thread_count++;
                 return (req->req_tid);
@@ -754,11 +814,7 @@ sync_persist_terminate_all()
         /* it frees the structures, just in case it remained connected sync_repl client */
         for (req = sync_request_list->sync_req_head; NULL != req; req = next) {
             next = req->req_next;
-            slapi_pblock_destroy(req->req_pblock);
-            req->req_pblock = NULL;
-            PR_DestroyLock(req->req_lock);
-            req->req_lock = NULL;
-            slapi_ch_free((void **)&req);
+            sync_request_free(&req);
         }
         slapi_ch_free((void **)&sync_request_list);
     }
@@ -1063,34 +1119,7 @@ sync_send_results(void *arg)
 done:
     /* This client closed the connection or shutdown, free the req */
     sync_remove_request(req);
-    PR_DestroyLock(req->req_lock);
-    req->req_lock = NULL;
-
-    slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_ATTRS, &attrs_dup);
-    slapi_ch_array_free(attrs_dup);
-    slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_ATTRS, NULL);
-
-    slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_STRFILTER, &strFilter);
-    slapi_ch_free((void **)&strFilter);
-    slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_STRFILTER, NULL);
-
-    slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, &ctrls);
-    if (ctrls) {
-        ldap_controls_free(ctrls);
-        slapi_pblock_set(req->req_pblock, SLAPI_REQCONTROLS, NULL);
-    }
-
-    slapi_pblock_destroy(req->req_pblock);
-    req->req_pblock = NULL;
-
-    slapi_ch_free((void **)&req->req_orig_base);
-    slapi_filter_free(req->req_filter, 1);
-
-    for (qnode = req->ps_eq_head; qnode; qnode = qnodenext) {
-        qnodenext = qnode->sync_next;
-        sync_node_free(&qnode);
-    }
-    slapi_ch_free((void **)&req);
+    sync_request_free(&req);
     thread_count--;
 }
 
