@@ -20,7 +20,7 @@ from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.paths import Paths
-from lib389.utils import ds_is_older, is_fips
+from lib389.utils import ds_is_older, is_fips, ensure_bytes
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
@@ -739,6 +739,180 @@ def test_sync_repl_invalid_cookie(topology, request):
         topology.standalone.restart()
         try:
             user.delete()
+        except:
+            pass
+
+    request.addfinalizer(fin)
+
+
+def test_sync_repl_non_root_persist(topology, request):
+    """Test sync_repl persistent search as a non-root user triggers
+    proper ACL evaluation without causing OPERATIONS_ERROR.
+
+    :id: 97f4be3d-f8c3-45cf-8295-ed58ee7bd371
+    :setup: Standalone Instance
+    :steps:
+        1. Enable RetroChangelog and ContentSync plugins
+        2. Create a test user and set its password
+        3. Add an ACI granting the test user read access
+        4. Run a syncrepl persistent search bound as the test user
+        5. Add entries while the persistent search is active
+        6. Stop the server to end the sync thread
+        7. Check that the sync client received results without error
+        8. Check the error log for 'Missing aclpb' messages
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success - no OPERATIONS_ERROR
+        5. Success
+        6. Success
+        7. The sync client should have received cookies
+        8. No 'Missing aclpb' errors in the log
+    """
+    inst = topology.standalone
+    inst.restart()
+    inst.enable_tls()
+
+    # Enable RetroChangelog
+    rcl = RetroChangelogPlugin(inst)
+    rcl.disable()
+    rcl.enable()
+    rcl.set('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
+
+    # Enable Content Sync plugin
+    csp = ContentSyncPlugin(inst)
+    csp.enable()
+
+    inst.restart()
+
+    # Create the syncrepl user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    sync_user = users.create_test_user(uid=29999)
+    sync_user.set('userPassword', 'sync_password')
+    SYNC_USER_DN = sync_user.dn
+
+    # Add ACI granting the sync user read access to the suffix
+    ACI = (
+        '(targetattr="*")(version 3.0; acl "Sync user read access";'
+        ' allow (read, search, compare)'
+        ' userdn = "ldap:///%s";)' % SYNC_USER_DN
+    )
+    inst.modify_s(DEFAULT_SUFFIX,
+                  [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI))])
+
+    # Start a syncrepl persistent search as the non-root user
+    # Using the Sync_persist-like pattern but with non-root bind
+    sync_error = [None]  # mutable container to capture errors from thread
+    sync_cookies = []
+
+    class NonRootSyncer(ReconnectLDAPObject, SyncreplConsumer):
+        def __init__(self, *args, **kwargs):
+            self.cookie = None
+            self.cookies = []
+            ldap.ldapobject.ReconnectLDAPObject.__init__(self, *args, **kwargs)
+
+        def syncrepl_set_cookie(self, cookie):
+            self.cookie = cookie
+            self.cookies.append(cookie.split('#')[2])
+
+        def syncrepl_get_cookie(self):
+            return self.cookie
+
+        def syncrepl_present(self, uuids, refreshDeletes=False):
+            pass
+
+        def syncrepl_delete(self, uuids):
+            pass
+
+        def syncrepl_entry(self, dn, attrs, uuid):
+            log.info("NonRootSyncer received entry: %s" % dn)
+
+        def syncrepl_refreshdone(self):
+            log.info("NonRootSyncer refresh done")
+
+        def get_cookies(self):
+            return self.cookies
+
+    def sync_thread_func():
+        ldap_conn = None
+        try:
+            ldap_conn = NonRootSyncer(inst.toLDAPURL())
+            ldap_conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+            ldap_conn.set_option(ldap.OPT_X_TLS_CACERTFILE,
+                                 os.path.join(inst.get_config_dir(), "ca.crt"))
+            if is_fips():
+                ldap_conn.set_option(ldap.OPT_X_TLS_PROTOCOL_MIN,
+                                     ldap.OPT_X_TLS_PROTOCOL_TLS1_2)
+            ldap_conn.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+
+            # Bind as the non-root user
+            ldap_conn.simple_bind_s(SYNC_USER_DN, 'sync_password')
+
+            ldap_search = ldap_conn.syncrepl_search(
+                DEFAULT_SUFFIX,
+                ldap.SCOPE_SUBTREE,
+                mode='refreshAndPersist',
+                attrlist=['objectclass', 'cn', 'uid', 'sn'],
+                filterstr='(objectClass=person)',
+                cookie=None
+            )
+
+            while ldap_conn.syncrepl_poll(all=1, msgid=ldap_search):
+                pass
+        except ldap.OPERATIONS_ERROR as e:
+            log.error("SyncRepl got OPERATIONS_ERROR: %s" % e)
+            sync_error[0] = e
+        except (ldap.SERVER_DOWN, ldap.CONNECT_ERROR):
+            pass
+        finally:
+            if ldap_conn:
+                sync_cookies.extend(ldap_conn.get_cookies())
+
+    t = threading.Thread(target=sync_thread_func)
+    t.daemon = True
+    t.start()
+    time.sleep(5)
+
+    # Add entries while persistent search is active (as directory manager)
+    test_users = []
+    for i in range(20001, 20004):
+        test_users.append(users.create_test_user(uid=i))
+    time.sleep(5)
+
+    # Stop the server to end the sync thread cleanly
+    inst.stop()
+    t.join(timeout=30)
+
+    # Verify no OPERATIONS_ERROR was raised
+    assert sync_error[0] is None, \
+        "SyncRepl persistent search as non-root user got OPERATIONS_ERROR: %s" % sync_error[0]
+
+    # Verify the sync client received some cookies (entries were synced)
+    assert len(sync_cookies) > 0, \
+        "SyncRepl persistent search as non-root user received no cookies"
+
+    # Restart and check error log for the specific aclpb error
+    inst.start()
+    assert not inst.searchErrorsLog('Missing aclpb'), \
+        "Found 'Missing aclpb' errors in the error log"
+
+    log.info('test_sync_repl_non_root_persist: PASS')
+
+    def fin():
+        inst.restart()
+        try:
+            inst.modify_s(DEFAULT_SUFFIX,
+                          [(ldap.MOD_DELETE, 'aci', ensure_bytes(ACI))])
+        except:
+            pass
+        for user in test_users:
+            try:
+                user.delete()
+            except:
+                pass
+        try:
+            sync_user.delete()
         except:
             pass
 
