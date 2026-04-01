@@ -287,9 +287,9 @@ memberof_monitor_search(Slapi_PBlock *pb,
         const char *utilisation;
         if (current_tasks == 0) {
             utilisation = "idle";
-        } else if (current_tasks < 10) {
+        } else if (current_tasks < 5) {
             utilisation = "low";
-        } else if (current_tasks < 100) {
+        } else if (current_tasks < 10) {
             utilisation = "moderate";
         } else {
             utilisation = "high";
