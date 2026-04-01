@@ -169,7 +169,7 @@ def test_dsconf_task_watch_output(topo):
     )
     assert rc == 0, out_bak_c_nowatch
     lines_bak_c_nowatch = len(_non_empty_lines(out_bak_c_nowatch))
-    assert "Copying" not in out_bak_c_nowatch, "'Copying' should not be in the output"
+    assert "Creating backup" not in out_bak_c_nowatch, "'Creating backup' should not be in the output"
 
     rc, out_bak_c_watch = _run_dsconf(
         inst,
@@ -180,7 +180,7 @@ def test_dsconf_task_watch_output(topo):
     assert lines_bak_c_watch > lines_bak_c_nowatch, (
         f'backup create --watch should log more lines (got {lines_bak_c_watch} vs {lines_bak_c_nowatch})'
     )
-    assert "Copying" in out_bak_c_watch, "'Copying' should be in the output"
+    assert "Creating backup" in out_bak_c_watch, "'Creating backup' should be in the output"
 
     # backup restore
     rc, out_bak_r_nowatch = _run_dsconf(
@@ -189,7 +189,7 @@ def test_dsconf_task_watch_output(topo):
     )
     assert rc == 0, out_bak_r_nowatch
     lines_bak_r_nowatch = len(_non_empty_lines(out_bak_r_nowatch))
-    assert "Copying" not in out_bak_r_nowatch, "'Copying' should not be in the output"
+    assert "Restoring backup" not in out_bak_r_nowatch, "'Restoring backup' should not be in the output"
 
     rc, out_bak_r_watch = _run_dsconf(
         inst,
@@ -200,7 +200,7 @@ def test_dsconf_task_watch_output(topo):
     assert lines_bak_r_watch > lines_bak_r_nowatch, (
         f'backup restore --watch should log more lines (got {lines_bak_r_watch} vs {lines_bak_r_nowatch})'
     )
-    assert "Copying" in out_bak_r_watch, "'Copying' should be in the output"
+    assert "Restoring backup" in out_bak_r_watch, "'Restoring backup' should be in the output"
 
 
 def test_task_timeout(topo):
