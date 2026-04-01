@@ -786,6 +786,7 @@ typedef struct ldbm_instance
 
     PRLock *inst_nextid_mutex;
     ID inst_nextid;
+    bool inst_ruv_inserted_first;
 
     PRCondVar *inst_indexer_cv; /* indexer thread cond var */
     PRThread *inst_indexer_tid; /* for the indexer thread */
