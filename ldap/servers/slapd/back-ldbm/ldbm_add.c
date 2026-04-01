@@ -632,13 +632,24 @@ ldbm_back_add(Slapi_PBlock *pb)
                  */
                 Slapi_DN nscpEntrySDN;
                 addingentry = backentry_init(e);
-                if ((addingentry->ep_id = next_id(be)) >= MAXID) {
-                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add ",
-                                  "Maximum ID reached, cannot add entry to "
-                                  "backend '%s'",
-                                  be->be_name);
-                    ldap_result_code = LDAP_OPERATIONS_ERROR;
-                    goto error_return;
+                if (is_ruv && next_id_get(be) == 1) {
+                    /* First entry in DB, but the RUV should not be ID 1 */
+                    inst->inst_ruv_inserted_first = true;
+                    addingentry->ep_id = 2;
+                } else {
+                    if ((addingentry->ep_id = next_id(be)) >= MAXID) {
+                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add ",
+                                      "Maximum ID reached, cannot add entry to "
+                                      "backend '%s'\n",
+                                      be->be_name);
+                        ldap_result_code = LDAP_OPERATIONS_ERROR;
+                        goto error_return;
+                    }
+                    if (addingentry->ep_id == 1 && inst->inst_ruv_inserted_first) {
+                        /* We need to bump the next id to advance past the RUV id*/
+                        inst->inst_ruv_inserted_first = false;
+                        next_id(be);
+                    }
                 }
                 addingentry_id_assigned = 1;
 
