@@ -3074,7 +3074,7 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
         add_update_entry_operational_attributes(ep, 0);
     }
 
-    if (ctx->ancestorid && wqelmnt->entry_info) {
+    if (ctx->ancestorid && wqelmnt->entry_info && wqelmnt->dnrc != DNRC_TOMBSTONE) {
         /* Update ancestorids */
         wqd.dbi = ctx->ancestorid->dbi;
         for (n=0; n<wqelmnt->entry_info[INFO_IDX_NB_ANCESTORS]; n++) {
