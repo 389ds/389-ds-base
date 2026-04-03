@@ -8,11 +8,11 @@ use crate::constants::{PblockType, PluginFnType, PluginVersion};
 use crate::entry::EntryRef;
 pub use crate::log::{log_error, ErrorLevel};
 
-extern "C" {
-    fn slapi_pblock_set(pb: *const libc::c_void, arg: i32, value: *const libc::c_void) -> i32;
-    fn slapi_pblock_get(pb: *const libc::c_void, arg: i32, value: *const libc::c_void) -> i32;
-    fn slapi_pblock_destroy(pb: *const libc::c_void);
-    fn slapi_pblock_new() -> *const libc::c_void;
+unsafe extern "C" {
+    unsafe fn slapi_pblock_set(pb: *const libc::c_void, arg: i32, value: *const libc::c_void) -> i32;
+    unsafe fn slapi_pblock_get(pb: *const libc::c_void, arg: i32, value: *const libc::c_void) -> i32;
+    unsafe fn slapi_pblock_destroy(pb: *const libc::c_void);
+    unsafe fn slapi_pblock_new() -> *const libc::c_void;
 }
 
 pub struct Pblock {
@@ -20,9 +20,9 @@ pub struct Pblock {
 }
 
 impl Pblock {
-    pub fn new() -> Pblock {
-        let raw_pb = unsafe { slapi_pblock_new() };
-        Pblock {
+    pub fn new() -> Self {
+        let raw_pb: *const libc::c_void = unsafe { slapi_pblock_new() };
+        Self {
             value: PblockRef { raw_pb },
         }
     }
@@ -53,21 +53,21 @@ pub struct PblockRef {
 }
 
 impl PblockRef {
-    pub fn new(raw_pb: *const libc::c_void) -> Self {
-        PblockRef { raw_pb }
+    pub const fn new(raw_pb: *const libc::c_void) -> Self {
+        Self { raw_pb }
     }
 
-    pub unsafe fn as_ptr(&self) -> *const libc::c_void {
+    pub const unsafe fn as_ptr(&self) -> *const libc::c_void {
         self.raw_pb
     }
 
     fn set_pb_char_arr_ptr(&mut self, req_type: PblockType, ptr: *const *const c_char) -> i32 {
-        let value_ptr: *const libc::c_void = ptr as *const libc::c_void;
+        let value_ptr: *const libc::c_void = ptr.cast();
         unsafe { slapi_pblock_set(self.raw_pb, req_type as i32, value_ptr) }
     }
 
     fn set_pb_char_ptr(&mut self, req_type: PblockType, ptr: *const c_char) -> i32 {
-        let value_ptr: *const libc::c_void = ptr as *const libc::c_void;
+        let value_ptr: *const libc::c_void = ptr.cast();
         unsafe { slapi_pblock_set(self.raw_pb, req_type as i32, value_ptr) }
     }
 
@@ -81,12 +81,12 @@ impl PblockRef {
     }
 
     fn get_value_ptr(&mut self, req_type: PblockType) -> Result<*const libc::c_void, ()> {
-        let mut value: *mut libc::c_void = ptr::null::<libc::c_void>() as *mut libc::c_void;
-        let value_ptr: *const libc::c_void = &mut value as *const _ as *const libc::c_void;
+        let mut value: *mut libc::c_void = ptr::null_mut();
+        let value_ptr: *const libc::c_void = (&raw mut value).cast();
         match unsafe { slapi_pblock_get(self.raw_pb, req_type as i32, value_ptr) } {
             0 => Ok(value),
             e => {
-                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {:?}", e);
+                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {e:?}");
                 Err(())
             }
         }
@@ -94,11 +94,11 @@ impl PblockRef {
 
     fn get_value_i32(&mut self, req_type: PblockType) -> Result<i32, ()> {
         let mut value: i32 = 0;
-        let value_ptr: *const libc::c_void = &mut value as *const _ as *const libc::c_void;
+        let value_ptr: *const libc::c_void = (&raw mut value).cast();
         match unsafe { slapi_pblock_get(self.raw_pb, req_type as i32, value_ptr) } {
             0 => Ok(value),
             e => {
-                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {:?}", e);
+                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {e:?}");
                 Err(())
             }
         }
@@ -292,10 +292,10 @@ impl PblockRef {
 
     pub fn get_op_add_entryref(&mut self) -> Result<EntryRef, ()> {
         self.get_value_ptr(PblockType::AddEntry)
-            .map(|ptr| EntryRef::new(ptr))
+            .map(EntryRef::new)
     }
 
-    pub fn set_plugin_version(&mut self, vers: PluginVersion) -> i32 {
+    pub fn set_plugin_version(&mut self, vers: &PluginVersion) -> i32 {
         self.set_pb_char_ptr(PblockType::Version, vers.to_char_ptr())
     }
 
@@ -313,7 +313,7 @@ impl PblockRef {
     }
 
     pub fn get_is_replicated_operation(&mut self) -> bool {
-        let i = self
+        let i: i32 = self
             .get_value_i32(PblockType::IsReplicationOperation)
             .unwrap_or(0);
         // Because rust returns the result of the last evaluation, we can
