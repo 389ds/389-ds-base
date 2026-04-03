@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import copy
+import ldap
 import psutil
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObject
@@ -540,3 +541,26 @@ class MonitorDiskSpace(DSLdapObject):
         """Get an information about partitions which contains a Directory Server data"""
 
         return self.get_attr_vals_utf8_l("dsDisk")
+
+
+class MonitorMemberOf(DSLdapObject):
+    """A class for representing the "cn=MemberOf Plugin,cn=monitor" entry"""
+    def __init__(self, instance, dn=None):
+        super(MonitorMemberOf, self).__init__(instance=instance, dn=dn)
+        self._dn = DN_MONITOR_MEMBEROF
+        self._deferred_memberof_keys = [
+            'CurrentTasks',
+            'TotalAdded',
+            'TotalRemoved',
+            'TotalPending',
+            'CompletionRate',
+            'ThreadStatus',
+            'QueueUtilisation',
+        ]
+        self._protected = False
+
+    def get_status(self, use_json=False):
+        try:
+            return self.get_attrs_vals_utf8(self._deferred_memberof_keys)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("MemberOf monitoring not available (deferred processing disabled)")
