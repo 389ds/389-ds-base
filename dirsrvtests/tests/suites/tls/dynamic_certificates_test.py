@@ -403,6 +403,7 @@ def test_subject_alternative_names(topo, setup_tls):
         6. IP addresses are correctly parsed
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_san_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -465,6 +466,7 @@ def test_private_key_detection(topo, setup_tls):
         6. CA cert not identified as server cert
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_privkey_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -533,6 +535,7 @@ def test_trust_flags_modification(topo, setup_tls):
         6. Trust flags match updated value
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_trust_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -587,6 +590,7 @@ def test_certificate_replace_operation(topo, setup_tls):
         6. Serial number is different
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_replace_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -715,6 +719,7 @@ def test_batch_certificate_operations(topo, setup_tls):
         6. No certificates remain
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_batch_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -777,6 +782,7 @@ def test_invalid_certificate_handling(topo, setup_tls):
         4. All errors are appropriate exceptions
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_invalid_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -834,6 +840,7 @@ def test_certificate_verification_status(topo, setup_tls):
         5. Server cert status reflects chain validation
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_verify_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -895,6 +902,7 @@ def test_expired_certificate_handling(topo, setup_tls):
         6. Verification status may indicate invalid/expired
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_expired_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -983,6 +991,7 @@ def test_list_and_get_operations(topo, setup_tls):
         6. get_cert_details() returns formatted dictionary
     """
     inst = setup_tls
+    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_list_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
