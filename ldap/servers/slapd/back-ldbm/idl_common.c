@@ -15,6 +15,31 @@
 
 #include "back-ldbm.h"
 
+/* #define LDAP_DEBUG_IDRANGE 1 -- PR_ASSERT IdRange order/non-overlap after idrange_add_id */
+#ifdef LDAP_DEBUG_IDRANGE
+static void
+idrange_debug_check_invariants(IdRange_t *head)
+{
+    IdRange_t *r;
+
+    for (r = head; r != NULL; r = r->next) {
+        PR_ASSERT(r->first <= r->last);
+        if (r->next != NULL) {
+            /* sorted high-to-low on the number line; strict: no overlap (adjacency ok) */
+            PR_ASSERT(r->next->last < r->first);
+        }
+    }
+}
+
+#define IDRANGE_ADD_ID_RETURN(head_ptr, val)     \
+    do {                                         \
+        idrange_debug_check_invariants(*(head_ptr)); \
+        return (val);                            \
+    } while (0)
+#else
+#define IDRANGE_ADD_ID_RETURN(head_ptr, val) return (val)
+#endif /* LDAP_DEBUG_IDRANGE */
+
 size_t
 idl_sizeof(IDList *idl)
 {
@@ -176,6 +201,7 @@ idl_min(IDList *a, IDList *b)
  * This is a faster version of idl_id_is_in_idlist.
  * idl_id_is_in_idlist uses an array of ID so lookup is expensive
  * idl_id_is_in_idlist_ranges uses a list of ranges of ID lookup is faster
+ * (ranges sorted high-to-low: head has the highest IDs).
  * returns
  *   1: 'id' is present in idrange_list
  *   0: 'id' is not present in idrange_list
@@ -193,19 +219,17 @@ idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id)
         return 1; /* in the list */
     }
 
-    for(;range; range = range->next) {
+    for (; range; range = range->next) {
         if (id > range->last) {
-            /* check if it belongs to the next range */
-            continue;
+            /* id is above this range; remaining ranges are lower */
+            break;
         }
         if (id >= range->first) {
-            /* It belongs to that range [first..last ] */
+            /* in [last..first] (and range->last >= id) */
             found = 1;
             break;
-        } else {
-            /* this range is after id */
-            break;
         }
+        /* id < range->first: may fall in a smaller range later in the list */
     }
     return found;
 }
@@ -234,6 +258,23 @@ void idrange_free(IdRange_t **head)
     *head = NULL;
 }
 
+/* Union adjacent/overlapping ranges: *keeper* stays linked in the list,
+ * *victim* is freed. Returns keeper.
+ */
+static IdRange_t *
+idrange_merge_adjacent(IdRange_t *keeper, IdRange_t *victim)
+{
+    if (victim->first < keeper->first) {
+        keeper->first = victim->first;
+    }
+    if (victim->last > keeper->last) {
+        keeper->last = victim->last;
+    }
+    keeper->next = victim->next;
+    slapi_ch_free((void *)&victim);
+    return keeper;
+}
+
 /* This function is used during the online total initialisation
  * Because a MODRDN can move entries under a parent that
  * has a higher ID we need to sort the IDList so that parents
@@ -241,6 +282,7 @@ void idrange_free(IdRange_t **head)
  * The sorting with a simple IDlist does not scale instead
  * a list of IDs ranges is much faster.
  * In that list we only ADD/lookup ID.
+ * Ranges are kept sorted high-to-low (head holds the highest IDs).
  */
 IdRange_t *idrange_add_id(IdRange_t **head, ID id)
 {
@@ -257,65 +299,57 @@ IdRange_t *idrange_add_id(IdRange_t **head, ID id)
         new_range->last = id;
         new_range->next = NULL;
         *head = new_range;
-        return *head;
+        IDRANGE_ADD_ID_RETURN(head, *head);
     }
 
     IdRange_t *curr = *head, *prev = NULL;
 
-    /* First, find if id already falls within any existing range, or it is adjacent to any */
+    /* find if id is inside or adjacent to any range (list: high ID blocks first) */
     while (curr) {
         if (id >= curr->first && id <= curr->last) {
             /* inside a range, nothing to do */
-            return curr;
+            IDRANGE_ADD_ID_RETURN(head, curr);
         }
 
         if (id == curr->last + 1) {
-            /* Extend this range upwards */
+            /* extend toward higher values; may merge with prev (even higher) */
             curr->last = id;
-
-            /* Check for possible merge with next range */
-            IdRange_t *next = curr->next;
-            if (next && curr->last + 1 >= next->first) {
+            if (prev && curr->last + 1 >= prev->first) {
+                idrange_merge_adjacent(prev, curr);
                 slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                        "(id=%d) merge current  with next range [%d..%d]\n", id, curr->first, curr->last);
-                curr->last = (next->last > curr->last) ? next->last : curr->last;
-                curr->next = next->next;
-                slapi_ch_free((void*) &next);
-            } else {
-                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                              "(id=%d) extend forward current range [%d..%d]\n", id, curr->first, curr->last);
+                              "(id=%d) merge current with previous range [%d..%d]\n", id, prev->first, prev->last);
+                IDRANGE_ADD_ID_RETURN(head, prev);
             }
-            return curr;
+            slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
+                          "(id=%d) extend forward current range [%d..%d]\n", id, curr->first, curr->last);
+            IDRANGE_ADD_ID_RETURN(head, curr);
         }
 
         if (id + 1 == curr->first) {
-            /* Extend this range downwards */
+            /* extend toward lower values; may merge with next (even lower) */
             curr->first = id;
-
-            /* Check for possible merge with previous range */
-            if (prev && prev->last + 1 >= curr->first) {
-                prev->last = curr->last;
-                prev->next = curr->next;
-                slapi_ch_free((void *) &curr);
+            IdRange_t *next = curr->next;
+            if (next && next->last + 1 >= curr->first) {
+                idrange_merge_adjacent(curr, next);
                 slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                              "(id=%d) merge current with previous range [%d..%d]\n", id, prev->first, prev->last);
-                return prev;
+                              "(id=%d) merge current with next range [%d..%d]\n", id, curr->first, curr->last);
             } else {
                 slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
                               "(id=%d) extend backward current range [%d..%d]\n", id, curr->first, curr->last);
-                return curr;
             }
+            IDRANGE_ADD_ID_RETURN(head, curr);
         }
 
-        /* If id is before the current range, break so we can insert before */
-        if (id < curr->first) {
+        /* id lies strictly above this block: insert a new node before curr */
+        if (id > curr->last) {
             break;
         }
 
+        /* id < curr->first: try a lower block */
         prev = curr;
         curr = curr->next;
     }
-    /* Need to insert a new standalone IdRange */
+    /* insert a new standalone IdRange between prev and curr */
     IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
     new_range->first = id;
     new_range->last = id;
@@ -326,12 +360,12 @@ IdRange_t *idrange_add_id(IdRange_t **head, ID id)
                       "(id=%d) add new range [%d..%d]\n", id, new_range->first, new_range->last);
         prev->next = new_range;
     } else {
-        /* Insert at head */
+        /* insert at head */
         slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
                       "(id=%d) head range [%d..%d]\n", id, new_range->first, new_range->last);
         *head = new_range;
     }
-    return *head;
+    IDRANGE_ADD_ID_RETURN(head, *head);
 }
 
 
