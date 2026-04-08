@@ -59,6 +59,7 @@ static int32_t fixup_progress_count = 0;
 static int64_t fixup_progress_elapsed = 0;
 static int64_t fixup_start_time = 0;
 #define FIXUP_PROGRESS_LIMIT 1000
+#define MEMBEROF_MONITOR_DN "cn=MemberOf Plugin,cn=monitor"
 
 typedef struct _memberofstringll
 {
@@ -177,7 +178,257 @@ static PRBool ancestors_cache_remove(MemberOfConfig *config, const char *ndn);
 static PLHashEntry *ancestors_cache_add(MemberOfConfig *config, const void *key, void *value);
 static void memberof_set_entry_info(Slapi_Entry *e, MemberOfConfig *config, MemberofEntryInfo *entry_info);
 static int memberof_test_specific_filters(MemberOfConfig *config, MemberofEntryInfo *entry_info);
+static int memberof_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 /*** implementation ***/
+
+/* DSE monitor entry for deferred memberof */
+static char *memberof_monitor_skeleton_entry[] =
+{
+    "dn: " MEMBEROF_MONITOR_DN "\n"
+    "objectclass: top\n"
+    "objectclass: extensibleObject\n"
+    "cn: MemberOf plugin\n",
+    ""
+};
+
+#define MSET(_attr)                                   \
+    do {                                              \
+        val.bv_val = buf;                             \
+        val.bv_len = strlen(buf);                     \
+        attrlist_replace(&e->e_attrs, (_attr), vals); \
+    } while (0)
+
+/*
+ * DSE search callback for memberof plugin monitoring.
+ * Provides deferred memberof stats:
+ *
+ * - CurrentTasks: current queue depth
+ * - TotalAdded: total tasks added to queue
+ * - TotalRemoved: total tasks removed from queue
+ * - TotalPending: pending tasks (added - removed)
+ * - CompletionRate: percentage of tasks completed
+ * - ThreadStatus: processing thread state
+ * - QueueUtilisation: queue load
+ */
+static int
+memberof_monitor_search(Slapi_PBlock *pb,
+                        Slapi_Entry *e,
+                        Slapi_Entry *entryAfter,
+                        int *returncode,
+                        char *returntext,
+                        void *arg)
+{
+    struct berval val;
+    struct berval *vals[2];
+    MemberOfConfig *config = NULL;
+    MemberofDeferredList *deferred_list = NULL;
+    char buf[BUFSIZ];
+    PRBool deferred_enabled = PR_FALSE;
+    PRBool thread_active = PR_FALSE;
+    int current_tasks = 0;
+    int total_added = 0;
+    int total_removed = 0;
+
+    vals[0] = &val;
+    vals[1] = NULL;
+
+    returntext[0] = '\0';
+
+    /* ID the plugin in monitor output */
+    PR_snprintf(buf, sizeof(buf), "memberof");
+    MSET("plugin");
+
+    memberof_rlock_config();
+    config = memberof_get_config();
+    if (config) {
+        deferred_enabled = config->deferred_update && !config->is_lmdb;
+        deferred_list = config->deferred_list;
+
+        /* Read deferred list stats under mutex */
+        if (deferred_list && deferred_enabled) {
+            pthread_mutex_lock(&deferred_list->deferred_list_mutex);
+            current_tasks = deferred_list->current_task;
+            total_added = deferred_list->total_added;
+            total_removed = deferred_list->total_removed;
+            thread_active = (deferred_list->deferred_tid != NULL);
+            pthread_mutex_unlock(&deferred_list->deferred_list_mutex);
+        }
+    }
+    memberof_unlock_config();
+
+    if (deferred_enabled && deferred_list) {
+        PR_snprintf(buf, sizeof(buf), "%d", current_tasks);
+        MSET("CurrentTasks");
+
+        PR_snprintf(buf, sizeof(buf), "%d", total_added);
+        MSET("TotalAdded");
+
+        PR_snprintf(buf, sizeof(buf), "%d", total_removed);
+        MSET("TotalRemoved");
+
+        /* Calculate pending */
+        PR_snprintf(buf, sizeof(buf), "%d", total_added - total_removed);
+        MSET("TotalPending");
+
+        /* Processing rate */
+        if (total_added > 0) {
+            double completion_rate = (double)total_removed / (double)total_added * 100.0;
+            PR_snprintf(buf, sizeof(buf), "%.2f", completion_rate);
+            MSET("CompletionRate");
+        } else {
+            PR_snprintf(buf, sizeof(buf), "0.00");
+            MSET("CompletionRate");
+        }
+
+        PR_snprintf(buf, sizeof(buf), "%s", thread_active ? "running" : "stopped");
+        MSET("ThreadStatus");
+
+        const char *utilisation;
+        if (current_tasks == 0) {
+            utilisation = "idle";
+        } else if (current_tasks < 5) {
+            utilisation = "low";
+        } else if (current_tasks < 10) {
+            utilisation = "moderate";
+        } else {
+            utilisation = "high";
+        }
+        PR_snprintf(buf, sizeof(buf), "%s", utilisation);
+        MSET("QueueUtilisation");
+
+    }
+
+    *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
+/*
+ * Add DSE entry from string array.
+ */
+static int
+memberof_add_dse_entry(char **entries)
+{
+    int x;
+    Slapi_Entry *e;
+    Slapi_PBlock *util_pb = NULL;
+    int rc = 0;
+    int results = 0;
+
+    for (x = 0; strlen(entries[x]) > 0; x++) {
+        util_pb = slapi_pblock_new();
+        e = slapi_str2entry(entries[x], 0);
+        slapi_add_entry_internal_set_pb(util_pb, e, NULL, _PluginID, 0);
+        slapi_add_internal_pb(util_pb);
+        slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &results);
+
+        if (LDAP_SUCCESS != results && LDAP_ALREADY_EXISTS != results) {
+            slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                         "Unable to add monitor entry to DSE: %s\n", ldap_err2string(results));
+            rc = results;
+            slapi_pblock_destroy(util_pb);
+            break;
+        }
+
+        slapi_pblock_destroy(util_pb);
+    }
+    return rc;
+}
+
+/*
+ * Ensure the memberof monitor DSE entry exists. Check if the monitor
+ * entry exists, if not create it using the skeleton entry template.
+ */
+static int
+memberof_monitor_ensure_dse_entry(const char *dn)
+{
+    Slapi_PBlock *monitor_pb = NULL;
+    int rc = LDAP_SUCCESS;
+
+    monitor_pb = slapi_pblock_new();
+    if (!monitor_pb) {
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "Failed to get monitor pblock\n");
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    slapi_search_internal_set_pb(monitor_pb, dn, LDAP_SCOPE_BASE, "objectclass=*", NULL,
+                                 0, NULL, NULL, memberof_get_plugin_id(), 0);
+    slapi_search_internal_pb(monitor_pb);
+    slapi_pblock_get(monitor_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+    if (rc == LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM, "Monitor entry %s already exists\n", dn);
+    } else if (rc == LDAP_NO_SUCH_OBJECT) {
+        slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM, "Creating monitor entry %s\n", dn);
+
+        if (memberof_add_dse_entry(memberof_monitor_skeleton_entry) != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "Failed to add monitor entry %s\n", dn);
+            rc = LDAP_OPERATIONS_ERROR;
+        } else {
+            slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM, "Added monitor entry %s\n", dn);
+            rc = LDAP_SUCCESS;
+        }
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "Error finding monitor entry %s - %d\n", dn, rc);
+    }
+
+    slapi_free_search_results_internal(monitor_pb);
+    slapi_pblock_destroy(monitor_pb);
+
+    return rc;
+}
+
+/*
+ * Remove the callback and DSE monitor entry.
+ */
+static int
+memberof_monitor_cleanup(const char *dn)
+{
+    Slapi_PBlock *monitor_pb = NULL;
+    int rc = LDAP_SUCCESS;
+
+    slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", memberof_monitor_search);
+
+    monitor_pb = slapi_pblock_new();
+    if (monitor_pb) {
+        slapi_delete_internal_set_pb(monitor_pb, dn, NULL, NULL, memberof_get_plugin_id(), 0);
+        slapi_delete_internal_pb(monitor_pb);
+        slapi_pblock_destroy(monitor_pb);
+    }
+
+    return rc;
+}
+
+/*
+ * Setup monitoring for deferred memberof stats. Ensure the DSE monitor
+ * entry exists and register a search callback to expose deferred stats.
+ */
+static void
+memberof_monitor_init(const char *dn)
+{
+    char *monitor_dn = NULL;
+    int rc = LDAP_SUCCESS;
+
+    monitor_dn = slapi_create_dn_string(dn);
+    if (!monitor_dn) {
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "Failed to create monitor DN string\n");
+        return;
+    }
+
+    if (memberof_monitor_ensure_dse_entry(monitor_dn) == LDAP_SUCCESS) {
+        slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, monitor_dn,
+                                       LDAP_SCOPE_BASE, "(objectclass=*)", memberof_monitor_search, NULL);
+
+        slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+                      "Initialised deferred memberof plugin monitor\n");
+    } else {
+        slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                      "Failed to initialise deferred memberof plugin monitor\n");
+    }
+
+    slapi_ch_free_string(&monitor_dn);
+}
+
 
 
 /*** exported functions ***/
@@ -1246,6 +1497,12 @@ memberof_postop_start(Slapi_PBlock *pb)
     }
     memberof_unlock_config();
 
+    /* Add a DSE monitor entry and register a search callback to expose
+       deferred stats. Outside of config lock */
+    if (mainConfig->deferred_update && !mainConfig->is_lmdb) {
+        memberof_monitor_init(MEMBEROF_MONITOR_DN);
+    }
+
     rc = slapi_plugin_task_register_handler("memberof task", memberof_task_add, pb);
     if (rc) {
         goto bail;
@@ -1300,6 +1557,9 @@ memberof_postop_close(Slapi_PBlock *pb __attribute__((unused)))
         slapi_ch_free_string(&tmp->filter_str);
         slapi_ch_free((void**)&tmp);
     }
+
+    /* Memberof monitor cleanup, unregister the callback and remove the DSE entry. */
+    memberof_monitor_cleanup(MEMBEROF_MONITOR_DN);
 
     slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- memberof_postop_close\n");
