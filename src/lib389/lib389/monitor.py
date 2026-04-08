@@ -564,3 +564,4 @@ class MonitorMemberOf(DSLdapObject):
             return self.get_attrs_vals_utf8(self._deferred_memberof_keys)
         except ldap.NO_SUCH_OBJECT:
             raise ValueError("MemberOf monitoring not available (deferred processing disabled)")
+

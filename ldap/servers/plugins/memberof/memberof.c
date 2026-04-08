@@ -283,7 +283,6 @@ memberof_monitor_search(Slapi_PBlock *pb,
         PR_snprintf(buf, sizeof(buf), "%s", thread_active ? "running" : "stopped");
         MSET("ThreadStatus");
 
-        /* Queue load TODO, Ask Thierry about these thresholds*/
         const char *utilisation;
         if (current_tasks == 0) {
             utilisation = "idle";
@@ -319,7 +318,6 @@ memberof_add_dse_entry(char **entries)
         util_pb = slapi_pblock_new();
         e = slapi_str2entry(entries[x], 0);
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, _PluginID, 0);
-        slapi_pblock_set(util_pb, SLAPI_TARGET_DN, slapi_entry_get_sdn(e));
         slapi_add_internal_pb(util_pb);
         slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &results);
 
