@@ -284,6 +284,13 @@ typedef void *(*ConfigGetFunc)(void);
 /* static Ref_Array global_referrals; */
 static slapdFrontendConfig_t global_slapdFrontendConfig;
 
+/*
+ * Special default value to allow attribute removal.
+ * Real default value is set by the set function
+ *  when value == ALLOW_ATTRIBUTE_DELETION
+ */
+static const char ALLOW_ATTRIBUTE_DELETION[] = "";
+
 static struct config_get_and_set
 {
     const char *attr_name;         /* the name of the attribute */
@@ -1471,7 +1478,12 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.fgot,
      CONFIG_STRING, (ConfigGetFunc)config_get_fgot,
-     SLAPD_DEFAULT_FGOT, NULL }
+     SLAPD_DEFAULT_FGOT, NULL },
+    {CONFIG_IGNORED_CRITICALITY_LIST_ATTRIBUTE,
+     config_set_ignored_criticality_list, NULL, 0,
+     (void **)&global_slapdFrontendConfig.ignored_criticality_list,
+     CONFIG_CHARRAY, (ConfigGetFunc)config_get_ignored_criticality_list,
+     (void*)ALLOW_ATTRIBUTE_DELETION, NULL}
     /* End config */
     };
 
@@ -10361,7 +10373,7 @@ config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply)
             }
             if (!fgot_is_allowed(elem, &flags)) {
                 retVal = LDAP_UNWILLING_TO_PERFORM;
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                     "(%s) value (%s) is invalid. Should be a subset of %s\n",
                     attrname, value, fgot_allowed_values());
             }
@@ -10376,6 +10388,57 @@ config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply)
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
+}
+
+char **
+config_get_ignored_criticality_list()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char **retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_array_dup(slapdFrontendConfig->ignored_criticality_list);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_ignored_criticality_list(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    if (value == ALLOW_ATTRIBUTE_DELETION) {
+        value = NULL;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_array_free(slapdFrontendConfig->ignored_criticality_list);
+        slapdFrontendConfig->ignored_criticality_list = slapi_ch_array_dup((char**)value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+bool
+config_is_control_criticality_ignored(const char *oid)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    bool res = false;
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    if (slapdFrontendConfig->ignored_criticality_list) {
+        char **vals = slapdFrontendConfig->ignored_criticality_list;
+        for (size_t i=0; vals[i]; i++) {
+            if (strcasecmp(oid, vals[i]) == 0) {
+                res = true;
+                break;
+            }
+        }
+    }
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    return res;
 }
 
 

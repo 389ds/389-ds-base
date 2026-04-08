@@ -8,7 +8,9 @@
 
 import logging
 import pytest
+import itertools
 import ldap
+from ldap.controls import RequestControl
 from ldap.controls.readentry import PostReadControl
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.topologies import topology_st
@@ -18,6 +20,9 @@ pytestmark = pytest.mark.tier1
 
 log = logging.getLogger(__name__)
 
+MANAGE_DSAIT_OID = "2.16.840.1.113730.3.4.2"
+TESTED_CTRLS = [ MANAGE_DSAIT_OID, "test", "test1", "test2" ]
+SUPPORTED_CTRLS = [ MANAGE_DSAIT_OID, ]
 
 def test_postread_ctrl_modify(topology_st):
     """Test PostReadControl with LDAP modify operations.
@@ -77,6 +82,69 @@ def test_postread_ctrl_modify(topology_st):
     user = UserAccount(inst, user.dn)
     assert user.get_attr_val_utf8('description') == FINAL_DESC
     user.delete()
+
+
+def all_combinations(alist):
+    for listlen in range(len(alist)+1):
+        for val in itertools.combinations(alist, listlen):
+            yield val
+
+
+def try_search(inst, ignored_ctrls, sent_ctrls):
+    ctrlreqs = [ RequestControl(controlType=oid, criticality=True) \
+                       for oid in sent_ctrls ]
+    expected = False;
+    for ctrl in sent_ctrls:
+        if ctrl not in SUPPORTED_CTRLS and ctrl not in ignored_ctrls:
+            expected = True
+    log.info(f"Ignoring: {ignored_ctrls} - Sending: {sent_ctrls} - Expected: {expected}")
+    if expected:
+        with pytest.raises(ldap.UNAVAILABLE_CRITICAL_EXTENSION):
+            srch_res = inst.search_ext_s(DEFAULT_SUFFIX,
+                        ldap.SCOPE_BASE, serverctrls=ctrlreqs)
+    else:
+        srch_res = inst.search_ext_s(DEFAULT_SUFFIX,
+                    ldap.SCOPE_BASE, serverctrls=ctrlreqs)
+
+
+def set_ignored_criticality(inst, oids):
+    oids = list(oids)
+    log.info(f'set_ignored_criticality({oids})')
+    inst.config.set("ds-ignored-control-criticality", oids)
+
+
+def test_ignored_criticality(topology_st):
+    """Test ignored criticality feature
+
+    :id: e2dc765a-329f-11f1-9d0f-c85309d5c3e3
+    :setup: Standalone instance
+    :steps:
+        1. Define tested control set containing both supported and not supported controls
+        2. Generate all subsets of tested controls
+        3. For ignored_ctrls in subsets and every send_ctrls in subsets
+        4. Set the ignored criticality config parameter to ignored_ctrls
+        5. Perform a search with send_ctrls controls with critical flag
+        6. Check if UNAVAILABLE_CRITICAL_EXTENSION is returned as expected
+        7. Reset ignored criticality config parameter
+    :expectedresults:
+        1. Succes
+        2. Succes
+        3. Succes
+        4. Succes
+        5. Succes
+        6. Expect UNAVAILABLE_CRITICAL_EXTENSION if any sent control is not supported or not ignored
+        7. Succes
+    """
+    inst = topology_st.standalone
+    ctrls = { oid: ldap.controls.RequestControl(controlType=oid, criticality=True) \
+                for oid in TESTED_CTRLS }
+
+    all_sets = all_combinations(TESTED_CTRLS)
+    for ignored_ctrls in all_sets:
+        for send_ctrls in all_sets:
+            set_ignored_criticality(inst, ignored_ctrls)
+            try_search(inst, ignored_ctrls, send_ctrls)
+    set_ignored_criticality(inst, [])
 
 
 if __name__ == '__main__':
