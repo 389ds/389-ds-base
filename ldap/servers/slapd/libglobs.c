@@ -10427,7 +10427,7 @@ config_is_control_criticality_ignored(const char *oid)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     bool res = false;
-    CFG_LOCK_WRITE(slapdFrontendConfig);
+    CFG_LOCK_READ(slapdFrontendConfig);
     if (slapdFrontendConfig->ignored_criticality_list) {
         char **vals = slapdFrontendConfig->ignored_criticality_list;
         for (size_t i=0; vals[i]; i++) {
@@ -10437,7 +10437,7 @@ config_is_control_criticality_ignored(const char *oid)
             }
         }
     }
-    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
     return res;
 }
 
