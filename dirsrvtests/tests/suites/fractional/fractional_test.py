@@ -10,17 +10,26 @@
 This test script will test fractional replication.
 """
 
+import logging
 import os
-import pytest
-from lib389.topologies import topology_m2c2
-from lib389._constants import DEFAULT_SUFFIX
-from lib389.idm.user import UserAccounts, UserAccount
-from lib389.replica import ReplicationManager
-from lib389.agreement import Agreements
-from lib389.plugins import MemberOfPlugin
-from lib389.idm.group import Groups
-from lib389.config import Config
+import re
+import time
+from types import SimpleNamespace
+
 import ldap
+import pytest
+
+from lib389._constants import DEFAULT_SUFFIX
+from lib389.agreement import Agreements
+from lib389.config import Config
+from lib389.idm.group import Groups
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.plugins import MemberOfPlugin
+from lib389.replica import ReplicationManager, Replicas
+from lib389.topologies import topology_m2, topology_m2c2
+from lib389.utils import ensure_bytes, ensure_str
+
+log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.tier1
 
@@ -394,6 +403,265 @@ def test_implicit_replication_of_password_policy(_create_entries):
     check_all_replicated()
     for instance in (SUPPLIER1, SUPPLIER2):
         assert UserAccount(instance, user.dn).get_attr_val_utf8("seealso") == "cn=seealso"
+
+
+# --- Two-supplier fractional replication (CSN evaluation, description sync) ---
+
+FRACTIONAL_M2_STAGING_ACCOUNT = "new_account"
+FRACTIONAL_M2_STAGING_COUNT = 20
+
+
+def _fractional_m2_agreement_list(inst):
+    return Replicas(inst).get(DEFAULT_SUFFIX).get_agreements().list()
+
+
+@pytest.fixture(scope="function")
+def fractional_m2_setup(request, topology_m2):
+    """Create entries, tune logs, and configure fractional replication on both suppliers."""
+    supplier1 = topology_m2.ms["supplier1"]
+    supplier2 = topology_m2.ms["supplier2"]
+
+    users = UserAccounts(supplier1, DEFAULT_SUFFIX)
+    for cpt in range(FRACTIONAL_M2_STAGING_COUNT):
+        name = f"{FRACTIONAL_M2_STAGING_ACCOUNT}{cpt}"
+        props = {"uid": name, "sn": name, "cn": name,
+                 "uidNumber": str(cpt), "gidNumber": str(cpt),
+                 "homeDirectory": f"/home/{name}"}
+        user = users.create(properties=props)
+
+    Config(supplier1).set("nsslapd-accesslog-logbuffering", "off")
+    Config(supplier1).set("nsslapd-errorlog-level", "8192")
+    Config(supplier1).set("nsslapd-accesslog-level", "260")
+
+    Config(supplier2).set("nsslapd-accesslog-logbuffering", "off")
+    Config(supplier2).set("nsslapd-errorlog-level", "8192")
+    Config(supplier2).set("nsslapd-accesslog-level", "260")
+
+    assert len(_fractional_m2_agreement_list(supplier1)) == 1
+    assert len(_fractional_m2_agreement_list(supplier2)) == 1
+
+    fractional = (
+        ("nsDS5ReplicatedAttributeList", "(objectclass=*) $ EXCLUDE telephonenumber"),
+        ("nsds5ReplicaStripAttrs", "modifiersname modifytimestamp"),
+    )
+    for inst in (supplier1, supplier2):
+        _fractional_m2_agreement_list(inst)[0].replace_many(*fractional)
+
+    supplier1.restart()
+    supplier2.restart()
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.ensure_agreement(supplier1, supplier2)
+    repl.test_replication(supplier1, supplier2)
+
+    def fin():
+        for cpt in range(FRACTIONAL_M2_STAGING_COUNT):
+            name = f"{FRACTIONAL_M2_STAGING_ACCOUNT}{cpt}"
+            user = UserAccounts(supplier1, DEFAULT_SUFFIX).get(name)
+            user.delete()
+        supplier1.restart()
+        supplier2.restart()
+        repl = ReplicationManager(DEFAULT_SUFFIX)
+        repl.ensure_agreement(supplier1, supplier2)
+        repl.test_replication(supplier1, supplier2)
+
+    request.addfinalizer(fin)
+
+    yield SimpleNamespace(
+        topology_m2=topology_m2,
+        supplier1=supplier1,
+        supplier2=supplier2,
+    )
+
+
+def _parse_csn_line(line):
+    """ Helper function to extract the CSN from a line """
+    parsed = {item.split('=')[0]: item.split('=')[1] for item in line['rem'].split()}
+    return parsed['csn']
+
+
+def _fractional_m2_get_unreplicated_csn(supplier1, dn):
+    """CSN for a telephoneNumber change (not replicated fractionally)."""
+    UserAccount(supplier1, dn).replace("telephonenumber", "123456")
+
+    raw = supplier1.getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)", ["nscpentrywsi"])
+    nscp_vals = raw.getValues("nscpentrywsi")
+    assert nscp_vals
+    tel_line = None
+    for val in nscp_vals:
+        if ensure_str(val.lower()).startswith("telephonenumber"):
+            tel_line = val
+            break
+    assert tel_line
+
+    found_ops = supplier1.ds_access_log.match(f".*MOD dn=\"{dn}\".*")
+    assert len(found_ops) > 0
+    found_op = supplier1.ds_access_log.parse_line(found_ops[-1])
+
+    found_csns = supplier1.ds_access_log.match(
+        f".*conn={found_op['conn']} op={found_op['op']} RESULT.*")
+    assert len(found_csns) > 0
+
+    found_csn = supplier1.ds_access_log.parse_line(found_csns[-1])
+    return _parse_csn_line(found_csn)
+
+
+def _fractional_m2_count_full_session(supplier1):
+    pattern = ".*No more updates to send.*"
+    regex = re.compile(pattern)
+    no_more_updates = 0
+    with open(supplier1.errlog, "r") as file_obj:
+        while True:
+            line = file_obj.readline()
+            if regex.search(line):
+                no_more_updates = no_more_updates + 1
+            if line == "":
+                break
+    return no_more_updates
+
+
+def test_fractional_m2_replication(topology_m2, fractional_m2_setup):
+    """Replication works between two suppliers after fractional agreement configuration.
+
+    :id: a7f39c2e-4b1d-42f8-9e63-8d501a6c2f94
+    :setup: Two suppliers (topology_m2), fractional_m2_setup
+    :steps:
+        1. Confirm a single replication agreement exists on supplier1.
+        2. Ensure the agreement from supplier1 to supplier2 exists and run a replication check.
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    ents = _fractional_m2_agreement_list(topology_m2.ms["supplier1"])
+    assert len(ents) == 1
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.ensure_agreement(topology_m2.ms["supplier1"], topology_m2.ms["supplier2"])
+    repl.test_replication(topology_m2.ms["supplier1"], topology_m2.ms["supplier2"])
+
+
+def test_fractional_m2_replicated_description(topology_m2, fractional_m2_setup):
+    """A non-fractional attribute modified on supplier1 appears on supplier2.
+
+    :id: b3e81d5f-6c2e-53a9-af74-9e612b7d3ea5
+    :setup: Two suppliers (topology_m2), fractional_m2_setup
+    :steps:
+        1. Set description on a staging user on supplier1.
+        2. Poll supplier2 until the same description value is present on the entry.
+    :expectedresults:
+        1. Success
+        2. Success within the wait loop
+    """
+    name = f"{FRACTIONAL_M2_STAGING_ACCOUNT}1"
+    users = UserAccounts(topology_m2.ms["supplier1"], DEFAULT_SUFFIX)
+    user = users.get(name)
+    description = "check repl. description"
+    user.set("description", description)
+
+    ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topology_m2.ms["supplier1"], topology_m2.ms["supplier2"])
+    ent = topology_m2.ms["supplier2"].getEntry(user.dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ent.hasAttr("description") and ent.getValue("description") == ensure_bytes(description)
+
+
+def _wait_for_replication_sessions_to_complete(supplier1, no_more_update_cnt):
+    max_loop = 10
+    cnt = 0
+    current_no_more_update = _fractional_m2_count_full_session(supplier1)
+    while current_no_more_update == no_more_update_cnt:
+        cnt = cnt + 1
+        if cnt > max_loop:
+            assert False, f"Timeout waiting for replication sessions to complete after {cnt} loops"
+        time.sleep(5)
+        current_no_more_update = _fractional_m2_count_full_session(supplier1)
+
+    return current_no_more_update
+
+def test_fractional_m2_csn_evaluation_count(topology_m2, fractional_m2_setup):
+    """Verify that the CSN evaluation count is correct
+
+    :id: c9f54a8b-7d3f-64ba-b085-0f723c8e4fb6
+    :setup: Two suppliers (topology_m2), fractional_m2_setup
+    :steps:
+        1. Record a CSN for a telephoneNumber change that is not replicated (fractional exclude).
+        2. Pause the agreement, apply many telephoneNumber updates on supplier1, resume and wait
+           for replication sessions to complete.
+        3. Drive further non-replicated updates and waits; scan the error log after the last CSN
+           ruv line and assert first CSN is reported with "Skipping update operation" message.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    supplier1 = topology_m2.ms["supplier1"]
+    assert len(_fractional_m2_agreement_list(supplier1)) == 1
+    dn2 = f"uid={FRACTIONAL_M2_STAGING_ACCOUNT}2,ou=people,{DEFAULT_SUFFIX}"
+    first_csn = _fractional_m2_get_unreplicated_csn(supplier1, dn2)
+    
+    dn = f"uid={FRACTIONAL_M2_STAGING_ACCOUNT}3,ou=people,{DEFAULT_SUFFIX}"
+    user = UserAccount(supplier1, dn)
+    nb_session = 102
+
+    no_more_update_cnt = _fractional_m2_count_full_session(supplier1)
+    agmt = _fractional_m2_agreement_list(supplier1)[0]
+    agmt.pause()
+    for tel_number in range(nb_session):
+        user.replace("telephonenumber", str(tel_number))
+
+    agmt.resume()
+
+    current_no_more_update = _wait_for_replication_sessions_to_complete(supplier1, no_more_update_cnt)
+    log.info(
+        f"after {nb_session} MODs we have completed {(current_no_more_update - no_more_update_cnt)} replication sessions")
+    no_more_update_cnt = current_no_more_update
+
+    dn5 = f"uid={FRACTIONAL_M2_STAGING_ACCOUNT}5,ou=people,{DEFAULT_SUFFIX}"
+    last_csn = _fractional_m2_get_unreplicated_csn(supplier1, dn5)
+
+    current_no_more_update = _wait_for_replication_sessions_to_complete(supplier1, no_more_update_cnt)
+    log.info(
+        f"This MODs {last_csn} triggered the send of the dummy update completed {(current_no_more_update - no_more_update_cnt)} replication sessions")
+    no_more_update_cnt = current_no_more_update
+
+    agmt = _fractional_m2_agreement_list(supplier1)[0]
+    agmt.pause()
+    last_csn = _fractional_m2_get_unreplicated_csn(supplier1, dn5)
+    agmt.resume()
+
+    current_no_more_update = _wait_for_replication_sessions_to_complete(supplier1, no_more_update_cnt)
+    log.info(
+        f"This MODs {last_csn} completed in {(current_no_more_update - no_more_update_cnt)} replication sessions, should be sent without evaluating {first_csn}")
+    no_more_update_cnt = current_no_more_update
+
+    pattern = f".*ruv_add_csn_inprogress - Successfully inserted csn {last_csn}.*"
+    regex = re.compile(pattern)
+    found_ruv = None
+
+    with open(supplier1.errlog, "r") as file_obj:
+        while True:
+            line = file_obj.readline()
+            if regex.search(line):
+                found_ruv = line
+                break
+            if line == "":
+                break
+        assert found_ruv
+        log.info(f"Last operation was found at {file_obj.tell()}")
+        log.info(found_ruv)
+ 
+        log.info(f"Now check the first csn {first_csn} is present in the log")
+
+        pattern_skip = f".*Skipping update operation.*CSN {first_csn}.*"
+        regex_skip = re.compile(pattern_skip)
+        found_skip = False
+        while True:
+            line = file_obj.readline()
+            if regex_skip.search(line):
+                found_skip = True
+                break
+            if line == "":
+                break
+        assert found_skip
+        log.info(f"First csn {first_csn} found in the log")
 
 
 if __name__ == '__main__':
