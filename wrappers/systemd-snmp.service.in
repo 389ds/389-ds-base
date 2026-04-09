@@ -24,6 +24,10 @@ ProtectKernelModules=true
 ProtectKernelLogs=true
 ProtectControlGroups=true
 RestrictRealtime=true
+NoNewPrivileges=yes
+MemoryDenyWriteExecute=yes
+InaccessiblePaths=/dev/shm
+SystemCallFilter=~memfd_create
 
 [Install]
 WantedBy=multi-user.target
