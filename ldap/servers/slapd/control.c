@@ -409,7 +409,8 @@ get_ldapmessage_controls_ext(
         }
         len = -1; /* reset */
         /* if we are ignoring criticality, treat as FALSE */
-        if (ignore_criticality) {
+        if (ignore_criticality ||
+            config_is_control_criticality_ignored(new->ldctl_oid)) {
             new->ldctl_iscritical = 0;
         }
 

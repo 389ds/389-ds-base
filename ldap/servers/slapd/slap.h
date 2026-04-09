@@ -2423,6 +2423,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_FGOT_ATTRIBUTE "ds-fine-grain-operation-timing"
 #define SLAPD_DEFAULT_FGOT "wtime+wqtime+optime+etime"
 #define SLAPD_DEFAULT_FGOT_FLAGS ((1UL<<FGOT_W)|(1UL<<FGOT_WQ)|(1UL<<FGOT_OP)|(1UL<<FGOT_ETIME))
+#define CONFIG_IGNORED_CRITICALITY_LIST_ATTRIBUTE "ds-ignored-control-criticality"
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
@@ -2795,6 +2796,7 @@ typedef struct _slapdFrontendConfig
     char *auditlog_display_attrs;
     char *fgot;
     uint64_t fgot_flags;
+    char **ignored_criticality_list;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
