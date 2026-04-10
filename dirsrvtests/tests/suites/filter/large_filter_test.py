@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -21,7 +21,7 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.account import Accounts
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
-from lib389.utils import get_ldapurl_from_serverid
+from lib389.dseutils import get_ldapurl_from_serverid
 
 SUFFIX = 'dc=anuj,dc=com'
 

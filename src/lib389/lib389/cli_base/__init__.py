@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2025 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -16,7 +16,8 @@ import ldap
 from ldap.dn import is_dn
 from getpass import getpass
 from lib389 import DirSrv
-from lib389.utils import assert_c, get_ldapurl_from_serverid
+from lib389.utils import assert_c
+from lib389.dseutils import get_ldapurl_from_serverid
 from lib389.properties import SER_ROOT_PW, SER_ROOT_DN
 
 

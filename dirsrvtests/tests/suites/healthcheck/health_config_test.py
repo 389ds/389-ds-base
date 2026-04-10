@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -33,7 +33,17 @@ JSON_OUTPUT = '[]'
 log = logging.getLogger(__name__)
 
 
+def stop_and_flush(inst):
+    inst.stop()
+    inst.lint_clear_dse_cache()
+
+
 def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None):
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
+        searched_code = 'DSBLE0006'
+
     args = FakeArgs()
     args.instance = instance.serverid
     args.verbose = instance.verbose
@@ -42,11 +52,6 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.check = ['config', 'refint', 'backends', 'monitor-disk-space', 'logs', 'memberof']
     args.dry_run = False
     args.exclude_check = []
-
-    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
-    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
-       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
-        searched_code = 'DSBLE0006'
 
     if json:
         log.info('Use healthcheck with --json option')
@@ -128,12 +133,26 @@ def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
     log.info('Set the referint-update-delay attribute to a value upper than 0')
     plugin.replace('referint-update-delay', '5')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
     log.info('Set the referint-update-delay attribute back to 0')
     plugin.replace('referint-update-delay', '0')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -179,12 +198,26 @@ def test_healthcheck_RI_plugin_missing_indexes(topology_st):
     index = Index(topology_st.standalone, MEMBER_DN)
     index.replace('nsIndexType', 'approx')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
     log.info('Set the index type of the member attribute index back to eq')
     index.replace('nsIndexType', 'eq')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -225,6 +258,13 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     plugin.add('memberofgroupattr', MO_GROUP_ATTR)
     time.sleep(.5)
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -233,6 +273,13 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     be.add_index(MO_GROUP_ATTR, "eq", None)
     time.sleep(.5)
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
     # Restart the intsnce after changing the plugin to avoid breaking the other tests
@@ -294,12 +341,26 @@ def test_healthcheck_MO_plugin_substring_index(topology_st):
     index = Index(topology_st.standalone, MEMBER_DN)
     index.replace('nsIndexType', 'sub')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
     log.info('Set the index type of the member attribute index back to eq')
     index.replace('nsIndexType', 'eq')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -307,12 +368,26 @@ def test_healthcheck_MO_plugin_substring_index(topology_st):
     index = Index(topology_st.standalone, UNIQUE_MEMBER_DN)
     index.replace('nsIndexType', 'sub')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
     log.info('Set the index type of the uniquemember attribute index back to eq')
     index.replace('nsIndexType', 'eq')
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -364,6 +439,13 @@ def test_healthcheck_MO_plugin_global_lock(topology_st):
     assert plugin.get_attr_val_utf8('memberOfAllBackends') == "off"
     assert standalone.config.get_attr_val_utf8('nsslapd-global-backend-lock') == 'off'
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
@@ -373,10 +455,18 @@ def test_healthcheck_MO_plugin_global_lock(topology_st):
     assert plugin.get_attr_val_utf8('memberOfAllBackends') == "on"
     assert standalone.config.get_attr_val_utf8('nsslapd-global-backend-lock') == 'off'
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     # Restart the instance after changing the plugin to avoid breaking the other tests
+    plugin.replace('memberOfAllBackends', 'off')
     standalone.restart()
 
 
@@ -405,6 +495,8 @@ def test_healthcheck_virtual_attr_incorrectly_indexed(topology_st):
     RET_CODE = 'DSVIRTLE0001'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
+
     postal_index_properties = {
         'cn': 'postalcode',
         'nsSystemIndex': 'False',
@@ -516,7 +608,7 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
 
     log.info('Stopping the server and running offline import...')
-    standalone.stop()
+    stop_and_flush(standalone)
     assert standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], encrypt=None, excludeSuffixes=None,
                               import_file=import_ldif)
     standalone.start()
@@ -531,6 +623,13 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
 
     standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
@@ -582,6 +681,13 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     assert standalone.ds_access_log.match(r'.*notes=F.*')
 
     standalone.config.set("nsslapd-accesslog-logbuffering", "on")
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
@@ -607,10 +713,18 @@ def test_healthcheck_unauth_binds(topology_st):
     RET_CODE = 'DSCLE0003'
 
     inst = topology_st.standalone
+    inst.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('nsslapd-allow-unauthenticated-binds to on')
     inst.config.set("nsslapd-allow-unauthenticated-binds", "on")
 
+    stop_and_flush(inst)
+    try:
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+    finally:
+        if not inst.status():
+            inst.start()
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
 
@@ -644,6 +758,13 @@ def test_healthcheck_accesslog_buffering(topology_st):
     log.info('nsslapd-accesslog-logbuffering to off')
     inst.config.set("nsslapd-accesslog-logbuffering", "off")
 
+    stop_and_flush(inst)
+    try:
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+    finally:
+        if not inst.status():
+            inst.start()
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
 
@@ -673,10 +794,19 @@ def test_healthcheck_securitylog_buffering(topology_st):
     RET_CODE = 'DSCLE0005'
 
     inst = topology_st.standalone
+    inst.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('nsslapd-securitylog-logbuffering to off')
+    inst.config.set('nsslapd-securitylog-logging-enabled', 'on')
     inst.config.set("nsslapd-securitylog-logbuffering", "off")
 
+    stop_and_flush(inst)
+    try:
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+    finally:
+        if not inst.status():
+            inst.start()
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
 
@@ -706,12 +836,20 @@ def test_healthcheck_auditlog_buffering(topology_st):
     RET_CODE = 'DSCLE0006'
 
     inst = topology_st.standalone
+    inst.config.set("nsslapd-accesslog-logbuffering", "on")
     enabled = inst.config.get_attr_val_utf8('nsslapd-auditlog-logging-enabled')
 
     log.info('nsslapd-auditlog-logbuffering to off')
     inst.config.set('nsslapd-auditlog-logging-enabled', 'on')
     inst.config.set('nsslapd-auditlog-logbuffering', 'off')
 
+    stop_and_flush(inst)
+    try:
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+    finally:
+        if not inst.status():
+            inst.start()
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
 

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -207,11 +207,11 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
     :steps:
         1. Create a replicated topology
         2. On M1, check that value of nsslapd-changelogmaxage from cn=changelog5,cn=config is None
-        3. Use HealthCheck without --json option
-        4. Use HealthCheck with --json option
-        5. On M1, set nsslapd-changelogmaxage to 30d
-        6. Use HealthCheck without --json option
-        7. Use HealthCheck with --json option
+        3. Stop M1 and use HealthCheck without --json option (offline; reads dse.ldif)
+        4. Stop M1 and use HealthCheck with --json option
+        5. Start M1, set nsslapd-changelogmaxage to 30d
+        6. Stop M1 and use HealthCheck without --json option
+        7. Stop M1 and use HealthCheck with --json option
     :expectedresults:
         1. Success
         2. Success
@@ -235,13 +235,34 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
 
     time.sleep(3)
 
-    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=False)
-    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=True)
+    try:
+        log.info('Run healthcheck expect DSCLLE0001')
 
-    set_changelog_trimming(M1)
+        run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=False)
+        run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=True)
 
-    run_healthcheck_and_check_result(topology_m2, M1, CMD_OUTPUT, json=False)
-    run_healthcheck_and_check_result(topology_m2, M1, JSON_OUTPUT, json=True)
+        log.info("Stopped server and testing offline mode ....")
+        M1.stop()
+        M1.lint_clear_dse_cache()
+        run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=False)
+        run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=True)
+
+        log.info('Start M1 and configure changelog trimming (requires LDAP)')
+        M1.start()
+        set_changelog_trimming(M1)
+
+        run_healthcheck_and_check_result(topology_m2, M1, CMD_OUTPUT, json=False)
+        run_healthcheck_and_check_result(topology_m2, M1, JSON_OUTPUT, json=True)
+
+        log.info("Stopped server and testing offline mode ....")
+        M1.stop()
+        M1.lint_clear_dse_cache()
+        run_healthcheck_and_check_result(topology_m2, M1, CMD_OUTPUT, json=False)
+        run_healthcheck_and_check_result(topology_m2, M1, JSON_OUTPUT, json=True)
+
+    finally:
+        if not M1.status():
+            M1.start()
 
 
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
@@ -318,6 +339,12 @@ def test_healthcheck_non_replicated_suffixes(topology_m2):
     args.json = False
     args.exclude_check = []
 
+    inst.stop()
+    try:
+        health_check_run(inst, topology_m2.logcap.log, args)
+    finally:
+        if not inst.status():
+            inst.start()
     health_check_run(inst, topology_m2.logcap.log, args)
 
 

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,7 +13,8 @@ from lib389.idm.user import UserAccount, UserAccounts
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from test389.topologies import topology_st
+from lib389.dseutils import get_ldapurl_from_serverid
+from lib389.topologies import topology_st
 from lib389.dbgen import dbgen_users
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM, ReplicaRole
