@@ -381,6 +381,7 @@ def test_monitor_busy_workers_concurrent(topo):
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_monitor_memberof(topo):
     """Test MemberOf plugin deferred processing monitoring with real activity
+
     :id: 1c4b382a-ebaf-4d80-9232-67e1b3ab58d4
     :setup: Single instance
     :steps:
