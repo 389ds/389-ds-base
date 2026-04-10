@@ -411,7 +411,11 @@ inchain_normalize(
     int trim_spaces,
     char **alt)
 {
+    int trim_mask = 0;
+    if (trim_spaces) {
+	    trim_mask = TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK;
+    }
     slapi_log_err(SLAPI_LOG_ERR, "inchain", "inchain_normalize %s \n", s);
-    value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_spaces, alt);
+    value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_mask, alt);
     return;
 }

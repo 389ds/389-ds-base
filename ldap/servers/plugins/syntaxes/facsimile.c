@@ -305,6 +305,10 @@ facsimile_normalize(
     int trim_spaces,
     char **alt)
 {
-    value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
+    int trim_mask = 0;
+    if (trim_spaces) {
+	    trim_mask = TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK;
+    }
+    value_normalize_ext(s, SYNTAX_CIS, trim_mask, alt);
     return;
 }
