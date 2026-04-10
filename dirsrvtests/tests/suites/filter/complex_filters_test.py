@@ -24,7 +24,6 @@ else:
 log = logging.getLogger(__name__)
 ALL_FILTERS = []
 
-
 # Parameterized filters to test
 AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=first1))", 1),
                ("(&(uid=uid1)(&(sn=last1)(givenname=first1)))", 1),
@@ -60,7 +59,10 @@ MIX_FILTERS = [("(&(|(uid=uid1)(uid=NULL))(sn=last1))", 1),
                ("(|(&(uid=uid1)(uid=NULL))(sn=last2))", 1),
                ("(&(uid=uid5)(sn=*)(cn=*)(givenname=*)(uid=u*)(sn=la*)" +
                 "(cn=full*)(givenname=f*)(uid>=u)(!(givenname=NULL)))", 1),
-               ("(|(&(objectclass=*)(sn=last))(&(givenname=first1)))", 1)]
+               ("(|(&(objectclass=*)(sn=last))(&(givenname=first1)))", 1),
+               ("(&(objectclass=person)(&(|(sn=last*)(sn=first*))" +
+                "(|(givenname=last*)(givenname=first*)))" +
+                "(|(uid=uid1)(cn=full1))(!(telephone=)))", 1)]
 
 ZERO_AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=NULL))", 0),
                    ("(&(uid=uid1)(&(sn=last1)(givenname=NULL)))", 0),
