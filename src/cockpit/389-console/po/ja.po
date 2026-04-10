@@ -256,7 +256,7 @@ msgstr "バインドDN"
 
 #: src/lib/monitor/monitorModals.jsx:479
 msgid "Bind password for the specified instances"
-msgstr "指定されたインスタンスのバインドDN"
+msgstr "指定されたインスタンスのバインドパスワード"
 
 #: src/lib/monitor/monitorModals.jsx:481 src/lib/monitor/monitorModals.jsx:636
 #: src/lib/monitor/monitorModals.jsx:846 src/lib/monitor/monitorTables.jsx:1492
@@ -1078,7 +1078,7 @@ msgstr "送信されたバイト数"
 
 #: src/lib/monitor/serverMonitor.jsx:737
 msgid "One Level Searches"
-msgstr "ワンランク上の検索"
+msgstr "ワンレベル検索"
 
 #: src/lib/monitor/serverMonitor.jsx:743
 msgid "Entries Returned"
@@ -2804,7 +2804,7 @@ msgstr "スコープ"
 
 #: src/lib/plugins/pluginTables.jsx:729
 msgid "DNA Configurations"
-msgstr "DNS設定"
+msgstr "DNA設定"
 
 #: src/lib/plugins/pluginTables.jsx:795
 msgid "Remaining Values"
@@ -4024,7 +4024,7 @@ msgstr "設定を削除しています..."
 
 #: src/lib/plugins/linkedAttributes.jsx:430
 msgid "Linked Attributes Plugin Config Entry"
-msgstr "Linked Attributesプラグインの設定エントリを$0"
+msgstr "Linked Attributesプラグインの設定エントリ"
 
 #: src/lib/plugins/linkedAttributes.jsx:467
 msgid "The Linked Attributes configuration name"
@@ -6750,11 +6750,11 @@ msgstr "インデックスの作成に失敗しました - $0"
 
 #: src/lib/database/indexes.jsx:457
 msgid "Error indexing attribute $0 - $1"
-msgstr "データベースの削除中にエラーが発生しました - $0"
+msgstr "属性 $0 のインデックス作成中にエラーが発生しました - $1"
 
 #: src/lib/database/indexes.jsx:538
 msgid "Successfully edited index"
-msgstr "VLVインデックスの削除に成功しました"
+msgstr "インデックスの編集に成功しました"
 
 #: src/lib/database/indexes.jsx:554
 msgid "Error editing index - $0"
@@ -6762,7 +6762,7 @@ msgstr "インデックス編集中にエラーが発生しました - $0"
 
 #: src/lib/database/indexes.jsx:627
 msgid "Error deleting index - $0"
-msgstr "鍵の削除中にエラーが発生しました - $0"
+msgstr "インデックスの削除中にエラーが発生しました - $0"
 
 #: src/lib/database/indexes.jsx:668
 msgid "Database Indexes "
@@ -7267,7 +7267,7 @@ msgstr "インデックスを作成しています ..."
 
 #: src/lib/database/vlvIndexes.jsx:564
 msgid "Create VLV Sort Index"
-msgstr "VLLソートインデックスを作成"
+msgstr "VLVソートインデックスを作成"
 
 #: src/lib/database/vlvIndexes.jsx:590
 msgid "Build a list of attributes to form the \"Sort\" index"
@@ -7893,8 +7893,7 @@ msgstr ""
 msgid ""
 "Initialize the changelog with an LDIF file for changelog encryption purposes."
 msgstr ""
-"レプリケーション変更ログを LDIFファイルにエクスポートします。変更ログの暗号化"
-"の準備や単純なデバッグに使用されます。"
+"変更ログの暗号化のために、LDIFファイルで変更ログを初期化します。"
 
 #: src/lib/replication/replTasks.jsx:425
 msgid "Import Changelog"
@@ -8416,7 +8415,7 @@ msgstr "ポート番号は1から65535の範囲内で設定してください"
 
 #: src/lib/replication/replModals.jsx:1301
 msgid "Fractional Settings"
-msgstr "小数点設定"
+msgstr "フラクショナル設定"
 
 #: src/lib/replication/replModals.jsx:1327
 msgid "Attribute to exclude from replica Initializations"
@@ -9368,7 +9367,7 @@ msgstr "手動でACIを追加"
 #: src/lib/ldap_editor/wizards/aci.jsx:489
 #: src/lib/ldap_editor/wizards/aci.jsx:492
 msgid "Delete ACI"
-msgstr "CSRを削除"
+msgstr "ACIを削除"
 
 #: src/lib/ldap_editor/wizards/aci.jsx:490
 msgid "Are you sure you want to delete this ACI?"
@@ -9532,7 +9531,7 @@ msgstr "ACIの追加に成功しました！"
 
 #: src/lib/ldap_editor/wizards/operations/aciNew.jsx:600
 msgid "Failed to add ACI, error: "
-msgstr "の追加に失敗しました、エラー: "
+msgstr "ACIの追加に失敗しました、エラー: "
 
 #: src/lib/ldap_editor/wizards/operations/aciNew.jsx:801
 msgid "Choose a name for this ACI, and set the Target"
@@ -10453,7 +10452,7 @@ msgstr "ユーザを追加しています ..."
 
 #: src/lib/ldap_editor/wizards/operations/addUser.jsx:773
 msgid "Choose User Type"
-msgstr "選択したユーザ"
+msgstr "ユーザタイプを選択"
 
 #: src/lib/ldap_editor/wizards/operations/addUser.jsx:779
 #: src/lib/ldap_editor/wizards/operations/addLdapEntry.jsx:801
@@ -10832,7 +10831,7 @@ msgstr "グループの更新に失敗しました、エラーコード: "
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:354
 msgid "Successfully updated group"
-msgstr "グループの更新に失敗しました"
+msgstr "グループの更新に成功しました"
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:461
 msgid "Switch To Generic Editor"
@@ -10861,7 +10860,7 @@ msgstr "本当にこのメンバーを削除しますか？"
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:599
 msgid "Remove Members From Group"
-msgstr "グループからメンバーを削除しました"
+msgstr "グループからメンバーを削除"
 
 #: src/lib/ldap_editor/wizards/operations/editGroup.jsx:600
 msgid "Are you sure you want to remove these members?"
@@ -10905,7 +10904,7 @@ msgstr "読み込み中..."
 
 #: src/lib/ldap_editor/wizards/operations/editLdapEntry.jsx:1325
 msgid "Edit Attribute Values"
-msgstr "属性の値を作成"
+msgstr "属性の値を編集"
 
 #: src/lib/ldap_editor/wizards/operations/editLdapEntry.jsx:1401
 msgid "Modifying entry ..."
@@ -11015,11 +11014,11 @@ msgstr "ロール名"
 
 #: src/lib/ldap_editor/wizards/operations/addRole.jsx:709
 msgid "Choose Role Type"
-msgstr "選択したロールタイプ"
+msgstr "ロールタイプを選択"
 
 #: src/lib/ldap_editor/wizards/operations/addRole.jsx:717
 msgid "Managed"
-msgstr "管理者"
+msgstr "マネージド"
 
 #: src/lib/ldap_editor/wizards/operations/addRole.jsx:720
 msgid "This attribute uses objectclass 'RoleOfNames'"
@@ -12255,7 +12254,7 @@ msgstr "信頼フラグ:"
 
 #: src/lib/security/securityTables.jsx:445
 msgid "No Certificates"
-msgstr "S証明書がありません"
+msgstr "証明書がありません"
 
 #: src/lib/security/securityTables.jsx:446
 msgid "Certificates"
@@ -13444,12 +13443,12 @@ msgid ""
 "Ignore replication time skew when acquiring a replica to start a replciation "
 "session (nsslapd-ignore-time-skew)."
 msgstr ""
-"レプリカを取得してレプリケーションセッションを開始する際に、レプリケーション"
-"タイムスケジュールを無視するかどうかを設定します。(nsslapd-ignore-time-skew)"
+"レプリカを取得してレプリケーションセッションを開始する際に、レプリケーションの"
+"時刻のずれを無視するかどうかを設定します。(nsslapd-ignore-time-skew)"
 
 #: src/lib/server/settings.jsx:1368
 msgid "Ignore CSN Time Skew"
-msgstr "CSNタイムスケジュールを無視する"
+msgstr "CSNの時刻のずれを無視する"
 
 #: src/lib/server/settings.jsx:1378
 msgid "Make entire server read-only (nsslapd-readonly)"
@@ -13705,7 +13704,7 @@ msgstr "内部操作"
 
 #: src/lib/server/accessLog.jsx:81
 msgid "Entry Access and Referrals"
-msgstr "エントリ接続と参照"
+msgstr "エントリアクセスと参照"
 
 #: src/lib/server/accessLog.jsx:310
 msgid "Successfully updated Access Log settings"
@@ -14333,8 +14332,8 @@ msgid ""
 "The instance name, this is what gets appended to 'slapd-'. The instance name "
 "can only contain letters, numbers, and: # @ : - _"
 msgstr ""
-"'slapi-'に追加されるインスタンス名を設定します。インスタンス名は、英数字およ"
-"び次の4つの文字(- @ : _)のみ利用可能です。"
+"'slapd-'に追加されるインスタンス名を設定します。インスタンス名は、英数字およ"
+"び次の5つの文字(# @ : - _)のみ利用可能です。"
 
 #: src/dsModals.jsx:409
 msgid "Instance Name"
@@ -14477,7 +14476,7 @@ msgstr "オブジェクトクラスの取得に失敗しました - $0"
 
 #: src/plugins.jsx:213
 msgid "$0 error during plugin loading"
-msgstr "$0 プライグインの読み込みに失敗しました"
+msgstr "$0 プラグインの読み込みに失敗しました"
 
 #: src/plugins.jsx:264 src/plugins.jsx:301 src/plugins.jsx:317
 msgid "Plugin $0 was successfully modified"
@@ -14501,7 +14500,7 @@ msgstr "すべてのプラグイン"
 
 #: src/plugins.jsx:672
 msgid "Loading Plugins ..."
-msgstr "プライグインを読み込んでいます..."
+msgstr "プラグインを読み込んでいます..."
 
 #: src/plugins.jsx:707 src/plugins.jsx:714
 msgid "Disable Plugin"
