@@ -25,12 +25,12 @@ log = logging.getLogger(__name__)
 
 
 def run_healthcheck_and_check_result(instance, searched_code, json=False, isnot=False):
-    """Run healthcheck and verify the expected code is in the output"""
+    """Run dsctl healthcheck and verify the expected code is in the output."""
+    expected = JSON_OUTPUT if json and searched_code == CMD_OUTPUT else searched_code
+
     cmd = ['dsctl']
     if json:
         cmd.append('--json')
-        if searched_code == CMD_OUTPUT:
-            searched_code = JSON_OUTPUT
     cmd.append(instance.serverid)
     cmd.extend(['healthcheck', '--check', 'dseldif:nsstate'])
 
@@ -46,13 +46,13 @@ def run_healthcheck_and_check_result(instance, searched_code, json=False, isnot=
     assert len(stdout) > 0
 
     if isnot:
-        assert searched_code not in stdout, \
-            f'{searched_code} should NOT be in healthcheck output but was found'
-        log.info(f'Verified {searched_code} is NOT in healthcheck output')
+        assert expected not in stdout, \
+            f'{expected} should NOT be in healthcheck output but was found'
+        log.info(f'Verified {expected} is NOT in healthcheck output')
     else:
-        assert searched_code in stdout, \
-            f'{searched_code} should be in healthcheck output but was not found'
-        log.info(f'Verified {searched_code} is in healthcheck output')
+        assert expected in stdout, \
+            f'{expected} should be in healthcheck output but was not found'
+        log.info(f'Verified {expected} is in healthcheck output')
 
 
 def test_healthcheck_time_skew_extensive(topology_m2):
@@ -108,6 +108,13 @@ def test_healthcheck_time_skew_extensive(topology_m2):
 
     # Step 5: Verify DSSKEWLE0003 is reported
     log.info('Run healthcheck and verify DSSKEWLE0003 is reported')
+    M1.stop()
+    try:
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=False)
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=True)
+    finally:
+        if not M1.status():
+            M1.start()
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=False)
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=True)
 
@@ -117,6 +124,13 @@ def test_healthcheck_time_skew_extensive(topology_m2):
 
     # Step 7: Verify DSSKEWLE0003 is NOT reported when ignoring time skew
     log.info('Run healthcheck and verify DSSKEWLE0003 is NOT reported')
+    M1.stop()
+    try:
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=False, isnot=True)
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=True, isnot=True)
+    finally:
+        if not M1.status():
+            M1.start()
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=False, isnot=True)
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=True, isnot=True)
 
@@ -135,6 +149,15 @@ def test_healthcheck_time_skew_extensive(topology_m2):
 
     # Step 11: Verify only DSSKEWLE0004 is reported (not DSSKEWLE0003)
     log.info('Run healthcheck and verify only DSSKEWLE0004 is reported')
+    M1.stop()
+    try:
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0004', json=False)
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0004', json=True)
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=False, isnot=True)
+        run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=True, isnot=True)
+    finally:
+        if not M1.status():
+            M1.start()
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0004', json=False)
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0004', json=True)
     run_healthcheck_and_check_result(M1, 'DSSKEWLE0003', json=False, isnot=True)

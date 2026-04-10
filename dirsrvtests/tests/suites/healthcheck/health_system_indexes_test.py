@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2025 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -26,6 +26,11 @@ pytestmark = pytest.mark.tier1
 CMD_OUTPUT = "No issues found."
 JSON_OUTPUT = "[]"
 log = logging.getLogger(__name__)
+
+
+def stop_and_flush(inst):
+    inst.stop()
+    inst.lint_clear_dse_cache()
 
 
 @pytest.fixture(scope="function")
@@ -85,6 +90,14 @@ def log_buffering_enabled(topology_st, request):
 
 
 def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None):
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    if (
+        ds_is_newer("3.0.0")
+        and instance.get_db_lib() == "bdb"
+        and (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT)
+    ):
+        searched_code = "DSBLE0006"
+
     args = FakeArgs()
     args.instance = instance.serverid
     args.verbose = instance.verbose
@@ -100,14 +113,6 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
         "memberof",
     ]
     args.dry_run = False
-
-    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
-    if (
-        ds_is_newer("3.0.0")
-        and instance.get_db_lib() == "bdb"
-        and (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT)
-    ):
-        searched_code = "DSBLE0006"
 
     if json:
         log.info("Use healthcheck with --json option")
@@ -167,12 +172,31 @@ def test_missing_parentid(topology_st, log_buffering_enabled):
     parentid_index = Index(standalone, PARENTID_DN)
     parentid_index.delete()
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
+
+    # The server adds the index config entry at server startup so we need to
+    # delete it again
+    parentid_index.delete()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
     log.info("Re-add the parentId index")
     backend = Backends(standalone).get("userRoot")
     backend.add_index("parentid", ["eq"], matching_rules=["integerOrderingMatch"])
+
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
@@ -206,6 +230,13 @@ def test_missing_matching_rule(topology_st, log_buffering_enabled):
     parentid_index = Index(standalone, PARENTID_DN)
     parentid_index.remove("nsMatchingRule", "integerOrderingMatch")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -249,6 +280,17 @@ def test_usn_plugin_missing_entryusn(topology_st, usn_plugin_enabled, log_buffer
     entryusn_index = Index(standalone, ENTRYUSN_DN)
     entryusn_index.delete()
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
+
+    # The server adds the index config entry at server startup so we need to
+    # delete it again
+    entryusn_index.delete()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -256,6 +298,13 @@ def test_usn_plugin_missing_entryusn(topology_st, usn_plugin_enabled, log_buffer
     backend = Backends(standalone).get("userRoot")
     backend.add_index("entryusn", ["eq"], matching_rules=["integerOrderingMatch"])
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -294,6 +343,13 @@ def test_usn_plugin_missing_matching_rule(topology_st, usn_plugin_enabled, log_b
     entryusn_index = Index(standalone, ENTRYUSN_DN)
     entryusn_index.remove("nsMatchingRule", "integerOrderingMatch")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -301,6 +357,13 @@ def test_usn_plugin_missing_matching_rule(topology_st, usn_plugin_enabled, log_b
     entryusn_index = Index(standalone, ENTRYUSN_DN)
     entryusn_index.add("nsMatchingRule", "integerOrderingMatch")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -339,6 +402,14 @@ def test_retrocl_plugin_missing_changenumber(topology_st, retrocl_plugin_enabled
     changenumber_index = Index(standalone, changenumber_dn)
     changenumber_index.delete()
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
+
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -348,6 +419,13 @@ def test_retrocl_plugin_missing_changenumber(topology_st, retrocl_plugin_enabled
     changelog_backend.add_index("changenumber", ["eq"], matching_rules=["integerOrderingMatch"])
     log.info("Successfully re-added changeNumber index")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -386,6 +464,13 @@ def test_retrocl_plugin_missing_matching_rule(topology_st, retrocl_plugin_enable
     changenumber_index = Index(standalone, changenumber_dn)
     changenumber_index.remove("nsMatchingRule", "integerOrderingMatch")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -394,6 +479,13 @@ def test_retrocl_plugin_missing_matching_rule(topology_st, retrocl_plugin_enable
     changenumber_index.add("nsMatchingRule", "integerOrderingMatch")
     log.info("Successfully re-added integerOrderingMatch to changeNumber index")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -433,6 +525,19 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
         index.delete()
         log.info(f"Successfully removed index: {index_dn}")
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
+
+    # The server adds the index config entries at server startup so we need to
+    # delete it again
+    for index_dn in [PARENTID_DN, NSUNIQUEID_DN]:
+        index = Index(standalone, index_dn)
+        index.delete()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -442,6 +547,13 @@ def test_multiple_missing_indexes(topology_st, log_buffering_enabled):
     backend.add_index("nsuniqueid", ["eq"])
     standalone.restart()
 
+    stop_and_flush(standalone)
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
