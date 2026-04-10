@@ -25,6 +25,11 @@ from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import (
     DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
 )
+from lib389._mapped_object_lint import (
+    lint_get_attr_val,
+    lint_get_attr_val_utf8,
+    lint_get_attr_val_utf8_l,
+)
 
 class Config(DSLdapObject):
     """
@@ -205,8 +210,8 @@ class Config(DSLdapObject):
 
     def _lint_passwordscheme(self):
         allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
-        u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
-        u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
+        u_password_scheme = lint_get_attr_val_utf8(self, 'passwordStorageScheme')
+        u_root_scheme = lint_get_attr_val_utf8(self, 'nsslapd-rootpwstoragescheme')
         if u_root_scheme not in allowed_schemes:
             report = copy.deepcopy(DSCLE0002)
             report['detail'] = report['detail'].replace('SCHEME', u_root_scheme)
@@ -226,7 +231,7 @@ class Config(DSLdapObject):
 
     def _lint_unauth_binds(self):
         # Allow unauthenticated binds
-        unauthbinds = self.get_attr_val_utf8_l('nsslapd-allow-unauthenticated-binds')
+        unauthbinds = lint_get_attr_val_utf8_l(self, 'nsslapd-allow-unauthenticated-binds')
         if unauthbinds == "on":
             report = copy.deepcopy(DSCLE0003)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -235,7 +240,7 @@ class Config(DSLdapObject):
 
     def _lint_accesslog_buffering(self):
         # access log buffering
-        buffering = self.get_attr_val_utf8_l('nsslapd-accesslog-logbuffering')
+        buffering = lint_get_attr_val_utf8_l(self, 'nsslapd-accesslog-logbuffering')
         if buffering == "off":
             report = copy.deepcopy(DSCLE0004)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -244,8 +249,8 @@ class Config(DSLdapObject):
 
     def _lint_auditlog_buffering(self):
         # audit log buffering
-        enabled = self.get_attr_val_utf8_l('nsslapd-auditlog-logging-enabled')
-        buffering = self.get_attr_val_utf8_l('nsslapd-auditlog-logbuffering')
+        enabled = lint_get_attr_val_utf8_l(self, 'nsslapd-auditlog-logging-enabled')
+        buffering = lint_get_attr_val_utf8_l(self, 'nsslapd-auditlog-logbuffering')
         if enabled == "on" and buffering == "off":
             report = copy.deepcopy(DSCLE0006)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -254,8 +259,8 @@ class Config(DSLdapObject):
 
     def _lint_securitylog_buffering(self):
         # security log buffering
-        enabled = self.get_attr_val_utf8_l('nsslapd-securitylog-logging-enabled')
-        buffering = self.get_attr_val_utf8_l('nsslapd-securitylog-logbuffering')
+        enabled = lint_get_attr_val_utf8_l(self, 'nsslapd-securitylog-logging-enabled')
+        buffering = lint_get_attr_val_utf8_l(self, 'nsslapd-securitylog-logbuffering')
         if enabled == "on" and buffering == "off":
             report = copy.deepcopy(DSCLE0005)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -302,7 +307,7 @@ class Encryption(DSLdapObject):
         return 'encryption'
 
     def _lint_check_tls_version(self):
-        tls_min = self.get_attr_val('sslVersionMin')
+        tls_min = lint_get_attr_val(self, 'sslVersionMin')
         if tls_min is not None and tls_min < ensure_bytes('TLS1.1'):
             report = copy.deepcopy(DSELE0001)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
