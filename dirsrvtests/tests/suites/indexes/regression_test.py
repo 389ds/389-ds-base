@@ -27,7 +27,7 @@ from lib389.idm.domain import Domain
 from lib389.idm.group import Groups, Group
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.user import UserAccount, UserAccounts
-from lib389.index import Indexes
+from lib389.index import Index, Indexes
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.plugins import MemberOfPlugin
 from lib389.properties import TASK_WAIT
@@ -40,6 +40,7 @@ pytestmark = pytest.mark.tier1
 
 SUFFIX2 = 'dc=example2,dc=com'
 BENAME2 = 'be2'
+CN_INDEX_DN = f'cn=cn,cn=index,cn={DEFAULT_BENAME},cn=ldbm database,cn=plugins,cn=config'
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 logging.getLogger(__name__).setLevel(logging.INFO)
@@ -479,6 +480,24 @@ def test_reject_virtual_attr_for_indexing(topo):
             with pytest.raises(ValueError):
                 be.add_index('employeeType', ['eq'])
             break
+
+
+def test_reject_ns_index_type_comma_packed_value(topo):
+    """Reject nsIndexType given as one comma-packed value
+
+    Types must be separate attribute values (e.g. ``eq`` and ``pres``), not ``eq,pres``.
+
+    :id: 92295258-d0f4-41d0-8a38-675e2e5ee450
+    :setup: Standalone instance
+    :steps:
+        1. MOD_ADD nsIndexType ``eq,pres`` on the ``cn`` index entry
+    :expectedresults:
+        1. ldap.UNWILLING_TO_PERFORM
+    """
+    cn_index = Index(topo.standalone, CN_INDEX_DN)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        cn_index.set('nsIndexType', 'eq,pres', action=ldap.MOD_ADD)
+
 
 def test_task_status(topo):
     """Check that finished tasks have both a status and exit code
