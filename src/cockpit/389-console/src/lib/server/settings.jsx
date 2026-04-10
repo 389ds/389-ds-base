@@ -175,6 +175,7 @@ export class ServerSettings extends React.Component {
         this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
+        this.validatePortOnBlur = this.validatePortOnBlur.bind(this);
 
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
@@ -288,25 +289,6 @@ async validateSaveBtn(nav_tab, attr, value) {
                 valueErr = true;
                 disableSaveBtn = true;
             }
-            if (attr === 'nsslapd-port' || attr === 'nsslapd-secureport') {
-                const portValue = Number(value)
-                if (!isNaN(portValue)) {
-                    try {
-                        // Check port value is not already in use.
-                        const portInUse = await is_port_in_use(portValue);
-                        if (portInUse) {
-                            disableSaveBtn = true;
-                            if (portValue !== Number(this.state['_' + attr])) {
-                                valueErr = true;
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error checking port:", error);
-                        disableSaveBtn = true;
-                        valueErr = true;
-                    }
-                }
-            }
         } else if (nav_tab === "rootdn") {
             // Handle validating passwords are in sync
             if (attr === 'nsslapd-rootpw') {
@@ -407,6 +389,43 @@ async validateSaveBtn(nav_tab, attr, value) {
                 this.validateSaveBtn(tab, attr, this.state[attr]);
             });
         });
+    }
+
+    async validatePortOnBlur(attr) {
+        const portValue = Number(this.state[attr]);
+        if (isNaN(portValue)) {
+            return;
+        }
+
+        try {
+            const portInUse = await is_port_in_use(portValue);
+            const origValue = Number(this.state['_' + attr]);
+
+            const errObj = { ...this.state.errObjConfig };
+
+            if (portInUse && portValue !== origValue) {
+                errObj[attr] = true;
+            } else {
+                errObj[attr] = false;
+            }
+
+            const hasErrors = Object.values(errObj).some(error => error === true);
+            this.setState({
+                errObjConfig: errObj,
+                configSaveDisabled: hasErrors
+            });
+
+        } catch (error) {
+            console.error("Error checking port:", error);
+            const errObj = { ...this.state.errObjConfig };
+            errObj[attr] = true;
+
+            const hasErrors = Object.values(errObj).some(error => error === true);
+            this.setState({
+                errObjConfig: errObj,
+                configSaveDisabled: hasErrors
+            });
+        }
     }
 
     loadConfig() {
@@ -1180,6 +1199,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 max={65534}
                                                 onMinus={() => { this.onMinusConfig("nsslapd-port", "config") }}
                                                 onChange={(e) => { this.onConfigChange(e, "nsslapd-port", 1, 65534, "config") }}
+                                                onBlur={() => { this.validatePortOnBlur("nsslapd-port") }}
                                                 onPlus={() => { this.onPlusConfig("nsslapd-port", "config") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
@@ -1209,6 +1229,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 max={65534}
                                                 onMinus={() => { this.onMinusConfig("nsslapd-secureport", "config") }}
                                                 onChange={(e) => { this.onConfigChange(e, "nsslapd-secureport", 1, 65534, "config") }}
+                                                onBlur={() => { this.validatePortOnBlur("nsslapd-secureport") }}
                                                 onPlus={() => { this.onPlusConfig("nsslapd-secureport", "config") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
