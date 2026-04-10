@@ -15,8 +15,79 @@ from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.group import UniqueGroups
 from lib389.idm.account import Accounts
+from lib389.idm.domain import Domain
 
 pytestmark = pytest.mark.tier0
+
+class CreateUsers():
+    """
+    Will create users with different testUserAccountControl, testUserStatus
+    """
+    def __init__(self, *args):
+        self.args = args
+
+    def user_create(self):
+        """
+         Will create users with different testUserAccountControl, testUserStatus
+        """
+        import pdb
+        #pdb.set_trace()
+        #f"dc=syntaxes,{DEFAULT_SUFFIX}")
+        self.args[0].create(rdn=f"uid={str(self.args[1])}", properties={
+            'uid': str(self.args[1]),
+            'sn': str(self.args[1]),
+            'cn': str(self.args[1]),
+            'userpassword': 'password',
+            'displayName': self.args[2],
+            'legalName': self.args[2],
+            'objectclass': 'top nsPerson account organizationalPerson inetOrgPerson posixAccount'.split(),
+            'uidNumber': str(self.args[4]),
+            'gidNumber': str(self.args[4]),
+            'homeDirectory': self.args[3],
+            'loginShell': self.args[3]
+        })
+
+    def create_users_other(self):
+        """
+         Will create users with different testUserAccountControl(8388608)
+        """
+        self.args[0].create(properties={
+            'telephoneNumber': '98989819{}'.format(self.args[1]),
+            'uid': 'anuj_{}'.format(self.args[1]),
+            'sn': 'testwise_{}'.format(self.args[1]),
+            'cn': 'bit testwise{}'.format(self.args[1]),
+            'userpassword': PW_DM,
+            'givenName': 'anuj_{}'.format(self.args[1]),
+            'mail': 'anuj_{}@example.com'.format(self.args[1]),
+            'objectclass': 'top account posixaccount organizationalPerson '
+                           'inetOrgPerson testperson'.split(),
+            'testUserAccountControl': '8388608',
+            'testUserStatus': 'PasswordExpired',
+            'uidNumber': str(self.args[1]),
+            'gidNumber': str(self.args[1]),
+            'homeDirectory': '/home/' + 'testwise_{}'.format(self.args[1])
+        })
+
+    def user_create_52(self):
+        """
+        Will create users with different testUserAccountControl(16777216)
+        """
+        self.args[0].create(properties={
+            'telephoneNumber': '98989819{}'.format(self.args[1]),
+            'uid': 'bditwfilter52_test{}'.format(self.args[1]),
+            'sn': 'bditwfilter52_test{}'.format(self.args[1]),
+            'cn': 'bit bditwfilter52_test{}'.format(self.args[1]),
+            'userpassword': PW_DM,
+            'givenName': 'bditwfilter52_test{}'.format(self.args[1]),
+            'mail': 'bditwfilter52_test{}@example.com'.format(self.args[1]),
+            'objectclass': 'top account posixaccount organizationalPerson '
+                           'inetOrgPerson testperson'.split(),
+            'testUserAccountControl': '16777216',
+            'testUserStatus': 'PasswordExpired',
+            'uidNumber': str(self.args[1]),
+            'gidNumber': str(self.args[1]),
+            'homeDirectory': '/home/' + 'bditwfilter52_test{}'.format(self.args[1])
+        })
 
 def test_search_attr(topo):
     """Test filter can search attributes
@@ -76,6 +147,174 @@ def test_filter_assertion_not_normalized(topo, request):
         demo_group.delete('member')
 
     request.addfinalizer(fin)
+
+def test_handling_spaces_in_substring(topo):
+    """Test ldapsearch with substring filters
+    and the filters contains spaces
+
+    :id: fa7cc247-cc70-4ca9-8d70-6a8e5fa83618
+    :setup: Standalone instance
+    :steps:
+         1. Adding 11 users. 11 is above filter shortcut
+         2. Check a list of substring filters that contain spaces
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+    """
+
+    # Creating suffix
+    syntaxes = Domain(topo.standalone, f"dc=syntaxes,{DEFAULT_SUFFIX}").create(properties={'dc': 'syntaxes'})
+
+    # Creating 11 users to avoid shortcut in candidate list
+    users = UserAccounts(topo.standalone, syntaxes.dn, rdn=None)
+
+    # args 1: uid, sn, cn (all indexed)
+    # args 2: displayName, legalName
+    # args 3: homeDirectory,  loginShell
+    # args 4: uidNumber, gidNumber
+    for user in [('V-1 uid', ['name'], ['/bin/my bash'], 101),
+                 ('V-2 uid', ['name'], ['/bin/my bash'], 102),
+                 ('V-3 uid', ['name'], ['/bin/my bash'], 103),
+                 ('V-4 uid', ['name'], ['/bin/my bash'], 104),
+                 ('V-5 uid', ['name'], ['/bin/my bash'], 105),
+                 ('V-6 uid', ['name'], ['/bin/my bash'], 106),
+                 ('V-7 uid', ['name'], ['/bin/my bash'], 107),
+                 ('V-8 uid', ['name'], ['/bin/my bash'], 108),
+                 ('V-9 uid', ['name'], ['/bin/my bash'], 109),
+                 ('V-10 uid', ['name'], ['/bin/my bash'], 110),
+                 ('V-11 uid', ['name'], ['/bin/my bash'], 111)]:
+        CreateUsers(users, user[0], user[1], user[2], user[3]).user_create()
+
+    FILTER=0
+    BASE=1
+    SCOPE=2
+    COUNT=3
+    #
+    # uid, cn, sn, displayName, legalName are CIS
+    for srch_filter in [('(uid=V-1 uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),     # equality
+                        ('(uid=V-1 uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),   # equality
+                        ('(uid=v-1 uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),   # equality
+                        ('(uid=V-10 uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # equality
+                        ('(uid=V-10 uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),  # equality
+                        ('(uid=v-10 uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),  # equality
+                        ('(uid=V-1 *)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),       # initial
+                        ('(uid=V-1 *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),     # initial
+                        ('(uid=v-1 *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),     # initial
+                        ('(uid=V-1*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),        # initial
+                        ('(uid=V-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),      # initial
+                        ('(uid=v-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),      # initial
+                        ('(uid= V-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),     # initial
+                        ('(uid=   V-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # initial
+                        ('(uid=   v-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # initial
+                        ('(uid=V-1  *)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),      # initial
+                        ('(uid=V-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),    # initial
+                        ('(uid=v-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),    # initial
+                        ('(uid= V-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),   # initial
+                        ('(uid= v-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),   # initial
+                        ('(uid=   V-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1), # initial
+                        ('(uid=   v-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1), # initial
+                        ('(uid=*1  *)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),       # any
+                        ('(uid=*1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),     # any
+                        ('(uid=*1 u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),       # any
+                        ('(uid=*1 u*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),     # any
+                        ('(uid=*1 U*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),     # any
+                        ('(uid=*1   u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),     # any
+                        ('(uid=*1   U*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),     # any
+                        ('(uid=V-1   u*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),  # final
+                        ('(uid=V-1   u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # final
+                        ('(uid=v-1   u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # final
+                        ('(uid=V-1 u*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),    # final
+                        ('(uid=V-1 u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),      # final
+                        ('(uid=v-1 u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),      # final
+                        ('(uid=   V-1*  ui*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3), # initial + any
+                        ('(uid=   V-1*  ui*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),   # initial + any
+                        ('(uid=   V-1*ui*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # initial + any
+                        ('(uid=   V-1*ui*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),     # initial + any
+                        ('(uid=*-1 * uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),    # any + final
+                        ('(uid=*-1 * uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),    # any + final
+                        ('(uid=*-1 *uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),       # any + final
+                        ('(uid=*-1 *uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),       # any + final
+                        ('(uid=*-1* uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),     # any + final
+                        ('(uid=*-1* uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),     # any + final
+                        ('(uid=*-1    *uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),  # any + final
+                        ('(uid=*-1    *uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # any + final
+                        ('(uid=*-1*   uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # any + final
+                        ('(uid=*-1*   uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),     # any + final
+                        ('(uid=*-1*    uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),  # any + final
+                        ('(uid=v-*1 u*id)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),    # inital + any + final
+                        ('(uid=v-*1 u*id)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),      # inital + any + final
+                        ('(uid=v-*1    u*id)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2), # inital + any + final
+                        ('(uid=v-*1    u*id)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),   # inital + any + final
+                        ]:
+        assert len(UserAccounts(topo.standalone, srch_filter[BASE], rdn=None).filter(srch_filter[FILTER], scope=srch_filter[SCOPE])) == srch_filter[COUNT]
+
+    # homeDirectory ExactIA5
+    for srch_filter in [('(homeDirectory=/bin/my bash)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 11),     # equality
+                        ('(homeDirectory=/bin/my bash)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),   # equality
+                        ('(homeDirectory=/bin/my bAsh)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),   # equality
+                        ('(homeDirectory=/bin/my bAsh)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 0),    # equality
+                        ('(homeDirectory=/bin*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 11),       # initial
+                        ('(homeDirectory=/bin*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 11),       # initial
+                        ('(homeDirectory=/bIn*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 0),       # initial
+                        ('(homeDirectory=/bin/my *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),     # initial
+                        ('(homeDirectory=/bin/my *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),     # initial
+                        ('(homeDirectory=/bin/mY *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),        # initial
+                        ('(homeDirectory=/bin/my    *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),    # initial
+                        ('(homeDirectory=/bin/my    *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),    # initial
+                        ('(homeDirectory=/bin/mY    *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),     # initial
+                        ('(homeDirectory=/bin/my b*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),      # initial
+                        ('(homeDirectory=/bin/my b*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),      # initial
+                        ('(homeDirectory=/bin/mY b*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),       # initial
+                        ('(homeDirectory=/bin/*my b*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),     # initial and any
+                        ('(homeDirectory=/bin/*my    b*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 11),  # initial and any
+                        ('(uid=v-1 *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),     # initial
+                        ('(uid=V-1*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),        # initial
+                        ('(uid=V-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),      # initial
+                        ('(uid=v-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),      # initial
+                        ('(uid= V-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),     # initial
+                        ('(uid=   V-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # initial
+                        ('(uid=   v-1*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # initial
+                        ('(uid=V-1  *)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),      # initial
+                        ('(uid=V-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),    # initial
+                        ('(uid=v-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),    # initial
+                        ('(uid= V-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),   # initial
+                        ('(uid= v-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),   # initial
+                        ('(uid=   V-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1), # initial
+                        ('(uid=   v-1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1), # initial
+                        ('(uid=*1  *)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),       # any
+                        ('(uid=*1  *)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),     # any
+                        ('(uid=*1 u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),       # any
+                        ('(uid=*1 u*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),     # any
+                        ('(uid=*1 U*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),     # any
+                        ('(uid=*1   u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),     # any
+                        ('(uid=*1   U*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),     # any
+                        ('(uid=V-1   u*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),  # final
+                        ('(uid=V-1   u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # final
+                        ('(uid=v-1   u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # final
+                        ('(uid=V-1 u*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),    # final
+                        ('(uid=V-1 u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),      # final
+                        ('(uid=v-1 u*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),      # final
+                        ('(uid=   V-1*  ui*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3), # initial + any
+                        ('(uid=   V-1*  ui*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),   # initial + any
+                        ('(uid=   V-1*ui*)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # initial + any
+                        ('(uid=   V-1*ui*)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),     # initial + any
+                        ('(uid=*-1 * uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),    # any + final
+                        ('(uid=*-1 * uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 0),    # any + final
+                        ('(uid=*-1 *uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),       # any + final
+                        ('(uid=*-1 *uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),       # any + final
+                        ('(uid=*-1* uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),     # any + final
+                        ('(uid=*-1* uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),     # any + final
+                        ('(uid=*-1    *uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 1),  # any + final
+                        ('(uid=*-1    *uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 1),    # any + final
+                        ('(uid=*-1*   uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),   # any + final
+                        ('(uid=*-1*   uid)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 3),     # any + final
+                        ('(uid=*-1*    uid)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 3),  # any + final
+                        ('(uid=v-*1 u*id)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2),    # inital + any + final
+                        ('(uid=v-*1 u*id)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),      # inital + any + final
+                        ('(uid=v-*1    u*id)', DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 2), # inital + any + final
+                        ('(uid=v-*1    u*id)', syntaxes.dn, ldap.SCOPE_ONELEVEL, 2),   # inital + any + final
+                        ]:
+        assert len(UserAccounts(topo.standalone, srch_filter[BASE], rdn=None).filter(srch_filter[FILTER], scope=srch_filter[SCOPE])) == srch_filter[COUNT]
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

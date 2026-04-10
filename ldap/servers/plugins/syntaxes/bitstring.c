@@ -230,6 +230,17 @@ bitstring_normalize(
     int trim_spaces,
     char **alt)
 {
-    value_normalize_ext(s, SYNTAX_CES, trim_spaces, alt);
+    int trim_mask = 0;
+    if (trim_spaces == COMPATIBLE_NOT_TRIM_SPACES) {
+	    /* value 0x00 */
+	    trim_mask = NO_TRIM_SHRINK_BLANK;
+    } else if (trim_spaces == COMPATIBLE_TRIM_SPACES) {
+	    /* value 0x01 */
+	    trim_mask = TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK;
+    } else {
+	    /* value 0x10-0x80 */
+	    trim_mask = trim_spaces;
+    }
+    value_normalize_ext(s, SYNTAX_CES, trim_mask, alt);
     return;
 }

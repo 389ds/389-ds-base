@@ -100,7 +100,17 @@ value_normalize_ext(
     }
 
     d = s;
-    if (trim_spaces) {
+    if (trim_spaces & SHRINK_LEADING_BLANK) {
+        /* consum all leading blanks */
+        while (utf8isspace_fast(s)) {
+            LDAP_UTF8INC(s);
+        }
+        /* if there was leading blanks keep only one*/
+        if (d != s) {
+            LDAP_UTF8DEC(s);
+        }
+    }
+    if (trim_spaces & TRIM_LEADING_BLANK) {
         /* strip leading blanks */
         while (utf8isspace_fast(s)) {
             LDAP_UTF8INC(s);
@@ -184,8 +194,25 @@ value_normalize_ext(
         }
     }
     *d = '\0';
+    /* compress trailing blanks */
+    if (prevspace && (trim_spaces & SHRINK_TRAILING_BLANK)) {
+        char *nd;
+
+        nd = ldap_utf8prev(d);
+        while (nd && nd >= head && utf8isspace_fast(nd)) {
+            d = nd;
+            nd = ldap_utf8prev(d);
+            if (utf8isspace_fast(nd)) {
+                /* consum the space referred by 'd' */
+                *d = '\0';
+            } else {
+                /* this was the last space => preserve it */
+                break;
+            }
+        }
+    }
     /* strip trailing blanks */
-    if (prevspace && trim_spaces) {
+    if (prevspace && (trim_spaces & TRIM_TRAILING_BLANK)) {
         char *nd;
 
         nd = ldap_utf8prev(d);
@@ -252,7 +279,7 @@ value_cmp(
             free_v1 = 1;
         }
         value_normalize_ext(v1->bv_val, syntax,
-                            1 /* trim leading blanks */, &alt);
+                             TRIM_LEADING_BLANK /* trim leading blanks */, &alt);
         if (alt) {
             int inserted = 0;
 
@@ -297,7 +324,7 @@ value_cmp(
             free_v2 = 1;
         }
         value_normalize_ext(v2->bv_val, syntax,
-                            1 /* trim leading blanks */, &alt);
+                            TRIM_LEADING_BLANK /* trim leading blanks */, &alt);
         if (alt) {
             int inserted = 0;
 
