@@ -10,11 +10,11 @@ from datetime import datetime
 import os
 import copy
 import ldap
-from lib389._constants import DN_LDBM, DN_CHAIN, DN_PLUGIN, DEFAULT_BENAME
+from lib389._constants import DN_LDBM, DN_CHAIN, DN_PLUGIN, DEFAULT_BENAME, DIRSRV_STATE_ONLINE
 from lib389.properties import BACKEND_OBJECTCLASS_VALUE, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_CHAIN_BIND_DN, \
                               BACKEND_CHAIN_BIND_PW, BACKEND_CHAIN_URLS, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_NAME, \
                               BACKEND_SUFFIX, BACKEND_SAMPLE_ENTRIES, TASK_WAIT, TASK_WATCH
-from lib389.utils import normalizeDN, ensure_str, assert_c
+from lib389.utils import normalizeDN, ensure_str, assert_c, get_default_db_lib
 from lib389 import Entry
 
 # Need to fix this ....
@@ -36,6 +36,14 @@ from lib389.configurations import get_sample_entries
 
 from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSBLE0004, DSBLE0005, DSBLE0006, DSBLE0007, DSVIRTLE0001, DSCLLE0001
 from lib389.plugins import USNPlugin
+from lib389.dseldif import DSEldif
+from lib389._mapped_object_lint import (
+    lint_get_attr_val_utf8,
+    lint_get_attr_val_utf8_l,
+    lint_get_attr_vals_utf8,
+    lint_get_attr_vals_utf8_l,
+    lint_plugin_enabled,
+)
 
 
 def is_subsuffix_of(sub_parent, be_suffix, all_suffixes):
@@ -430,6 +438,14 @@ class BackendLegacy(object):
         return 'backends'
 
 
+def _index_entry_attrs_from_dse(instance, bename, attr_name):
+    """Load one index entry from ``dse.ldif`` (attribute keys lowercased)."""
+    dse = DSEldif(instance)
+    dn = "cn={},cn=index,cn={},cn=ldbm database,cn=plugins,cn=config".format(
+        attr_name.lower(), bename.lower())
+    return dse.get_entry_attrs(dn)
+
+
 class Backend(DSLdapObject):
     """Backend DSLdapObject with:
     - must attributes = ['cn', 'nsslapd-suffix']
@@ -453,16 +469,24 @@ class Backend(DSLdapObject):
         self._mts = MappingTrees(self._instance)
 
     def lint_uid(self):
-        return self.get_attr_val_utf8_l('cn').lower()
+        return lint_get_attr_val_utf8_l(self, 'cn')
 
     def _lint_virt_attrs(self):
         """Check if any virtual attribute are incorrectly indexed"""
         bename = self.lint_uid()
         indexes = self.get_indexes()
-        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        suffix = lint_get_attr_val_utf8(self, 'nsslapd-suffix')
+        server_running = self._instance.status()
+
         # First check nsrole
         try:
-            indexes.get('nsrole')
+            if server_running:
+                indexes.get('nsrole')
+            else:
+                index = DSLdapObject(self._instance,
+                                     dn=f'cn=nsrole,cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                lint_get_attr_vals_utf8_l(index, "objectclass")
+
             report = copy.deepcopy(DSVIRTLE0001)
             report['check'] = f'backends:{bename}:virt_attrs'
             report['detail'] = report['detail'].replace('ATTR', 'nsrole')
@@ -475,11 +499,15 @@ class Backend(DSLdapObject):
         except:
             pass
 
+        if not server_running:
+            # Can not check the database content when the server is not running
+            return
+
         # Check COS next
         for cosDefType in [CosIndirectDefinitions, CosPointerDefinitions, CosClassicDefinitions]:
             defs = cosDefType(self._instance, suffix).list()
             for cosDef in defs:
-                attrs = cosDef.get_attr_val_utf8_l("cosAttribute").split()
+                attrs = lint_get_attr_val_utf8_l(cosDef, "cosAttribute").split()
                 for attr in attrs:
                     if attr in ["default", "override", "operational", "operational-default", "merge-schemes"]:
                         # We are at the end, just break out
@@ -504,7 +532,7 @@ class Backend(DSLdapObject):
     def _lint_search(self):
         """Perform a search and make sure an entry is accessible
         """
-        dn = self.get_attr_val_utf8('nsslapd-suffix')
+        dn = lint_get_attr_val_utf8(self, 'nsslapd-suffix')
         bename = self.lint_uid()
         suffix = DSLdapObject(self._instance, dn=dn)
         try:
@@ -529,11 +557,24 @@ class Backend(DSLdapObject):
         * missing indices if we are local and have log access?
         """
         # Check for the missing mapping tree.
-        suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
+        suffix = lint_get_attr_val_utf8_l(self, 'nsslapd-suffix')
         bename = self.lint_uid()
+        server_running = self._instance.status()
+        mt = None
         try:
-            mt = self._mts.get(suffix)
-            if mt.get_attr_val_utf8_l('nsslapd-backend') != bename.lower() and mt.get_attr_val_utf8('nsslapd-state') != 'backend':
+            if server_running:
+                mt = self._mts.get(suffix)
+            else:
+                dse = DSEldif(self._instance)
+                mapping_trees = dse.get_mapping_trees()
+                for mapping_tree in mapping_trees:
+                    suffixes = lint_get_attr_val_utf8_l(mapping_tree, 'nsslapd-suffix')
+                    for suf in suffixes:
+                        if suf.lower() == suffix:
+                            mt = mapping_tree
+                            break
+            if mt is None or (lint_get_attr_val_utf8_l(mt, 'nsslapd-backend') != bename.lower() and
+                              lint_get_attr_val_utf8(mt, 'nsslapd-state') != 'backend'):
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001
@@ -570,8 +611,10 @@ class Backend(DSLdapObject):
 
     def _lint_backend_implementation_config_attributes(self):
         backend_impl = self._instance.get_db_lib()
-        db_config = DatabaseConfig(self._instance)
-        config_attrs = db_config.get()
+        if self._instance.state == DIRSRV_STATE_ONLINE:
+            config_attrs = DatabaseConfig(self._instance).get()
+        else:
+            config_attrs = DatabaseConfig.get_combined_flat_from_dse(self._instance)
 
         mdb_only_attrs = ['nsslapd-mdb-max-size', 'nsslapd-mdb-max-readers', 'nsslapd-mdb-max-dbs']
         bdb_only_attrs = ['nsslapd-dbcachesize',
@@ -620,18 +663,25 @@ class Backend(DSLdapObject):
     def _lint_cl_trimming(self):
         """Check that cl trimming is at least defined to prevent unbounded growth"""
         bename = self.lint_uid()
-        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        suffix = lint_get_attr_val_utf8(self, 'nsslapd-suffix')
         replicas = Replicas(self._instance)
         try:
             # Check if replication is enabled
-            replicas.get(suffix)
-            # Check the changelog
-            cl = Changelog(self._instance, suffix=suffix)
-            if cl.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
-               cl.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+            if self._instance.status():
+                replicas = replicas.get(suffix)
+                cl = Changelog(self._instance, suffix=suffix)
+            else:
+                # Get dse replicas for this suffix
+                dse = DSEldif(self._instance)
+                replicas = dse.get_replicas()
+                if len(replicas) == 0 or not dse.suffix_replicated(suffix):
+                    return
+                cl = DSLdapObject(self._instance, dn=f'cn=changelog,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+            if lint_get_attr_val_utf8(cl, 'nsslapd-changelogmaxentries') is None and \
+               lint_get_attr_val_utf8(cl, 'nsslapd-changelogmaxage') is None:
                 report = copy.deepcopy(DSCLLE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                report['check'] = f'backends:{bename}::cl_trimming'
+                report['check'] = f'backends:{bename}:cl_trimming'
                 yield report
         except:
             # Suffix is not replicated
@@ -641,8 +691,10 @@ class Backend(DSLdapObject):
     def _lint_system_indexes(self):
         """Check that system indexes are correctly configured"""
         bename = self.lint_uid()
-        suffix = self.get_attr_val_utf8('nsslapd-suffix')
-        indexes = self.get_indexes()
+        suffix = lint_get_attr_val_utf8(self, 'nsslapd-suffix')
+        indexes = None
+        if self._instance.state == DIRSRV_STATE_ONLINE:
+            indexes = self.get_indexes()
 
         # Default system indexes taken from ldap/servers/slapd/back-ldbm/instance.c
         # Note: entryrdn and ancestorid are internal system indexes that are not
@@ -669,7 +721,7 @@ class Backend(DSLdapObject):
 
         # RetroCL plugin creates its own backend with an additonal index for changeNumber
         # See ldap/servers/plugins/retrocl/retrocl_create.c
-        if suffix.lower() == 'cn=changelog':
+        if suffix and suffix.lower() == 'cn=changelog':
             expected_system_indexes.update({
                 'changeNumber': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'}
             })
@@ -678,7 +730,7 @@ class Backend(DSLdapObject):
         # See ldap/ldif/template-dse.ldif.in
         try:
             usn_plugin = USNPlugin(self._instance)
-            if usn_plugin.status():
+            if lint_plugin_enabled(usn_plugin):
                 expected_system_indexes.update({
                     'entryusn': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'}
                 })
@@ -691,18 +743,33 @@ class Backend(DSLdapObject):
 
         for attr_name, expected_config in expected_system_indexes.items():
             try:
-                index = indexes.get(attr_name)
-            except ldap.NO_SUCH_OBJECT:
-                # Index is missing
                 index = None
-            except Exception as e:
-                self._log.debug(f"_lint_system_indexes - Error getting index {attr_name}: {e}")
-                discrepancies.append(f"Unable to check index {attr_name}: {str(e)}")
-                continue
+                actual_types = []
+                actual_mrs = []
+                index_missing = True
 
-            try:
+                if indexes is not None:
+                    try:
+                        index = indexes.get(attr_name)
+                    except ldap.NO_SUCH_OBJECT:
+                        index = None
+                    except Exception as e:
+                        self._log.debug(f"_lint_system_indexes - Error getting index {attr_name}: {e}")
+                        discrepancies.append(f"Unable to check index {attr_name}: {str(e)}")
+                        continue
+                    index_missing = index is None
+                    if index is not None:
+                        actual_types = lint_get_attr_vals_utf8(index, 'nsIndexType') or []
+                        actual_mrs = lint_get_attr_vals_utf8(index, 'nsMatchingRule') or []
+                else:
+                    entry = _index_entry_attrs_from_dse(self._instance, bename, attr_name)
+                    index_missing = not entry
+                    if entry:
+                        actual_types = entry.get('nsindextype', []) or []
+                        actual_mrs = entry.get('nsmatchingrule', []) or []
+
                 # Check if index exists
-                if index is None:
+                if index_missing:
                     discrepancies.append(f"Missing system index: {attr_name}")
                     # Generate remediation command
                     index_types = ' '.join([f"--index-type {t}" for t in expected_config['types']])
@@ -713,9 +780,6 @@ class Backend(DSLdapObject):
                     reindex_attrs.add(attr_name)  # New index needs reindexing
                 else:
                     # Index exists, check configuration
-                    actual_types = index.get_attr_vals_utf8('nsIndexType') or []
-                    actual_mrs = index.get_attr_vals_utf8('nsMatchingRule') or []
-
                     # Normalize to lowercase for comparison
                     actual_types = [t.lower() for t in actual_types]
                     expected_types = [t.lower() for t in expected_config['types']]
@@ -991,7 +1055,7 @@ class Backend(DSLdapObject):
         for cosDefType in [CosIndirectDefinitions, CosPointerDefinitions, CosClassicDefinitions]:
             defs = cosDefType(self._instance, self.get_suffix()).list()
             for cosDef in defs:
-                attrs = cosDef.get_attr_val_utf8_l("cosAttribute").split()
+                attrs = lint_get_attr_val_utf8_l(cosDef, "cosAttribute").split()
                 for attr in attrs:
                     if attr in ["default", "override", "operational", "operational-default", "merge-schemes"]:
                         # We are at the end, just break out
@@ -1194,6 +1258,26 @@ class Backends(DSLdapObjects):
         self._childobject = Backend
         self._basedn = DN_LDBM
 
+    def list(self, paged_search=None, paged_critical=True, full_dn=False):
+        """List backends via LDAP when online; read ``dse.ldif`` when offline (e.g. healthcheck)."""
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            return self._list_from_dse(paged_search=paged_search, paged_critical=paged_critical,
+                                       full_dn=full_dn)
+        return super(Backends, self).list(paged_search=paged_search, paged_critical=paged_critical,
+                                          full_dn=full_dn)
+
+    def _list_from_dse(self, paged_search=None, paged_critical=True, full_dn=False):
+        dse = DSEldif(self._instance)
+        names = dse.get_backends()
+        insts = []
+        for name in names:
+            dn = f"cn={name},cn=ldbm database,cn=plugins,cn=config"
+            if full_dn:
+                insts.append(dn)
+            else:
+                insts.append(Backend(self._instance, dn=dn))
+        return insts
+
     @classmethod
     def lint_uid(cls):
         return 'backends'
@@ -1314,67 +1398,70 @@ class DatabaseConfig(DSLdapObject):
     :type dn: str
     """
 
+    _GLOBAL_ATTRS = [
+        'nsslapd-lookthroughlimit',
+        'nsslapd-mode',
+        'nsslapd-idlistscanlimit',
+        'nsslapd-directory',
+        'nsslapd-import-cachesize',
+        'nsslapd-idl-switch',
+        'nsslapd-search-bypass-filter-test',
+        'nsslapd-search-use-vlv-index',
+        'nsslapd-exclude-from-export',
+        'nsslapd-serial-lock',
+        'nsslapd-pagedlookthroughlimit',
+        'nsslapd-pagedidlistscanlimit',
+        'nsslapd-rangelookthroughlimit',
+        'nsslapd-backend-opt-level',
+        'nsslapd-backend-implement',
+        'nsslapd-db-durable-transaction',
+        'nsslapd-search-bypass-filter-test',
+        'nsslapd-serial-lock',
+        'nsslapd-dynamic-lists-enabled',
+        'nsslapd-dynamic-lists-attr',
+        'nsslapd-dynamic-lists-oc',
+        'nsslapd-dynamic-lists-url-attr',
+    ]
+    _DB_ATTRS = {
+        'bdb':
+            [
+                'nsslapd-dbcachesize',
+                'nsslapd-db-logdirectory',
+                'nsslapd-db-home-directory',
+                'nsslapd-db-transaction-wait',
+                'nsslapd-db-checkpoint-interval',
+                'nsslapd-db-compactdb-interval',
+                'nsslapd-db-compactdb-time',
+                'nsslapd-db-page-size',
+                'nsslapd-db-transaction-batch-val',
+                'nsslapd-db-transaction-batch-min-wait',
+                'nsslapd-db-transaction-batch-max-wait',
+                'nsslapd-db-logbuf-size',
+                'nsslapd-db-locks',
+                'nsslapd-db-locks-monitoring-enabled',
+                'nsslapd-db-locks-monitoring-threshold',
+                'nsslapd-db-locks-monitoring-pause',
+                'nsslapd-db-private-import-mem',
+                'nsslapd-import-cache-autosize',
+                'nsslapd-cache-autosize',
+                'nsslapd-cache-autosize-split',
+                'nsslapd-import-cachesize',
+                'nsslapd-db-deadlock-policy',
+            ],
+        'mdb': [
+                'nsslapd-mdb-max-size',
+                'nsslapd-mdb-max-readers',
+                'nsslapd-mdb-max-dbs',
+                'nsslapd-cache-autosize',
+            ]
+    }
+
     def __init__(self, instance, dn="cn=config,cn=ldbm database,cn=plugins,cn=config"):
         super(DatabaseConfig, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
-        self._global_attrs = [
-            'nsslapd-lookthroughlimit',
-            'nsslapd-mode',
-            'nsslapd-idlistscanlimit',
-            'nsslapd-directory',
-            'nsslapd-import-cachesize',
-            'nsslapd-idl-switch',
-            'nsslapd-search-bypass-filter-test',
-            'nsslapd-search-use-vlv-index',
-            'nsslapd-exclude-from-export',
-            'nsslapd-serial-lock',
-            'nsslapd-pagedlookthroughlimit',
-            'nsslapd-pagedidlistscanlimit',
-            'nsslapd-rangelookthroughlimit',
-            'nsslapd-backend-opt-level',
-            'nsslapd-backend-implement',
-            'nsslapd-db-durable-transaction',
-            'nsslapd-search-bypass-filter-test',
-            'nsslapd-serial-lock',
-            'nsslapd-dynamic-lists-enabled',
-            'nsslapd-dynamic-lists-attr',
-            'nsslapd-dynamic-lists-oc',
-            'nsslapd-dynamic-lists-url-attr',
-        ]
-        self._db_attrs = {
-            'bdb':
-                [
-                    'nsslapd-dbcachesize',
-                    'nsslapd-db-logdirectory',
-                    'nsslapd-db-home-directory',
-                    'nsslapd-db-transaction-wait',
-                    'nsslapd-db-checkpoint-interval',
-                    'nsslapd-db-compactdb-interval',
-                    'nsslapd-db-compactdb-time',
-                    'nsslapd-db-page-size',
-                    'nsslapd-db-transaction-batch-val',
-                    'nsslapd-db-transaction-batch-min-wait',
-                    'nsslapd-db-transaction-batch-max-wait',
-                    'nsslapd-db-logbuf-size',
-                    'nsslapd-db-locks',
-                    'nsslapd-db-locks-monitoring-enabled',
-                    'nsslapd-db-locks-monitoring-threshold',
-                    'nsslapd-db-locks-monitoring-pause',
-                    'nsslapd-db-private-import-mem',
-                    'nsslapd-import-cache-autosize',
-                    'nsslapd-cache-autosize',
-                    'nsslapd-cache-autosize-split',
-                    'nsslapd-import-cachesize',
-                    'nsslapd-db-deadlock-policy',
-                ],
-            'mdb': [
-                    'nsslapd-mdb-max-size',
-                    'nsslapd-mdb-max-readers',
-                    'nsslapd-mdb-max-dbs',
-                    'nsslapd-cache-autosize',
-                ]
-        }
+        self._global_attrs = DatabaseConfig._GLOBAL_ATTRS
+        self._db_attrs = DatabaseConfig._DB_ATTRS
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
         # This could be "bdb" or "mdb", use what we have configured in the global config
@@ -1385,6 +1472,28 @@ class DatabaseConfig(DSLdapObject):
         self._dbObj = DSLdapObject(self._instance, dn=self._db_dn)
         # Assert there is no overlap in different config sets
         assert_c(len(set(self._global_attrs).intersection(set(self._db_attrs['bdb']), set(self._db_attrs['mdb']))) == 0)
+
+    @classmethod
+    def get_combined_flat_from_dse(cls, instance):
+        """Return the same merged attribute dict as :meth:`get`, from ``dse.ldif`` (no LDAP)."""
+        dse = DSEldif(instance)
+        dn_global = "cn=config,cn=ldbm database,cn=plugins,cn=config"
+        ag = dse.get_entry_attrs(dn_global.lower()) or {}
+        db_impl = (ag.get('nsslapd-backend-implement') or [None])[0]
+        if db_impl is not None:
+            db_impl = db_impl.strip().lower()
+        if not db_impl:
+            db_impl = get_default_db_lib()
+        if db_impl not in cls._DB_ATTRS:
+            db_impl = get_default_db_lib()
+        dn_db = f"cn={db_impl},cn=config,cn=ldbm database,cn=plugins,cn=config"
+        attrs_db = dse.get_entry_attrs(dn_db.lower()) or {}
+        combined = {}
+        for k in cls._GLOBAL_ATTRS:
+            combined[k] = ag.get(k, [])
+        for k in cls._DB_ATTRS[db_impl]:
+            combined[k] = attrs_db.get(k, [])
+        return combined
 
     def get(self):
         """Get the combined config entries"""

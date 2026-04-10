@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2025 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,6 +12,13 @@ import copy
 import os.path
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389._mapped_object_lint import (
+    lint_get_attr_val_utf8,
+    lint_get_attr_val_utf8_l,
+    lint_get_attr_vals_utf8_l,
+    lint_get_attr_val_int,
+    lint_plugin_enabled,
+)
 from lib389.lint import DSRILE0001, DSRILE0002, DSMOLE0001, DSMOLE0002, DSMOLE0003
 from lib389.utils import ensure_str, ensure_list_bytes
 from lib389.schema import Schema
@@ -459,8 +466,8 @@ class ReferentialIntegrityPlugin(Plugin):
         return 'refint'
 
     def _lint_update_delay(self):
-        if self.status():
-            delay = self.get_attr_val_int("referint-update-delay")
+        if lint_plugin_enabled(self):
+            delay = lint_get_attr_val_int(self, "referint-update-delay")
             if delay is not None and delay != 0:
                 report = copy.deepcopy(DSRILE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -468,13 +475,16 @@ class ReferentialIntegrityPlugin(Plugin):
                 yield report
 
     def _lint_attr_indexes(self):
-        if self.status():
+        if lint_plugin_enabled(self):
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
-            attrs = self.get_attr_vals_utf8_l("referint-membership-attr")
-            container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
+            attrs = lint_get_attr_vals_utf8_l(self, "referint-membership-attr")
+            container = lint_get_attr_val_utf8_l(self, "nsslapd-plugincontainerscope")
+            server_running = self._instance.status()
+
             for backend in backends:
-                suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
+                suffix = lint_get_attr_val_utf8_l(backend, 'nsslapd-suffix')
+                bename = lint_get_attr_val_utf8_l(backend, 'cn')
                 if suffix == "cn=changelog":
                     # Always skip retro changelog
                     continue
@@ -483,12 +493,20 @@ class ReferentialIntegrityPlugin(Plugin):
                     if not container.endswith(suffix):
                         # skip this backend that is not in the scope
                         continue
+
                 indexes = backend.get_indexes()
+
                 for attr in attrs:
                     report = copy.deepcopy(DSRILE0002)
                     try:
-                        index = indexes.get(attr)
-                        types = index.get_attr_vals_utf8_l("nsIndexType")
+                        if server_running:
+                            index = indexes.get(attr)
+                            types = index.get_attr_vals_utf8_l("nsIndexType")
+                        else:
+                            index = DSLdapObject(self._instance,
+                                                 dn=f'cn={attr},cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+
                         valid = False
                         if "eq" in types:
                             valid = True
@@ -503,6 +521,7 @@ class ReferentialIntegrityPlugin(Plugin):
                             report['items'].append(attr)
                             report['check'] = f'refint:attr_indexes'
                             yield report
+
                     except:
                         # No index at all, bad
                         report['detail'] = report['detail'].replace('ATTR', attr)
@@ -790,13 +809,17 @@ class MemberOfPlugin(Plugin):
         return 'memberof'
 
     def _lint_member_attr_indexes(self):
-        if self.status():
+        if lint_plugin_enabled(self):
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
-            attrs = self.get_attr_vals_utf8_l("memberofgroupattr")
-            scopes = self.get_attr_vals_utf8_l("memberofentryscope")
+            attrs = lint_get_attr_vals_utf8_l(self, "memberofgroupattr")
+            scopes = lint_get_attr_vals_utf8_l(self, "memberofentryscope")
+            server_running = self._instance.status()
+
             for backend in backends:
-                suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
+                suffix = lint_get_attr_val_utf8_l(backend, 'nsslapd-suffix')
+                bename = lint_get_attr_val_utf8_l(backend, 'cn')
+
                 if suffix == "cn=changelog":
                     # Always skip retro changelog
                     continue
@@ -811,11 +834,18 @@ class MemberOfPlugin(Plugin):
                     if not in_scope:
                         continue
                 indexes = backend.get_indexes()
+
                 for attr in attrs:
                     report = copy.deepcopy(DSMOLE0001)
                     try:
-                        index = indexes.get(attr)
-                        types = index.get_attr_vals_utf8_l("nsIndexType")
+                        if server_running:
+                            index = indexes.get(attr)
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+                        else:
+                            index = DSLdapObject(self._instance,
+                                                 dn=f'cn={attr},cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+
                         valid = False
                         if "eq" in types:
                             valid = True
@@ -830,6 +860,7 @@ class MemberOfPlugin(Plugin):
                             report['items'].append(attr)
                             report['check'] = f'memberof:attr_indexes'
                             yield report
+
                     except:
                         # No index at all, bad
                         report['detail'] = report['detail'].replace('ATTR', attr)
@@ -843,13 +874,16 @@ class MemberOfPlugin(Plugin):
                         yield report
 
     def _lint_member_substring_index(self):
-        if self.status():
+        if lint_plugin_enabled(self):
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
             membership_attrs = ['member', 'uniquemember']
-            scopes = self.get_attr_vals_utf8_l("memberofentryscope")
+            scopes = lint_get_attr_vals_utf8_l(self, "memberofentryscope")
+            server_running = self._instance.status()
+
             for backend in backends:
-                suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
+                suffix = lint_get_attr_val_utf8_l(backend, 'nsslapd-suffix')
+                bename = lint_get_attr_val_utf8_l(backend, 'cn')
                 if suffix == "cn=changelog":
                     # Always skip retro changelog
                     continue
@@ -867,8 +901,14 @@ class MemberOfPlugin(Plugin):
                 for attr in membership_attrs:
                     report = copy.deepcopy(DSMOLE0002)
                     try:
-                        index = indexes.get(attr)
-                        types = index.get_attr_vals_utf8_l("nsIndexType")
+                        if server_running:
+                            index = indexes.get(attr)
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+                        else:
+                            index = DSLdapObject(self._instance,
+                                                 dn=f'cn={attr},cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+
                         if "sub" in types:
                             report['detail'] = report['detail'].replace('ATTR', attr)
                             report['detail'] = report['detail'].replace('BACKEND', suffix)
@@ -887,13 +927,13 @@ class MemberOfPlugin(Plugin):
         Verify that when the memberOf plugin monitors all backends,
         the global backend lock is enabled. Warn if disabled.
         """
-        if self.status():
+        if lint_plugin_enabled(self):
             from lib389.config import Config
-            allbackends = self.get_attr_val_utf8_l("memberofallbackends")
+            allbackends = lint_get_attr_val_utf8_l(self, "memberofallbackends")
             config = Config(self._instance)
             if allbackends == "on":
                 GLOBAL_BE_LOCK = "nsslapd-global-backend-lock"
-                global_be_lock = config.get_attr_val_utf8(GLOBAL_BE_LOCK)
+                global_be_lock = lint_get_attr_val_utf8(config, GLOBAL_BE_LOCK)
                 if global_be_lock == "off":
                     report = copy.deepcopy(DSMOLE0003)
                     report['check'] = f'attr:{GLOBAL_BE_LOCK}'

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2025 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -40,8 +40,8 @@ from lib389.utils import (
     ensure_bytes,
     ensure_str,
     get_default_db_lib,
-    get_ldapurl_from_serverid,
 )
+from lib389.dseutils import get_ldapurl_from_serverid
 
 pytestmark = pytest.mark.tier3
 
