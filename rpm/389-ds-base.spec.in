@@ -611,6 +611,10 @@ if [ -f /usr/sbin/sestatus ] ; then
     pushd /var/run/dirsrv >/dev/null
     /usr/bin/audit2allow -M ns-slapd-test >/dev/null <<!
 type=AVC msg=audit(1775741107.400:9691): avc:  denied  { nnp_transition } for  pid=980206 comm="(ns-slapd)" scontext=system_u:system_r:init_t:s0 tcontext=system_u:system_r:dirsrv_t:s0 tclass=process2 permissive=0
+type=AVC msg=audit(1775833368.436:10776): avc:  denied  { nnp_transition } for  pid=1113882 comm="(ap-agent)" scontext=system_u:system_r:init_t:s0 tcontext=system_u:system_r:dirsrv_snmp_t:s0 tclass=process2 permissive=0
+type=AVC msg=audit(1775833368.442:10778): avc:  denied  { read } for  pid=1113882 comm="ldap-agent" name="ldap-agent.conf" dev="dm-0" ino=12772110 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:dirsrv_config_t:s0 tclass=file permissive=0
+type=AVC msg=audit(1775834425.008:10833): avc:  denied  { dac_override } for  pid=1114135 comm="ldap-agent" capability=1  scontext=system_u:system_r:dirsrv_snmp_t:s0 tcontext=system_u:system_r:dirsrv_snmp_t:s0 tclass=capability permissive=0
+
 !
     semodule -i ns-slapd-test.pp
     popd
