@@ -210,6 +210,8 @@ Requires:         zlib-devel
 Requires:         python3-file-magic
 # Picks up our systemd deps.
 %{?systemd_requires}
+# Needed for work-around about setting up SELinux policy
+Requires:         policycoreutils-python-utils
 
 
 Source0:          %{name}-%{version}.tar.bz2
@@ -602,6 +604,16 @@ if [ -n "$DEBUGPOSTTRANS" ] ; then
 else
     output=/dev/null
     output2=/dev/null
+fi
+
+# Update SELinux policy
+if [ -f /usr/sbin/sestatus ] ; then
+    pushd /var/run/dirsrv >/dev/null
+    /usr/bin/audit2allow -M ns-slapd-test >/dev/null <<!
+type=AVC msg=audit(1775741107.400:9691): avc:  denied  { nnp_transition } for  pid=980206 comm="(ns-slapd)" scontext=system_u:system_r:init_t:s0 tcontext=system_u:system_r:dirsrv_t:s0 tclass=process2 permissive=0
+!
+    semodule -i ns-slapd-test.pp
+    popd
 fi
 
 # reload to pick up any changes to systemd files
