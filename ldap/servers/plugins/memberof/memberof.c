@@ -407,7 +407,6 @@ static void
 memberof_monitor_init(const char *dn)
 {
     char *monitor_dn = NULL;
-    int rc = LDAP_SUCCESS;
 
     monitor_dn = slapi_create_dn_string(dn);
     if (!monitor_dn) {

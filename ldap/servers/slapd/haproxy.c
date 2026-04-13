@@ -657,7 +657,6 @@ haproxy_parse_trusted_ips(struct berval **ipaddress, size_t *count_out, char *er
         char *ip_val = ipaddress[i]->bv_val;
         char *slash_pos = strchr(ip_val, '/');
         char ip_part[MAX_CIDR_STRING_LEN];
-        int is_ipv6;
 
         /* Store original for logging */
         PL_strncpyz(entries[i].original, ip_val, sizeof(entries[i].original));
@@ -835,7 +834,6 @@ haproxy_ip_matches_parsed(const PRNetAddr *ip_addr, const haproxy_trusted_entry_
 {
     size_t i;
     PRNetAddr normalized_ip;
-    char ip_str[INET6_ADDRSTRLEN];
 
     if (!entries || entry_count == 0 || !ip_addr) {
         return 0;

@@ -427,6 +427,8 @@ check_pqc(uint64_t connid, SSLChannelInfo *sci)
         case ssl_grp_kem_mlkem768x25519:
         case ssl_grp_kem_xyber768d00:
             return true;
+        default:
+            return false;
     }
 #endif
     return false;
