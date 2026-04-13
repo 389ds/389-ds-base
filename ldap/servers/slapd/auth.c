@@ -396,6 +396,48 @@ handle_bad_certificate(void *clientData, PRFileDesc *prfd)
 
 
 /*
+<<<<<<< HEAD
+=======
+ * Determine if the connection key exchange is Post Quantum Cryptography aware.
+ * This function may need to evolve with NSS as more PQC methods get supported.
+ */
+static bool
+check_pqc(uint64_t connid, SSLChannelInfo *sci)
+{
+    /*
+     * FYI: To interpret the values:
+     * KeaType and KeaGroup values are defined in
+     * https://github.com/nss-dev/nss/blob/master/lib/ssl/sslt.h
+     * Respectively in SSLKEAType and SSLNamedGroup enums
+     */
+    slapi_log_err(SLAPI_LOG_CONNS, "check_pqc", "conn=%" PRIu64 " TLS keaType=%d keaGroup=%d\n",
+                  connid, sci->keaType, sci->keaGroup);
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+    /* NSS supports PQC (because of the ifdef). Now lets check if the connection uses it */
+    /* Check that PQC KeaType is hybrid */
+    switch (sci->keaType) {
+        case ssl_kea_ecdh_hybrid:
+        case ssl_kea_ecdh_hybrid_psk:
+            break;
+        default:
+            return false;
+    }
+    /* Check that PQC keaGroup is KEM */
+    switch (sci->keaGroup) {
+        case ssl_grp_kem_secp256r1mlkem768:
+        case ssl_grp_kem_secp384r1mlkem1024:
+        case ssl_grp_kem_mlkem768x25519:
+        case ssl_grp_kem_xyber768d00:
+            return true;
+        default:
+            return false;
+    }
+#endif
+    return false;
+}
+
+/*
+>>>>>>> 411276274 (Issue 7404 - fix latest compiler warnings)
  * Get an identity from the client's certificate (if any was sent).
  *
  * Note: handle_handshake_done() is called via slapd_ssl_handshakeCallback().
