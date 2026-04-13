@@ -259,7 +259,15 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         if (initial != NULL) {
             /* 3rd arg: 1 - trim leading blanks */
             if (!filter_normalized) {
-                value_normalize_ext(initial, syntax, TRIM_LEADING_BLANK, &alt);
+                /*
+                 * rfc4518 2.6.1 Insignificant Space Handling
+                 * For input strings that are substring assertion values:
+                 *
+                 * If the input string is an initial or an any substring that ends in
+                 * one or more space characters, it is modified to end with exactly
+                 * one SPACE character;
+                 */
+                value_normalize_ext(initial, syntax, TRIM_LEADING_BLANK & SHRINK_TRAILING_BLANK, &alt);
             }
             *p++ = '^';
             if (alt) {
@@ -274,7 +282,19 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
             for (i = 0; any[i] != NULL; i++) {
                 /* 3rd arg: 0 - DO NOT trim leading blanks */
                 if (!filter_normalized) {
-                    value_normalize_ext(any[i], syntax, 0, &alt);
+                    /*
+                     * rfc4518 2.6.1 Insignificant Space Handling
+                     * For input strings that are substring assertion values:
+                     *
+                     * If the input string is an initial or an any substring that ends in
+                     * one or more space characters, it is modified to end with exactly
+                     * one SPACE character;
+                     *
+                     * If the input string is an any or a final substring that starts in
+                     * one or more space characters, it is modified to start with exactly
+                     * one SPACE character;
+                     */
+                    value_normalize_ext(any[i], syntax, SHRINK_LEADING_BLANK & SHRINK_TRAILING_BLANK, &alt);
                 }
                 /* ".*" + value */
                 *p++ = '.';
@@ -291,7 +311,15 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         if (final != NULL) {
             /* 3rd arg: 0 - DO NOT trim leading blanks */
             if (!filter_normalized) {
-                value_normalize_ext(final, syntax, 0, &alt);
+                /*
+                 * rfc4518 2.6.1 Insignificant Space Handling
+                 * For input strings that are substring assertion values:
+                 *
+                 * If the input string is an any or a final substring that starts in
+                 * one or more space characters, it is modified to start with exactly
+                 * one SPACE character;
+                 */
+                value_normalize_ext(final, syntax, SHRINK_LEADING_BLANK, &alt);
             }
             /* ".*" + value */
             *p++ = '.';

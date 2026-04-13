@@ -76,8 +76,6 @@
                          IS_RPAREN(c) || (c == '+') || (c == ',') || (c == '-') || (c == '.') || \
                          (c == '=') || (c == '/') || (c == ':') || (c == '?') || IS_SPACE(c))
 
-#define TRIM_LEADING_BLANK  0x1
-#define TRIM_TRAILING_BLANK 0x2
 
 int string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Slapi_Value **bvals, int syntax);
 int string_filter_ava(struct berval *bvfilter, Slapi_Value **bvals, int syntax, int ftype, Slapi_Value **retVal);
