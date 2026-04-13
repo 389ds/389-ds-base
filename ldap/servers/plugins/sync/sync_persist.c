@@ -977,16 +977,13 @@ static void
 sync_send_results(void *arg)
 {
     SyncRequest *req = (SyncRequest *)arg;
-    SyncQueueNode *qnode, *qnodenext;
+    SyncQueueNode *qnode;
     int conn_acq_flag = 0;
     Slapi_Connection *conn = NULL;
     Slapi_Operation *op = req->req_orig_op;
-    LDAPControl **ctrls = NULL;
     int rc;
     PRUint64 connid;
     int opid;
-    char **attrs_dup;
-    char *strFilter;
 
     slapi_pblock_get(req->req_pblock, SLAPI_CONN_ID, &connid);
     slapi_pblock_get(req->req_pblock, SLAPI_OPERATION_ID, &opid);
