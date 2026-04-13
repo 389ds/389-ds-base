@@ -18,6 +18,20 @@ from lib389._constants import DBSCAN
 from lib389.topologies import topology_m2 as topo_m2
 from difflib import context_diff
 
+# Metadata dbid key prefixes in replication changelog (dbscan.c ENTRY_COUNT_KEY etc.)
+_CL_SPECIAL_DBID_PREFIXES = ('0000006f', '000000de', '0000014d')
+
+
+def _first_real_changelog_dbid(stdout):
+    """Return the dbid key of the first non-metadata changelog record."""
+    for line in stdout.splitlines():
+        if line.startswith('dbid: '):
+            key = line[len('dbid: '):].strip()
+            if len(key) >= 8 and key[:8].lower() in _CL_SPECIAL_DBID_PREFIXES:
+                continue
+            return key
+    return None
+
 pytestmark = pytest.mark.tier0
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
