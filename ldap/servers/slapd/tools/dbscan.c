@@ -1351,6 +1351,7 @@ main(int argc, char **argv)
     int longopt_idx = 0;
     int c = 0;
     char optstring[2*COUNTOF(options)+1] = {0};
+    char *orig_key = NULL;
 
     if (defdbimpl) {
         if (strcasecmp(defdbimpl, "bdb") == 0) {
@@ -1559,6 +1560,7 @@ main(int argc, char **argv)
     }
 
     if (find_key) {
+        orig_key = slapi_ch_strdup(find_key);
         /* Position cursor at the matching key */
         dblayer_value_set_buffer(be, &key, find_key, strlen(find_key) + 1);
         dblayer_value_free(be, &data);
@@ -1584,9 +1586,17 @@ main(int argc, char **argv)
                 goto done;
             }
             do {
-                display_item(&cursor, &key, &data);
-                ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT,  &key, &data);
+                if (key.size <= (strlen(orig_key) + 1) && memcmp((char *)key.data, orig_key, key.size) == 0) {
+                    display_item(&cursor, &key, &data);
+                } else {
+                    break;
+                }
+                ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
             } while (0 == ret);
+            if (ret == DBI_RC_NOTFOUND) {
+                /* processed all the keys, this is not an error */
+                ret = 0;
+            }
             dblayer_value_free(be, &key);
             dblayer_value_init(be, &key);
         }
@@ -1660,6 +1670,7 @@ main(int argc, char **argv)
     }
 
 done:
+    slapi_ch_free_string(&orig_key);
     dblayer_value_free(be, &key);
     dblayer_value_free(be, &data);
     dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);

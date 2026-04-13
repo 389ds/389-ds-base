@@ -14,9 +14,25 @@ import subprocess
 import sys
 
 from lib389 import DirSrv
+from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.cli_ctl.dblib import DbscanHelper
+from lib389.idm.domain import Domain
 from difflib import context_diff
+
+# Metadata dbid key prefixes in replication changelog (dbscan.c ENTRY_COUNT_KEY etc.)
+_CL_SPECIAL_DBID_PREFIXES = ('0000006f', '000000de', '0000014d')
+
+
+def _first_real_changelog_dbid(stdout):
+    """Return the dbid key of the first non-metadata changelog record."""
+    for line in stdout.splitlines():
+        if line.startswith('dbid: '):
+            key = line[len('dbid: '):].strip()
+            if len(key) >= 8 and key[:8].lower() in _CL_SPECIAL_DBID_PREFIXES:
+                continue
+            return key
+    return None
 
 pytestmark = pytest.mark.tier0
 
@@ -45,6 +61,49 @@ def helper(topo_m2, request):
        pytest.skip('Not supported with this dbscan version')
     inst.stop()
     return dbsh
+
+
+def test_dbscan_changelog_key_lookup(helper, topo_m2):
+    """dbscan -k on the replication changelog returns exactly one record
+
+    :id: c3e8f1a2-9b4d-5e6f-a7b8-c9d0e1f2a3b4
+    :setup: Stopped supplier instance (restarted for LDAP mods)
+    :steps:
+         1. Start supplier1 and modify the suffix description five times
+         2. Stop supplier1 and run dbscan on the changelog without -k
+         3. Take the first real changelog dbid key from the dump
+         4. Run dbscan -k with that key (same value as the csn field)
+    :expectedresults:
+         1. Success
+         2. Success
+         3. A key is found
+         4. Return code 0 and exactly one dbid block is printed
+    """
+    inst = topo_m2.ms['supplier1']
+    dblib = helper.dblib
+
+    inst.start()
+    try:
+        domain = Domain(inst, DEFAULT_SUFFIX)
+        for i in range(5):
+            domain.replace('description', 'dbscan_k_test_%s' % i)
+    finally:
+        inst.stop()
+
+    helper.resync()
+    cldbi = helper.get_dbi('replication_changelog')
+    full = helper.dbscan(['-D', dblib, '-f', cldbi])
+    log.debug(full.stdout)
+    key = _first_real_changelog_dbid(full.stdout)
+    assert key is not None, 'No changelog dbid key found in full dbscan output'
+
+    one = helper.dbscan(['-D', dblib, '-f', cldbi, '-k', key])
+    dbid_lines = re.findall(r'^dbid:', one.stdout, re.MULTILINE)
+    assert len(dbid_lines) == 1, (
+        'dbscan -k should print exactly one changelog record, got %s' % len(dbid_lines)
+    )
+    assert key in one.stdout
+    assert '\tcsn: %s' % key in one.stdout
 
 
 def test_dbscan_destructive_actions(helper, request):
