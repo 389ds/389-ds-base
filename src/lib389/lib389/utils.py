@@ -2126,3 +2126,24 @@ def validate_max_age(value, ignore_value=None):
     # check value using digits except for the last character which must be a duration unit
     if not re.match(r'^\d+[sSmMhHdDwW]$', value) or value[0] == '0':
         raise ValueError(f"Invalid max age value: {value}")
+
+
+def get_mount_point(dir):
+    path = os.path.realpath(os.path.abspath(dir))
+    while not os.path.ismount(path):
+        path = os.path.dirname(path)
+    return path
+
+
+def get_disk_space(path):
+    block_size = os.statvfs(path).f_frsize
+    total_size = os.statvfs(path).f_blocks * block_size
+    available_size = os.statvfs(path).f_bavail * block_size
+    used_size = total_size - available_size
+    used_percent = (used_size / total_size) * 100
+    return {
+        'total': total_size,
+        'available': available_size,
+        'used': used_size,
+        'percent': used_percent
+    }
