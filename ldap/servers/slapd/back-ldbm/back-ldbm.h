@@ -287,7 +287,9 @@ typedef struct _idlist_set
 /*
  * used by the supplier during online total init
  * it stores the ranges of ID that are already present
- * in the candidate list ('parentid>=1')
+ * in the candidate list ('parentid>=1').
+ * Ranges are sorted with higher IDs first (largest range begins
+ * at the head); each [first..last] still has first <= last.
  */
 typedef struct IdRange {
     ID first;
