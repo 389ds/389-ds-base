@@ -244,6 +244,8 @@ typedef struct csngen CSNGen;
 CSNGen *csngen_new(ReplicaId rid, Slapi_Attr *state);
 /* frees csn generator data structure */
 void csngen_free(CSNGen **gen);
+/* overrides the clock source used by the generator (for testing) */
+void csngen_set_gettime(CSNGen *gen, int32_t (*gettime)(struct timespec *tp));
 /* generates new csn. If notify is non-zero, the generator calls
    "generate" functions registered through csngen_register_callbacks call */
 int csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify);
