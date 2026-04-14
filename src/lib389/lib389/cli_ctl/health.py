@@ -45,8 +45,6 @@ CHECK_OBJECTS = [
 
 # Checks that need a running server or LDAP search of database content (see healthcheck.md).
 _OFFLINE_SKIP_SPECS_EXACT = frozenset({
-    'disk_space',
-    'monitor-disk-space:disk_space',
     'replication:agmts_status',
     'replication:conflicts',
     'replication:no_ruv',

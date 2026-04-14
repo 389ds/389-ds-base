@@ -11,7 +11,7 @@ import ldap
 import psutil
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObject
-from lib389.utils import (ds_is_older)
+from lib389.utils import (ds_is_older, get_mount_point, get_disk_space)
 from lib389.lint import DSDSLE0001
 from lib389.backend import DatabaseConfig
 
@@ -525,17 +525,45 @@ class MonitorDiskSpace(DSLdapObject):
         return 'monitor-disk-space'
 
     def _lint_disk_space(self):
-        partitions = self.get_attr_vals_utf8_l("dsDisk")
-        for partition in partitions:
-            parts = partition.split()
-            percent = parts[4].split('=')[1].strip('"')
-            if int(percent) >= 90:
-                # this partition is over 90% full, not good
-                report = copy.deepcopy(DSDSLE0001)
-                report['detail'] = report['detail'].replace('PARTITION', parts[0].split('=')[1].strip('"'))
-                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                report['check'] = f'monitor-disk-space:disk_space'
-                yield report
+        threshold = 90
+        if self._instance.status():
+            partitions = self.get_attr_vals_utf8_l("dsDisk")
+            for partition in partitions:
+                parts = partition.split()
+                percent = parts[4].split('=')[1].strip('"')
+                if int(percent) >= threshold:
+                    # this partition is over 90% full, not good
+                    report = copy.deepcopy(DSDSLE0001)
+                    report['detail'] = report['detail'].replace('PARTITION', parts[0].split('=')[1].strip('"'))
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    report['check'] = f'monitor-disk-space:disk_space'
+                    yield report
+        else:
+            mounts = []
+            paths = [self._instance.ds_paths.access_log,
+                     self._instance.ds_paths.error_log,
+                     self._instance.ds_paths.audit_log,
+                     self._instance.ds_paths.security_log,
+                     self._instance.ds_paths.config_dir,
+                     self._instance.ds_paths.schema_dir,
+                     self._instance.ds_paths.ldif_dir,
+                     self._instance.ds_paths.inst_dir,
+                     self._instance.ds_paths.db_dir]
+
+            for path in paths:
+                mount_point = get_mount_point(path)
+                if mount_point not in mounts:
+                    mounts.append(mount_point)
+
+            for mount in mounts:
+                disk_space = get_disk_space(mount)
+                if disk_space['percent'] >= threshold:
+                    # this partition is over 90% full, not good
+                    report = copy.deepcopy(DSDSLE0001)
+                    report['detail'] = report['detail'].replace('PARTITION', mount)
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    report['check'] = f'monitor-disk-space:disk_space'
+                    yield report
 
     def get_disks(self):
         """Get an information about partitions which contains a Directory Server data"""
