@@ -385,8 +385,16 @@ def test_dna_shared_config_replication(topo_m4, dna_setup, request):
         repl.wait_for_replication(m1, supplier)
 
     for idx, supplier in enumerate(suppliers):
-        # Get the m1 shared config entry on each supplier
-        replicated_entry = DNAPluginSharedConfigs(supplier, ou_ranges.dn).get(dn=m1_shared_cfg.dn)
+        # dna_update_config_event fires 30s post-restart and
+        # deletes+recreates shared config entries causing brief gaps
+        replicated_entry = None
+        for _ in range(35):
+            try:
+                replicated_entry = DNAPluginSharedConfigs(supplier, ou_ranges.dn).get(dn=m1_shared_cfg.dn)
+                break
+            except ldap.NO_SUCH_OBJECT:
+                time.sleep(1)
+        assert replicated_entry, f"Supplier{idx+1}: shared config not found after 35s"
         remaining = replicated_entry.get_attr_val_utf8('dnaRemainingValues')
         assert remaining == expected_remaining, (
             f"Supplier{idx+1} has dnaRemainingValues={remaining}, expected {expected_remaining}"
