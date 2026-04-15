@@ -41,7 +41,6 @@ from lib389._mapped_object_lint import (
     lint_get_attr_val_utf8,
     lint_get_attr_val_utf8_l,
     lint_get_attr_vals_utf8,
-    lint_get_attr_vals_utf8_l,
     lint_plugin_enabled,
 )
 
@@ -485,7 +484,8 @@ class Backend(DSLdapObject):
             else:
                 index = DSLdapObject(self._instance,
                                      dn=f'cn=nsrole,cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
-                lint_get_attr_vals_utf8_l(index, "objectclass")
+                if lint_get_attr_val_utf8_l(index, "objectclass") is None:
+                    return
 
             report = copy.deepcopy(DSVIRTLE0001)
             report['check'] = f'backends:{bename}:virt_attrs'
