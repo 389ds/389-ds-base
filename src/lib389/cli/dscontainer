@@ -108,6 +108,10 @@ def _begin_environment_config():
             ldbmconfig = LDBMConfig(inst)
             ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
 
+    # If the user imported TLS certs, ensure that the TLS listener is enabled.
+    if os.path.exists(CONTAINER_TLS_SERVER_KEY):
+        inst.config.set('nsslapd-security', 'on')
+
     inst.close()
 
 
@@ -218,6 +222,17 @@ def begin_magic():
             # privs we'll need this to support future writes.
             os.makedirs(d, mode=0o777)
 
+    basedn = '# basedn = dc=example,dc=com'
+    suffix = os.getenv("SUFFIX_NAME")
+    if suffix is not None:
+        log.warning("SUFFIX_NAME is deprecated, please use DS_SUFFIX_NAME instead")
+    else:
+        suffix = os.getenv("DS_SUFFIX_NAME")
+    if suffix is not None:
+        basedn = f'basedn = {suffix}'
+
+    have_server_key = os.path.exists(CONTAINER_TLS_SERVER_KEY)
+
     # Do we have correct permissions to our volumes? With the power of thoughts and
     # prayers, we continue blindy and ... well hope.
 
@@ -273,10 +288,24 @@ def begin_magic():
         s2b.set('error_log', '/data/logs/error')
         s2b.set('audit_log', '/data/logs/audit')
 
+        # User intends to import a TLS KEY/Cert, don't setup self-signed.
+        if have_server_key:
+            s2b.set('self_sign_cert', False)
+
+        backends = []
+        if suffix is not None:
+            backends = [
+                {
+                    'name': 'userroot',
+                    'suffix': suffix,
+                    'create_suffix_entry': True,
+                }
+            ]
+
         # Now collect and submit for creation.
         sds = SetupDs(verbose=True, dryrun=False, log=log, containerised=True)
 
-        if not sds.create_from_args(g2b.collect(), s2b.collect()):
+        if not sds.create_from_args(g2b.collect(), s2b.collect(), backends):
             log.error("Failed to create instance")
             sys.exit(1)
 
@@ -284,14 +313,6 @@ def begin_magic():
 
         # Create the marker to say we exist. This is also a good writable permissions
         # test for the volume.
-        basedn = '# basedn = dc=example,dc=com'
-        suffix = os.getenv("SUFFIX_NAME")
-        if suffix is not None:
-            log.warning("SUFFIX_NAME is deprecated, please use DS_SUFFIX_NAME instead")
-        else:
-            suffix = os.getenv("DS_SUFFIX_NAME")
-        if suffix is not None:
-            basedn = f'basedn = {suffix}'
         config_file = """
 [localhost]
 # Note that '/' is replaced to '%%2f' for ldapi url format.
