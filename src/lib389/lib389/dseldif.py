@@ -280,7 +280,7 @@ class DSEldif(DSLint):
         mapping_trees = []
         for entry in self._contents:
             if fnmatch.fnmatch(entry, "*cn=*,cn=mapping tree,cn=config*"):
-                mapping_trees.append(entry)
+                mapping_trees.append(entry.strip())
         return mapping_trees
 
 
@@ -290,7 +290,7 @@ class DSEldif(DSLint):
         replicas = []
         for entry in self._contents:
             if fnmatch.fnmatch(entry, "*cn=replica,cn=*,cn=mapping tree,cn=config*"):
-                replicas.append(entry)
+                replicas.append(entry.strip())
         return replicas
 
     def suffix_replicated(self, suffix):
@@ -300,8 +300,8 @@ class DSEldif(DSLint):
         for entry in self._contents:
             if fnmatch.fnmatch(entry, "*cn=replica,cn=*,cn=mapping tree,cn=config*"):
                 dn = entry.replace("dn: ", "").strip()
-                value = self.get(dn, "nsDS5ReplicaRoot")[0]
-                if value is not None and value == suffix:
+                vals = self.get(dn, "nsDS5ReplicaRoot")
+                if vals is not None and vals[0].lower() == suffix.lower():
                     return True
 
         return False
