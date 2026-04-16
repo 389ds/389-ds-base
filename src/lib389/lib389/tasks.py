@@ -114,6 +114,8 @@ class Task(DSLdapObject):
         log = self.get_attr_val_utf8("nsTaskLog")
         if log is None:
             log = ""
+        if log:
+            self._log.info(log)
         while not self.is_complete():
             time.sleep(1)
             next_log = self.get_attr_val_utf8("nsTaskLog")
