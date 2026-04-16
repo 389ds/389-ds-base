@@ -41,6 +41,7 @@ from lib389._mapped_object_lint import (
     lint_get_attr_val_utf8,
     lint_get_attr_val_utf8_l,
     lint_get_attr_vals_utf8,
+    lint_get_attr_vals_utf8_l,
     lint_plugin_enabled,
 )
 
@@ -568,10 +569,12 @@ class Backend(DSLdapObject):
                 dse = DSEldif(self._instance)
                 mapping_trees = dse.get_mapping_trees()
                 for mapping_tree in mapping_trees:
-                    suffixes = lint_get_attr_val_utf8_l(mapping_tree, 'nsslapd-suffix')
+                    dn = mapping_tree.replace("dn: ", "")
+                    tree_obj = DSLdapObject(self._instance, dn=dn)
+                    suffixes = lint_get_attr_vals_utf8_l(tree_obj, 'cn')
                     for suf in suffixes:
-                        if suf.lower() == suffix:
-                            mt = mapping_tree
+                        if suf.lower() == suffix.lower():
+                            mt = tree_obj
                             break
             if mt is None or (lint_get_attr_val_utf8_l(mt, 'nsslapd-backend') != bename.lower() and
                               lint_get_attr_val_utf8(mt, 'nsslapd-state') != 'backend'):
