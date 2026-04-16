@@ -2281,6 +2281,21 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
     destroy_work_q(&tmp);
     fgot_end((*op_stack_obj)->op, FGOT_WQ);
 
+    /*
+     * Capture thread pool state at dequeue time for STAT logging.
+     *   - work_q_size was already decremented above, so get_work_q_size()
+     *     returns the number of other operations still waiting in the queue
+     *   - current_busy_workers will be incremented later in connection_threadmain,
+     *     so get_busy_worker_count() returns the number of workers that
+     *     are busy while this operation was waiting in the queue
+     */
+    if (LDAP_STAT_THREAD_POOL & config_get_statlog_level()) {
+        Operation *op = (*op_stack_obj)->op;
+        op->o_wbusy = get_busy_worker_count();
+        op->o_wmax = config_get_threadnumber();
+        op->o_wqdepth = get_work_q_size();
+    }
+
     return (wqitem);
 }
 
