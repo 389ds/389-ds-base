@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,8 +24,9 @@ of LDAP ADD for example.
 A correct Mapping tree for this backend must contain the suffix name, the database name
 and be a backend type. IE:
 
-cn=o3Dexample,cn=mapping tree,cn=config
-cn: o=example
+cn=dc\\3Dexample\\2Cdc\\3Dcom,cn=mapping tree,cn=config
+cn: dc=example,dc=com
+cn: dc\=example\,dc\=com
 nsslapd-backend: userRoot
 nsslapd-state: backend
 objectClass: top

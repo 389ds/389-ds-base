@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -97,6 +97,13 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     log.info('Configure an insecure passwordStorageScheme (SHA)')
     standalone.config.set('passwordStorageScheme', 'SHA')
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -105,6 +112,13 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
     standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2-SHA512')
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -151,6 +165,13 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     enc.replace('sslVersionMin', SMALL_VS)
     standalone.restart()
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -158,6 +179,13 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     enc.replace('sslVersionMin', HIGHER_VS)
     standalone.restart()
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -197,12 +225,26 @@ def test_healthcheck_resolvconf_bad_file_perm(topology_st):
     log.info('Change the /etc/resolv.conf file permissions to 444')
     os.chmod('/etc/resolv.conf', 0o444)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     log.info('Change the /etc/resolv.conf file permissions to 644')
     os.chmod('/etc/resolv.conf', 0o644)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
@@ -239,12 +281,26 @@ def test_healthcheck_pwdfile_bad_file_perm(topology_st):
     log.info('Change the /etc/dirsrv/slapd-{}/pwdfile.txt permissions to 000'.format(standalone.serverid))
     os.chmod('{}/pwdfile.txt'.format(cert_dir), 0o000)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     log.info('Change the /etc/dirsrv/slapd-{}/pwdfile.txt permissions to 400'.format(standalone.serverid))
     os.chmod('{}/pwdfile.txt'.format(cert_dir), 0o400)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
@@ -278,10 +334,24 @@ def test_healthcheck_certif_expiring_within_30d(topology_st):
 
     with libfaketime.fake_time(date_future):
         time.sleep(1)
+        standalone.stop()
+        try:
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+        finally:
+            if not standalone.status():
+                standalone.start()
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     # Try again with real time just to make sure no issues were found
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
@@ -315,10 +385,24 @@ def test_healthcheck_certif_expired(topology_st):
 
     with libfaketime.fake_time(date_future):
         time.sleep(1)
+        standalone.stop()
+        try:
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+        finally:
+            if not standalone.status():
+                standalone.start()
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     # Try again with real time just to make sure no issues were found
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 

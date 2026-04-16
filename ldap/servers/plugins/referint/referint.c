@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2025 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1370,7 +1370,7 @@ int
 referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     /* signal the batch thread to exit */
-    if (referint_get_delay() > 0) {
+    if (keeprunning) {
         pthread_mutex_lock(&keeprunning_mutex);
         keeprunning = 0;
         pthread_cond_signal(&keeprunning_cv);

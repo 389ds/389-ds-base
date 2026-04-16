@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -45,7 +45,6 @@ import lib389
 from pathlib import Path
 from subprocess import check_output
 from lib389.paths import ( Paths, DEFAULTS_PATH )
-from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
         ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB,
@@ -1521,41 +1520,6 @@ def format_cmd_list(cmd):
     return " ".join(map(shlex.quote, cmd))
 
 
-def get_ldapurl_from_serverid(instance):
-    """ Take an instance name, and get the host/port/protocol from dse.ldif
-    and return a LDAP URL to use in the CLI tools (dsconf)
-
-    :param instance: The server ID of a server instance
-    :return tuple of LDAPURL and certificate directory (for LDAPS)
-    """
-    try:
-        dse_ldif = DSEldif(None, instance)
-    except:
-        return (None, None)
-
-    port = dse_ldif.get("cn=config", "nsslapd-port", single=True)
-    secureport = dse_ldif.get("cn=config", "nsslapd-secureport", single=True)
-    host = dse_ldif.get("cn=config", "nsslapd-localhost", single=True)
-    sec = dse_ldif.get("cn=config", "nsslapd-security", single=True)
-    ldapi_listen = dse_ldif.get("cn=config", "nsslapd-ldapilisten", single=True)
-    ldapi_autobind = dse_ldif.get("cn=config", "nsslapd-ldapiautobind", single=True)
-    ldapi_socket = dse_ldif.get("cn=config", "nsslapd-ldapifilepath", single=True)
-    certdir = dse_ldif.get("cn=config", "nsslapd-certdir", single=True)
-
-    if ldapi_listen is not None and ldapi_listen.lower() == "on" and \
-       ldapi_autobind is not None and ldapi_autobind.lower() == "on" and \
-       ldapi_socket is not None:
-        # Use LDAPI
-        socket = ldapi_socket.replace("/", "%2f")  # Escape the path
-        return ("ldapi://" + socket, None)
-    elif sec is not None and sec.lower() == "on" and secureport is not None:
-        # Use LDAPS
-        return ("ldaps://{}:{}".format(host, secureport), certdir)
-    else:
-        # Use LDAP
-        return ("ldap://{}:{}".format(host, port), None)
-
-
 def get_instance_list():
     # List all server instances
     paths = Paths()
@@ -2162,3 +2126,25 @@ def validate_max_age(value, ignore_value=None):
     # check value using digits except for the last character which must be a duration unit
     if not re.match(r'^\d+[sSmMhHdDwW]$', value) or value[0] == '0':
         raise ValueError(f"Invalid max age value: {value}")
+
+
+def get_mount_point(dir):
+    path = os.path.realpath(os.path.abspath(dir))
+    while not os.path.ismount(path):
+        path = os.path.dirname(path)
+    return path
+
+
+def get_disk_space(path):
+    stats = os.statvfs(path)
+    block_size = stats.f_frsize
+    total_size = stats.f_blocks * block_size
+    available_size = stats.f_bavail * block_size
+    used_size = total_size - available_size
+    used_percent = (used_size / total_size) * 100
+    return {
+        'total': total_size,
+        'available': available_size,
+        'used': used_size,
+        'percent': used_percent
+    }
