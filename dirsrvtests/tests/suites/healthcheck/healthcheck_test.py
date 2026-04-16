@@ -715,12 +715,9 @@ def test_lint_backend_implementation_wrong_files(topology_st):
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
     inst.stop()
-    try:
-        run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
-        run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
-    finally:
-        if not inst.status():
-            inst.start()
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
+
 
 
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not needed for mdb")
