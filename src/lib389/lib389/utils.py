@@ -2136,9 +2136,10 @@ def get_mount_point(dir):
 
 
 def get_disk_space(path):
-    block_size = os.statvfs(path).f_frsize
-    total_size = os.statvfs(path).f_blocks * block_size
-    available_size = os.statvfs(path).f_bavail * block_size
+    stats = os.statvfs(path)
+    block_size = stats.f_frsize
+    total_size = stats.f_blocks * block_size
+    available_size = stats.f_bavail * block_size
     used_size = total_size - available_size
     used_percent = (used_size / total_size) * 100
     return {
