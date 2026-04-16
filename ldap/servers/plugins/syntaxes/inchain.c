@@ -411,7 +411,18 @@ inchain_normalize(
     int trim_spaces,
     char **alt)
 {
+    int trim_mask = 0;
+    if (trim_spaces == COMPATIBLE_NOT_TRIM_SPACES) {
+        /* value 0x00 */
+        trim_mask = NO_TRIM_SHRINK_BLANK;
+    } else if (trim_spaces == COMPATIBLE_TRIM_SPACES) {
+        /* value 0x01 */
+        trim_mask = COMPATIBLE_TRIM_MASK;
+    } else {
+        /* value 0x10-0x80 */
+        trim_mask = trim_spaces;
+    }
     slapi_log_err(SLAPI_LOG_ERR, "inchain", "inchain_normalize %s \n", s);
-    value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_spaces, alt);
+    value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_mask, alt);
     return;
 }
