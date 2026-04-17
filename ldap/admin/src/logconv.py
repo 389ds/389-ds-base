@@ -324,6 +324,11 @@ class ResultData:
     error_freq: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
     bad_pwd_map: Dict[str, int] = field(default_factory=dict)
 
+    wbusy_ratio_samples: List[float] = field(default_factory=list)
+    wqdepth_samples: List[int] = field(default_factory=list)
+    wstats_count: int = 0
+    wmax_seen: int = 0
+
 @dataclass
 class SearchData:
     counters: Dict[str, int] = field(default_factory=lambda: defaultdict(
@@ -504,6 +509,8 @@ class logAnalyser:
                 \stag=(?P<tag>\d+)                                  # tag=int
                 \snentries=(?P<nentries>\d+)                        # nentries=int
                 (?:\s[a-z]+time=[^ ]+)*                             # fine grain operation timing
+                (?:\swbusy=(?P<wbusy>\d+)/(?P<wmax>\d+))?           # Optional: wbusy=N/M
+                (?:\swqdepth=(?P<wqdepth>\d+))?                     # Optional: wqdepth=N
                 (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="strings"
                 (?:,\s+(?P<sasl_msg>SASL\s+bind\s+in\s+progress))?  # Optional: SASL bind in progress
                 (?:\s+notes=(?P<notes>[A-Z]))?                      # Optional: notes[A-Z]
@@ -1111,7 +1118,10 @@ class logAnalyser:
             "tag": self.convert_to_int(log_entry.get('tag', None)),
             "err": self.convert_to_int(log_entry.get('err', None)),
             "internal_op": log_entry.get('internal', None),
-            "notes": normalised_notes 
+            "notes": normalised_notes,
+            "wbusy": self.convert_to_int(log_entry.get('wbusy', None)),
+            "wmax": self.convert_to_int(log_entry.get('wmax', None)),
+            "wqdepth": self.convert_to_int(log_entry.get('wqdepth', None)),
         }
 
         # Compute and inject connection scoped key
@@ -1222,6 +1232,24 @@ class logAnalyser:
                 self.result.total_optime += optime_f
             except ValueError:
                 self.logger.debug(f"Invalid optime format: {optime}")
+
+        # Thread pool saturation
+        wbusy = log_entry.get("wbusy")
+        wmax = log_entry.get("wmax")
+        wqdepth = log_entry.get("wqdepth")
+        if (isinstance(wbusy, int) and isinstance(wmax, int)
+                and wmax > 0 and wbusy >= 0):
+            ratio = wbusy / wmax
+            heapq.heappush(self.result.wbusy_ratio_samples, ratio)
+            if len(self.result.wbusy_ratio_samples) > self.size_limit:
+                heapq.heappop(self.result.wbusy_ratio_samples)
+            self.result.wstats_count += 1
+            if wmax > self.result.wmax_seen:
+                self.result.wmax_seen = wmax
+        if isinstance(wqdepth, int) and wqdepth >= 0:
+            heapq.heappush(self.result.wqdepth_samples, wqdepth)
+            if len(self.result.wqdepth_samples) > self.size_limit:
+                heapq.heappop(self.result.wqdepth_samples)
 
         # Stat reporting to csv file
         try:
@@ -3420,6 +3448,26 @@ def main():
                 if num >= db.size_limit:
                     break
                 print(f"optime={optime:<12}")
+
+        # Thread pool saturation
+        if db.result.wstats_count > 0:
+            wmax = db.result.wmax_seen
+            ratios = sorted(db.result.wbusy_ratio_samples, reverse=True)
+            print(f"\n----- Top {db.size_limit} Highest Thread Pool Saturation "
+                  f"(wbusy/{wmax}) -----\n")
+            for num, ratio in enumerate(ratios):
+                if num >= db.size_limit:
+                    break
+                busy = round(ratio * wmax)
+                print(f"wbusy={busy}/{wmax} ({ratio*100:.1f}%)")
+
+            depths = sorted(db.result.wqdepth_samples, reverse=True)
+            print(f"\n----- Top {db.size_limit} Deepest Work Queue Backlogs "
+                  f"(wqdepth) -----\n")
+            for num, qd in enumerate(depths):
+                if num >= db.size_limit:
+                    break
+                print(f"wqdepth={qd:<10}")
 
         # Largest nentries returned
         nentries = sorted(db.result.nentries_num, reverse=True)

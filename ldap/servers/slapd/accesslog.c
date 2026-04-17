@@ -757,6 +757,16 @@ slapd_log_access_result(slapd_log_pblock *logpb)
         }
     }
 
+    /* Thread pool statistics */
+    if (logpb->wbusy >= 0) {
+        json_object_object_add(json_obj, "wbusy",
+                               json_object_new_int(logpb->wbusy));
+        json_object_object_add(json_obj, "wmax",
+                               json_object_new_int(logpb->wmax));
+        json_object_object_add(json_obj, "wqdepth",
+                               json_object_new_int(logpb->wqdepth));
+    }
+
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
     rc = slapd_log_access_json(msg);

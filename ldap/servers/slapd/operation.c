@@ -165,6 +165,9 @@ operation_init(Slapi_Operation *o, int flags)
         o->o_flags = flags;
         o->o_reverse_search_state = 0;
         o->o_pagedresults_sizelimit = -1;
+        o->o_wbusy = -1;
+        o->o_wmax = -1;
+        o->o_wqdepth = -1;
         if (fecfg) {
             for(fgot_id_t id=0; id < FGOT_MAX; id++) {
                 if ((1UL<<id) & fecfg->fgot_flags) {

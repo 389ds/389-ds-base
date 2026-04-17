@@ -1651,6 +1651,10 @@ typedef struct op
     struct slapi_operation_results o_results;
     int o_pagedresults_sizelimit;
     int o_reverse_search_state;
+    /* Thread pool snapshot taken at dequeue, -1 if not captured */
+    int32_t o_wbusy;
+    int32_t o_wmax;
+    int32_t o_wqdepth;
     fgot_t o_fgots[FGOT_MAX];                        /* Fine grain operation timing counters */
 } Operation;
 
