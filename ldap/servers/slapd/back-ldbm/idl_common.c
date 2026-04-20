@@ -15,7 +15,12 @@
 
 #include "back-ldbm.h"
 
-/* #define LDAP_DEBUG_IDRANGE 1 -- PR_ASSERT IdRange order/non-overlap after idrange_add_id */
+struct IdRangeSet {
+    IdRange_t *ranges[IDRANGE_NUM_BUCKETS];
+    PLHashTable *hash[IDRANGE_NUM_BUCKETS];
+};
+
+/* #define LDAP_DEBUG_IDRANGE 1 -- PR_ASSERT IdRange order/non-overlap after idrange_add_to_ranges */
 #ifdef LDAP_DEBUG_IDRANGE
 static void
 idrange_debug_check_invariants(IdRange_t *head)
@@ -30,14 +35,6 @@ idrange_debug_check_invariants(IdRange_t *head)
         }
     }
 }
-
-#define IDRANGE_ADD_ID_RETURN(head_ptr, val)     \
-    do {                                         \
-        idrange_debug_check_invariants(*(head_ptr)); \
-        return (val);                            \
-    } while (0)
-#else
-#define IDRANGE_ADD_ID_RETURN(head_ptr, val) return (val)
 #endif /* LDAP_DEBUG_IDRANGE */
 
 size_t
@@ -197,20 +194,75 @@ idl_min(IDList *a, IDList *b)
     return (a->b_nids > b->b_nids ? b : a);
 }
 
+#define IDRANGE_BUCKET_HASH_SIZE 256
+
+static PLHashNumber
+idrange_hash_id(const void *key)
+{
+    unsigned long ik = (unsigned long)key;
+    return (PLHashNumber)((ik ^ (ik >> 16)) % IDRANGE_BUCKET_HASH_SIZE);
+}
+
+static PRIntn
+idrange_hash_compare(const void *a, const void *b)
+{
+    return ((unsigned long)a == (unsigned long)b) ? 1 : 0;
+}
+
+static int
+idrange_id_in_ranges_list(IdRange_t *range, ID id)
+{
+    IdRange_t *r;
+
+    for (r = range; r; r = r->next) {
+        if (id > r->last) {
+            break;
+        }
+        if (id >= r->first) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int
+idrange_set_contains(IdRangeSet_t *set, ID id)
+{
+    size_t b;
+
+    if (set == NULL || NOID == id) {
+        return 0;
+    }
+    b = (size_t)(id >> IDRANGE_BUCKET_SHIFT);
+    if (set->hash[b] && PL_HashTableLookup(set->hash[b], (void *)(unsigned long)id)) {
+        return 1;
+    }
+    return idrange_id_in_ranges_list(set->ranges[b], id);
+}
+
+static void
+idrange_ensure_bucket_hash(IdRangeSet_t *set, size_t b)
+{
+    if (set->hash[b] != NULL) {
+        return;
+    }
+    set->hash[b] = PL_NewHashTable(IDRANGE_BUCKET_HASH_SIZE, idrange_hash_id,
+                                   idrange_hash_compare, idrange_hash_compare, NULL, NULL);
+}
+
 /*
  * This is a faster version of idl_id_is_in_idlist.
- * idl_id_is_in_idlist uses an array of ID so lookup is expensive
- * idl_id_is_in_idlist_ranges uses a list of ranges of ID lookup is faster
- * (ranges sorted high-to-low: head has the highest IDs).
+ * idl_id_is_in_idlist uses an array of ID so lookup is expensive.
+ * idl_id_is_in_idlist_ranges uses IdRangeSet_t: 4096 bucket-local range lists
+ * (and per-bucket hash for sparse singletons).  Lookup is O(length of one bucket).
  * returns
- *   1: 'id' is present in idrange_list
- *   0: 'id' is not present in idrange_list
+ *   1: 'id' is present in the set
+ *   0: 'id' is not present in the set
  */
 int
-idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id)
+idl_id_is_in_idlist_ranges(IDList *idl, IdRangeSet_t *set, ID id)
 {
-    IdRange_t *range = idrange_list;
-    int found = 0;
+    size_t b;
 
     if (NULL == idl || NOID == id) {
         return 0; /* not in the list */
@@ -218,20 +270,14 @@ idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id)
     if (ALLIDS(idl)) {
         return 1; /* in the list */
     }
-
-    for (; range; range = range->next) {
-        if (id > range->last) {
-            /* id is above this range; remaining ranges are lower */
-            break;
-        }
-        if (id >= range->first) {
-            /* in [last..first] (and range->last >= id) */
-            found = 1;
-            break;
-        }
-        /* id < range->first: may fall in a smaller range later in the list */
+    if (set == NULL) {
+        return 0;
     }
-    return found;
+    b = (size_t)(id >> IDRANGE_BUCKET_SHIFT);
+    if (set->hash[b] && PL_HashTableLookup(set->hash[b], (void *)(unsigned long)id)) {
+        return 1;
+    }
+    return idrange_id_in_ranges_list(set->ranges[b], id);
 }
 
 /* This function is used during the online total initialisation
@@ -240,22 +286,19 @@ idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id)
  */
 void idrange_free(IdRange_t **head)
 {
-    IdRange_t *curr, *sav;
+    IdRange_t *curr;
+    IdRange_t *next;
 
     if ((head == NULL) || (*head == NULL)) {
         return;
     }
     curr = *head;
-    sav = NULL;
-    for (; curr;) {
-        sav = curr;
-        curr = curr->next;
-        slapi_ch_free((void *) &sav);
-    }
-    if (sav) {
-        slapi_ch_free((void *) &sav);
-    }
     *head = NULL;
+    while (curr) {
+        next = curr->next;
+        slapi_ch_free((void **)&curr);
+        curr = next;
+    }
 }
 
 /* Union adjacent/overlapping ranges: *keeper* stays linked in the list,
@@ -275,31 +318,41 @@ idrange_merge_adjacent(IdRange_t *keeper, IdRange_t *victim)
     return keeper;
 }
 
-/* This function is used during the online total initialisation
- * Because a MODRDN can move entries under a parent that
- * has a higher ID we need to sort the IDList so that parents
- * are sent, to the consumer, before the children are sent.
- * The sorting with a simple IDlist does not scale instead
- * a list of IDs ranges is much faster.
- * In that list we only ADD/lookup ID.
- * Ranges are kept sorted high-to-low (head holds the highest IDs).
+#ifdef LDAP_DEBUG_IDRANGE
+#define IDRANGE_ADD_TO_RANGES_END(head_ptr)     \
+    do {                                        \
+        idrange_debug_check_invariants(*(head_ptr)); \
+        return;                                 \
+    } while (0)
+#else
+#define IDRANGE_ADD_TO_RANGES_END(head_ptr) return
+#endif
+
+/*
+ * Merge id into one bucket's range list. If singleton_hash is non-NULL,
+ * a new isolated id is stored in that bucket's hash instead of a one-id range.
  */
-IdRange_t *idrange_add_id(IdRange_t **head, ID id)
+static void
+idrange_add_to_ranges(IdRange_t **head, ID id, PLHashTable *singleton_hash)
 {
     if (head == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "idrange_add_id",
-                      "Can not add ID %d in non defined list\n", id);
-        return NULL;
+        slapi_log_err(SLAPI_LOG_ERR, "idrange_add_to_ranges",
+                      "Can not add ID %u in non defined list\n", id);
+        return;
     }
 
     if (*head == NULL) {
-        /* This is the first range */
-        IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
-        new_range->first = id;
-        new_range->last = id;
-        new_range->next = NULL;
-        *head = new_range;
-        IDRANGE_ADD_ID_RETURN(head, *head);
+        if (singleton_hash) {
+            PL_HashTableAdd(singleton_hash, (void *)(unsigned long)id, (void *)1);
+            IDRANGE_ADD_TO_RANGES_END(head);
+        } else {
+            IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
+            new_range->first = id;
+            new_range->last = id;
+            new_range->next = NULL;
+            *head = new_range;
+            IDRANGE_ADD_TO_RANGES_END(head);
+        }
     }
 
     IdRange_t *curr = *head, *prev = NULL;
@@ -308,7 +361,7 @@ IdRange_t *idrange_add_id(IdRange_t **head, ID id)
     while (curr) {
         if (id >= curr->first && id <= curr->last) {
             /* inside a range, nothing to do */
-            IDRANGE_ADD_ID_RETURN(head, curr);
+            IDRANGE_ADD_TO_RANGES_END(head);
         }
 
         if (id == curr->last + 1) {
@@ -316,13 +369,13 @@ IdRange_t *idrange_add_id(IdRange_t **head, ID id)
             curr->last = id;
             if (prev && curr->last + 1 >= prev->first) {
                 idrange_merge_adjacent(prev, curr);
-                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                              "(id=%d) merge current with previous range [%d..%d]\n", id, prev->first, prev->last);
-                IDRANGE_ADD_ID_RETURN(head, prev);
+                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_to_ranges",
+                              "(id=%u) merge current with previous range [%u..%u]\n", id, prev->first, prev->last);
+                IDRANGE_ADD_TO_RANGES_END(head);
             }
-            slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                          "(id=%d) extend forward current range [%d..%d]\n", id, curr->first, curr->last);
-            IDRANGE_ADD_ID_RETURN(head, curr);
+            slapi_log_err(SLAPI_LOG_REPL, "idrange_add_to_ranges",
+                          "(id=%u) extend forward current range [%u..%u]\n", id, curr->first, curr->last);
+            IDRANGE_ADD_TO_RANGES_END(head);
         }
 
         if (id + 1 == curr->first) {
@@ -331,13 +384,13 @@ IdRange_t *idrange_add_id(IdRange_t **head, ID id)
             IdRange_t *next = curr->next;
             if (next && next->last + 1 >= curr->first) {
                 idrange_merge_adjacent(curr, next);
-                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                              "(id=%d) merge current with next range [%d..%d]\n", id, curr->first, curr->last);
+                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_to_ranges",
+                              "(id=%u) merge current with next range [%u..%u]\n", id, curr->first, curr->last);
             } else {
-                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                              "(id=%d) extend backward current range [%d..%d]\n", id, curr->first, curr->last);
+                slapi_log_err(SLAPI_LOG_REPL, "idrange_add_to_ranges",
+                              "(id=%u) extend backward current range [%u..%u]\n", id, curr->first, curr->last);
             }
-            IDRANGE_ADD_ID_RETURN(head, curr);
+            IDRANGE_ADD_TO_RANGES_END(head);
         }
 
         /* id lies strictly above this block: insert a new node before curr */
@@ -349,23 +402,95 @@ IdRange_t *idrange_add_id(IdRange_t **head, ID id)
         prev = curr;
         curr = curr->next;
     }
-    /* insert a new standalone IdRange between prev and curr */
-    IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
-    new_range->first = id;
-    new_range->last = id;
-    new_range->next = curr;
-
-    if (prev) {
-        slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                      "(id=%d) add new range [%d..%d]\n", id, new_range->first, new_range->last);
-        prev->next = new_range;
-    } else {
-        /* insert at head */
-        slapi_log_err(SLAPI_LOG_REPL, "idrange_add_id",
-                      "(id=%d) head range [%d..%d]\n", id, new_range->first, new_range->last);
-        *head = new_range;
+    if (singleton_hash) {
+        PL_HashTableAdd(singleton_hash, (void *)(unsigned long)id, (void *)1);
+        IDRANGE_ADD_TO_RANGES_END(head);
     }
-    IDRANGE_ADD_ID_RETURN(head, *head);
+
+    {
+        IdRange_t *new_range = (IdRange_t *)slapi_ch_malloc(sizeof(IdRange_t));
+        new_range->first = id;
+        new_range->last = id;
+        new_range->next = curr;
+
+        if (prev) {
+            slapi_log_err(SLAPI_LOG_REPL, "idrange_add_to_ranges",
+                          "(id=%u) add new range [%u..%u]\n", id, new_range->first, new_range->last);
+            prev->next = new_range;
+        } else {
+            slapi_log_err(SLAPI_LOG_REPL, "idrange_add_to_ranges",
+                          "(id=%u) head range [%u..%u]\n", id, new_range->first, new_range->last);
+            *head = new_range;
+        }
+        IDRANGE_ADD_TO_RANGES_END(head);
+    }
+}
+
+void
+idrange_set_init(IdRangeSet_t **pset)
+{
+    if (pset == NULL) {
+        return;
+    }
+    *pset = (IdRangeSet_t *)slapi_ch_calloc(1, sizeof(IdRangeSet_t));
+}
+
+void
+idrange_set_destroy(IdRangeSet_t **pset)
+{
+    size_t i;
+
+    if (pset == NULL || *pset == NULL) {
+        return;
+    }
+    for (i = 0; i < IDRANGE_NUM_BUCKETS; i++) {
+        idrange_free(&(*pset)->ranges[i]);
+        if ((*pset)->hash[i]) {
+            PL_HashTableDestroy((*pset)->hash[i]);
+            (*pset)->hash[i] = NULL;
+        }
+    }
+    slapi_ch_free((void **)pset);
+}
+
+void
+idrange_set_add_id(IdRangeSet_t *set, ID id)
+{
+    size_t b;
+    size_t bp;
+    size_t bn;
+
+    if (set == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "idrange_set_add_id",
+                      "Can not add ID %u in non defined set\n", id);
+        return;
+    }
+    b = (size_t)(id >> IDRANGE_BUCKET_SHIFT);
+    idrange_ensure_bucket_hash(set, b);
+    if (idrange_set_contains(set, id)) {
+        return;
+    }
+    if (id > 0) {
+        bp = (size_t)((id - 1) >> IDRANGE_BUCKET_SHIFT);
+        idrange_ensure_bucket_hash(set, bp);
+        if (set->hash[bp] && PL_HashTableLookup(set->hash[bp], (void *)(unsigned long)(id - 1))) {
+            PL_HashTableRemove(set->hash[bp], (void *)(unsigned long)(id - 1));
+            idrange_add_to_ranges(&set->ranges[bp], id - 1, NULL);
+            idrange_set_add_id(set, id);
+            return;
+        }
+    }
+    if (id + 1 != 0) {
+        bn = (size_t)((id + 1) >> IDRANGE_BUCKET_SHIFT);
+        idrange_ensure_bucket_hash(set, bn);
+        if (set->hash[bn] && PL_HashTableLookup(set->hash[bn], (void *)(unsigned long)(id + 1))) {
+            PL_HashTableRemove(set->hash[bn], (void *)(unsigned long)(id + 1));
+            idrange_add_to_ranges(&set->ranges[bn], id + 1, NULL);
+            idrange_set_add_id(set, id);
+            return;
+        }
+    }
+    idrange_add_to_ranges(&set->ranges[b], id, set->hash[b]);
 }
 
 

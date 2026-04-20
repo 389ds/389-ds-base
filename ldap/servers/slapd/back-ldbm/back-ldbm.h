@@ -297,6 +297,16 @@ typedef struct IdRange {
     struct IdRange *next;
 } IdRange_t;
 
+/*
+ * Partition of the 32-bit ID space into IDRANGE_NUM_BUCKETS (4096) slices
+ * (IDRANGE_BUCKET_SHIFT high bits).  Each slice has its own merged range list
+ * and optional hash of sparse singletons — see idl_common.c.
+ */
+#define IDRANGE_NUM_BUCKETS 4096
+#define IDRANGE_BUCKET_SHIFT 20 /* (1U << IDRANGE_BUCKET_SHIFT) IDs per bucket */
+
+typedef struct IdRangeSet IdRangeSet_t;
+
 
 typedef size_t idl_iterator;
 
