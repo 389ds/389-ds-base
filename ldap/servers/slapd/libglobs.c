@@ -9640,6 +9640,26 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
                 slapi_log_err(SLAPI_LOG_ERR, "config_set",
                               "The attribute %s is read only; ignoring setting NULL value\n", attr);
             }
+        } else if (values != NULL && values[0] != NULL &&
+                   cgas->config_var_type == CONFIG_CHARRAY) {
+            char **vals = NULL;
+            for (ii = 0; !retval && values && values[ii]; ++ii) {
+                char *val = slapi_berval_get_string_copy(values[ii]);
+                charray_add(&vals, val);
+            }
+            if (cgas->setfunc) {
+                retval = (cgas->setfunc)(cgas->attr_name,
+                                         (char *)vals, errorbuf, apply);
+            } else if (cgas->logsetfunc) {
+                retval = (cgas->logsetfunc)(cgas->attr_name,
+                                            (char *)vals, cgas->whichlog,
+                                            errorbuf, apply);
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, "config_set",
+                              "The attribute %s is read only; ignoring new values\n",
+                              attr);
+            }
+            charray_free(vals);
         } else if (values != NULL) {
             for (ii = 0; !retval && values && values[ii]; ++ii) {
                 if (cgas->setfunc) {
