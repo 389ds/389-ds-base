@@ -705,11 +705,14 @@ free_and_return_nolock : {
     slapi_ch_free_string(&newdn);
 
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
+    slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
     slapi_entry_free(ecopy);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     slapi_entry_free(pse);
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     ldap_mods_free(mods, 1);
+    slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
 
