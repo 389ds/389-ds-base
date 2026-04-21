@@ -430,6 +430,37 @@ typedef struct _memberof_del_dn_data
     char *type;
 } memberof_del_dn_data;
 
+/*
+ * deferred_pblock_cleanup - Common cleanup for all deferred_* functions.
+ */
+static void
+deferred_pblock_cleanup(Slapi_PBlock *pb, Slapi_DN **sdn, LDAPMod ***mods)
+{
+    Slapi_Entry *pre_e = NULL;
+    Slapi_Entry *post_e = NULL;
+
+    /* Null out entry fields before freeing to avoid dangling pointers */
+    slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_e);
+    slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_e);
+    slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
+    slapi_entry_free(pre_e);
+    slapi_entry_free(post_e);
+
+    /* Null out and free the target SDN */
+    slapi_pblock_set(pb, SLAPI_TARGET_SDN, NULL);
+    slapi_sdn_free(sdn);
+
+    /* Null out and free modify mods if applicable */
+    if (mods) {
+        slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
+        ldap_mods_free(*mods, 1);
+        *mods = NULL;
+    }
+
+    slapi_pblock_destroy(pb);
+}
+
 int
 deferred_modrdn_func(MemberofDeferredModrdnTask *task)
 {
@@ -561,10 +592,7 @@ skip_op:
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
-    slapi_entry_free(pre_e);
-    slapi_entry_free(post_e);
-    slapi_sdn_free(&sdn);
-    slapi_pblock_destroy(pb);
+    deferred_pblock_cleanup(pb, &sdn, NULL);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- deferred_modrdn_func\n");
@@ -628,9 +656,6 @@ bail:
     if (free_configCopy) {
         memberof_free_config(&configCopy);
     }
-    slapi_entry_free(e);
-    slapi_sdn_free(&sdn);
-    slapi_pblock_destroy(pb);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -638,6 +663,8 @@ bail:
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
+
+    deferred_pblock_cleanup(pb, &sdn, NULL);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- deferred_del_func\n");
@@ -702,9 +729,7 @@ bail:
         ret = SLAPI_PLUGIN_FAILURE;
     }
 
-    slapi_entry_free(e);
-    slapi_sdn_free(&sdn);
-    slapi_pblock_destroy(pb);
+    deferred_pblock_cleanup(pb, &sdn, NULL);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- deferred_add_func\n");
@@ -846,13 +871,6 @@ bail:
 
     slapi_mod_free(&next_mod);
     slapi_mods_free(&smods);
-    slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_e);
-    slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_e);
-    slapi_entry_free(pre_e);
-    slapi_entry_free(post_e);
-    slapi_sdn_free(&sdn);
-    ldap_mods_free(task->mods, 1);
-    slapi_pblock_destroy(pb);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -860,11 +878,16 @@ bail:
                       slapi_sdn_get_dn(task->target_sdn));
         slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
                       "Failed applying deferred updates: memberof values are invalid, please run fixup task\n");
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
 
-    return ret;
+    deferred_pblock_cleanup(pb, &sdn, &task->mods);
 
+    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                  "<-- deferred_mod_func\n");
+
+    return ret;
 }
 
 /* Perform fixup (similar as fixup task) on all backends */
