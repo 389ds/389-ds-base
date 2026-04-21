@@ -812,6 +812,7 @@ done:
     if (be)
         slapi_be_Unlock(be);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     slapi_entry_free(pse);
     slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
     slapi_entry_free(e);
