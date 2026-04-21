@@ -9643,7 +9643,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
         } else if (values != NULL && values[0] != NULL &&
                    cgas->config_var_type == CONFIG_CHARRAY) {
             char **vals = NULL;
-            for (ii = 0; !retval && values && values[ii]; ++ii) {
+            for (ii = 0; values && values[ii]; ++ii) {
                 char *val = slapi_berval_get_string_copy(values[ii]);
                 charray_add(&vals, val);
             }
