@@ -882,6 +882,18 @@ AC_SUBST(nss_libdir)
 
 PKG_CHECK_MODULES([OPENSSL], [openssl])
 
+AC_MSG_CHECKING(whether to enable HIBP password breach checking)
+AC_ARG_ENABLE(hibp, AS_HELP_STRING([--enable-hibp], [Enable HIBP password breach checking (default: no)]),
+              [], [enable_hibp=no])
+if test "x$enable_hibp" = "xyes"; then
+    AC_MSG_RESULT(yes)
+    PKG_CHECK_MODULES([CURL], [libcurl >= 7.40.0])
+    AC_DEFINE([ENABLE_HIBP], [1], [Enable HIBP password breach checking])
+else
+    AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL([ENABLE_HIBP], [test "x$enable_hibp" = "xyes"])
+
 m4_include(m4/openldap.m4)
 if test $with_bundle_libdb = no; then
     m4_include(m4/db.m4)

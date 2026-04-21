@@ -1188,6 +1188,13 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(DB_INC) $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsvrcore.la $(RSLAPD_LIB) $(OPENSSL_LIBS)
+
+if ENABLE_HIBP
+libslapd_la_SOURCES += ldap/servers/slapd/hibp_client.c
+libslapd_la_CPPFLAGS += $(CURL_CFLAGS)
+libslapd_la_LIBADD += $(CURL_LIBS)
+dist_noinst_HEADERS += ldap/servers/slapd/hibp.h
+endif
 # If asan is enabled, it creates special libcrypt interceptors. However, they are
 # detected by the first load of libasan at runtime, and what is in the linked lib
 # so we need libcrypt to be present as soon as libasan is loaded for the interceptors
@@ -2002,6 +2009,12 @@ test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 # We need to pull in plugin header paths too:
 test_slapd_CPPFLAGS =	$(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) \
 						-I$(srcdir)/ldap/servers/plugins/pwdstorage
+
+if ENABLE_HIBP
+test_slapd_SOURCES += test/libslapd/hibp/parse.c
+test_slapd_LDADD += $(CURL_LIBS)
+test_slapd_CPPFLAGS += $(CURL_CFLAGS)
+endif
 
 endif
 #------------------------

@@ -75,6 +75,15 @@ void test_libslapd_csngen_time_backwards(void **state);
 void test_libslapd_csngen_multiple_clock_failures(void **state);
 void test_libslapd_csngen_seqnum_handling(void **state);
 
+#ifdef ENABLE_HIBP
+/* libslapd-hibp */
+void test_hibp_sha1_hex(void **state);
+void test_hibp_parse_response(void **state);
+void test_hibp_buffer_handling(void **state);
+void test_hibp_api_integration(void **state);
+void test_hibp_concurrent_requests(void **state);
+#endif
+
 /* plugins */
 
 void test_plugin_hello(void **state);
