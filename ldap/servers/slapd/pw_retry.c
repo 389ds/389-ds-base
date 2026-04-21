@@ -118,7 +118,7 @@ update_tpr_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count)
             passwdPolicy *pwpolicy = new_passwdPolicy(pb, slapi_entry_get_ndn(e));
             slapi_log_err(SLAPI_LOG_PWDPOLICY,
                           PWDPOLICY_DEBUG,
-                          "update pwdTPRUseCount=%d on entry (%s) policy (%s).\n",
+                          "Update pwdTPRUseCount=%d: Entry (%s) Policy (%s)\n",
                           use_count, slapi_entry_get_ndn(e),
                           pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             rc = set_tpr_usecount(pb, use_count);
@@ -180,15 +180,15 @@ set_tpr_usecount_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
         slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "pwdTPRUseCount", retry_cnt);
         slapi_log_err(SLAPI_LOG_PWDPOLICY,
                       PWDPOLICY_DEBUG,
-                      "Unsuccessful bind, increase pwdTPRUseCount = %d (max %d) - entry (%s) policy (%s)\n",
+                      "Unsuccessful bind, increase pwdTPRUseCount = %d (max %d): Entry (%s) Policy (%s)\n",
                       count, pwpolicy->pw_tpr_maxuse,
                       dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
         /* return a failure if it reaches the retry limit */
         if (count > pwpolicy->pw_tpr_maxuse) {
             slapi_log_err(SLAPI_LOG_INFO,
-                          "set_tpr_retry_cnt_mods",
+                          "set_tpr_usecount_mods",
                           "Unsuccessful bind, LDAP_CONSTRAINT_VIOLATION pwdTPRUseCount "
-                          "%d > %d - entry (%s) policy (%s)\n",
+                          "%d > %d: Entry (%s) Policy (%s)\n",
                           count,
                           pwpolicy->pw_tpr_maxuse,
                           dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");

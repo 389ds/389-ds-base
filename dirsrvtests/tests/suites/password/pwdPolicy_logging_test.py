@@ -116,7 +116,7 @@ def test_debug_logging(topo):
         local_user.replace('userpassword', passwd_val)
     time.sleep(1)
 
-    err_msg = "PWDPOLICY_DEBUG - invalid password syntax - password must be at least 6 characters long: Entry " + \
+    err_msg = "PWDPOLICY_DEBUG - Invalid password syntax - password must be at least 6 characters long: Entry " + \
               "\\(uid=local_user,ou=people,dc=example,dc=com\\) Policy \\(cn="
     assert inst.searchErrorsLog(err_msg)
 
@@ -126,7 +126,7 @@ def test_debug_logging(topo):
         global_user.replace('userpassword', passwd_val)
     time.sleep(1)
 
-    err_msg = "PWDPOLICY_DEBUG - invalid password syntax - password must be at least 8 characters long: Entry " + \
+    err_msg = "PWDPOLICY_DEBUG - Invalid password syntax - password must be at least 8 characters long: Entry " + \
               "\\(uid=global_user,ou=global,dc=example,dc=com\\) Policy \\(Global\\)"
     assert inst.searchErrorsLog(err_msg)
 
