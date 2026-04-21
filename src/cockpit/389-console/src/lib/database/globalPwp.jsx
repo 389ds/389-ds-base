@@ -1226,6 +1226,25 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
+                            {_("Max Repeated Chars")}
+                        </GridItem>
+                        <GridItem span={1} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
+                            <TextInput
+                                type="number"
+                                value={this.state.passwordmaxrepeats}
+                                id="passwordmaxrepeats"
+                                aria-describedby="passwordmaxrepeats"
+                                name="passwordmaxrepeats"
+                                onChange={(e, str) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                {...getValidationProps("passwordmaxrepeats", this.state.invalidFields)}
+                            />
+                            {renderValidationError("passwordmaxrepeats", this.state.invalidFields)}
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={3}>
                             {_("Prohibited Words")}
                         </GridItem>
                         <GridItem span={9}>
