@@ -3779,6 +3779,7 @@ _mtn_update_config_param(int op, char *type, char *strvalue)
      * since the internal modify could realloced mods. */
     slapi_pblock_get(confpb, SLAPI_MODIFY_MODS, &mods);
     ldap_mods_free(mods, 1 /* Free the Array and the Elements */);
+    slapi_pblock_set(confpb, SLAPI_MODIFY_MODS, NULL);
     slapi_pblock_destroy(confpb);
 
     return rc;
