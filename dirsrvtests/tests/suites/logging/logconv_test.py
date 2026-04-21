@@ -1398,6 +1398,10 @@ class TestLogconv:
             "operations": 4,
             "results": 4,
             "unindexed_searches": 2,
+            "restarts": 1,
+            "total_connections": 1,
+            "ldap_conns": 1,
+            "fds_taken": 1,
         }
 
         output = self.run_logconv()
