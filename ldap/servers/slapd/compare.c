@@ -126,8 +126,8 @@ do_compare(Slapi_PBlock *pb)
     /* target spec is used to decide which plugins are applicable for the operation */
     operation_set_target_spec(pb_op, &sdn);
 
-    slapi_log_err(SLAPI_LOG_ARGS, "do_compare: dn (%s) attr (%s)\n",
-                  rawdn, ava.ava_type, 0);
+    slapi_log_err(SLAPI_LOG_ARGS, "do_compare", "dn (%s) attr (%s)\n",
+                  rawdn, ava.ava_type);
 
     if (log_format != LOG_FORMAT_DEFAULT) {
         slapd_log_pblock logpb = {0};

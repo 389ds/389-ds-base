@@ -124,7 +124,7 @@ do_modify(Slapi_PBlock *pb)
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR,
                          NULL, "operation is NULL parameter", 0, NULL);
         slapi_log_err(SLAPI_LOG_ERR, "do_modify",
-            "NULL param:  pb_conn (0x%p) operation (0x%p)\n", pb_conn, operation);
+            "NULL param: pb_conn (0x%p) operation (0x%p)\n", pb_conn, operation);
         return;
     }
 
@@ -291,7 +291,7 @@ do_modify(Slapi_PBlock *pb)
             slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
             slapi_log_err(SLAPI_LOG_ERR, "do_modify",
                           "Rejecting replicated password policy operation(conn=%"PRIu64" op=%d) for "
-                          "entry %s.  To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
+                          "entry %s. To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
                           "cn=config.\n",
                           connid, opid, rawdn);
         }
@@ -1349,7 +1349,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
             }
             slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                          "user is not allowed to change password.  Entry (%s) Policy (%s)\n",
+                          "User is not allowed to change password: Entry (%s) Policy (%s)\n",
                           slapi_sdn_get_dn(&sdn),
                           pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
