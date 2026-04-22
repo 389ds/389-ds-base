@@ -14,7 +14,7 @@ import pytest
 import ldap
 
 from lib389.idm.user import UserAccounts, nsUserAccounts
-from lib389.topologies import topology_st as topology
+from lib389.tests.topologies import topology_st as topology
 from lib389._constants import DEFAULT_SUFFIX
 
 def test_account_locking(topology):

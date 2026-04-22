@@ -2154,10 +2154,14 @@ git-archive:
 	fi ; \
 	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2
 
+# Duplicate topologies.py from test389 lib to lib389.tests
+$(srcdir)/src/lib389/tests/topologies.py: $(srcdir)/dirsrvtests/lib/test389/topologies.py
+	cp $< $@
+
 # Python test tests
 # How will we update this to python 3?
 
-lib389:
+lib389: $(srcdir)/src/lib389/tests/topologies.py
 	cd $(srcdir)/src/lib389 && \
 	python3 validate_version.py && \
 	python3 -m build

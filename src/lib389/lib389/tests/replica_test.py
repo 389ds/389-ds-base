@@ -18,7 +18,7 @@ from lib389.idm.domain import Domain
 from lib389._constants import (ReplicaRole, BACKEND_SUFFIX, BACKEND_NAME, REPLICA_RUV_FILTER, CONSUMER_REPLICAID,
                                REPLICA_FLAGS_WRITE, REPLICA_RDWR_TYPE)
 from lib389.properties import (REPL_FLAGS, REPL_TYPE)
-from lib389.topologies import topology_i3 as topo
+from lib389.tests.topologies import topology_i3 as topo
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
