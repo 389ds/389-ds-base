@@ -17,7 +17,7 @@ from lib389.tasks import *
 from lib389.dbgen import dbgen_users
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
-from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
+from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME, DN_DM, PW_DM
 from lib389._mapped_object import DSLdapObjects
 from lib389.agreement import Agreements
 from lib389.cli_base import FakeArgs
@@ -71,6 +71,88 @@ def test_nagle_default_value(topo):
 
     log.info('Check the value of nsslapd-nagle attribute is off by default')
     assert topo.standalone.config.get_attr_val_utf8('nsslapd-nagle') == 'off'
+
+
+# Same effective default and dse/ldap logic as the former ticket 48214 test
+_NSSLAPD_MAXBERSIZE_DEFAULT = 2097152
+_MAXBERSIZE_DSE = 'nsslapd-maxbersize'
+
+
+def _dse_maxbersize_int(inst):
+    """Read nsslapd-maxbersize from dse.ldif. Return -1 if the attr is not present."""
+    dse = DSEldif(inst)
+    val = dse.get(DN_CONFIG, _MAXBERSIZE_DSE, single=True, lower=True)
+    if val is None:
+        return -1
+    return int(val)
+
+
+def _check_max_ber_size(inst, defaultvalue):
+    log.info('Check Max Ber Size (nsslapd-maxbersize)')
+    dseval = _dse_maxbersize_int(inst)
+    isdefault = True
+    if dseval < 0:
+        log.info('No nsslapd-maxbersize in dse.ldif')
+    elif dseval == 0:
+        log.info('nsslapd-maxbersize in dse: 0')
+    else:
+        isdefault = False
+        log.info(f'nsslapd-maxbersize in dse: {dseval}')
+
+    try:
+        searchedsize = inst.config.get_attr_val_utf8('nsslapd-maxbersize')
+        log.info(f'LDAP nsslapd-maxbersize: {searchedsize}')
+    except ldap.LDAPError as e:
+        log.error(f'Failed to get nsslapd-maxbersize from LDAP: {e}')
+        assert False
+
+    if isdefault:
+        log.info(f'Assert effective default {searchedsize} vs {defaultvalue}')
+        assert int(searchedsize) == defaultvalue
+
+
+def test_nsslapd_maxbersize_ldapread(topo):
+    """LDAP on cn=config exposes the effective nsslapd-maxbersize
+
+    nsslapd-maxbersize in dse/ldap was reported as 0 instead of the in-effect value
+    (e.g. 2097152 when not set, or 0/10000 when set).
+
+    :id: 1d8275b2-c2dc-4fa5-ac99-6863144822ec
+    :setup: Standalone instance
+    :steps:
+        1. Out of the box, compare dse.ldif vs LDAP
+        2. Set nsslapd-maxbersize: 0, check again
+        3. Set nsslapd-maxbersize: 10000, check dse and LDAP
+    :expectedresults:
+        1. When dse has no nsslapd-maxbersize, LDAP value is 2097152
+        2. When dse is 0, effective default still reported as 2097152 on LDAP
+        3. When dse is 10000, the non-default code path is exercised (no 2097152 assert)
+    """
+    inst = topo.standalone
+    inst.simple_bind_s(DN_DM, PW_DM)
+
+    orig_value = _dse_maxbersize_int(inst)
+
+    try:
+        log.info('Out of the box: nsslapd-maxbersize')
+        _check_max_ber_size(inst, _NSSLAPD_MAXBERSIZE_DEFAULT)
+
+        log.info('nsslapd-maxbersize: 0 in LDAP')
+        inst.config.replace(_MAXBERSIZE_DSE, '0')
+        _check_max_ber_size(inst, _NSSLAPD_MAXBERSIZE_DEFAULT)
+
+        log.info('nsslapd-maxbersize: 10000 in LDAP')
+        inst.config.replace(_MAXBERSIZE_DSE, '10000')
+        _check_max_ber_size(inst, _NSSLAPD_MAXBERSIZE_DEFAULT)
+
+    # return maxbersize to default value
+    finally:
+        try:
+            inst.config.replace(_MAXBERSIZE_DSE, str(orig_value))
+        except Exception as e:
+            log.error(f"Failed to return maxbersize to default value: {e}, replacing with 0")
+            inst.config.replace(_MAXBERSIZE_DSE, '0')
+        inst.restart()
 
 
 def test_maxbersize_repl(topology_m2, big_file):
