@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,11 +16,13 @@ from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.pwpolicy import PwPolicyManager
 
 pytestmark = pytest.mark.tier1
 
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
 USER_RDN = 'user'
+PEOPLE_DN = 'ou=people,%s' % DEFAULT_SUFFIX
 USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
@@ -118,6 +120,116 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     setPolicy(inst, policy_attr, reset_value)
 
 
+def setSubtreePolicy(inst, policy_entry, attr, value):
+    """Bind as Root DN and set an attribute on a subtree password policy entry."""
+
+    inst.simple_bind_s(DN_DM, PASSWORD)
+    value = str(value)
+    policy_entry.replace(attr, value)
+    policy = policy_entry.get_attr_val_utf8(attr)
+    assert policy == value
+
+
+def tryPasswordSubtree(inst, policy_entry, policy_attr, value, reset_value, pw_bad, pw_good, msg):
+    """Like tryPassword but applies policy_attr on a local PwPolicyEntry."""
+
+    setSubtreePolicy(inst, policy_entry, policy_attr, value)
+    inst.simple_bind_s(USER_DN, PASSWORD)
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.get(USER_RDN)
+    try:
+        user.reset_password(pw_bad)
+        log.fatal('Invalid password was unexpectedly accepted (%s)' %
+                  (policy_attr))
+        assert False
+    except ldap.CONSTRAINT_VIOLATION:
+        log.info('Invalid password correctly rejected by subtree %s:  %s' %
+                 (policy_attr, msg))
+        pass
+    except ldap.LDAPError as e:
+        log.fatal("Failed to change password: " + str(e))
+        assert False
+
+    user.reset_password(pw_good)
+
+    resetPasswd(inst)
+    setSubtreePolicy(inst, policy_entry, policy_attr, reset_value)
+
+
+def _run_password_syntax_checks(try_pw):
+    """Run the standard password syntax checks; try_pw matches tryPassword call shape."""
+
+    # Min Length
+    try_pw('passwordMinLength', 10, 2, 'passwd',
+           'password123', 'length too short')
+    # Min Digit
+    try_pw('passwordMinDigits', 2, 0, 'passwd',
+           'password123', 'does not contain minimum number of digits')
+    # Min Alphas
+    try_pw('passwordMinAlphas', 2, 0, 'p123456789',
+           'password123', 'does not contain minimum number of alphas')
+    # Max Repeats
+    try_pw('passwordMaxRepeats', 2, 0, 'passsword',
+           'password123', 'too many repeating characters')
+    # Min Specials
+    try_pw('passwordMinSpecials', 2, 0, 'passwd',
+           'password_#$',
+           'does not contain minimum number of special characters')
+    # Min Lowers
+    try_pw('passwordMinLowers', 2, 0, 'PASSWORD123',
+           'password123',
+           'does not contain minimum number of lowercase characters')
+    # Min Uppers
+    try_pw('passwordMinUppers', 2, 0, 'password',
+           'PASSWORD',
+           'does not contain minimum number of lowercase characters')
+    # Min 8-bit (non-ASCII UTF-8 bytes; high-bit bytes count toward num_8bit)
+    try_pw('passwordMin8Bit', 1, 0, 'Za12_ab_XY_9qM',
+           'Za12_ab_\u00fcXY_9qM#',
+           'does not contain minimum number of 8-bit characters')
+
+    if ds_is_newer('1.4.0.13'):
+        # Dictionary check
+        try_pw('passwordDictCheck', 'on', 'on', 'PASSWORD',
+               '13_#Kad472h', 'Password found in dictionary')
+
+        # Palindromes
+        try_pw('passwordPalindrome', 'on', 'on', 'Za12_#_21aZ',
+               '13_#Kad472h', 'Password is palindrome')
+
+        # Sequences
+        try_pw('passwordMaxSequence', 3, 0, 'Za1_1234',
+               '13_#Kad472h', 'Max monotonic sequence is not allowed')
+        try_pw('passwordMaxSequence', 3, 0, 'Za1_4321',
+               '13_#Kad472h', 'Max monotonic sequence is not allowed')
+        try_pw('passwordMaxSequence', 3, 0, 'Za1_abcd',
+               '13_#Kad472h', 'Max monotonic sequence is not allowed')
+        try_pw('passwordMaxSequence', 3, 0, 'Za1_dcba',
+               '13_#Kad472h', 'Max monotonic sequence is not allowed')
+
+        # Sequence Sets
+        try_pw('passwordMaxSeqSets', 2, 0, 'Za1_123--123',
+               '13_#Kad472h', 'Max monotonic sequence is not allowed')
+
+        # Max characters in a character class
+        try_pw('passwordMaxClassChars', 3, 0, 'Za1_9376',
+               '13_#Kad472h', 'Too may consecutive characters from the same class')
+        try_pw('passwordMaxClassChars', 3, 0, 'Za1_#$&!',
+               '13_#Kad472h', 'Too may consecutive characters from the same class')
+        try_pw('passwordMaxClassChars', 3, 0, 'Za1_ahtf',
+               '13_#Kad472h', 'Too may consecutive characters from the same class')
+        try_pw('passwordMaxClassChars', 3, 0, 'Za1_HTSE',
+               '13_#Kad472h', 'Too may consecutive characters from the same class')
+
+        # Bad words
+        try_pw('passwordBadWords', 'redhat', 'none', 'Za1_redhat',
+               '13_#Kad472h', 'Password contains a bad word')
+
+        # User Attributes
+        try_pw('passwordUserAttributes', 'description', 0, 'Za1_d_e_s_c',
+               '13_#Kad472h', 'Password found in user entry')
+
+
 def test_basic(topology_st, create_user, password_policy):
     """Ensure that on a password change, the policy syntax
     is enforced correctly.
@@ -129,168 +241,44 @@ def test_basic(topology_st, create_user, password_policy):
             passwordCheckSyntax - on; nsslapd-pwpolicy-local - off;
             passwordMinCategories - 1
     :steps:
-        1. Set passwordMinLength to 10 in cn=config
-        2. Set userPassword to 'passwd' in cn=config
-        3. Set userPassword to 'password123' in cn=config
-        4. Set passwordMinLength to 2 in cn=config
-        5. Set passwordMinDigits to 2 in cn=config
-        6. Set userPassword to 'passwd' in cn=config
-        7. Set userPassword to 'password123' in cn=config
-        8. Set passwordMinDigits to 0 in cn=config
-        9. Set passwordMinAlphas to 2 in cn=config
-        10. Set userPassword to 'p123456789' in cn=config
-        11. Set userPassword to 'password123' in cn=config
-        12. Set passwordMinAlphas to 0 in cn=config
-        13. Set passwordMaxRepeats to 2 in cn=config
-        14. Set userPassword to 'password' in cn=config
-        15. Set userPassword to 'password123' in cn=config
-        16. Set passwordMaxRepeats to 0 in cn=config
-        17. Set passwordMinSpecials to 2 in cn=config
-        18. Set userPassword to 'passwd' in cn=config
-        19. Set userPassword to 'password_#$' in cn=config
-        20. Set passwordMinSpecials to 0 in cn=config
-        21. Set passwordMinLowers to 2 in cn=config
-        22. Set userPassword to 'PASSWORD123' in cn=config
-        23. Set userPassword to 'password123' in cn=config
-        24. Set passwordMinLowers to 0 in cn=config
-        25. Set passwordMinUppers to 2 in cn=config
-        26. Set userPassword to 'password' in cn=config
-        27. Set userPassword to 'PASSWORD' in cn=config
-        28. Set passwordMinUppers to 0 in cn=config
-        29. Test passwordDictCheck
-        30. Test passwordPalindrome
-        31. Test passwordMaxSequence for forward number sequence
-        32. Test passwordMaxSequence for backward number sequence
-        33. Test passwordMaxSequence for forward alpha sequence
-        34. Test passwordMaxSequence for backward alpha sequence
-        35. Test passwordMaxClassChars for digits
-        36. Test passwordMaxClassChars for specials
-        37. Test passwordMaxClassChars for lowers
-        38. Test passwordMaxClassChars for uppers
-        39. Test passwordBadWords using 'redhat' and 'fedora'
-        40. Test passwordUserAttrs using description attribute
-
+        1. Run all syntax checks against cn=config (global policy), including
+           passwordMin8Bit using a UTF-8 password containing a Latin-1 letter.
+        2. Run the same checks against a subtree password policy on
+           ou=people,dc=example,dc=com (with passwordMinCategories 1 on the
+           subtree entry), then remove the subtree policy.
     :expectedresults:
-        1. passwordMinLength should be successfully set
-        2. Password should be rejected because length too short
-        3. Password should be accepted
-        4. passwordMinLength should be successfully set
-        5. passwordMinDigits should be successfully set
-        6. Password should be rejected because
-           it does not contain minimum number of digits
-        7. Password should be accepted
-        8. passwordMinDigits should be successfully set
-        9. passwordMinAlphas should be successfully set
-        10. Password should be rejected because
-            it does not contain minimum number of alphas
-        11. Password should be accepted
-        12. passwordMinAlphas should be successfully set
-        13. passwordMaxRepeats should be successfully set
-        14. Password should be rejected because too many repeating characters
-        15. Password should be accepted
-        16. passwordMaxRepeats should be successfully set
-        17. passwordMinSpecials should be successfully set
-        18. Password should be rejected because
-            it does not contain minimum number of special characters
-        19. Password should be accepted
-        20. passwordMinSpecials should be successfully set
-        21. passwordMinLowers should be successfully set
-        22. Password should be rejected because
-            it does not contain minimum number of lowercase characters
-        23. Password should be accepted
-        24. passwordMinLowers should be successfully set
-        25. passwordMinUppers should be successfully set
-        26. Password should be rejected because
-            it does not contain minimum number of lowercase characters
-        27. Password should be accepted
-        28. passwordMinUppers should be successfully set
-        29. The passwordDictCheck test succeeds
-        30. The passwordPalindrome test succeeds
-        31. Test passwordMaxSequence for forward number sequence succeeds
-        32. Test passwordMaxSequence for backward number sequence succeeds
-        33. Test passwordMaxSequence for forward alpha sequence succeeds
-        34. Test passwordMaxSequence for backward alpha sequence succeeds
-        35. Test passwordMaxClassChars for digits succeeds
-        36. Test passwordMaxClassChars for specials succeeds
-        37. Test passwordMaxClassChars for lowers succeeds
-        38. Test passwordMaxClassChars for uppers succeeds
-        39. The passwordBadWords test succeeds
-        40. The passwordUserAttrs test succeeds
+        1. Each policy attribute behaves as documented for self-service password change.
+        2. Subtree policy enforcement matches global for every check; cleanup succeeds.
     """
 
-    #
-    # Test each syntax category
-    #
-    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    standalone = topology_st.standalone
+
+    ous = OrganizationalUnits(standalone, DEFAULT_SUFFIX)
     ou = ous.get('people')
     ou.add('aci', USER_ACI)
 
-    # Min Length
-    tryPassword(topology_st.standalone, 'passwordMinLength', 10, 2, 'passwd',
-                'password123', 'length too short')
-    # Min Digit
-    tryPassword(topology_st.standalone, 'passwordMinDigits', 2, 0, 'passwd',
-                'password123', 'does not contain minimum number of digits')
-    # Min Alphas
-    tryPassword(topology_st.standalone, 'passwordMinAlphas', 2, 0, 'p123456789',
-                'password123', 'does not contain minimum number of alphas')
-    # Max Repeats
-    tryPassword(topology_st.standalone, 'passwordMaxRepeats', 2, 0, 'passsword',
-                'password123', 'too many repeating characters')
-    # Min Specials
-    tryPassword(topology_st.standalone, 'passwordMinSpecials', 2, 0, 'passwd',
-                'password_#$',
-                'does not contain minimum number of special characters')
-    # Min Lowers
-    tryPassword(topology_st.standalone, 'passwordMinLowers', 2, 0, 'PASSWORD123',
-                'password123',
-                'does not contain minimum number of lowercase characters')
-    # Min Uppers
-    tryPassword(topology_st.standalone, 'passwordMinUppers', 2, 0, 'password',
-                'PASSWORD',
-                'does not contain minimum number of lowercase characters')
-    # Min 8-bits - "ldap" package only accepts ascii strings at the moment
+    _run_password_syntax_checks(
+        lambda *args: tryPassword(standalone, *args))
 
-    if ds_is_newer('1.4.0.13'):
-        # Dictionary check
-        tryPassword(topology_st.standalone, 'passwordDictCheck', 'on', 'on', 'PASSWORD',
-                    '13_#Kad472h', 'Password found in dictionary')
-
-        # Palindromes
-        tryPassword(topology_st.standalone, 'passwordPalindrome', 'on', 'on', 'Za12_#_21aZ',
-                    '13_#Kad472h', 'Password is palindrome')
-
-        # Sequences
-        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_1234',
-                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
-        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_4321',
-                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
-        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_abcd',
-                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
-        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_dcba',
-                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
-
-        # Sequence Sets
-        tryPassword(topology_st.standalone, 'passwordMaxSeqSets', 2, 0, 'Za1_123--123',
-                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
-
-        # Max characters in a character class
-        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_9376',
-                    '13_#Kad472h', 'Too may consecutive characters from the same class')
-        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_#$&!',
-                    '13_#Kad472h', 'Too may consecutive characters from the same class')
-        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_ahtf',
-                    '13_#Kad472h', 'Too may consecutive characters from the same class')
-        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_HTSE',
-                    '13_#Kad472h', 'Too may consecutive characters from the same class')
-
-        # Bad words
-        tryPassword(topology_st.standalone, 'passwordBadWords', 'redhat', 'none', 'Za1_redhat',
-                    '13_#Kad472h', 'Too may consecutive characters from the same class')
-
-        # User Attributes
-        tryPassword(topology_st.standalone, 'passwordUserAttributes', 'description', 0, 'Za1_d_e_s_c',
-                    '13_#Kad472h', 'Password found in user entry')
+    log.info('\n\nRepeat syntax checks against subtree password policy at %s', PEOPLE_DN)
+    pwp = None
+    try:
+        pwp = PwPolicyManager(standalone)
+        pwp_entry = pwp.create_subtree_policy(
+            PEOPLE_DN,
+            {'passwordchange': 'on',
+             'passwordCheckSyntax': 'on',
+             'passwordMinCategories': '1'})
+        _run_password_syntax_checks(
+            lambda *args: tryPasswordSubtree(standalone, pwp_entry, *args))
+    finally:
+        standalone.simple_bind_s(DN_DM, PASSWORD)
+        if pwp is not None:
+            try:
+                pwp.delete_local_policy(PEOPLE_DN)
+            except ValueError:
+                pass
+        standalone.config.set('nsslapd-pwpolicy-local', 'off')
 
 
 @pytest.mark.skipif(ds_is_older("1.4.1.18"), reason="Not implemented")
@@ -341,18 +329,24 @@ def test_config_set_few_bad_words(topology_st, create_user, password_policy):
         1. Set passwordBadWords to "fedora redhat"
         2. Verify passwordBadWords has the values
         3. Verify passwordBadWords enforced the policy
+        4. Set global passwordBadWords again (distinct from subtree list)
+        5. Add subtree password policy for ou=people with passwordBadWords "ubuntu debian"
+        6. Verify subtree passwordBadWords and enforcement (comma / space separated)
+        7. Remove subtree policy and restore nsslapd-pwpolicy-local
     :expectedresults:
         1. Operation should be successful
         2. Operation should be successful
         3. Operation should be successful
+        4. Operation should be successful
+        5. Operation should be successful
+        6. Operation should be successful
+        7. Cleanup succeeds
     """
 
     standalone = topology_st.standalone
     standalone.simple_bind_s(DN_DM, PASSWORD)
     standalone.log.info('Set passwordBadWords to "fedora redhat"')
     standalone.config.set('passwordBadWords', 'fedora redhat')
-
-    standalone.restart()
 
     standalone.log.info("Verify passwordBadWords has the values")
     user_attrs = standalone.config.get_attr_val_utf8('passwordBadWords')
@@ -367,7 +361,45 @@ def test_config_set_few_bad_words(topology_st, create_user, password_policy):
     for attr in attributes:
         for value in values:
             tryPassword(standalone, 'passwordBadWords', attr, 'none', value,
-                        '13_#Kad472h', 'Too may consecutive characters from the same class')
+                        '13_#Kad472h', 'Password contains a bad word')
+
+    standalone.log.info(
+        '\n\nSubtree password policy at %s with passwordBadWords ubuntu debian '
+        '(distinct from global fedora/redhat)' % PEOPLE_DN)
+    standalone.simple_bind_s(DN_DM, PASSWORD)
+    standalone.config.set('passwordBadWords', 'fedora redhat')
+
+    # Test passwordBadWords using a local password policy
+    pwp = PwPolicyManager(standalone)
+    try:
+        pwp_entry = pwp.create_subtree_policy(
+            PEOPLE_DN,
+            {'passwordchange': 'on',
+             'passwordCheckSyntax': 'on',
+             'passwordBadWords': 'ubuntu debian'})
+
+        subtree_attrs = pwp_entry.get_attr_val_utf8('passwordBadWords')
+        assert 'ubuntu' in subtree_attrs.lower()
+        assert 'debian' in subtree_attrs.lower()
+        assert 'fedora' not in subtree_attrs.lower()
+        assert 'redhat' not in subtree_attrs.lower()
+
+        subtree_attr_variants = ['ubuntu, debian', 'ubuntu,debian', 'ubuntu debian']
+        subtree_values = ['Za1_ubuntu_debian', 'Za1_debian', 'Za1_ubuntu']
+        for attr in subtree_attr_variants:
+            for value in subtree_values:
+                tryPasswordSubtree(
+                    standalone, pwp_entry, 'passwordBadWords', attr, 'none', value,
+                    '13_#Kad472h',
+                    'Password contains a bad word')
+    finally:
+        standalone.simple_bind_s(DN_DM, PASSWORD)
+        try:
+            pwp.delete_local_policy(PEOPLE_DN)
+        except ValueError:
+            pass
+        standalone.config.remove_all('passwordBadWords')
+        standalone.config.set('nsslapd-pwpolicy-local', 'off')
 
 
 if __name__ == '__main__':
