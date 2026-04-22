@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -1066,7 +1066,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 {
     Slapi_Attr *attr;
     Slapi_Value **va = NULL;
-    int i, pwresponse_req = 0;
+    int pwresponse_req = 0;
     int is_replication = 0;
     int internal_op = 0;
     char *dn = (char *)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
@@ -1116,7 +1116,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
      * when processing an internal operation to handle a special
      * case for the password modify extended operation.
      */
-    for (i = 0; vals[i] != NULL; ++i) {
+    for (size_t i = 0; vals[i] != NULL; ++i) {
         if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
             if (!is_replication && !config_get_allow_hashed_pw() &&
                 ((internal_op && pb_conn && !slapi_dn_isroot(pb_conn->c_dn)) ||
@@ -1149,7 +1149,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
     }
 
     if (pwpolicy->pw_syntax == LDAP_ON) {
-        for (i = 0; vals[i] != NULL; ++i) {
+        for (size_t i = 0; vals[i] != NULL; ++i) {
             int syntax_violation = 0;
             int num_digits = 0;
             int num_alphas = 0;
@@ -1160,7 +1160,6 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             int num_repeated = 0;
             int max_repeated = 0;
             int num_categories = 0;
-            char **bad_words_array;
 
             pwd = (char *)slapi_value_get_string(vals[i]);
 
@@ -1182,16 +1181,13 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             }
 
             /* Check for bad words */
-            bad_words_array = config_get_pw_bad_words_array();
-            if (bad_words_array) {
-                for (size_t b = 0; bad_words_array && bad_words_array[b]; b++) {
-                    if (strcasestr(pwd, bad_words_array[b])) {
+            if (pwpolicy->pw_bad_words_array) {
+                for (size_t b = 0; pwpolicy->pw_bad_words_array[b]; b++) {
+                    if (strcasestr(pwd, pwpolicy->pw_bad_words_array[b])) {
                         report_pw_violation(pb, dn, pwresponse_req, "Password contains a restricted word");
-                        charray_free(bad_words_array);
                         return (1);
                     }
                 }
-                charray_free(bad_words_array);
             }
 
             /* Check for sequences */
@@ -1415,7 +1411,6 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
     /* check for trivial words if syntax checking is enabled */
     if (pwpolicy->pw_syntax == LDAP_ON) {
-        char **user_attrs_array;
         /* e is null if this is an add operation*/
         if (check_trivial_words(pb, e, vals, "uid", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "cn", pwpolicy->pw_mintokenlength, smods) == 1 ||
@@ -1431,18 +1426,15 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             return 1;
         }
         /* Check user attributes */
-        user_attrs_array = config_get_pw_user_attrs_array();
-        if (user_attrs_array) {
-            for (size_t a = 0; user_attrs_array && user_attrs_array[a]; a++) {
-                if (check_trivial_words(pb, e, vals, user_attrs_array[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
+        if (pwpolicy->pw_cmp_attrs_array) {
+            for (size_t a = 0; pwpolicy->pw_cmp_attrs_array[a]; a++) {
+                if (check_trivial_words(pb, e, vals, pwpolicy->pw_cmp_attrs_array[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
                     if (mod_op) {
                         slapi_entry_free(e);
                     }
-                    charray_free(user_attrs_array);
                     return 1;
                 }
             }
-            charray_free(user_attrs_array);
         }
     }
 
@@ -2450,6 +2442,14 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     pwdpolicy->pw_maxrepeats = g_pwdpolicy->pw_maxrepeats;
                     pwdpolicy->pw_mincategories = g_pwdpolicy->pw_mincategories;
                     pwdpolicy->pw_mintokenlength = g_pwdpolicy->pw_mintokenlength;
+                    pwdpolicy->pw_max_seq = g_pwdpolicy->pw_max_seq;
+                    pwdpolicy->pw_seq_char_sets = g_pwdpolicy->pw_seq_char_sets;
+                    pwdpolicy->pw_max_class_repeats = g_pwdpolicy->pw_max_class_repeats;
+                    pwdpolicy->pw_palindrome = g_pwdpolicy->pw_palindrome;
+                    pwdpolicy->pw_check_dict = g_pwdpolicy->pw_check_dict;
+                    pwdpolicy->pw_dict_path = g_pwdpolicy->pw_dict_path;
+                    pwdpolicy->pw_cmp_attrs_array = config_get_pw_user_attrs_array();
+                    pwdpolicy->pw_bad_words_array = config_get_pw_bad_words_array();
                     pwdpolicy->pw_syntax = LDAP_ON; /* Need to enable it to apply the default values */
                 }
             }
@@ -2494,6 +2494,13 @@ delete_passwdPolicy(passwdPolicy **pwpolicy)
                 i++;
             }
             slapi_ch_free((void **)&(*(*pwpolicy)).pw_admin_user);
+        }
+        if ((*(*pwpolicy)).pw_local_dn) {
+            /* local policies have their own copies that need to be freed */
+            slapi_ch_array_free((*(*pwpolicy)).pw_bad_words_array);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_bad_words);
+            slapi_ch_array_free((*(*pwpolicy)).pw_cmp_attrs_array);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_cmp_attrs);
         }
         slapi_ch_free_string(&(*(*pwpolicy)).pw_local_dn);
         slapi_ch_free((void **)pwpolicy);
