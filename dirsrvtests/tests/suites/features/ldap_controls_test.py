@@ -139,7 +139,7 @@ def test_ignored_criticality(topology_st):
     ctrls = { oid: ldap.controls.RequestControl(controlType=oid, criticality=True) \
                 for oid in TESTED_CTRLS }
 
-    all_sets = all_combinations(TESTED_CTRLS)
+    all_sets = list(all_combinations(TESTED_CTRLS))
     for ignored_ctrls in all_sets:
         for send_ctrls in all_sets:
             set_ignored_criticality(inst, ignored_ctrls)
