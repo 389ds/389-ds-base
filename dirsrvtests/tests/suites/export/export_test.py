@@ -11,7 +11,7 @@ import pytest
 import subprocess
 import ldap
 from lib389.idm.organizationalunit import OrganizationalUnit
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.utils import *
 from lib389.paths import Paths

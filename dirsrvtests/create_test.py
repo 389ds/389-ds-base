@@ -260,9 +260,9 @@ if len(sys.argv) > 0:
 
     # Write the imports
     if my_topology[0]:
-        topology_import = 'from lib389.topologies import {} as topo\n'.format(my_topology[1])
+        topology_import = 'from test389.topologies import {} as topo\n'.format(my_topology[1])
     else:
-        topology_import = 'from lib389.topologies import create_topology\n'
+        topology_import = 'from test389.topologies import create_topology\n'
 
     TEST.write('import logging\nimport pytest\nimport os\n')
     TEST.write('from lib389._constants import *\n')

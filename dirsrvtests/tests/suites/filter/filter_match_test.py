@@ -15,7 +15,7 @@ import os
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cos import CosTemplates
 from lib389.schema import Schema
 

@@ -13,7 +13,7 @@ import ldap
 import resource
 from lib389.backend import Backends
 from lib389._constants import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.utils import ds_is_older, ensure_str, is_fips
 from subprocess import check_output
 

@@ -16,7 +16,7 @@ import ldap
 from datetime import datetime
 from random import sample
 from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
-from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
+from test389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin, RetroChangelogPlugin
 from lib389.backend import Backends

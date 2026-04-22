@@ -16,7 +16,7 @@ from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.account import list, get_dn, lock, unlock, delete, modify, rename, entry_status, \
     subtree_status, reset_password, change_password
 from lib389.cli_idm.user import create
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older, is_a_dn
 from lib389.idm.user import nsUserAccounts

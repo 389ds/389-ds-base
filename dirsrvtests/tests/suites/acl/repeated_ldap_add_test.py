@@ -12,7 +12,7 @@ import pytest
 from lib389.paths import Paths
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, PASSWORD, SERVERID_STANDALONE
 

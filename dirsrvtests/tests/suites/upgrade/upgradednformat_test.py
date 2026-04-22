@@ -12,7 +12,7 @@ import pytest
 import time
 import subprocess
 import os
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.backend import Backends, DatabaseConfig
 from lib389.dseldif import DSEldif
 from lib389.plugins import Plugins

@@ -10,7 +10,7 @@ import logging
 import pytest
 import os
 from lib389._constants import DEFAULT_SUFFIX,  ReplicaRole
-from lib389.topologies import topology_m1h1c1 as topo
+from test389.topologies import topology_m1h1c1 as topo
 from lib389.replica import Replicas, ReplicationManager, Agreements
 
 pytestmark = pytest.mark.tier1

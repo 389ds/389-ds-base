@@ -11,7 +11,7 @@ import time
 import os
 import ldap
 import pytest
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.plugins import RetroChangelogPlugin
 from lib389._constants import DEFAULT_SUFFIX, RETROCL_SUFFIX, DN_DM, PW_DM
 from lib389.cli_base import FakeArgs, connect_instance, disconnect_instance

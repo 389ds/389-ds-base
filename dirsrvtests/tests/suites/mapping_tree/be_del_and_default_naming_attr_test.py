@@ -10,7 +10,7 @@ import logging
 import pytest
 import os
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1 as topo
 from lib389.backend import Backends
 from lib389.encrypted_attributes import EncryptedAttrs
 

@@ -11,7 +11,7 @@ import pytest
 import os
 import shutil
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.plugins import PAMPassThroughAuthPlugin, PAMPassThroughAuthConfigs
 from lib389.idm.user import UserAccounts, DEFAULT_BASEDN_RDN

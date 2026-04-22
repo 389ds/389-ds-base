@@ -13,7 +13,7 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from .. import setup_page, check_frame_assignment, setup_login, create_entry, delete_entry, load_ldap_browser_tab

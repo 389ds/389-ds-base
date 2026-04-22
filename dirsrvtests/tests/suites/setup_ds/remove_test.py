@@ -13,7 +13,7 @@ import logging
 from lib389 import DirSrv
 from lib389.instance.remove import remove_ds_instance
 from lib389._constants import ReplicaRole
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier0

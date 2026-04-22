@@ -19,7 +19,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.tombstone import Tombstones
 from lib389.rootdse import RootDSE
-from lib389.topologies import topology_st, topology_m2
+from test389.topologies import topology_st, topology_m2
 
 pytestmark = pytest.mark.tier1
 

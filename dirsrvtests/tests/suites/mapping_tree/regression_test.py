@@ -16,7 +16,7 @@ from lib389.backend import Backends, Backend
 from lib389._constants import HOST_STANDALONE, PORT_STANDALONE, DN_DM, PW_DM
 from lib389.dbgen import dbgen_users
 from lib389.mappingTree import MappingTrees
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.referral import Referrals, Referral
 
 

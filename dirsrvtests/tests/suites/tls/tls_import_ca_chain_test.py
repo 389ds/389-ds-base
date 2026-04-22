@@ -12,7 +12,7 @@ import ldap
 import os
 
 from lib389.nss_ssl import NssSsl
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 pytestmark = pytest.mark.tier1
 

@@ -12,7 +12,7 @@ import logging
 import os
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.backend import Backends
 from lib389.index import VLVSearch, VLVIndex

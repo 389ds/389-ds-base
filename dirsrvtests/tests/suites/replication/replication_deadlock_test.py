@@ -18,8 +18,8 @@ import pytest
 import ldap
 
 from lib389._mapped_object import DSLdapObjects
-from lib389.topologies import topology_m2 as topo
-from lib389.topologies import topology_st
+from test389.topologies import topology_m2 as topo
+from test389.topologies import topology_st
 from lib389.replica import Replicas, ReplicationManager
 from lib389.agreement import Agreements
 from lib389.tasks import ImportTask, ExportTask

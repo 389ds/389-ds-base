@@ -15,7 +15,7 @@ import re
 from lib389._constants import *
 from lib389.config import Config
 from lib389 import DirSrv, Entry
-from lib389.topologies import topology_m3 as topo
+from test389.topologies import topology_m3 as topo
 
 pytestmark = pytest.mark.tier2
 

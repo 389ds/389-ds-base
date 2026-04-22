@@ -23,7 +23,7 @@ from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.health import health_check_run
-from lib389.topologies import topology_m2, topology_m3
+from test389.topologies import topology_m2, topology_m3
 from lib389.paths import Paths
 
 CMD_OUTPUT = 'No issues found.'

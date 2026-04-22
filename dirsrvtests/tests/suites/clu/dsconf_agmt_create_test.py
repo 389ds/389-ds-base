@@ -10,7 +10,7 @@ import logging
 import pytest
 import time
 import subprocess
-from lib389.topologies import topology_i2 as topo_i2
+from test389.topologies import topology_i2 as topo_i2
 from lib389.replica import ReplicationManager, Replicas
 from lib389._constants import *
 from lib389.agreement import Agreements

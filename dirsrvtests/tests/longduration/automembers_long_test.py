@@ -14,7 +14,7 @@ import os
 import pytest
 
 from lib389.tasks import DEFAULT_SUFFIX
-from lib389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m4 as topo_m4
 from lib389.idm.nscontainer import nsContainers, nsContainer
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain

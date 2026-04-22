@@ -14,7 +14,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.account import Anonymous
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD
 from lib389.replica import ReplicationManager
 

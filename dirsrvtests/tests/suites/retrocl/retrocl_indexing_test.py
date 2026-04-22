@@ -11,8 +11,8 @@ import pytest
 import os
 import ldap
 from lib389._constants import RETROCL_SUFFIX, DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
-from lib389.topologies import topology_m1
+from test389.topologies import topology_st as topo
+from test389.topologies import topology_m1
 from lib389.plugins import RetroChangelogPlugin
 from lib389.idm.user import UserAccounts
 from lib389._mapped_object import DSLdapObjects

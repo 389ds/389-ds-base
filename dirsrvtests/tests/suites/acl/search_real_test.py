@@ -12,7 +12,7 @@ from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.group import Groups
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 from lib389.idm.posixgroup import PosixGroups
 

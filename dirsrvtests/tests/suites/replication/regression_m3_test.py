@@ -16,7 +16,7 @@ from lib389.utils import *
 from lib389._constants import *
 from lib389.replica import Changelog5
 from lib389.dseldif import *
-from lib389.topologies import topology_m3 as topo_m3
+from test389.topologies import topology_m3 as topo_m3
 from lib389.agreement import Agreements
 from lib389.replica import ReplicationManager, Replicas
 

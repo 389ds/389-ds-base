@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.password_plugins import PBKDF2SHA256Plugin
 from lib389.utils import ds_is_older
 

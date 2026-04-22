@@ -16,7 +16,7 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m3 as T
+from test389.topologies import topology_m3 as T
 import socket
 
 # Skip on older versions

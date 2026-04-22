@@ -21,7 +21,7 @@ from lib389._constants import ErrorLog, PW_DM, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles, NestedRoles
 from lib389.idm.domain import Domain
 from lib389.dbgen import dbgen_users

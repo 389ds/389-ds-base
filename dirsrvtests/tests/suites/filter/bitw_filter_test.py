@@ -13,7 +13,7 @@ This script will test different type of Filers.
 import os
 import ldap
 import pytest
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import PW_DM
 from lib389.idm.user import UserAccounts
 from lib389.idm.account import Accounts

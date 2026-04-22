@@ -16,7 +16,7 @@ import pytest
 import ldap
 
 from lib389._constants import PW_DM, DEFAULT_SUFFIX, ErrorLog
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.account import Accounts
 from lib389.backend import Backends

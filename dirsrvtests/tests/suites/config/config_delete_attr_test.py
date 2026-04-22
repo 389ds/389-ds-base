@@ -9,7 +9,7 @@
 import pytest
 
 from lib389.utils import os, logging, ds_is_older, ldap
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)

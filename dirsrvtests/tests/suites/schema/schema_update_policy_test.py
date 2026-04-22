@@ -12,7 +12,7 @@ import ldap
 import time
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
 from lib389._mapped_object import DSLdapObject

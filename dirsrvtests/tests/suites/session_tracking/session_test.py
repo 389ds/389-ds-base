@@ -13,11 +13,11 @@ from lib389 import Entry
 from ldap import SCOPE_SUBTREE, ALREADY_EXISTS
 from ldap.controls import SimplePagedResultsControl
 from ldap.controls.sessiontrack import SessionTrackingControl, SESSION_TRACKING_CONTROL_OID
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m2 as topo_m2
 from  ldap.extop import ExtendedRequest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM, PLUGIN_MEMBER_OF
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.plugins import MemberOfPlugin
 
 from lib389.schema import Schema

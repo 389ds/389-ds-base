@@ -18,8 +18,8 @@ import re
 import logging
 import subprocess
 from datetime import datetime
-from lib389.topologies import topology_st as topo
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_st as topo
+from test389.topologies import topology_m2 as topo_m2
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
 from lib389.tasks import ImportTask
