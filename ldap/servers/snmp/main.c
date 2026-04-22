@@ -454,7 +454,7 @@ load_config(char *conf_path)
                             /* 8 =  "/" + ".stats" + \0 */
                             serv_p->stats_file = calloc(1, vlen + (instancename ? strlen(instancename) : 0) + 8);
                             if (serv_p->stats_file && instancename) {
-                                snprintf(serv_p->stats_file, vlen + strlen(instancename) + 7,
+                                snprintf(serv_p->stats_file, vlen + strlen(instancename) + 8,
                                          "%s/%s.stats", val, instancename);
                             } else {
                                 printf("ldap-agent: malloc error processing config file\n");
