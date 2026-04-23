@@ -23,6 +23,7 @@ from lib389.config import LDBMConfig
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, PW_DM, SER_ROOT_DN, SER_ROOT_PW
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389.dbgen import dbgen_users
+from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.idm.domain import Domain
 from lib389.idm.group import Groups, Group
 from lib389.idm.nscontainer import nsContainer
@@ -1012,6 +1013,160 @@ def test_concurrent_modifications_during_indexing(topo, homeDirectory_index_clea
     log.info("Cleaning up test data")
     for user in test_users:
         user.delete()
+
+
+@pytest.fixture(scope="function")
+def homeDirectory_setup(request, topo, homeDirectory_index_cleanup):
+    """ Create test entries and index for homeDirectory"""
+    log.info("Add POSIX users with per-entry homeDirectory values")
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user_list = []
+    for cpt in range(20):
+        name = f"new_account{cpt}"
+        u = users.create(properties={
+            'uid': name,
+            'cn': name,
+            'sn': name,
+            'uidNumber': f'1{cpt}',
+            'gidNumber': f'2{cpt}',
+            'homeDirectory': f"/home/{name}_{cpt}",
+        })
+        user_list.append(u)
+
+    backends = Backends(topo.standalone)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    index = indexes.create(properties={
+        'cn': 'homeDirectory',
+        'nsSystemIndex': 'false',
+        'nsIndexType': 'eq'
+    })
+
+    def fin():
+        for user in user_list:
+            user.delete()
+        index.delete()
+        topo.standalone.restart()
+
+    request.addfinalizer(fin)
+
+    return user_list, index
+
+
+def setup_matching_rule(topo, index):
+    index.replace('nsMatchingRule',
+                  ['caseIgnoreIA5Match', 'caseExactIA5Match'])
+    topo.standalone.restart()
+
+    log.info("Reindex homeDirectory")
+    tasks = Tasks(topo.standalone)
+    assert tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='homeDirectory',
+        args={TASK_WAIT: True}
+    ) == 0
+
+
+def test_reindex_homedirectory_matching_rules(topo, homeDirectory_setup):
+    """Reindexing homeDirectory succeeds when both caseIgnoreIA5Match and caseExactIA5Match are
+    set on the index, with no "unknown or invalid matching rule" in the error log.
+
+    The homeDirectory_setup fixture creates multiple POSIX users, adds a default eq index
+    for homeDirectory, and defers index and entry cleanup. This test then applies the dual
+    IA5 matching rules, restarts, and runs a reindex. The log is scanned to ensure the server
+    does not report an invalid matching rule after that configuration and reindex.
+    Pre-existing error log content is removed first so the scan is limited to this test run.
+
+    :id: 48270a0b-1c2d-3e4f-5a6b-7c8d9e0f1a2b
+    :setup: Standalone instance, homeDirectory_setup (sample users, homeDirectory index)
+    :steps:
+        1. Delete the instance error log files and restart the server (empty log)
+        2. Set nsMatchingRule to caseIgnoreIA5Match and caseExactIA5Match, restart, reindex
+        3. Scan the error log for the substring unknown or invalid matching rule
+    :expectedresults:
+        1. Server is back up with no prior error log lines
+        2. Reindex task completes with return code 0; no such error line appears
+        3. Assertion holds (no match found)
+    """
+
+    user_list, index = homeDirectory_setup
+
+    log.info("Remove existing error logs so the scan is limited to reindex/matching-rule output")
+    topo.standalone.deleteErrorLogs(restart=True)
+
+    setup_matching_rule(topo, index)
+
+    log.info("Scan error log for bad matching rule")
+    errlog = DirsrvErrorLog(topo.standalone)
+    assert not errlog.match("unknown or invalid matching rule")
+
+
+def test_reindex_homedirectory_mixed_value(topo, homeDirectory_setup):
+    """Equality and extensible filters on homeDirectory with dual IA5 matching rules and mixed
+    storage.
+
+    After the same index configuration and reindex as test_reindex_homedirectory_matching_rules,
+    one user stores a mixed-case homeDirectory value. Base-scope searches use plain equality,
+    caseExactIA5Match (case-sensitive to the stored IA5 value), and caseIgnoreIA5Match
+    (casefolding). A lowercased path matches caseIgnore but not caseExact or default eq when it
+    is not the same string as stored.
+
+    :id: 48270b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c
+    :setup: Standalone instance, homeDirectory_setup, then setup_matching_rule (MRs, restart, reindex)
+    :steps:
+        1. On new_account1, replace homeDirectory with a mixed-case path
+        2. Base search (homeDirectory=<mixed>); expect one entry
+        3. Base search (homeDirectory:caseExactIA5Match:=<mixed>); expect one entry
+        4. Base search (homeDirectory=<lower>); expect no entry
+        5. Base search (homeDirectory:caseExactIA5Match:=<lower>); expect no entry
+        6. Base search (homeDirectory:caseIgnoreIA5Match:=<lower>); expect one entry
+    :expectedresults:
+        1. Success
+        2. One entry found
+        3. One entry found
+        4. No entry found
+        5. No entry found
+        6. One entry found
+    """
+
+    MIXED_VALUE = "/home/mYhOmEdIrEcToRy"
+    LOWER_VALUE = "/home/myhomedirectory"
+
+    user_list, index = homeDirectory_setup
+    setup_matching_rule(topo, index)
+
+    target = user_list[1]
+    log.info("Replace homeDirectory with mixed-case value")
+    target.replace('homeDirectory', MIXED_VALUE)
+
+
+    inst = topo.standalone
+
+    log.info("Search with plain eq search")
+    r = inst.search_s(target.dn, ldap.SCOPE_BASE, f"(homeDirectory={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Search with caseExactIA5Match")
+    r = inst.search_s(
+        target.dn, ldap.SCOPE_BASE, f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})"
+    )
+    assert len(r) == 1
+
+    log.info("Search with lower-case value")
+    r = inst.search_s(target.dn, ldap.SCOPE_BASE, f"(homeDirectory={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Search with caseExactIA5Match and lower-case value")
+    r = inst.search_s(
+        target.dn, ldap.SCOPE_BASE, f"(homeDirectory:caseExactIA5Match:={LOWER_VALUE})"
+    )
+    assert len(r) == 0
+
+    log.info("Search with caseIgnoreIA5Match and lower-case value")
+    r = inst.search_s(
+        target.dn, ldap.SCOPE_BASE, f"(homeDirectory:caseIgnoreIA5Match:={LOWER_VALUE})"
+    )
+    assert len(r) == 1
 
 
 def test_idl_range_limit(topo, add_some_entries):
