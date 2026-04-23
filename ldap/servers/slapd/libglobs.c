@@ -749,7 +749,7 @@ static struct config_get_and_set
     {CONFIG_STATLOGLEVEL_ATTRIBUTE, config_set_statlog_level,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.statloglevel,
-     CONFIG_INT, NULL, SLAPD_DEFAULT_STATLOG_LEVEL, NULL},
+     CONFIG_INT, NULL, SLAPD_DEFAULT_STATLOG_LEVEL_STR, NULL},
     {CONFIG_SECURITYLOGLEVEL_ATTRIBUTE, config_set_securitylog_level,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securityloglevel,

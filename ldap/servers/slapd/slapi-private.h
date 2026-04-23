@@ -1647,6 +1647,10 @@ typedef struct slapd_log_pblock {
     CSN *csn;
     int32_t pr_idx;
     int32_t pr_cookie;
+    /* Thread pool stats, -1 if not captured */
+    int32_t wbusy;
+    int32_t wmax;
+    int32_t wqdepth;
     /* Misc */
     const char *oid;
     const char *msg;

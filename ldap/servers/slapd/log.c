@@ -7356,6 +7356,9 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
     logpb->op_nested_count = -1;
     logpb->pr_cookie = -1;
     logpb->pr_idx = -1;
+    logpb->wbusy = -1;
+    logpb->wmax = -1;
+    logpb->wqdepth = -1;
     logpb->curr_time = slapi_current_utc_time_hr();
 
     if (conn) {

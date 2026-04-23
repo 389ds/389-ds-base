@@ -860,7 +860,7 @@ int lock_fclose(FILE *fp, FILE *lfp);
 #define LDAP_DEBUG_ALL_LEVELS 0xFFFFFF
 
 #define LDAP_STAT_READ_INDEX  0x00000001  /*         1 */
-#define LDAP_STAT_FREE_1      0x00000002  /*         2 */
+#define LDAP_STAT_THREAD_POOL 0x00000002  /*         2 */
 
 extern int slapd_ldap_debug;
 

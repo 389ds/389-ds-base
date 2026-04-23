@@ -24,7 +24,8 @@ from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, Aut
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD, ErrorLog
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, LOG_ACCESS_LEVEL, PASSWORD, ErrorLog
+from lib389.dirsrv_log import DirsrvAccessJSONLog
 from lib389.utils import ds_is_older, ds_is_newer
 from lib389.config import RSA
 from lib389.dseldif import DSEldif
@@ -39,6 +40,14 @@ log = logging.getLogger(__name__)
 
 PLUGIN_LOGGING = 'nsslapd-plugin-logging'
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
+THREAD_POOL_OP_TAGS = {
+    ldap.RES_BIND:          "BIND",
+    ldap.RES_SEARCH_RESULT: "SEARCH",
+    ldap.RES_MODIFY:        "MOD",
+    ldap.RES_ADD:           "ADD",
+    ldap.RES_DELETE:        "DEL",
+    ldap.RES_EXTENDED:      "EXTOP",
+}
 
 
 def add_users(topology_st, users_num):
@@ -1258,6 +1267,297 @@ def test_stat_internal_op(topology_st, request):
         group.delete()
 
     request.addfinalizer(fin)
+
+
+@pytest.fixture
+def thread_pool_log_setup(topology_st, request):
+    """Standalone instance with unbuffered plain-text access log, statlog off
+    and a clean access log on disk.
+    """
+    inst = topology_st.standalone
+    inst.config.replace("nsslapd-accesslog-logbuffering", "off")
+    inst.config.replace("nsslapd-accesslog-log-format", "default")
+    inst.config.replace("nsslapd-statlog-level", "0")
+    inst.deleteAccessLogs(restart=True)
+
+    def fin():
+        inst.config.replace("nsslapd-statlog-level", "0")
+        inst.config.replace("nsslapd-accesslog-log-format", "default")
+        for u in UserAccounts(inst, DEFAULT_SUFFIX).filter('(uid=pool_*)'):
+            try:
+                u.delete()
+            except Exception:
+                pass
+    request.addfinalizer(fin)
+    return inst
+
+
+def _exercise_all_op_types(inst, tag):
+    """Drive one of each externally-initiated op type so each produces a
+    RESULT: BIND, ADD, SEARCH, MOD, EXTOP (WhoAmI), DEL. `tag` keeps uids
+    unique across invocations.
+    """
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    uid = f'pool_{tag}'
+    inst.simple_bind_s(DN_DM, PASSWORD)
+    user = users.create(properties={
+        'uid': uid, 'sn': uid, 'cn': uid,
+        'uidNumber': '7001', 'gidNumber': '7000',
+        'homeDirectory': f'/home/{uid}',
+    })
+    inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f'uid={uid}')
+    user.replace('description', 'pool-test')
+    inst.whoami_s()
+    user.delete()
+
+
+def test_stat_thread_pool_off_by_default(thread_pool_log_setup):
+    """Default nsslapd-statlog-level=0 emits no thread pool stats on RESULT.
+
+    :id: 8e289662-ccb7-4647-be81-a637750a5e13
+    :setup: Standalone instance, statlog-level=0
+    :steps:
+        1. Confirm nsslapd-statlog-level is 0
+        2. Exercise one of each externally-initiated op type
+        3. No RESULT line carries wbusy=
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = thread_pool_log_setup
+    assert inst.config.get_attr_val_int("nsslapd-statlog-level") == 0
+    _exercise_all_op_types(inst, 'default')
+    time.sleep(1)
+    assert not inst.ds_access_log.match(r'.*RESULT.*wbusy=.*')
+
+
+def test_stat_thread_pool_runtime_toggle(thread_pool_log_setup):
+    """Pool stats turn on with level=2 and back off with level=0 at runtime.
+
+    :id: cd22210b-56d1-4ab1-83c2-1c560cd86494
+    :setup: Standalone instance
+    :steps:
+        1. Runtime-set level=2 and exercise ops - RESULT lines carry pool stats
+        2. Runtime-set level=0, clear the access log, exercise ops again -
+           no RESULT line carries pool stats
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    inst = thread_pool_log_setup
+
+    inst.config.replace("nsslapd-statlog-level", "2")
+    _exercise_all_op_types(inst, 'on')
+    time.sleep(1)
+    assert inst.ds_access_log.match(r'.*RESULT.*wbusy=.*')
+
+    inst.config.replace("nsslapd-statlog-level", "0")
+    inst.deleteAccessLogs(restart=True)
+    _exercise_all_op_types(inst, 'off')
+    time.sleep(1)
+    assert not inst.ds_access_log.match(r'.*RESULT.*wbusy=.*')
+
+
+def test_stat_thread_pool_plain_text(thread_pool_log_setup):
+    """Plain-text RESULT for every external op type carries pool stats.
+
+    :id: 6c59a8cb-6bfa-4955-8fff-83bca66d4033
+    :setup: Standalone instance, statlog-level=2, default (text) format
+    :steps:
+        1. Runtime-set level=2
+        2. Exercise BIND/ADD/SEARCH/MOD/EXTOP/DEL
+        3. For each op tag a RESULT line contains wbusy=N/M wqdepth=N
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-statlog-level", "2")
+    _exercise_all_op_types(inst, 'plain')
+    time.sleep(1)
+
+    for op_tag, op_name in THREAD_POOL_OP_TAGS.items():
+        assert inst.ds_access_log.match(
+            rf'.*RESULT .* tag={op_tag} .*wbusy=[0-9]+/[0-9]+ '
+            rf'wqdepth=[0-9]+.*'), \
+            f"no plain-text RESULT with pool stats for {op_name} (tag={op_tag})"
+
+
+def test_stat_thread_pool_json(thread_pool_log_setup):
+    """JSON RESULT event for every external op type carries wbusy/wmax/wqdepth.
+
+    :id: fb87f936-fdba-4f63-ae68-588396cd6086
+    :setup: Standalone instance, statlog-level=2, JSON access log
+    :steps:
+        1. Runtime-switch access log format to JSON and set level=2
+        2. Exercise all op types
+        3. Every op tag has a RESULT event with wbusy, wmax and wqdepth of
+           integer type and sane values
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-accesslog-log-format", "json")
+    inst.config.replace("nsslapd-statlog-level", "2")
+    _exercise_all_op_types(inst, 'json')
+    time.sleep(1)
+
+    seen_tags = set()
+    json_log = DirsrvAccessJSONLog(inst)
+    for line in json_log.readlines():
+        event = json_log.parse_line(line)
+        if event is None or 'header' in event:
+            continue
+        if event.get('operation') != 'RESULT':
+            continue
+        if 'wbusy' not in event:
+            continue
+
+        assert 'wmax' in event
+        assert 'wqdepth' in event
+        assert isinstance(event['wbusy'], int)
+        assert isinstance(event['wmax'], int)
+        assert isinstance(event['wqdepth'], int)
+        assert event['wbusy'] >= 0
+        assert event['wmax'] > 0
+        assert event['wqdepth'] >= 0
+        assert event['wbusy'] <= event['wmax'], \
+            f"wbusy {event['wbusy']} exceeds wmax {event['wmax']}"
+
+        tag = event.get('tag')
+        if isinstance(tag, int):
+            seen_tags.add(tag)
+
+    for op_tag, op_name in THREAD_POOL_OP_TAGS.items():
+        assert op_tag in seen_tags, \
+            f"no JSON RESULT with wbusy/wmax/wqdepth for {op_name} (tag={op_tag})"
+
+
+def test_stat_thread_pool_coexists_with_index(thread_pool_log_setup):
+    """Level=3 emits both STAT index lines and RESULT pool stats.
+
+    :id: 8b4f2e2d-5a3a-4b8f-a15d-6b8e6b19f0e3
+    :setup: Standalone instance, statlog-level=3
+    :steps:
+        1. Runtime-set level=3
+        2. Exercise ops so index reads and RESULT lines are both produced
+        3. The log contains both STAT read index lines and RESULT pool stats
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-statlog-level", "3")
+    _exercise_all_op_types(inst, 'both')
+    time.sleep(1)
+    assert inst.ds_access_log.match(r'.*STAT read index.*')
+    assert inst.ds_access_log.match(
+        r'.*RESULT.*wbusy=[0-9]+/[0-9]+.*wqdepth=[0-9]+.*')
+
+
+@pytest.mark.parametrize("value", ["0", "1", "2", "3", "255"])
+def test_statlog_level_accepts_valid(thread_pool_log_setup, value):
+    """nsslapd-statlog-level accepts valid non-negative integer flag values.
+
+    :id: 7a5dbcec-ab26-4bc0-9e5c-2651bd198a45
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Replace nsslapd-statlog-level with the value
+        2. Re-read the attribute and confirm it matches
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-statlog-level", value)
+    assert inst.config.get_attr_val_int("nsslapd-statlog-level") == int(value)
+
+
+@pytest.mark.parametrize("bad", ["-1", "abc", "2abc", "9999999999999999999999"])
+def test_statlog_level_rejects_invalid(thread_pool_log_setup, bad):
+    """nsslapd-statlog-level rejects non-numeric, negative, trailing-garbage
+    and overflow values, and the stored value is not changed.
+
+    :id: 6722c48b-21d0-4f03-8501-b7f0d0aaef15
+    :parametrized: yes
+    :setup: Standalone instance, statlog-level set to 2
+    :steps:
+        1. Replace nsslapd-statlog-level with "2" (known-good baseline)
+        2. Attempt to replace with an invalid value
+        3. Confirm the value is still 2
+    :expectedresults:
+        1. Success
+        2. ldap.OPERATIONS_ERROR is raised
+        3. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-statlog-level", "2")
+    with pytest.raises(ldap.OPERATIONS_ERROR):
+        inst.config.replace("nsslapd-statlog-level", bad)
+    assert inst.config.get_attr_val_int("nsslapd-statlog-level") == 2
+
+
+def test_statlog_level_reset_via_mod_delete(thread_pool_log_setup):
+    """mod_delete of nsslapd-statlog-level resets the value to the default (0).
+
+    :id: e0c32937-1adb-48a6-8c7c-92cd371c4146
+    :setup: Standalone instance
+    :steps:
+        1. Set nsslapd-statlog-level to 2
+        2. Issue a mod_delete on nsslapd-statlog-level
+        3. Confirm the value has been reset to 0
+        4. Confirm RESULT lines no longer carry pool stats
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-statlog-level", "2")
+    assert inst.config.get_attr_val_int("nsslapd-statlog-level") == 2
+
+    inst.config.remove_all("nsslapd-statlog-level")
+    assert inst.config.get_attr_val_int("nsslapd-statlog-level") == 0
+
+    inst.deleteAccessLogs(restart=True)
+    _exercise_all_op_types(inst, 'after_reset')
+    time.sleep(1)
+    assert not inst.ds_access_log.match(r'.*RESULT.*wbusy=.*')
+
+
+def test_statlog_level_persists_across_restart(thread_pool_log_setup):
+    """nsslapd-statlog-level survives a server restart and continues to
+    drive the thread-pool stat output.
+
+    :id: 75f6ca47-7b6a-4509-a725-f61ebac9a777
+    :setup: Standalone instance
+    :steps:
+        1. Set nsslapd-statlog-level to 2 and restart the server
+        2. Confirm the attribute is still 2
+        3. Exercise ops and confirm RESULT lines still carry pool stats
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = thread_pool_log_setup
+    inst.config.replace("nsslapd-statlog-level", "2")
+    inst.restart()
+    assert inst.config.get_attr_val_int("nsslapd-statlog-level") == 2
+
+    inst.deleteAccessLogs(restart=True)
+    _exercise_all_op_types(inst, 'restart')
+    time.sleep(1)
+    assert inst.ds_access_log.match(
+        r'.*RESULT.*wbusy=[0-9]+/[0-9]+.*wqdepth=[0-9]+.*')
+
 
 def test_referral_check(topology_st, request):
     """Check that referral detection mechanism works

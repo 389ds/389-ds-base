@@ -110,7 +110,7 @@ class TestLogconv:
         return path
 
     def truncate_logs(self):
-        """ 
+        """
         Truncate logs between test runs.
         """
         if not self.access_log_path:
@@ -140,7 +140,7 @@ class TestLogconv:
             "ldapi_conns": r"- LDAPI connections:\s+(\d+)",
             "ldaps_conns": r"- LDAPS connections:\s+(\d+)",
             "starttls_conns": r"- StartTLS Extended Ops:\s+(\d+)",
-            
+
 
             # Operations
             "operations": r"^Total Operations:\s+(\d+)",
@@ -239,7 +239,7 @@ class TestLogconv:
 
     def validate_logconv_stats(self, expected: dict, logconv_stats: dict, test_name=None):
         """
-        The comparison is loose, it passes once the actual counts are greater than or equal 
+        The comparison is loose, it passes once the actual counts are greater than or equal
         to the expected count.
 
         Args:
@@ -1357,6 +1357,57 @@ class TestLogconv:
 
         log.info("Verify logconv returned error when access log path not provided")
         assert result.returncode == 1
+
+    def test_pool_stats(self, topo_shared):
+        """Validate logconv parses RESULT lines carrying wbusy/wqdepth
+        tokens without dropping trailing fields.
+
+        :id: 2bb14b97-1b61-426b-b9b3-39909d9699c8
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Inject RESULT lines with varying pool/trailing combinations
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.init_instance(topo_shared.standalone)
+        self.truncate_logs()
+
+        lines = [
+            '[17/Apr/2026:00:00:00.000000000 +0000] conn=1 fd=64 slot=64 connection from 127.0.0.1 to 127.0.0.1\n',
+            '[17/Apr/2026:00:00:00.050000000 +0000] conn=1 op=0 BIND dn="cn=Directory Manager" method=128 version=3\n',
+            '[17/Apr/2026:00:00:00.060000000 +0000] conn=1 op=0 RESULT err=0 tag=97 nentries=0 wtime=0.0001 optime=0.001 etime=0.0011 wbusy=2/16 wqdepth=0\n',
+            '[17/Apr/2026:00:00:00.100000000 +0000] conn=1 op=1 SRCH base="dc=example,dc=com" scope=2 filter="(idontexist=*)" attrs=ALL\n',
+            '[17/Apr/2026:00:00:00.200000000 +0000] conn=1 op=1 RESULT err=0 tag=101 nentries=0 wtime=0.0001 optime=0.001 etime=0.0011 wbusy=8/16 wqdepth=3 notes=A\n',
+            '[17/Apr/2026:00:00:00.300000000 +0000] conn=1 op=2 SRCH base="dc=example,dc=com" scope=2 filter="(cn=*)" attrs=ALL\n',
+            '[17/Apr/2026:00:00:00.400000000 +0000] conn=1 op=2 RESULT err=0 tag=101 nentries=3 wtime=0.0001 optime=0.001 etime=0.0011 wbusy=14/16 wqdepth=7\n',
+            '[17/Apr/2026:00:00:00.500000000 +0000] conn=1 op=3 SRCH base="dc=example,dc=com" scope=2 filter="(description=*)" attrs=ALL\n',
+            '[17/Apr/2026:00:00:00.600000000 +0000] conn=1 op=3 RESULT err=0 tag=101 nentries=0 wtime=0.0001 optime=0.001 etime=0.0011 notes=A\n',
+        ]
+
+        with open(self.access_log_path, "w") as f:
+            for line in lines:
+                f.write(line)
+
+        expected = {
+            "binds": 1,
+            "searches": 3,
+            "operations": 4,
+            "results": 4,
+            "unindexed_searches": 2,
+            "restarts": 1,
+            "total_connections": 1,
+            "ldap_conns": 1,
+            "fds_taken": 1,
+        }
+
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_pool_stats")
+
 
 if __name__ == '__main__':
     # Run isolated
