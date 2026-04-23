@@ -279,18 +279,20 @@ class DSEldif(DSLint):
         """
         mapping_trees = []
         for entry in self._contents:
-            if fnmatch.fnmatch(entry, "*cn=*,cn=mapping tree,cn=config*"):
+            if fnmatch.fnmatch(entry, "dn: cn=*,cn=mapping tree,cn=config*"):
                 mapping_trees.append(entry.strip())
         return mapping_trees
 
-
     def get_replicas(self):
-        """Return a list of replica names from DSE.
+        """Return a list of replica DN's from DSE.
+
+        :returns: List of replica DN's
         """
         replicas = []
         for entry in self._contents:
-            if fnmatch.fnmatch(entry, "*cn=replica,cn=*,cn=mapping tree,cn=config*"):
-                replicas.append(entry.strip())
+            if fnmatch.fnmatch(entry, "dn: cn=replica,cn=*,cn=mapping tree,cn=config*"):
+                replicas.append(entry.strip()[4:].strip())
+
         return replicas
 
     def suffix_replicated(self, suffix):
@@ -298,7 +300,7 @@ class DSEldif(DSLint):
         Check if the suffix is replicated in the DSE.
         """
         for entry in self._contents:
-            if fnmatch.fnmatch(entry, "*cn=replica,cn=*,cn=mapping tree,cn=config*"):
+            if fnmatch.fnmatch(entry, "dn: *cn=replica,cn=*,cn=mapping tree,cn=config*"):
                 dn = entry.replace("dn: ", "").strip()
                 vals = self.get(dn, "nsDS5ReplicaRoot")
                 if vals is not None and vals[0].lower() == suffix.lower():

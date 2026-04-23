@@ -1816,15 +1816,22 @@ class Replicas(DSLdapObjects):
 
         return replica
 
-    def _list_from_dse(self):
+    def _list_from_dse(self, full_dn=False):
         dse = DSEldif(self._instance)
-        replicas = dse.get_replicas()
-        return replicas
+        replica_dn_list = dse.get_replicas()
+        replicas = []
+
+        if full_dn:
+            return replica_dn_list
+        else:
+            for dn in replica_dn_list:
+                replicas.append(Replica(self._instance, dn=dn))
+            return replicas
 
     def list(self, paged_search=None, paged_critical=True, full_dn=False):
         """List backends via LDAP when online; read ``dse.ldif`` when offline (e.g. healthcheck)."""
         if self._instance.state != DIRSRV_STATE_ONLINE:
-            return self._list_from_dse()
+            return self._list_from_dse(full_dn=full_dn)
         return super(Replicas, self).list(paged_search=paged_search, paged_critical=paged_critical, full_dn=full_dn)
 
     def get(self, selector=[], dn=None):

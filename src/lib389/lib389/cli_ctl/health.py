@@ -45,9 +45,9 @@ CHECK_OBJECTS = [
 
 # Checks that need a running server or LDAP search of database content (see healthcheck.md).
 _OFFLINE_SKIP_SPECS_EXACT = frozenset({
-    'replication:agmts_status',
-    'replication:conflicts',
-    'replication:no_ruv',
+    'agmts_status',
+    'conflicts',
+    'no_ruv',
 })
 
 
@@ -145,7 +145,8 @@ def _run(inst, log, args, checks, exclude_checks, offline=False):
                     log.info(f" - skipped {s[0]} - requires running server: {reason}")
             else:
                 raise
-        except Exception:
+        except Exception as e:
+            log.debug(f"Error running check {o.lint_uid()}:{s[0]}: {e}")
             continue
 
     if not args.json:
