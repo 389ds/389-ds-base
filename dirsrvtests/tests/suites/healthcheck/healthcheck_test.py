@@ -15,7 +15,7 @@ from lib389.replica import Changelog5,  Changelog
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
-from lib389.topologies import topology_st, topology_no_sample, topology_m2
+from test389.topologies import topology_st, topology_no_sample, topology_m2
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
@@ -57,6 +57,10 @@ def run_healthcheck_and_flush_log(logcap, instance, searched_code=None,
             assert logcap.contains(item)
             log.info('Healthcheck returned searched item: %s', item)
     else:
+        if not logcap.contains(searched_code):
+            print("DEBUG logcap does not contain searched code: %s", searched_code)
+            print("DEBUG logcap contents: ", logcap.print())
+
         assert logcap.contains(searched_code)
         log.info('Healthcheck returned searched code: %s', searched_code)
 
@@ -67,7 +71,7 @@ def run_healthcheck_and_flush_log(logcap, instance, searched_code=None,
             code2 = 'DSBLE0006'
 
         assert logcap.contains(code2)
-        log.info('Healthcheck returned searched code: %s', code2)
+        log.info('Healthcheck returned searched code2: %s', code2)
 
     log.info('Clear the log')
     logcap.flush()
@@ -746,6 +750,7 @@ def test_lint_backend_implementation_wrong_files(topology_st):
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
     inst.stop()
+    print("DEBUG trying test with server stopped!!!!!!!!")
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 

@@ -17,7 +17,7 @@ from contextlib import contextmanager, suppress
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.dseutils import get_ldapurl_from_serverid
-from lib389.topologies import topology_m2, topology_st
+from test389.topologies import topology_m2, topology_st
 from lib389.replica import *
 from lib389._constants import *
 from lib389.properties import TASK_WAIT
