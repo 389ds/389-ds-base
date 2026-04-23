@@ -63,7 +63,7 @@ class Tunables(DSLint):
                 # Get systemctl data for THP from systemd
                 systemctl_data = subprocess.check_output(
                     ['systemctl', 'show', '-P', 'Environment',
-                     'dirsrv@%s' % self._instance.serverid, 'THP_enabled'])
+                     'dirsrv@%s' % self._instance.serverid])
 
                 if 'THP_DISABLE=1' in ensure_str(systemctl_data):
                     return False

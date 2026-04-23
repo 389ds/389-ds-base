@@ -2139,6 +2139,14 @@ def get_disk_space(path):
     stats = os.statvfs(path)
     block_size = stats.f_frsize
     total_size = stats.f_blocks * block_size
+    if total_size == 0:
+        return {
+            'total': 0,
+            'available': 0,
+            'used': 0,
+            'percent': 0
+        }
+
     available_size = stats.f_bavail * block_size
     used_size = total_size - available_size
     used_percent = (used_size / total_size) * 100
