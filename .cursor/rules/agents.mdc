@@ -1,0 +1,8 @@
+---
+description: Always read the AGENTS.md project guide before starting any task
+alwaysApply: true
+---
+
+Before working on any task in this repository, **always** read `AGENTS.md` at the project root and the detailed guides it links to under `docs/agents/`.
+
+This is mandatory for every conversation - do not skip it.
