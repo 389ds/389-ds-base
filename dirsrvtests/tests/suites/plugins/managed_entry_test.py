@@ -282,14 +282,16 @@ def test_mentry01(topo, _create_inital):
         5. Disable the plug-in and check the status
         6. Enable the plug-in and check the status the plug-in is disabled and creation of UPG should fail
         7. Add users with PosixAccount ObjectClass and verify creation of User Private Group
-        8. Add users, run ModRDN operation and check the User Private group
-        9. Add users, run LDAPMODIFY to change the gidNumber and check the User Private group
-        10. Checking whether creation of User Private group fails for existing group entry
-        11. Checking whether adding of posixAccount objectClass to existing user creates UPG
-        12. Running ModRDN operation and checking the user private groups mepManagedBy attribute
-        13. Deleting mepManagedBy attribute and running ModRDN operation to check if it creates a new UPG
-        14. Change the RDN of template entry, DSA Unwilling to perform error expected
-        15. Change the RDN of cn=Users to cn=TestUsers and check UPG are deleted
+        8. Run ModRDN with deleteoldrdn and a leading plus in uid (e.g. uid=+newname), and verify
+           uid/mepManagedEntry updates are correct
+        9. Add users, run ModRDN operation and check the User Private group
+        10. Add users, run LDAPMODIFY to change the gidNumber and check the User Private group
+        11. Checking whether creation of User Private group fails for existing group entry
+        12. Checking whether adding of posixAccount objectClass to existing user creates UPG
+        13. Running ModRDN operation and checking the user private groups mepManagedBy attribute
+        14. Deleting mepManagedBy attribute and running ModRDN operation to check if it creates a new UPG
+        15. Change the RDN of template entry, DSA Unwilling to perform error expected
+        16. Change the RDN of cn=Users to cn=TestUsers and check UPG are deleted
     :expectedresults:
         1. Success
         2. Success
@@ -304,8 +306,9 @@ def test_mentry01(topo, _create_inital):
         11. Success
         12. Success
         13. Success
-        14. Fail(Unwilling to perform )
-        15. Success
+        14. Success
+        15. Fail(Unwilling to perform )
+        16. Success
     """
     # Check the plug-in status
     mana = ManagedEntriesPlugin(topo.standalone)
@@ -349,6 +352,12 @@ def test_mentry01(topo, _create_inital):
     # Add users with PosixAccount ObjectClass and verify creation of User Private Group
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     assert user.get_attr_val_utf8('mepManagedEntry') == f'cn=test_user_1000,ou=Groups,{DEFAULT_SUFFIX}'
+
+    # Run ModRDN operation with deleteoldrdn and a leading plus in the new uid
+    user.rename(new_rdn=r'uid=\+newname', deloldrdn=True)
+    assert 'test_user_1000' not in user.get_attr_val_utf8('uid')
+    assert '+newname' in user.get_attr_val_utf8('uid')
+    assert user.get_attr_val_utf8('mepManagedEntry') == f'cn=\\2Bnewname,ou=Groups,{DEFAULT_SUFFIX}'
 
     # Add users, run ModRDN operation and check the User Private group
     # Add users, run LDAPMODIFY to change the gidNumber and check the User Private group
