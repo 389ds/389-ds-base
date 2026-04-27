@@ -1016,7 +1016,76 @@ export class GlobalPwPolicy extends React.Component {
                             />
                             {renderValidationError("passwordminlength", this.state.invalidFields)}
                         </GridItem>
+
                         <GridItem className="ds-label" offset={6} span={3}>
+                            {_("Max Repeated Chars")}
+                        </GridItem>
+                        <GridItem span={1}>
+                            <TextInput
+                                type="number"
+                                title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}
+                                value={this.state.passwordmaxrepeats}
+                                id="passwordmaxrepeats"
+                                aria-describedby="passwordmaxrepeats"
+                                name="passwordmaxrepeats"
+                                onChange={(e, str) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                {...getValidationProps("passwordmaxrepeats", this.state.invalidFields)}
+                            />
+                            {renderValidationError("passwordmaxrepeats", this.state.invalidFields)}
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={3}>
+                            {_("Prohibited Words")}
+                        </GridItem>
+                        <GridItem span={7}>
+                            <TextInput
+                                title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
+                                value={this.state.passwordbadwords}
+                                type="text"
+                                id="passwordbadwords"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="passwordbadwords"
+                                onChange={(e, checked) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
+                            <Checkbox
+                                id="passworddictcheck"
+                                isChecked={this.state.passworddictcheck}
+                                onChange={(e, checked) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                label={_("Dictionary Check")}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3} title={_("Check if the password is a palindrome (passwordPalindrome).")}>
+                            <Checkbox
+                                id="passwordpalindrome"
+                                isChecked={this.state.passwordpalindrome}
+                                className="ds-label"
+                                onChange={(e, checked) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                label={_("Reject Palindromes")}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={10}>
+                            <hr />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={3}>
                             {_("Minimum Alpha's")}
                         </GridItem>
                         <GridItem span={1}>
@@ -1034,9 +1103,7 @@ export class GlobalPwPolicy extends React.Component {
                             />
                             {renderValidationError("passwordminalphas", this.state.invalidFields)}
                         </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" offset={6} span={3}>
                             {_("Minimum Digits")}
                         </GridItem>
                         <GridItem span={1}>
@@ -1053,24 +1120,6 @@ export class GlobalPwPolicy extends React.Component {
                                 }}
                             />
                             {renderValidationError("passwordmindigits", this.state.invalidFields)}
-                        </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Minimum Special")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
-                                value={this.state.passwordminspecials}
-                                type="number"
-                                id="passwordminspecials"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminspecials"
-                                {...getValidationProps("passwordminspecials", this.state.invalidFields)}
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                            {renderValidationError("passwordminspecials", this.state.invalidFields)}
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top">
@@ -1113,6 +1162,24 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
+                            {_("Minimum Special")}
+                        </GridItem>
+                        <GridItem span={1}>
+                            <TextInput
+                                title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
+                                value={this.state.passwordminspecials}
+                                type="number"
+                                id="passwordminspecials"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="passwordminspecials"
+                                {...getValidationProps("passwordminspecials", this.state.invalidFields)}
+                                onChange={(e, checked) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                            />
+                            {renderValidationError("passwordminspecials", this.state.invalidFields)}
+                        </GridItem>
+                        <GridItem className="ds-label" offset={6} span={3}>
                             {_("Minimum 8-bit")}
                         </GridItem>
                         <GridItem span={1}>
@@ -1130,7 +1197,9 @@ export class GlobalPwPolicy extends React.Component {
                             />
                             {renderValidationError("passwordmin8bit", this.state.invalidFields)}
                         </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={3}>
                             {_("Minimum Categories")}
                         </GridItem>
                         <GridItem span={1}>
@@ -1149,8 +1218,13 @@ export class GlobalPwPolicy extends React.Component {
                             {renderValidationError("passwordmincategories", this.state.invalidFields)}
                         </GridItem>
                     </Grid>
+                    <Grid>
+                        <GridItem span={10}>
+                            <hr />
+                        </GridItem>
+                    </Grid>
                     <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label"span={3}>
                             {_("Maximum Sequences")}
                         </GridItem>
                         <GridItem span={1}>
@@ -1206,66 +1280,17 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         {renderValidationError("passwordmaxclasschars", this.state.invalidFields)}
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Minimum Token Length")}
-                        </GridItem>
-                        <GridItem span={1} title={_("The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).")}>
-                            <TextInput
-                                type="number"
-                                value={this.state.passwordmintokenlength}
-                                id="passwordmintokenlength"
-                                aria-describedby="passwordmintokenlength"
-                                name="passwordmintokenlength"
-                                onChange={(e, str) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                                {...getValidationProps("passwordmintokenlength", this.state.invalidFields)}
-                            />
-                        </GridItem>
-                        {renderValidationError("passwordmintokenlength", this.state.invalidFields)}
                     </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Max Repeated Chars")}
-                        </GridItem>
-                        <GridItem span={1} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
-                            <TextInput
-                                type="number"
-                                value={this.state.passwordmaxrepeats}
-                                id="passwordmaxrepeats"
-                                aria-describedby="passwordmaxrepeats"
-                                name="passwordmaxrepeats"
-                                onChange={(e, str) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                                {...getValidationProps("passwordmaxrepeats", this.state.invalidFields)}
-                            />
-                            {renderValidationError("passwordmaxrepeats", this.state.invalidFields)}
+                    <Grid>
+                        <GridItem span={10}>
+                            <hr />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Prohibited Words")}
-                        </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
-                                title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
-                                value={this.state.passwordbadwords}
-                                type="text"
-                                id="passwordbadwords"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordbadwords"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
+                    <Grid title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Check User Attributes")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={7}>
                             <TypeaheadSelect
                                 selected={this.state.passworduserattributes}
                                 onSelect={this.handleSyntaxChange}
@@ -1280,30 +1305,24 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top-lg" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
-                        <GridItem span={12}>
-                            <Checkbox
-                                id="passworddictcheck"
-                                isChecked={this.state.passworddictcheck}
-                                onChange={(e, checked) => {
+                    <Grid className="ds-margin-top" title={_("The smallest attribute value used when checking if the password contains any of the user's attributes that are set via passwordUserAttributes (passwordMinTokenLength).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Minimum Token Length")}
+                        </GridItem>
+                        <GridItem span={1}>
+                            <TextInput
+                                type="number"
+                                value={this.state.passwordmintokenlength}
+                                id="passwordmintokenlength"
+                                aria-describedby="passwordmintokenlength"
+                                name="passwordmintokenlength"
+                                onChange={(e, str) => {
                                     this.handleSyntaxChange(e);
                                 }}
-                                label={_("Dictionary Check")}
+                                {...getValidationProps("passwordmintokenlength", this.state.invalidFields)}
                             />
                         </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("Check if the password is a palindrome (passwordPalindrome).")}>
-                        <GridItem span={12}>
-                            <Checkbox
-                                id="passwordpalindrome"
-                                isChecked={this.state.passwordpalindrome}
-                                className="ds-label"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                                label={_("Reject Palindromes")}
-                            />
-                        </GridItem>
+                        {renderValidationError("passwordmintokenlength", this.state.invalidFields)}
                     </Grid>
                 </div>
             );
