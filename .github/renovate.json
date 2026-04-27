@@ -7,15 +7,22 @@
   "schedule": ["before 9am on monday"],
   "cargo": {
     "enabled": true,
-    "fileMatch": ["^src/.*/Cargo\\.toml$", "^src/Cargo\\.toml$"]
+    "managerFilePatterns": [
+      "/^src/.*/Cargo\\.toml$/",
+      "/^src/Cargo\\.toml$/"
+    ]
   },
   "pip_requirements": {
     "enabled": true,
-    "fileMatch": ["(^|/)requirements\\.txt$"]
+    "managerFilePatterns": [
+      "/(^|/)requirements\\.txt$/"
+    ]
   },
   "github-actions": {
     "enabled": true,
-    "fileMatch": ["^\\.github/workflows/[^/]+\\.ya?ml$"]
+    "managerFilePatterns": [
+      "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+    ]
   },
   "packageRules": [
     {
