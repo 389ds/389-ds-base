@@ -17,7 +17,7 @@ import ldap
 from datetime import datetime
 from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
-from lib389.topologies import topology_st as topo, topology_m2 as topo_m2, set_timeout
+from test389.topologies import topology_st as topo, topology_m2 as topo_m2, set_timeout
 from lib389.backend import Backends, Backend
 from lib389.dbgen import dbgen_users
 from lib389.tasks import BackupTask, RestoreTask

@@ -12,7 +12,7 @@ import pytest
 import os
 from lib389._constants import PW_DM, DEFAULT_SUFFIX
 from lib389.idm.organization import Organization
-from lib389.topologies import topology_m1c1 as topo
+from test389.topologies import topology_m1c1 as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389.replica import ReplicationManager

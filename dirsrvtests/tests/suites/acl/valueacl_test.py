@@ -11,7 +11,7 @@ from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.user import UserAccount
 from lib389.idm.account import Anonymous
 from lib389.idm.organizationalunit import OrganizationalUnit
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 
 pytestmark = pytest.mark.tier1

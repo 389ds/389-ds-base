@@ -16,7 +16,7 @@ from lib389.utils import ds_is_older, rpm_is_older
 from lib389._constants import DN_DM, PW_DM, DEFAULT_SUFFIX
 from lib389.config import Encryption, CertmapLegacy
 from lib389.idm.user import UserAccount
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from tempfile import TemporaryDirectory
 
 pytestmark = pytest.mark.tier1

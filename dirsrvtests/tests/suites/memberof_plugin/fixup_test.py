@@ -14,7 +14,7 @@ from lib389.plugins import MemberOfPlugin
 from lib389.idm.user import UserAccounts, nsUserAccounts
 from lib389.idm.group import Groups
 from lib389 import DEFAULT_SUFFIX
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 
 pytestmark = pytest.mark.tier0

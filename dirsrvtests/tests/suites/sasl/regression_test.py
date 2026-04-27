@@ -12,7 +12,7 @@ import pytest
 import ldap.sasl
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2, topology_st
+from test389.topologies import topology_m2, topology_st
 from lib389._constants import *
 from lib389.replica import ReplicationManager
 from lib389.config import CertmapLegacy, Config

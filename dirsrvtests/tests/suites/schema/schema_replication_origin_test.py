@@ -13,7 +13,7 @@ import time
 import ldap
 import pytest
 from lib389._constants import SUFFIX, ReplicaRole, DEFAULT_SUFFIX
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 from lib389.replica import Agreements, ReplicationManager
 from lib389.schema import Schema
 from lib389.idm.user import UserAccounts

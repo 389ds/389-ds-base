@@ -8,7 +8,7 @@
 #
 import pytest
 from lib389.utils import *
-from lib389.topologies import topology_m1h1c1
+from test389.topologies import topology_m1h1c1
 from lib389.idm.user import UserAccounts
 
 from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, defaultProperties,

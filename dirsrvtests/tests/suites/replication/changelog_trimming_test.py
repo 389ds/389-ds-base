@@ -13,8 +13,8 @@ import ldap
 import time
 from lib389._constants import *
 from lib389.properties import *
-from lib389.topologies import topology_m1 as topo
-from lib389.topologies import topology_m1c1
+from test389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1c1
 from lib389.tasks import *
 from lib389.replica import Changelog5
 from lib389.idm.domain import Domain

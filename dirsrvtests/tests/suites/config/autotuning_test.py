@@ -13,7 +13,7 @@ import os
 import time
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import get_default_db_lib
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.backend import Backends
 from lib389.idm.user import UserAccounts
 from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig

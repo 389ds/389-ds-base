@@ -18,7 +18,7 @@ import time
 import ldap
 import pytest
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
-from lib389.topologies import topology_m1c1
+from test389.topologies import topology_m1c1
 from lib389.idm.user import UserAccounts
 
 from lib389.utils import ensure_bytes, ensure_str, ds_is_older

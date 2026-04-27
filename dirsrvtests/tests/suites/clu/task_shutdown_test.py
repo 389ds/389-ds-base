@@ -26,7 +26,7 @@ from lib389.plugins import (
 )
 from lib389.properties import TASK_WAIT
 from lib389.tasks import Tasks
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier0
 

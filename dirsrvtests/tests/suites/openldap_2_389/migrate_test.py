@@ -8,7 +8,7 @@
 #
 import pytest
 import os
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.utils import ds_is_older
 from lib389.migrate.openldap.config import olConfig
 from lib389.migrate.openldap.config import olOverlayType

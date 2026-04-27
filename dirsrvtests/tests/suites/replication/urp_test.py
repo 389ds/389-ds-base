@@ -15,7 +15,7 @@ from itertools import permutations, product
 from contextlib import contextmanager
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m3, topology_m2, set_timeout
+from test389.topologies import topology_m3, topology_m2, set_timeout
 from lib389.replica import *
 from lib389._constants import *
 from lib389.properties import TASK_WAIT

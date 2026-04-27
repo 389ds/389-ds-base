@@ -18,7 +18,7 @@ from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 
 from lib389.utils import ds_is_older
 pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")

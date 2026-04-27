@@ -12,7 +12,7 @@ import os
 import re
 import time
 from lib389._constants import DEFAULT_SUFFIX, SUFFIX, LOG_REPLICA, LOG_DEFAULT
-from lib389.topologies import topology_m4
+from test389.topologies import topology_m4
 from lib389.replica import Replicas, ReplicationManager
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.properties import TASK_WAIT

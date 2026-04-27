@@ -12,7 +12,7 @@ from lib389.utils import *
 from ldap import SCOPE_SUBTREE, ALREADY_EXISTS
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM, PLUGIN_MEMBER_OF
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.plugins import MemberOfPlugin
 
 from lib389.schema import Schema

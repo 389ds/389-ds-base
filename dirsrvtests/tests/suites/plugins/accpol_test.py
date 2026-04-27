@@ -10,7 +10,7 @@ import pytest
 import subprocess
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st, topology_m1c1
+from test389.topologies import topology_st, topology_m1c1
 from lib389.idm.user import (UserAccount, UserAccounts)
 from lib389.plugins import (AccountPolicyPlugin, AccountPolicyConfig, AccountPolicyConfigs)
 from lib389.cos import (CosTemplate, CosPointerDefinition)

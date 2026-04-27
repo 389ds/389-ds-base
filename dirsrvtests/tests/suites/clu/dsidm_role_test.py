@@ -17,7 +17,7 @@ from lib389.cli_idm.role import (
     create_managed, create_filtered, create_nested,
     delete, modify, rename, entry_status, subtree_status, lock, unlock
     )
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older, is_a_dn
 from lib389.idm.role import Roles, ManagedRoles, FilteredRoles, NestedRoles

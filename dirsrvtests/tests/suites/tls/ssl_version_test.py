@@ -11,7 +11,7 @@ import pytest
 import os
 from lib389.config import Encryption
 from lib389.utils import ds_is_older
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier1
 

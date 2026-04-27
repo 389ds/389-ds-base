@@ -12,7 +12,7 @@ import pytest
 import os
 
 from lib389._constants import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
 pytestmark = pytest.mark.tier3

@@ -14,7 +14,7 @@ import ldap.modlist as modlist
 from threading import Thread, Event, Lock
 import random
 import time
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits

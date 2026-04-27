@@ -19,7 +19,7 @@ from lib389.mappingTree import MappingTrees
 from lib389.idm.domain import Domain
 from lib389.configurations.sample import create_base_domain
 from lib389._mapped_object import DSLdapObject
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions, MemberOfPlugin
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups

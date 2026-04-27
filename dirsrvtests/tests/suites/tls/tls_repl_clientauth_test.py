@@ -13,7 +13,7 @@ from lib389.replica import Replicas, ReplicationManager
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.config import CertmapLegacy
 from lib389.idm.services import ServiceAccounts
-from lib389.topologies import topology_m2 as topo
+from test389.topologies import topology_m2 as topo
 
 pytestmark = pytest.mark.tier1
 

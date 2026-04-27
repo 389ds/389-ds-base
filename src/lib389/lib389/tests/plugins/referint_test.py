@@ -9,7 +9,7 @@
 
 import pytest
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 from lib389.plugins import ReferentialIntegrityPlugin
 from lib389.tests.plugins.utils import (
         create_test_user, create_test_group, delete_objects)

@@ -11,7 +11,7 @@ import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX,  DN_CHANGELOG,  DN_USERROOT_LDBM
-from lib389.topologies import topology_m1c1 as topo
+from test389.topologies import topology_m1c1 as topo
 from lib389.dseldif import DSEldif
 from lib389.utils import ds_supports_new_changelog
 from lib389.replica import Replicas

@@ -240,3 +240,4 @@ vendor.tar.gz
 /rust-nsslapd-private.h
 /rust-slapi-private.h
 /src/target
+src/lib389/tests/topologies.py

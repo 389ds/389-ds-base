@@ -13,7 +13,7 @@ import pytest
 from lib389.cli_ctl.dbtasks import dbtasks_verify
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 
 pytestmark = pytest.mark.tier0

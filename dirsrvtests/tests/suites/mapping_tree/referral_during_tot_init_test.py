@@ -9,7 +9,7 @@
 import ldap
 import pytest
 import os
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389._constants import (DEFAULT_SUFFIX)
 from lib389.agreement import Agreements
 from lib389.idm.user import (TEST_USER_PROPERTIES, UserAccounts)

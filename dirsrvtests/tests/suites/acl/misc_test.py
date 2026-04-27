@@ -19,7 +19,7 @@ from lib389._mapped_object import DSLdapObject
 from lib389.idm.account import Accounts, Anonymous
 from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits
 from lib389.idm.group import Group, Groups
-from lib389.topologies import topology_st as topo, create_topology
+from test389.topologies import topology_st as topo, create_topology
 from lib389.idm.domain import Domain
 from lib389.plugins import ACLPlugin
 from lib389.tasks import ImportTask

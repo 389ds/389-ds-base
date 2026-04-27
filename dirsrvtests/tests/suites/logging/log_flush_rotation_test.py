@@ -16,7 +16,7 @@ from lib389.tasks import ImportTask
 from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 
 log = logging.getLogger(__name__)

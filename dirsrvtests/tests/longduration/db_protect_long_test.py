@@ -19,7 +19,7 @@ import shutil
 import json
 from threading import Thread, get_ident as get_tid
 from enum import auto as EnumAuto
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
 from lib389.backend import Backend
 from lib389.properties import ( TASK_WAIT )

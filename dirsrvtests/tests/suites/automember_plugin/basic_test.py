@@ -14,7 +14,7 @@ import os
 import pytest
 import time
 import re
-from lib389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1 as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
 from lib389.idm.posixgroup import PosixGroups

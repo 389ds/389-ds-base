@@ -16,7 +16,7 @@ from lib389.plugins import MemberOfPlugin
 from lib389.agreement import Agreements
 from lib389.idm.user import UserAccount, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups
-from lib389.topologies import topology_m1h1c1 as topo
+from test389.topologies import topology_m1h1c1 as topo
 
 pytestmark = pytest.mark.tier1
 

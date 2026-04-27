@@ -15,7 +15,7 @@ import re
 
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st, topology_m2
+from test389.topologies import topology_st, topology_m2
 from lib389.cli_conf.monitor import db_monitor
 from lib389.monitor import MonitorLDBM
 from lib389.cli_base import FakeArgs, LogCapture

@@ -10,7 +10,7 @@ import pytest
 import logging
 import os
 
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import ReplicationManager

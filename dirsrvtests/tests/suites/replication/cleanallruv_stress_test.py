@@ -14,7 +14,7 @@ import random
 import time
 import threading
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m4
+from test389.topologies import topology_m4
 from lib389.tasks import CleanAllRUVTask
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.user import UserAccounts

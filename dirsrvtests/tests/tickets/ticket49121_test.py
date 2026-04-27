@@ -10,7 +10,7 @@ import pytest
 import codecs
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 
 from lib389._constants import DATA_DIR, DEFAULT_SUFFIX, VALGRIND_INVALID_STR
 

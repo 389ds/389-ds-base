@@ -9,7 +9,7 @@
 
 import pytest
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 from lib389.plugins import USNPlugin
 from lib389.rootdse import RootDSE
 from lib389._mapped_object import DSLdapObjects

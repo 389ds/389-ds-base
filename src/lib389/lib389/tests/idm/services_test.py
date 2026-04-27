@@ -22,7 +22,7 @@ from lib389.utils import *
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.services import ServiceAccounts
 
-from lib389.topologies import topology_st as topology
+from lib389.tests.topologies import topology_st as topology
 
 DEBUGGING = os.getenv('DEBUGGING', False)
 

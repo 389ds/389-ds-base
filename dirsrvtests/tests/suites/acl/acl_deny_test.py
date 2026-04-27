@@ -12,7 +12,7 @@ import os
 import ldap
 import time
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccount, TEST_USER_PROPERTIES
 from lib389.idm.domain import Domain
 

@@ -14,7 +14,7 @@ import time
 import logging
 
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
