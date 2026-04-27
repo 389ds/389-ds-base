@@ -286,8 +286,10 @@ class ResultData:
         int, {
             'result': 0,
             'notesA': 0,
+            'notesB': 0,
             'notesF': 0,
             'notesM': 0,
+            'notesN': 0,
             'notesP': 0,
             'notesU': 0,
             'timestamp': 0,
@@ -300,6 +302,9 @@ class ResultData:
     notesU: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
     notesF: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
     notesP: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesM: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesN: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesB: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
 
     timestamp_ctr: int = 0
     entry_count: int = 0
@@ -445,12 +450,6 @@ class logAnalyser:
         """
         Set up data structures for parsing and storing log data.
         """
-        self.notesA = {}
-        self.notesF = {}
-        self.notesM = {}
-        self.notesP = {}
-        self.notesU = {}
-
         self.vlv = VLVData()
         self.server = ServerData()
         self.operation = OperationData()
@@ -1217,6 +1216,9 @@ class logAnalyser:
                 # Exclude VLV
                 if op_scope_key not in self.vlv.vlv_map:
                     result_notes = getattr(self.result, f'notes{note_code}', None)
+                    if result_notes is None:
+                        self.logger.debug(f"Unknown note code: {note_code}")
+                        continue
                     entry = result_notes.setdefault(op_scope_key, {})
 
                     # Resolve base, scope, filter (new format or fallback to maps)
@@ -2756,6 +2758,41 @@ class logAnalyser:
             self.logger.error(f"Error setting parse times. - {e}")
             raise
 
+
+def _print_note_details(notes_dict, title, code,
+                        show_search_fields=False,
+                        show_filter_only=False,
+                        show_nentries=True):
+    """Print per-operation detail blocks for a given note code.
+
+    Args:
+        notes_dict: Mapping of op_scope_key tuple to detail dict.
+        title: Human-readable section title (e.g., "Unindexed Search").
+        code: The single-letter note code (e.g., "A").
+        show_search_fields: Include Search Base, Scope, and Filter.
+        show_filter_only: Include only Search Filter (mutually exclusive with show_search_fields).
+        show_nentries: Include the Nentries line (omit for bind-only codes like M).
+    """
+    for num, key in enumerate(notes_dict, start=1):
+        data = notes_dict[key]
+        _, conn, op = key
+
+        print(f"\n  {title} #{num} (notes={code})")
+        print(f"    - Date/Time:           {data.get('time', '-')}")
+        print(f"    - Connection Number:   {conn}")
+        print(f"    - Operation Number:    {op}")
+        print(f"    - Etime:               {data.get('etime', '-')}")
+        if show_nentries:
+            print(f"    - Nentries:            {data.get('nentries', 0)}")
+        print(f"    - IP Address:          {data.get('ip', '-')}")
+        if show_search_fields:
+            print(f"    - Search Base:         {data.get('base', '-')}")
+            print(f"    - Search Scope:        {data.get('scope', '-')}")
+        if show_search_fields or show_filter_only:
+            print(f"    - Search Filter:       {data.get('filter', '-')}")
+        print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+
+
 def main():
     """
     Entry point for the Access Log Analyzer script.
@@ -3108,6 +3145,8 @@ def main():
         print(f"Average optime (op time):       {avg_optime:.9f}")
         print(f"Average etime (elapsed time):   {avg_etime:.9f}")
     print(f"\nMulti-factor Authentications:   {db.result.counters['notesM']}")
+    print(f"Asynchronous Operations:        {db.result.counters['notesN']}")
+    print(f"Blocked Operations:             {db.result.counters['notesB']}")
     print(f"Proxied Auth Operations:        {num_proxyd_auths}")
     print(f"Persistent Searches:            {db.search.counters['persistent']}")
     print(f"Internal Operations:            {db.operation.counters['internal']}")
@@ -3123,61 +3162,27 @@ def main():
     print(f"Paged Searches:                 {db.result.counters['notesP']}")
     num_unindexed_search = len(db.result.notesA)
     print(f"Unindexed Searches:             {num_unindexed_search}")
-    if db.verbose and num_unindexed_search > 0:
-        for num, key in enumerate(db.result.notesA, start=1):
-            data = db.result.notesA[key]
-            if isinstance(key, tuple):
-                _, conn, op = key
-
-            print(f"\n  Unindexed Search #{num} (notes=A)")
-            print(f"    - Date/Time:           {data.get('time', '-')}")
-            print(f"    - Connection Number:   {conn}")
-            print(f"    - Operation Number:    {op}")
-            print(f"    - Etime:               {data.get('etime', '-')}")
-            print(f"    - Nentries:            {data.get('nentries', 0)}")
-            print(f"    - IP Address:          {data.get('ip', '-')}")
-            print(f"    - Search Base:         {data.get('base', '-')}")
-            print(f"    - Search Scope:        {data.get('scope', '-')}")
-            print(f"    - Search Filter:       {data.get('filter', '-')}")
-            print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+    if db.verbose:
+        _print_note_details(db.result.notesA, "Unindexed Search", "A",
+                            show_search_fields=True)
 
     num_unindexed_component = len(db.result.notesU)
     print(f"Unindexed Components:           {num_unindexed_component}")
-    if db.verbose and num_unindexed_component > 0:
-        for num, key in enumerate(db.result.notesU, start=1):
-            data = db.result.notesU[key]
-            if isinstance(key, tuple):
-                _, conn, op = key
-
-            print(f"\n  Unindexed Component #{num} (notes=U)")
-            print(f"    - Date/Time:           {data.get('time', '-')}")
-            print(f"    - Connection Number:   {conn}")
-            print(f"    - Operation Number:    {op}")
-            print(f"    - Etime:               {data.get('etime', '-')}")
-            print(f"    - Nentries:            {data.get('nentries', 0)}")
-            print(f"    - IP Address:          {data.get('ip', '-')}")
-            print(f"    - Search Base:         {data.get('base', '-')}")
-            print(f"    - Search Scope:        {data.get('scope', '-')}")
-            print(f"    - Search Filter:       {data.get('filter', '-')}")
-            print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+    if db.verbose:
+        _print_note_details(db.result.notesU, "Unindexed Component", "U",
+                            show_search_fields=True)
 
     num_invalid_filter = len(db.result.notesF)
     print(f"Invalid Attribute Filters:      {num_invalid_filter}")
-    if db.verbose and num_invalid_filter > 0:
-        for num, key in enumerate(db.result.notesF, start=1):
-            data = db.result.notesF[key]
-            if isinstance(key, tuple):
-                _, conn, op = key
+    if db.verbose:
+        _print_note_details(db.result.notesF, "Invalid Attribute Filter", "F",
+                            show_filter_only=True)
 
-            print(f"\n  Invalid Attribute Filter #{num} (notes=F)")
-            print(f"    - Date/Time:           {data.get('time', '-')}")
-            print(f"    - Connection Number:   {conn}")
-            print(f"    - Operation Number:    {op}")
-            print(f"    - Etime:               {data.get('etime', '-')}")
-            print(f"    - Nentries:            {data.get('nentries', 0)}")
-            print(f"    - IP Address:          {data.get('ip', '-')}")
-            print(f"    - Search Filter:       {data.get('filter', '-')}")
-            print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+    if db.verbose:
+        _print_note_details(db.result.notesM, "Multi-factor Authentication", "M",
+                            show_nentries=False)
+        _print_note_details(db.result.notesN, "Asynchronous Operation", "N")
+        _print_note_details(db.result.notesB, "Blocked Operation", "B")
 
     print(f"FDs Taken:                      {num_fd_taken}")
     print(f"FDs Returned:                   {num_fd_rtn}")

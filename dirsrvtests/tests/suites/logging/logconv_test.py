@@ -5,6 +5,7 @@
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
+import json
 import ldap
 import logging
 import os
@@ -29,6 +30,8 @@ from lib389._mapped_object import DSLdapObjects
 from lib389.config import CertmapLegacy
 from lib389.nss_ssl import NssSsl
 from lib389.topologies import create_topology
+
+pytestmark = pytest.mark.tier1
 
 log = logging.getLogger(__name__)
 
@@ -135,7 +138,6 @@ class TestLogconv:
             "ldapi_conns": r"- LDAPI connections:\s+(\d+)",
             "ldaps_conns": r"- LDAPS connections:\s+(\d+)",
             "starttls_conns": r"- StartTLS Extended Ops:\s+(\d+)",
-            
 
             # Operations
             "operations": r"^Total Operations:\s+(\d+)",
@@ -182,6 +184,8 @@ class TestLogconv:
             "unindexed_searches": r"^Unindexed Searches:\s+(\d+)",
             "unindexed_components": r"^Unindexed Components:\s+(\d+)",
             "multi_factor_auth": r"^Multi-factor Authentications:\s+(\d+)",
+            "async_ops": r"^Asynchronous Operations:\s+(\d+)",
+            "blocked_ops": r"^Blocked Operations:\s+(\d+)",
             "smart_referrals": r"^Smart Referrals Received:\s+(\d+)",
         }
 
@@ -242,7 +246,8 @@ class TestLogconv:
             logconv_stats: dict of key value stats from logconv
             test_name: string for logging
         """
-        IGNORE_KEYS = {"highest_fd_taken", "concurrent_conns"}
+        IGNORE_KEYS = {"highest_fd_taken", "concurrent_conns",
+                       "async_ops", "blocked_ops"}
 
         errors = []
         for key, existing_val in logconv_stats.items():
@@ -1352,6 +1357,133 @@ class TestLogconv:
 
         log.info("Verify logconv returned error when access log path not provided")
         assert result.returncode == 1
+
+
+    def test_note_codes(self, topo_shared):
+        """Validate logconv handles every note code the server can emit
+        (A, U, F, P, M, N, B) without crashing.
+
+        :id: cc3631a3-91ef-4085-9b7d-a445dc5d234e
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Inject SRCH/RESULT pairs (legacy or JSON depending on log format)
+               covering each known note code and one unknown
+            3. Run logconv without -V and compare summary counters
+            4. Run logconv with -V and assert each known code produces a
+               detail block; the unknown code must not
+        :expectedresults:
+            1. Success
+            2. Success
+            3. logconv exits 0 and summary counters match expected
+            4. Verbose output contains headers for A/U/F/M/N/B only
+        """
+        self.init_instance(topo_shared.standalone)
+        self.truncate_logs()
+
+        note_specs = [
+            ("A", "Unindexed Search"),
+            ("U", "Unindexed Component"),
+            ("F", "Invalid Attribute Filter"),
+            ("P", None),
+            ("M", "Multi-factor Authentication"),
+            ("N", "Asynchronous Operation"),
+            ("B", "Blocked Operation"),
+            ("Z", None),  # Future/unknown note — must be skipped gracefully.
+        ]
+
+        lines = []
+        base_dn = "dc=example,dc=com"
+        search_filter = "(cn=*)"
+        conn_id = 1
+        for idx, (code, _title) in enumerate(note_specs, start=1):
+            srch_ts = f"00:00:{idx:02d}.100000000"
+            res_ts = f"00:00:{idx:02d}.200000000"
+            if self.log_format == "json":
+                lines.append(json.dumps({
+                    "local_time": f"2026-04-17T{srch_ts} +0000",
+                    "operation": "SEARCH",
+                    "key": f"1000-{conn_id}",
+                    "conn_id": conn_id,
+                    "op_id": idx,
+                    "base_dn": base_dn,
+                    "scope": 2,
+                    "filter": search_filter,
+                    "attrs": [],
+                }) + "\n")
+                lines.append(json.dumps({
+                    "local_time": f"2026-04-17T{res_ts} +0000",
+                    "operation": "RESULT",
+                    "key": f"1000-{conn_id}",
+                    "conn_id": conn_id,
+                    "op_id": idx,
+                    "tag": 101,
+                    "err": 0,
+                    "nentries": 1,
+                    "etime": "0.001",
+                    "client_ip": "127.0.0.1",
+                    "bind_dn": "",
+                    "notes": [{
+                        "note": code,
+                        "description": "",
+                        "base_dn": base_dn,
+                        "filter": search_filter,
+                        "scope": 2,
+                    }],
+                }) + "\n")
+            else:
+                lines.append(
+                    f'[17/Apr/2026:{srch_ts} +0000] conn={conn_id} op={idx} '
+                    f'SRCH base="{base_dn}" scope=2 filter="{search_filter}" attrs=ALL\n'
+                )
+                lines.append(
+                    f'[17/Apr/2026:{res_ts} +0000] conn={conn_id} op={idx} '
+                    f'RESULT err=0 tag=101 nentries=1 '
+                    f'wtime=0.0001 optime=0.001 etime=0.001 notes={code}\n'
+                )
+
+        with open(self.access_log_path, "w") as f:
+            f.writelines(lines)
+
+        num_codes = len(note_specs)
+        expected = {
+            "searches": num_codes,
+            "operations": num_codes,
+            "results": num_codes,
+            "unindexed_searches": 1,
+            "unindexed_components": 1,
+            "invalid_attribute_filters": 1,
+            "paged_searches": 1,
+            "multi_factor_auth": 1,
+            "async_ops": 1,
+            "blocked_ops": 1,
+        }
+
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_note_codes")
+        assert logconv_stats.get("async_ops") == 1, \
+            f"async_ops: expected 1, got {logconv_stats.get('async_ops')}"
+        assert logconv_stats.get("blocked_ops") == 1, \
+            f"blocked_ops: expected 1, got {logconv_stats.get('blocked_ops')}"
+
+        log.info("Re-run logconv with -V to exercise the per-note detail blocks")
+        verbose = subprocess.run(
+            [self.logconv_path, "-V", self.access_log_path],
+            capture_output=True, text=True,
+        )
+        assert verbose.returncode == 0, f"logconv -V failed: {verbose.stderr}"
+
+        for code, title in note_specs:
+            header = f"{title} #1 (notes={code})" if title else None
+            if title is None:
+                # Unknown note must not appear as a detail header.
+                assert f"(notes={code})" not in verbose.stdout, \
+                    f"Unexpected detail block emitted for notes={code}"
+            else:
+                assert header in verbose.stdout, \
+                    f"Missing verbose detail block for notes={code}: {header!r}"
+
 
 if __name__ == '__main__':
     # Run isolated
