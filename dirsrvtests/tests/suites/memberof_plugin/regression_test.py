@@ -18,7 +18,7 @@ from random import sample
 from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
 from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
 from lib389._constants import *
-from lib389.plugins import MemberOfPlugin, RetroChangelogPlugin
+from lib389.plugins import MemberOfPlugin, RetroChangelogPlugin, USNPlugin
 from lib389.backend import Backends
 from lib389.mappingTree import MappingTrees
 from lib389 import Entry
@@ -1852,6 +1852,366 @@ def test_memberof_retrocl_deadlock(topology_st):
         backend.delete()
     except Exception as e:
         log.warning(f"Cleanup warning: {e}")
+
+
+def test_replace_list_diff_correctness(topology_st, request):
+    """A group MOD_REPLACE produces the correct diff
+    across overlap, empty, and no-op transitions.
+
+    :id: 2ab5e1ed-7f40-4b4b-8d7e-5b1b5d5f9f7a
+    :setup: Standalone Instance, USN + memberOf enabled
+    :steps:
+        1. Create 60 users and a group with the first 40 as members
+        2. MOD_REPLACE the group to members[20:60]
+        3. MOD_REPLACE the group back to members[:40] using denormalized DNs
+        4. MOD_REPLACE the group to an empty member list
+        5. MOD_REPLACE the group to members[:2]
+        6. MOD_REPLACE the group to members[:2] again (no-op diff)
+    :expectedresults:
+        1. Users 0..39 have memberOf, 40..59 do not; entryUSN advanced
+           only for 0..39
+        2. Users 0..19 lost memberOf, 20..39 kept it, 40..59 gained it;
+           entryUSN advanced only for 0..19 and 40..59 (overlap members
+           20..39 must not be touched)
+        3. Users 0..39 have memberOf, 40..59 do not; entryUSN advanced
+           only for 0..19 and 40..59 (overlap members 20..39 must not be
+           touched, even with denormalized input DNs)
+        4. No user has memberOf; entryUSN advanced only for 0..39
+        5. Users 0..1 have memberOf, 2..59 do not; entryUSN advanced
+           only for 0..1
+        6. Users 0..1 have memberOf, 2..59 do not; no entryUSN advanced
+    """
+    inst = topology_st.standalone
+
+    USNPlugin(inst).enable()
+    memberof = MemberOfPlugin(inst)
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.set_autoaddoc('nsMemberOf')
+    memberof.enable()
+    deferred = memberof.get_memberofdeferredupdate()
+    delay = 3 if deferred and deferred.lower() == "on" else 0
+    inst.restart()
+
+    users_idm = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_list = []
+    group = None
+
+    def fin():
+        try:
+            if group is not None and group.exists():
+                group.delete()
+        except ldap.LDAPError as e:
+            log.warning('cleanup: group delete failed: %s', e)
+        for u in user_list:
+            try:
+                u.delete()
+            except ldap.NO_SUCH_OBJECT:
+                pass
+    request.addfinalizer(fin)
+
+    for i in range(60):
+        user_list.append(users_idm.create(properties={
+            'uid': 'diffuser%03d' % i,
+            'sn': 'diffuser%03d' % i,
+            'cn': 'diffuser%03d' % i,
+            'uidNumber': str(200000 + i),
+            'gidNumber': str(200000 + i),
+            'homeDirectory': '/home/diffuser%03d' % i,
+        }))
+
+    def read_entryusns():
+        return [u.get_attr_val_int('entryusn') for u in user_list]
+
+    def assert_usn(changed_indices, before, after, label):
+        changed = set(changed_indices)
+        for i in range(len(user_list)):
+            if i in changed:
+                assert after[i] > before[i], (
+                    '%s: user %d entryUSN should have advanced (%d -> %d)'
+                    % (label, i, before[i], after[i]))
+            else:
+                assert after[i] == before[i], (
+                    '%s: user %d entryUSN should not have changed '
+                    '(%d -> %d) but it did'
+                    % (label, i, before[i], after[i]))
+
+    def assert_members(expected_in, expected_out, label):
+        for u in expected_in:
+            assert group_dn_l in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s missing memberOf %s' % (label, u.dn, group.dn)
+        for u in expected_out:
+            assert group_dn_l not in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s still has memberOf %s' % (label, u.dn, group.dn)
+
+    usn_before = read_entryusns()
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={
+        'cn': 'diff_bench_group',
+        'member': [u.dn for u in user_list[:40]],
+    })
+    group_dn_l = group.dn.lower()
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:40], user_list[40:], 'initial')
+    assert_usn(range(40), usn_before, usn_after, 'initial')
+
+    usn_before = usn_after
+    group.replace('member', [u.dn for u in user_list[20:60]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[20:60], user_list[:20], 'replace-overlap')
+    assert_usn(list(range(20)) + list(range(40, 60)),
+               usn_before, usn_after, 'replace-overlap')
+
+    def denorm(dn):
+        rdns = []
+        for rdn in dn.split(','):
+            attr, _, value = rdn.partition('=')
+            rdns.append('{} = {}'.format(attr.strip().upper(), value.strip()))
+        return ' , '.join(rdns)
+
+    usn_before = usn_after
+    group.replace('member', [denorm(u.dn) for u in user_list[:40]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:40], user_list[40:], 'replace-denormalized')
+    assert_usn(list(range(20)) + list(range(40, 60)),
+               usn_before, usn_after, 'replace-denormalized')
+
+    usn_before = usn_after
+    group.replace('member', [])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members([], user_list, 'replace-empty')
+    assert_usn(range(40), usn_before, usn_after, 'replace-empty')
+
+    usn_before = usn_after
+    group.replace('member', [u.dn for u in user_list[:2]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:2], user_list[2:], 'replace-from-empty')
+    assert_usn(range(2), usn_before, usn_after, 'replace-from-empty')
+
+    usn_before = usn_after
+    group.replace('member', [u.dn for u in user_list[:2]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:2], user_list[2:], 'replace-noop')
+    assert_usn([], usn_before, usn_after, 'replace-noop')
+
+
+def test_replace_list_after_ldif_import(topology_st, request):
+    """An LDIF import of denormalized member DNs stores canonical values in the
+    valueset, and a subsequent group MOD_REPLACE produces correct memberOf.
+
+    :id: 1c742145-e967-4a9d-8d0d-29e92cd46078
+    :setup: Standalone Instance
+    :steps:
+        1. ldif2db an LDIF with 20 users and a group whose member values
+           are denormalized (uppercase attr types, whitespace padding)
+        2. Check stored member values no longer carry the padding
+        3. Run memberOf fixup
+        4. MOD_REPLACE the group's members to users[5:15]
+    :expectedresults:
+        1. Import succeeds
+        2. member values are canonical (no ' = ' or ' , ')
+        3. Users 0..9 have memberOf, 10..19 do not
+        4. Users 0..4 lost memberOf, 5..14 have it, 15..19 do not
+    """
+    inst = topology_st.standalone
+    memberof = MemberOfPlugin(inst)
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.set_autoaddoc('nsMemberOf')
+    memberof.enable()
+    deferred = memberof.get_memberofdeferredupdate()
+    delay = 3 if deferred and deferred.lower() == "on" else 0
+    inst.restart()
+
+    user_dns = ['uid=denormu%02d,ou=People,%s' % (i, DEFAULT_SUFFIX) for i in range(20)]
+    group_dn = 'cn=denorm_import_group,%s' % DEFAULT_SUFFIX
+
+    def denorm(dn):
+        rdns = []
+        for rdn in dn.split(','):
+            attr, _, value = rdn.partition('=')
+            rdns.append('{} = {}'.format(attr.strip().upper(), value.strip()))
+        return ' , '.join(rdns)
+
+    def fin():
+        try:
+            if not inst.status():
+                inst.start()
+            for dn in [group_dn] + user_dns:
+                try:
+                    inst.delete_s(dn)
+                except ldap.NO_SUCH_OBJECT:
+                    pass
+        except ldap.LDAPError as e:
+            log.warning('cleanup failed: %s', e)
+    request.addfinalizer(fin)
+
+    ldif_path = os.path.join(inst.get_ldif_dir(), 'memberof_denorm_import.ldif')
+    with open(ldif_path, 'w') as f:
+        f.write('dn: %s\nobjectClass: top\nobjectClass: domain\ndc: example\n\n'
+                % DEFAULT_SUFFIX)
+        f.write('dn: ou=People,%s\nobjectClass: top\n'
+                'objectClass: organizationalUnit\nou: People\n\n' % DEFAULT_SUFFIX)
+        for i, dn in enumerate(user_dns):
+            f.write('dn: %s\nobjectClass: top\nobjectClass: person\n'
+                    'objectClass: inetOrgPerson\nobjectClass: posixAccount\n'
+                    'objectClass: nsMemberOf\n'
+                    'uid: denormu%02d\ncn: denormu%02d\nsn: denormu%02d\n'
+                    'uidNumber: %d\ngidNumber: %d\nhomeDirectory: /home/denormu%02d\n\n'
+                    % (dn, i, i, i, 300000 + i, 300000 + i, i))
+        f.write('dn: %s\nobjectClass: top\nobjectClass: groupOfNames\n'
+                'cn: denorm_import_group\n' % group_dn)
+        for dn in user_dns[:10]:
+            f.write('member: %s\n' % denorm(dn))
+        f.write('\n')
+    os.chmod(ldif_path, 0o644)
+
+    inst.stop()
+    assert inst.ldif2db('userRoot', None, None, None, ldif_path), 'ldif2db failed'
+    inst.start()
+
+    stored = Group(inst, group_dn).get_attr_vals_utf8('member')
+    assert sorted(v.lower() for v in stored) == sorted(d.lower() for d in user_dns[:10]), \
+        'member values not normalized after ldif2db: %r' % stored
+    for v in stored:
+        assert ' = ' not in v and ' , ' not in v, \
+            'member value retains non-canonical whitespace: %r' % v
+
+    fixup_task = memberof.fixup(basedn=DEFAULT_SUFFIX)
+    fixup_task.wait(timeout=0)
+    assert fixup_task.get_exit_code() == 0, 'memberOf fixup failed'
+    time.sleep(delay)
+
+    group_dn_l = group_dn.lower()
+
+    def assert_members(in_dns, out_dns, label):
+        for dn in in_dns:
+            u = UserAccount(inst, dn)
+            assert group_dn_l in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s missing memberOf' % (label, dn)
+        for dn in out_dns:
+            u = UserAccount(inst, dn)
+            assert group_dn_l not in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s unexpectedly has memberOf' % (label, dn)
+
+    assert_members(user_dns[:10], user_dns[10:], 'post-import+fixup')
+
+    Group(inst, group_dn).replace('member', user_dns[5:15])
+    time.sleep(delay)
+    assert_members(user_dns[5:15], user_dns[:5] + user_dns[15:], 'post-replace')
+
+
+def test_replace_list_no_spurious_member_mods(topology_st, request):
+    """A group MOD_REPLACE must not re-modify overlap members.
+
+    :id: 6de82dc9-4727-4757-b0d2-69a7907a8dbe
+    :setup: Standalone Instance, USN + memberOf enabled
+    :steps:
+        1. Create four users
+        2. Create a group containing two of them
+        3. Replace the group's member list with all four users
+        4. Check entryUSN of every user
+    :expectedresults:
+        1. Users created
+        2. Initial members hold memberOf for the group
+        3. Replace succeeds; all four users hold memberOf
+        4. The two pre-existing members' entryUSN is unchanged;
+           the two newly added members' entryUSN has advanced
+    """
+    inst = topology_st.standalone
+
+    USNPlugin(inst).enable()
+    memberof = MemberOfPlugin(inst)
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.set_autoaddoc('nsMemberOf')
+    memberof.enable()
+    deferred = memberof.get_memberofdeferredupdate()
+    delay = 3 if deferred and deferred.lower() == "on" else 0
+    inst.restart()
+
+    users_idm = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_names = ['alpha', 'beta', 'charlie', 'delta']
+    user_objs = {}
+    group = None
+
+    def fin():
+        try:
+            if group is not None and group.exists():
+                group.delete()
+        except ldap.LDAPError as e:
+            log.warning('cleanup: group delete failed: %s', e)
+        for u in user_objs.values():
+            try:
+                u.delete()
+            except ldap.LDAPError as e:
+                log.warning('cleanup: user delete failed: %s', e)
+    request.addfinalizer(fin)
+
+    for i, name in enumerate(user_names):
+        user_objs[name] = users_idm.create(properties={
+            'uid': name,
+            'cn': name,
+            'sn': name,
+            'uidNumber': str(400000 + i),
+            'gidNumber': str(400000 + i),
+            'homeDirectory': '/home/%s' % name,
+        })
+
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={
+        'cn': 'replace_no_spurious_group',
+        'member': [user_objs['alpha'].dn, user_objs['delta'].dn],
+    })
+    group_dn_l = group.dn.lower()
+    time.sleep(delay)
+
+    for shared in ('alpha', 'delta'):
+        assert group_dn_l in user_objs[shared].get_attr_vals_utf8_l('memberOf'), \
+            'pre-replace: %s missing memberOf %s' % (shared, group.dn)
+
+    usn_before = {
+        name: user_objs[name].get_attr_val_int('entryusn')
+        for name in user_names
+    }
+
+    group.replace('member', [user_objs[n].dn for n in user_names])
+    time.sleep(delay)
+
+    for name in user_names:
+        assert group_dn_l in user_objs[name].get_attr_vals_utf8_l('memberOf'), \
+            'post-replace: %s missing memberOf %s' % (name, group.dn)
+
+    usn_after = {
+        name: user_objs[name].get_attr_val_int('entryusn')
+        for name in user_names
+    }
+
+    for shared in ('alpha', 'delta'):
+        assert usn_after[shared] == usn_before[shared], (
+            '%s was modified (entryUSN %d -> %d) but it was already a '
+            'member before the replace and is still a member after'
+            % (shared, usn_before[shared], usn_after[shared]))
+
+    for added in ('beta', 'charlie'):
+        assert usn_after[added] > usn_before[added], (
+            '%s was not modified (entryUSN %d -> %d) but should have '
+            'gained memberOf' % (added, usn_before[added], usn_after[added]))
 
 
 if __name__ == '__main__':
