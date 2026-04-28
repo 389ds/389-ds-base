@@ -551,9 +551,11 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
              * NULL terminated, the only downside is that we
              * allocate more space than we really need.
              */
-            nsubs += slapi_value_get_length(*bvlp) - substrlens[INDEX_SUBSTRMIDDLE] + 3;
+            nsubs += (int)slapi_value_get_length(*bvlp) - substrlens[INDEX_SUBSTRMIDDLE] + 3;
         }
-        nsubs += substrlens[INDEX_SUBSTRMIDDLE] * 2 - substrlens[INDEX_SUBSTRBEGIN] - substrlens[INDEX_SUBSTREND];
+        if (substrlens[INDEX_SUBSTRMIDDLE] * 2 > substrlens[INDEX_SUBSTRBEGIN] + substrlens[INDEX_SUBSTREND]) {
+            nsubs += substrlens[INDEX_SUBSTRMIDDLE] * 2 - substrlens[INDEX_SUBSTRBEGIN] - substrlens[INDEX_SUBSTREND];
+        }
         *ivals = (Slapi_Value **)slapi_ch_calloc((nsubs + 1), sizeof(Slapi_Value *));
 
         n = 0;
@@ -591,7 +593,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
             }
 
             /* leading */
-            if (bvp->bv_len > substrlens[INDEX_SUBSTRBEGIN] - 2) {
+            if ((int)bvp->bv_len > substrlens[INDEX_SUBSTRBEGIN] - 2) {
                 buf[0] = '^';
                 for (i = 0; i < substrlens[INDEX_SUBSTRBEGIN] - 1; i++) {
                     buf[i + 1] = bvp->bv_val[i];
@@ -604,7 +606,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
 
             /* any */
             for (p = bvp->bv_val;
-                 p < (bvp->bv_val + bvp->bv_len - substrlens[INDEX_SUBSTRMIDDLE] + 1);
+                 p < (bvp->bv_val + (int)bvp->bv_len - substrlens[INDEX_SUBSTRMIDDLE] + 1);
                  p++) {
                 for (i = 0; i < substrlens[INDEX_SUBSTRMIDDLE]; i++) {
                     buf[i] = p[i];
@@ -616,7 +618,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
             }
 
             /* trailing */
-            if (bvp->bv_len > substrlens[INDEX_SUBSTREND] - 2) {
+            if ((int)bvp->bv_len > substrlens[INDEX_SUBSTREND] - 2) {
                 p = bvp->bv_val + bvp->bv_len - substrlens[INDEX_SUBSTREND] + 1;
                 for (i = 0; i < substrlens[INDEX_SUBSTREND] - 1; i++) {
                     buf[i] = p[i];
