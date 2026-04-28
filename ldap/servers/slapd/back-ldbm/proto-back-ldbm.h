@@ -217,9 +217,10 @@ ID idl_firstid(IDList *idl);
 ID idl_nextid(IDList *idl, ID id);
 int idl_init_private(backend *be, struct attrinfo *a);
 int idl_release_private(struct attrinfo *a);
-IdRange_t *idrange_add_id(IdRange_t **head, ID id);
-void idrange_free(IdRange_t **head);
-int idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id);
+void idrange_set_init(IdRangeSet_t **set);
+void idrange_set_destroy(IdRangeSet_t **set);
+void idrange_set_add_id(IdRangeSet_t *set, ID id);
+int idl_id_is_in_idlist_ranges(IDList *idl, IdRangeSet_t *set, ID id);
 int idl_id_is_in_idlist(IDList *idl, ID id);
 
 idl_iterator idl_iterator_init(const IDList *idl);

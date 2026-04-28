@@ -66,7 +66,7 @@ typedef struct {
     size_t leftoverlen;
     size_t leftovercnt;
     IDList *idl;
-    IdRange_t *idrange_list;
+    IdRangeSet_t *idrange_set;
     int flag_err;
     ID lastid;
     ID suffix;
@@ -436,7 +436,7 @@ idl_new_range_fetch(
     size_t leftoverlen = 32;
     size_t leftovercnt = 0;
     char *index_id = get_index_name(be, db, ai);
-    IdRange_t *idrange_list = NULL;
+    IdRangeSet_t *idrange_set = NULL;
 
 
     if (NULL == flag_err) {
@@ -462,6 +462,10 @@ idl_new_range_fetch(
 
     if (NEW_IDL_NOOP == *flag_err) {
         return NULL;
+    }
+
+    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+        idrange_set_init(&idrange_set);
     }
     if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
         char *included = ((operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) ? "not " : "";
@@ -580,11 +584,11 @@ idl_new_range_fetch(
                      */
                     suffix = key;
                     idl_append_extend(&idl, id);
-                    idrange_add_id(&idrange_list, id);
-                } else if ((key == suffix) || idl_id_is_in_idlist_ranges(idl, idrange_list, key)) {
+                    idrange_set_add_id(idrange_set, id);
+                } else if ((key == suffix) || idl_id_is_in_idlist_ranges(idl, idrange_set, key)) {
                     /* the parent is the suffix or already in idl. */
                     idl_append_extend(&idl, id);
-                    idrange_add_id(&idrange_list, id);
+                    idrange_set_add_id(idrange_set, id);
                 } else {
                     /* Otherwise, keep the {key,id} in leftover array */
                     if (!leftover) {
@@ -692,10 +696,10 @@ error:
 
         while(remaining > 0) {
             for (size_t i = 0; i < leftovercnt; i++) {
-                if (leftover[i].key > 0 && idl_id_is_in_idlist_ranges(idl, idrange_list, leftover[i].key) != 0) {
+                if (leftover[i].key > 0 && idl_id_is_in_idlist_ranges(idl, idrange_set, leftover[i].key) != 0) {
                     /* if the leftover key has its parent in the idl */
                     idl_append_extend(&idl, leftover[i].id);
-                    idrange_add_id(&idrange_list, leftover[i].id);
+                    idrange_set_add_id(idrange_set, leftover[i].id);
                     leftover[i].key = 0;
                     remaining--;
                 }
@@ -703,7 +707,7 @@ error:
         }
     }
     slapi_ch_free((void **)&leftover);
-    idrange_free(&idrange_list);
+    idrange_set_destroy(&idrange_set);
     slapi_log_err(SLAPI_LOG_FILTER, "idl_new_range_fetch",
                   "Found %d candidates; error code is: %d\n",
                   idl ? idl->b_nids : 0, *flag_err);
@@ -780,11 +784,11 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
              */
             rctx->suffix = keyval;
             idl_append_extend(&rctx->idl, id);
-            idrange_add_id(&rctx->idrange_list, id);
-        } else if ((keyval == rctx->suffix) || idl_id_is_in_idlist_ranges(rctx->idl, rctx->idrange_list, keyval)) {
+            idrange_set_add_id(rctx->idrange_set, id);
+        } else if ((keyval == rctx->suffix) || idl_id_is_in_idlist_ranges(rctx->idl, rctx->idrange_set, keyval)) {
             /* the parent is the suffix or already in idl. */
             idl_append_extend(&rctx->idl, id);
-            idrange_add_id(&rctx->idrange_list, id);
+            idrange_set_add_id(rctx->idrange_set, id);
         } else {
             /* Otherwise, keep the {keyval,id} in leftover array */
             if (!rctx->leftover) {
@@ -885,8 +889,8 @@ idl_lmdb_range_fetch(
     idl_range_ctx.lastid = 0;
     idl_range_ctx.count = 0;
     idl_range_ctx.index_id = index_id;
-    idl_range_ctx.idrange_list = NULL;
     if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+        idrange_set_init(&idl_range_ctx.idrange_set);
             struct _back_info_index_key bck_info;
             /* We are doing a bulk import
              * try to retrieve the suffix entry id from the index
@@ -961,10 +965,10 @@ error:
         while(remaining > 0) {
             for (size_t i = 0; i < idl_range_ctx.leftovercnt; i++) {
                 if (idl_range_ctx.leftover[i].key > 0 &&
-                    idl_id_is_in_idlist_ranges(idl_range_ctx.idl, idl_range_ctx.idrange_list, idl_range_ctx.leftover[i].key) != 0) {
+                    idl_id_is_in_idlist_ranges(idl_range_ctx.idl, idl_range_ctx.idrange_set, idl_range_ctx.leftover[i].key) != 0) {
                     /* if the leftover key has its parent in the idl */
                     idl_append_extend(&idl_range_ctx.idl, idl_range_ctx.leftover[i].id);
-                    idrange_add_id(&idl_range_ctx.idrange_list, idl_range_ctx.leftover[i].id);
+                    idrange_set_add_id(idl_range_ctx.idrange_set, idl_range_ctx.leftover[i].id);
                     idl_range_ctx.leftover[i].key = 0;
                     remaining--;
                 }
@@ -972,7 +976,7 @@ error:
         }
     }
     slapi_ch_free((void **)&idl_range_ctx.leftover);
-    idrange_free(&idl_range_ctx.idrange_list);
+    idrange_set_destroy(&idl_range_ctx.idrange_set);
     *flag_err = idl_range_ctx.flag_err;
     slapi_log_err(SLAPI_LOG_FILTER, "idl_lmdb_range_fetch",
                   "Found %d candidates; error code is: %d\n",

@@ -287,13 +287,25 @@ typedef struct _idlist_set
 /*
  * used by the supplier during online total init
  * it stores the ranges of ID that are already present
- * in the candidate list ('parentid>=1')
+ * in the candidate list ('parentid>=1').
+ * Ranges are sorted with higher IDs first (largest range begins
+ * at the head); each [first..last] still has first <= last.
  */
 typedef struct IdRange {
     ID first;
     ID last;
     struct IdRange *next;
 } IdRange_t;
+
+/*
+ * Partition of the 32-bit ID space into IDRANGE_NUM_BUCKETS (4096) slices
+ * (IDRANGE_BUCKET_SHIFT high bits).  Each slice has its own merged range list
+ * and optional hash of sparse singletons — see idl_common.c.
+ */
+#define IDRANGE_NUM_BUCKETS 4096
+#define IDRANGE_BUCKET_SHIFT 20 /* (1U << IDRANGE_BUCKET_SHIFT) IDs per bucket */
+
+typedef struct IdRangeSet IdRangeSet_t;
 
 
 typedef size_t idl_iterator;
