@@ -51,7 +51,6 @@ static void *_PluginID = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
 static Slapi_RWLock *config_rwlock = NULL;
 static Slapi_DN* _pluginDN = NULL;
-MemberOfConfig *qsortConfig = 0;
 static int usetxn = 0;
 static int premodfn = 0;
 static PRLock *fixup_lock = NULL;
@@ -4038,14 +4037,6 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *group_
                 slapi_attr_get_numvalues(post_attr, &post_total);
             }
 
-            /* Stash a plugin global pointer here and have memberof_qsort_compare
-             * use it.  We have to do this because we use memberof_qsort_compare
-             * as the comparator function for qsort, which requires the function
-             * to only take two void* args.  This is thread-safe since we only
-             * store and use the pointer while holding the memberOf operation
-             * lock. */
-            qsortConfig = config;
-
             if (pre_total) {
                 pre_array =
                     (Slapi_Value **)
@@ -4069,9 +4060,6 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *group_
                     sizeof(Slapi_Value *),
                     memberof_qsort_compare);
             }
-
-            qsortConfig = 0;
-
 
             /*     work through arrays, following these rules:
                 in pre, in post, do nothing
@@ -4155,12 +4143,16 @@ memberof_load_array(Slapi_Value **array, Slapi_Attr *attr)
     }
 }
 
-/* memberof_compare()
+/* memberof_compare() and memberof_qsort_compare()
  *
- * compare two attr values
+ * Tri-valued ordering on grouping-attr DNs. Grouping attrs are DN or
+ * Name-and-Optional-UID syntax and the valueset stores bv_val already
+ * normalized modulo case, so utf8casecmp gives a valid strict weak
+ * ordering.
  */
 int
-memberof_compare(MemberOfConfig *config, const void *a, const void *b)
+memberof_compare(MemberOfConfig *config __attribute__((unused)),
+                 const void *a, const void *b)
 {
     Slapi_Value *val1;
     Slapi_Value *val2;
@@ -4175,20 +4167,16 @@ memberof_compare(MemberOfConfig *config, const void *a, const void *b)
     val1 = *((Slapi_Value **)a);
     val2 = *((Slapi_Value **)b);
 
-    /* We only need to provide a Slapi_Attr here for it's syntax.  We
-     * already validated all grouping attributes to use the Distinguished
-     * Name syntax, so we can safely just use the first attr. */
-    return slapi_attr_value_cmp_ext(config->group_slapiattrs[0], val1, val2);
+    return slapi_utf8casecmp((unsigned char *)slapi_value_get_string(val1),
+                             (unsigned char *)slapi_value_get_string(val2));
 }
 
 /* memberof_qsort_compare()
  *
- * This is a version of memberof_compare that uses a plugin
- * global copy of the config.  We'd prefer to pass in a copy
- * of config that is local to the running thread, but we can't
- * do this since qsort is using us as a comparator function.
- * We should only use this function when using qsort, and only
- * when the memberOf lock is acquired.
+ * Tri-valued ordering on memberof attribute DNs. The memberof attribute
+ * is DN syntax and the valueset stores bv_val already normalized modulo
+ * case, so utf8casecmp gives a valid strict weak ordering matching
+ * valueset_value_cmp.
  */
 int
 memberof_qsort_compare(const void *a, const void *b)
@@ -4196,11 +4184,8 @@ memberof_qsort_compare(const void *a, const void *b)
     Slapi_Value *val1 = *((Slapi_Value **)a);
     Slapi_Value *val2 = *((Slapi_Value **)b);
 
-    /* We only need to provide a Slapi_Attr here for it's syntax.  We
-     * already validated all grouping attributes to use the Distinguished
-     * Name syntax, so we can safely just use the first attr. */
-    return slapi_attr_value_cmp_ext(qsortConfig->group_slapiattrs[0],
-                                    val1, val2);
+    return slapi_utf8casecmp((unsigned char *)slapi_value_get_string(val1),
+                             (unsigned char *)slapi_value_get_string(val2));
 }
 
 void
