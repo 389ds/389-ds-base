@@ -41,6 +41,7 @@ import uuid
 import json
 from shutil import copy2
 from contextlib import suppress
+from multiprocessing import Process
 
 # Deprecation
 import warnings
@@ -2745,6 +2746,40 @@ class DirSrv(SimpleLDAPObject, object):
     # The following are the functions to perform offline scripts(when the
     # server is stopped)
     #
+    def check_ldif_file_is_readable(self, import_file):
+        # Become dirsrv and check that wimport_file is still readable
+        def chown_and_test(pw, import_file):
+            if os.getuid() == 0:
+                os.setgroups([])
+                os.setgid(pw.pw_gid)
+                os.setuid(pw.pw_uid)
+            if not os.access(import_file, os.R_OK):
+                sys.exit(1)
+            sys.exit(0)
+
+        dse_ldif = DSEldif(self)
+        user = dse_ldif.get("cn=config", "nsslapd-localuser", single=True)
+        if user is None:
+            self.log.error(f'ldif2db: Unable to find nsslapd-localuser attribute in {dse_ldif.path}')
+            return False
+        try:
+            pw = pwd.getpwnam(user)
+        except KeyError:
+            self.log.error(f"ldif2db: Failed to find {user} in /etc/passwd file.")
+            return False
+        # Fork a child process, switch it to the user and check that file
+        # is still readable
+        p = Process(target=chown_and_test, args=(pw, import_file,))
+        p.start()
+        p.join()
+        if p.exitcode == 0:
+            return True
+        if p.exitcode == 1:
+            self.log.error(f'ldif2db: User {user} cannot read {import_file} file.')
+            return False
+        self.log.error(f'ldif2db: Unexpected error {p.exitcode} while checking {import_file}.')
+        return False
+
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
                 import_file, import_cl=False, watch=False):
         """
@@ -2768,6 +2803,9 @@ class DirSrv(SimpleLDAPObject, object):
 
         if not os.path.isfile(import_file):
             self.log.error("ldif2db: Can't find file: %s", import_file)
+            return False
+
+        if not self.check_ldif_file_is_readable(import_file):
             return False
 
         cmd = [

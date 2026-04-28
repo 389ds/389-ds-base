@@ -15,6 +15,7 @@ import pytest
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, DN_DM
 from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
+from tempfile import TemporaryDirectory
 
 DSCONF = '/usr/sbin/dsconf'
 DSCTL = '/usr/sbin/dsctl'
@@ -164,6 +165,74 @@ def test_dsctl_task_watch_output(topo):
         inst.start()
 
 
+def generate_ldif_file(inst, ldif, perm):
+    dbgen_users(
+        inst,
+        WATCH_TEST_NUM_USERS/100,
+        ldif,
+        DEFAULT_SUFFIX,
+        parent='ou=people,' + DEFAULT_SUFFIX,
+        generic=True,
+    )
+    os.chown(ldif, 0, 0)
+    os.chmod(ldif, perm)
+
+
+def check_import(inst, ldif, expected_error):
+    inst.log.info(f'Try importing {ldif} Expecting {expected_error}')
+    rc, out = _run_dsctl(inst, ['ldif2db', DEFAULT_BENAME, ldif])
+    inst.log.info(f'Get: {out}')
+    assert expected_error in out
+
+
+@pytest.mark.skipif(os.getuid() != 0, reason="Test not run by root")
+def test_dsctl_ldif2db_file_access(topo):
+    """Check that import file is readable
+
+    :id: 642c331e-4252-11f1-9fad-c85309d5c3e3
+    :setup: Standalone Instance (stopped for offline db utilities)
+    :steps:
+        1. Stop the server
+        2. Run ``ldif2db`` on a file with 0644 permission
+        3. Run ``ldif2db`` on a file with 0600 permission
+        4. Run ``ldif2db`` on a directory with 0711 permission
+        5. Run ``ldif2db`` on a directory with 0700 permission
+        6. Run ``ldif2db`` on a file within directory with 0700 permission
+        7. Start the server
+    :expectedresults:
+        1. Success
+        2. Success
+        3. dsctl should fail with 'User dirsrv cannot read file' error
+        4. dsctl should fail with "Can't find file" error
+        5. dsctl should fail with "Can't find file" error
+        6. dsctl should fail with 'User dirsrv cannot read file' error
+        7. Success
+    """
+    inst = topo.standalone
+
+    inst.stop()
+
+    try:
+        with TemporaryDirectory() as dir:
+            os.chmod(dir, 0o711)
+            d1 = f'{dir}/d1'
+            os.mkdir(d1)
+            os.chmod(d1, 0o700)
+            ldif1 = f'{dir}/db1.ldif'
+            ldif2 = f'{dir}/db2.ldif'
+            ldif3 = f'{d1}/db3.ldif'
+            generate_ldif_file(inst, ldif1, 0o644)
+            generate_ldif_file(inst, ldif2, 0o600)
+            generate_ldif_file(inst, ldif3, 0o644)
+            check_import(inst, ldif1, 'ldif2db successful')
+            check_import(inst, ldif2, 'ldif2db: User dirsrv cannot read')
+            check_import(inst, dir, "ldif2db: Can't find file")
+            check_import(inst, d1, "ldif2db: Can't find file")
+            check_import(inst, ldif3, 'ldif2db: User dirsrv cannot read')
+    finally:
+        inst.start()
+
+        
 if __name__ == '__main__':
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(['-s', CURRENT_FILE])
