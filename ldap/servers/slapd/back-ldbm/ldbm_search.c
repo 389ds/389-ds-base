@@ -1586,6 +1586,8 @@ subtree_candidates(
             idl_free(&tmp);
             idl_free(&descendants);
         } /* else == has_tombstone_filter OR is_bulk_import: do nothing */
+    } else if (candidates != NULL) {
+        *err = LDAP_SUCCESS;
     }
 
     return (candidates);
