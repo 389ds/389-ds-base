@@ -39,6 +39,7 @@ def create_test_user(topology_st, request):
         test_user.delete()
 
     properties = FakeArgs()
+    properties.user_type = 'posix'
     properties.uid = test_user_name
     properties.cn = test_user_name
     properties.sn = test_user_name
@@ -100,6 +101,7 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
 
     args = FakeArgs()
     args.dn = test_user.dn
+    args.user_type = 'posix'
     args.json = False
     args.basedn = DEFAULT_SUFFIX
     args.scope = ldap.SCOPE_SUBTREE
@@ -160,6 +162,7 @@ def test_dsidm_account_entry_get_by_dn(topology_st, create_test_user):
 
     args = FakeArgs()
     args.dn = user_dn
+    args.user_type = 'posix'
     args.json = False
     args.basedn = DEFAULT_SUFFIX
     args.scope = ldap.SCOPE_SUBTREE
@@ -204,6 +207,7 @@ def test_dsidm_account_delete(topology_st, create_test_user):
 
     args = FakeArgs()
     args.dn = test_account.dn
+    args.user_type = 'posix'
 
     log.info('Test dsidm account delete')
     delete(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args, warn=False)
@@ -308,6 +312,7 @@ def test_dsidm_account_get_by_dn(topology_st, create_test_user):
 
     args = FakeArgs()
     args.dn = test_account.dn
+    args.user_type = 'posix'
     args.json = False
 
     account_content = ['dn: {}'.format(test_account.dn),
@@ -390,6 +395,7 @@ def test_dsidm_account_modify_by_dn(topology_st, create_test_user):
     args = FakeArgs()
     args.dn = test_account.dn
     args.changes = ['add:description:new_description']
+    args.user_type = 'posix'
 
     log.info('Test dsidm account modify add')
     modify(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args, warn=False)
@@ -435,6 +441,7 @@ def test_dsidm_account_rename_by_dn(topology_st, create_test_user):
     args.new_name = 'renamed_account'
     args.new_dn = 'uid=renamed_account,ou=people,{}'.format(DEFAULT_SUFFIX)
     args.keep_old_rdn = False
+    args.user_type = 'posix'
 
     log.info('Test dsidm account rename-by-dn')
     rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -480,6 +487,7 @@ def test_dsidm_account_rename_by_dn_keep_old_rdn(topology_st, create_test_user):
     args.new_name = 'renamed_account'
     args.new_dn = 'uid=renamed_account,ou=people,{}'.format(DEFAULT_SUFFIX)
     args.keep_old_rdn = True
+    args.user_type = 'posix'
 
     log.info('Test dsidm account rename-by-dn')
     rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -522,6 +530,7 @@ def test_dsidm_account_reset_password(topology_st, create_test_user):
     args.dn = test_account.dn
     args.new_password = 'newpasswd'
     output = 'reset password for {}'.format(test_account.dn)
+    args.user_type = 'posix'
 
     log.info('Test dsidm account reset_password')
     reset_password(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -553,6 +562,7 @@ def test_dsidm_account_change_password(topology_st, create_test_user):
     args.dn = test_account.dn
     args.new_password = 'newpasswd'
     output = 'changed password for {}'.format(test_account.dn)
+    args.user_type = 'posix'
 
     log.info('Test dsidm account change_password')
     change_password(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
