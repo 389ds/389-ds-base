@@ -31,6 +31,7 @@ backentry_free(struct backentry **bep)
     if (ep->ep_mutexp != NULL) {
         PR_DestroyMonitor(ep->ep_mutexp);
     }
+    slapi_ch_free_string(&ep->ep_dn_hash_ndn);
     slapi_ch_free((void **)&ep);
     *bep = NULL;
 }

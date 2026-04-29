@@ -55,6 +55,7 @@ struct backentry *cache_find_id(struct cache *cache, ID id);
 struct backentry *cache_find_uuid(struct cache *cache, const char *uuid);
 int cache_add(struct cache *cache, void *ptr, void **alt);
 int cache_add_tentative(struct cache *cache, struct backentry *e, struct backentry **alt);
+void cache_remove_dn_hash(struct cache *cache, struct backentry *e);
 int cache_lock_entry(struct cache *cache, struct backentry *e);
 void cache_unlock_entry(struct cache *cache, struct backentry *e);
 int cache_replace(struct cache *cache, void *oldptr, void *newptr);
