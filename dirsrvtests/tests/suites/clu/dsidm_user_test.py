@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,17 +7,18 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import time
-import subprocess
+import json
 import pytest
 import logging
 import os
 import ldap
 
 from lib389 import DEFAULT_SUFFIX
+from lib389._constants import DN_DM, PASSWORD
 from lib389.cli_idm.user import list, get, get_dn, create, delete, modify, rename
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older, ensure_str
+from lib389.utils import ds_is_older, is_a_dn
 from lib389.idm.user import nsUserAccounts
 from . import check_value_in_log_and_reset
 
@@ -26,6 +27,42 @@ pytestmark = pytest.mark.tier0
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
+
+def create_user(topo, user_type):
+    """Create one entry under ou=people using nsUserAccounts + update_objectclasses."""
+    args = FakeArgs()
+    args.user_type = user_type
+    args.json = False
+
+    if user_type == 'posix':
+        args.uid = 'posix_user'
+        args.cn = 'posix_user'
+        args.displayName = 'posix_user'
+        args.uidNumber = '6100'
+        args.gidNumber = '7100'
+        args.homeDirectory = '/home/posix_user'
+        rdn = 'posix_user'
+    elif user_type == 'traditional':
+        #args.uid = 'traditional_user'
+        args.cn = 'traditional_user'
+        args.sn = 'Traditional'
+        args.selector = "cn"
+        rdn = 'traditional_user'
+    elif user_type == 'basic':
+        args.uid = 'basic_user'
+        args.cn = 'basic_user'
+        args.displayName = 'basic_user'
+        rdn = 'basic_user'
+    elif user_type == 'service':
+        args.cn = 'service_user'
+        args.description = 'service_user'
+        args.selector = "cn"
+        rdn = 'service_user'
+    else:
+        raise ValueError('Invalid user type: %s' % user_type)
+
+    create(topo.standalone, DEFAULT_SUFFIX, topo.logcap.log, args)
+    return rdn
 
 @pytest.fixture(scope="function")
 def create_test_user(topology_st, request):
@@ -74,6 +111,8 @@ def test_dsidm_user_list(topology_st, create_test_user):
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
+    args.user_type = 'posix'
     user_value = 'test_user_1000'
     json_list = ['type',
                  'list',
@@ -171,6 +210,7 @@ def test_dsidm_user_get_rdn(topology_st, create_test_user):
 
     args = FakeArgs()
     args.json = False
+    args.user_type = 'posix'
     args.selector = 'test_user_1000'
 
     log.info('Empty the log file to prevent false data to check about user')
@@ -202,10 +242,12 @@ def test_dsidm_user_get_dn(topology_st, create_test_user):
     """
 
     standalone = topology_st.standalone
+    user_name = 'test_user_1000'
     users = nsUserAccounts(standalone, DEFAULT_SUFFIX)
-    test_user = users.get('test_user_1000')
+    test_user = users.get(user_name)
     args = FakeArgs()
     args.dn = test_user.dn
+    args.user_type = 'posix'
 
     log.info('Empty the log file to prevent false data to check about user')
     topology_st.logcap.flush()
@@ -241,12 +283,14 @@ def test_dsidm_user_create(topology_st):
     output = 'Successfully created {}'.format(user_name)
 
     args = FakeArgs()
+    args.json = False
     args.uid = user_name
     args.cn = user_name
     args.displayName = user_name
     args.uidNumber = '1030'
     args.gidNumber = '2030'
     args.homeDirectory = '/home/{}'.format(user_name)
+    args.user_type = 'posix'
 
     log.info('Test dsidm user create')
     create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -284,6 +328,7 @@ def test_dsidm_user_delete(topology_st, create_test_user):
 
     args = FakeArgs()
     args.dn = test_user.dn
+    args.user_type = 'posix'
 
     log.info('Test dsidm user delete')
     delete(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args, warn=False)
@@ -317,6 +362,7 @@ def test_dsidm_user_modify(topology_st, create_test_user):
     args = FakeArgs()
     args.selector = 'test_user_1000'
     args.changes = ['replace:cn:test']
+    args.user_type = 'posix'
 
     log.info('Test dsidm user modify replace')
     modify(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args, warn=False)
@@ -359,6 +405,7 @@ def test_dsidm_user_rename_keep_old_rdn(topology_st, create_test_user):
     args.selector = test_user.rdn
     args.new_name = 'my_user'
     args.keep_old_rdn = True
+    args.user_type = 'posix'
 
     log.info('Test dsidm user rename')
     rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -402,6 +449,7 @@ def test_dsidm_user_rename(topology_st, create_test_user):
     args.selector = test_user.rdn
     args.new_name = 'my_user'
     args.keep_old_rdn = False
+    args.user_type = 'posix'
 
     log.info('Test dsidm user rename')
     args.new_name = 'my_user'
@@ -455,6 +503,7 @@ def test_dsidm_user_rename_nonexistent(topology_st):
         args.uidNumber = '1050'
         args.gidNumber = '2050'
         args.homeDirectory = f'/home/{original_name}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {original_name}')
 
@@ -463,6 +512,7 @@ def test_dsidm_user_rename_nonexistent(topology_st):
         args.selector = original_name
         args.new_name = new_name
         args.keep_old_rdn = False
+        args.user_type = 'posix'
         rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully renamed to')
 
@@ -525,6 +575,7 @@ def test_dsidm_user_rename_same_cn_displayname(topology_st):
         args.uidNumber = '1101'
         args.gidNumber = '2101'
         args.homeDirectory = f'/home/{user1_uid}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {user1_uid}')
 
@@ -536,6 +587,7 @@ def test_dsidm_user_rename_same_cn_displayname(topology_st):
         args.uidNumber = '1102'
         args.gidNumber = '2102'
         args.homeDirectory = f'/home/{user2_uid}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {user2_uid}')
 
@@ -544,6 +596,7 @@ def test_dsidm_user_rename_same_cn_displayname(topology_st):
         args.selector = user1_uid
         args.new_name = new_name
         args.keep_old_rdn = False
+        args.user_type = 'posix'
         rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully renamed to')
 
@@ -602,6 +655,7 @@ def test_dsidm_user_rename_to_existing_name(topology_st):
         args.uidNumber = '1201'
         args.gidNumber = '2201'
         args.homeDirectory = f'/home/{user1_uid}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {user1_uid}')
 
@@ -613,6 +667,7 @@ def test_dsidm_user_rename_to_existing_name(topology_st):
         args.uidNumber = '1202'
         args.gidNumber = '2202'
         args.homeDirectory = f'/home/{user2_uid}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {user2_uid}')
 
@@ -621,7 +676,7 @@ def test_dsidm_user_rename_to_existing_name(topology_st):
         args.selector = user1_uid
         args.new_name = user2_uid
         args.keep_old_rdn = False
-
+        args.user_type = 'posix'
         try:
             rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
             assert False, "The rename operation should have failed"
@@ -677,6 +732,7 @@ def test_dsidm_user_rename_keep_old_rdn_and_search(topology_st):
         args.uidNumber = '1501'
         args.gidNumber = '2501'
         args.homeDirectory = f'/home/{original_name}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {original_name}')
 
@@ -685,6 +741,7 @@ def test_dsidm_user_rename_keep_old_rdn_and_search(topology_st):
         args.selector = original_name
         args.new_name = new_name
         args.keep_old_rdn = True
+        args.user_type = 'posix'
         rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully renamed to')
 
@@ -757,6 +814,7 @@ def test_dsidm_user_list_rdn_after_rename(topology_st):
         args.uidNumber = '1601'
         args.gidNumber = '2601'
         args.homeDirectory = f'/home/{original_name}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {original_name}')
 
@@ -765,21 +823,34 @@ def test_dsidm_user_list_rdn_after_rename(topology_st):
         args.selector = original_name
         args.new_name = new_name
         args.keep_old_rdn = True
+        args.user_type = 'posix'
         rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully renamed to')
 
         log.info('Test dsidm user list without json')
         args = FakeArgs()
         args.json = False
+        args.full_dn = False
+        args.user_type = 'posix'
         list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         # Should show the new name, not the original name
         check_value_in_log_and_reset(topology_st, check_value=new_name, check_value_not=original_name)
 
         log.info('Test dsidm user list with json')
         args.json = True
+        args.user_type = 'posix'
         list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         # Should show the new name in JSON output as well
         check_value_in_log_and_reset(topology_st, check_value=new_name, check_value_not=original_name)
+
+        log.info('Test full_dn option with list')
+        args.full_dn = True
+        args.user_type = 'posix'
+        list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+        result = topology_st.logcap.get_raw_outputs()
+        json_result = json.loads(result[0])
+        assert is_a_dn(json_result['items'][0])
+        args.full_dn = False
 
         log.info('Directly verify RDN extraction works correctly')
         renamed_user = users.get(new_name)
@@ -840,6 +911,7 @@ def test_dsidm_user_rename_no_changes(topology_st):
         args.uidNumber = '1800'
         args.gidNumber = '2800'
         args.homeDirectory = f'/home/{original_name}'
+        args.user_type = 'posix'
         create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value=f'Successfully created {original_name}')
 
@@ -848,6 +920,7 @@ def test_dsidm_user_rename_no_changes(topology_st):
         args.selector = original_name
         args.new_name = new_name
         args.keep_old_rdn = True
+        args.user_type = 'posix'
         rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         check_value_in_log_and_reset(topology_st, check_value='Successfully renamed')
 
@@ -884,6 +957,113 @@ def test_dsidm_user_rename_no_changes(topology_st):
                 test_user.delete()
         except:
             pass
+
+
+@pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
+def test_create_user_list_get_modify_rename_delete_by_user_type(topology_st):
+    """create_user() for each type; dsidm list --user-type; get/modify/rename/delete.
+
+    :id: c4e90d11-6f2a-4d8e-bc01-9a8f7e3d5012
+    :setup: Standalone instance
+    """
+
+    standalone = topology_st.standalone
+
+    basic_user = create_user(topology_st, 'basic')
+    posix_user = create_user(topology_st, 'posix')
+    traditional_user = create_user(topology_st, 'traditional')
+    service_user = create_user(topology_st, 'service')
+
+    args = FakeArgs()
+    args.json = True
+    args.full_dn = False
+
+    args.user_type = 'basic'
+    topology_st.logcap.flush()
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    basic_items = set(json.loads(topology_st.logcap.get_raw_outputs()[0])['items'])
+    assert basic_items >= {'basic_user', 'posix_user'}
+    assert traditional_user not in basic_items
+    assert service_user not in basic_items
+
+    args.user_type = 'posix'
+    topology_st.logcap.flush()
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    posix_items = set(json.loads(topology_st.logcap.get_raw_outputs()[0])['items'])
+    assert posix_items == {'demo_user', 'posix_user'}
+
+    args.user_type = 'traditional'
+    topology_st.logcap.flush()
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    trad_items = set(json.loads(topology_st.logcap.get_raw_outputs()[0])['items'])
+    assert trad_items == {'traditional_user'}
+
+    args.user_type = 'service'
+    topology_st.logcap.flush()
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    svc_items = set(json.loads(topology_st.logcap.get_raw_outputs()[0])['items'])
+    assert svc_items == {'service_user'}
+
+    selectors = {
+        'posix': 'posix_user',
+        'basic': 'basic_user',
+        'traditional': 'traditional_user',
+        'service': 'service_user',
+    }
+
+    try:
+        for ut in ('posix', 'basic', 'traditional', 'service'):
+            sel = selectors[ut]
+            renamed = '%s_rn' % sel
+
+            args = FakeArgs()
+            args.json = False
+            args.selector = sel
+            args.user_type = ut
+            topology_st.logcap.flush()
+            get(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+            assert topology_st.logcap.contains(sel)
+
+            args = FakeArgs()
+            args.selector = sel
+            args.user_type = ut
+            args.changes = ['add:description:roundtrip_%s' % ut]
+            topology_st.logcap.flush()
+            modify(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args,
+                    warn=False)
+            assert topology_st.logcap.contains('Successfully modified')
+
+            args = FakeArgs()
+            args.selector = sel
+            args.new_name = renamed
+            args.keep_old_rdn = False
+            args.user_type = ut
+            topology_st.logcap.flush()
+            rename(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+            assert topology_st.logcap.contains('Successfully renamed')
+
+            args = FakeArgs()
+            args.json = False
+            args.selector = renamed
+            args.user_type = ut
+            topology_st.logcap.flush()
+            get(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+            assert topology_st.logcap.contains(renamed)
+
+    finally:
+        standalone.simple_bind_s(DN_DM, PASSWORD)
+        for ut in ('posix', 'basic', 'traditional', 'service'):
+            sel = selectors[ut]
+            renamed = '%s_rn' % sel
+            for rdn_val in (renamed, sel):
+                args = FakeArgs()
+                args.user_type = ut
+                try:
+                    delete(standalone, DEFAULT_SUFFIX, topology_st.logcap.log,
+                           args, warn=False)
+                except Exception:
+                    pass
+
 
 if __name__ == '__main__':
     # Run isolated
