@@ -148,6 +148,9 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
                         Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
                         char *newdn = NULL;
                         CACHE_LOCK(&inst->inst_cache);
+                        /* Remove the entry from the DN hash table under
+                         * the old DN before changing it. */
+                        cache_remove_dn_hash(&inst->inst_cache, e);
                         slapi_sdn_done(sdn);
                         newdn = slapi_ch_smprintf("%s,%s", myrdn, parentdn);
                         slapi_sdn_init_dn_passin(sdn, newdn);
