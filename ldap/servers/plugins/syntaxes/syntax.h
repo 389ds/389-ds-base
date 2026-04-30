@@ -76,14 +76,15 @@
                          IS_RPAREN(c) || (c == '+') || (c == ',') || (c == '-') || (c == '.') || \
                          (c == '=') || (c == '/') || (c == ':') || (c == '?') || IS_SPACE(c))
 
+
 int string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Slapi_Value **bvals, int syntax);
 int string_filter_ava(struct berval *bvfilter, Slapi_Value **bvals, int syntax, int ftype, Slapi_Value **retVal);
 int string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, int syntax, int ftype);
 int string_assertion2keys_ava(Slapi_PBlock *pb, Slapi_Value *val, Slapi_Value ***ivals, int syntax, int ftype);
 int string_assertion2keys_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Slapi_Value ***ivals, int syntax);
 int value_cmp(struct berval *v1, struct berval *v2, int syntax, int normalize);
-void value_normalize(char *s, int syntax, int trim_leading_blanks);
-void value_normalize_ext(char *s, int syntax, int trim_leading_blanks, char **alt);
+void value_normalize(char *s, int syntax, int trim_mask_blanks);
+void value_normalize_ext(char *s, int syntax, int trim_mask_blanks, char **alt);
 
 char *first_word(char *s);
 char *next_word(char *s);

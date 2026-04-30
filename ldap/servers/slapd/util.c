@@ -319,7 +319,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             char *norm_val = NULL;
 
             if (ctx->attr_found) {
-                slapi_attr_value_normalize(NULL, NULL, ctx->attr, buf, 1, &norm_val);
+                slapi_attr_value_normalize(NULL, NULL, ctx->attr, buf, TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK, &norm_val);
                 if (norm_val) {
                     buf = norm_val;
                     filter_len = strlen(buf);

@@ -395,20 +395,70 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
             p = bigpat;
         }
         if (f->f_sub_initial != NULL) {
+            char *alt = NULL;
             *p++ = '^';
-            p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+                /*
+                 * rfc4518 2.6.1 Insignificant Space Handling
+                 * For input strings that are substring assertion values:
+                 *
+                 * If the input string is an initial or an any substring that ends in
+                 * one or more space characters, it is modified to end with exactly
+                 * one SPACE character;
+                 */
+	    slapi_attr_value_normalize(NULL, NULL, f->f_avtype, f->f_sub_initial, TRIM_LEADING_BLANK | SHRINK_TRAILING_BLANK, &alt);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+            }
+
         }
         for (i = 0; f->f_sub_any && f->f_sub_any[i]; i++) {
+            char *alt = NULL;
             /* ".*" + value */
             *p++ = '.';
             *p++ = '*';
-            p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+                    /*
+                     * rfc4518 2.6.1 Insignificant Space Handling
+                     * For input strings that are substring assertion values:
+                     *
+                     * If the input string is an initial or an any substring that ends in
+                     * one or more space characters, it is modified to end with exactly
+                     * one SPACE character;
+                     *
+                     * If the input string is an any or a final substring that starts in
+                     * one or more space characters, it is modified to start with exactly
+                     * one SPACE character;
+                     */
+	    slapi_attr_value_normalize(NULL, NULL, f->f_avtype, f->f_sub_any[i], SHRINK_LEADING_BLANK | SHRINK_TRAILING_BLANK, &alt);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+            }
         }
         if (f->f_sub_final != NULL) {
+            char *alt = NULL;
             /* ".*" + value */
             *p++ = '.';
             *p++ = '*';
-            p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+                /*
+                 * rfc4518 2.6.1 Insignificant Space Handling
+                 * For input strings that are substring assertion values:
+                 *
+                 * If the input string is an any or a final substring that starts in
+                 * one or more space characters, it is modified to start with exactly
+                 * one SPACE character;
+                 */
+	    slapi_attr_value_normalize(NULL, NULL, f->f_avtype, f->f_sub_final, SHRINK_LEADING_BLANK , &alt);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+            }
             strcat(p, "$");
         }
 

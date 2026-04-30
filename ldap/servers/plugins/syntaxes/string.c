@@ -48,7 +48,7 @@ string_filter_ava(struct berval *bvfilter, Slapi_Value **bvals, int syntax, int 
     } else {
         slapi_ber_bvcpy(&bvfilter_norm, bvfilter);
         /* 3rd arg: 1 - trim leading blanks */
-        value_normalize_ext(bvfilter_norm.bv_val, syntax, 1, &alt);
+        value_normalize_ext(bvfilter_norm.bv_val, syntax, TRIM_LEADING_BLANK, &alt);
         if (alt) {
             slapi_ber_bvdone(&bvfilter_norm);
             bvfilter_norm.bv_val = alt;
@@ -259,7 +259,15 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         if (initial != NULL) {
             /* 3rd arg: 1 - trim leading blanks */
             if (!filter_normalized) {
-                value_normalize_ext(initial, syntax, 1, &alt);
+                /*
+                 * rfc4518 2.6.1 Insignificant Space Handling
+                 * For input strings that are substring assertion values:
+                 *
+                 * If the input string is an initial or an any substring that ends in
+                 * one or more space characters, it is modified to end with exactly
+                 * one SPACE character;
+                 */
+                value_normalize_ext(initial, syntax, TRIM_LEADING_BLANK & SHRINK_TRAILING_BLANK, &alt);
             }
             *p++ = '^';
             if (alt) {
@@ -274,7 +282,19 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
             for (i = 0; any[i] != NULL; i++) {
                 /* 3rd arg: 0 - DO NOT trim leading blanks */
                 if (!filter_normalized) {
-                    value_normalize_ext(any[i], syntax, 0, &alt);
+                    /*
+                     * rfc4518 2.6.1 Insignificant Space Handling
+                     * For input strings that are substring assertion values:
+                     *
+                     * If the input string is an initial or an any substring that ends in
+                     * one or more space characters, it is modified to end with exactly
+                     * one SPACE character;
+                     *
+                     * If the input string is an any or a final substring that starts in
+                     * one or more space characters, it is modified to start with exactly
+                     * one SPACE character;
+                     */
+                    value_normalize_ext(any[i], syntax, SHRINK_LEADING_BLANK & SHRINK_TRAILING_BLANK, &alt);
                 }
                 /* ".*" + value */
                 *p++ = '.';
@@ -291,7 +311,15 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         if (final != NULL) {
             /* 3rd arg: 0 - DO NOT trim leading blanks */
             if (!filter_normalized) {
-                value_normalize_ext(final, syntax, 0, &alt);
+                /*
+                 * rfc4518 2.6.1 Insignificant Space Handling
+                 * For input strings that are substring assertion values:
+                 *
+                 * If the input string is an any or a final substring that starts in
+                 * one or more space characters, it is modified to start with exactly
+                 * one SPACE character;
+                 */
+                value_normalize_ext(final, syntax, SHRINK_LEADING_BLANK, &alt);
             }
             /* ".*" + value */
             *p++ = '.';
@@ -357,7 +385,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         }
         /* 3rd arg: 1 - trim leading blanks */
         if (!(slapi_value_get_flags(bvals[j]) & SLAPI_ATTR_FLAG_NORMALIZED)) {
-            value_normalize_ext(realval, syntax, 1, &alt);
+            value_normalize_ext(realval, syntax, TRIM_LEADING_BLANK, &alt);
         } else if (syntax & SYNTAX_DN) {
             slapi_dn_ignore_case(realval);
         }
@@ -434,7 +462,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
             /* if the NORMALIZED flag is set, skip normalizing */
             if (!(value_flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
                 /* 3rd arg: 1 - trim leading blanks */
-                value_normalize_ext(c, syntax, 1, &alt);
+                value_normalize_ext(c, syntax, TRIM_LEADING_BLANK, &alt);
                 value_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
             } else if ((syntax & SYNTAX_DN) &&
                        (value_flags & SLAPI_ATTR_FLAG_NORMALIZED_CES)) {
@@ -566,7 +594,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
             /* 3rd arg: 1 - trim leading blanks */
             if (!(value_flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
                 c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
-                value_normalize_ext(c, syntax, 1, &alt);
+                value_normalize_ext(c, syntax, TRIM_LEADING_BLANK, &alt);
                 if (alt) {
                     slapi_ch_free_string(&c);
                     slapi_value_set_string_passin(bvdup, alt);
@@ -668,7 +696,7 @@ string_assertion2keys_ava(
         tmpval->bv.bv_val[len] = '\0';
         if (!(flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
             /* 3rd arg: 1 - trim leading blanks */
-            value_normalize_ext(tmpval->bv.bv_val, syntax, 1, &alt);
+            value_normalize_ext(tmpval->bv.bv_val, syntax, TRIM_LEADING_BLANK, &alt);
             if (alt) {
                 if (len >= tmpval->bv.bv_len) {
                     slapi_ch_free_string(&tmpval->bv.bv_val);
@@ -693,7 +721,7 @@ string_assertion2keys_ava(
         (*ivals)[0] = val ? slapi_value_dup(val) : NULL;
         if (val && !(flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
             /* 3rd arg: 1 - trim leading blanks */
-            value_normalize_ext((*ivals)[0]->bv.bv_val, syntax, 1, &alt);
+            value_normalize_ext((*ivals)[0]->bv.bv_val, syntax, TRIM_LEADING_BLANK, &alt);
             if (alt) {
                 slapi_ch_free_string(&(*ivals)[0]->bv.bv_val);
                 (*ivals)[0]->bv.bv_val = alt;
