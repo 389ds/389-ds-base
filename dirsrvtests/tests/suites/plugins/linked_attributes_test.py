@@ -7,11 +7,12 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
+import os
 import pytest
 import ldap
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.plugins import LinkedAttributesPlugin, LinkedAttributesConfigs
+from lib389.plugins import LinkedAttributesPlugin, LinkedAttributesConfigs, USNPlugin
 from lib389.idm.user import UserAccounts
 
 pytestmark = pytest.mark.tier1
@@ -172,6 +173,54 @@ def test_linked_attribute_after_modrdn(topology_st, setup_linked_attributes, man
     log.info('Verify that the link is properly updated')
     assert manager.present(LINKTYPE, employee.dn)
     assert employee.present(MANAGEDTYPE, manager.dn)
+
+
+def test_replace_linktype_no_spurious_managedtype_mods(topology_st, setup_linked_attributes, request):
+    """A linktype MOD_REPLACE must not re-modify overlap targets.
+
+    :id: 405f7dab-1c36-458d-a2bf-abf3284c7c41
+    :setup: Standalone Instance, USN + Linked Attributes enabled
+    :steps:
+        1. Set linkType=[t0, t3] on a source entry
+        2. Snapshot entryUSN of every target
+        3. MOD_REPLACE linkType to [t0, t1, t2, t3]
+    :expectedresults:
+        1. Success
+        2. Success
+        3. t0 and t3 entryUSN unchanged (overlap), t1 and t2 advanced
+    """
+    inst = topology_st.standalone
+    USNPlugin(inst).enable()
+    inst.restart()
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    targets = [users.create_test_user(uid=500000 + i, gid=500000 + i)
+               for i in range(4)]
+    source = users.create_test_user(uid=500099, gid=500099)
+    source.add('objectclass', 'extensibleObject')
+
+    def fin():
+        for u in targets + [source]:
+            try:
+                u.delete()
+            except ldap.LDAPError:
+                pass
+    request.addfinalizer(fin)
+
+    source.replace(LINKTYPE, [targets[0].dn, targets[3].dn])
+    assert targets[0].present(MANAGEDTYPE, source.dn)
+    assert targets[3].present(MANAGEDTYPE, source.dn)
+
+    usn_before = [t.get_attr_val_int('entryusn') for t in targets]
+    source.replace(LINKTYPE, [t.dn for t in targets])
+    usn_after = [t.get_attr_val_int('entryusn') for t in targets]
+
+    for i in (0, 3):
+        assert usn_after[i] == usn_before[i], (
+            f't{i} entryUSN advanced ({usn_before[i]} -> {usn_after[i]}); '
+            f'it was already linked before and after the replace')
+    for i in (1, 2):
+        assert usn_after[i] > usn_before[i], f't{i} should have been linked'
 
 
 def test_rollback_on_failed_operation(topology_st, setup_linked_attributes, manager, employee):
