@@ -16,15 +16,27 @@ import subprocess
 import glob
 import re
 from lib389.properties import TASK_WAIT
-from lib389.replica import Replicas
+from lib389.replica import Changelog, Changelog5, Replicas
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_m2 as topo
-from lib389._constants import *
+from lib389._constants import (
+    BDB_CL_FILENAME,
+    DEFAULT_BENAME,
+    DEFAULT_CHANGELOG_DB,
+    DEFAULT_SUFFIX,
+    DN_DM,
+    DN_USERROOT_LDBM,
+    HOST_SUPPLIER_1,
+    PASSWORD,
+    PORT_SUPPLIER_1,
+)
 from lib389.plugins import RetroChangelogPlugin
 from lib389.dseldif import DSEldif
-from lib389.tasks import *
-from lib389.utils import *
-from lib389.utils import ensure_bytes, ds_supports_new_changelog
+from lib389.utils import (
+    ds_is_older,
+    ds_supports_new_changelog,
+    ensure_bytes,
+)
 
 pytestmark = pytest.mark.tier1
 
@@ -784,6 +796,50 @@ def test_changelog_pagesize(topo):
         log.error(e)
         raise e
     assert not re.match("^4096 *Page size", output, flags=re.MULTILINE)
+
+
+def test_changelog_type_validation(topo):
+    """Verify that changelog configuration properly validates attribute values
+
+    :id: 4c7681ff-0511-4256-9589-bdcad84c13e6
+    :setup: Replication with two suppliers
+    :steps:
+        1. Get changelog configuration object
+        2. Set valid string values for maxage and trim interval attributes
+        3. Verify the values were set correctly
+    :expectedresults:
+        1. Changelog object retrieved successfully
+        2. Valid string values should be accepted
+        3. Configuration should be updated with correct values
+    """
+
+    supplier = topo.ms["supplier1"]
+
+    log.info('Getting changelog configuration object')
+    if ds_supports_new_changelog():
+        cl = Changelog(supplier, suffix=DEFAULT_SUFFIX)
+    else:
+        cl = Changelog5(supplier)
+
+    log.info('Reading current changelog max age configuration')
+    current_maxage = cl.get_attr_val_utf8(MAXAGE)
+    log.info(f'Current {MAXAGE}: {current_maxage}')
+
+    log.info('Setting changelog maxage to 60s')
+    cl.replace(MAXAGE, '60s')
+
+    log.info('Setting changelog trim interval to 10s')
+    cl.replace(TRIMINTERVAL, '10s')
+
+    log.info('Verifying changelog maxage was updated')
+    new_maxage = cl.get_attr_val_utf8(MAXAGE)
+    assert new_maxage == '60s', f'Expected maxage "60s", got "{new_maxage}"'
+
+    log.info('Verifying changelog trim interval was updated')
+    new_triminterval = cl.get_attr_val_utf8(TRIMINTERVAL)
+    assert new_triminterval == '10s', f'Expected triminterval "10s", got "{new_triminterval}"'
+
+    log.info('Changelog configuration validated successfully')
 
 
 if __name__ == '__main__':
