@@ -428,10 +428,10 @@ def test_retrocl_trimming_entries(topology_st):
     :id: d7b7cf72-f47c-4b43-b25d-10f7f0ad86f2
     :setup: Standalone Instance
     :steps:
-        1. Enable retro changelog with aggressive trimming settings
-        2. Count existing changelog entries before test
-        3. Add multiple entries to create new changelog records
-        4. Verify we added the expected number of entries
+        1. Enable retro changelog without trimming
+        2. Add multiple entries to create new changelog records
+        3. Verify we added the expected number of entries
+        4. Configure aggressive trimming settings and restart
         5. Enable plugin logging and wait for trimming to occur
         6. Verify changelog entries were reduced by checking error log and count
     :expectedresults:
@@ -446,15 +446,11 @@ def test_retrocl_trimming_entries(topology_st):
     inst = topology_st.standalone
     max_entries = 10
 
-    log.info('Enable retro changelog plugin')
+    log.info('Enable retro changelog plugin without trimming')
     rcl = RetroChangelogPlugin(inst)
     rcl.enable()
-
-    log.info('Configure aggressive trimming: 10s maxage, 5s trim interval')
-    rcl.replace('nsslapd-changelogmaxage', '10s')
-    rcl.replace('nsslapd-changelog-trim-interval', '5s')
-
-    log.info('Restart instance to apply changes')
+    rcl.remove_all('nsslapd-changelogmaxage')
+    rcl.remove_all('nsslapd-changelog-trim-interval')
     inst.restart()
 
     log.info('Count existing changelog entries before test')
@@ -483,6 +479,10 @@ def test_retrocl_trimming_entries(topology_st):
     added_entries = new_count - initial_count
     assert added_entries == max_entries
     log.info(f'Successfully added {added_entries} changelog entries (total: {new_count})')
+
+    log.info('Configure aggressive trimming: 10s maxage, 5s trim interval')
+    rcl.replace('nsslapd-changelogmaxage', '10s')
+    rcl.replace('nsslapd-changelog-trim-interval', '5s')
 
     log.info('Enable plugin logging to monitor trimming')
     inst.config.set('nsslapd-errorlog-level', '65536')

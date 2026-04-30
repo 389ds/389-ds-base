@@ -13,7 +13,7 @@ import ldap
 from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
 from lib389.tombstone import Tombstones
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m2 as topo_m2
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME, ErrorLog
 from lib389.utils import *
 from lib389.backend import Backends
