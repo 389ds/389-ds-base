@@ -3632,3 +3632,8 @@ class DirSrv(SimpleLDAPObject, object):
         Get the pid of the running server
         """
         return pid_from_file(self.pid_file())
+
+    def lint_clear_dse_cache(self):
+        """Clear the cached dse.ldif for the instance."""
+        self._lib389_dse_lint_cache = None
+        self._lib389_dse_lint_failed = False

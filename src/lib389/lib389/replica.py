@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -22,7 +22,7 @@ from lib389._constants import CONSUMER_REPLICAID, REPLICA_RDWR_TYPE, REPLICA_FLA
                               REPLICA_FLAGS_RDONLY, REPLICA_ID, REPLICA_TYPE, REPLICA_SUFFIX, REPLICA_BINDDN, \
                               RDN_REPLICA, REPLICA_FLAGS, REPLICA_RUV_UUID, REPLICA_OC_TOMBSTONE, DN_MAPPING_TREE, \
                               DN_CONFIG, DN_PLUGIN, REPLICATION_BIND_DN, REPLICATION_BIND_PW, ReplicaRole, \
-                              defaultProperties
+                              defaultProperties, DIRSRV_STATE_ONLINE
 from lib389.properties import REPLICA_OBJECTCLASS_VALUE, REPLICA_OBJECTCLASS_VALUE, REPLICA_SUFFIX, \
                               REPLICA_PROPNAME_TO_ATTRNAME, REPL_BINDDN, REPL_TYPE, REPL_ID, REPL_FLAGS, \
                               REPL_BIND_GROUP, SER_HOST, SER_PORT, SER_SECURE_PORT, SER_ROOT_DN, SER_ROOT_PW, \
@@ -33,6 +33,7 @@ from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
                           ds_supports_new_changelog, get_timeout_scale)
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389._mapped_object_lint import lint_get_attr_val_utf8
 from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
@@ -44,6 +45,7 @@ from lib389.idm.group import Groups
 from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.conflicts import ConflictEntries
+from lib389.dseldif import DSEldif
 from lib389.lint import (DSREPLLE0001, DSREPLLE0002, DSREPLLE0003, DSREPLLE0004,
                          DSREPLLE0005, DSREPLLE0006, DSCLLE0001)
 
@@ -1184,8 +1186,8 @@ class Changelog5(DSLdapObject):
     def _lint_cl_trimming(self):
         """Check that cl trimming is at least defined to prevent unbounded growth"""
         try:
-            if self.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
-                self.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+            if lint_get_attr_val_utf8(self, 'nsslapd-changelogmaxentries') is None and \
+                lint_get_attr_val_utf8(self, 'nsslapd-changelogmaxage') is None:
                 report = copy.deepcopy(DSCLLE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                 report['check'] = f'changelog:cl_trimming'
@@ -1813,6 +1815,24 @@ class Replicas(DSLdapObjects):
                     break
 
         return replica
+
+    def _list_from_dse(self, full_dn=False):
+        dse = DSEldif(self._instance)
+        replica_dn_list = dse.get_replicas()
+        replicas = []
+
+        if full_dn:
+            return replica_dn_list
+        else:
+            for dn in replica_dn_list:
+                replicas.append(Replica(self._instance, dn=dn))
+            return replicas
+
+    def list(self, paged_search=None, paged_critical=True, full_dn=False):
+        """List backends via LDAP when online; read ``dse.ldif`` when offline (e.g. healthcheck)."""
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            return self._list_from_dse(full_dn=full_dn)
+        return super(Replicas, self).list(paged_search=paged_search, paged_critical=paged_critical, full_dn=full_dn)
 
     def get(self, selector=[], dn=None):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector

@@ -1,12 +1,11 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-from abc import ABC, abstractmethod
 from functools import partial
 from inspect import signature
 from typing import (
@@ -19,6 +18,8 @@ from typing import (
     Generator,
     Any
 )
+from lib389._constants import DIRSRV_STATE_ONLINE
+from lib389.utils import ensure_bytes, ensure_str, ensure_list_str, ensure_int
 
 
 DSLintSpec = Tuple[str, Callable]
@@ -168,3 +169,89 @@ class DSLints():
                 check_name = spec
             for obj in self.list():
                 yield from obj.lint(check_name)
+
+
+def _cached_dse_ldif_for_lint(instance):
+    """Return a cached :class:`lib389.dseldif.DSEldif` for local ``dse.ldif`` reads in lint code."""
+    if not getattr(instance, 'isLocal', False):
+        return None
+    if getattr(instance, '_lib389_dse_lint_cache', None) is not None:
+        return instance._lib389_dse_lint_cache
+    if getattr(instance, '_lib389_dse_lint_failed', False):
+        return None
+    try:
+        from lib389.dseldif import DSEldif
+        dse = DSEldif(instance)
+    except (OSError, IOError, EnvironmentError):
+        instance._lib389_dse_lint_failed = True
+        return None
+    instance._lib389_dse_lint_cache = dse
+    return dse
+
+
+def lint_get_attr_val_utf8(obj, key):
+    """Like :meth:`DSLdapObject.get_attr_val_utf8`, but read ``dse.ldif`` when the server is down."""
+    if obj._instance.state == DIRSRV_STATE_ONLINE:
+        return obj.get_attr_val_utf8(key)
+    dse = _cached_dse_ldif_for_lint(obj._instance)
+    if dse is None:
+        raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+
+    vals = dse.get(ensure_str(obj._dn).lower(), ensure_str(key), single=False, lower=True)
+    if vals is None:
+        return None
+    if len(vals) == 0:
+        return ''
+    return ensure_str(vals[0])
+
+
+def lint_get_attr_val_utf8_l(obj, key):
+    from lib389.utils import ensure_str
+    v = lint_get_attr_val_utf8(obj, key)
+    if v is None:
+        return None
+    return ensure_str(v).lower()
+
+
+def lint_get_attr_vals_utf8(obj, key):
+    """Like :meth:`DSLdapObject.get_attr_vals_utf8` for one attribute, with offline ``dse.ldif`` support."""
+    if obj._instance.state == DIRSRV_STATE_ONLINE:
+        return obj.get_attr_vals_utf8(key)
+    dse = _cached_dse_ldif_for_lint(obj._instance)
+    if dse is None:
+        raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+    vals = dse.get(ensure_str(obj._dn).lower(), ensure_str(key), single=False, lower=True)
+    if vals is None:
+        return []
+    return ensure_list_str(vals)
+
+
+def lint_get_attr_vals_utf8_l(obj, key):
+    from lib389.utils import ensure_str
+    return [ensure_str(x).lower() for x in lint_get_attr_vals_utf8(obj, key)]
+
+
+def lint_get_attr_val(obj, key):
+    """Like :meth:`DSLdapObject.get_attr_val` (bytes), with offline ``dse.ldif`` support."""
+    if obj._instance.state == DIRSRV_STATE_ONLINE:
+        return obj.get_attr_val(key)
+    s = lint_get_attr_val_utf8(obj, key)
+    if s is None:
+        return None
+    if s == '':
+        return ''
+    return ensure_bytes(s)
+
+
+def lint_get_attr_val_int(obj, key):
+    if obj._instance.state == DIRSRV_STATE_ONLINE:
+        return obj.get_attr_val_int(key)
+    v = lint_get_attr_val_utf8(obj, key)
+    if v == '' or v is None:
+        return None
+    return ensure_int(v)
+
+
+def lint_plugin_enabled(plugin):
+    """Whether ``nsslapd-pluginEnabled`` is ``on``; works offline via ``dse.ldif``."""
+    return lint_get_attr_val_utf8(plugin, 'nsslapd-pluginEnabled') == 'on'

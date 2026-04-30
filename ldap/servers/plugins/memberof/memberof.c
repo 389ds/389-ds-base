@@ -1011,7 +1011,6 @@ deferred_mod_func(MemberofDeferredModTask *task)
     LDAPMod **mods;
     Slapi_DN *sdn;
     Slapi_Entry *pre_e = NULL;
-    Slapi_Entry *post_e = NULL;
     int ret = SLAPI_PLUGIN_SUCCESS;
     int config_copied = 0;
     MemberOfConfig *mainConfig = 0;

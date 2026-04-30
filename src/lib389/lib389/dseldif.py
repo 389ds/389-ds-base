@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -17,6 +17,7 @@ from datetime import timedelta
 from stat import ST_MODE
 # from lib389.utils import print_nice_time
 from lib389.paths import Paths
+from lib389.utils import ensure_str
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import (
     DSPERMLE0001,
@@ -185,6 +186,47 @@ class DSEldif(DSLint):
             return vals[0] if len(vals) > 0 else None
         return vals
 
+    def get_entry_attrs(self, entry_dn):
+        """Return all attributes for one entry as ``{attr_lower: [str, ...]}`` from ``dse.ldif``.
+
+        Used when the directory server is not running but the instance ``dse.ldif`` is readable.
+        """
+        entry_dn = ensure_str(entry_dn).lower()
+        dn_line = "dn: {}\n".format(entry_dn)
+        try:
+            entry_dn_i = self._contents.index(dn_line)
+        except ValueError:
+            return {}
+
+        end_i = len(self._contents)
+        for j in range(entry_dn_i + 1, len(self._contents)):
+            if self._contents[j].startswith("dn: "):
+                end_i = j
+                break
+
+        attrs = {}
+        for line in self._contents[entry_dn_i + 1 : end_i]:
+            line = line.rstrip("\n")
+            if not line or line.startswith(" "):
+                continue
+            name, sep, rest = line.partition(":")
+            if not sep:
+                continue
+            name = name.strip()
+            rest = rest.lstrip()
+            aname = name.lower()
+            if rest.startswith(":"):
+                try:
+                    val = base64.b64decode(rest[1:].strip()).decode("utf-8")
+                except Exception:
+                    val = rest[1:].strip()
+            else:
+                val = rest
+            if aname not in attrs:
+                attrs[aname] = []
+            attrs[aname].append(val)
+        return attrs
+
     def get_indexes(self, backend):
         """Return a list of backend indexes
 
@@ -231,6 +273,41 @@ class DSEldif(DSLint):
                             pass
 
         return list(set(backends))
+
+    def get_mapping_trees(self):
+        """Return a list of mapping tree names from DSE.
+        """
+        mapping_trees = []
+        for entry in self._contents:
+            if fnmatch.fnmatch(entry, "dn: cn=*,cn=mapping tree,cn=config*"):
+                mapping_trees.append(entry.strip())
+        return mapping_trees
+
+    def get_replicas(self):
+        """Return a list of replica DN's from DSE.
+
+        :returns: List of replica DN's
+        """
+        replicas = []
+        for entry in self._contents:
+            if fnmatch.fnmatch(entry, "dn: cn=replica,cn=*,cn=mapping tree,cn=config*"):
+                replicas.append(entry.strip()[4:].strip())
+
+        return replicas
+
+    def suffix_replicated(self, suffix):
+        """
+        Check if the suffix is replicated in the DSE.
+        """
+        for entry in self._contents:
+            if fnmatch.fnmatch(entry, "dn: *cn=replica,cn=*,cn=mapping tree,cn=config*"):
+                dn = entry.replace("dn: ", "").strip()
+                vals = self.get(dn, "nsDS5ReplicaRoot")
+                if vals is not None and vals[0].lower() == suffix.lower():
+                    return True
+
+        return False
+
 
     def add_entry(self, entry):
         """Add a new entry

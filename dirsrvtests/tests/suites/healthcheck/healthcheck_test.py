@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,18 +9,15 @@
 
 import pytest
 import os
-from lib389 import DirSrv
-from lib389.backend import Backends, DatabaseConfig
+from lib389.backend import Backends
 from lib389.mappingTree import MappingTrees
 from lib389.replica import Changelog5,  Changelog
 from lib389.utils import *
 from lib389._constants import *
-from lib389.cli_base import FakeArgs, LogCapture
+from lib389.cli_base import FakeArgs
 from lib389.topologies import topology_st, topology_no_sample, topology_m2
 from lib389.cli_ctl.health import health_check_run
-from lib389.cli_conf.backend import db_config_set
 from lib389.paths import Paths
-from lib389.instance.setup import SetupDs
 
 CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
@@ -34,6 +31,14 @@ def run_healthcheck_and_flush_log(logcap, instance, searched_code=None,
                                   json=False, searched_code2=None,
                                   list_checks=False, list_errors=False,
                                   check=None, searched_list=None):
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new
+    # versions
+
+    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+        ((check is not None and check[0] == "backends:userroot:backend_implementation") or
+         (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT)):
+        searched_code = 'DSBLE0006'
+
     args = FakeArgs()
     args.instance = instance.serverid
     args.verbose = instance.verbose
@@ -43,12 +48,6 @@ def run_healthcheck_and_flush_log(logcap, instance, searched_code=None,
     args.exclude_check = []
     args.dry_run = False
     args.json = json
-
-    # If we are using BDB as a backend, we will get error DSBLE0006 on new
-    # versions
-    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
-       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
-        searched_code = 'DSBLE0006'
 
     log.info('Use healthcheck with --json == {} option'.format(json))
     health_check_run(instance, logcap.log, args)
@@ -62,12 +61,13 @@ def run_healthcheck_and_flush_log(logcap, instance, searched_code=None,
         log.info('Healthcheck returned searched code: %s', searched_code)
 
     if searched_code2 is not None:
+        code2 = searched_code2
         if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
-           (searched_code2 is CMD_OUTPUT or searched_code2 is JSON_OUTPUT):
-            searched_code = 'DSBLE0006'
+            (check is not None and check[0] == "backends:userroot:backend_implementation"):
+            code2 = 'DSBLE0006'
 
-        assert logcap.contains(searched_code2)
-        log.info('Healthcheck returned searched code: %s', searched_code2)
+        assert logcap.contains(code2)
+        log.info('Healthcheck returned searched code: %s', code2)
 
     log.info('Clear the log')
     logcap.flush()
@@ -125,8 +125,10 @@ def test_healthcheck_disabled_suffix(topology_st):
     mt.replace("nsslapd-state", "disabled")
     topology_st.standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
-    run_healthcheck_and_flush_log(topology_st.logcap, topology_st.standalone, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_st.logcap, topology_st.standalone, RET_CODE, json=True)
+    standalone = topology_st.standalone
+
+    run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=True)
 
     # reset the suffix state
     mt.replace("nsslapd-state", "backend")
@@ -149,7 +151,15 @@ def test_healthcheck_standalone(topology_st):
     """
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
 
@@ -171,25 +181,42 @@ def test_healthcheck_list_checks(topology_st):
     """
 
     output_list = ['config:passwordscheme',
+                   'config:auditlog_buffering',
+                   # 'config:accesslog_buffering',  Skip test access log buffering is disabled
+                   'config:securitylog_buffering',
+                   'config:unauth_binds',
                    'backends:userroot:cl_trimming',
                    'backends:userroot:mappingtree',
                    'backends:userroot:search',
+                   'backends:userroot:system_indexes',
                    'backends:userroot:virt_attrs',
+                   'backends:userroot:backend_implementation',
+                   'backends:userroot:backend_implementation_cleanup_needed',
+                   'backends:userroot:backend_implementation_config_attributes',
                    'encryption:check_tls_version',
                    'fschecks:file_perms',
                    'refint:attr_indexes',
                    'refint:update_delay',
+                   'memberof:member_attr_indexes',
+                   'memberof:member_globalbackend_lock',
+                   'memberof:member_substring_index',
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
+                   'replication:no_ruv',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
                    'logs:notes',
-                   'tunables:thp',
-                   ]
+                   'tunables:thp']
 
     standalone = topology_st.standalone
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, json=False, list_checks=True, searched_list=output_list)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, json=False, list_checks=True, searched_list=output_list)
 
 
@@ -243,6 +270,12 @@ def test_healthcheck_list_errors(topology_st):
 
     standalone = topology_st.standalone
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, json=False, list_errors=True, searched_list=output_list)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, json=False, list_errors=True, searched_list=output_list)
 
 
@@ -263,23 +296,31 @@ def test_healthcheck_check_option(topology_st):
     """
 
     output_list = ['config:passwordscheme',
+                   'config:auditlog_buffering',
                    # 'config:accesslog_buffering',  Skip test access log buffering is disabled
                    'config:securitylog_buffering',
                    'config:unauth_binds',
                    'backends:userroot:cl_trimming',
                    'backends:userroot:mappingtree',
                    'backends:userroot:search',
+                   'backends:userroot:system_indexes',
                    'backends:userroot:virt_attrs',
+                   'backends:userroot:backend_implementation',
+                   'backends:userroot:backend_implementation_cleanup_needed',
+                   'backends:userroot:backend_implementation_config_attributes',
                    'encryption:check_tls_version',
                    'fschecks:file_perms',
                    'refint:attr_indexes',
                    'refint:update_delay',
                    'memberof:member_attr_indexes',
+                   'memberof:member_globalbackend_lock',
+                   'memberof:member_substring_index',
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
                    'replication:no_ruv',
                    'dseldif:nsstate',
+                   'tunables:thp',
                    'tls:certificate_expiration',
                    'logs:notes']
 
@@ -288,6 +329,14 @@ def test_healthcheck_check_option(topology_st):
     for item in output_list:
         pattern = 'Checking ' + item
         log.info('Check {}'.format(item))
+        standalone.stop()
+
+        try:
+            run_healthcheck_and_flush_log(topology_st.logcap, standalone, searched_code=pattern, json=False, check=[item],
+                                          searched_code2=CMD_OUTPUT)
+        finally:
+            if not standalone.status():
+                standalone.start()
         run_healthcheck_and_flush_log(topology_st.logcap, standalone, searched_code=pattern, json=False, check=[item],
                                       searched_code2=CMD_OUTPUT)
 
@@ -320,6 +369,15 @@ def test_healthcheck_exclude_option(topology_st):
         log.info('Exclude check: %s unwanted: %s wanted: %s',
                  exclude, unwanted, wanted)
 
+        inst.stop()
+        try:
+            run_healthcheck_exclude(topology_st.logcap, inst,
+                                    unwanted=unwanted_pattern,
+                                    wanted=wanted_pattern,
+                                    exclude_check=exclude)
+        finally:
+            if not inst.status():
+                inst.start()
         run_healthcheck_exclude(topology_st.logcap, inst,
                                 unwanted=unwanted_pattern,
                                 wanted=wanted_pattern,
@@ -345,9 +403,17 @@ def test_healthcheck_standalone_tls(topology_st):
     """
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
     standalone.enable_tls()
 
-    run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT,json=False)
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
+    run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
 
 
@@ -379,10 +445,24 @@ def test_healthcheck_replication(topology_m2):
     M2.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Run healthcheck for supplier1')
+    M1.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_m2.logcap, M1, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_m2.logcap, M1, JSON_OUTPUT, json=True)
+    finally:
+        if not M1.status():
+            M1.start()
     run_healthcheck_and_flush_log(topology_m2.logcap, M1, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2.logcap, M1, JSON_OUTPUT, json=True)
 
     log.info('Run healthcheck for supplier2')
+    M2.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_m2.logcap, M2, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_m2.logcap, M2, JSON_OUTPUT, json=True)
+    finally:
+        if not M2.status():
+            M2.start()
     run_healthcheck_and_flush_log(topology_m2.logcap, M2, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2.logcap, M2, JSON_OUTPUT, json=True)
 
@@ -416,10 +496,24 @@ def test_healthcheck_replication_tls(topology_m2):
     log.info('Run healthcheck for supplier1')
     M1.config.set("nsslapd-accesslog-logbuffering", "on")
     M2.config.set("nsslapd-accesslog-logbuffering", "on")
+    M1.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_m2.logcap, M1, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_m2.logcap, M1, JSON_OUTPUT, json=True)
+    finally:
+        if not M1.status():
+            M1.start()
     run_healthcheck_and_flush_log(topology_m2.logcap, M1, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2.logcap, M1, JSON_OUTPUT, json=True)
 
     log.info('Run healthcheck for supplier2')
+    M2.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_m2.logcap, M2, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_m2.logcap, M2, JSON_OUTPUT, json=True)
+    finally:
+        if not M2.status():
+            M2.start()
     run_healthcheck_and_flush_log(topology_m2.logcap, M2, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2.logcap, M2, JSON_OUTPUT, json=True)
 
@@ -453,12 +547,20 @@ def test_healthcheck_backend_missing_mapping_tree(topology_st):
     RET_CODE2 = 'DSBLE0003'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Delete the dc=example,dc=com backend suffix entry in the mapping tree')
     mts = MappingTrees(standalone)
     mt = mts.get(DEFAULT_SUFFIX)
     mt.delete()
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE1, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE1, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE1, json=False, searched_code2=RET_CODE2)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE1, json=True, searched_code2=RET_CODE2)
 
@@ -469,6 +571,13 @@ def test_healthcheck_backend_missing_mapping_tree(topology_st):
         'nsslapd-backend': 'USERROOT',
     })
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
 
@@ -499,6 +608,7 @@ def test_healthcheck_unable_to_query_backend(topology_st):
     NEW_BACKEND = 'userData'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Create new suffix')
     backends = Backends(standalone)
@@ -512,11 +622,25 @@ def test_healthcheck_unable_to_query_backend(topology_st):
     mt_new = mts.get(NEW_SUFFIX)
     mt_new.replace('nsslapd-state', 'disabled')
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=True)
 
     log.info('Enable the suffix again and check if nothing is broken')
     mt_new.replace('nsslapd-state', 'backend')
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, RET_CODE, json=True)
 
@@ -542,6 +666,37 @@ def test_healthcheck_database_not_initialized(topology_no_sample):
 
     run_healthcheck_and_flush_log(topology_no_sample.logcap, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_no_sample.logcap, standalone, RET_CODE, json=True)
+
+
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not needed for mdb")
+def test_lint_backend_implementation(topology_st):
+    """Test the lint for backend implementation mismatch
+
+    :id: eff607de-768a-4cf4-bcde-48d4c7368934
+    :setup: Custom instance with db_lib set to either mdb or bdb.
+    :steps:
+        1. Fetch the 'nsslapd-backend-implement' attribute value.
+        2. Manually set BDB as the backend implementation if MDB
+        3. Run the linting function to check if BDB is used
+    :expectedresults:
+        1. The 'nsslapd-backend-implement' attribute is fetched correctly.
+        2. The implementation is set to BDB.
+        3. The linting function identifies that BDB is still used as a backend and reports the correct severity issue.
+    """
+
+    RET_CODE = 'DSBLE0006'
+    inst = topology_st.standalone
+
+    inst.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
+    finally:
+        if not inst.status():
+            inst.start(post_open=False)
+
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
 
 def create_dummy_db_files(inst, backend_type):
@@ -590,26 +745,7 @@ def test_lint_backend_implementation_wrong_files(topology_st):
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
-
-@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not needed for mdb")
-def test_lint_backend_implementation(topology_st):
-    """Test the lint for backend implementation mismatch
-
-    :id: eff607de-768a-4cf4-bcde-48d4c7368934
-    :setup: Custom instance with db_lib set to either mdb or bdb.
-    :steps:
-        1. Fetch the 'nsslapd-backend-implement' attribute value.
-        2. Manually set BDB as the backend implementation if MDB
-        3. Run the linting function to check if BDB is used
-    :expectedresults:
-        1. The 'nsslapd-backend-implement' attribute is fetched correctly.
-        2. The implementation is set to BDB.
-        3. The linting function identifies that BDB is still used as a backend and reports the correct severity issue.
-    """
-
-    RET_CODE = 'DSBLE0006'
-    inst = topology_st.standalone
-
+    inst.stop()
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 

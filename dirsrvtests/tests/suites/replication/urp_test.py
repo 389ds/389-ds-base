@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,6 +15,7 @@ from itertools import permutations, product
 from contextlib import contextmanager
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.dseutils import get_ldapurl_from_serverid
 from lib389.topologies import topology_m3, topology_m2, set_timeout
 from lib389.replica import *
 from lib389._constants import *

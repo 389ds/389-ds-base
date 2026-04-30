@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,9 +10,11 @@
 import os
 import re
 import copy
+import subprocess
 from lib389._mapped_object_lint import DSLint
 from lib389 import pid_from_file
 from lib389.lint import DSTHPLE0001
+from lib389.utils import ensure_str
 
 class Tunables(DSLint):
     """A class for working with system tunables
@@ -43,23 +45,32 @@ class Tunables(DSLint):
                     return match is not None
 
 
-        def instance_thp_enabled() -> bool:
+        def instance_thp_enabled(server_running: bool) -> bool:
             pid_status_path = f"/proc/{self.pid}/status"
 
-            with open(pid_status_path, 'r') as pid_status:
-                pid_status_content = pid_status.read()
-                thp_line = None
-                for line in pid_status_content.split('\n'):
-                    if 'THP_enabled' in line:
-                        thp_line = line
-                        break
-                if thp_line is not None:
-                    thp_value = int(thp_line.split()[1])
-                    return bool(thp_value)
+            if server_running:
+                with open(pid_status_path, 'r') as pid_status:
+                    pid_status_content = pid_status.read()
+                    thp_line = None
+                    for line in pid_status_content.split('\n'):
+                        if 'THP_enabled' in line:
+                            thp_line = line
+                            break
+                    if thp_line is not None:
+                        thp_value = int(thp_line.split()[1])
+                        return bool(thp_value)
+            else:
+                # Get systemctl data for THP from systemd
+                systemctl_data = subprocess.check_output(
+                    ['systemctl', 'show', '-P', 'Environment',
+                     'dirsrv@%s' % self._instance.serverid])
 
+                if 'THP_DISABLE=1' in ensure_str(systemctl_data):
+                    return False
+                else:
+                    return True
 
-        if instance_thp_enabled() and systemwide_thp_enabled():
+        if instance_thp_enabled(self._instance.status()) and systemwide_thp_enabled():
             report = copy.deepcopy(DSTHPLE0001)
             report['check'] = 'tunables:transparent_huge_pages'
             yield report
-
