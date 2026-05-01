@@ -52,6 +52,14 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_csngen_time_backwards),
         cmocka_unit_test(test_libslapd_csngen_multiple_clock_failures),
         cmocka_unit_test(test_libslapd_csngen_seqnum_handling),
+#ifdef ENABLE_HIBP
+        /* HIBP password breach checking tests */
+        cmocka_unit_test(test_hibp_sha1_hex),
+        cmocka_unit_test(test_hibp_parse_response),
+        cmocka_unit_test(test_hibp_buffer_handling),
+        cmocka_unit_test(test_hibp_api_integration),
+        cmocka_unit_test(test_hibp_concurrent_requests),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
