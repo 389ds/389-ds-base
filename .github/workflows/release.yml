@@ -66,7 +66,7 @@ jobs:
           path: ${{ steps.get_version.outputs.version }}.tar.bz2
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           tag_name: ${{ steps.get_version.outputs.version }}
           files: |
