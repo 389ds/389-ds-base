@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-22.04
 
     container:
-      image: quay.io/389ds/ci-images:fedora
+      image: quay.io/389ds/ci-images:fedora@sha256:5096a5980a8c158d591b27badf41d5cdb895e774144191af745c7cc1d8d8b79f
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Checkout and configure
         run: autoreconf -fvi && ./configure
 
-      - uses: vapier/coverity-scan-action@v1
+      - uses: vapier/coverity-scan-action@2068473c7bdf8c2fb984a6a40ae76ee7facd7a85 # v1
         with:
           project: '389ds/389-ds-base'
           command: make

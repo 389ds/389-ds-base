@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:test@sha256:aa3284e73f32483805d3eac4b4ee2d4b90a9259836982b5c15f161d5c319b785
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run NPM Audit CI
         run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx --yes audit-ci --config audit-ci.json
