@@ -28,7 +28,7 @@ permissions:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
       image: quay.io/389ds/ci-images:test
@@ -59,7 +59,7 @@ jobs:
 
   test:
     name: BDB Test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     needs: build
     strategy:
