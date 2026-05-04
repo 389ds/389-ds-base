@@ -23,7 +23,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:test@sha256:aa3284e73f32483805d3eac4b4ee2d4b90a9259836982b5c15f161d5c319b785
     steps:
       - name: Get the version
         id: get_version
@@ -33,7 +33,7 @@ jobs:
           VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           ref: ${{ steps.get_version.outputs.version }}
@@ -60,13 +60,13 @@ jobs:
           TAG=${{ steps.get_version.outputs.version }} make -f rpm.mk dist-bz2
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.get_version.outputs.version }}.tar.bz2
           path: ${{ steps.get_version.outputs.version }}.tar.bz2
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.get_version.outputs.version }}
           files: |

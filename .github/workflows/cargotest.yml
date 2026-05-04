@@ -22,11 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container:
-      image: quay.io/389ds/ci-images:fedora
+      image: quay.io/389ds/ci-images:fedora@sha256:5096a5980a8c158d591b27badf41d5cdb895e774144191af745c7cc1d8d8b79f
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
