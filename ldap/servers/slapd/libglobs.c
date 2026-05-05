@@ -7316,6 +7316,19 @@ config_get_pw_warning(void)
     return retVal;
 }
 
+int32_t
+config_get_pwpolicy_local(void)
+{
+    int32_t retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->pwpolicy_local;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
 int
 config_get_pwpolicy_inherit_global()
 {
