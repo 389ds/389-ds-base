@@ -474,6 +474,27 @@ class RestoreTask(Task):
         super(RestoreTask, self).__init__(instance, dn)
 
 
+class ShadowFixupTask(Task):
+    """A single instance of shadow fixup task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'shadow_fixup_' + Task.get_timestamp()
+        dn = "cn=" + self.cn + "," + DN_SHADOW_FIXUP_TASKS
+        super(ShadowFixupTask, self).__init__(instance, dn)
+
+    def create(self, suffix, force=False):
+        """Fixup shadow attributes for a given suffix"""
+        _properties = {
+            'suffix': suffix,
+            'force': 'on' if force else 'off',
+        }
+        return super(ShadowFixupTask, self).create(properties=_properties)
+
+
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()
 

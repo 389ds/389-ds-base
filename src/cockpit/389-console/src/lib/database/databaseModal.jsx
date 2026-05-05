@@ -7,6 +7,8 @@ import {
     FormHelperText,
     FormSelect,
     FormSelectOption,
+    HelperText,
+    HelperTextItem,
     Grid,
     GridItem,
     Modal,
@@ -14,8 +16,10 @@ import {
     TextInput,
     ValidatedOptions,
 } from "@patternfly/react-core";
+import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
 import { LDIFTable } from "./databaseTables.jsx";
 import PropTypes from "prop-types";
+import { valid_dn } from "../tools.jsx";
 
 
 const _ = cockpit.gettext;
@@ -379,9 +383,10 @@ class ExportModal extends React.Component {
                     key="confirm"
                     variant="primary"
                     onClick={saveHandler}
+                    isDisabled={this.props.saveBtnDisabled || spinning}
                     isLoading={spinning}
-                    spinnerAriaValueText={spinning ? _("Exporting") : undefined}
-                    isDisabled={this.props.saveBtnDisabled || spinning} {...extraPrimaryProps}
+                    spinnerAriaValueText={spinning ? _("Exporting ...") : undefined}
+                    {...extraPrimaryProps}
                 >
                     {saveBtnName}
                 </Button>
@@ -509,6 +514,144 @@ class ImportModal extends React.Component {
     }
 }
 
+class ShadowFixupModal extends React.Component {
+
+    handleSelectChange = (value) => {
+        this.props.handleChange(value);
+    }
+
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            handleChange,
+            saveHandler,
+            spinning,
+            item,
+            force,
+            suffix,
+            fixupCompleted,
+            suffixes
+        } = this.props;
+        let saveBtnName = _("Run Fix-Up task");
+        const extraPrimaryProps = {};
+        if (spinning) {
+            saveBtnName = _("Fixing ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Fixing");
+        }
+
+        const actions = [];
+        if (!fixupCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={spinning}
+                    spinnerAriaValueText={spinning ? _("Fixing ...") : undefined}
+                    isDisabled={suffix === ""  || !valid_dn(suffix) || spinning || fixupCompleted}
+                    {...extraPrimaryProps}
+                >
+                    {saveBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
+
+
+        const placeHolder = "Choose a base suffix";
+        let suffixList = [placeHolder];
+        suffixList.push.apply(suffixList, suffixes);
+
+        return (
+            <Modal
+                variant={ModalVariant.small}
+                title={_("Run Shadow Account Fixup Task")}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={actions}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <Grid className="ds-margin-top-lg" title={_("Suffix to run the fix-up task on.")}>
+                        <GridItem className="ds-label" span={1}>
+                            {_("Suffix")}
+                        </GridItem>
+                        <GridItem offset={2} span={10}>
+                            <FormSelect
+                                id="fixupShadowSuffix"
+                                name="fixupShadowSuffix"
+                                value={suffix}
+                                onChange={(event, value) => handleChange(event)}
+                                aria-label="FormSelect Input"
+                                isDisabled={spinning || fixupCompleted}
+                            >
+                                {suffixList.map((suffixOption) => (
+                                    <FormSelectOption
+                                        key={suffixOption}
+                                        value={suffixOption === placeHolder ? "" : suffixOption}
+                                        label={suffixOption}
+                                        isDisabled={suffixOption === placeHolder}
+                                        isPlaceholder={suffixOption === placeHolder}
+                                    />
+                                ))}
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Branch to run the fix-up task on.")}>
+                        <GridItem offset={2} span={10}>
+                            <TextInput
+                                type="text"
+                                id="fixupShadowSuffixInput"
+                                aria-describedby="horizontal-form-name-helper"
+                                isDisabled={spinning || fixupCompleted}
+                                name="fixupShadowSuffix"
+                                value={suffix}
+                                onChange={(e, val) => {
+                                    handleChange(e);
+                                }}
+                                validated={!valid_dn(suffix) ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText>
+                                <HelperText>
+                                    <HelperTextItem
+                                        icon={suffix !== "" && !valid_dn(suffix) ? <ExclamationCircleIcon /> : undefined}
+                                        variant={suffix !== "" && !valid_dn(suffix) ? ValidatedOptions.error : ValidatedOptions.default}
+                                    >
+                                        {suffix !== "" && !valid_dn(suffix) ? _("Invalid DN syntax") : _("Required field")}
+                                    </HelperTextItem>
+                                </HelperText>
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Update all Shadow Account users regardless if they have ShadowLastChange attribute present")}>
+                        <GridItem span={12}>
+                            <Checkbox
+                                id="fixupShadowForce"
+                                name="fixupShadowForce"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                isChecked={force}
+                                isDisabled={spinning || fixupCompleted}
+                                label={_("Force update of all users")}
+                            />
+                        </GridItem>
+                    </Grid>
+                    {item}
+                </Form>
+            </Modal>
+        );
+    }
+}
+
+
+
+
+
 // Property types and defaults
 
 CreateLinkModal.propTypes = {
@@ -574,9 +717,34 @@ ImportModal.defaultProps = {
     suffix: ""
 };
 
+ShadowFixupModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleChange: PropTypes.func,
+    saveHandler: PropTypes.func,
+    spinning: PropTypes.bool,
+    item: PropTypes.node,
+    force: PropTypes.bool,
+    suffix: PropTypes.string,
+    fixupCompleted: PropTypes.bool,
+    suffixes: PropTypes.array
+};
+
+ShadowFixupModal.defaultProps = {
+    showModal: false,
+    error: {},
+    spinning: false,
+    item: null,
+    force: false,
+    suffix: "",
+    fixupCompleted: false,
+    suffixes: []
+};
+
 export {
     ImportModal,
     ExportModal,
     CreateSubSuffixModal,
     CreateLinkModal,
+    ShadowFixupModal,
 };

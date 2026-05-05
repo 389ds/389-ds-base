@@ -3313,7 +3313,7 @@ export class LocalPwPolicy extends React.Component {
                 <Grid>
                     <GridItem span={12}>
                         <TextContent>
-                            <Text component={TextVariants.h3}>
+                            <Text component={TextVariants.h2}>
                                 {_("Local Password Policies")}
                                 <Button
                                     variant="plain"

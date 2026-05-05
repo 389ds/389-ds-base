@@ -480,6 +480,7 @@ int config_get_pw_exp(void);
 int config_get_pw_unlock(void);
 int config_get_pw_lockout(void);
 int config_get_pw_gracelimit(void);
+int32_t config_get_pwpolicy_local(void);
 int config_get_pwpolicy_inherit_global(void);
 int config_get_lastmod(void);
 int config_get_nagle(void);

@@ -252,6 +252,32 @@ def list_schemes(inst, basedn, log, args):
             log.info(scheme)
 
 
+def fixup_shadow_last_change(inst, basedn, log, args):
+    """Create the fixup shadow attributes task (shadowLastChange) and wait for it."""
+    log = log.getChild('fixup_shadow_last_change')
+    from lib389.tasks import ShadowFixupTask
+
+    if not args.watch:
+        log.info('Adding shadowLastChange fixup task for suffix "%s"%s ...',
+                 args.suffix, ' (force)' if args.force else '')
+
+    fixup_task = ShadowFixupTask(inst)
+    fixup_task.create(args.suffix, force=args.force)
+    if args.watch:
+        fixup_task.watch()
+    else:
+        fixup_task.wait()
+    result = fixup_task.get_exit_code()
+    warning = fixup_task.get_task_warn()
+
+    if result != 0:
+        raise ValueError(f'shadowLastChange fixup task {fixup_task.dn} exited with code {result}')
+    if warning:
+        log.warning('shadowLastChange fixup task completed with warning code %s', warning)
+
+    log.info('ShadowLastChange fixup task completed successfully')
+
+
 def create_parser(subparsers):
     # Create our two parsers for local and global policies
     globalpwp_parser = subparsers.add_parser('pwpolicy', help='Manage the global password policy settings', formatter_class=CustomHelpFormatter)
@@ -352,6 +378,20 @@ def create_parser(subparsers):
     # list password storage schemes
     list_scehmes_parser = global_subcommands.add_parser('list-schemes', help='Get a list of the current password storage schemes', formatter_class=CustomHelpFormatter)
     list_scehmes_parser.set_defaults(func=list_schemes)
+    # Fix up shadowLastChange on ShadowAccount entries under a suffix
+    fixup_shadow_parser = global_subcommands.add_parser(
+        'fixup-shadow',
+        help='Create a task to set shadowLastChange on ShadowAccount entries',
+        formatter_class=CustomHelpFormatter)
+    fixup_shadow_parser.set_defaults(func=fixup_shadow_last_change)
+    fixup_shadow_parser.add_argument(
+        'suffix', help='LDAP suffix to search (subtree) for objectClass ShadowAccount')
+    fixup_shadow_parser.add_argument(
+        '--force', action='store_true',
+        help='Update all users under the suffix regardless if shadowLastChange is set.')
+    fixup_shadow_parser.add_argument(
+        '--watch', action='store_true',
+        help='Watch the task\'s status and wait for it to finish.')
 
     #############################################
     # Wrap it up.  Now that we copied all the parent arguments to the subparsers,
