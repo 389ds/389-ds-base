@@ -2742,20 +2742,22 @@ class DirSrv(SimpleLDAPObject, object):
             online = False
         DirSrvTools.runUpgrade(self.ds_paths.prefix, online)
 
+    # Become dirsrv and check that import_file is still readable
+    @staticmethod
+    def _chown_and_test(pw, import_file):
+        if os.getuid() == 0:
+            os.setgroups([])
+            os.setgid(pw.pw_gid)
+            os.setuid(pw.pw_uid)
+        if not os.access(import_file, os.R_OK):
+            sys.exit(1)
+        sys.exit(0)
+
     #
     # The following are the functions to perform offline scripts(when the
     # server is stopped)
     #
     def check_ldif_file_is_readable(self, import_file):
-        # Become dirsrv and check that wimport_file is still readable
-        def chown_and_test(pw, import_file):
-            if os.getuid() == 0:
-                os.setgroups([])
-                os.setgid(pw.pw_gid)
-                os.setuid(pw.pw_uid)
-            if not os.access(import_file, os.R_OK):
-                sys.exit(1)
-            sys.exit(0)
 
         dse_ldif = DSEldif(self)
         user = dse_ldif.get("cn=config", "nsslapd-localuser", single=True)
@@ -2769,7 +2771,7 @@ class DirSrv(SimpleLDAPObject, object):
             return False
         # Fork a child process, switch it to the user and check that file
         # is still readable
-        p = Process(target=chown_and_test, args=(pw, import_file,))
+        p = Process(target=DirSrv._chown_and_test, args=(pw, import_file,))
         p.start()
         p.join()
         if p.exitcode == 0:
