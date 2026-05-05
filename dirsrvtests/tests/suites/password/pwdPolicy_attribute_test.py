@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -821,6 +821,218 @@ def test_shadowaccount_user_policy(topology_st, request):
                             'shadowMax', 40)
     check_shadow_attr_value(inst, user_policy_user.dn,
                             'shadowWarning', 12)
+
+
+@pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+def test_fixup_shadow_attributes_task(topology_st, request):
+    """fixup shadow attributes task: missing shadowLastChange, consistent entries,
+    stale shadow vs passwordExpirationTime (no force), and force when expiration is absent
+
+    :id: e7f8a9b0-1c2d-3e4f-5678-90abcdef0124
+    :setup: Standalone instance
+    :steps:
+        1. Enable passwordMustChange, passwordExp, and passwordMaxAge in cn=config
+        2. Create ShadowAccount entry A before password policy is configured
+        3. Create ShadowAccount entries B and C after passwordpolicy is set
+        4. As entry B, change password; as Directory Manager, set entry C password
+           (so C has passwordExpirationTime in the NO_TIME skip case)
+        5. Ensure entry A has no shadowLastChange (remove if the server added one)
+        6. Record shadowLastChange for entries B and C
+        7. Run fixup shadow attributes task with suffix only (no force)
+        8. Wait for task completion
+        9. Verify entry A has shadowLastChange; B and C unchanged from step 6
+        10. Set entry C passwordExpirationtime and shadowLastChange to inconsistent (stale) values
+        11. Run fixup shadow attributes task without force (suffix only)
+        12. Wait for task completion
+        13. Verify entry C shadowLastChange is recomputed from expiration and policy (not step 6)
+        14. Remove entry B passwordExpirationtime and set B shadowLastChange to a stale value
+        15. Run fixup shadow attributes task with force on
+        16. Wait for task completion
+        17. Verify entry B shadowLastChange updates (force required when passwordExpirationTime is absent)
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Entry A gains shadowLastChange; B and C unchanged from step 6 (C skipped for NO_TIME)
+        10. Success
+        11. Success
+        12. Success
+        13. Entry C shadowLastChange updates for stale shadow vs expiration without force
+        14. Success
+        15. Success
+        16. Success
+        17. Entry B shadowLastChange updates because force bypasses skip when expiration is missing
+    """
+    inst = topology_st.standalone
+
+    MAX_AGE = "100000"
+    EXP_TIME = "20250507185841Z"
+
+    log.info('Create ShadowAccount entry A before password policy is configured')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_a = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': 'Fa',
+        'cn': 'shadowFa',
+        'uid': 'shadowFa',
+        'uidNumber': '7101',
+        'gidNumber': '7101',
+        'homeDirectory': '/home/shadowFa',
+        'displayName': 'Shadow fixup A',
+        'givenname': 'ShadowFa',
+        'mail': 'shadowFa@example.com',
+        'userpassword': 'password',
+    })
+
+    log.info('Enable passwordMustChange in cn=config')
+    inst.config.replace('passwordMustChange', 'on')
+    inst.config.replace('passwordExp', 'on')
+    inst.config.replace('passwordMaxAge', MAX_AGE)
+
+    log.info('Create ShadowAccount entry B after password policy is configured')
+    user_b = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': 'Fb',
+        'cn': 'shadowFb',
+        'uid': 'shadowFb',
+        'uidNumber': '7102',
+        'gidNumber': '7102',
+        'homeDirectory': '/home/shadowFb',
+        'displayName': 'Shadow fixup B',
+        'givenname': 'ShadowFb',
+        'mail': 'shadowFb@example.com',
+        'userpassword': 'password',
+    })
+
+    log.info('Create ShadowAccount entry C')
+    user_c = users.create(properties={
+        'objectclass': ['top', 'person', 'organizationalPerson',
+                        'inetOrgPerson', 'extensibleObject', 'shadowAccount'],
+        'sn': 'Fc',
+        'cn': 'shadowFc',
+        'uid': 'shadowFc',
+        'uidNumber': '7102',
+        'gidNumber': '7102',
+        'homeDirectory': '/home/shadowFc',
+        'displayName': 'Shadow fixup B',
+        'givenname': 'ShadowFc',
+        'mail': 'shadowFc@example.com',
+        'userpassword': 'password',
+    })
+
+    def fin():
+        log.info('Cleanup: disable passwordMustChange; delete test users')
+        dm = DirectoryManager(inst)
+        dm.rebind()
+        try:
+            inst.config.replace('passwordMustChange', 'off')
+            inst.config.replace('passwordExp', 'off')
+        except Exception:
+            pass
+        for u in (user_a, user_b, user_c):
+            try:
+                if u.exists():
+                    u.delete()
+            except Exception:
+                pass
+
+    request.addfinalizer(fin)
+
+    # Update user B password so it has a current expiration time and not the
+    # "reset" value
+    user_b.rebind('password')
+    user_b.replace('userpassword', 'password0')  # Trigger valid exp time
+
+    dm = DirectoryManager(inst)
+    dm.rebind(PASSWORD)
+    user_c.replace('userpassword', 'password0')  # Trigger NO_TIME
+
+    # Gather the current values for ShadowLastChange
+    if user_a.present('shadowLastChange'):
+        log.info('Removing shadowLastChange from entry A so the non-forced fixup updates it')
+        user_a.remove_all('shadowLastChange')
+
+    assert user_b.present('shadowLastChange'), 'Entry B should have shadowLastChange before fixup'
+    b_before = int(user_b.get_attr_val_utf8('shadowLastChange'))
+    log.info('Entry B shadowLastChange before tasks: {}'.format(b_before))
+
+    c_before = int(user_c.get_attr_val_utf8('shadowLastChange'))
+    log.info('Entry C shadowLastChange before tasks: {}'.format(c_before))
+
+    #
+    # Run the task (suffix only, no force)
+    #
+    log.info('Run fixup shadow attributes task (suffix only, no force)')
+    shadow_fixup_task = ShadowFixupTask(inst)
+    shadow_fixup_task.create(suffix=DEFAULT_SUFFIX, force=False)
+    shadow_fixup_task.wait(timeout=120)
+    assert shadow_fixup_task.get_exit_code() == 0
+
+    # User A should now have ShadowLastChange
+    assert user_a.present('shadowLastChange'), 'Entry A should gain shadowLastChange'
+    a_after_first = int(user_a.get_attr_val_utf8('shadowLastChange'))
+    log.info('Entry A shadowLastChange after first task: {}'.format(a_after_first))
+
+    # User B should be the same since it has the correct values for
+    # ShadowLastChange and passwordExpirationtime
+    b_after_first = int(user_b.get_attr_val_utf8('shadowLastChange'))
+    assert b_after_first == b_before, (
+        'Entry B shadowLastChange should be unchanged without force; '
+        'got {} expected {}'.format(b_after_first, b_before))
+
+    # User C should remain unchanged because passwordExpiration is set to NO_TIME
+    c_after_first = int(user_c.get_attr_val_utf8('shadowLastChange'))
+    assert c_after_first == c_before, (
+        'Entry C shadowLastChange should be unchanged without force; '
+        'got {} expected {}'.format(c_after_first, c_before))
+
+    #
+    # Run the fixup after tweaking passwordExpirationtime
+    #
+    # Update user C passwordExpirationtime to a "stale" value which should
+    # trigger shadowLastChange to be updated
+    user_c.replace('passwordExpirationtime', EXP_TIME)
+    user_c.replace('shadowLastChange', '20000')
+    c_before = '20000'
+    log.info('Run fixup shadow attributes task (suffix only, no force; stale reconciliation)')
+    shadow_fixup_task = ShadowFixupTask(inst)
+    shadow_fixup_task.create(suffix=DEFAULT_SUFFIX, force=False)
+    shadow_fixup_task.wait(timeout=120)
+    assert shadow_fixup_task.get_exit_code() == 0
+
+    # User C should have ShadowLastChange updated to the current day
+    c_after_first = int(user_c.get_attr_val_utf8('shadowLastChange'))
+    exp_time = gentime_to_posix_time(EXP_TIME)
+    expected_val = int((exp_time - int(MAX_AGE)) / 86400)
+    assert c_after_first != int(c_before) and c_after_first == expected_val, (
+        'Entry C shadowLastChange should be changed without force; '
+        'got {} expected {}'.format(c_after_first, c_before))
+
+    #
+    # Run the fixup in force option
+    #
+    log.info('Run fixup shadow attributes task with force on')
+    # Update user B so that it would normally not be "fixed-up"
+    user_b.remove_all('passwordExpirationtime')
+    user_b.replace('shadowLastChange', '20000')
+
+    shadow_fixup_task = ShadowFixupTask(inst)
+    shadow_fixup_task.create(suffix=DEFAULT_SUFFIX, force=True)
+    shadow_fixup_task.wait(timeout=120)
+    assert shadow_fixup_task.get_exit_code() == 0
+
+    assert user_b.present('shadowLastChange')
+    b_after_force = int(user_b.get_attr_val_utf8('shadowLastChange'))
+    assert b_after_force != 20000, (
+        'Entry B shadowLastChange should change when force is on; '
+        'still {}'.format(b_after_force))
 
 
 if __name__ == '__main__':
