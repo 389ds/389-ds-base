@@ -16,7 +16,7 @@ from lib389.idm.user import UserAccounts
 from lib389.index import Index
 from lib389.properties import TASK_WAIT
 from lib389.tasks import Tasks
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 pytestmark = pytest.mark.tier1
 

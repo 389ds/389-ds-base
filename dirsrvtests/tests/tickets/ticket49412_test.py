@@ -12,7 +12,7 @@ import os
 import ldap
 import time
 from lib389._constants import *
-from lib389.topologies import topology_m1c1 as topo
+from test389.topologies import topology_m1c1 as topo
 from lib389._constants import *
 from lib389 import Entry
 

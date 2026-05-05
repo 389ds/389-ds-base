@@ -13,7 +13,7 @@ import re
 import time
 import ldap
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
-from lib389.topologies import topology_m2 as topo
+from test389.topologies import topology_m2 as topo
 from lib389.idm.user import UserAccounts
 from lib389.dirsrv_log import DirsrvAuditJSONLog
 from lib389.plugins import ChainingBackendPlugin

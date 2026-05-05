@@ -16,7 +16,7 @@ import signal
 import subprocess
 import time
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.dirsrv_log import DirsrvSecurityLog
 from lib389.utils import ensure_str

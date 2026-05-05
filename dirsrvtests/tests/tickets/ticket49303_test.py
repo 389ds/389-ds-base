@@ -11,7 +11,7 @@ import logging
 import os
 import subprocess
 import pytest
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.nss_ssl import NssSsl
 
 from lib389._constants import SECUREPORT_STANDALONE1, HOST_STANDALONE1

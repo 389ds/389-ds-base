@@ -11,7 +11,7 @@ import time
 import pytest, os, ldap
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.role import FilteredRoles
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.user import UserAccount

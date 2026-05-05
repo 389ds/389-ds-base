@@ -13,7 +13,7 @@ import uuid
 import pytest
 
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, DN_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
 from tempfile import TemporaryDirectory
 

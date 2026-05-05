@@ -13,7 +13,7 @@ import os
 import time
 import ldap
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.plugins import MemberOfPlugin
 from lib389.config import LMDB_LDBMConfig
 from lib389.utils import get_default_db_lib

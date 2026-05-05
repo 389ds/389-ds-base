@@ -10,7 +10,7 @@
 import os, shutil, time, pytest, re, pwd, grp
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m4 as topo_m4
 from lib389.replica import *
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.agreement import *

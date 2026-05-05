@@ -14,7 +14,7 @@ import datetime
 from lib389.utils import get_default_db_lib
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
-from lib389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1 as topo
 from lib389.utils import ldap, ds_is_older
 from lib389.idm.user import UserAccounts
 from lib389._constants import DEFAULT_SUFFIX

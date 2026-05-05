@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 from lib389 import DEFAULT_SUFFIX, DN_PLUGIN, DN_CONFIG
 from lib389.cli_idm.account import entry_status, unlock
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older
 from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfigs

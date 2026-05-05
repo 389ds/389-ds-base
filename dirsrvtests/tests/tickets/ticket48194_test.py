@@ -14,7 +14,7 @@ import ldap
 import pytest
 from lib389 import Entry
 from lib389._constants import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.nss_ssl import NssSsl
 
 log = logging.getLogger(__name__)

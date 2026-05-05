@@ -17,7 +17,7 @@ from lib389.cli_conf.chaining import (config_get, config_set, def_config_get, de
 from lib389.cli_conf.backend import (backend_create, backend_delete, backend_list)
 from lib389.cli_base import LogCapture, FakeArgs
 from lib389.tests.cli import check_output
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 
 from lib389.utils import ds_is_older
 pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")

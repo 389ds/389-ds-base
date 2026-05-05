@@ -25,7 +25,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
-from lib389.topologies import create_topology, topology_i2 as topo
+from test389.topologies import create_topology, topology_i2 as topo
 
 pytestmark = pytest.mark.tier1
 

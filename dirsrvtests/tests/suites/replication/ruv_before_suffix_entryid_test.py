@@ -17,7 +17,7 @@ from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
 from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import Replicas
-from lib389.topologies import topology_no_sample
+from test389.topologies import topology_no_sample
 
 pytestmark = pytest.mark.tier2
 

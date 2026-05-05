@@ -10,7 +10,7 @@
 import pytest
 import ldap
 
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 # This pulls in logging I think
 from lib389.utils import *
 from lib389.sasl import PlainSASL

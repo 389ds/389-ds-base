@@ -16,7 +16,7 @@ print(sys.path)
 from lib389 import Entry
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
-from lib389.topologies import topology_m3 as topo
+from test389.topologies import topology_m3 as topo
 
 pytestmark = pytest.mark.tier2
 

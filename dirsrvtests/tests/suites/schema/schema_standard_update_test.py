@@ -16,7 +16,7 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager, ReplicaRole
 from lib389.schema import Schema
-from lib389.topologies import topology_st, create_topology
+from test389.topologies import topology_st, create_topology
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ import logging
 import pytest
 import os
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.cli_base import FakeArgs
 from lib389.cli_conf.security import cacert_add, cacert_list, cert_del
 from lib389.cli_ctl.tls import import_ca

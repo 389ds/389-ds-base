@@ -28,7 +28,7 @@ from lib389.idm.services import ServiceAccounts
 from lib389.nss_ssl import NssSsl
 from lib389.passwd import password_generate
 from lib389.replica import ReplicationManager, Replicas
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m2 as topo_m2
 from lib389.utils import (
         get_default_db_lib,
         escapeDNFiltValue,

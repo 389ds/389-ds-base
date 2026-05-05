@@ -12,7 +12,7 @@ import itertools
 import pytest
 import ldap
 from lib389._constants import SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.replica import Replicas
 
 

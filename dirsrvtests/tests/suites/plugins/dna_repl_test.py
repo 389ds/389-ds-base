@@ -13,7 +13,7 @@ import threading
 import ldap
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m4 as topo_m4
 from lib389.idm.user import UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import ReplicationManager

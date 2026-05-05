@@ -6,7 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.topologies import topology_st_gssapi, gssapi_ack
+from test389.topologies import topology_st_gssapi, gssapi_ack
 from lib389.idm.user import UserAccounts
 
 from lib389.saslmap import SaslMappings

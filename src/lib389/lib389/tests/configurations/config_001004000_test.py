@@ -18,7 +18,7 @@ from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 
 from lib389.idm.user import nsUserAccounts
 from lib389.idm.posixgroup import PosixGroups

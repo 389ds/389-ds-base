@@ -16,7 +16,7 @@ import subprocess
 import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dirsrv_log import DirsrvAccessJSONLog, DirsrvAccessLog
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 
 log = logging.getLogger(__name__)

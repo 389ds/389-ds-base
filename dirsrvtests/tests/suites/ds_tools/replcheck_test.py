@@ -15,7 +15,7 @@ from lib389.config import CertmapLegacy
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.services import ServiceAccounts
-from lib389.topologies import topology_m2 as topo
+from test389.topologies import topology_m2 as topo
 
 pytestmark = pytest.mark.tier1
 

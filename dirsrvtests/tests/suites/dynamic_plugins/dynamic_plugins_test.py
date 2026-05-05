@@ -19,7 +19,7 @@ from lib389.tasks import *
 from lib389.replica import ReplicationManager
 from lib389.config import LDBMConfig
 from lib389._constants import *
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from ..plugins import acceptance_test
 from . import stress_tests
 

@@ -20,7 +20,7 @@ from lib389.plugins import ReferentialIntegrityPlugin, MemberOfPlugin
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 

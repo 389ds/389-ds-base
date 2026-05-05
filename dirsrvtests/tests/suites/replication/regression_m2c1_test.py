@@ -12,7 +12,7 @@ import time
 import logging
 import ldap
 import pytest
-from lib389.topologies import topology_m2c1 as topo_m2c1
+from test389.topologies import topology_m2c1 as topo_m2c1
 from lib389._constants import DEFAULT_SUFFIX, DN_USERROOT_LDBM
 from lib389.replica import Changelog5
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts

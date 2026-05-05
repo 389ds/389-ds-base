@@ -13,7 +13,7 @@ import ldap
 from ldap.controls import RequestControl
 from ldap.controls.readentry import PostReadControl
 from lib389.idm.user import UserAccounts, UserAccount
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1

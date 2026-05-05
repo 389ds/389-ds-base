@@ -17,7 +17,7 @@ import ldap
 from lib389.cli_base import LogCapture
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD, ReplicaRole
 from lib389.pwpolicy import PwPolicyEntry
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 
 
 pytestmark = pytest.mark.tier1

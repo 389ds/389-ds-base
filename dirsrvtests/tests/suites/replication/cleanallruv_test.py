@@ -11,7 +11,7 @@ from lib389 import DirSrv
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.monitor import Monitor
-from lib389.topologies import topology_m4, topology_m2, topology_m2c2
+from test389.topologies import topology_m4, topology_m2, topology_m2c2
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.replica import ReplicationManager, Replicas
 from lib389.tasks import CleanAllRUVTask

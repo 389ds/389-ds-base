@@ -16,7 +16,7 @@ from lib389.replica import Changelog5,  Changelog
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs, LogCapture
-from lib389.topologies import topology_st, topology_no_sample, topology_m2
+from test389.topologies import topology_st, topology_no_sample, topology_m2
 from lib389.cli_ctl.health import health_check_run
 from lib389.cli_conf.backend import db_config_set
 from lib389.paths import Paths

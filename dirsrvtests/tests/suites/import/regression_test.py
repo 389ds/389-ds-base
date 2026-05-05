@@ -15,7 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from lib389.backend import Backends
 from lib389.properties import TASK_WAIT
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.tasks import *

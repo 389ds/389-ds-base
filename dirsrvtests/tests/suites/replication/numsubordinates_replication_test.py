@@ -16,7 +16,7 @@ from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
 from lib389.tasks import *
 from lib389.tombstone import Tombstones
-from lib389.topologies import topology_i2 as topo_i2, topology_m2 as topo_m2
+from test389.topologies import topology_i2 as topo_i2, topology_m2 as topo_m2
 from lib389.utils import get_default_db_lib
 
 pytestmark = pytest.mark.tier1

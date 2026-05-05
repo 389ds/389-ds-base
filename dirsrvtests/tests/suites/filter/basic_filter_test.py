@@ -10,7 +10,7 @@ import ldap
 import pytest, os
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.group import UniqueGroups

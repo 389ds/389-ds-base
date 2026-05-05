@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m1
+from test389.topologies import topology_m1
 from lib389.tombstone import Tombstones
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 

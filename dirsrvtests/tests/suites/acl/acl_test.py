@@ -15,7 +15,7 @@ from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.organizationalrole import OrganizationalRole, OrganizationalRoles
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389._constants import SUFFIX, DN_DM, DEFAULT_SUFFIX, PASSWORD
 
 pytestmark = pytest.mark.tier1

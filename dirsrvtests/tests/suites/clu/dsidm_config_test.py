@@ -14,7 +14,7 @@ import os
 from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.client_config import sssd_conf, ldap_conf, display
 from lib389.plugins import MemberOfPlugin
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.idm.group import Groups
 from lib389.idm.user import nsUserAccounts

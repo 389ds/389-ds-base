@@ -9,9 +9,9 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2 as topo_m2
-from lib389.topologies import topology_m1c1 as m1c1
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m1c1 as m1c1
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.plugins import USNPlugin
 from lib389.replica import ReplicationManager

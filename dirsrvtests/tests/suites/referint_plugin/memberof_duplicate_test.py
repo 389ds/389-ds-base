@@ -9,7 +9,7 @@
 import pytest
 import logging
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389.plugins import MemberOfPlugin, ReferentialIntegrityPlugin
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups

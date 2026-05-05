@@ -15,7 +15,7 @@ import sys
 
 from lib389 import DirSrv
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m2 as topo_m2
 from lib389.cli_ctl.dblib import DbscanHelper
 from lib389.idm.domain import Domain
 from difflib import context_diff

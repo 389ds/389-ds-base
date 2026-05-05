@@ -11,7 +11,7 @@ import pytest
 import time, ldap, re, os
 from lib389.schema import Schema
 from lib389.utils import ensure_bytes
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 from lib389._mapped_object import DSLdapObjects
 from lib389.idm.user import UserAccounts

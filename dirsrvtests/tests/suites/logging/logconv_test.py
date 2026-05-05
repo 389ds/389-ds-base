@@ -29,7 +29,7 @@ from lib389.dbgen import dbgen_users
 from lib389._mapped_object import DSLdapObjects
 from lib389.config import CertmapLegacy
 from lib389.nss_ssl import NssSsl
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 
 pytestmark = pytest.mark.tier1
 

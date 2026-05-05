@@ -12,7 +12,7 @@ This test script will test fractional replication.
 
 import os
 import pytest
-from lib389.topologies import topology_m2c2
+from test389.topologies import topology_m2c2
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.replica import ReplicationManager

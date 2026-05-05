@@ -24,7 +24,7 @@ from random import shuffle, seed, randint, choice
 from lib389._constants import *
 from lib389.properties import *
 from lib389.idm.user import UserAccounts
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 from lib389 import DirSrv
 from lib389.config import LMDB_LDBMConfig
 from lib389.utils import get_default_db_lib

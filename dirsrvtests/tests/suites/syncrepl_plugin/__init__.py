@@ -14,7 +14,7 @@ import time
 from ldap.syncrepl import SyncreplConsumer
 from lib389 import DirSrv
 from lib389.idm.user import nsUserAccounts
-from lib389.topologies import topology_st as topology
+from test389.topologies import topology_st as topology
 from lib389._constants import DEFAULT_SUFFIX
 
 log = logging.getLogger(__name__)

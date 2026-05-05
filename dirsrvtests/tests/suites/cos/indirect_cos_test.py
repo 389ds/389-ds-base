@@ -17,7 +17,7 @@ from lib389 import Entry
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.domain import Domain
 from lib389.cos import CosIndirectDefinitions
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD, HOST_STANDALONE,
                                SERVERID_STANDALONE, PORT_STANDALONE)
 

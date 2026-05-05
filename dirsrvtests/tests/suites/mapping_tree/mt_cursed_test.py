@@ -9,7 +9,7 @@
 import ldap
 import pytest
 import time
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.backend import Backends, Backend
 from lib389.mappingTree import MappingTrees
 from lib389.idm.domain import Domain

@@ -21,7 +21,7 @@ from lib389.index import Indexes
 from lib389._mapped_object import DSLdapObject
 from lib389.monitor import MonitorBackend
 from lib389.properties import TASK_WAIT
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from shutil import copyfile
 from statistics import fmean, stdev
 

@@ -14,7 +14,7 @@ import subprocess
 import logging
 
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD, DN_CONFIG
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
 from lib389.pwpolicy import PwPolicyManager

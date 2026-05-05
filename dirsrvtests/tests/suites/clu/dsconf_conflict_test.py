@@ -13,7 +13,7 @@ import time
 import json
 import subprocess
 from lib389._constants import DEFAULT_SUFFIX, DN_DM
-from lib389.topologies import topology_m2 as topo
+from test389.topologies import topology_m2 as topo
 from lib389.idm.group import Groups
 from lib389.conflicts import ConflictEntries
 log = logging.getLogger(__name__)

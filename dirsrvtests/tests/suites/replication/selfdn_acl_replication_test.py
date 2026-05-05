@@ -11,7 +11,7 @@ import pytest
 import ldap
 import os
 
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain

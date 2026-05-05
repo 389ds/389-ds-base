@@ -19,12 +19,12 @@ from lib389.configurations.sample import create_base_domain
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.topologies import topology_m2 as topo_m2
-from lib389.topologies import topology_st
+from test389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_st
 from lib389.agreement import Agreements
 from lib389.utils import ds_is_older, ensure_bytes
 from lib389.tasks import Tasks,ExportTask, ImportTask
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier1
 

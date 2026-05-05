@@ -18,7 +18,7 @@ from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.role import ManagedRoles
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 import ldap
 

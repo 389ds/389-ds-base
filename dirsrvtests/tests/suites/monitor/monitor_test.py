@@ -15,7 +15,7 @@ import time
 from lib389.monitor import *
 from lib389.backend import Backends, DatabaseConfig
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._mapped_object import DSLdapObjects
 from lib389.utils import get_default_db_lib
 from lib389.plugins import MemberOfPlugin

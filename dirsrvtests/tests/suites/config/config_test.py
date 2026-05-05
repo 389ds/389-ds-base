@@ -15,7 +15,7 @@ from lib389 import DirSrv, pid_from_file
 from lib389.dseldif import DSEldif
 from lib389.tasks import *
 from lib389.dbgen import dbgen_users
-from lib389.topologies import topology_m2, topology_st as topo
+from test389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME, DN_DM, PW_DM
 from lib389._mapped_object import DSLdapObjects

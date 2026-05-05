@@ -13,7 +13,7 @@ from lib389.utils import *
 from lib389._constants import *
 from lib389.replica import Replicas, ReplicationManager
 from lib389.dseldif import *
-from lib389.topologies import topology_i2 as topo_i2
+from test389.topologies import topology_i2 as topo_i2
 
 
 pytestmark = pytest.mark.tier1

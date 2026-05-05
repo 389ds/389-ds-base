@@ -14,7 +14,7 @@ from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.user import UserAccounts
 from lib389.ldapi import LDAPIMapping, LDAPIFixedMapping
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.tasks import LDAPIMappingReloadTask
 
 log = logging.getLogger(__name__)

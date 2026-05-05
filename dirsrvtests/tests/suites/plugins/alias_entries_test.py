@@ -15,7 +15,7 @@ from lib389.utils import ensure_str
 from lib389.plugins import AliasEntriesPlugin
 from lib389.idm.user import UserAccount
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 

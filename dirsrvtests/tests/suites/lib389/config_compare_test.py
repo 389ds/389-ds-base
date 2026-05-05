@@ -10,7 +10,7 @@ import os
 import pytest
 
 from contextlib import suppress
-from lib389.topologies import topology_i2
+from test389.topologies import topology_i2
 from lib389.config import Config
 from lib389.dseldif import DSEldif
 from lib389.cli_ctl.dblib import get_bdb_impl_status

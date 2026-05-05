@@ -15,7 +15,7 @@ from lib389.monitor import MonitorBackend
 from lib389.mappingTree import MappingTrees
 from lib389.index import Indexes
 from lib389.backend import Backends
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)

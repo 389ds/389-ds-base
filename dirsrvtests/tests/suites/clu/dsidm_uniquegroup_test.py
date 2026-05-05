@@ -15,7 +15,7 @@ import os
 from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.uniquegroup import (list, get, get_dn, create, delete, modify, rename,
                                         members, add_member, remove_member)
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older, ensure_str, is_a_dn
 from lib389.idm.group import UniqueGroups

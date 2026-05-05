@@ -20,7 +20,7 @@ from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 from lib389._constants import DEFAULT_SUFFIX, PLUGIN_AUTOMEMBER
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tasks import ImportTask
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.utils import get_default_db_lib
 
 

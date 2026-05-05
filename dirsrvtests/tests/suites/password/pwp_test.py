@@ -11,7 +11,7 @@
 import os
 import subprocess
 import pytest
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.directorymanager import DirectoryManager
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD

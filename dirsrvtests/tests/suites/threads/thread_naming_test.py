@@ -12,7 +12,7 @@ import platform
 import pytest
 
 from lib389 import pid_from_file
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 pytestmark = pytest.mark.tier1
 

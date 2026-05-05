@@ -10,7 +10,7 @@ import logging
 import pytest
 import os
 from ldap.schema.models import AttributeType, ObjectClass
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.schema import Schema, OBJECT_MODEL_PARAMS 
 
 pytestmark = pytest.mark.tier0

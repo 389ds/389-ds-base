@@ -15,7 +15,7 @@ from lib389.dirsrv_log import DirsrvAccessLog
 from lib389.tasks import *
 from lib389.backend import Backends
 from lib389.dbgen import dbgen_users, dbgen_groups
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.utils import *

@@ -17,7 +17,7 @@ from lib389.idm.group import Groups
 from lib389.idm.role import ManagedRoles, FilteredRoles, NestedRoles
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 
 pytestmark = pytest.mark.tier0

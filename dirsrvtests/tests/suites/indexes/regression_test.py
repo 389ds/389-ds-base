@@ -33,7 +33,7 @@ from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.plugins import MemberOfPlugin
 from lib389.properties import TASK_WAIT
 from lib389.tasks import Tasks, Task
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
 from textwrap import dedent
 

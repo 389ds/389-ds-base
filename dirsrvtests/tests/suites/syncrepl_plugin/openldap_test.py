@@ -9,7 +9,7 @@ import logging
 import ldap
 import time
 import pytest
-from lib389.topologies import topology_st as topology
+from test389.topologies import topology_st as topology
 from lib389.paths import Paths
 from lib389.utils import ds_is_older
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin

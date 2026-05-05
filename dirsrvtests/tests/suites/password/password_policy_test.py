@@ -17,8 +17,8 @@ from lib389.backend import Backend
 from lib389.config import Config
 from lib389.cli_conf.pwpolicy import list_policies, create_subtree_policy, create_user_policy, del_local_policy
 from lib389.cli_base import FakeArgs
-from lib389.topologies import topology_st as topo
-from lib389.topologies import topology_m1
+from test389.topologies import topology_st as topo
+from test389.topologies import topology_m1
 from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts, UserAccount

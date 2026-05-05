@@ -11,7 +11,7 @@ import pytest
 import ssl
 import os
 import re
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.nss_ssl import NssSsl
 
 log = logging.getLogger(__name__)

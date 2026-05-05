@@ -12,7 +12,7 @@ import logging
 
 from lib389.referral import Referrals, Referral
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX
 

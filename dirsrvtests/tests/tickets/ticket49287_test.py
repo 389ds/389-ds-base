@@ -10,7 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.properties import RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT, BACKEND_NAME
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389._constants import *
 from lib389.replica import ReplicationManager
 

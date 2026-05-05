@@ -15,7 +15,7 @@ import os
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 from lib389.idm.account import Accounts
 from lib389.nss_ssl import NssSsl

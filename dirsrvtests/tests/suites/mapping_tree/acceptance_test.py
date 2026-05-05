@@ -11,7 +11,7 @@ import logging
 import pytest
 import os
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.mappingTree import MappingTrees
 
 pytestmark = pytest.mark.tier1

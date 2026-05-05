@@ -11,7 +11,7 @@ import os
 import time
 import pytest
 from lib389.properties import TASK_WAIT
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.dirsrv_log import DirsrvErrorJSONLog
 
 log = logging.getLogger(__name__)

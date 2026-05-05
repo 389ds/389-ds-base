@@ -14,7 +14,7 @@ import pytest
 from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX
 from lib389._controls import SSSRequestControl
 from lib389.idm.user import UserAccount, UserAccounts

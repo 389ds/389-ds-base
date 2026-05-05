@@ -14,7 +14,7 @@ import pytest
 
 from lib389._entry import Entry
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.utils import ds_is_older, ensure_bytes
 from lib389.idm.user import UserAccount, UserAccounts, DEFAULT_BASEDN_RDN
 

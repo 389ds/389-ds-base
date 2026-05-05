@@ -12,7 +12,7 @@ import ldap
 import time
 from lib389.backend import Backends
 from lib389.utils import ensure_str
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin, ReferentialIntegrityPlugin
 from lib389.idm.user import UserAccount, UserAccounts

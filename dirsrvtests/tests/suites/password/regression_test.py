@@ -12,10 +12,10 @@ import base64
 from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
 from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB, DEFAULT_BENAME
 from lib389 import Entry
-from lib389.topologies import topology_m1 as topo_supplier
+from test389.topologies import topology_m1 as topo_supplier
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.pwpolicy import PwPolicyManager
 from lib389.backend import Backend, Backends

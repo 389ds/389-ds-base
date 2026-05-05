@@ -14,7 +14,7 @@ import os
 import pytest
 import subprocess
 import tempfile
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier1
 

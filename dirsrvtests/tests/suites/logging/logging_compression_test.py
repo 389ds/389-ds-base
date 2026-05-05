@@ -14,7 +14,7 @@ import os
 import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dseldif import DSEldif
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 

@@ -16,7 +16,7 @@ from lib389.cli_base import LogCapture, FakeArgs
 from lib389.utils import *
 from lib389._constants import *
 from lib389.idm.nscontainer import nsContainers
-from lib389.topologies import topology_m2 as topo
+from lib389.tests.topologies import topology_m2 as topo
 from lib389.cli_conf.conflicts import (list_conflicts, cmp_conflict, del_conflict, swap_conflict,
                                        convert_conflict, list_glue, del_glue, convert_glue)
 from lib389.utils import ds_is_older

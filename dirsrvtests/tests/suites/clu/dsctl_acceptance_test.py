@@ -10,7 +10,7 @@ import logging
 import pytest
 import os
 import time
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.paths import Paths
 
 log = logging.getLogger(__name__)

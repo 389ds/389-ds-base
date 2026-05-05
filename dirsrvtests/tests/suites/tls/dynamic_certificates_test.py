@@ -38,7 +38,7 @@ from cryptography.x509.oid import NameOID, ExtensionOID
 from lib389.cli_base import FakeArgs
 from lib389._constants import DN_DM, PW_DM
 from lib389.dseldif import DSEldif
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.utils import ds_is_older, ensure_str, pem_to_der, rpm_is_older
 from lib389.dyncerts import (
     DynamicCerts, DynamicCert, DYNCERT_SUFFIX,

@@ -18,7 +18,7 @@ import re
 from lib389.properties import TASK_WAIT
 from lib389.replica import Replicas
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_m2 as topo
+from test389.topologies import topology_m2 as topo
 from lib389._constants import *
 from lib389.plugins import RetroChangelogPlugin
 from lib389.dseldif import DSEldif

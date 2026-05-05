@@ -17,7 +17,7 @@ from lib389.tasks import *
 from lib389._constants import *
 from lib389.utils import ensure_bytes
 from lib389.backend import Backends
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.paths import *
 from lib389.idm.user import UserAccounts
 

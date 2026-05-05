@@ -10,7 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.agreement import *
-from lib389.topologies import topology_m2_gssapi, gssapi_ack
+from test389.topologies import topology_m2_gssapi, gssapi_ack
 
 pytestmark = pytest.mark.tier2
 

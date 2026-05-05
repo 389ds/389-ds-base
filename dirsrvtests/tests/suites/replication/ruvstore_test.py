@@ -20,7 +20,7 @@ from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts, nsUserAccounts
 from lib389.idm.group import Groups
 from lib389.tasks import ImportTask
-from lib389.topologies import create_topology, topology_m3
+from test389.topologies import create_topology, topology_m3
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin
 

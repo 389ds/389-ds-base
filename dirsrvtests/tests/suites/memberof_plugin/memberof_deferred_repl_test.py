@@ -11,7 +11,7 @@ import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX, AGMT_ATTR_LIST
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m2 as topo_m2
 from lib389.agreement import Agreements
 from lib389.replica import Replicas
 from lib389.plugins import MemberOfPlugin

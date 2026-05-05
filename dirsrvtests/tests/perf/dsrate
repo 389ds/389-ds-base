@@ -16,7 +16,14 @@ import pathlib
 import signal
 import sys
 import os
-from lib389.perftools import *
+
+perf_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(perf_dir)
+dirsrvtests_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, os.path.join(dirsrvtests_dir, 'lib'))
+
+from test389.perftools import *
+
 
 parser_description="""
 Handle basic performance test

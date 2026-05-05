@@ -21,7 +21,7 @@ from lib389.cli_ctl.dblib import (
     is_bdb_supported)
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
-from lib389.topologies import topology_m2 as topo_m2, topology_st as topo_st
+from test389.topologies import topology_m2 as topo_m2, topology_st as topo_st
 from lib389.utils import check_plugin_strings
 from lib389.cli_ctl.dblib import get_bdb_impl_status
 

@@ -14,8 +14,8 @@ import uuid
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX, DN_DM
-# from lib389.topologies import topology_m1 as topo
-from lib389.topologies import topology_st as topo
+# from test389.topologies import topology_m1 as topo
+from test389.topologies import topology_st as topo
 from lib389.tasks import (ImportTask, ExportTask, BackupTask, RestoreTask, AutomemberRebuildMembershipTask,
                           AutomemberAbortRebuildTask, MemberUidFixupTask, MemberOfFixupTask, USNTombstoneCleanupTask,
                           DBCompactTask, EntryUUIDFixupTask, SchemaReloadTask, SyntaxValidateTask,

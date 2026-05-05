@@ -11,7 +11,7 @@ from lib389.replica import Replicas, Replica
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.paths import Paths
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG)
 from lib389.properties import (REPLICA_PURGE_DELAY, REPLICA_PURGE_INTERVAL)

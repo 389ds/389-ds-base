@@ -16,7 +16,7 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.config import Config
 from lib389.plugins import USNPlugin
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.rootdse import RootDSE
 
 pytestmark = pytest.mark.tier2

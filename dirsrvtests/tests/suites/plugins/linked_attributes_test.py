@@ -9,7 +9,7 @@
 import logging
 import pytest
 import ldap
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.plugins import LinkedAttributesPlugin, LinkedAttributesConfigs
 from lib389.idm.user import UserAccounts
