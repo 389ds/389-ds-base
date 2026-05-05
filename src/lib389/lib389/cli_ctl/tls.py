@@ -13,7 +13,7 @@ from lib389.cli_base import _warn, CustomHelpFormatter
 
 def show_servercert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
-    nickname = getattr(args, 'nickname', CERT_NAME)
+    nickname = args.nickname or CERT_NAME
     log.info(tls.display_cert_details(nickname))
 
 
@@ -33,14 +33,14 @@ def list_cas(inst, log, args):
 
 def show_cert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
-    nickname = getattr(args, 'nickname', CERT_NAME)
+    nickname = args.nickname or CERT_NAME
     log.info(tls.display_cert_details(nickname))
 
 
 def import_client_ca(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     cert_path = args.cert_path
-    nickname = getattr(args, 'nickname', CERT_NAME)
+    nickname = args.nickname or CERT_NAME
     if nickname.lower() == CERT_NAME.lower() or nickname.lower() == CA_NAME.lower():
         log.error("You may not import a CA with the nickname %s or %s" % (CERT_NAME, CA_NAME))
         return
@@ -60,7 +60,7 @@ def import_key_cert_pair(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     key_path = args.key_path
     cert_path = args.cert_path
-    nickname = getattr(args, 'nickname', CERT_NAME)
+    nickname = args.nickname or CERT_NAME
     tls.add_server_key_and_cert(key_path, cert_path, nickname)
 
 
@@ -68,7 +68,7 @@ def generate_key_csr(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     alt_names = args.alt_names
     subject = args.subject
-    nickname = getattr(args, 'nickname', CERT_NAME)
+    nickname = args.nickname or CERT_NAME
     out_path = tls.create_rsa_key_and_csr(alt_names, subject, name=nickname)
     log.info(out_path)
 
@@ -76,7 +76,7 @@ def generate_key_csr(inst, log, args):
 def import_server_cert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     cert_path = args.cert_path
-    nickname = getattr(args, 'nickname', CERT_NAME)
+    nickname = args.nickname or CERT_NAME
     tls.import_rsa_crt(crt=cert_path, name=nickname)
 
 
