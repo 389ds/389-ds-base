@@ -825,7 +825,7 @@ export class GlobalDatabaseConfig extends React.Component {
                 {spinner}
                 <div className={this.props.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
-                        <Text className="ds-config-header" component={TextVariants.h2}>
+                        <Text component={TextVariants.h2}>
                             {_("Global Database Configuration")}
                             <Button
                                 variant="plain"
@@ -1816,7 +1816,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 {spinner}
                 <div className={this.props.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
-                        <Text className="ds-config-header" component={TextVariants.h2}>
+                        <Text component={TextVariants.h2}>
                             {_("Global Database Configuration")}
                             <Button
                                 variant="plain"

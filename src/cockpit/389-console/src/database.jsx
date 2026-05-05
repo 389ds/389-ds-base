@@ -10,6 +10,7 @@ import { Suffix } from "./lib/database/suffix.jsx";
 import { Backups } from "./lib/database/backups.jsx";
 import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
 import { LocalPwPolicy } from "./lib/database/localPwp.jsx";
+import { PwpFixupTasks } from "./lib/database/pwpFixupTasks.jsx";
 import {
     Button,
     Card,
@@ -40,6 +41,7 @@ import {
     ExternalLinkAltIcon,
     KeyIcon,
     UsersIcon,
+    WrenchIcon,
 } from '@patternfly/react-icons';
 import { PropTypes } from "prop-types";
 import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
@@ -52,6 +54,7 @@ const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
 const PWP_CONFIG = "pwpolicy";
 const LOCAL_PWP_CONFIG = "localpwpolicy";
+const PWP_FIXUP_TASK = "pwp-fixup";
 const BE_IMPL_BDB = "bdb";
 const BE_IMPL_MDB = "mdb";
 
@@ -655,6 +658,11 @@ export class Database extends React.Component {
                         icon: <UsersIcon />,
                         id: "localpwpolicy",
                     },
+                    {
+                        name: _("Fix-up Tasks"),
+                        icon: <WrenchIcon />,
+                        id: "pwp-fixup",
+                    },
                 ],
                 defaultExpanded: true
             },
@@ -805,6 +813,7 @@ export class Database extends React.Component {
             treeViewItem.id === "chaining-config" ||
             treeViewItem.id === "pwpolicy" ||
             treeViewItem.id === "localpwpolicy" ||
+            treeViewItem.id === "pwp-fixup" ||
             treeViewItem.id === "backups") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
@@ -1582,6 +1591,14 @@ export class Database extends React.Component {
                         attrs={this.state.attributes}
                         pwdStorageSchemes={this.state.pwdStorageSchemes}
                         enableTree={this.enableTree}
+                    />
+                );
+            } else if (this.state.node_name === PWP_FIXUP_TASK) {
+                db_element = (
+                    <PwpFixupTasks
+                        serverId={this.props.serverId}
+                        addNotification={this.props.addNotification}
+                        suffixes={this.state.suffixList}
                     />
                 );
             } else if (this.state.node_name === BACKUP_CONFIG) {
