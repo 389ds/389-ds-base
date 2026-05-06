@@ -24,12 +24,13 @@ log = logging.getLogger(__name__)
 
 FD_ATTR = "nsslapd-maxdescriptors"
 RESRV_FD_ATTR = "nsslapd-reservedescriptors"
-GLOBAL_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+SLAPD_DEFAULT_MAXDESCRIPTORS = 1048576
+MAX_FD_VAL = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], SLAPD_DEFAULT_MAXDESCRIPTORS)
 SYSTEMD_LIMIT = ensure_str(check_output("systemctl show -p LimitNOFILE dirsrv@standalone1".split(" ")).strip()).split('=')[1]
 CUSTOM_VAL = str(int(SYSTEMD_LIMIT) - 10)
 RESRV_DESC_VAL_LOW = 10
-TOO_HIGH_VAL = str(GLOBAL_LIMIT * 2)
-TOO_HIGH_VAL2 = str(int(SYSTEMD_LIMIT) * 2)
+TOO_HIGH_VAL = str(MAX_FD_VAL + 1)
+TOO_HIGH_VAL2 = str(MAX_FD_VAL + 1)
 TOO_LOW_VAL = "0"
 
 @pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
