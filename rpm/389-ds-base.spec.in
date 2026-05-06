@@ -60,6 +60,9 @@
 # Build cockpit plugin
 %bcond cockpit 1
 
+# Build HIBP password breach checking (requires libcurl)
+%bcond hibp 0
+
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
 %{!?with_tmpfiles_d: %global with_tmpfiles_d %{_sysconfdir}/tmpfiles.d}
@@ -128,6 +131,9 @@ BuildRequires:    libdb-devel
 BuildRequires:    net-snmp-devel
 BuildRequires:    bzip2-devel
 BuildRequires:    openssl-devel
+%if %{with hibp}
+BuildRequires:    libcurl-devel
+%endif
 # the following is for the pam passthru auth plug-in
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
@@ -474,6 +480,9 @@ autoreconf -fiv
            $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS \
 %if 0%{?fedora} >= 34 || 0%{?rhel} >= 9
            --with-libldap-r=no \
+%endif
+%if %{with hibp}
+	  --enable-hibp \
 %endif
            --enable-cmocka
 
