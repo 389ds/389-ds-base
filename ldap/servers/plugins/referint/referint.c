@@ -708,29 +708,75 @@ isFatalSearchError(int search_result)
     return 1;
 }
 
+/*
+ * Check whether mods[i] and mods[i+1] form a consecutive DEL+ADD pair
+ * on the same attribute.  Such pairs must be submitted as a single
+ * atomic modify so that schema_check sees the final state (value
+ * replaced) rather than the intermediate state (required attribute
+ * removed).  This avoids OBJECT_CLASS_VIOLATION on MUST / SINGLE-VALUE
+ * attributes during MODRDN.
+ */
+static int
+_is_del_add_pair(LDAPMod **mods, size_t i)
+{
+    if (mods == NULL || mods[i] == NULL || mods[i + 1] == NULL) {
+        return 0;
+    }
+    return ((mods[i]->mod_op & LDAP_MOD_OP) == LDAP_MOD_DELETE &&
+            (mods[i + 1]->mod_op & LDAP_MOD_OP) == LDAP_MOD_ADD &&
+            strcasecmp(mods[i]->mod_type, mods[i + 1]->mod_type) == 0);
+}
+
 static int
 _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 {
     int rc = 0;
-    LDAPMod *mod[2];
+    int op_flags = allow_repl ? OP_FLAG_REPLICATED : 0;
 
-    /* Split multiple modifications into individual modify operations */
     for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
-        mod[0] = mods[i];
-        mod[1] = NULL;
+        /*
+         * Standalone mods go through slapi_single_modify_internal_override
+         * which tolerates TYPE_OR_VALUE_EXISTS and NO_SUCH_ATTRIBUTE,
+         * preserving the idempotency behaviour for replicated operations.
+         */
+        if (_is_del_add_pair(mods, i)) {
+            LDAPMod *pair[3];
 
-        slapi_pblock_init(mod_pb);
+            pair[0] = mods[i];
+            pair[1] = mods[i + 1];
+            pair[2] = NULL;
 
-        /* Do a single mod with error overrides for DEL/ADD */
-        if (allow_repl) {
-            rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mod,
-                                                        referint_plugin_identity, OP_FLAG_REPLICATED);
+            slapi_pblock_init(mod_pb);
+            slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, pair,
+                                             NULL, NULL,
+                                             referint_plugin_identity,
+                                             op_flags);
+            slapi_modify_internal_pb(mod_pb);
+            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+            if (rc == LDAP_TYPE_OR_VALUE_EXISTS || rc == LDAP_NO_SUCH_ATTRIBUTE) {
+                rc = LDAP_SUCCESS;
+            }
+
+            i++; /* skip the ADD, handled atomically */
         } else {
-            rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mod,
-                                                        referint_plugin_identity, 0);
+            LDAPMod *single[2];
+
+            single[0] = mods[i];
+            single[1] = NULL;
+
+            slapi_pblock_init(mod_pb);
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN,
+                                                        single,
+                                                        referint_plugin_identity,
+                                                        op_flags);
         }
 
         if (rc != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                          "_do_modify - Failed to modify attr \"%s\" on \"%s\" "
+                          "(%d)\n",
+                          mods[i]->mod_type, slapi_sdn_get_dn(entrySDN), rc);
             return rc;
         }
     }
