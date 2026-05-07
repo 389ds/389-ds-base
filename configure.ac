@@ -887,7 +887,7 @@ AC_ARG_ENABLE(hibp, AS_HELP_STRING([--enable-hibp], [Enable HIBP password breach
               [], [enable_hibp=no])
 if test "x$enable_hibp" = "xyes"; then
     AC_MSG_RESULT(yes)
-    PKG_CHECK_MODULES([CURL], [libcurl >= 7.40.0])
+    PKG_CHECK_MODULES([CURL], [libcurl >= 7.61])
     AC_DEFINE([ENABLE_HIBP], [1], [Enable HIBP password breach checking])
 else
     AC_MSG_RESULT(no)
