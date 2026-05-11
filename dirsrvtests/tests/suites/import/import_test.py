@@ -29,7 +29,7 @@ from lib389.backend import Backends
 from lib389.config import LDBMConfig
 from lib389.config import LMDB_LDBMConfig, BDB_LDBMConfig
 from lib389.utils import ds_is_newer, get_default_db_lib
-from lib389.idm.user import UserAccount
+from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.cli_ctl.dbtasks import dbtasks_ldif2db
 from lib389.cli_base import FakeArgs
@@ -402,6 +402,106 @@ def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
     # warning message should look like
     assert topo.standalone.searchErrorsLog('INFO - ldbm_instance_config_cachememsize_set - '
                                            'force a minimal value 512000')
+
+
+def test_realloc_on_offline_import_export(topo):
+    """Verify offline export/import succeeds with huge entry data and minimal cache settings.
+
+    :id: 2857cfca-0f29-4ea1-b6c3-89d63a0c32f9
+    :setup: Standalone Instance
+    :steps:
+        1. Increase nsslapd-maxbersize and restart
+        2. Create a user with a very large sn value
+        3. Add extensibleObject and a multivalued padding attribute to that user
+        4. Set nsslapd-cache-autosize to 0 and nsslapd-cachememsize to 1
+        5. Stop server, run db2ldif, then run ldif2db on the exported file
+        6. Start server and verify the user still exists
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    inst = topo.standalone
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    if get_default_db_lib() == "bdb":
+        config = BDB_LDBMConfig(topo.standalone)
+    else:
+        config = LMDB_LDBMConfig(topo.standalone)
+
+    backend = Backends(inst).get(DEFAULT_BENAME)
+
+    uid = 'user1'
+    ldif_path = os.path.join(inst.get_ldif_dir(), f'{inst.serverid}.ldif')
+
+    orig_maxbersize = inst.config.get_attr_val_utf8('nsslapd-maxbersize')
+    orig_cachememsize = backend.get_attr_val_utf8('nsslapd-cachememsize')
+    orig_cacheautosize = config.get_attr_val_utf8('nsslapd-cache-autosize')
+
+    large_sn = 'A' * 10000000
+    padding_vals = [str(n) for n in range(400)]
+
+    try:
+        inst.config.set('nsslapd-maxbersize', '200000000')
+        inst.restart()
+
+        user1 = users.create(properties={
+            'uid': uid,
+            'cn': uid,
+            'sn': large_sn,
+            'uidNumber': '1001',
+            'gidNumber': '1001',
+            'homeDirectory': f'/home/{uid}',
+            'description': 'large entry user',
+        })
+        user1.add('objectClass', 'extensibleObject')
+        user1.add('padding', padding_vals)
+
+        config.replace('nsslapd-cache-autosize', '0')
+        backend.replace('nsslapd-cachememsize', '1')
+
+        inst.stop()
+        assert inst.db2ldif(
+            bename=DEFAULT_BENAME,
+            suffixes=[DEFAULT_SUFFIX],
+            excludeSuffixes=[],
+            encrypt=False,
+            repl_data=True,
+            outputfile=ldif_path,
+        )
+        assert inst.ldif2db(DEFAULT_BENAME, None, None, False, ldif_path)
+        inst.start()
+
+        users._objectclasses.append('extensibleObject')
+        users.get(uid)
+
+    finally:
+        try:
+            users.get(uid).delete()
+        except Exception:
+            pass
+
+        if orig_cachememsize:
+            backend.replace('nsslapd-cachememsize', orig_cachememsize)
+        else:
+            backend.replace('nsslapd-cachememsize', '0')
+
+        if orig_maxbersize is not None:
+            inst.config.set('nsslapd-maxbersize', orig_maxbersize)
+        else:
+            inst.config.set('nsslapd-maxbersize', '0')
+        
+        if orig_cacheautosize:
+            config.replace('nsslapd-cache-autosize', orig_cacheautosize)
+        else:
+            config.replace('nsslapd-cache-autosize', '0')
+
+        if os.path.exists(ldif_path):
+            os.remove(ldif_path)
+
+        inst.restart()
 
 
 @pytest.fixture(scope="function")
