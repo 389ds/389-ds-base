@@ -1314,22 +1314,24 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         if (breach_vals) {
             for (size_t i = 0; breach_vals[i] != NULL; i++) {
                 const char *pwd = slapi_value_get_string(breach_vals[i]);
-                int breach_count = hibp_check_password(pwd, pwpolicy);
-                if (breach_count > 0) {
-                    slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
-                        "Rejecting password for %s - found in breach database (%d occurrences)\n",
-                        dn, breach_count);
-                    if (pwresponse_req == 1) {
-                        slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+                if (pwd && !slapi_is_encoded((char *)pwd)) {
+                    int breach_count = hibp_check_password(pwd, pwpolicy);
+                    if (breach_count > 0) {
+                        slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                            "Rejecting password for %s - found in breach database (%d occurrences)\n",
+                            dn, breach_count);
+                        if (pwresponse_req == 1) {
+                            slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+                        }
+                        send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                            "Password found in breach database - choose a different password", 0, NULL);
+                        valuearray_free(&breach_vals);
+                        rc = -1;
+                        goto done;
+                    } else if (breach_count < 0) {
+                        slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                            "Failed to check password against breach database for %s\n", dn);
                     }
-                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
-                        "Password found in breach database - choose a different password", 0, NULL);
-                    valuearray_free(&breach_vals);
-                    rc = -1;
-                    goto done;
-                } else if (breach_count < 0) {
-                    slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
-                        "Failed to check password against breach database for %s\n", dn);
                 }
             }
             valuearray_free(&breach_vals);
@@ -1437,8 +1439,8 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             goto done;
         }
     } else if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
-	    /* This is an internal operation, but we still need to check if this
-         * is a password admin */
+        /* This is an internal operation, but we still need to check if this
+           is a password admin */
         if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_history) {
             /* Updating pw history, get the old password */
             get_old_pw(pb, &sdn, old_pw);
