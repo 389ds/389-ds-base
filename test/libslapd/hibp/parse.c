@@ -17,6 +17,13 @@
 /* Global NSS state for standalone testing */
 static int g_nss_initialised = 0;
 
+/* Stub for slapd_nss_is_initialized() */
+int
+slapd_nss_is_initialized(void)
+{
+    return g_nss_initialised;
+}
+
 /* Ensure NSS is initialised */
 static void
 ensure_nss_init(void)

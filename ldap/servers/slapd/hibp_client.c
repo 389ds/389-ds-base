@@ -43,6 +43,9 @@ static hibp_hash_fn g_hash_provider = NULL;
 static int
 hibp_sha1_nss(const char *input, size_t len, unsigned char *digest)
 {
+    if (!slapd_nss_is_initialized()) {
+        return -1;
+    }
     SECStatus rv = PK11_HashBuf(SEC_OID_SHA1, digest, (unsigned char *)input, len);
     return (rv == SECSuccess) ? 0 : -1;
 }
@@ -491,15 +494,15 @@ hibp_check_password(const char *password, passwdPolicy *pwpolicy)
     int timeout;
 
     if (!password || !pwpolicy) {
-        slapi_log_err(SLAPI_LOG_PWDPOLICY, "hibp_check_password",
-                        "Invalid input: password or password policy is NULL\n");
+        slapi_log_err(SLAPI_LOG_ERR, "hibp_check_password",
+                      "password or password policy is NULL\n");
         return -1;
     }
 
     /* Generate plaintext password hash */
     if (hibp_sha1_hex(password, sha1_hex) != 0) {
-        slapi_log_err(SLAPI_LOG_PWDPOLICY, "hibp_check_password",
-                        "Failed to convert password to SHA-1 hash\n");
+        slapi_log_err(SLAPI_LOG_ERR, "hibp_check_password",
+                      "Failed to convert password to SHA-1 hash\n");
         return -1;
     }
 
@@ -507,8 +510,6 @@ hibp_check_password(const char *password, passwdPolicy *pwpolicy)
     strncpy(prefix, sha1_hex, HIBP_SHA1_HEX_PREFIX_LEN);
     prefix[HIBP_SHA1_HEX_PREFIX_LEN] = '\0';
     strcpy(suffix, sha1_hex + HIBP_SHA1_HEX_PREFIX_LEN);
-
-    slapi_log_err(SLAPI_LOG_DEBUG, "hibp_check_password", "Checking prefix: %s\n", prefix);
 
     /* Configure timeout */
     if (pwpolicy->pw_breach_db_timeout > 0) {
