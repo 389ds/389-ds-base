@@ -1182,15 +1182,16 @@ linked_attrs_load_array(Slapi_Value **array, Slapi_Attr *attr)
 
 /* linked_attrs_compare()
  *
- * Compare two attr values using the DN syntax.
+ * Tri-valued ordering on linktype DNs. The linktype attribute is
+ * DN syntax and the valueset stores bv_val already normalized modulo
+ * case, so utf8casecmp gives a valid strict weak ordering matching
+ * valueset_value_cmp.
  */
 int
 linked_attrs_compare(const void *a, const void *b)
 {
     Slapi_Value *val1;
     Slapi_Value *val2;
-    Slapi_Attr *linkattr;
-    int rc = 0;
 
     if (a == NULL && b != NULL) {
         return 1;
@@ -1201,17 +1202,9 @@ linked_attrs_compare(const void *a, const void *b)
     }
     val1 = *((Slapi_Value **)a);
     val2 = *((Slapi_Value **)b);
-    linkattr = slapi_attr_new();
 
-    slapi_attr_init(linkattr, "distinguishedName");
-
-    rc = slapi_attr_value_cmp(linkattr,
-                              slapi_value_get_berval(val1),
-                              slapi_value_get_berval(val2));
-
-    slapi_attr_free(&linkattr);
-
-    return rc;
+    return slapi_utf8casecmp((unsigned char *)slapi_value_get_string(val1),
+                             (unsigned char *)slapi_value_get_string(val2));
 }
 
 /*
