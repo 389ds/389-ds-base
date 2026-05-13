@@ -461,45 +461,18 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, const char *s, int flag
                     /* break; ??? */
                 }
             }
-            /* moved the value setting code here to check Slapi_Attr 'a'
-             * to retrieve the attribute syntax info */
             svalue = value_new(NULL, CSN_TYPE_NONE, NULL);
-#ifdef OBSOLETE_DN_SYNTAX_CHECK
-            if (slapi_attr_is_dn_syntax_attr(*a)) {
-                int rc = 0;
-                char *dn_aval = NULL;
-                if (strict) {
-                    /* check that the dn is formatted correctly */
-                    rc = slapi_dn_syntax_check(NULL, value.bv_val, 1);
-                    if (rc) { /* syntax check failed */
-                        slapi_log_err(SLAPI_LOG_TRACE,
-                                      "str2entry_fast", "strict: Invalid DN value: %s: %s\n",
-                                      type.bv_val, value.bv_val);
-                        slapi_entry_free(e);
-                        if (freeval)
-                            slapi_ch_free_string(&value.bv_val);
-                        e = NULL;
-                        goto done;
-                    }
-                }
-                if (flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT) {
-                    dn_aval = slapi_dn_normalize_original(value.bv_val);
-                    slapi_value_set(svalue, dn_aval, strlen(dn_aval));
-                } else {
-                    Slapi_DN *sdn = slapi_sdn_new_dn_byref(value.bv_val);
-                    /* Note: slapi_sdn_get_dn returns normalized DN with
-                     * case-intact. Thus, the length of dn_aval is
-                     * slapi_sdn_get_ndn_len(sdn). */
-                    dn_aval = (char *)slapi_sdn_get_dn(sdn);
-                    slapi_value_set(svalue, (void *)dn_aval,
-                                    slapi_sdn_get_ndn_len(sdn));
-                    slapi_sdn_free(&sdn);
-                }
-            } else {
-                slapi_value_set_berval(svalue, &value);
-            }
-#endif
             slapi_value_set_berval(svalue, &value);
+            if (slapi_attr_is_dn_syntax_attr(*a) &&
+                !(flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT)) {
+                /* valueset_value_cmp uses slapi_utf8casecmp on raw bv_val
+                 * for DN syntax; normalize so the invariant holds. The
+                 * upgradedn path (SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT)
+                 * must preserve raw bytes, so skip it there. */
+                if (value_dn_normalize_value(svalue) == 0) {
+                    (*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
+                }
+            }
             /* the memory below was not allocated by the slapi_ch_ functions */
             if (freeval)
                 slapi_ch_free_string(&value.bv_val);
@@ -1041,16 +1014,17 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
 
         sa = prev_attr; /* For readability */
         value = value_new(NULL, CSN_TYPE_NONE, NULL);
-        if (slapi_attr_is_dn_syntax_attr(&(sa->sa_attr))) {
-            Slapi_DN *sdn = NULL;
-            const char *dn_aval = NULL;
+        slapi_value_set_berval(value, &bvvalue);
+        if (slapi_attr_is_dn_syntax_attr(&(sa->sa_attr)) &&
+            !(flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT)) {
             if (strict) {
                 /* check that the dn is formatted correctly */
                 rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
                 if (rc) { /* syntax check failed */
-                    slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck"
-                                                 "strict: Invalid DN value: %s: %s\n",
+                    slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
+                                  "strict: Invalid DN value: %s: %s\n",
                                   type, valuecharptr);
+                    slapi_value_free(&value);
                     slapi_entry_free(e);
                     e = NULL;
                     if (freeval)
@@ -1058,15 +1032,9 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
                     goto free_and_return;
                 }
             }
-            sdn = slapi_sdn_new_dn_byref(bvvalue.bv_val);
-            /* Note: slapi_sdn_get_dn returns the normalized DN
-             * with case-intact. Thus, the length of dn_aval is
-             * slapi_sdn_get_ndn_len(sdn). */
-            dn_aval = slapi_sdn_get_dn(sdn);
-            slapi_value_set(value, (void *)dn_aval, slapi_sdn_get_ndn_len(sdn));
-            slapi_sdn_free(&sdn);
-        } else {
-            slapi_value_set_berval(value, &bvvalue);
+            if (value_dn_normalize_value(value) == 0) {
+                sa->sa_attr.a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
+            }
         }
         /* the memory below was not allocated by the slapi_ch_ functions */
         if (freeval)
