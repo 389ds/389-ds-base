@@ -375,7 +375,14 @@ class ExportModal extends React.Component {
         const actions = [];
         if (!exportCompleted) {
             actions.push(
-                <Button key="confirm" variant="primary" onClick={saveHandler} isDisabled={this.props.saveBtnDisabled || spinning} {...extraPrimaryProps}>
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={spinning}
+                    spinnerAriaValueText={spinning ? _("Exporting") : undefined}
+                    isDisabled={this.props.saveBtnDisabled || spinning} {...extraPrimaryProps}
+                >
                     {saveBtnName}
                 </Button>
             );

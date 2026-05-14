@@ -857,6 +857,7 @@ class PAMPassthroughAuthentication extends React.Component {
                     <Button
                         variant="primary"
                         onClick={this.handleShowAddPAMConfigModal}
+                        className="ds-margin-top"
                     >
                         {_("Add Config")}
                     </Button>

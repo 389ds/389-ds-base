@@ -169,7 +169,7 @@ export class AttrEncryption extends React.Component {
         }
 
         return (
-            <div className={saving || modalSpinning ? "ds-margin-top-lg ds-disabled" : "ds-margin-top-lg"}>
+            <div className={saving || modalSpinning ? "ds-margin-top-lg ds-left-margin ds-disabled" : "ds-margin-top-lg ds-left-margin"}>
                 <EncryptedAttrTable
                     key={this.props.rows}
                     rows={this.props.rows}

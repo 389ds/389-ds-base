@@ -38,7 +38,7 @@ class DynamicLists extends React.Component {
 
     render() {
         return (
-            <div className="ds-left-indent-md">
+            <div className="ds-margin-left">
                 <Grid
                     className="ds-margin-top-xlg"
                     title={_("Enable or disable Dynamic Lists feature (nsslapd-dynamic-lists-enabled).")}
@@ -157,53 +157,53 @@ export class GlobalDatabaseConfig extends React.Component {
             activeTabKey:  this.props.data.activeTab,
             db_cache_auto: this.props.data.db_cache_auto,
             import_cache_auto: this.props.data.import_cache_auto,
-            looklimit: this.props.data.looklimit,
-            idscanlimit: this.props.data.idscanlimit,
-            pagelooklimit: this.props.data.pagelooklimit,
-            pagescanlimit: this.props.data.pagescanlimit,
-            rangelooklimit: this.props.data.rangelooklimit,
+            looklimit: parseInt(this.props.data.looklimit),
+            idscanlimit: parseInt(this.props.data.idscanlimit),
+            pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            rangelooklimit: parseInt(this.props.data.rangelooklimit),
             autosize: this.props.data.autosize,
-            autosizesplit: this.props.data.autosizesplit,
-            dbcachesize: this.props.data.dbcachesize,
+            autosizesplit: parseInt(this.props.data.autosizesplit),
+            dbcachesize: parseInt(this.props.data.dbcachesize),
             txnlogdir: this.props.data.txnlogdir,
             dbhomedir: this.props.data.dbhomedir,
-            dblocks: this.props.data.dblocks,
+            dblocks: parseInt(this.props.data.dblocks),
             dblocksMonitoring: this.props.data.dblocksMonitoring,
-            dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
-            dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
-            chxpoint: this.props.data.chxpoint,
-            compactinterval: this.props.data.compactinterval,
+            dblocksMonitoringThreshold: parseInt(this.props.data.dblocksMonitoringThreshold),
+            dblocksMonitoringPause: parseInt(this.props.data.dblocksMonitoringPause),
+            chxpoint: parseInt(this.props.data.chxpoint),
+            compactinterval: parseInt(this.props.data.compactinterval),
             compacttime: this.props.data.compacttime,
-            importcachesize: this.props.data.importcachesize,
-            importcacheauto: this.props.data.importcacheauto,
-            ndncachemaxsize: this.props.data.ndncachemaxsize,
+            importcachesize: parseInt(this.props.data.importcachesize),
+            importcacheauto: parseInt(this.props.data.importcacheauto),
+            ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
             dynamiclistsenabled: this.props.data.dynamiclistsenabled,
             dynamiclistattr: this.props.data.dynamiclistattr,
             dynamicoc: this.props.data.dynamicoc,
             dynamicurlattr: this.props.data.dynamicurlattr,
             // These variables store the original value (used for saving config)
-            _looklimit: this.props.data.looklimit,
-            _idscanlimit: this.props.data.idscanlimit,
-            _pagelooklimit: this.props.data.pagelooklimit,
-            _pagescanlimit: this.props.data.pagescanlimit,
-            _rangelooklimit: this.props.data.rangelooklimit,
+            _looklimit: parseInt(this.props.data.looklimit),
+            _idscanlimit: parseInt(this.props.data.idscanlimit),
+            _pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            _pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            _rangelooklimit: parseInt(this.props.data.rangelooklimit),
             _autosize: this.props.data.autosize,
-            _autosizesplit: this.props.data.autosizesplit,
-            _dbcachesize: this.props.data.dbcachesize,
+            _autosizesplit: parseInt(this.props.data.autosizesplit),
+            _dbcachesize: parseInt(this.props.data.dbcachesize),
             _txnlogdir: this.props.data.txnlogdir,
             _dbhomedir: this.props.data.dbhomedir,
-            _dblocks: this.props.data.dblocks,
+            _dblocks: parseInt(this.props.data.dblocks),
             _dblocksMonitoring: this.props.data.dblocksMonitoring,
-            _dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
-            _dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
-            _chxpoint: this.props.data.chxpoint,
-            _compactinterval: this.props.data.compactinterval,
+            _dblocksMonitoringThreshold: parseInt(this.props.data.dblocksMonitoringThreshold),
+            _dblocksMonitoringPause: parseInt(this.props.data.dblocksMonitoringPause),
+            _chxpoint: parseInt(this.props.data.chxpoint),
+            _compactinterval: parseInt(this.props.data.compactinterval),
             _compacttime: this.props.data.compacttime,
-            _importcachesize: this.props.data.importcachesize,
-            _importcacheauto: this.props.data.importcacheauto,
+            _importcachesize: parseInt(this.props.data.importcachesize),
+            _importcacheauto: parseInt(this.props.data.importcacheauto),
             _db_cache_auto: this.props.data.db_cache_auto,
             _import_cache_auto: this.props.data.import_cache_auto,
-            _ndncachemaxsize: this.props.data.ndncachemaxsize,
+            _ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
             _dynamiclistsenabled: this.props.data.dynamiclistsenabled,
             _dynamiclistattr: this.props.data.dynamiclistattr,
             _dynamicoc: this.props.data.dynamicoc,
@@ -841,7 +841,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     <div className="ds-margin-top-lg">
                         <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
                                         className="ds-margin-top-xlg"
@@ -981,7 +981,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={1} title={<TabTitleText>{_("Database Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid className="ds-margin-top-xlg">
                                         <GridItem span={12}>
                                             <Checkbox
@@ -1000,7 +1000,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={2} title={<TabTitleText>{_("Import Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid className="ds-margin-top-xlg">
                                         <GridItem span={12}>
                                             <Checkbox
@@ -1020,7 +1020,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={3} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Warning: Normalized DN Cache is disabled")}
                                         className="ds-margin-top-xlg"
@@ -1069,7 +1069,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={4} title={<TabTitleText>{_("Database Locks")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("The number of database locks (nsslapd-db-locks).")}
                                         className="ds-margin-top-xlg"
@@ -1145,7 +1145,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={6} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Database Transaction Log Location (nsslapd-db-logdirectory).")}
                                         className="ds-margin-top-xlg"
@@ -1257,7 +1257,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     </div>
 
                     <Button
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-lg ds-margin-left"
                         onClick={this.handleSaveDBConfig}
                         variant="primary"
                         isLoading={this.state.saving}
@@ -1300,33 +1300,33 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             activeTabKey:  this.props.data.activeTab,
             urlAttrs: [],
             dnAttrs: [],
-            autosize: this.props.data.autosize,
-            looklimit: this.props.data.looklimit,
-            idscanlimit: this.props.data.idscanlimit,
-            pagelooklimit: this.props.data.pagelooklimit,
-            pagescanlimit: this.props.data.pagescanlimit,
-            rangelooklimit: this.props.data.rangelooklimit,
+            autosize: parseInt(this.props.data.autosize),
+            looklimit: parseInt(this.props.data.looklimit),
+            idscanlimit: parseInt(this.props.data.idscanlimit),
+            pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            rangelooklimit: parseInt(this.props.data.rangelooklimit),
             dbhomedir: this.props.data.dbhomedir,
-            mdbmaxsize: this.props.data.mdbmaxsize,
-            mdbmaxreaders: this.props.data.mdbmaxreaders,
-            mdbmaxdbs: this.props.data.mdbmaxdbs,
-            ndncachemaxsize: this.props.data.ndncachemaxsize,
+            mdbmaxsize: parseInt(this.props.data.mdbmaxsize),
+            mdbmaxreaders: parseInt(this.props.data.mdbmaxreaders),
+            mdbmaxdbs: parseInt(this.props.data.mdbmaxdbs),
+            ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
             dynamiclistsenabled: this.props.data.dynamiclistsenabled,
             dynamiclistattr: this.props.data.dynamiclistattr,
             dynamicoc: this.props.data.dynamicoc,
             dynamicurlattr: this.props.data.dynamicurlattr,
             // These variables store the original value (used for saving config)
-            _autosize: this.props.data.autosize,
-            _looklimit: this.props.data.looklimit,
-            _idscanlimit: this.props.data.idscanlimit,
-            _pagelooklimit: this.props.data.pagelooklimit,
-            _pagescanlimit: this.props.data.pagescanlimit,
-            _rangelooklimit: this.props.data.rangelooklimit,
+            _autosize: parseInt(this.props.data.autosize),
+            _looklimit: parseInt(this.props.data.looklimit),
+            _idscanlimit: parseInt(this.props.data.idscanlimit),
+            _pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            _pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            _rangelooklimit: parseInt(this.props.data.rangelooklimit),
             _dbhomedir: this.props.data.dbhomedir,
-            _mdbmaxsize: this.props.data.mdbmaxsize,
-            _mdbmaxreaders: this.props.data.mdbmaxreaders,
-            _mdbmaxdbs: this.props.data.mdbmaxdbs,
-            _ndncachemaxsize: this.props.data.ndncachemaxsize,
+            _mdbmaxsize: parseInt(this.props.data.mdbmaxsize),
+            _mdbmaxreaders: parseInt(this.props.data.mdbmaxreaders),
+            _mdbmaxdbs: parseInt(this.props.data.mdbmaxdbs),
+            _ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
             _dynamiclistsenabled: this.props.data.dynamiclistsenabled,
             _dynamiclistattr: this.props.data.dynamiclistattr,
             _dynamicoc: this.props.data.dynamicoc,
@@ -1833,7 +1833,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                     <div className="ds-margin-top-lg">
                         <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("Database Size")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Database maximum size in megabytes. The practical maximum size of an LMDB database is limited by the system's addressable memory (nsslapd-mdb-max-size).")}
                                         className="ds-margin-top-xlg"
@@ -1867,7 +1867,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             </Tab>
 
                             <Tab eventKey={1} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
                                         className="ds-margin-top-xlg"
@@ -2012,7 +2012,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             </Tab>
 
                             <Tab eventKey={2} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Warning: Normalized DN Cache is disabled")}
                                         className="ds-margin-top-xlg"
@@ -2075,7 +2075,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             </Tab>
 
                             <Tab eventKey={4} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Location for database memory mapped files, this element is read only.")}
                                             className="ds-margin-top-xlg"
@@ -2189,7 +2189,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         </Tabs>
                     </div>
                     <Button
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-lg ds-margin-left"
                         onClick={this.handleSaveDBConfig}
                         variant="primary"
                         isLoading={this.state.saving}

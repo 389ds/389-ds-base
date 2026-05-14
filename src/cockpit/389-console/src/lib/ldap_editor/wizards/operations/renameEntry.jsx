@@ -284,6 +284,7 @@ class RenameEntry extends React.Component {
                         editorLdapServer={this.props.editorLdapServer}
                         handleNodeOnClick={this.onBaseDnSelection}
                         showTreeLoadingState={this.showTreeLoadingState}
+                        addNotification={this.props.addNotification}
                     />
                 </CardBody>
             </>

@@ -1594,6 +1594,7 @@ export class Database extends React.Component {
                         ldifs={this.state.LDIFRows}
                         enableTree={this.enableTree}
                         handleReload={(refreshing) => this.loadBackups(refreshing, true)}
+                        handleLDIFReload={(refreshing) => this.loadLDIFs(refreshing, true)}
                         refreshing={this.state.backupRefreshing}
                     />
                 );
