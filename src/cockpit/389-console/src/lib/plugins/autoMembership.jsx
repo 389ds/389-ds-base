@@ -1197,6 +1197,7 @@ class AutoMembership extends React.Component {
                             <Button
                                 variant="secondary"
                                 onClick={this.handleShowAddRegexModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Regex")}
                             </Button>
@@ -1328,6 +1329,7 @@ class AutoMembership extends React.Component {
                             <Button
                                 variant="primary"
                                 onClick={this.handleShowAddDefinitionModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Definition")}
                             </Button>

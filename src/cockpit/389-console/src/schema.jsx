@@ -1387,6 +1387,7 @@ export class Schema extends React.Component {
                                 <Button
                                     variant="primary"
                                     onClick={this.handleShowAddObjectclassModal}
+                                    className="ds-margin-top"
                                 >
                                     {_("Add ObjectClass")}
                                 </Button>
@@ -1449,6 +1450,7 @@ export class Schema extends React.Component {
                                 <Button
                                     variant="primary"
                                     onClick={this.handleShowAddAttributeModal}
+                                    className="ds-margin-top"
                                 >
                                     {_("Add Attribute")}
                                 </Button>

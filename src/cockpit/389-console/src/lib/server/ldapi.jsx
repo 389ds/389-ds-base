@@ -251,7 +251,7 @@ export class ServerLDAPI extends React.Component {
 
         if (this.state['nsslapd-ldapimaptoentries']) {
             mapUserAttrs = (
-                <div className="ds-margin-left">
+                <div>
                     <Grid
                         className="ds-margin-top"
                         title={_("The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype).")}
@@ -259,7 +259,7 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI UID Number Attribute")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TypeaheadSelect
                                 ariaLabel="Select UID Input"
                                 onToggle={this.handleUIDToggle}
@@ -277,7 +277,7 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI GID Number Attribute")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TypeaheadSelect
                                 ariaLabel="Select GID Input"
                                 onToggle={this.handleGIDToggle}
@@ -295,7 +295,7 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI Entry Search Base")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TextInput
                                 value={this.state['nsslapd-ldapientrysearchbase']}
                                 type="text"
@@ -313,12 +313,12 @@ export class ServerLDAPI extends React.Component {
 
         let body = (
             <div>
-                <Form className="ds-margin-top-xlg ds-left-margin" autoComplete="off" isHorizontal>
+                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
                     <Grid title={_("The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting.")}>
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI Socket File Path")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TextInput
                                 value={this.state['nsslapd-ldapifilepath']}
                                 type="text"
@@ -332,7 +332,7 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI Map To Root DN")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TextInput
                                 value={this.state['nsslapd-ldapimaprootdn']}
                                 type="text"
@@ -363,7 +363,7 @@ export class ServerLDAPI extends React.Component {
                 <Button
                     isDisabled={this.state.saveDisabled || this.state.loading}
                     variant="primary"
-                    className="ds-margin-top-xlg"
+                    className="ds-margin-top-xlg ds-margin-left"
                     onClick={this.handleSaveConfig}
                     isLoading={this.state.loading}
                     spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}

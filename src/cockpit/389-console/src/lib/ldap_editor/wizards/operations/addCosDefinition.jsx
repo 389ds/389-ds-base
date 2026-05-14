@@ -993,6 +993,7 @@ class AddCosDefinition extends React.Component {
                                         editorLdapServer={this.props.editorLdapServer}
                                         handleNodeOnClick={this.onParentDnSelection}
                                         showTreeLoadingState={this.showTreeLoadingState}
+                                        addNotification={this.props.addNotification}
                                     />
                                 </CardBody>
                             </Card>
@@ -1036,6 +1037,7 @@ class AddCosDefinition extends React.Component {
                                         skipLeafEntries
                                         handleNodeOnClick={this.onBaseDnSelection}
                                         showTreeLoadingState={this.showTreeLoadingState}
+                                        addNotification={this.props.addNotification}
                                     />
                                 </CardBody>
                             </Card>

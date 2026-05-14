@@ -297,33 +297,33 @@ export class ServerAuditFailLog extends React.Component {
                             saveRotationDisabled: true,
                             saveExpDisabled: true,
                             'nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-                            'nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+                            'nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
                             'nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
                             'nsslapd-auditfaillog-logging-enabled': enabled,
-                            'nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-                            'nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+                            'nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+                            'nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
                             'nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-                            'nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-                            'nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-                            'nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+                            'nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+                            'nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+                            'nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
                             'nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-                            'nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-                            'nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+                            'nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+                            'nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
                             'nsslapd-auditfaillog-compress': compressed,
                             // Record original values
                             '_nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-                            '_nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+                            '_nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
                             '_nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
                             '_nsslapd-auditfaillog-logging-enabled': enabled,
-                            '_nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-                            '_nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+                            '_nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+                            '_nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
                             '_nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-                            '_nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-                            '_nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-                            '_nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+                            '_nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+                            '_nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+                            '_nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
                             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-                            '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-                            '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+                            '_nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+                            '_nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
                             '_nsslapd-auditfaillog-compress': compressed,
                         })
                     );
@@ -364,33 +364,33 @@ export class ServerAuditFailLog extends React.Component {
             saveRotationDisabled: true,
             saveExpDisabled: true,
             'nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-            'nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+            'nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
             'nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
             'nsslapd-auditfaillog-logging-enabled': enabled,
-            'nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-            'nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+            'nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+            'nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
             'nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-            'nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-            'nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-            'nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+            'nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+            'nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+            'nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
             'nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-            'nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-            'nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+            'nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+            'nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
             'nsslapd-auditfaillog-compress': compressed,
             // Record original values,
             '_nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-            '_nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+            '_nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
             '_nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
             '_nsslapd-auditfaillog-logging-enabled': enabled,
-            '_nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-            '_nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+            '_nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+            '_nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
             '_nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-            '_nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-            '_nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-            '_nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+            '_nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+            '_nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+            '_nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-            '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-            '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+            '_nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+            '_nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
             '_nsslapd-auditfaillog-compress': compressed,
         }, this.props.enableTree);
     }
@@ -425,7 +425,7 @@ export class ServerAuditFailLog extends React.Component {
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             id="nsslapd-auditfaillog-logging-enabled"
                             isChecked={this.state['nsslapd-auditfaillog-logging-enabled']}
                             onChange={(e, checked) => {
@@ -434,23 +434,27 @@ export class ServerAuditFailLog extends React.Component {
                             title={_("Enable audit fail logging (nsslapd-auditfaillog-logging-enabled).")}
                             label={_("Enable Audit Fail Logging")}
                         />
-                        <Grid className="ds-margin-top-xlg ds-margin-left" title={_("Enable audit fail logging (nsslapd-auditfaillog).")}>
-                            <GridItem className="ds-label" span={2}>
-                                {_("Audit Fail Log Location")}
-                            </GridItem>
-                            <GridItem span={10}>
-                                <TextInput
-                                    value={this.state['nsslapd-auditfaillog']}
-                                    type="text"
-                                    id="nsslapd-auditfaillog"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="nsslapd-auditfaillog"
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                />
-                            </GridItem>
-                        </Grid>
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
+                            <Grid
+                                title={_("Enable audit fail logging (nsslapd-auditfaillog).")}
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Audit Fail Log Location")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-auditfaillog']}
+                                        type="text"
+                                        id="nsslapd-auditfaillog"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-auditfaillog"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </Form>
                         <Button
                             key="save settings"
                             isDisabled={this.state.saveSettingsDisabled || this.state.loading}
@@ -467,7 +471,7 @@ export class ServerAuditFailLog extends React.Component {
                         </Button>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir).")}
@@ -516,38 +520,36 @@ export class ServerAuditFailLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Create New Log Every ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-auditfaillog-logrotationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logrotationtime", -1, 2147483647, "rotation") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-auditfaillog-logrotationtimeunit"
-                                                value={this.state['nsslapd-auditfaillog-logrotationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
-                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-logrotationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-auditfaillog-logrotationtimeunit"
+                                        value={this.state['nsslapd-auditfaillog-logrotationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                        aria-label="log rotation time unit select"
+                                    >
+                                        <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                        <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                             <Grid title={_("The time when the log should be rotated (nsslapd-auditfaillog-logrotationsynchour, nsslapd-auditfaillog-logrotationsyncmin).")}>
@@ -566,7 +568,7 @@ export class ServerAuditFailLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Compress Rotated Logs")}
                                 </GridItem>
-                                <GridItem span={8}>
+                                <GridItem className="ds-label" span={8}>
                                     <Switch
                                         id="nsslapd-auditfaillog-compress"
                                         isChecked={this.state['nsslapd-auditfaillog-compress']}
@@ -580,7 +582,7 @@ export class ServerAuditFailLog extends React.Component {
                             key="save rot settings"
                             isDisabled={this.state.saveRotationDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("rotation");
                             }}
@@ -593,7 +595,7 @@ export class ServerAuditFailLog extends React.Component {
                     </Tab>
 
                     <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace).")}
@@ -645,36 +647,34 @@ export class ServerAuditFailLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Log File is Older Than ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-auditfaillog-logexpirationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logexpirationtime", -1, 2147483647, "exp") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-auditfaillog-logexpirationtimeunit"
-                                                value={this.state['nsslapd-auditfaillog-logexpirationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-logexpirationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-auditfaillog-logexpirationtimeunit"
+                                        value={this.state['nsslapd-auditfaillog-logexpirationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "exp");
+                                        }}
+                                        aria-label="log expiration time unit select"
+                                    >
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                         </Form>
@@ -682,7 +682,7 @@ export class ServerAuditFailLog extends React.Component {
                             key="save del settings"
                             isDisabled={this.state.saveExpDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("exp");
                             }}
