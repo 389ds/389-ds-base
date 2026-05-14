@@ -623,6 +623,7 @@ class PassthroughAuthentication extends React.Component {
                         <Button
                             variant="primary"
                             onClick={this.handleShowAddURLModal}
+                            className="ds-margin-top"
                         >
                             {_("Add URL")}
                         </Button>

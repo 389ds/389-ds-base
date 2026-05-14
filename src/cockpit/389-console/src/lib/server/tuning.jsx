@@ -4,7 +4,7 @@ import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
     Checkbox,
-    ExpandableSection,
+    Divider,
     Form,
     Grid,
     GridItem,
@@ -36,7 +36,9 @@ const tuning_attrs = [
     'nsslapd-listen-backlog-size',
     'nsslapd-max-filter-nest-level',
     'nsslapd-maxcontrolsperop',
-    'nsslapd-ndn-cache-max-size',
+    'nsslapd-tcp-fin-timeout',
+    'nsslapd-tcp-keepalive-time',
+    'nsslapd-maxsimplepaged-per-conn'
 ];
 
 const _ = cockpit.gettext;
@@ -51,13 +53,6 @@ export class ServerTuning extends React.Component {
             saveDisabled: true,
             errObj: {},
             attrs: this.props.attrs,
-            isExpanded: false,
-        };
-
-        this.handleOnToggle = (_event, isExpanded) => {
-            this.setState({
-                isExpanded
-            });
         };
 
         this.maxValue = 2000000000;
@@ -153,6 +148,7 @@ export class ServerTuning extends React.Component {
                     if (attrs['nsslapd-enable-turbo-mode'][0] === "on") {
                         turboMode = true;
                     }
+
                     this.setState({
                         loaded: true,
                         loading: false,
@@ -162,41 +158,45 @@ export class ServerTuning extends React.Component {
                         'nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
                         'nsslapd-connection-nocanon': connNoCannon,
                         'nsslapd-enable-turbo-mode': turboMode,
-                        'nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
-                        'nsslapd-maxthreadsperconn': attrs['nsslapd-maxthreadsperconn'][0],
-                        'nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
-                        'nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
-                        'nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
-                        'nsslapd-pagedsizelimit': attrs['nsslapd-pagedsizelimit'][0],
-                        'nsslapd-idletimeout': attrs['nsslapd-idletimeout'][0],
-                        'nsslapd-ioblocktimeout': attrs['nsslapd-ioblocktimeout'][0],
-                        'nsslapd-outbound-ldap-io-timeout': attrs['nsslapd-outbound-ldap-io-timeout'][0],
-                        'nsslapd-maxbersize': attrs['nsslapd-maxbersize'][0],
-                        'nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
-                        'nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
-                        'nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
-                        'nsslapd-maxcontrolsperop': attrs['nsslapd-maxcontrolsperop'][0],
-                        'nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
+                        'nsslapd-threadnumber': parseInt(attrs['nsslapd-threadnumber'][0]),
+                        'nsslapd-maxthreadsperconn': parseInt(attrs['nsslapd-maxthreadsperconn'][0]),
+                        'nsslapd-maxdescriptors': parseInt(attrs['nsslapd-maxdescriptors'][0]),
+                        'nsslapd-timelimit': parseInt(attrs['nsslapd-timelimit'][0]),
+                        'nsslapd-sizelimit': parseInt(attrs['nsslapd-sizelimit'][0]),
+                        'nsslapd-pagedsizelimit': parseInt(attrs['nsslapd-pagedsizelimit'][0]),
+                        'nsslapd-idletimeout': parseInt(attrs['nsslapd-idletimeout'][0]),
+                        'nsslapd-ioblocktimeout': parseInt(attrs['nsslapd-ioblocktimeout'][0]),
+                        'nsslapd-outbound-ldap-io-timeout': parseInt(attrs['nsslapd-outbound-ldap-io-timeout'][0]),
+                        'nsslapd-maxbersize': parseInt(attrs['nsslapd-maxbersize'][0]),
+                        'nsslapd-maxsasliosize': parseInt(attrs['nsslapd-maxsasliosize'][0]),
+                        'nsslapd-listen-backlog-size': parseInt(attrs['nsslapd-listen-backlog-size'][0]),
+                        'nsslapd-max-filter-nest-level': parseInt(attrs['nsslapd-max-filter-nest-level'][0]),
+                        'nsslapd-maxcontrolsperop': parseInt(attrs['nsslapd-maxcontrolsperop'][0]),
+                        'nsslapd-tcp-fin-timeout': parseInt(attrs['nsslapd-tcp-fin-timeout'][0]),
+                        'nsslapd-tcp-keepalive-time': parseInt(attrs['nsslapd-tcp-keepalive-time'][0]),
+                        'nsslapd-maxsimplepaged-per-conn': parseInt(attrs['nsslapd-maxsimplepaged-per-conn'][0]),
                         // Record original values
                         '_nsslapd-ndn-cache-enabled': ndnEnabled,
                         '_nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
                         '_nsslapd-connection-nocanon': connNoCannon,
                         '_nsslapd-enable-turbo-mode': turboMode,
-                        '_nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
-                        '_nsslapd-maxthreadsperconn': attrs['nsslapd-maxthreadsperconn'][0],
-                        '_nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
-                        '_nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
-                        '_nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
-                        '_nsslapd-pagedsizelimit': attrs['nsslapd-pagedsizelimit'][0],
-                        '_nsslapd-idletimeout': attrs['nsslapd-idletimeout'][0],
-                        '_nsslapd-ioblocktimeout': attrs['nsslapd-ioblocktimeout'][0],
-                        '_nsslapd-outbound-ldap-io-timeout': attrs['nsslapd-outbound-ldap-io-timeout'][0],
-                        '_nsslapd-maxbersize': attrs['nsslapd-maxbersize'][0],
-                        '_nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
-                        '_nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
-                        '_nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
-                        '_nsslapd-maxcontrolsperop': attrs['nsslapd-maxcontrolsperop'][0],
-                        '_nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
+                        '_nsslapd-threadnumber': parseInt(attrs['nsslapd-threadnumber'][0]),
+                        '_nsslapd-maxthreadsperconn': parseInt(attrs['nsslapd-maxthreadsperconn'][0]),
+                        '_nsslapd-maxdescriptors': parseInt(attrs['nsslapd-maxdescriptors'][0]),
+                        '_nsslapd-timelimit': parseInt(attrs['nsslapd-timelimit'][0]),
+                        '_nsslapd-sizelimit': parseInt(attrs['nsslapd-sizelimit'][0]),
+                        '_nsslapd-pagedsizelimit': parseInt(attrs['nsslapd-pagedsizelimit'][0]),
+                        '_nsslapd-idletimeout': parseInt(attrs['nsslapd-idletimeout'][0]),
+                        '_nsslapd-ioblocktimeout': parseInt(attrs['nsslapd-ioblocktimeout'][0]),
+                        '_nsslapd-outbound-ldap-io-timeout': parseInt(attrs['nsslapd-outbound-ldap-io-timeout'][0]),
+                        '_nsslapd-maxbersize': parseInt(attrs['nsslapd-maxbersize'][0]),
+                        '_nsslapd-maxsasliosize': parseInt(attrs['nsslapd-maxsasliosize'][0]),
+                        '_nsslapd-listen-backlog-size': parseInt(attrs['nsslapd-listen-backlog-size'][0]),
+                        '_nsslapd-max-filter-nest-level': parseInt(attrs['nsslapd-max-filter-nest-level'][0]),
+                        '_nsslapd-maxcontrolsperop': parseInt(attrs['nsslapd-maxcontrolsperop'][0]),
+                        '_nsslapd-tcp-fin-timeout': parseInt(attrs['nsslapd-tcp-fin-timeout'][0]),
+                        '_nsslapd-tcp-keepalive-time': parseInt(attrs['nsslapd-tcp-keepalive-time'][0]),
+                        '_nsslapd-maxsimplepaged-per-conn': parseInt(attrs['nsslapd-maxsimplepaged-per-conn'][0]),
                     }, this.props.enableTree());
                 })
                 .fail(err => {
@@ -294,15 +294,12 @@ export class ServerTuning extends React.Component {
                             </TextContent>
                         </GridItem>
                     </Grid>
-                    <Form className="ds-left-margin" isHorizontal autoComplete="off">
-                        <Grid
-                            className="ds-margin-top-xlg"
-                            title={_("The number of worker threads that handle database operations.  Set to '-1' for enable auto tuning. (nsslapd-threadnumber).")}
-                        >
-                            <GridItem className="ds-label" span={3}>
+                    <Form className="ds-margin-left" isHorizontal>
+                        <Grid className="ds-margin-top-xlg">
+                            <GridItem className="ds-label" span={2} title={_("The number of worker threads that handle database operations.  Set to '-1' for enable auto tuning. (nsslapd-threadnumber).")}>
                                 {_("Number Of Worker Threads")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-threadnumber']}
                                     min={-1}
@@ -317,20 +314,21 @@ export class ServerTuning extends React.Component {
                                     widthChars={8}
                                 />
                             </GridItem>
-                        </Grid>
-                        <Grid
-                            title={_("The maximum number of threads that can handle requests for a single connection (nsslapd-maxthreadsperconn).")}
-                        >
-                            <GridItem className="ds-label" span={3}>
-                                {_("Max Threads Per Connection")}
+                            <GridItem
+                                className="ds-label"
+                                offset={5}
+                                span={2}
+                                title={_("The maximum number of threads that can handle requests for a single connection (nsslapd-maxthreadsperconn).")}
+                            >
+                                {_("Maximum Threads Per Connection")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-maxthreadsperconn']}
                                     min={1}
                                     max={65535}
                                     onMinus={() => { this.onMinusConfig("nsslapd-maxthreadsperconn") }}
-                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxthreadsperconn", 1, 65535) }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxthreadsperconn", 0, 0) }}
                                     onPlus={() => { this.onPlusConfig("nsslapd-maxthreadsperconn") }}
                                     inputName="input"
                                     inputAriaLabel="number input"
@@ -343,10 +341,10 @@ export class ServerTuning extends React.Component {
                         <Grid
                             title={_("The maximum number of seconds allocated for a search request.  Set to '-1' to disable the time limit (nsslapd-timelimit).")}
                         >
-                            <GridItem className="ds-label" span={3}>
+                            <GridItem className="ds-label" span={2}>
                                 {_("Search Time Limit")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-timelimit']}
                                     min={-1}
@@ -361,14 +359,10 @@ export class ServerTuning extends React.Component {
                                     widthChars={8}
                                 />
                             </GridItem>
-                        </Grid>
-                        <Grid
-                            title={_("The maximum number of entries to return from a search operation.  Set to '-1' to disable the size limit (nsslapd-sizelimit).")}
-                        >
-                            <GridItem className="ds-label" span={3}>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("The maximum number of entries to return from a search operation.  Set to '-1' to disable the size limit (nsslapd-sizelimit).")}>
                                 {_("Search Size Limit")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-sizelimit']}
                                     min={-1}
@@ -384,13 +378,11 @@ export class ServerTuning extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid
-                            title={_("The maximum number of entries to return from a paged search operation. Set to '-1' to disable the size limit (nsslapd-pagedsizelimit).")}
-                        >
-                            <GridItem className="ds-label" span={3}>
+                        <Grid>
+                            <GridItem className="ds-label" span={2} title={_("The maximum number of entries to return from a paged search operation. Set to '-1' to disable the size limit (nsslapd-pagedsizelimit).")}>
                                 {_("Paged Search Size Limit")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-pagedsizelimit']}
                                     min={-1}
@@ -405,14 +397,10 @@ export class ServerTuning extends React.Component {
                                     widthChars={8}
                                 />
                             </GridItem>
-                        </Grid>
-                        <Grid
-                            title={_("Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout).")}
-                        >
-                            <GridItem className="ds-label" span={3}>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout).")}>
                                 {_("Idle Connection Timeout")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-idletimeout']}
                                     min={0}
@@ -428,13 +416,11 @@ export class ServerTuning extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid
-                            title={_("Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout).")}
-                        >
-                            <GridItem className="ds-label" span={3}>
+                        <Grid>
+                            <GridItem className="ds-label" span={2} title={_("Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout).")}>
                                 {_("I/O Block Timeout")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={1}>
                                 <NumberInput
                                     value={this.state['nsslapd-ioblocktimeout']}
                                     min={0}
@@ -449,236 +435,230 @@ export class ServerTuning extends React.Component {
                                     widthChars={8}
                                 />
                             </GridItem>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout).")}>
+                                {_("Outbound IO Timeout")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-outbound-ldap-io-timeout']}
+                                    min={0}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-outbound-ldap-io-timeout") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-outbound-ldap-io-timeout", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-outbound-ldap-io-timeout") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2} title={_("The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize).")}>
+                                {_("Maximum BER Size")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-maxbersize']}
+                                    min={0}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-maxbersize") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxbersize", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-maxbersize") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize).")}>
+                                {_("Maximum SASL IO Size")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-maxsasliosize']}
+                                    min={-1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-maxsasliosize") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxsasliosize", -1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-maxsasliosize") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2} title={_("The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size).")}>
+                                {_("Listen Backlog Size")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-listen-backlog-size']}
+                                    min={1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-listen-backlog-size") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-listen-backlog-size", 1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-listen-backlog-size") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level).")}>
+                                {_("Maximum Nested Filter Level")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-max-filter-nest-level']}
+                                    min={-1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-max-filter-nest-level") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-max-filter-nest-level", -1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-max-filter-nest-level") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2} title={_("Sets the time in seconds after which a TCP connection is closed if there is no more data to send (nsslapd-tcp-fin-timeout).")}>
+                                {_("TCP FIN Timeout")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-tcp-fin-timeout']}
+                                    min={0}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-tcp-fin-timeout") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-tcp-fin-timeout", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-tcp-fin-timeout") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("Sets the time in milliseconds after which a TCP connection is closed if there is no more data to send (nsslapd-tcp-keepalive-time).")}>
+                                {_("TCP Keepalive Time")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-tcp-keepalive-time']}
+                                    min={0}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-tcp-keepalive-time") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-tcp-keepalive-time", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-tcp-keepalive-time") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2}
+                                title={_("Maximum number of paged results searches allowed on a connection (nsslapd-maxsimplepaged-per-conn).")}
+                            >
+                                {_("Maximum Paged Result Searches Per Connection")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-maxsimplepaged-per-conn']}
+                                    min={-1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-maxsimplepaged-per-conn") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxsimplepaged-per-conn", -1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-maxsimplepaged-per-conn") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                            <GridItem className="ds-label" offset={5} span={2} title={_("The maximum number of LDAP controls allowed per operation (nsslapd-maxcontrolsperop).")}>
+                                {_("Maximum Controls Per Operation")}
+                            </GridItem>
+                            <GridItem span={1}>
+                                <NumberInput
+                                    value={this.state['nsslapd-maxcontrolsperop']}
+                                    min={1}
+                                    max={1000}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-maxcontrolsperop") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxcontrolsperop", 1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-maxcontrolsperop") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={4} title={_("Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon).")}>
+                                <Checkbox
+                                    id="nsslapd-connection-nocanon"
+                                    isChecked={this.state['nsslapd-connection-nocanon']}
+                                    onChange={(e, checked) => {
+                                        this.handleChange(e);
+                                    }}
+                                    label={_("Disable Reverse DNS Lookups")}
+                                />
+                            </GridItem>
+                            <GridItem className="ds-label" offset={5} span={4} title={_("Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode).")}>
+                                <Checkbox
+                                    id="nsslapd-enable-turbo-mode"
+                                    isChecked={this.state['nsslapd-enable-turbo-mode']}
+                                    onChange={(e, checked) => {
+                                        this.handleChange(e);
+                                    }}
+                                    label={_("Enable Connection Turbo Mode")}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={4} title={_("Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs).")}>
+                                <Checkbox
+                                    id="nsslapd-ignore-virtual-attrs"
+                                    isChecked={this.state['nsslapd-ignore-virtual-attrs']}
+                                    onChange={(e, checked) => {
+                                        this.handleChange(e);
+                                    }}
+                                    label={_("Disable Virtual Attribute Lookups")}
+                                />
+                            </GridItem>
+                            <GridItem className="ds-label" offset={5} span={4} title={_("Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled).")}>
+                                <Checkbox
+                                    isChecked={this.state['nsslapd-ndn-cache-enabled']}
+                                    id="nsslapd-ndn-cache-enabled"
+                                    onChange={(e, checked) => {
+                                        this.handleChange(e);
+                                    }}
+                                    label={_("Enable Normalized DN Cache")}
+                                />
+                            </GridItem>
+
                         </Grid>
                     </Form>
-                    <ExpandableSection
-                        className="ds-margin-top-xlg"
-                        toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
-                        onToggle={(event, isExpanded) => this.handleOnToggle(event, isExpanded)}
-                        isExpanded={this.state.isExpanded}
-                    >
-                        <div className="ds-margin-top ds-indent">
-                            <Form isHorizontal autoComplete="off">
-                                <Grid
-                                    className="ds-margin-top"
-                                    title={_("Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout).")}
-                                >
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Outbound IO Timeout")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <NumberInput
-                                            value={this.state['nsslapd-outbound-ldap-io-timeout']}
-                                            min={0}
-                                            max={this.maxValue}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-outbound-ldap-io-timeout") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-outbound-ldap-io-timeout", 0, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-outbound-ldap-io-timeout") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize).")}
-                                >
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Maximum BER Size")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <NumberInput
-                                            value={this.state['nsslapd-maxbersize']}
-                                            min={0}
-                                            max={this.maxValue}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-maxbersize") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-maxbersize", 0, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-maxbersize") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize).")}
-                                >
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Maximum SASL IO Size")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <NumberInput
-                                            value={this.state['nsslapd-maxsasliosize']}
-                                            min={-1}
-                                            max={this.maxValue}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-maxsasliosize") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-maxsasliosize", -1, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-maxsasliosize") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size).")}
-                                >
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Listen Backlog Size")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <NumberInput
-                                            value={this.state['nsslapd-listen-backlog-size']}
-                                            min={1}
-                                            max={this.maxValue}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-listen-backlog-size") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-listen-backlog-size", 1, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-listen-backlog-size") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level).")}
-                                >
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Maximum Nested Filter Level")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <NumberInput
-                                            value={this.state['nsslapd-max-filter-nest-level']}
-                                            min={-1}
-                                            max={this.maxValue}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-max-filter-nest-level") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-max-filter-nest-level", -1, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-max-filter-nest-level") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("The maximum number of LDAP controls allowed per operation (nsslapd-maxcontrolsperop).")}
-                                >
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Maximum Controls Per Operation")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <NumberInput
-                                            value={this.state['nsslapd-maxcontrolsperop']}
-                                            min={1}
-                                            max={1000}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-maxcontrolsperop") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-maxcontrolsperop", 1, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-maxcontrolsperop") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon).")}
-                                >
-                                    <GridItem className="ds-label" span={4}>
-                                        <Checkbox
-                                            id="nsslapd-connection-nocanon"
-                                            isChecked={this.state['nsslapd-connection-nocanon']}
-                                            onChange={(e, checked) => {
-                                                this.handleChange(e);
-                                            }}
-                                            label={_("Disable Reverse DNS Lookups")}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode).")}
-                                >
-                                    <GridItem className="ds-label" span={4}>
-                                        <Checkbox
-                                            id="nsslapd-enable-turbo-mode"
-                                            isChecked={this.state['nsslapd-enable-turbo-mode']}
-                                            onChange={(e, checked) => {
-                                                this.handleChange(e);
-                                            }}
-                                            label={_("Enable Connection Turbo Mode")}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs).")}
-                                >
-                                    <GridItem className="ds-label" span={4}>
-                                        <Checkbox
-                                            id="nsslapd-ignore-virtual-attrs"
-                                            isChecked={this.state['nsslapd-ignore-virtual-attrs']}
-                                            onChange={(e, checked) => {
-                                                this.handleChange(e);
-                                            }}
-                                            label={_("Disable Virtual Attribute Lookups")}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled).")}
-                                >
-                                    <GridItem className="ds-label" span={4}>
-                                        <Checkbox
-                                            isChecked={this.state['nsslapd-ndn-cache-enabled']}
-                                            id="nsslapd-ndn-cache-enabled"
-                                            onChange={(e, checked) => {
-                                                this.handleChange(e);
-                                            }}
-                                            label={_("Enable Normalized DN Cache")}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("The max NDN cache size in bytes (nsslapd-ndn-cache-max-size).")}
-                                    className="ds-left-indent-lg"
-                                >
-                                    <GridItem className="ds-label" span={2}>
-                                        {_("NDN Max Cache Size")}
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <NumberInput
-                                            isDisabled={!this.state['nsslapd-ndn-cache-enabled']}
-                                            value={this.state['nsslapd-ndn-cache-max-size']}
-                                            min={-1}
-                                            max={this.maxValue}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-ndn-cache-max-size") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-ndn-cache-max-size", -1, 0) }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-ndn-cache-max-size") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={8}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                            </Form>
-                        </div>
-                    </ExpandableSection>
+
                     <Button
                         isDisabled={this.state.saveDisabled || this.state.loading}
                         variant="primary"
-                        className="ds-margin-top-xlg"
+                        className="ds-margin-top-xlg ds-left-margin"
                         onClick={this.handleSaveConfig}
                         isLoading={this.state.loading}
                         spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}

@@ -565,14 +565,11 @@ export class ChainingDatabaseConfig extends React.Component {
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Default Creation Settings")}</TabTitleText>}>
                         <div className="ds-indent ds-margin-bottom-md">
-                            <Grid
-                                title={_("The size limit of entries returned over a database link (nsslapd-sizelimit).")}
-                                className="ds-margin-top-xlg"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                            <Grid className="ds-margin-top-xlg">
+                                <GridItem className="ds-label" span={2} title={_("The size limit of entries returned over a database link (nsslapd-sizelimit).")}>
                                     {_("Size Limit")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defSizeLimit}
                                         type="number"
@@ -584,15 +581,10 @@ export class ChainingDatabaseConfig extends React.Component {
                                         }}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid
-                                title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}>
                                     {_("Max Operations Per Conn")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defConcurOpLimit}
                                         type="number"
@@ -605,14 +597,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                title={_("The time limit of an operation over a database link (nsslapd-timelimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={2} title={_("The time limit of an operation over a database link (nsslapd-timelimit).")}>
                                     {_("Time Limit")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defTimeLimit}
                                         type="number"
@@ -624,15 +613,10 @@ export class ChainingDatabaseConfig extends React.Component {
                                         }}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid
-                                title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}>
                                     {_("Connection Lifetime")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defConnLife}
                                         type="number"
@@ -645,14 +629,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                title={_("The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={2} title={_("The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).")}>
                                     {_("Max TCP Connections")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defBindConnLimit}
                                         type="number"
@@ -664,15 +645,10 @@ export class ChainingDatabaseConfig extends React.Component {
                                         }}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid
-                                title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}>
                                     {_("Max LDAP Connections")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defOpConnLimit}
                                         type="number"
@@ -685,14 +661,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                title={_("The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={2} title={_("The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).")}>
                                     {_("Abandoned Op Check Interval")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defSearchCheck}
                                         type="number"
@@ -704,15 +677,10 @@ export class ChainingDatabaseConfig extends React.Component {
                                         }}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid
-                                title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}>
                                     {_("Max Binds Per Connection")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defConcurLimit}
                                         type="number"
@@ -725,14 +693,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                title={_("The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={2} title={_("The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).")}>
                                     {_("Database Link Hop Limit")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defHopLimit}
                                         type="number"
@@ -744,15 +709,10 @@ export class ChainingDatabaseConfig extends React.Component {
                                         }}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid
-                                title={_("The amount of time before the bind attempt times out. (nsbindtimeout).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" offset={4} span={2} title={_("The amount of time before the bind attempt times out. (nsbindtimeout).")}>
                                     {_("Bind Timeout")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defBindTimeout}
                                         type="number"
@@ -765,14 +725,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                title={_("The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).")}
-                                className="ds-margin-top"
-                            >
-                                <GridItem className="ds-label" span={3}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={2} title={_("The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).")}>
                                     {_("Bind Retry Limit")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={1}>
                                     <TextInput
                                         value={this.state.defBindRetryLimit}
                                         type="number"

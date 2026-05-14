@@ -757,7 +757,7 @@ export class Backups extends React.Component {
                                 </Button>
                                 <Button
                                     variant="secondary"
-                                    onClick={this.props.handleReload}
+                                    onClick={this.props.handleLDIFReload}
                                     className="ds-left-margin ds-margin-top"
                                     isLoading={this.props.refreshing}
                                     spinnerAriaValueText={this.props.refreshing ? _("Refreshing") : undefined}
@@ -897,8 +897,8 @@ class ExportModal extends React.Component {
         const extraPrimaryProps = {};
         let exportMsg = "";
         if (spinning) {
-            createBtnName = _("Creating ...");
-            extraPrimaryProps.spinnerAriaValueText = _("Creating");
+            createBtnName = _("Creating LDIF ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating LDIF");
         }
         if (spinning) {
             exportMsg = (

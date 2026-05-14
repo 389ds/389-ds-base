@@ -93,7 +93,8 @@ class CoSEntryWizard extends React.Component {
             editorLdapServer: this.props.editorLdapServer,
             setWizardOperationInfo: this.props.setWizardOperationInfo,
             firstStep: initialStep,
-            onReload: this.props.onReload
+            onReload: this.props.onReload,
+            addNotification: this.props.addNotification
         };
 
         if (getStartedStepRadio === 'CoSDefinition') {

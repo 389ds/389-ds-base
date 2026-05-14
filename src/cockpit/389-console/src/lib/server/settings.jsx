@@ -493,8 +493,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             errObjDiskMon: {},
             errObjAdv: {},
             // Settings
-            'nsslapd-port': attrs['nsslapd-port'][0],
-            'nsslapd-secureport': attrs['nsslapd-secureport'][0],
+            'nsslapd-port': parseInt(attrs['nsslapd-port'][0]),
+            'nsslapd-secureport': parseInt(attrs['nsslapd-secureport'][0]),
             'nsslapd-localhost': attrs['nsslapd-localhost'][0],
             'nsslapd-listenhost': listenhost,
             'nsslapd-bakdir': attrs['nsslapd-bakdir'][0],
@@ -508,8 +508,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
             'nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
-            'nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
-            'nsslapd-disk-monitoring-grace-period': attrs['nsslapd-disk-monitoring-grace-period'][0],
+            'nsslapd-disk-monitoring-threshold': parseInt(attrs['nsslapd-disk-monitoring-threshold'][0]),
+            'nsslapd-disk-monitoring-grace-period': parseInt(attrs['nsslapd-disk-monitoring-grace-period'][0]),
             'nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
             'nsslapd-disk-monitoring': diskMonitoring,
             'nsslapd-disk-monitoring-logging-critical': diskLogCritical,
@@ -524,8 +524,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             'nsslapd-ignore-time-skew': ignoreSkew,
             'nsslapd-readonly': readOnly,
             // Record original values
-            '_nsslapd-port': attrs['nsslapd-port'][0],
-            '_nsslapd-secureport': attrs['nsslapd-secureport'][0],
+            '_nsslapd-port': parseInt(attrs['nsslapd-port'][0]),
+            '_nsslapd-secureport': parseInt(attrs['nsslapd-secureport'][0]),
             '_nsslapd-localhost': attrs['nsslapd-localhost'][0],
             '_nsslapd-listenhost': listenhost,
             '_nsslapd-bakdir': attrs['nsslapd-bakdir'][0],
@@ -539,8 +539,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             _haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
             '_nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
-            '_nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
-            '_nsslapd-disk-monitoring-grace-period': attrs['nsslapd-disk-monitoring-grace-period'][0],
+            '_nsslapd-disk-monitoring-threshold': parseInt(attrs['nsslapd-disk-monitoring-threshold'][0]),
+            '_nsslapd-disk-monitoring-grace-period': parseInt(attrs['nsslapd-disk-monitoring-grace-period'][0]),
             '_nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
             '_nsslapd-disk-monitoring': diskMonitoring,
             '_nsslapd-disk-monitoring-logging-critical': diskLogCritical,
@@ -1148,14 +1148,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                     <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
                         <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
-                                <Form autoComplete="off" className="ds-margin-top-xlg">
+                                <Form autoComplete="off" className="ds-margin-top-xlg ds-left-margin">
                                     <Grid
                                         title={_("The version of the Directory Server package")}
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             {_("Server Version")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.props.version}
                                                 type="text"
@@ -1172,7 +1172,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Server Hostname")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-localhost']}
                                                 type="text"
@@ -1192,7 +1192,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("LDAP Port")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <NumberInput
                                                 value={this.state['nsslapd-port']}
                                                 min={1}
@@ -1222,7 +1222,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("LDAPS Port")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <NumberInput
                                                 value={this.state['nsslapd-secureport']}
                                                 min={1}
@@ -1253,7 +1253,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Listen Host Address")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-listenhost']}
                                                 type="text"
@@ -1273,7 +1273,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Backup Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-bakdir']}
                                                 type="text"
@@ -1297,7 +1297,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("LDIF File Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-ldifdir']}
                                                 type="text"
@@ -1321,7 +1321,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Schema Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-schemadir']}
                                                 type="text"
@@ -1345,7 +1345,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Certificate Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-certdir']}
                                                 type="text"
@@ -1367,7 +1367,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 <Button
                                     isDisabled={this.state.configSaveDisabled || this.state.configReloading}
                                     variant="primary"
-                                    className="ds-margin-top-xlg"
+                                    className="ds-margin-top-xlg ds-left-margin"
                                     onClick={this.handleSaveConfig}
                                     isLoading={this.state.configReloading}
                                     spinnerAriaValueText={this.state.configReloading ? _("Saving") : undefined}
@@ -1378,14 +1378,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                             </Tab>
 
                             <Tab eventKey={1} title={<TabTitleText>{_("Directory Manager")}</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
+                                <Form className="ds-margin-top-xlg ds-left-margin" isHorizontal>
                                     <Grid
                                         title={_("The DN of the unrestricted directory manager (nsslapd-rootdn).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
                                             {_("Directory Manager DN")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state['nsslapd-rootdn']}
                                                 type="text"
@@ -1402,7 +1402,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Directory Manager Password")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state['nsslapd-rootpw']}
                                                 type="password"
@@ -1422,7 +1422,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Confirm Password")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state.confirmRootpw}
                                                 type="password"
@@ -1442,7 +1442,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Password Storage Scheme")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <FormSelect
                                                 id="nsslapd-rootpwstoragescheme"
                                                 value={this.state['nsslapd-rootpwstoragescheme']}
@@ -1460,7 +1460,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 </Form>
                                 <Button
                                     variant="primary"
-                                    className="ds-margin-top-xlg"
+                                    className="ds-margin-top-xlg ds-left-margin"
                                     isDisabled={this.state.rootDNSaveDisabled || this.state.rootDNReloading}
                                     onClick={this.handleSaveRootDN}
                                     isLoading={this.state.rootDNReloading}
@@ -1495,7 +1495,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 </Button>
                             </Tab>
                             <Tab eventKey={3} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                                <Form className="ds-margin-top-xlg ds-left-margin" isHorizontal autoComplete="off">
                                     <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
@@ -1624,7 +1624,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Allow Anonymous Access")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <FormSelect
                                                 id="nsslapd-allow-anonymous-access"
                                                 value={this.state['nsslapd-allow-anonymous-access']}
@@ -1650,7 +1650,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Anonymous Resource Limits DN")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state['nsslapd-anonlimitsdn']}
                                                 type="text"
@@ -1670,25 +1670,25 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             Trusted HAProxy Server IPs/Subnets
                                         </GridItem>
-                                        <GridItem span={9}>
-                            <TypeaheadSelect
-                                selected={this.state.haproxyIPs}
-                                onSelect={(e, selection) => {
-                                    this.handleOnHaproxyIPsSelect(e, selection, "adv");
-                                }}
-                                onClear={(e) => {
-                                    this.handleOnHaproxyIPsClear(e, "adv");
-                                }}
-                                options={[]}
-                                isOpen={this.state.isHaproxyIPsOpen}
-                                onToggle={this.handleOnHaproxyIPsToggle}
-                                placeholder="Type trusted HAProxy server IP or subnet (e.g., 192.168.1.0/24)"
-                                ariaLabel="Type trusted HAProxy server IP address or CIDR subnet"
-                                validated={this.state.invalidIP ? "error" : "default"}
-                                isMulti={true}
-                                isCreatable={true}
-                                onCreateOption={this.handleOnCreateHaproxyIP}
-                            />
+                                        <GridItem span={5}>
+                                            <TypeaheadSelect
+                                                selected={this.state.haproxyIPs}
+                                                onSelect={(e, selection) => {
+                                                    this.handleOnHaproxyIPsSelect(e, selection, "adv");
+                                                }}
+                                                onClear={(e) => {
+                                                    this.handleOnHaproxyIPsClear(e, "adv");
+                                                }}
+                                                options={[]}
+                                                isOpen={this.state.isHaproxyIPsOpen}
+                                                onToggle={this.handleOnHaproxyIPsToggle}
+                                                placeholder="Type trusted HAProxy server IP or subnet (e.g., 192.168.1.0/24)"
+                                                ariaLabel="Type trusted HAProxy server IP address or CIDR subnet"
+                                                validated={this.state.invalidIP ? "error" : "default"}
+                                                isMulti={true}
+                                                isCreatable={true}
+                                                onCreateOption={this.handleOnCreateHaproxyIP}
+                                            />
                                             {(this.state.invalidIP) &&
                                                 <HelperText className="ds-left-margin">
                                                     <HelperTextItem variant="error">Invalid format for IP address or CIDR subnet</HelperTextItem>
@@ -1699,7 +1699,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 <Button
                                     isDisabled={this.state.advSaveDisabled || this.state.advReloading}
                                     variant="primary"
-                                    className="ds-margin-top-xlg"
+                                    className="ds-margin-top-xlg ds-left-margin"
                                     onClick={this.handleSaveAdvanced}
                                     isLoading={this.state.advReloading}
                                     spinnerAriaValueText={this.state.advReloading ? _("Saving") : undefined}

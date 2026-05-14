@@ -651,6 +651,7 @@ export class SuffixIndexes extends React.Component {
                                 variant="primary"
                                 type="button"
                                 onClick={this.handleShowIndexModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Index")}
                             </Button>

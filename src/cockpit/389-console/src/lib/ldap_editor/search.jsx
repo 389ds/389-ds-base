@@ -774,7 +774,7 @@ export class SearchDatabase extends React.Component {
                                 </Text>
                             </TextContent>
                             <Grid className="ds-left-margin">
-                                <GridItem span={4}>
+                                <GridItem span={5}>
                                     <FormSelect
                                         id="searchSuffix"
                                         value={baseDN}
@@ -792,14 +792,14 @@ export class SearchDatabase extends React.Component {
                                             <FormSelectOption isDisabled key="No database" value="" label={_("No databases")} />}
                                     </FormSelect>
                                 </GridItem>
-                                <GridItem span={8}>
+                                <GridItem span={7}>
                                     { this.state.searchSuffix !== this.state.searchBase ? <Label onClose={this.handleClearSearchBase} className="ds-left-margin" color="blue">{this.state.searchBase}</Label> : "" }
                                 </GridItem>
                             </Grid>
                         </div>
                     </Grid>
                     <Grid className="ds-margin-left">
-                        <GridItem span={12}>
+                        <GridItem span={5}>
                             <div className="ds-container">
                                 <ToggleGroup aria-label="Default with single selectable">
                                     <ToggleGroupItem

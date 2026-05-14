@@ -5,7 +5,6 @@ import {
     Button,
     Checkbox,
     Form,
-    FormGroup,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -302,34 +301,34 @@ export class ServerSecurityLog extends React.Component {
                         saveExpDisabled: true,
                         'nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
                         'nsslapd-securitylog-logbuffering': buffering,
-                        'nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
+                        'nsslapd-securitylog-logexpirationtime': parseInt(attrs['nsslapd-securitylog-logexpirationtime'][0]),
                         'nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
                         'nsslapd-securitylog-logging-enabled': enabled,
-                        'nsslapd-securitylog-logmaxdiskspace': attrs['nsslapd-securitylog-logmaxdiskspace'][0],
-                        'nsslapd-securitylog-logminfreediskspace': attrs['nsslapd-securitylog-logminfreediskspace'][0],
+                        'nsslapd-securitylog-logmaxdiskspace': parseInt(attrs['nsslapd-securitylog-logmaxdiskspace'][0]),
+                        'nsslapd-securitylog-logminfreediskspace': parseInt(attrs['nsslapd-securitylog-logminfreediskspace'][0]),
                         'nsslapd-securitylog-logrotationsync-enabled': attrs['nsslapd-securitylog-logrotationsync-enabled'][0],
-                        'nsslapd-securitylog-logrotationsynchour': attrs['nsslapd-securitylog-logrotationsynchour'][0],
-                        'nsslapd-securitylog-logrotationsyncmin': attrs['nsslapd-securitylog-logrotationsyncmin'][0],
-                        'nsslapd-securitylog-logrotationtime': attrs['nsslapd-securitylog-logrotationtime'][0],
+                        'nsslapd-securitylog-logrotationsynchour': parseInt(attrs['nsslapd-securitylog-logrotationsynchour'][0]),
+                        'nsslapd-securitylog-logrotationsyncmin': parseInt(attrs['nsslapd-securitylog-logrotationsyncmin'][0]),
+                        'nsslapd-securitylog-logrotationtime': parseInt(attrs['nsslapd-securitylog-logrotationtime'][0]),
                         'nsslapd-securitylog-logrotationtimeunit': attrs['nsslapd-securitylog-logrotationtimeunit'][0],
-                        'nsslapd-securitylog-maxlogsize': attrs['nsslapd-securitylog-maxlogsize'][0],
-                        'nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
+                        'nsslapd-securitylog-maxlogsize': parseInt(attrs['nsslapd-securitylog-maxlogsize'][0]),
+                        'nsslapd-securitylog-maxlogsperdir': parseInt(attrs['nsslapd-securitylog-maxlogsperdir'][0]),
                         'nsslapd-securitylog-compress': compress,
                         // Record original values
                         '_nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
                         '_nsslapd-securitylog-logbuffering': buffering,
-                        '_nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
+                        '_nsslapd-securitylog-logexpirationtime': parseInt(attrs['nsslapd-securitylog-logexpirationtime'][0]),
                         '_nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
                         '_nsslapd-securitylog-logging-enabled': enabled,
-                        '_nsslapd-securitylog-logmaxdiskspace': attrs['nsslapd-securitylog-logmaxdiskspace'][0],
-                        '_nsslapd-securitylog-logminfreediskspace': attrs['nsslapd-securitylog-logminfreediskspace'][0],
+                        '_nsslapd-securitylog-logmaxdiskspace': parseInt(attrs['nsslapd-securitylog-logmaxdiskspace'][0]),
+                        '_nsslapd-securitylog-logminfreediskspace': parseInt(attrs['nsslapd-securitylog-logminfreediskspace'][0]),
                         '_nsslapd-securitylog-logrotationsync-enabled': attrs['nsslapd-securitylog-logrotationsync-enabled'][0],
-                        '_nsslapd-securitylog-logrotationsynchour': attrs['nsslapd-securitylog-logrotationsynchour'][0],
-                        '_nsslapd-securitylog-logrotationsyncmin': attrs['nsslapd-securitylog-logrotationsyncmin'][0],
-                        '_nsslapd-securitylog-logrotationtime': attrs['nsslapd-securitylog-logrotationtime'][0],
+                        '_nsslapd-securitylog-logrotationsynchour': parseInt(attrs['nsslapd-securitylog-logrotationsynchour'][0]),
+                        '_nsslapd-securitylog-logrotationsyncmin': parseInt(attrs['nsslapd-securitylog-logrotationsyncmin'][0]),
+                        '_nsslapd-securitylog-logrotationtime': parseInt(attrs['nsslapd-securitylog-logrotationtime'][0]),
                         '_nsslapd-securitylog-logrotationtimeunit': attrs['nsslapd-securitylog-logrotationtimeunit'][0],
-                        '_nsslapd-securitylog-maxlogsize': attrs['nsslapd-securitylog-maxlogsize'][0],
-                        '_nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
+                        '_nsslapd-securitylog-maxlogsize': parseInt(attrs['nsslapd-securitylog-maxlogsize'][0]),
+                        '_nsslapd-securitylog-maxlogsperdir': parseInt(attrs['nsslapd-securitylog-maxlogsperdir'][0]),
                         '_nsslapd-securitylog-compress': compress,
                     });
                 })
@@ -374,34 +373,34 @@ export class ServerSecurityLog extends React.Component {
             saveExpDisabled: true,
             'nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
             'nsslapd-securitylog-logbuffering': buffering,
-            'nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
+            'nsslapd-securitylog-logexpirationtime': parseInt(attrs['nsslapd-securitylog-logexpirationtime'][0]),
             'nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
             'nsslapd-securitylog-logging-enabled': enabled,
-            'nsslapd-securitylog-logmaxdiskspace': attrs['nsslapd-securitylog-logmaxdiskspace'][0],
-            'nsslapd-securitylog-logminfreediskspace': attrs['nsslapd-securitylog-logminfreediskspace'][0],
+            'nsslapd-securitylog-logmaxdiskspace': parseInt(attrs['nsslapd-securitylog-logmaxdiskspace'][0]),
+            'nsslapd-securitylog-logminfreediskspace': parseInt(attrs['nsslapd-securitylog-logminfreediskspace'][0]),
             'nsslapd-securitylog-logrotationsync-enabled': attrs['nsslapd-securitylog-logrotationsync-enabled'][0],
-            'nsslapd-securitylog-logrotationsynchour': attrs['nsslapd-securitylog-logrotationsynchour'][0],
-            'nsslapd-securitylog-logrotationsyncmin': attrs['nsslapd-securitylog-logrotationsyncmin'][0],
-            'nsslapd-securitylog-logrotationtime': attrs['nsslapd-securitylog-logrotationtime'][0],
+            'nsslapd-securitylog-logrotationsynchour': parseInt(attrs['nsslapd-securitylog-logrotationsynchour'][0]),
+            'nsslapd-securitylog-logrotationsyncmin': parseInt(attrs['nsslapd-securitylog-logrotationsyncmin'][0]),
+            'nsslapd-securitylog-logrotationtime': parseInt(attrs['nsslapd-securitylog-logrotationtime'][0]),
             'nsslapd-securitylog-logrotationtimeunit': attrs['nsslapd-securitylog-logrotationtimeunit'][0],
-            'nsslapd-securitylog-maxlogsize': attrs['nsslapd-securitylog-maxlogsize'][0],
-            'nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
+            'nsslapd-securitylog-maxlogsize': parseInt(attrs['nsslapd-securitylog-maxlogsize'][0]),
+            'nsslapd-securitylog-maxlogsperdir': parseInt(attrs['nsslapd-securitylog-maxlogsperdir'][0]),
             'nsslapd-securitylog-compress': compress,
             // Record original values
             '_nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
             '_nsslapd-securitylog-logbuffering': buffering,
-            '_nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
+            '_nsslapd-securitylog-logexpirationtime': parseInt(attrs['nsslapd-securitylog-logexpirationtime'][0]),
             '_nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
             '_nsslapd-securitylog-logging-enabled': enabled,
-            '_nsslapd-securitylog-logmaxdiskspace': attrs['nsslapd-securitylog-logmaxdiskspace'][0],
-            '_nsslapd-securitylog-logminfreediskspace': attrs['nsslapd-securitylog-logminfreediskspace'][0],
+            '_nsslapd-securitylog-logmaxdiskspace': parseInt(attrs['nsslapd-securitylog-logmaxdiskspace'][0]),
+            '_nsslapd-securitylog-logminfreediskspace': parseInt(attrs['nsslapd-securitylog-logminfreediskspace'][0]),
             '_nsslapd-securitylog-logrotationsync-enabled': attrs['nsslapd-securitylog-logrotationsync-enabled'][0],
-            '_nsslapd-securitylog-logrotationsynchour': attrs['nsslapd-securitylog-logrotationsynchour'][0],
-            '_nsslapd-securitylog-logrotationsyncmin': attrs['nsslapd-securitylog-logrotationsyncmin'][0],
-            '_nsslapd-securitylog-logrotationtime': attrs['nsslapd-securitylog-logrotationtime'][0],
+            '_nsslapd-securitylog-logrotationsynchour': parseInt(attrs['nsslapd-securitylog-logrotationsynchour'][0]),
+            '_nsslapd-securitylog-logrotationsyncmin': parseInt(attrs['nsslapd-securitylog-logrotationsyncmin'][0]),
+            '_nsslapd-securitylog-logrotationtime': parseInt(attrs['nsslapd-securitylog-logrotationtime'][0]),
             '_nsslapd-securitylog-logrotationtimeunit': attrs['nsslapd-securitylog-logrotationtimeunit'][0],
-            '_nsslapd-securitylog-maxlogsize': attrs['nsslapd-securitylog-maxlogsize'][0],
-            '_nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
+            '_nsslapd-securitylog-maxlogsize': parseInt(attrs['nsslapd-securitylog-maxlogsize'][0]),
+            '_nsslapd-securitylog-maxlogsperdir': parseInt(attrs['nsslapd-securitylog-maxlogsperdir'][0]),
             '_nsslapd-securitylog-compress': compress,
         }, this.props.enableTree);
     }
@@ -436,7 +435,7 @@ export class ServerSecurityLog extends React.Component {
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             id="nsslapd-securitylog-logging-enabled"
                             isChecked={this.state['nsslapd-securitylog-logging-enabled']}
                             onChange={(e, checked) => {
@@ -445,26 +444,29 @@ export class ServerSecurityLog extends React.Component {
                             title={_("Enable security logging (nsslapd-securitylog-logging-enabled).")}
                             label={_("Enable Security Logging")}
                         />
-                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
-                            <FormGroup
-                                label={_("Security Log Location")}
-                                fieldId="nsslapd-securitylog"
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
+                            <Grid
                                 title={_("Enable security logging (nsslapd-securitylog).")}
                             >
-                                <TextInput
-                                    value={this.state['nsslapd-securitylog']}
-                                    type="text"
-                                    id="nsslapd-securitylog"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="nsslapd-securitylog"
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                />
-                            </FormGroup>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Security Log Location")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-securitylog']}
+                                        type="text"
+                                        id="nsslapd-securitylog"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-securitylog"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
                         </Form>
                         <Checkbox
-                            className="ds-left-margin-md ds-margin-top-lg"
+                            className="ds-left-margin ds-margin-top-lg"
                             id="nsslapd-securitylog-logbuffering"
                             isChecked={this.state['nsslapd-securitylog-logbuffering']}
                             onChange={(e, checked) => {
@@ -490,7 +492,7 @@ export class ServerSecurityLog extends React.Component {
                         </Button>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The maximum number of logs that are archived (nsslapd-securitylog-maxlogsperdir).")}
@@ -539,38 +541,36 @@ export class ServerSecurityLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Create New Log Every ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-securitylog-logrotationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-securitylog-logrotationtime", "rotation") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-securitylog-logrotationtime", -1, 2147483647, "rotation") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-securitylog-logrotationtime", "rotation") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-securitylog-logrotationtimeunit"
-                                                value={this.state['nsslapd-securitylog-logrotationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
-                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-securitylog-logrotationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-securitylog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-securitylog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-securitylog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-securitylog-logrotationtimeunit"
+                                        value={this.state['nsslapd-securitylog-logrotationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                        aria-label="log rotation time unit select"
+                                    >
+                                        <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                        <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                             <Grid title={_("The time when the log should be rotated (nsslapd-securitylog-logrotationsynchour, nsslapd-securitylog-logrotationsyncmin).")}>
@@ -603,7 +603,7 @@ export class ServerSecurityLog extends React.Component {
                             key="save rot settings"
                             isDisabled={this.state.saveRotationDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("rotation");
                             }}
@@ -616,7 +616,7 @@ export class ServerSecurityLog extends React.Component {
                     </Tab>
 
                     <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-securitylog-logmaxdiskspace).")}
@@ -668,36 +668,34 @@ export class ServerSecurityLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Log File is Older Than ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-securitylog-logexpirationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-securitylog-logexpirationtime", "exp") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-securitylog-logexpirationtime", -1, 2147483647, "exp") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-securitylog-logexpirationtime", "exp") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-securitylog-logexpirationtimeunit"
-                                                value={this.state['nsslapd-securitylog-logexpirationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-securitylog-logexpirationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-securitylog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-securitylog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-securitylog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-securitylog-logexpirationtimeunit"
+                                        value={this.state['nsslapd-securitylog-logexpirationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "exp");
+                                        }}
+                                        aria-label="log expiration time unit select"
+                                    >
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                         </Form>
@@ -705,7 +703,7 @@ export class ServerSecurityLog extends React.Component {
                             key="save del settings"
                             isDisabled={this.state.saveExpDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("exp");
                             }}

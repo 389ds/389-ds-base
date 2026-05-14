@@ -920,6 +920,7 @@ class AttributeUniqueness extends React.Component {
                                 key="add-config"
                                 variant="primary"
                                 onClick={this.handleShowAddConfigModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Config")}
                             </Button>

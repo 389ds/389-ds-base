@@ -1447,7 +1447,7 @@ class ManagedEntries extends React.Component {
                                         deleteConfig={this.showTempDeleteConfirm}
                                     />
                                     <Button
-                                        className="ds-left-margin"
+                                        className="ds-margin-top"
                                         variant="primary"
                                         onClick={this.handleShowAddTempModal}
                                     >
@@ -1479,7 +1479,7 @@ class ManagedEntries extends React.Component {
                                         deleteConfig={this.showDefDeleteConfirm}
                                     />
                                     <Button
-                                        className="ds-left-margin"
+                                        className="ds-margin-top"
                                         variant="primary"
                                         onClick={this.handleShowAddDefModal}
                                         isDisabled={this.state.defCreateDisabled}
