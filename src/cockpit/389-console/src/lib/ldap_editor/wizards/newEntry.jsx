@@ -148,7 +148,8 @@ variant="custom" isInline
             editorLdapServer: this.props.editorLdapServer,
             setWizardOperationInfo: this.props.setWizardOperationInfo,
             firstStep: initialStep,
-            onReload: this.props.onReload
+            onReload: this.props.onReload,
+            addNotification: this.props.addNotification
         };
 
         if (getStartedStepRadio === 'User') {

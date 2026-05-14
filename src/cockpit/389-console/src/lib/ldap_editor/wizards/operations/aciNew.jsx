@@ -844,6 +844,7 @@ class AddNewAci extends React.Component {
                             skipLeafEntries
                             handleNodeOnClick={this.onBaseDnSelection}
                             showTreeLoadingState={this.showTreeLoadingState}
+                            addNotification={this.props.addNotification}
                         />
                     </CardBody>
                 </Card>

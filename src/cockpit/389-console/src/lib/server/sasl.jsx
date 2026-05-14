@@ -5,6 +5,7 @@ import { log_cmd, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
+    Divider,
 	Form,
 	Grid,
 	GridItem,
@@ -618,12 +619,12 @@ export class ServerSASL extends React.Component {
                             </TextContent>
                         </GridItem>
                     </Grid>
-                    <Form isHorizontal autoComplete="off" className="ds-left-margin">
+                    <Form isHorizontal autoComplete="off" className="ds-margin-left">
                         <Grid title={_("The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size).")} className="ds-margin-top-xlg">
                             <GridItem className="ds-label" span={3}>
                                 {_("Max SASL Buffer Size")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={2}>
                                 <TextInput
                                     value={this.state.maxBufSize}
                                     type="number"
@@ -642,7 +643,7 @@ export class ServerSASL extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Allowed SASL Mechanisms")}
                             </GridItem>
-                            <GridItem span={9}>
+                            <GridItem span={8}>
                                 <TypeaheadSelect
                                     selected={this.state.allowedMechs}
                                     onSelect={this.handleOnSelect}
@@ -673,7 +674,7 @@ export class ServerSASL extends React.Component {
                     <Button
                         isDisabled={this.state.saveDisabled || this.state.configLoading}
                         variant="primary"
-                        className="ds-margin-top-xlg"
+                        className="ds-margin-top-xlg ds-margin-left"
                         onClick={this.handleSaveConfig}
                         isLoading={this.state.configLoading}
                         spinnerAriaValueText={this.state.configLoading ? _("Saving") : undefined}
@@ -681,27 +682,29 @@ export class ServerSASL extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                    <hr />
-                    <Grid
-                        title={_("A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed.")}
-                        className="ds-margin-top"
-                    >
+                    <Grid className="ds-margin-top ds-margin-left">
+                        <GridItem span={11}>
+                            <Divider />
+                        </GridItem>
                         <TextContent>
                             <Text className="ds-center ds-margin-top" component={TextVariants.h3}>
                                 {_("SASL Mappings")}
                             </Text>
                         </TextContent>
+                        <GridItem span={11}>
+                            <SASLTable
+                                key={this.state.mappingKey}
+                                rows={this.state.mappings}
+                                editMapping={this.showEditMapping}
+                                deleteMapping={this.showConfirmDelete}
+                                className="ds-margin-top ds-margin-left"
+                            />
+                        </GridItem>
                     </Grid>
-                    <SASLTable
-                        key={this.state.mappingKey}
-                        rows={this.state.mappings}
-                        editMapping={this.showEditMapping}
-                        deleteMapping={this.showConfirmDelete}
-                        className="ds-margin-top"
-                    />
                     <Button
                         variant="primary"
                         onClick={this.handleShowCreateMapping}
+                        className="ds-margin-top ds-margin-left"
                     >
                         {_("Create New Mapping")}
                     </Button>

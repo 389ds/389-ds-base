@@ -40,13 +40,20 @@ export class DoubleConfirmModal extends React.Component {
 
         if (spinning) {
             btnName = mSpinningMsg;
-            extraPrimaryProps.spinnerAriaValueText = _("Loading");
+            extraPrimaryProps.spinnerAriaValueText = btnName;
         }
 
         const actions = [];
         if (btnName) {
             actions.push(
-                <Button key="confirm" variant="primary" onClick={actionHandler} isDisabled={saveDisabled || spinning} {...extraPrimaryProps}>
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={actionHandler}
+                    isDisabled={saveDisabled || spinning}
+                    isLoading={spinning}
+                    {...extraPrimaryProps}
+                >
                     {btnName}
                 </Button>
             );

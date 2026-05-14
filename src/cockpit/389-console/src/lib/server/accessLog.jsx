@@ -6,7 +6,6 @@ import {
     Checkbox,
     ExpandableSection,
     Form,
-    FormGroup,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -370,18 +369,18 @@ export class ServerAccessLog extends React.Component {
                         'nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
                         'nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
                         'nsslapd-accesslog-logbuffering': buffering,
-                        'nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
+                        'nsslapd-accesslog-logexpirationtime': parseInt(attrs['nsslapd-accesslog-logexpirationtime'][0]),
                         'nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
                         'nsslapd-accesslog-logging-enabled': enabled,
-                        'nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
-                        'nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
+                        'nsslapd-accesslog-logmaxdiskspace': parseInt(attrs['nsslapd-accesslog-logmaxdiskspace'][0]),
+                        'nsslapd-accesslog-logminfreediskspace': parseInt(attrs['nsslapd-accesslog-logminfreediskspace'][0]),
                         'nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
-                        'nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
-                        'nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
-                        'nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
+                        'nsslapd-accesslog-logrotationsynchour': parseInt(attrs['nsslapd-accesslog-logrotationsynchour'][0]),
+                        'nsslapd-accesslog-logrotationsyncmin': parseInt(attrs['nsslapd-accesslog-logrotationsyncmin'][0]),
+                        'nsslapd-accesslog-logrotationtime': parseInt(attrs['nsslapd-accesslog-logrotationtime'][0]),
                         'nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
-                        'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
-                        'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+                        'nsslapd-accesslog-maxlogsize': parseInt(attrs['nsslapd-accesslog-maxlogsize'][0]),
+                        'nsslapd-accesslog-maxlogsperdir': parseInt(attrs['nsslapd-accesslog-maxlogsperdir'][0]),
                         'nsslapd-accesslog-compress': compress,
                         'nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
                         'nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
@@ -391,18 +390,18 @@ export class ServerAccessLog extends React.Component {
                         '_nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
                         '_nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
                         '_nsslapd-accesslog-logbuffering': buffering,
-                        '_nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
+                        '_nsslapd-accesslog-logexpirationtime': parseInt(attrs['nsslapd-accesslog-logexpirationtime'][0]),
                         '_nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
                         '_nsslapd-accesslog-logging-enabled': enabled,
-                        '_nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
-                        '_nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
+                        '_nsslapd-accesslog-logmaxdiskspace': parseInt(attrs['nsslapd-accesslog-logmaxdiskspace'][0]),
+                        '_nsslapd-accesslog-logminfreediskspace': parseInt(attrs['nsslapd-accesslog-logminfreediskspace'][0]),
                         '_nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
-                        '_nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
-                        '_nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
-                        '_nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
+                        '_nsslapd-accesslog-logrotationsynchour': parseInt(attrs['nsslapd-accesslog-logrotationsynchour'][0]),
+                        '_nsslapd-accesslog-logrotationsyncmin': parseInt(attrs['nsslapd-accesslog-logrotationsyncmin'][0]),
+                        '_nsslapd-accesslog-logrotationtime': parseInt(attrs['nsslapd-accesslog-logrotationtime'][0]),
                         '_nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
-                        '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
-                        '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+                        '_nsslapd-accesslog-maxlogsize': parseInt(attrs['nsslapd-accesslog-maxlogsize'][0]),
+                        '_nsslapd-accesslog-maxlogsperdir': parseInt(attrs['nsslapd-accesslog-maxlogsperdir'][0]),
                         '_nsslapd-accesslog-compress': compress,
                         '_nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
                         '_nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
@@ -459,18 +458,18 @@ export class ServerAccessLog extends React.Component {
             'nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
             'nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
             'nsslapd-accesslog-logbuffering': buffering,
-            'nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
+            'nsslapd-accesslog-logexpirationtime': parseInt(attrs['nsslapd-accesslog-logexpirationtime'][0]),
             'nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
             'nsslapd-accesslog-logging-enabled': enabled,
-            'nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
-            'nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
+            'nsslapd-accesslog-logmaxdiskspace': parseInt(attrs['nsslapd-accesslog-logmaxdiskspace'][0]),
+            'nsslapd-accesslog-logminfreediskspace': parseInt(attrs['nsslapd-accesslog-logminfreediskspace'][0]),
             'nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
-            'nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
-            'nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
-            'nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
+            'nsslapd-accesslog-logrotationsynchour': parseInt(attrs['nsslapd-accesslog-logrotationsynchour'][0]),
+            'nsslapd-accesslog-logrotationsyncmin': parseInt(attrs['nsslapd-accesslog-logrotationsyncmin'][0]),
+            'nsslapd-accesslog-logrotationtime': parseInt(attrs['nsslapd-accesslog-logrotationtime'][0]),
             'nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
-            'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
-            'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+            'nsslapd-accesslog-maxlogsize': parseInt(attrs['nsslapd-accesslog-maxlogsize'][0]),
+            'nsslapd-accesslog-maxlogsperdir': parseInt(attrs['nsslapd-accesslog-maxlogsperdir'][0]),
             'nsslapd-accesslog-compress': compress,
             'nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
             'nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
@@ -480,18 +479,18 @@ export class ServerAccessLog extends React.Component {
             '_nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
             '_nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
             '_nsslapd-accesslog-logbuffering': buffering,
-            '_nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
+            '_nsslapd-accesslog-logexpirationtime': parseInt(attrs['nsslapd-accesslog-logexpirationtime'][0]),
             '_nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
             '_nsslapd-accesslog-logging-enabled': enabled,
-            '_nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
-            '_nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
+            '_nsslapd-accesslog-logmaxdiskspace': parseInt(attrs['nsslapd-accesslog-logmaxdiskspace'][0]),
+            '_nsslapd-accesslog-logminfreediskspace': parseInt(attrs['nsslapd-accesslog-logminfreediskspace'][0]),
             '_nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
-            '_nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
-            '_nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
-            '_nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
+            '_nsslapd-accesslog-logrotationsynchour': parseInt(attrs['nsslapd-accesslog-logrotationsynchour'][0]),
+            '_nsslapd-accesslog-logrotationsyncmin': parseInt(attrs['nsslapd-accesslog-logrotationsyncmin'][0]),
+            '_nsslapd-accesslog-logrotationtime': parseInt(attrs['nsslapd-accesslog-logrotationtime'][0]),
             '_nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
-            '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
-            '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+            '_nsslapd-accesslog-maxlogsize': parseInt(attrs['nsslapd-accesslog-maxlogsize'][0]),
+            '_nsslapd-accesslog-maxlogsperdir': parseInt(attrs['nsslapd-accesslog-maxlogsperdir'][0]),
             '_nsslapd-accesslog-compress': compress,
             '_nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
             '_nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
@@ -567,7 +566,7 @@ export class ServerAccessLog extends React.Component {
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             id="nsslapd-accesslog-logging-enabled"
                             isChecked={this.state['nsslapd-accesslog-logging-enabled']}
                             onChange={(e, checked) => {
@@ -576,60 +575,65 @@ export class ServerAccessLog extends React.Component {
                             title={_("Enable access logging (nsslapd-accesslog-logging-enabled).")}
                             label={_("Enable Access Logging")}
                         />
-                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
-                            <FormGroup
-                                label={_("Access Log Location")}
-                                fieldId="nsslapd-accesslog"
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
+                            <Grid
                                 title={_("Enable access logging (nsslapd-accesslog).")}
                             >
-                                <TextInput
-                                    value={this.state['nsslapd-accesslog']}
-                                    type="text"
-                                    id="nsslapd-accesslog"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="nsslapd-accesslog"
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                />
-                            </FormGroup>
-                            <FormGroup
-                                label={time_format_title}
-                                fieldId="nsslapd-accesslog-time-format"
-                                title={_("Time format using strftime formatting (nsslapd-accesslog-time-format). This only applies to the JSON log format")}
-                            >
-                                <TextInput
-                                    value={this.state['nsslapd-accesslog-time-format']}
-                                    type="text"
-                                    id="nsslapd-accesslog-time-format"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="nsslapd-accesslog-time-format"
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                />
-                            </FormGroup>
-                            <FormGroup
-                                label={_("Log Format")}
-                                fieldId="nsslapd-accesslog-log-format"
-                                title={_("Choose the log format (nsslapd-accesslog-log-format).")}
-                            >
-                                <FormSelect
-                                    id="nsslapd-accesslog-log-format"
-                                    value={this.state['nsslapd-accesslog-log-format']}
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                    aria-label="FormSelect Input"
-                                >
-                                    <FormSelectOption key="0" value="default" label="Default" />
-                                    <FormSelectOption key="1" value="json" label="JSON" />
-                                    <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
-                                </FormSelect>
-                            </FormGroup>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Access Log Location")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-accesslog']}
+                                        type="text"
+                                        id="nsslapd-accesslog"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-accesslog"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("Time format using strftime formatting (nsslapd-accesslog-time-format). This only applies to the JSON log format")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {time_format_title}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-accesslog-time-format']}
+                                        type="text"
+                                        id="nsslapd-accesslog-time-format"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-accesslog-time-format"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("Choose the log format (nsslapd-accesslog-log-format).")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Log Format")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <FormSelect
+                                        id="nsslapd-accesslog-log-format"
+                                        value={this.state['nsslapd-accesslog-log-format']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                        aria-label="FormSelect Input"
+                                    >
+                                        <FormSelectOption key="0" value="default" label="Default" />
+                                        <FormSelectOption key="1" value="json" label="JSON" />
+                                        <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
                         </Form>
                         <Checkbox
-                            className="ds-left-margin-md ds-margin-top-lg"
+                            className="ds-left-margin ds-margin-top-lg"
                             id="nsslapd-accesslog-logbuffering"
                             isChecked={this.state['nsslapd-accesslog-logbuffering']}
                             onChange={(e, checked) => {
@@ -640,36 +644,40 @@ export class ServerAccessLog extends React.Component {
                         />
 
                         <ExpandableSection
-                            className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
+                            className="ds-left-margin ds-margin-top-lg ds-font-size-md"
                             toggleText={this.state.isExpanded ? _("Hide Logging Levels") : _("Show Logging Levels")}
                             onToggle={this.handleOnToggle}
                             isExpanded={this.state.isExpanded}
                         >
-                            <Table aria-label="Selectable Table" variant="compact">
-                                <Thead>
-                                    <Tr>
-                                        <Th screenReaderText="Checkboxes" />
-                                        <Th>{this.state.columns[0].title}</Th>
-                                    </Tr>
-                                </Thead>
-                                <Tbody>
-                                    {this.state.rows.map((row, rowIndex) => (
-                                        <Tr key={rowIndex}>
-                                            <Td
-                                                select={{
-                                                    rowIndex,
-                                                    onSelect: (_event, isSelecting) =>
-                                                        this.handleOnSelect(_event, isSelecting, rowIndex),
-                                                    isSelected: row.selected
-                                                }}
-                                            />
-                                            <Td>
-                                                {row.cells[0].title}
-                                            </Td>
-                                        </Tr>
-                                    ))}
-                                </Tbody>
-                            </Table>
+                            <Grid>
+                                <GridItem offset={1} span={7}>
+                                    <Table aria-label="Selectable Table" variant="compact">
+                                        <Thead>
+                                            <Tr>
+                                                <Th screenReaderText="Checkboxes" />
+                                                <Th>{this.state.columns[0].title}</Th>
+                                            </Tr>
+                                        </Thead>
+                                        <Tbody>
+                                            {this.state.rows.map((row, rowIndex) => (
+                                                <Tr key={rowIndex}>
+                                                    <Td
+                                                        select={{
+                                                            rowIndex,
+                                                            onSelect: (_event, isSelecting) =>
+                                                                this.handleOnSelect(_event, isSelecting, rowIndex),
+                                                            isSelected: row.selected
+                                                        }}
+                                                    />
+                                                    <Td>
+                                                        {row.cells[0].title}
+                                                    </Td>
+                                                </Tr>
+                                            ))}
+                                        </Tbody>
+                                    </Table>
+                                </GridItem>
+                            </Grid>
                         </ExpandableSection>
 
                         <Button
@@ -688,7 +696,7 @@ export class ServerAccessLog extends React.Component {
                         </Button>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The maximum number of logs that are archived (nsslapd-accesslog-maxlogsperdir).")}
@@ -737,38 +745,36 @@ export class ServerAccessLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Create New Log Every ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-accesslog-logrotationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logrotationtime", "rotation") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logrotationtime", -1, 2147483647, "rotation") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logrotationtime", "rotation") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-accesslog-logrotationtimeunit"
-                                                value={this.state['nsslapd-accesslog-logrotationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
-                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-accesslog-logrotationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-accesslog-logrotationtimeunit"
+                                        value={this.state['nsslapd-accesslog-logrotationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                        aria-label="log rotation time unit select"
+                                    >
+                                        <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                        <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                             <Grid title={_("The time when the log should be rotated (nsslapd-accesslog-logrotationsynchour, nsslapd-accesslog-logrotationsyncmin).")}>
@@ -801,7 +807,7 @@ export class ServerAccessLog extends React.Component {
                             key="save rot settings"
                             isDisabled={this.state.saveRotationDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("rotation");
                             }}
@@ -814,7 +820,7 @@ export class ServerAccessLog extends React.Component {
                     </Tab>
 
                     <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-accesslog-logmaxdiskspace).")}
@@ -866,36 +872,34 @@ export class ServerAccessLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Log File is Older Than ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-accesslog-logexpirationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logexpirationtime", "exp") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logexpirationtime", -1, 2147483647, "exp") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logexpirationtime", "exp") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-accesslog-logexpirationtimeunit"
-                                                value={this.state['nsslapd-accesslog-logexpirationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-accesslog-logexpirationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-accesslog-logexpirationtimeunit"
+                                        value={this.state['nsslapd-accesslog-logexpirationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "exp");
+                                        }}
+                                        aria-label="log expiration time unit select"
+                                    >
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                         </Form>
@@ -903,7 +907,7 @@ export class ServerAccessLog extends React.Component {
                             key="save del settings"
                             isDisabled={this.state.saveExpDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("exp");
                             }}
