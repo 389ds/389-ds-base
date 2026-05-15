@@ -3296,7 +3296,6 @@ merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memb
     Slapi_ValueSet *v1_groupvals = *((memberof_get_groups_data *)v1)->groupvals;
     Slapi_ValueSet *v2_groupvals = *((memberof_get_groups_data *)v2)->groupvals;
     Slapi_ValueSet *v2_group_norm_vals = *((memberof_get_groups_data *)v2)->group_norm_vals;
-    int merged_cnt = 0;
 
 #if MEMBEROF_CACHE_DEBUG
     {
@@ -3348,7 +3347,6 @@ merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memb
 #endif
                     slapi_valueset_add_value_ext(v2_groupvals, sval_dn, SLAPI_VALUE_FLAG_PASSIN);
                     slapi_valueset_add_value_ext(v2_group_norm_vals, sval_ndn, SLAPI_VALUE_FLAG_PASSIN);
-                    merged_cnt++;
                 } else {
 /* This ancestor was already present, free sval_ndn/sval_dn that will not be consumed */
 #if MEMBEROF_CACHE_DEBUG

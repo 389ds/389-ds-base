@@ -510,7 +510,7 @@ or_filter_create(Slapi_PBlock *pb)
         indexer_t *ix = NULL;
         int op = SLAPI_OP_EQUAL;
         struct berval bv;
-        int reusable = MRF_ANY_TYPE;
+        /* int reusable = MRF_ANY_TYPE; */
 
         slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
                       "or_filter_create - (oid %s; type %s)\n", mrOID, mrTYPE);
@@ -552,7 +552,7 @@ or_filter_create(Slapi_PBlock *pb)
                     ix = indexer_create(or_oid);
                     if (ix != NULL) {
                         memcpy(&bv, mrVALUE, sizeof(struct berval));
-                        reusable |= MRF_ANY_VALUE;
+                        /* reusable |= MRF_ANY_VALUE; */
                     }
                     slapi_ch_free((void **)&or_oid);
                 } break;

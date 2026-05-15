@@ -1589,7 +1589,7 @@ slapi_dn_find_parent_ext(const char *dn, int is_tombstone)
                                  sizeof(RUV_STORAGE_ENTRY_UNIQUEID) - 1)) {
                 head = (char *)dn;
             } else {
-                head = strchr(dn, ',');
+                head = (char *)strchr(dn, ',');
                 if (head) {
                     head++;
                 } else {

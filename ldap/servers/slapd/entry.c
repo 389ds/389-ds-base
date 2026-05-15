@@ -188,8 +188,6 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, const char *s, int flag
     Slapi_Entry *e;
     const char *next;
     char *ptype = NULL;
-    int nvals = 0;
-    int del_nvals = 0;
     unsigned long attr_val_cnt = 0;
     CSN *attributedeletioncsn = NULL; /* Moved to this level so that the JCM csn_free call below gets useful */
     CSNSet *valuecsnset = NULL;       /* Moved to this level so that the JCM csn_free call below gets useful */
@@ -286,8 +284,6 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, const char *s, int flag
         if ((ptype == NULL) || (PL_strcasecmp(type.bv_val, ptype) != 0)) {
             slapi_ch_free_string(&ptype);
             ptype = PL_strndup(type.bv_val, type.bv_len);
-            nvals = 0;
-            del_nvals = 0;
             a = NULL;
         }
 
@@ -518,7 +514,6 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, const char *s, int flag
                     &(*a)->a_deleted_values,
                     svalue,
                     SLAPI_VALUE_FLAG_PASSIN);
-                del_nvals++;
             } else {
                 /* consumes the value */
                 slapi_valueset_add_attr_value_ext(
@@ -526,7 +521,6 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, const char *s, int flag
                     &(*a)->a_present_values,
                     svalue,
                     SLAPI_VALUE_FLAG_PASSIN);
-                nvals++;
             }
             if (attributedeletioncsn != NULL) {
                 attr_set_deletion_csn(*a, attributedeletioncsn);

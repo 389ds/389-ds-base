@@ -985,17 +985,11 @@ pw_sequence(const char *new, int32_t max_seq)
 static int
 pw_max_class_repeats(const char *new, int32_t max_repeats)
 {
-    int digits = 0;
-    int uppers = 0;
-    int lowers = 0;
-    int others = 0;
-    int i;
     enum { NONE, DIGIT, UCASE, LCASE, OTHER } prevclass = NONE;
     int sameclass = 0;
 
-    for (i = 0; new[i]; i++) {
+    for (size_t i = 0; new[i]; i++) {
         if (isdigit(new[i])) {
-            digits++;
             if (prevclass != DIGIT) {
                 prevclass = DIGIT;
                 sameclass = 1;
@@ -1003,7 +997,6 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
                 sameclass++;
             }
         } else if (isupper (new[i])) {
-            uppers++;
             if (prevclass != UCASE) {
                 prevclass = UCASE;
                 sameclass = 1;
@@ -1011,7 +1004,6 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
                 sameclass++;
             }
         } else if (islower (new[i])) {
-            lowers++;
             if (prevclass != LCASE) {
                 prevclass = LCASE;
                 sameclass = 1;
@@ -1019,7 +1011,6 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
                 sameclass++;
             }
         } else {
-            others++;
             if (prevclass != OTHER) {
                 prevclass = OTHER;
                 sameclass = 1;
