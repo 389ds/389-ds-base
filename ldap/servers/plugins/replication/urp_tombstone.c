@@ -59,7 +59,7 @@ get_valid_parent_for_conflict(Slapi_Entry *entry)
     Slapi_DN *valid_DN = NULL;
 
     if (replconflict) {
-        validdn = strstr(replconflict, " (ADD) ");
+        validdn = (char *)strstr(replconflict, " (ADD) ");
         if (validdn) {
             validdn += 7;
             valid_DN = slapi_sdn_new_dn_byval(validdn);
@@ -209,7 +209,7 @@ conflict_to_tombstone(char *sessionid, Slapi_Entry *entry, CSN *opcsn)
     const char *replconflict = slapi_entry_attr_get_ref(entry, ATTR_NSDS5_REPLCONFLICT);
 
     if (replconflict) {
-        conflictdn = strstr(replconflict, " (ADD) ");
+        conflictdn = (char *)strstr(replconflict, " (ADD) ");
         if (conflictdn == NULL) {
             /* error, wrong type of conflict */
             op_result = 1;

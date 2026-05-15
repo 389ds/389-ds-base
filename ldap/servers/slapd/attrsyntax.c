@@ -579,7 +579,7 @@ attr_syntax_exists(const char *attr_name)
 {
     struct asyntaxinfo *asi;
     char *check_attr_name = NULL;
-    char *p = NULL;
+    const char *p = NULL;
     int free_attr = 0;
 
     /* Ignore any attribute subtypes. */

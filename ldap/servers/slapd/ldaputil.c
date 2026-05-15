@@ -250,11 +250,11 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
        replace all but the last colon with %3A
        Go to the 3rd '/' or to the end of the string (convert only the host:port part) */
     if (url) {
-        char *p = strstr(url, "://");
+        const char *p = strstr(url, "://");
         if (p) {
             int foundspace = 0;
             int coloncount = 0;
-            char *lastcolon = NULL;
+            const char *lastcolon = NULL;
 
             p += 3;
             for (; *p && (*p != '/'); p++) {
@@ -273,7 +273,7 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
                 urlescaped = slapi_ch_calloc(strlen(url) * 3, sizeof(char));
                 dest = urlescaped;
                 /* copy the scheme */
-                src = strstr(url, "://");
+                src = (char *)strstr(url, "://");
                 src += 3;
                 memcpy(dest, url, src - url);
                 dest += (src - url);
@@ -531,7 +531,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     if (rc != LDAP_SUCCESS) {
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set REQUIRE_CERT option to %d: %d (%s) %s\n", 
+                      "failed: unable to set REQUIRE_CERT option to %d: %d (%s) %s\n",
                       ssl_strength, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&errmsg);
     }
@@ -572,7 +572,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     if (rc != LDAP_SUCCESS) {
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set CACERTDIR option to %s: %d (%s) %s\n", 
+                      "failed: unable to set CACERTDIR option to %s: %d (%s) %s\n",
                       certdir, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&errmsg);
     }
@@ -585,7 +585,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         (void)getSSLVersionRange(&minstr, NULL);
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set minimum TLS protocol level to %s: %d (%s) %s\n", 
+                      "failed: unable to set minimum TLS protocol level to %s: %d (%s) %s\n",
                       minstr, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&minstr);
         slapi_ch_free_string(&errmsg);
@@ -596,7 +596,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         if (rc != LDAP_SUCCESS) {
             rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication: %d (%s) %s\n", 
+                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication: %d (%s) %s\n",
                           rc, ldap_err2string(rc), errmsg ? errmsg : "");
             slapi_ch_free_string(&errmsg);
         }
@@ -610,7 +610,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     if (rc != LDAP_SUCCESS) {
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to create new TLS context: %d (%s) %s\n", 
+                      "failed: unable to create new TLS context: %d (%s) %s\n",
                       rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&errmsg);
     }

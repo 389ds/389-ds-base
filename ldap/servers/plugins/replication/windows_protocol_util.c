@@ -3364,8 +3364,8 @@ static char *
 extract_guid_from_tombstone_dn(const char *dn)
 {
     char *guid = NULL;
-    char *colon_offset = NULL;
-    char *comma_offset = NULL;
+    const char *colon_offset = NULL;
+    const char *comma_offset = NULL;
 
     /* example DN of tombstone:
         "CN=WDel Userdb1\\\nDEL:551706bc-ecf2-4b38-9284-9a8554171d69,CN=Deleted Objects,DC=magpie,DC=com" */

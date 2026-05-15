@@ -3653,7 +3653,7 @@ static int
 acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
 {
 
-    int i, rc;
+    int rc;
     aclEvalContext *c_evalContext;
 
     if (!(access & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ)))
@@ -3670,17 +3670,15 @@ acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
     }
 
     if (attr == NULL) {
-        int eval_read = 0;
         /*
         **  Do I have access to at least one attribute, then I have
         ** access to the  entry.
         */
-        for (i = 0; i < c_evalContext->acle_numof_attrs; i++) {
+        for (size_t i = 0; i < c_evalContext->acle_numof_attrs; i++) {
             AclAttrEval *a_eval = &c_evalContext->acle_attrEval[i];
 
             if ((access & SLAPI_ACL_READ) && a_eval->attrEval_r_status &&
                 a_eval->attrEval_r_status < ACL_ATTREVAL_DETERMINISTIC) {
-                eval_read++;
                 if (a_eval->attrEval_r_status & ACL_ATTREVAL_SUCCESS)
                     return LDAP_SUCCESS;
                 /* rbyrne: recompute if we have to.
@@ -3712,7 +3710,7 @@ acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
         return (ACL_ERR);
     }
 
-    for (i = 0; i < c_evalContext->acle_numof_attrs; i++) {
+    for (size_t i = 0; i < c_evalContext->acle_numof_attrs; i++) {
         AclAttrEval *a_eval = &c_evalContext->acle_attrEval[i];
 
         if (a_eval == NULL)
