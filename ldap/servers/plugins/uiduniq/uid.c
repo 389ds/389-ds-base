@@ -1030,7 +1030,7 @@ preop_add(Slapi_PBlock *pb)
     }
 
     for (i = 0; attrNames && attrNames[i]; i++) {
-        char *attr_match = strchr(attrNames[i], ':');
+        char *attr_match = (char *)strchr(attrNames[i], ':');
         if (attr_match != NULL) {
             attr_match[0] = '\0';
         }
@@ -1178,7 +1178,7 @@ preop_modify(Slapi_PBlock *pb)
     for (; mods && *mods; mods++) {
         mod = *mods;
         for (i = 0; attrNames && attrNames[i]; i++) {
-            char *attr_match = strchr(attrNames[i], ':');
+            char *attr_match = (char *)strchr(attrNames[i], ':');
             if (attr_match != NULL) {
                 attr_match[0] = '\0';
             }
