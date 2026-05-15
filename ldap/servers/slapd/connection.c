@@ -1721,7 +1721,6 @@ connection_threadmain(void *arg)
     int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
     int doshutdown = 0;
     int maxthreads = 0;
-    long bypasspollcnt = 0;
     bool is_busy = false;
 
 #if defined(hpux)
@@ -1992,7 +1991,6 @@ connection_threadmain(void *arg)
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
             } else { /* more data in conn - just put back on work_q - bypass poll */
-                bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
                 if (conn->c_threadnumber < maxthreads) {

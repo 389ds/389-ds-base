@@ -316,7 +316,7 @@ ldclt_dirname(const char *path)
     char sep = PR_GetDirectorySeparator();
     char *ptr = NULL;
     char *ret = NULL;
-    if (path && ((ptr = strrchr(path, sep))) && *(ptr + 1)) {
+    if (path && ((ptr = (char *)strrchr(path, sep))) && *(ptr + 1)) {
         ret = PL_strndup(path, ptr - path);
     } else {
         ret = PL_strdup(".");

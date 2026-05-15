@@ -3059,7 +3059,6 @@ static int
 cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int *result)
 {
     int ret = 0;
-    int index = 0;
     cosAttrValue *pAttrVal = pAttr->pAttrValue;
     char *the_cmp = (char *)slapi_value_get_string(test_this);
 
@@ -3076,7 +3075,6 @@ cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int *result)
         }
 
         pAttrVal = pAttrVal->list.pNext;
-        index++;
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_cmp_attr\n");
@@ -3093,7 +3091,6 @@ static int
 cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet **out_vs)
 {
     int ret = 0;
-    int index = 0;
     cosAttrValue *pAttrVal = pAttr->pAttrValue;
     int add_mode = 0;
     static Slapi_Attr *attr = 0; /* allocated once, never freed */
@@ -3132,7 +3129,6 @@ cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet **out_vs)
             }
 
             pAttrVal = pAttrVal->list.pNext;
-            index++;
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_cos_2_slapi_valueset - "

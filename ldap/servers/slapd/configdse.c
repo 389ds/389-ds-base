@@ -506,7 +506,7 @@ postop_modify_config_dse(Slapi_PBlock *pb,
     static int num_requires_restart = sizeof(requires_restart) / sizeof(char *);
     LDAPMod **mods;
     int i, j;
-    char *p;
+    const char *p;
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     returntext[0] = '\0';

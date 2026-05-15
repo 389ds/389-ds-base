@@ -1021,7 +1021,6 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
     int rv = 0;
     int len = 0;
     int create_certdb = 0;
-    PRUint32 nssFlags = 0;
     char *certdir;
     char dmin[VERSION_STR_LENGTH], dmax[VERSION_STR_LENGTH];
     char smin[VERSION_STR_LENGTH], smax[VERSION_STR_LENGTH];
@@ -1087,7 +1086,6 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
 
     /******** Initialise NSS *********/
 
-    nssFlags &= (~NSS_INIT_READONLY);
     slapd_pk11_configurePKCS11(NULL, NULL, tokPBE, ptokPBE, NULL, NULL, NULL, NULL, 0, 0);
    secStatus = NSS_InitReadWrite(certdir);
 

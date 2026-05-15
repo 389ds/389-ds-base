@@ -7298,7 +7298,7 @@ int bdb_walk_dbfiles (const char *directory, const char *subdir,
             if (strncmp(DB_REGION_PREFIX, direntry->name, len) == 0) {
                 continue;
             }
-            pt = strrchr (direntry->name, *LDBM_FILENAME_SUFFIX);
+            pt = (char *)strrchr (direntry->name, *LDBM_FILENAME_SUFFIX);
             if (!pt || strcmp (pt, LDBM_FILENAME_SUFFIX)) {
                 continue;
             }

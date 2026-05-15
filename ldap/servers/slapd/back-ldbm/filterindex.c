@@ -489,10 +489,9 @@ extensible_candidates(
                  * Search the index, for the computed keys.
                  * Collect the resulting IDs in idl.
                  */
-                size_t n;
                 struct berval **val;
                 mrTYPE = slapi_attr_basetype(mrTYPE, NULL, 0);
-                for (n = 0, val = mrVALUES; *val; ++n, ++val) {
+                for (val = mrVALUES; *val; ++val) {
                     struct berval **keys = NULL;
                     /* keys = mrINDEX (*val), conceptually.  In detail: */
                     struct berval *bvec[2];

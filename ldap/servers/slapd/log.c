@@ -4951,7 +4951,7 @@ log__fix_rotationinfof(char *pathname)
                 break;
             }
         } else if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-                   (p = strchr(dirent->name, '.')) != NULL &&
+                   (p = (char *)strchr(dirent->name, '.')) != NULL &&
                    NULL != strchr(p, '-')) /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
         {
             struct logfileinfo *logp;
@@ -5131,7 +5131,7 @@ log__check_prevlogs(FILE *fp, char *pathname)
     for (dirent = PR_ReadDir(dirptr, dirflags); dirent;
          dirent = PR_ReadDir(dirptr, dirflags)) {
         if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-            (p = strchr(dirent->name, '.')) != NULL &&
+            (p = (char *)strchr(dirent->name, '.')) != NULL &&
             NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
             PRBool is_compressed = PR_FALSE;
 
