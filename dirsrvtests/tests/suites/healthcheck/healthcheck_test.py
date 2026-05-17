@@ -750,7 +750,6 @@ def test_lint_backend_implementation_wrong_files(topology_st):
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
     inst.stop()
-    print("DEBUG trying test with server stopped!!!!!!!!")
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
