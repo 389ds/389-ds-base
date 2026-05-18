@@ -586,7 +586,6 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     int count = 1; /* 1 to prevent premature status report */
     const int display_interval = 200;
     time_t time_now = 0;
-    int i = 0;
 
     for (current_worker = job->worker_list; current_worker != NULL;
          current_worker = current_worker->next)
@@ -615,12 +614,13 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     dbmdb_import_clear_progress_history(job);
 
     while (!finished) {
+        size_t max_slots = ctx->workerq.max_slots;
         DS_Sleep(tenthsecond);
         finished = 1;
 
         /* Compute the number of entries processed by the workers */
         entry_processed = 0;
-        for (i=0; i<ctx->workerq.max_slots; i++) {
+        for (size_t i = 0; i < max_slots; i++) {
             entry_processed += slots[i].count;
         }
 
