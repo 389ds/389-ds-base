@@ -1800,16 +1800,28 @@ bdb_import_monitor_threads(ImportJob *job, int *status)
             /* Now calculate our rate of progress overall for this chunk */
             if (time_now != job->start_time) {
                 /* log a cute chart of the worker progress */
+                uint32_t history_size = 0;
+                double rate = 0.0;
+
                 bdb_import_log_status_start(job);
                 bdb_import_log_status_add_line(job,
-                                           "Index status for import of %s:", job->inst->inst_name);
+                                               "Index status for import of %s:",
+                                               job->inst->inst_name);
                 bdb_import_log_status_add_line(job,
-                                           "-------Index Task-------State---Entry----Rate-");
+                        "-------Index Task-------State---Entry----Rate-");
 
                 bdb_import_push_progress_history(job, foreman->last_ID_processed,
-                                             time_now);
-                job->average_progress_rate =
-                    (double)(HISTORY(IMPORT_JOB_PROG_HISTORY_SIZE - 1) + 1 - foreman->first_ID) /
+                                                 time_now);
+
+                history_size = HISTORY(IMPORT_JOB_PROG_HISTORY_SIZE - 1) + 1;
+                if (foreman->first_ID > history_size) {
+                    /* Import is stalled and subtracting first_ID will
+                     * underflow the rate - so set it to 0.0 */
+                    rate = 0.0;
+                } else {
+                    rate = (double)(history_size - foreman->first_ID);
+                }
+                job->average_progress_rate = rate /
                     (double)(TIMES(IMPORT_JOB_PROG_HISTORY_SIZE - 1) - job->start_time);
                 job->recent_progress_rate =
                     PROGRESS(0, IMPORT_JOB_PROG_HISTORY_SIZE - 1);
