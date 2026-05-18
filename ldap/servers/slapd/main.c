@@ -1108,6 +1108,9 @@ main(int argc, char **argv)
     reslimit_cleanup();
     vattr_cleanup();
     sasl_map_done();
+#ifdef ENABLE_HIBP
+    hibp_shutdown();
+#endif
 cleanup:
     slapi_ch_free_string(&(mcfg.myname));
     compute_terminate();
