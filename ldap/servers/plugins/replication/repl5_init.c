@@ -850,7 +850,7 @@ multimaster_stop(Slapi_PBlock *pb __attribute__((unused)))
 static int
 multisupplier_pre_stop(Slapi_PBlock *pb __attribute__((unused)))
 {
-    if (!multisupplier_stopped_flag) {
+    if (!multimaster_stopped_flag) {
         /* Shut down replication agreements which will stop all the
          * replication protocol threads */
         agmtlist_shutdown();
