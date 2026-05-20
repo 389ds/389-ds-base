@@ -44,6 +44,8 @@ static int
 hibp_sha1_nss(const char *input, size_t len, unsigned char *digest)
 {
     if (!slapd_nss_is_initialized()) {
+        slapi_log_err(SLAPI_LOG_WARNING, "hibp_sha1_nss",
+                      "NSS not initialised - enable security to use HIBP breach checking\n");
         return -1;
     }
     SECStatus rv = PK11_HashBuf(SEC_OID_SHA1, digest, (unsigned char *)input, len);
@@ -308,10 +310,10 @@ hibp_query_api(const char *prefix, const char *api_url, HIBPResponse *response, 
     int n;
 
     /* Are we using a mock response for testing */
-    if (g_mock_response != NULL) {
+    if (g_mock_response) {
         size_t mock_len = strlen(g_mock_response);
         response->data = slapi_ch_malloc(mock_len + 1);
-        if (response->data == NULL) {
+        if (!response->data) {
             return -1;
         }
         memcpy(response->data, g_mock_response, mock_len + 1);
