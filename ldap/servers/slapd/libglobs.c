@@ -1750,6 +1750,9 @@ pwpolicy_init_defaults (passwdPolicy *pw_policy)
     pw_policy->pw_admin_user = NULL;
     pw_policy->pw_is_legacy = LDAP_ON;
     pw_policy->pw_track_update_time = LDAP_OFF;
+    pw_policy->pw_check_breach = LDAP_OFF;
+    pw_policy->pw_breach_db_url = NULL;
+    pw_policy->pw_breach_db_timeout = 10;
 }
 
 static void

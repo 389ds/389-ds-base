@@ -1934,6 +1934,9 @@ typedef struct passwordpolicyarray
     Slapi_DN **pw_admin_user;
     slapi_onoff_t pw_admin_skip_info;  /* Skip updating password information in target entry */
     char *pw_local_dn; /* DN of the subtree/user policy */
+    slapi_onoff_t pw_check_breach;     /* Check passwords against HIBP breach database */
+    char *pw_breach_db_url;            /* Custom breach database API URL (default HIBP) */
+    int pw_breach_db_timeout;          /* Timeout for breach database queries in seconds */
 
 } passwdPolicy;
 #define PWDPOLICY_DEBUG "PWDPOLICY_DEBUG"
