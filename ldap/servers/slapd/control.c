@@ -302,7 +302,7 @@ get_ldapmessage_controls_ext(
     ber_tag_t tag;
     /* ber_len_t is uint, cannot be -1 */
     ber_len_t len = LBER_ERROR;
-    int rc, maxcontrols, curcontrols;
+    int rc, maxcontrols, curcontrols, maxcontrols_per_op;
     char *last;
     int managedsait, pwpolicy_ctrl;
     Connection *pb_conn = NULL;
@@ -379,11 +379,21 @@ get_ldapmessage_controls_ext(
         return (LDAP_PROTOCOL_ERROR);
     }
 
+    maxcontrols_per_op = config_get_maxcontrolsperop();
     maxcontrols = curcontrols = 0;
     for (tag = ber_first_element(ber, &len, &last);
          tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
-         tag = ber_next_element(ber, &len, last)) {
+         tag = ber_next_element(ber, &len, last))
+    {
         len = -1; /* reset */
+        if (curcontrols >= maxcontrols_per_op) {
+            slapi_log_err(SLAPI_LOG_ERR, "get_ldapmessage_controls_ext",
+                          "Too many controls in LDAP request (max %d)\n",
+                          maxcontrols_per_op);
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            goto free_and_return;
+        }
+
         if (curcontrols >= maxcontrols - 1) {
 #define CONTROL_GRABSIZE 6
             maxcontrols += CONTROL_GRABSIZE;
