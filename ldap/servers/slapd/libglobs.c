@@ -1446,6 +1446,11 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.return_orig_dn,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_dn, &init_return_orig_dn, NULL},
+    {CONFIG_MAXCONTROLS_PER_OP_ATTRIBUTE, config_set_maxcontrolsperop,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.maxcontrols_per_op,
+     CONFIG_INT, (ConfigGetFunc)config_get_maxcontrolsperop,
+     SLAPD_DEFAULT_MAXCONTROLS_PER_OP_STR, NULL},
     /* End config */
     };
 
@@ -1985,6 +1990,7 @@ FrontendConfig_init(void)
     init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
     init_global_backend_local = LDAP_OFF;
     cfg->maxsimplepaged_per_conn = SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN;
+    cfg->maxcontrols_per_op = SLAPD_DEFAULT_MAXCONTROLS_PER_OP;
     cfg->maxbersize = SLAPD_DEFAULT_MAXBERSIZE;
     cfg->logging_backend = slapi_ch_strdup(SLAPD_INIT_LOGGING_BACKEND_INTERNAL);
     cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
@@ -9729,6 +9735,52 @@ config_get_maxsimplepaged_per_conn()
     int retVal;
 
     retVal = slapdFrontendConfig->maxsimplepaged_per_conn;
+    return retVal;
+}
+
+int
+config_set_maxcontrolsperop(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long size;
+    char *endp;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    size = strtol(value, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || size < 1 || size > 1000) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "(%s) value (%s) is invalid, must be at least 1 and less than 1000\n",
+                              attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (!apply) {
+        return retVal;
+    }
+
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+
+    slapdFrontendConfig->maxcontrols_per_op = size;
+
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    return retVal;
+}
+
+int
+config_get_maxcontrolsperop()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->maxcontrols_per_op;
+    if (retVal == 0) {
+        retVal = SLAPD_DEFAULT_MAXCONTROLS_PER_OP;
+    }
     return retVal;
 }
 
