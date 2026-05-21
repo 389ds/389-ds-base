@@ -1184,6 +1184,93 @@ def test_lmdb_autotuned_maxdbs(topology_m2, request):
 
 
 
+def test_password_breach_check_config(topo):
+    """Test passwordBreachCheck configuration attribute.
+
+    :id: 33f30832-2e08-4421-90aa-cb9455ff9831
+    :setup: Standalone instance
+    :steps:
+        1. Verify passwordBreachCheck default value
+        2. Verify setting passwordBreachCheck to 'on'
+        3. Verify invalid value is rejected
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = topo.standalone
+
+    # Verify passwordBreachCheck default value
+    value = inst.config.get_attr_val_utf8('passwordBreachCheck')
+    assert value.lower() == 'off'
+
+    # Verify setting passwordBreachCheck to 'on'
+    inst.config.set('passwordBreachCheck', 'on')
+    value = inst.config.get_attr_val_utf8('passwordBreachCheck')
+    assert value.lower() == 'on'
+
+    # Verify invalid value is rejected
+    with pytest.raises(ldap.OPERATIONS_ERROR):
+        inst.config.set('passwordBreachCheck', 'invalid')
+
+
+def test_password_breach_db_url_config(topo):
+    """Test passwordBreachDbUrl configuration attribute.
+
+    :id: 42c1a438-652f-4d91-802c-4ac3cdac6c4e
+    :setup: Standalone instance
+    :steps:
+        1. Verify setting passwordBreachDbUrl to custom URL
+        2. Verify clearing passwordBreachDbUrl
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    inst = topo.standalone
+
+    # Verify setting passwordBreachDbUrl to custom URL
+    custom_url = "https://my-hibp-server.example.com/range/"
+    inst.config.set('passwordBreachDbUrl', custom_url)
+    value = inst.config.get_attr_val_utf8('passwordBreachDbUrl')
+    assert value == custom_url
+
+    # Verify clearing passwordBreachDbUrl
+    inst.config.remove_all('passwordBreachDbUrl')
+    value = inst.config.get_attr_val_utf8('passwordBreachDbUrl')
+    assert not value
+
+
+def test_password_breach_db_timeout_config(topo):
+    """Test passwordBreachDbTimeout configuration attribute.
+
+    :id: 9f03d561-ae2e-4ab5-8c16-e2d842bc7c35
+    :setup: Standalone instance
+    :steps:
+        1. Verify passwordBreachDbTimeout default value
+        2. Verify setting passwordBreachDbTimeout to '30'
+        3. Restore default timeout
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    inst = topo.standalone
+
+    # Verify passwordBreachDbTimeout default value
+    value = inst.config.get_attr_val_utf8('passwordBreachDbTimeout')
+    assert value is not None
+    default_timeout = int(value)
+    assert default_timeout > 0
+
+    # Verify setting passwordBreachDbTimeout to '30'
+    inst.config.set('passwordBreachDbTimeout', '30')
+    value = inst.config.get_attr_val_utf8('passwordBreachDbTimeout')
+    assert value == '30', f"Expected '30', got '{value}'"
+
+    # Restore default timeout
+    inst.config.set('passwordBreachDbTimeout', str(default_timeout))
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
