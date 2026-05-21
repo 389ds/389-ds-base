@@ -388,6 +388,7 @@ int32_t config_set_maxdescriptors(const char *attrname, char *value, char *error
 int config_set_localuser(const char *attrname, char *value, char *errorbuf, int apply);
 
 int config_set_maxsimplepaged_per_conn(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_maxcontrolsperop(const char *attrname, char *value, char *errorbuf, int apply);
 
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 
@@ -578,6 +579,7 @@ int config_get_malloc_mmap_threshold(void);
 #endif
 
 int config_get_maxsimplepaged_per_conn(void);
+int config_get_maxcontrolsperop(void);
 int config_get_extract_pem(void);
 
 int is_abspath(const char *);
