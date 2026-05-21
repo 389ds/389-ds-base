@@ -292,6 +292,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXBERSIZE_STR "2097152"
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
+#define SLAPD_DEFAULT_MAXCONTROLS_PER_OP 10
+#define SLAPD_DEFAULT_MAXCONTROLS_PER_OP_STR "10"
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
 
@@ -2395,6 +2397,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
 #define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
+#define CONFIG_MAXCONTROLS_PER_OP_ATTRIBUTE "nsslapd-maxcontrolsperop"
 #define CONFIG_LOGGING_BACKEND "nsslapd-logging-backend"
 
 #define CONFIG_EXTRACT_PEM "nsslapd-extract-pemfiles"
@@ -2718,6 +2721,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
     slapi_onoff_t global_backend_lock;
     slapi_int_t maxsimplepaged_per_conn; /* max simple paged results reqs handled per connection */
+    slapi_int_t maxcontrols_per_op;      /* max LDAP controls allowed per operation */
     slapi_onoff_t enable_nunc_stans; /* Despite the removal of NS, we have to leave the value in
                                       * case someone was setting it.
                                       */
