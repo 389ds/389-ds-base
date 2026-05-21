@@ -477,7 +477,7 @@ export class DSInstance extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        cockpit.format(_("Load Backups operation failed - $0"), errMsg.desc)
+                        cockpit.format("Load Backups operation failed - $0", errMsg.desc)
                     );
                     this.setState({
                         backupRows: [],
