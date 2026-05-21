@@ -23,6 +23,7 @@ const tuning_attrs = [
     'nsslapd-connection-nocanon',
     'nsslapd-enable-turbo-mode',
     'nsslapd-threadnumber',
+    'nsslapd-maxthreadsperconn',
     'nsslapd-maxdescriptors',
     'nsslapd-timelimit',
     'nsslapd-sizelimit',
@@ -34,6 +35,7 @@ const tuning_attrs = [
     'nsslapd-maxsasliosize',
     'nsslapd-listen-backlog-size',
     'nsslapd-max-filter-nest-level',
+    'nsslapd-maxcontrolsperop',
     'nsslapd-ndn-cache-max-size',
 ];
 
@@ -161,6 +163,7 @@ export class ServerTuning extends React.Component {
                         'nsslapd-connection-nocanon': connNoCannon,
                         'nsslapd-enable-turbo-mode': turboMode,
                         'nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
+                        'nsslapd-maxthreadsperconn': attrs['nsslapd-maxthreadsperconn'][0],
                         'nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
                         'nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
                         'nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
@@ -172,6 +175,7 @@ export class ServerTuning extends React.Component {
                         'nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
                         'nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
                         'nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
+                        'nsslapd-maxcontrolsperop': attrs['nsslapd-maxcontrolsperop'][0],
                         'nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
                         // Record original values
                         '_nsslapd-ndn-cache-enabled': ndnEnabled,
@@ -179,6 +183,7 @@ export class ServerTuning extends React.Component {
                         '_nsslapd-connection-nocanon': connNoCannon,
                         '_nsslapd-enable-turbo-mode': turboMode,
                         '_nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
+                        '_nsslapd-maxthreadsperconn': attrs['nsslapd-maxthreadsperconn'][0],
                         '_nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
                         '_nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
                         '_nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
@@ -190,6 +195,7 @@ export class ServerTuning extends React.Component {
                         '_nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
                         '_nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
                         '_nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
+                        '_nsslapd-maxcontrolsperop': attrs['nsslapd-maxcontrolsperop'][0],
                         '_nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
                     }, this.props.enableTree());
                 })
@@ -275,7 +281,7 @@ export class ServerTuning extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Tuning & Limits")}
-                                    <Button 
+                                    <Button
                                         variant="plain"
                                         aria-label={_("Refresh settings")}
                                         onClick={() => {
@@ -304,6 +310,28 @@ export class ServerTuning extends React.Component {
                                     onMinus={() => { this.onMinusConfig("nsslapd-threadnumber") }}
                                     onChange={(e) => { this.onConfigChange(e, "nsslapd-threadnumber", -1, 512) }}
                                     onPlus={() => { this.onPlusConfig("nsslapd-threadnumber") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title={_("The maximum number of threads that can handle requests for a single connection (nsslapd-maxthreadsperconn).")}
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                {_("Max Threads Per Connection")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <NumberInput
+                                    value={this.state['nsslapd-maxthreadsperconn']}
+                                    min={1}
+                                    max={65535}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-maxthreadsperconn") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-maxthreadsperconn", 1, 65535) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-maxthreadsperconn") }}
                                     inputName="input"
                                     inputAriaLabel="number input"
                                     minusBtnAriaLabel="minus"
@@ -534,6 +562,28 @@ export class ServerTuning extends React.Component {
                                             onMinus={() => { this.onMinusConfig("nsslapd-max-filter-nest-level") }}
                                             onChange={(e) => { this.onConfigChange(e, "nsslapd-max-filter-nest-level", -1, 0) }}
                                             onPlus={() => { this.onPlusConfig("nsslapd-max-filter-nest-level") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title={_("The maximum number of LDAP controls allowed per operation (nsslapd-maxcontrolsperop).")}
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        {_("Maximum Controls Per Operation")}
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state['nsslapd-maxcontrolsperop']}
+                                            min={1}
+                                            max={1000}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-maxcontrolsperop") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-maxcontrolsperop", 1, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-maxcontrolsperop") }}
                                             inputName="input"
                                             inputAriaLabel="number input"
                                             minusBtnAriaLabel="minus"
