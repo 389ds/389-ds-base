@@ -267,7 +267,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 /* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP | S_IWGRP
  * on semaphore and mmap file if SELinux is enforced.
  */
-#define SLAPD_DEFAULT_SNMP_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
+#define SLAPD_DEFAULT_SNMP_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
 /* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP on dse.ldif if SELinux is enforced. */
 #define SLAPD_DEFAULT_DSE_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP
 #define SLAPD_DEFAULT_DIR_MODE S_IRWXU

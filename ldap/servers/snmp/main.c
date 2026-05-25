@@ -24,6 +24,18 @@
 #include <ctype.h>
 #include <limits.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <fcntl.h>
+#include <time.h>
+
+#define LOG_FILE                     "/var/log/dirsrv/dirsrv-snmp.log"
+/*
+ * LOG_PRINTF is used to print startup messages
+ *  (originally handled with printf)
+ *  Setting its value to LOG_CRIT which is not
+ *  used within dirsrv snmp agent
+ */
+#define LOG_PRINTF                   LOG_CRIT
 
 static char *agentx_master = NULL;
 static char *agent_logdir = NULL;
@@ -31,14 +43,114 @@ static char *pidfile = NULL;
 server_instance *server_head = NULL;
 
 static int keep_running;
+static int xloglvl = LOG_ERR;
+
+static const char *
+loglvl2str(int loglevel)
+{
+    static const struct {
+        int loglvl;
+        const char *name;
+    } table[] = {
+        { LOG_PRINTF, "STARTUP" },
+        { LOG_ERR, "ERROR" },
+        { LOG_WARNING, "WARNING" },
+        { LOG_INFO, "INFO" },
+        { LOG_DEBUG, "DEBUG" },
+        { 0 }
+    };
+
+    for (size_t i=0; table[i].name; i++) {
+        if (loglevel == table[i].loglvl) {
+            return table[i].name;
+        }
+    }
+    return "UNKNOWN";
+}
+
+void
+xset_loglvl(int loglvl)
+{
+    xloglvl = loglvl;
+}
+
+/* Log a timestamp and a message in LOG_FILE */
+static void
+xlog(int loglvl, const char *fmt, va_list ap)
+{
+    const char *lvlname = loglvl2str(loglvl);
+    static int fd = -2;
+
+    if (loglvl > xloglvl) {
+        return;
+    }
+    if (fd == -2) {
+        fd = open(LOG_FILE, O_APPEND|O_CREAT|O_WRONLY, 0640);
+    }
+    if (fd >=0) {
+        char buff[1024*16];
+        time_t now = time(0);
+        struct tm tmptm = {0};
+        size_t len = 0;
+        buff[0] = '[';
+        (void) asctime_r(localtime_r(&now, &tmptm), buff+1);
+        len = strlen(buff);
+        len--; /* Remove final \n */
+        snprintf(buff+len, (sizeof buff)-len, "] %s: ", lvlname);
+        len = strlen(buff);
+        vsnprintf(buff+len, (sizeof buff)-len, fmt, ap);
+        len = strlen(buff);
+        if (buff[len-1] != '\n') {
+            if (len > (sizeof buff)-2) {
+                len = (sizeof buff)-5;
+                strncpy(buff+len, "...\n", 5);
+            } else {
+                strncpy(buff+len, "\n", 2);
+            }
+        }
+        (void) lseek(fd, 0, SEEK_END);
+        (void) write(fd, buff, len);
+    }
+}
+
+/* Print message in stdout and LOG_FILE */
+void
+xprintf(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+    va_start(ap, fmt);
+    xlog(LOG_PRINTF, fmt, ap);
+    va_end(ap);
+}
+
+/* Print message in snmp log file and LOG_FILE */
+void
+xsnmp_log(int loglvl, const char *fmt, ...)
+{
+    va_list ap;
+    {
+        char buff[1024*16];
+
+        va_start(ap, fmt);
+        vsnprintf(buff, (sizeof buff), fmt, ap);
+        va_end(ap);
+        snmp_log(loglvl, "%s", buff);
+    }
+    va_start(ap, fmt);
+    xlog(loglvl, fmt, ap);
+    va_end(ap);
+}
 
 RETSIGTYPE
 stop_server(int signum)
 {
     if (signum == SIGUSR1) {
-        snmp_log(LOG_WARNING, "Detected attempt to start ldap-agent again.\n");
+        xsnmp_log(LOG_WARNING, "Detected attempt to start ldap-agent again.\n");
     } else {
-        snmp_log(LOG_WARNING, "Received stop signal.  Stopping ldap-agent...\n");
+        xsnmp_log(LOG_WARNING, "Received stop signal.  Stopping ldap-agent...\n");
         keep_running = 0;
     }
 }
@@ -72,7 +184,7 @@ main(int argc, char *argv[])
             } else if (secs > 3600) {
                 secs = 3600;
             }
-            printf("%s pid is %d - sleeping for %" PRId64 "\n", argv[0], getpid(), secs);
+            xprintf("%s pid is %d - sleeping for %" PRId64 "\n", argv[0], getpid(), secs);
             sleep(secs);
         }
     }
@@ -85,7 +197,7 @@ main(int argc, char *argv[])
                 log_level = LOG_DEBUG;
                 break;
             default:
-                printf("ldap-agent: illegal option %c\n", c);
+                xprintf("ldap-agent: illegal option %c\n", c);
                 exit_usage();
             }
         }
@@ -97,7 +209,7 @@ main(int argc, char *argv[])
 
     /* load config file */
     if ((config_file = strdup(*argv)) == NULL) {
-        printf("ldap-agent: Memory error loading config file\n");
+        xprintf("ldap-agent: Memory error loading config file\n");
         exit(1);
     }
 
@@ -108,12 +220,12 @@ main(int argc, char *argv[])
     if ((pid_fp = fopen(pidfile, "r")) != NULL) {
         int rc = fscanf(pid_fp, "%d", &child_pid);
         if ((rc == 0) || (rc == EOF)) {
-            printf("ldap-agent: Failed to get pid from %s\n", pidfile);
+            xprintf("ldap-agent: Failed to get pid from %s\n", pidfile);
             exit(1);
         }
         fclose(pid_fp);
         if (kill(child_pid, SIGUSR1) == 0) {
-            printf("ldap-agent: Already running as pid %d %s!\n", child_pid, pidfile);
+            xprintf("ldap-agent: Already running as pid %d %s!\n", child_pid, pidfile);
             exit(1);
         } else {
             /* old pidfile exists, but the process doesn't. Cleanup pidfile */
@@ -130,19 +242,19 @@ main(int argc, char *argv[])
         if (agent_logdir != NULL) {
             /* Verify agent-logdir setting */
             if (stat(agent_logdir, &logdir_s) < 0) {
-                printf("ldap-agent: Error reading logdir: %s\n", agent_logdir);
+                xprintf("ldap-agent: Error reading logdir: %s\n", agent_logdir);
                 exit(1);
             } else {
                 /* Is it a directory? */
                 if (S_ISDIR(logdir_s.st_mode)) {
                     /* Can we write to it? */
                     if (access(agent_logdir, W_OK) < 0) {
-                        printf("ldap-agent: Unable to write to logdir: %s\n",
+                        xprintf("ldap-agent: Unable to write to logdir: %s\n",
                                agent_logdir);
                         exit(1);
                     }
                 } else {
-                    printf("ldap-agent: agent-logdir setting must point to a directory.\n");
+                    xprintf("ldap-agent: agent-logdir setting must point to a directory.\n");
                     exit(1);
                 }
             }
@@ -159,17 +271,18 @@ main(int argc, char *argv[])
             }
         } else {
             /* agent-logdir not set */
-            printf("ldap-agent: Error determining log directory.\n");
+            xprintf("ldap-agent: Error determining log directory.\n");
             exit(1);
         }
 
         snmp_enable_filelog((char *)log_hdl->token, 1);
     } else {
-        printf("Error starting logging.");
+        xprintf("Error starting logging.");
         exit(1);
     }
 
-    snmp_log(LOG_WARNING, "Starting ldap-agent...\n");
+    xsnmp_log(LOG_WARNING, "Starting ldap-agent...\n");
+    xsnmp_log(LOG_INFO, "Reloading stats.\n");
 
     /* setup agentx master */
     netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID,
@@ -192,17 +305,17 @@ main(int argc, char *argv[])
         }
 
         if (!pid_fp) {
-            printf("ldap-agent: Not started after 15 seconds!  Check log file for details.\n");
+            xprintf("ldap-agent: Not started after 15 seconds!  Check log file for details.\n");
             exit(1);
         }
 
         rc = fscanf(pid_fp, "%d", &child_pid);
         if ((rc == 0) || (rc == EOF)) {
-            printf("ldap-agent: Failed to get pid from %s\n", pidfile);
+            xprintf("ldap-agent: Failed to get pid from %s\n", pidfile);
             exit(1);
         }
         fclose(pid_fp);
-        printf("ldap-agent: Started as pid %d\n", child_pid);
+        xprintf("ldap-agent: Started as pid %d\n", child_pid);
         exit(0);
     }
 
@@ -220,18 +333,18 @@ main(int argc, char *argv[])
     /* create pidfile */
     child_pid = getpid();
     if ((pid_fp = fopen(pidfile, "w")) == NULL) {
-        snmp_log(LOG_ERR, "Error creating pid file: %s\n", pidfile);
+        xsnmp_log(LOG_ERR, "Error creating pid file: %s\n", pidfile);
         exit(1);
     } else {
         if (fprintf(pid_fp, "%d", child_pid) < 0) {
-            snmp_log(LOG_ERR, "Error writing pid file: %s\n", pidfile);
+            xsnmp_log(LOG_ERR, "Error writing pid file: %s\n", pidfile);
             exit(1);
         }
         fclose(pid_fp);
     }
 
     /* we're up and running! */
-    snmp_log(LOG_WARNING, "Started ldap-agent as pid %d\n", child_pid);
+    xsnmp_log(LOG_WARNING, "Started ldap-agent as pid %d\n", child_pid);
 
     /* loop here until asked to stop */
     while (keep_running) {
@@ -240,7 +353,7 @@ main(int argc, char *argv[])
 
     /* say goodbye */
     snmp_shutdown("ldap-agent");
-    snmp_log(LOG_WARNING, "ldap-agent stopped.\n");
+    xsnmp_log(LOG_WARNING, "ldap-agent stopped.\n");
 
     /* remove pidfile */
     remove(pidfile);
@@ -274,15 +387,15 @@ load_config(char *conf_path)
 
     /* Make sure we are getting an absolute path */
     if (*conf_path != '/') {
-        printf("ldap-agent: Error opening config file: %s\n", conf_path);
-        printf("ldap-agent: You must specify the absolute path to your config file\n");
+        xprintf("ldap-agent: Error opening config file: %s\n", conf_path);
+        xprintf("ldap-agent: You must specify the absolute path to your config file\n");
         error = 1;
         goto close_and_exit;
     }
 
     /* Open config file */
     if ((conf_file = fopen(conf_path, "r")) == NULL) {
-        printf("ldap-agent: Error opening config file: %s\n", conf_path);
+        xprintf("ldap-agent: Error opening config file: %s\n", conf_path);
         error = 1;
         goto close_and_exit;
     }
@@ -298,7 +411,7 @@ load_config(char *conf_path)
         strcat(pidfile, "/dirsrv/");
         strcat(pidfile, LDAP_AGENT_PIDFILE);
     } else {
-        printf("ldap-agent: malloc error processing config file\n");
+        xprintf("ldap-agent: malloc error processing config file\n");
         error = 1;
         goto close_and_exit;
     }
@@ -311,7 +424,7 @@ load_config(char *conf_path)
                 agent_logdir[(p - conf_path)] = (char)0;
                 break;
             } else {
-                printf("ldap-agent: malloc error processing config file\n");
+                xprintf("ldap-agent: malloc error processing config file\n");
                 error = 1;
                 goto close_and_exit;
             }
@@ -332,6 +445,12 @@ load_config(char *conf_path)
                 }
                 if ((agentx_master = (char *)malloc(strlen(p) + 1)) != NULL)
                     strcpy(agentx_master, p);
+            }
+        } else if ((p = strstr(line, "agent-loglevel")) != NULL) {
+            /* load log level setting */
+            p = p + 14;
+            if ((p = strtok(p, " \t\n")) != NULL) {
+                xset_loglvl(atoi(p));
             }
         } else if ((p = strstr(line, "agent-logdir")) != NULL) {
             /* free the default logdir setting */
@@ -357,7 +476,7 @@ load_config(char *conf_path)
             lineno = 0;
             /* Allocate a server_instance */
             if ((serv_p = malloc(sizeof(server_instance))) == NULL) {
-                printf("ldap-agent: malloc error processing config file\n");
+                xprintf("ldap-agent: malloc error processing config file\n");
                 error = 1;
                 goto close_and_exit;
             }
@@ -377,7 +496,7 @@ load_config(char *conf_path)
                     serv_p->dse_ldif[(strlen(p) + strlen(SYSCONFDIR) +
                                       strlen(PACKAGE_NAME) + 11)] = (char)0;
                 } else {
-                    printf("ldap-agent: malloc error processing config file\n");
+                    xprintf("ldap-agent: malloc error processing config file\n");
                     error = 1;
                     free(instancename);
                     instancename = NULL;
@@ -390,14 +509,14 @@ load_config(char *conf_path)
                 if (serv_p->stats_sem_name != NULL) {
                     snprintf(serv_p->stats_sem_name, strlen(p) + 8, "/%s.stats", p);
                 } else {
-                    printf("ldap-agent: malloc error processing config file\n");
+                    xprintf("ldap-agent: malloc error processing config file\n");
                     error = 1;
                     free(instancename);
                     instancename = NULL;
                     goto close_and_exit;
                 }
             } else {
-                printf("ldap-agent: missing instance name\n");
+                xprintf("ldap-agent: missing instance name\n");
                 error = 1;
                 goto close_and_exit;
             }
@@ -406,7 +525,7 @@ load_config(char *conf_path)
             dse_fp = ldif_open(serv_p->dse_ldif, "r");
             buflen = 0;
             if (dse_fp == NULL) {
-                printf("ldap-agent: Error opening server config file: %s\n",
+                xprintf("ldap-agent: Error opening server config file: %s\n",
                        serv_p->dse_ldif);
                 error = 1;
                 free(instancename);
@@ -428,7 +547,7 @@ load_config(char *conf_path)
                 ber_len_t vlen;
                 /* Check if this is the cn=config entry */
                 if (ldif_parse_line(ldif_getline(&entryp), &attr, &val, &vlen)) {
-                    printf("ldap-agent: error parsing ldif line from [%s]\n", serv_p->dse_ldif);
+                    xprintf("ldap-agent: error parsing ldif line from [%s]\n", serv_p->dse_ldif);
                 }
 
                 if ((strcmp(attr, "dn") == 0) && (strcmp(val, "cn=config") == 0)) {
@@ -457,7 +576,7 @@ load_config(char *conf_path)
                                 snprintf(serv_p->stats_file, vlen + strlen(instancename) + 8,
                                          "%s/%s.stats", val, instancename);
                             } else {
-                                printf("ldap-agent: malloc error processing config file\n");
+                                xprintf("ldap-agent: malloc error processing config file\n");
                                 free(entry);
                                 error = 1;
                                 free(instancename);
@@ -498,13 +617,13 @@ load_config(char *conf_path)
             /* Make sure we were able to read the port and
              * location of the stats file. */
             if (!got_port) {
-                printf("ldap-agent: Error reading nsslapd-port from "
+                xprintf("ldap-agent: Error reading nsslapd-port from "
                        "server config file: %s\n",
                        serv_p->dse_ldif);
                 error = 1;
                 goto close_and_exit;
             } else if (!got_rundir) {
-                printf("ldap-agent: Error reading nsslapd-rundir from "
+                xprintf("ldap-agent: Error reading nsslapd-rundir from "
                        "server config file: %s\n",
                        serv_p->dse_ldif);
                 error = 1;
@@ -528,7 +647,7 @@ load_config(char *conf_path)
 
     /* check for at least one directory server instance */
     if (server_head == NULL) {
-        printf("ldap-agent: No server instances defined in config file\n");
+        xprintf("ldap-agent: No server instances defined in config file\n");
         error = 1;
         goto close_and_exit;
     }
@@ -551,7 +670,7 @@ close_and_exit:
 void
 exit_usage(void)
 {
-    printf("Usage: ldap-agent [-D] configfile\n");
-    printf("       -D    Enable debug logging\n");
+    xprintf("Usage: ldap-agent [-D] configfile\n");
+    xprintf("       -D    Enable debug logging\n");
     exit(1);
 }

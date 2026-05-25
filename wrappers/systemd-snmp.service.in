@@ -26,7 +26,7 @@ ProtectControlGroups=true
 RestrictRealtime=true
 NoNewPrivileges=yes
 MemoryDenyWriteExecute=yes
-InaccessiblePaths=/dev/shm
+# InaccessiblePaths=/dev/shm
 SystemCallFilter=~memfd_create
 
 [Install]

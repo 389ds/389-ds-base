@@ -11,6 +11,16 @@ agentx-master /var/agentx/master
 # will write it's logfile.
 agent-logdir @localstatedir@/log/@package_name@
 
+# The agent-loglevel settings defines what is logged
+# in  /var/log/dirsrv/dirsrv-snmp.log log file
+#   0 for no logs
+#   2 for startup messages
+#   3 for error messages
+#   4 for warning messages
+#   6 for info messages
+#   7 for debug message
+agent-loglevel 4
+
 # The server setting specifies a Directory Server
 # instance that you want to monitor. You must use one
 # server setting for each Directory Server instance. The
