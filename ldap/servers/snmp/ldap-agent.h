@@ -115,9 +115,6 @@ int dsEntityTable_get_value(netsnmp_request_info *,
                             netsnmp_table_request_info *);
 int send_DirectoryServerDown_trap(server_instance *);
 int send_DirectoryServerStart_trap(server_instance *);
-void xsnmp_log(int loglvl, const char *fmt, ...);
-void xprintf(const char *fmt, ...);
-void xset_loglvl(int loglvl);
 
 /*************************************************************
  * Oid Declarations

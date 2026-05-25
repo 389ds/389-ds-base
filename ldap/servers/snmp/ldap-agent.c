@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
 #include "ldap-agent.h"
 
 static netsnmp_handler_registration *ops_handler = NULL;
@@ -68,13 +67,13 @@ init_ldap_agent(void)
                 serv_p->server_state = STATE_UNKNOWN;
 
                 /* Insert new row into the table */
-                xsnmp_log(LOG_DEBUG, "Inserting row for server: %d\n", serv_p->port);
+                snmp_log(LOG_DEBUG, "Inserting row for server: %d\n", serv_p->port);
                 CONTAINER_INSERT(ops_cb.container, new_row);
                 new_row = NULL;
 #pragma GCC diagnostic pop
             } else {
                 /* error during malloc of row */
-                xsnmp_log(LOG_ERR, "Error creating row for server: %d\n",
+                snmp_log(LOG_ERR, "Error creating row for server: %d\n",
                          serv_p->port);
             }
         }
@@ -102,7 +101,7 @@ initialize_stats_table(void)
 #endif
 
     if (ops_handler || entries_handler || entity_handler) {
-        xsnmp_log(LOG_ERR, "initialize_stats_table called more than once.\n");
+        snmp_log(LOG_ERR, "initialize_stats_table called more than once.\n");
         return;
     }
 
@@ -135,7 +134,7 @@ initialize_stats_table(void)
     if (!ops_handler || !entries_handler || !entity_handler ||
         !ops_table_info || !entries_table_info || !entity_table_info) {
         /* malloc failed */
-        xsnmp_log(LOG_ERR, "malloc failed in initialize_stats_table\n");
+        snmp_log(LOG_ERR, "malloc failed in initialize_stats_table\n");
         SNMP_FREE(ops_table_info);
         SNMP_FREE(entries_table_info);
         SNMP_FREE(entity_table_info);
@@ -206,7 +205,7 @@ stats_table_create_row(unsigned long portnum)
 
     if (!ctx || !index_oid) {
         /* Error during malloc */
-        xsnmp_log(LOG_ERR, "malloc failed in stats_table_create_row\n");
+        snmp_log(LOG_ERR, "malloc failed in stats_table_create_row\n");
         goto error;
     }
 
@@ -266,7 +265,7 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
     int stats_hdl = -1;
     sem_t *stats_sem = NULL;
 
-    xsnmp_log(LOG_INFO, "Reloading stats.\n");
+    snmp_log(LOG_INFO, "Reloading stats.\n");
 
     /* Initialize data for each server in conf file */
     for (serv_p = server_head; serv_p != NULL; serv_p = serv_p->next) {
@@ -276,19 +275,13 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
             previous_state = serv_p->server_state;
             previous_start = ctx->hdr_tbl.startTime;
 
-            xsnmp_log(LOG_INFO, "Opening stats file (%s) for server: %d\n",
+            snmp_log(LOG_INFO, "Opening stats file (%s) for server: %d\n",
                      serv_p->stats_file, serv_p->port);
 
             /* Open and acquire semaphore */
             if ((stats_sem = sem_open(serv_p->stats_sem_name, 0)) == SEM_FAILED) {
-                int err = errno;
-                char *errmsg = strerror(err);
                 stats_sem = NULL;
-                if (!errmsg) {
-                    errmsg = "???";
-                }
-                xsnmp_log(LOG_WARNING, "Unable to open semaphore %s for server with port: %d. Error is %d: %s\n",
-                          serv_p->stats_sem_name, serv_p->port, err, errmsg);
+                snmp_log(LOG_INFO, "Unable to open semaphore for server: %d\n", serv_p->port);
             } else {
                 int i = 0;
                 int got_sem = 0;
@@ -304,21 +297,14 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
                 if (!got_sem) {
                     /* We're unable to get the semaphore.  Assume
                      * that the server is down. */
-                    xsnmp_log(LOG_WARNING, "Unable to acquire semaphore %s for server: %d\n",
-                              serv_p->stats_sem_name, serv_p->port);
+                    snmp_log(LOG_INFO, "Unable to acquire semaphore for server: %d\n", serv_p->port);
                     sem_close(stats_sem);
                     stats_sem = NULL;
                 }
             }
 
-            xsnmp_log(LOG_INFO, "Opening stat file %s for server with port: %d.\n",
-                      serv_p->stats_file, serv_p->port);
             /* Open the stats file */
             if ((stats_sem == NULL) || (agt_mopen_stats(serv_p->stats_file, O_RDONLY, &stats_hdl) != 0)) {
-                int err = errno;
-                char *errmsg = strerror(err);
-                xsnmp_log(LOG_WARNING, "Fail to open stat file %s for server with port: %d. Error is %d: %s\n",
-                          serv_p->stats_file, serv_p->port, err, errmsg);
                 if (stats_sem) {
                     /* Release and close semaphore */
                     sem_post(stats_sem);
@@ -331,18 +317,18 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
                 memset(&ctx->ops_tbl, 0x00, sizeof(ctx->ops_tbl));
                 memset(&ctx->entries_tbl, 0x00, sizeof(ctx->entries_tbl));
                 if (previous_state != SERVER_DOWN)
-                    xsnmp_log(LOG_WARNING, "Unable to open stats file (%s) for server: %d\n",
+                    snmp_log(LOG_INFO, "Unable to open stats file (%s) for server: %d\n",
                              serv_p->stats_file, serv_p->port);
             } else {
                 /* Initialize ops table */
                 if (agt_mread_stats(stats_hdl, &ctx->hdr_tbl, &ctx->ops_tbl,
                                     &ctx->entries_tbl) != 0)
-                    xsnmp_log(LOG_ERR, "Unable to read stats file: %s\n",
+                    snmp_log(LOG_ERR, "Unable to read stats file: %s\n",
                              serv_p->stats_file);
 
                 /* Close stats file */
                 if (agt_mclose_stats(stats_hdl) != 0)
-                    xsnmp_log(LOG_ERR, "Error closing stats file: %s\n",
+                    snmp_log(LOG_ERR, "Error closing stats file: %s\n",
                              serv_p->stats_file);
 
                 /* Release and close semaphore */
@@ -354,7 +340,7 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
                 if (difftime(time(NULL), ctx->hdr_tbl.updateTime) >= UPDATE_THRESHOLD) {
                     serv_p->server_state = SERVER_DOWN;
                     if (previous_state != SERVER_DOWN)
-                        xsnmp_log(LOG_INFO, "Stats file for server %d hasn't been updated"
+                        snmp_log(LOG_INFO, "Stats file for server %d hasn't been updated"
                                            " in %d seconds.\n",
                                  serv_p->port, UPDATE_THRESHOLD);
                 } else {
@@ -367,7 +353,7 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
             if (previous_state != STATE_UNKNOWN) {
                 if (serv_p->server_state != previous_state) {
                     if (serv_p->server_state == SERVER_UP) {
-                        xsnmp_log(LOG_INFO, "Detected start of server: %d\n",
+                        snmp_log(LOG_INFO, "Detected start of server: %d\n",
                                  serv_p->port);
                         send_DirectoryServerStart_trap(serv_p);
                     } else {
@@ -378,14 +364,14 @@ load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attri
                     }
                 } else if (ctx->hdr_tbl.startTime != previous_start) {
                     /* Send traps if the server has restarted since the last load */
-                    xsnmp_log(LOG_INFO, "Detected restart of server: %d\n", serv_p->port);
+                    snmp_log(LOG_INFO, "Detected restart of server: %d\n", serv_p->port);
                     send_DirectoryServerDown_trap(serv_p);
                     send_DirectoryServerStart_trap(serv_p);
                 }
             }
         } else {
             /* Can't find our row.  This shouldn't ever happen. */
-            xsnmp_log(LOG_ERR, "Row not found for server: %d\n",
+            snmp_log(LOG_ERR, "Row not found for server: %d\n",
                      serv_p->port);
         }
     }
@@ -519,7 +505,7 @@ dsOpsTable_get_value(netsnmp_request_info *request,
         break;
 
     default: /* We shouldn't get here */
-        xsnmp_log(LOG_ERR, "Unknown column in dsOpsTable_get_value\n");
+        snmp_log(LOG_ERR, "Unknown column in dsOpsTable_get_value\n");
         return SNMP_ERR_GENERR;
     }
 
@@ -577,7 +563,7 @@ dsEntriesTable_get_value(netsnmp_request_info *request,
         break;
 
     default: /* We shouldn't get here */
-        xsnmp_log(LOG_ERR, "Unknown column in dsEntriesTable_get_value\n");
+        snmp_log(LOG_ERR, "Unknown column in dsEntriesTable_get_value\n");
         return SNMP_ERR_GENERR;
     }
 
@@ -649,7 +635,7 @@ dsEntityTable_get_value(netsnmp_request_info *request,
         break;
 
     default: /* We shouldn't get here */
-        xsnmp_log(LOG_ERR, "Unknown column in dsEntityTable_get_value\n");
+        snmp_log(LOG_ERR, "Unknown column in dsEntityTable_get_value\n");
         return SNMP_ERR_GENERR;
     }
     return SNMP_ERR_NOERROR;
@@ -678,11 +664,11 @@ send_DirectoryServerDown_trap(server_instance *serv_p)
     dsEntityLocation_oid[3] = serv_p->port;
     dsEntityContact_oid[3] = serv_p->port;
 
-    xsnmp_log(LOG_INFO, "Sending down trap for server: %d\n", serv_p->port);
+    snmp_log(LOG_INFO, "Sending down trap for server: %d\n", serv_p->port);
 
     /* Lookup row to get version string */
     if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
-        xsnmp_log(LOG_ERR, "Malloc error finding row for server: %d\n", serv_p->port);
+        snmp_log(LOG_ERR, "Malloc error finding row for server: %d\n", serv_p->port);
         return 1;
     }
 
@@ -743,11 +729,11 @@ send_DirectoryServerStart_trap(server_instance *serv_p)
     dsEntityVers_oid[3] = serv_p->port;
     dsEntityLocation_oid[3] = serv_p->port;
 
-    xsnmp_log(LOG_INFO, "Sending start trap for server: %d\n", serv_p->port);
+    snmp_log(LOG_INFO, "Sending start trap for server: %d\n", serv_p->port);
 
     /* Lookup row to get version string */
     if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
-        xsnmp_log(LOG_ERR, "Malloc error finding row for server: %d\n", serv_p->port);
+        snmp_log(LOG_ERR, "Malloc error finding row for server: %d\n", serv_p->port);
         return 1;
     }
 
