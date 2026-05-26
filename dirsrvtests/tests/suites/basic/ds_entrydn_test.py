@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,12 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 
 import logging
-import pytest
 import os
-import time
-from test389.topologies import topology_st as topo
-from lib389.idm.user import UserAccount, UserAccounts
+import pytest
+from lib389.dbgen import dbgen_users, get_index
 from lib389.idm.organizationalunit import OrganizationalUnit
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.tasks import ImportTask
+from test389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 
@@ -22,6 +23,19 @@ NEW_SUBTREE = "ou=humans,dc=Example,DC=COM"
 USER_DN = "uid=tUser,ou=People,dc=Example,DC=COM"
 NEW_USER_DN = "uid=tUser,ou=humans,dc=Example,DC=COM"
 NEW_USER_NORM_DN = "uid=tUser,ou=humans,dc=example,dc=com"
+
+IMPORT_LDIF_NAME = "ds_entrydn_import.ldif"
+NUM_IMPORT_ENTRIES = 10
+IMPORT_ENTRY_NAME = "importuser"
+IMPORT_PARENT = f"ou=people,{SUFFIX}"
+
+
+def _import_user_dns():
+    """DNs produced by dbgen_users(generic=True, entry_name=IMPORT_ENTRY_NAME)."""
+    return [
+        f"uid={IMPORT_ENTRY_NAME}{get_index(i, NUM_IMPORT_ENTRIES)},{IMPORT_PARENT}"
+        for i in range(1, NUM_IMPORT_ENTRIES + 1)
+    ]
 
 
 def test_dsentrydn(topo):
@@ -87,6 +101,43 @@ def test_dsentrydn(topo):
         if user.rdn.startswith("tUser"):
             assert user.dn == NEW_USER_NORM_DN
             break
+
+
+def test_dsentrydn_import_ldif(topo, request):
+    """Imported entries receive dsEntryDN matching their DN
+
+    :id: 8457793e-8374-4435-b6b7-701b58246d91
+    :setup: Standalone Instance
+    :steps:
+        1. Generate an LDIF with 10 users under ou=people using dbgen_users
+        2. Import the LDIF into the suffix
+        3. Verify each imported entry has dsentrydn set to its DN
+    :expectedresults:
+        1. LDIF file is created with 10 user entries
+        2. Online import completes successfully
+        3. All 10 entries have dsentrydn matching their DN
+    """
+    inst = topo.standalone
+
+    ldif_path = os.path.join(inst.get_ldif_dir(), IMPORT_LDIF_NAME)
+    dbgen_users(
+        inst,
+        NUM_IMPORT_ENTRIES,
+        ldif_path,
+        SUFFIX,
+        generic=True,
+        entry_name=IMPORT_ENTRY_NAME,
+        parent=IMPORT_PARENT,
+    )
+
+    import_task = ImportTask(inst)
+    import_task.import_suffix_from_ldif(ldiffile=ldif_path, suffix=SUFFIX)
+    import_task.wait()
+
+    for dn in _import_user_dns():
+        user = UserAccount(inst, dn)
+        assert user.exists(), dn
+        assert user.get_attr_val_utf8('dsentrydn') == dn
 
 
 if __name__ == '__main__':
