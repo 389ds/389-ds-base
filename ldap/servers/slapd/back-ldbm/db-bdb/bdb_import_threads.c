@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -526,6 +526,9 @@ bdb_import_producer(void *param)
             slapi_ch_free_string(&dn);
             e = slapi_str2entry_ext(normdn, NULL, estr,
                                     flags | SLAPI_STR2ENTRY_NO_ENTRYDN);
+            if (slapi_entry_attr_get_ref(e, SLAPI_ATTR_DS_ENTRYDN) == NULL) {
+                slapi_entry_attr_set_charptr(e, SLAPI_ATTR_DS_ENTRYDN, normdn);
+            }
             slapi_ch_free_string(&normdn);
         } else {
             e = slapi_str2entry(estr, flags);
