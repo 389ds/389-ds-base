@@ -10,7 +10,6 @@ import logging
 import pytest
 import os
 import ldap
-import resource
 from lib389.backend import Backends
 from lib389._constants import *
 from test389.topologies import topology_st
@@ -25,9 +24,13 @@ log = logging.getLogger(__name__)
 FD_ATTR = "nsslapd-maxdescriptors"
 RESRV_FD_ATTR = "nsslapd-reservedescriptors"
 SLAPD_DEFAULT_MAXDESCRIPTORS = 1048576
-MAX_FD_VAL = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], SLAPD_DEFAULT_MAXDESCRIPTORS)
 SYSTEMD_LIMIT = ensure_str(check_output("systemctl show -p LimitNOFILE dirsrv@standalone1".split(" ")).strip()).split('=')[1]
-CUSTOM_VAL = str(int(SYSTEMD_LIMIT) - 10)
+# Server caps maxdescriptors at min(its own rlim_max, SLAPD_DEFAULT_MAXDESCRIPTORS); pytest's rlim_max is unrelated.
+if SYSTEMD_LIMIT == "infinity":
+    MAX_FD_VAL = SLAPD_DEFAULT_MAXDESCRIPTORS
+else:
+    MAX_FD_VAL = min(int(SYSTEMD_LIMIT), SLAPD_DEFAULT_MAXDESCRIPTORS)
+CUSTOM_VAL = str(MAX_FD_VAL - 10)
 RESRV_DESC_VAL_LOW = 10
 TOO_HIGH_VAL = str(MAX_FD_VAL + 1)
 TOO_HIGH_VAL2 = str(MAX_FD_VAL + 1)
@@ -53,7 +56,7 @@ def test_fd_limits(topology_st):
 
     # Check systemd default
     max_fd = topology_st.standalone.config.get_attr_val_utf8(FD_ATTR)
-    assert max_fd == SYSTEMD_LIMIT
+    assert max_fd == str(MAX_FD_VAL)
 
     # Check custom value is applied
     topology_st.standalone.config.set(FD_ATTR, CUSTOM_VAL)
@@ -119,28 +122,28 @@ def test_reserve_descriptors_high(topology_st):
     :id: 19c8991b-ef78-485e-bdf9-a0977fcbcd04
     :setup: Standalone Instance
     :steps:
-        1. Set attr nsslapd-maxdescriptors to systemd LimitNOFILE value
+        1. Set attr nsslapd-maxdescriptors to the server's effective max
         2. Verify value has been set
         3. Set attr nsslapd-reservedescriptors to 2 less than nsslapd-maxdescriptors
         4. Verify value has been set
         5. Restart instance
     :expectedresults:
         1. Success
-        2. Value of SYSTEMD_LIMIT is returned
+        2. Value of MAX_FD_VAL is returned
         3. Success
-        4. Values of SYSTEMD_LIMIT -2 is returned
+        4. Value of MAX_FD_VAL - 2 is returned
         5. Instance starts correctly
     """
 
     # Set nsslapd-maxdescriptors to a custom value
-    topology_st.standalone.config.set(FD_ATTR, SYSTEMD_LIMIT)
+    topology_st.standalone.config.set(FD_ATTR, str(MAX_FD_VAL))
     max_fd = topology_st.standalone.config.get_attr_val_utf8(FD_ATTR)
-    assert max_fd == SYSTEMD_LIMIT
+    assert max_fd == str(MAX_FD_VAL)
 
     # Set nsslapd-reservedescriptors to 2 less than custom value
-    topology_st.standalone.config.set(RESRV_FD_ATTR, str(int(SYSTEMD_LIMIT) - 2))
+    topology_st.standalone.config.set(RESRV_FD_ATTR, str(MAX_FD_VAL - 2))
     resrv_fd = topology_st.standalone.config.get_attr_val_utf8(RESRV_FD_ATTR)
-    assert resrv_fd == str(int(SYSTEMD_LIMIT) - 2)
+    assert resrv_fd == str(MAX_FD_VAL - 2)
 
     # Verify instance restart
     topology_st.standalone.restart()
