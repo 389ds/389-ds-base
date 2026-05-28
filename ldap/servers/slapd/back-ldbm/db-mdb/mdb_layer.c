@@ -21,8 +21,6 @@
 
 Slapi_ComponentId *dbmdb_componentid = NULL;
 
-#define BULKOP_MAX_RECORDS  100 /* Max records handled by a single bulk operations */
-
 #define RECNO_CACHE_INTERVAL 1000  /* 1 key added in cache for every RECNO_CACHE_INTERVAL vlv keys */
 
 /* bulkdata->v.data contents */
@@ -31,7 +29,6 @@ typedef struct {
     uint dbi_flags;          /* dbi flags */
     MDB_cursor *cursor;      /* cursor position */
     int op;                  /* MDB operation to get next value */
-    int maxrecords;          /* Number maximum of operation before moving to next block */
     MDB_val data0;           /* data got when setting the cursor */
     MDB_val data;            /* data for single or multiple operation */
     MDB_val key;             /* key */
@@ -1725,7 +1722,7 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
             dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data_size);
         }
     } else {
-        if (!dbmdb_data->op || (*idx)++ >= dbmdb_data->maxrecords) {
+        if (!dbmdb_data->op) {
             return DBI_RC_NOTFOUND;
         }
         dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
@@ -1734,6 +1731,7 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
             rc = 0;
             dbmdb_data->op = 0;
         }
+        (*idx)++;
     }
     rc = dbmdb_map_error(__FUNCTION__, rc);
     return rc;
@@ -1898,7 +1896,6 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
     mdb_dbi_flags(mdb_cursor_txn(dbmdb_cur), mdb_cursor_dbi(dbmdb_cur), &dbmdb_data->dbi_flags);
     dbmdb_data->use_multiple = (dbmdb_data->dbi_flags & MDB_DUPFIXED);
     PR_ASSERT(dbmdb_data->dbi_flags & MDB_DUPSORT);
-    dbmdb_data->maxrecords = BULKOP_MAX_RECORDS;
     dbmdb_data->data.mv_data = NULL;
     dbmdb_data->data.mv_size = 0;
     dbmdb_data->op = 0;
