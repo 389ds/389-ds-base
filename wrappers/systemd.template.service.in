@@ -47,9 +47,9 @@ ProtectControlGroups=true
 RestrictRealtime=true
 NoNewPrivileges=yes
 MemoryDenyWriteExecute=yes
-# MemoryDenyWriteExecute=yes usually also require: InaccessiblePaths=/dev/shm
-# but ns-slapd explicitly creates some files under /dev/shm
-SystemCallFilter=~memfd_create
+# InaccessiblePaths=/dev/shm  (not possible because semaphore are used)
+NoExecPaths=/dev/shm
+SystemCallFilter=~memfd_create:EPERM
 
 [Install]
 WantedBy=multi-user.target
