@@ -1902,7 +1902,6 @@ export class GlobalPwPolicy extends React.Component {
                                     variant="plain"
                                     aria-label={_("Refresh global password policy settings")}
                                     onClick={this.handleLoadGlobal}
-                                    className="ds-left-margin"
                                 >
                                     <SyncAltIcon />
                                 </Button>
