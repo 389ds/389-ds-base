@@ -334,7 +334,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
             log_cmd("save_ndn_cache", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
@@ -520,7 +520,7 @@ export class GlobalDatabaseConfig extends React.Component {
             });
             log_cmd("handleSaveDBConfig", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.save_ndn_cache(requireRestart);
@@ -1583,7 +1583,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
             log_cmd("save_ndn_cache", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
@@ -1694,7 +1694,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             });
             log_cmd("handleSaveDBConfig", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.save_ndn_cache(requireRestart);
@@ -1722,7 +1722,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         const cmd = "df -B1 " + this.state.dbhomedir + " | awk '{print $4}'";
         // log_cmd("loadAvailableDiskSpace", "Load available disk space", cmd);
         cockpit
-                .script(cmd, [], { superuser: true, err: "message" })
+                .script(cmd, [], { superuser: "require", err: "message" })
                 .done(output => {
                     available = output.split(/\s+/)[1];
                     if (this.ismounted) {

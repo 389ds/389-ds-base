@@ -223,7 +223,7 @@ class DNAPlugin extends React.Component {
         ];
         log_cmd("loadConfigs", "Get DNA Plugin configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -266,7 +266,7 @@ class DNAPlugin extends React.Component {
         ];
         log_cmd("loadSharedConfigs", "Get DNA Plugin shared configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     this.setState({
@@ -332,7 +332,7 @@ class DNAPlugin extends React.Component {
             log_cmd("openModal", "Fetch the DNA Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -537,7 +537,7 @@ class DNAPlugin extends React.Component {
         log_cmd("DNAOperation", `Do the ${action} operation on the DNA Plugin`, cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -587,7 +587,7 @@ class DNAPlugin extends React.Component {
         log_cmd("deleteConfig", "Delete the DNA Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -639,7 +639,7 @@ class DNAPlugin extends React.Component {
             log_cmd("openSharedModal", "Fetch the DNA Plugin shared config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -745,7 +745,7 @@ class DNAPlugin extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -794,7 +794,7 @@ class DNAPlugin extends React.Component {
         log_cmd("deleteSharedConfig", "Delete the DNA Plugin Shared config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

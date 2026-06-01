@@ -80,7 +80,7 @@ class USNPlugin extends React.Component {
         ];
         log_cmd("loadSuffixList", "Get a list of all the suffixes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const suffixList = JSON.parse(content);
                     this.setState({
@@ -113,7 +113,7 @@ class USNPlugin extends React.Component {
         this.setState({ disableSwitch: true });
         log_cmd("handleSwitchChange", "Switch global USN mode from the USN plugin tab", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     this.updateSwitch();
@@ -157,7 +157,7 @@ class USNPlugin extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("updateSwitch", "Get global USN status", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
@@ -212,7 +212,7 @@ class USNPlugin extends React.Component {
             log_cmd("handleRunCleanup", "Run cleanup USN tombstones", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
