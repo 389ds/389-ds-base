@@ -14,6 +14,7 @@ import ldap
 from lib389.tasks import *
 from lib389.utils import *
 from test389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m2 as topo_m2
 from lib389.idm.user import UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import ReplicationManager
@@ -679,6 +680,180 @@ def test_dna_range_exhaustion(topo_m4, dna_small_range_setup, request):
                 log.info(f"  {uid} - from supplier4's range")
             else:
                 log.info(f"  {uid} - from extended/next range")
+
+
+BIND_METHOD = 'SASL/GSSAPI'
+CONN_PROTOCOL = 'LDAP'
+
+
+def _wait_for_shared_config_count(supplier, ou_ranges_dn, expected):
+    """Wait until the expected number of DNA shared config entries exist."""
+    attempts = 0
+    ents = None
+
+    while attempts < 10:
+        entries = DNAPluginSharedConfigs(supplier, ou_ranges_dn).list()
+        if len(entries) == expected:
+            return entries
+        attempts += 1
+        time.sleep(5)
+    
+    assert len(entries) == expected, (
+        f"{supplier}: expected {expected} shared config entries, found {len(entries)}"
+    )
+
+
+def _get_shared_cfg_by_port(supplier, ou_ranges_dn, port):
+    for entry in DNAPluginSharedConfigs(supplier, ou_ranges_dn).list():
+        if entry.get_attr_val_utf8('dnaPortNum') == str(port):
+            return entry
+    return None
+
+
+def _assert_shared_cfg_remote_bind(entry, bind_method=BIND_METHOD, conn_protocol=CONN_PROTOCOL):
+    assert entry.get_attr_val_utf8('dnaRemoteBindMethod') == bind_method, (
+        f"dnaRemoteBindMethod={entry.get_attr_val_utf8('dnaRemoteBindMethod')!r}, "
+        f"expected {bind_method!r}"
+    )
+    assert entry.get_attr_val_utf8('dnaRemoteConnProtocol') == conn_protocol, (
+        f"dnaRemoteConnProtocol={entry.get_attr_val_utf8('dnaRemoteConnProtocol')!r}, "
+        f"expected {conn_protocol!r}"
+    )
+
+
+@pytest.fixture(scope="function")
+def dna_exhausted_range_bind_setup(topo_m2, request):
+    """Setup DNA on two suppliers; supplier2 has an exhausted range.
+
+    Shared config entries are created by the plugin (not pre-seeded).
+    """
+
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+    suppliers = [m1, m2]
+    
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    created_objects = {'dna_configs': []}
+
+    ous = OrganizationalUnits(m1, DEFAULT_SUFFIX)
+    try:
+        ou_ranges = ous.get('dna_bind_ranges')
+        shared_configs = DNAPluginSharedConfigs(m1, ou_ranges.dn)
+        for cfg in shared_configs.list():
+            cfg.delete()
+    except ldap.NO_SUCH_OBJECT:
+        ou_ranges = ous.create(properties={'ou': 'dna_bind_ranges'})
+
+    repl.wait_for_replication(m1, m2)
+
+    range_configs = [
+        {'cn': 'uidNumber bind config s1', 'next': '1000', 'max': '1100'},
+        {'cn': 'uidNumber bind config s2', 'next': '2000', 'max': '1999'},
+    ]
+
+    for idx, supplier in enumerate(suppliers):
+        cfg = range_configs[idx]
+        dna_plugin = DNAPlugin(supplier)
+        local_ous = OrganizationalUnits(supplier, DEFAULT_SUFFIX)
+        local_ou_ranges = local_ous.get('dna_bind_ranges')
+
+        configs = DNAPluginConfigs(supplier, dna_plugin.dn)
+        try:
+            existing = configs.get(cfg['cn'])
+            existing.delete()
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+        dna_config = configs.create(properties={
+            'cn': cfg['cn'],
+            'dnaType': 'uidNumber',
+            'dnaNextValue': cfg['next'],
+            'dnaMaxValue': cfg['max'],
+            'dnaMagicRegen': '-1',
+            'dnaFilter': '(objectclass=posixAccount)',
+            'dnaScope': DEFAULT_SUFFIX,
+            'dnaSharedCfgDN': local_ou_ranges.dn,
+            'dnaRemoteBindDN': DN_DM,
+            'dnaRemoteBindCred': PASSWORD,
+        })
+        created_objects['dna_configs'].append((supplier, dna_config))
+        dna_plugin.enable()
+        supplier.restart()
+
+    repl.wait_for_replication(m1, suppliers[1])
+
+    def fin():
+        for supplier, config in created_objects['dna_configs']:
+            try:
+                config.delete()
+            except ldap.NO_SUCH_OBJECT:
+                pass
+            DNAPlugin(supplier).disable()
+            supplier.restart()
+          
+    request.addfinalizer(fin)
+
+    return {
+        'suppliers': suppliers,
+        'ou_ranges': ou_ranges,
+    }
+
+
+def test_dna_shared_config_bind_attrs_after_restart(topo_m2, dna_exhausted_range_bind_setup):
+    """Shared config remote bind settings survive restart with exhausted range
+
+    Regression for ticket 48362: when a DNA config defines an exhausted range,
+    the server was omitted from dna_global_servers. On restart the plugin
+    deletes and recreates the local shared config entry without preserving
+    dnaRemoteBindMethod and dnaRemoteConnProtocol.
+
+    :id: cec4f68d-f68f-40d1-bc21-afec70e1688d
+    :setup: Two suppliers with DNA plugin; supplier1 has a valid range,
+            supplier2 has an exhausted range (dnaMaxValue < dnaNextValue)
+    :steps:
+        1. Wait for DNA plugin to create shared config entries on both suppliers
+        2. Set dnaRemoteBindMethod and dnaRemoteConnProtocol on both entries
+        3. Verify attributes are present before restart
+        4. Restart both suppliers and wait for DNA shared config update event
+        5. Verify attributes are still present on both suppliers after restart
+    :expectedresults:
+        1. Two shared config entries exist on each supplier
+        2. Attributes updated successfully
+        3. dnaRemoteBindMethod=SASL/GSSAPI and dnaRemoteConnProtocol=LDAP
+        4. Suppliers restart successfully
+        5. Attributes preserved on both suppliers including the exhausted-range server
+    """
+    suppliers = dna_exhausted_range_bind_setup['suppliers']
+    ou_ranges_dn = dna_exhausted_range_bind_setup['ou_ranges'].dn
+
+    for supplier in suppliers:
+        _wait_for_shared_config_count(supplier, ou_ranges_dn, expected=2)
+
+    for supplier in suppliers:
+        shared_cfg = _get_shared_cfg_by_port(supplier, ou_ranges_dn, supplier.port)
+        assert shared_cfg is not None, (
+            f"Shared config entry for port {supplier.port} not found on {supplier}"
+        )
+        shared_cfg.replace_many(
+            ('dnaRemoteBindMethod', BIND_METHOD),
+            ('dnaRemoteConnProtocol', CONN_PROTOCOL),
+        )
+
+    for supplier in suppliers:
+        shared_cfg = _get_shared_cfg_by_port(supplier, ou_ranges_dn, supplier.port)
+        _assert_shared_cfg_remote_bind(shared_cfg)
+        supplier.restart()
+
+
+    # to allow DNA plugin to recreate the local host entry
+    time.sleep(40)
+
+    for supplier in suppliers:
+        shared_cfg = _get_shared_cfg_by_port(supplier, ou_ranges_dn, supplier.port)
+        assert shared_cfg is not None, (
+            f"Shared config entry for port {supplier.port} not found after restart on {supplier}"
+        )
+        _assert_shared_cfg_remote_bind(shared_cfg)
 
 
 if __name__ == '__main__':
