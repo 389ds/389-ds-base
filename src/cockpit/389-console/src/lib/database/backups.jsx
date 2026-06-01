@@ -699,7 +699,7 @@ export class Backups extends React.Component {
         return (
             <div>
                 <TextContent>
-                    <Text component={TextVariants.h2}>
+                    <Text component={TextVariants.h3}>
                         {_("Database Backups & LDIFs")}
                     </Text>
                 </TextContent>

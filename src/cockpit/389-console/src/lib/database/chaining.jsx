@@ -560,7 +560,9 @@ export class ChainingDatabaseConfig extends React.Component {
         return (
             <div id="chaining-page" className={this.state.saving ? "ds-disabled" : ""}>
                 <TextContent>
-                    <Text component={TextVariants.h2}>{_("Database Chaining Settings")}</Text>
+                    <Text component={TextVariants.h3}>
+                        {_("Database Chaining Settings")}
+                    </Text>
                 </TextContent>
                 <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Default Creation Settings")}</TabTitleText>}>
