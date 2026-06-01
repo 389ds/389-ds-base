@@ -202,7 +202,7 @@ export class ReplMonitor extends React.Component {
         const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
         log_cmd("loadDSRC", "Check for replication monitor configurations in the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(dsrc_content => {
                     const content = JSON.parse(dsrc_content);
                     const credRows = [];
@@ -246,7 +246,7 @@ export class ReplMonitor extends React.Component {
                 "config", "get", "nsslapd-port", "nsslapd-localhost", "nsslapd-rootdn"];
             log_cmd("ReplMonitor", "add credentials during componentDidMount", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         const config = JSON.parse(content);
                         this.setState(prevState => ({
@@ -677,7 +677,7 @@ export class ReplMonitor extends React.Component {
         const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
         log_cmd("overwriteDSRC", "gather conns and aliases from .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(dsrc_content => {
                     const content = JSON.parse(dsrc_content);
                     const dsrcCreds = [];
@@ -741,11 +741,11 @@ export class ReplMonitor extends React.Component {
                     }
                     log_cmd("overwriteDSRC", "delete conns and aliases in the .dsrc file", deleteCmd);
                     cockpit
-                            .spawn(deleteCmd, { superuser: true, err: "message" })
+                            .spawn(deleteCmd, { superuser: "require", err: "message" })
                             .done(() => {
                                 log_cmd("overwriteDSRC", "add conns and aliases in the .dsrc file", addCmd);
                                 cockpit
-                                        .spawn(addCmd, { superuser: true, err: "message" })
+                                        .spawn(addCmd, { superuser: "require", err: "message" })
                                         .done(() => {
                                             this.setState({
                                                 showConfirmOverwriteDSRC: false
@@ -863,7 +863,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("handleFullReport", "Get the report for the current instance topology", printCmd);
         // We need to set it here because 'input' will be run from inside
-        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message", directory: self.path });
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message", directory: self.path });
         // We use it in processCredsInput
         this.setState({
             fullReportProcess: proc
@@ -1134,7 +1134,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("deleteDSRCCred", "Delete a replica connection from the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.loadDSRC();
                     this.setState({
@@ -1160,7 +1160,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("deleteDSRCCred", "Delete a replication monitor alias from the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.loadDSRC();
                     this.setState({
@@ -1194,7 +1194,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("addDSRCCred", "Add a replica connection to the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.setState({
                         showAddDSRCCredModal: false,
@@ -1225,7 +1225,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("addDSRCAlias", "Add an alias to the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.setState({
                         showAddDSRCAliasModal: false,

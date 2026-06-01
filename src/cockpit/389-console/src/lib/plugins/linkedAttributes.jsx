@@ -170,7 +170,7 @@ class LinkedAttributes extends React.Component {
         ];
         log_cmd("loadConfigs", "Get Linked Attributes Plugin configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -223,7 +223,7 @@ class LinkedAttributes extends React.Component {
             log_cmd("openModal", "Fetch the Linked Attributes Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -310,7 +310,7 @@ class LinkedAttributes extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -354,7 +354,7 @@ class LinkedAttributes extends React.Component {
         log_cmd("deleteConfig", "Delete the Linked Attributes Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

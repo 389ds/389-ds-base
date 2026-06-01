@@ -325,7 +325,7 @@ export class ServerErrorLog extends React.Component {
 
         log_cmd("saveConfig", "Saving Error log settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload();
                     this.handleRefreshConfig(1);
@@ -359,7 +359,7 @@ export class ServerErrorLog extends React.Component {
         ];
         log_cmd("handleRefreshConfig", "load Error Log configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;

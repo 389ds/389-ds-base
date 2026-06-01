@@ -260,7 +260,7 @@ export class ChainingDatabaseConfig extends React.Component {
             });
             log_cmd("handleSaveChainingConfig", "Applying default chaining config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload();
@@ -327,7 +327,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
         log_cmd("saveOids", "Save new chaining OID controls", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeOidModal();
                     this.props.reload(1);
@@ -377,7 +377,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
         log_cmd("deleteOids", "Delete chaining control oid", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(1);
                     this.props.addNotification(
@@ -446,7 +446,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
         log_cmd("saveComps", "Save new chaining components", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeCompsModal();
                     this.props.reload(1);
@@ -487,7 +487,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
         log_cmd("deleteComps", "Delete chaining components", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(1);
                     this.props.addNotification(
@@ -1279,7 +1279,7 @@ export class ChainingConfig extends React.Component {
         ];
         log_cmd("deleteLink", "Delete database chaining link", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(

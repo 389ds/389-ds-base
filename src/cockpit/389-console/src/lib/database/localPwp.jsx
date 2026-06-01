@@ -1482,7 +1482,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("createPolicy", "Create a local password policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadPolicies();
                     this.setState({
@@ -1578,7 +1578,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("handleSaveGeneral", "Saving general pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1656,7 +1656,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("handleSaveExp", "Saving Expiration pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1734,7 +1734,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("handleSaveLockout", "Saving lockout pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1844,7 +1844,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("handleSaveSyntax", "Saving syntax checking pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1914,7 +1914,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("handleSaveTPR", "Saving TPR pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1950,7 +1950,7 @@ export class LocalPwPolicy extends React.Component {
         ];
         log_cmd("deletePolicy", "delete policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadPolicies();
                     this.props.addNotification(
@@ -1979,7 +1979,7 @@ export class LocalPwPolicy extends React.Component {
         ];
         log_cmd("handleLoadPolicies", "Load all the local password policies for the table", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const policy_obj = JSON.parse(content);
                     const pwpRows = [];
@@ -2167,7 +2167,7 @@ export class LocalPwPolicy extends React.Component {
                         ];
                         log_cmd("handleLoadPolicies", "Load global password policy password scheme", gcmd);
                         cockpit
-                                .spawn(gcmd, { superuser: true, err: "message" })
+                                .spawn(gcmd, { superuser: "require", err: "message" })
                                 .done(content => {
                                     const config = JSON.parse(content);
                                     const attrs = config.attrs;
@@ -2209,7 +2209,7 @@ export class LocalPwPolicy extends React.Component {
         ];
         log_cmd("loadLocal", "Load a local password policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;

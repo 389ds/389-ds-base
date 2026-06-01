@@ -131,7 +131,7 @@ export class Changelog extends React.Component {
             });
             log_cmd("handleSaveSettings", "Applying replication changelog changes", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.reloadChangelog();
                         this.props.addNotification(
@@ -195,7 +195,7 @@ export class Changelog extends React.Component {
             'replication', 'get-changelog', '--suffix', this.props.suffix];
         log_cmd("reloadChangelog", "Load the replication changelog info", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let clMaxEntries = "";

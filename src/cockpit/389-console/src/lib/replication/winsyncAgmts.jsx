@@ -567,7 +567,7 @@ export class WinsyncAgmts extends React.Component {
 
         log_cmd('showEditAgmt', 'Edit winsync agreement', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let agmtName = "";
@@ -869,7 +869,7 @@ export class WinsyncAgmts extends React.Component {
             'repl-winsync-agmt', 'poke', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('pokeAgmt', 'send updates now', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -894,7 +894,7 @@ export class WinsyncAgmts extends React.Component {
             'repl-winsync-agmt', 'init', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('initAgmt', 'Initialize winsync agreement', init_cmd);
         cockpit
-                .spawn(init_cmd, { superuser: true, err: "message" })
+                .spawn(init_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const agmtIntervalCount = this.state.agmtInitCounter + 1;
                     const intervals = this.state.agmtInitIntervals;
@@ -960,7 +960,7 @@ export class WinsyncAgmts extends React.Component {
             modalSpinning: true
         });
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -985,7 +985,7 @@ export class WinsyncAgmts extends React.Component {
             modalSpinning: true
         });
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1009,7 +1009,7 @@ export class WinsyncAgmts extends React.Component {
             'repl-winsync-agmt', 'delete', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('deleteAgmt', 'Delete agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1126,7 +1126,7 @@ export class WinsyncAgmts extends React.Component {
             'repl-winsync-agmt', 'init-status', '--suffix=' + this.props.suffix, agmtName];
         log_cmd('watchAgmtInit', 'Get initialization status for agmt', status_cmd);
         cockpit
-                .spawn(status_cmd, { superuser: true, err: "message" })
+                .spawn(status_cmd, { superuser: "require", err: "message" })
                 .done(data => {
                     const init_status = JSON.parse(data);
                     if (init_status.startsWith('Agreement successfully initialized') ||

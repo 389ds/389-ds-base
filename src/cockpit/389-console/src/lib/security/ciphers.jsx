@@ -163,7 +163,7 @@ export class Ciphers extends React.Component {
         ];
         log_cmd("saveCipherPref", "Saving cipher preferences", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.props.addNotification(
                         "success",

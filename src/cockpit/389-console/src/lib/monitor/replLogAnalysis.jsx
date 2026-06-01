@@ -210,7 +210,7 @@ export class ReplLogAnalysis extends React.Component {
             }
 
             cockpit
-                .spawn(["test", "-d", path], { superuser: true, err: "message" })
+                .spawn(["test", "-d", path], { superuser: "require", err: "message" })
                 .then(() => resolve(true))
                 .catch(() => resolve(false));
         });
@@ -585,7 +585,7 @@ export class ReplLogAnalysis extends React.Component {
 
         // Execute command
         cockpit
-            .spawn(cmd, { superuser: true, err: "message" })
+            .spawn(cmd, { superuser: "require", err: "message" })
             .done(content => {
                 try {
                     let result;
@@ -749,7 +749,7 @@ export class ReplLogAnalysis extends React.Component {
         });
 
         cockpit
-            .spawn(["find", path, "-maxdepth", "1", "-type", "d", "-not", "-path", "*/\\.*"], { superuser: true, err: "message" })
+            .spawn(["find", path, "-maxdepth", "1", "-type", "d", "-not", "-path", "*/\\.*"], { superuser: "require", err: "message" })
             .then(output => {
                 const dirs = output.trim().split('\n')
                     .filter(dir => dir !== path) // Remove the current directory from the list

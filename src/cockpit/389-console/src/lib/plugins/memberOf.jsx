@@ -725,7 +725,7 @@ class MemberOf extends React.Component {
             log_cmd("handleRunFixup", "Run fixup MemberOf Plugin ", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -793,7 +793,7 @@ class MemberOf extends React.Component {
             log_cmd("openMemberOfModal", "Fetch the MemberOf Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -1053,7 +1053,7 @@ class MemberOf extends React.Component {
             log_cmd("memberOfOperation", `Do the ${action} operation on the MemberOf Plugin`, cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -1102,7 +1102,7 @@ class MemberOf extends React.Component {
         log_cmd("deleteConfig", "Delete the MemberOf Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -1373,7 +1373,7 @@ class MemberOf extends React.Component {
         log_cmd("handleSaveConfig", `Save MemberOf Plugin`, cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -1488,7 +1488,7 @@ class MemberOf extends React.Component {
         log_cmd("handleAddDelSpecificGroupFilter", op, cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

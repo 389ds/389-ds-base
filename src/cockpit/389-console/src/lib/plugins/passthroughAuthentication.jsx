@@ -212,7 +212,7 @@ class PassthroughAuthentication extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("loadURLs", "Get Passthrough Authentication Plugin Configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -302,7 +302,7 @@ class PassthroughAuthentication extends React.Component {
         log_cmd("deleteURL", "Delete the Passthrough Authentication Plugin URL entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -372,7 +372,7 @@ class PassthroughAuthentication extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

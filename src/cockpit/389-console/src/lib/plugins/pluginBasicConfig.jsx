@@ -87,7 +87,7 @@ class PluginBasicConfig extends React.Component {
         this.setState({ disableSwitch: true });
         log_cmd("handleSwitchChange", "Switch plugin states from the plugin tab", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     pluginListHandler();
@@ -97,7 +97,7 @@ class PluginBasicConfig extends React.Component {
                     ];
                     log_cmd("handleSwitchChange", "Get Dynamic Plugins attribute", successCheckCMD);
                     cockpit
-                            .spawn(successCheckCMD, { superuser: true, err: "message" })
+                            .spawn(successCheckCMD, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 let dynamicPluginEnabled;

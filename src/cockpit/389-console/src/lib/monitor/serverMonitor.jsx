@@ -154,7 +154,7 @@ export class ServerMonitor extends React.Component {
             "monitor", "server", "--just-resources"
         ];
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const data = JSON.parse(content);
                     const attrs = data.attrs;
