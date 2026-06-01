@@ -7,7 +7,6 @@ import {
 	Alert,
 	Button,
 	Checkbox,
-	ExpandableSection,
 	Form,
 	FormAlert,
 	FormHelperText,
@@ -15,6 +14,8 @@ import {
 	FormSelectOption,
 	Grid,
 	GridItem,
+	Modal,
+	ModalVariant,
 	Spinner,
 	Tab,
 	Tabs,
@@ -92,41 +93,50 @@ const tpr_attrs = [
     "passwordtprdelayvalidfrom",
 ];
 
+const edit_policy_attrs = general_attrs.concat(
+    exp_attrs,
+    lockout_attrs,
+    syntax_attrs,
+    tpr_attrs
+);
+
+function attrValuesDiffer(attr, orig, cur) {
+    if (attr === "passworduserattributes") {
+        const orig_val = Array.isArray(orig) ? orig.join(" ") : (orig || "");
+        const new_val = Array.isArray(cur) ? cur.join(" ") : (cur || "");
+        return orig_val !== new_val;
+    }
+    return orig !== cur;
+}
+
+function computeSaveEditDisabled(state) {
+    const hasChanges = edit_policy_attrs.some((attr) =>
+        attrValuesDiffer(attr, state["_" + attr], state[attr])
+    );
+    if (!hasChanges) {
+        return true;
+    }
+    return hasInvalidField(edit_policy_attrs, state.invalidFields);
+}
+
+function formatAttrValueForCmd(attr, val) {
+    if (attr === "passworduserattributes") {
+        return Array.isArray(val) ? val.join(" ") : val;
+    }
+    if (typeof val === "boolean") {
+        return val ? "on" : "off";
+    }
+    return val;
+}
+
 class CreatePolicy extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            isExpiredExpanded: false,
-            isGeneralExpanded: false,
-            isLockoutExpanded: false,
-            isSyntaxExpanded: false,
-            isTPRExpanded: false,
+            createActiveTabKey: 0,
         };
-
-        this.handleGeneralToggle = (_event, isGeneralExpanded) => {
-            this.setState({
-                isGeneralExpanded
-            });
-        };
-        this.handleLockoutToggle = (_event, isLockoutExpanded) => {
-            this.setState({
-                isLockoutExpanded
-            });
-        };
-        this.handleExpiredToggle = (_event, isExpiredExpanded) => {
-            this.setState({
-                isExpiredExpanded
-            });
-        };
-        this.handleSyntaxToggle = (_event, isSyntaxExpanded) => {
-            this.setState({
-                isSyntaxExpanded
-            });
-        };
-        this.handleTPRToggle = (_event, isTPRExpanded) => {
-            this.setState({
-                isTPRExpanded
-            });
+        this.handleCreateNavSelect = (_event, tabIndex) => {
+            this.setState({ createActiveTabKey: tabIndex });
         };
     }
 
@@ -137,13 +147,8 @@ class CreatePolicy extends React.Component {
         }
 
         return (
-            <div className="ds-margin-bottom-md">
-                <Form className="ds-margin-left ds-margin-top-xlg" isHorizontal autoComplete="off">
-                    <TextContent>
-                        <Text className="ds-center" component={TextVariants.h3}>
-                            {_("Create A New Local Password Policy")}
-                        </Text>
-                    </TextContent>
+            <>
+                <Form className="ds-margin-left" isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top-lg">
                         <GridItem className="ds-label" span={3}>
                             {_("Password Policy Type")}
@@ -176,14 +181,10 @@ class CreatePolicy extends React.Component {
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isGeneralExpanded ? _("Hide General Settings") : _("Show General Settings")}
-                        onToggle={(event, isOpen) => this.handleGeneralToggle(event, isOpen)}
-                        isExpanded={this.state.isGeneralExpanded}
-                    >
-                        <div className="ds-margin-left">
+                </Form>
+                <Tabs className="ds-margin-top-lg" activeKey={this.state.createActiveTabKey} onSelect={this.handleCreateNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
+                        <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid className="ds-margin-top" title={_("Set the password storage scheme (passwordstoragescheme).")}>
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Storage Scheme")}
@@ -209,7 +210,6 @@ class CreatePolicy extends React.Component {
                             </Grid>
                             <Grid
                                 title={_("Indicates the number of seconds that must pass before a user can change their password again. (passwordMinAge).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Minimum Age")}
@@ -230,7 +230,6 @@ class CreatePolicy extends React.Component {
                                 {renderValidationError("create_passwordminage", this.props.invalidCreateFields)}
                             </Grid>
                             <Grid
-                                className="ds-margin-top"
                                 title={_("The DN for a password administrator or administrator group (passwordAdminDN).")}
                             >
                                 <GridItem className="ds-label" span={3}>
@@ -249,23 +248,11 @@ class CreatePolicy extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                className="ds-margin-top"
-                                title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
-                            >
-                                <GridItem offset={3} span={9}>
-                                    <Checkbox
-                                        id="create_passwordadminskipinfoupdate"
-                                        isChecked={this.props.create_passwordadminskipinfoupdate}
-                                        onChange={(e, checked) => {
-                                            this.props.handleChange(e);
-                                        }}
-                                        label={_("Do not update target entry's password state attributes")}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}>
-                                <GridItem span={12}>
+                            <Grid hasGutter>
+                                <GridItem
+                                    span={6}
+                                    title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}
+                                >
                                     <Checkbox
                                         id="create_passwordtrackupdatetime"
                                         isChecked={this.props.create_passwordtrackupdatetime}
@@ -275,9 +262,7 @@ class CreatePolicy extends React.Component {
                                         label={_("Track Password Update Time")}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("Allow user's to change their passwords (passwordChange).")}>
-                                <GridItem span={12}>
+                                <GridItem span={6} title={_("Allow user's to change their passwords (passwordChange).")}>
                                     <Checkbox
                                         id="create_passwordchange"
                                         isChecked={this.props.create_passwordchange}
@@ -287,9 +272,7 @@ class CreatePolicy extends React.Component {
                                         label={_("Allow Users To Change Their Passwords")}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
-                                <GridItem span={12}>
+                                <GridItem span={6} title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
                                     <Checkbox
                                         id="create_passwordmustchange"
                                         isChecked={this.props.create_passwordmustchange}
@@ -299,9 +282,20 @@ class CreatePolicy extends React.Component {
                                         label={_("User Must Change Password After Reset")}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("Maintain a password history for each user (passwordHistory).")}>
-                                <GridItem span={12}>
+                                <GridItem
+                                    span={6}
+                                    title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
+                                >
+                                    <Checkbox
+                                        id="create_passwordadminskipinfoupdate"
+                                        isChecked={this.props.create_passwordadminskipinfoupdate}
+                                        onChange={(e, checked) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label={_("Do not update target entry's password state attributes")}
+                                    />
+                                </GridItem>
+                                <GridItem span={6} title={_("Maintain a password history for each user (passwordHistory).")}>
                                     <div className="ds-inline">
                                         <Checkbox
                                             id="create_passwordhistory"
@@ -328,16 +322,10 @@ class CreatePolicy extends React.Component {
                                     </div>
                                 </GridItem>
                             </Grid>
-                        </div>
-                    </ExpandableSection>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isExpiredExpanded ? _("Hide Expiration Settings") : _("Show Expiration Settings")}
-                        onToggle={(event, isOpen) => this.handleExpiredToggle(event, isOpen)}
-                        isExpanded={this.state.isExpiredExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Expiration")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             <Grid className="ds-margin-top" title={_("Enable a password expiration policy (passwordExp).")}>
                                 <GridItem span={12}>
                                     <Checkbox
@@ -353,7 +341,6 @@ class CreatePolicy extends React.Component {
                             <div className="ds-left-indent">
                                 <Grid
                                     title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}
-                                    className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         {_("Password Expiration Time")}
@@ -369,7 +356,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
+                                            isDisabled={!this.props.create_passwordexp}
                                         />
                                     </GridItem>
                                     {renderValidationError("create_passwordmaxage", this.props.invalidCreateFields)}
@@ -389,7 +376,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
+                                            isDisabled={!this.props.create_passwordexp}
                                         />
                                     </GridItem>
                                     {renderValidationError("create_passwordgracelimit", this.props.invalidCreateFields)}
@@ -409,7 +396,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
+                                            isDisabled={!this.props.create_passwordexp}
                                         />
                                     </GridItem>
                                     {renderValidationError("create_passwordwarning", this.props.invalidCreateFields)}
@@ -422,23 +409,17 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
+                                            isDisabled={!this.props.create_passwordexp}
                                             label={_("Always send Password Expiring Control")}
                                             className="ds-lower-field"
                                         />
                                     </GridItem>
                                 </Grid>
                             </div>
-                        </div>
-                    </ExpandableSection>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isLockoutExpanded ? _("Hide Lockout Settings") : _("Show Lockout Settings")}
-                        onToggle={(event, isOpen) => this.handleLockoutToggle(event, isOpen)}
-                        isExpanded={this.state.isLockoutExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Account Lockout")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             <Grid className="ds-margin-top" title={_("Enable account lockout (passwordLockout).")}>
                                 <GridItem span={12}>
                                     <Checkbox
@@ -452,7 +433,7 @@ class CreatePolicy extends React.Component {
                                 </GridItem>
                             </Grid>
                             <div className="ds-left-indent">
-                                <Grid className="ds-margin-top" title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
+                                <Grid title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
                                     <GridItem className="ds-label" span={4}>
                                         {_("Number of Failed Logins That Locks out Account")}
                                     </GridItem>
@@ -467,7 +448,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
+                                            isDisabled={!this.props.create_passwordlockout}
                                         />
                                     </GridItem>
                                     {renderValidationError("create_passwordmaxfailure", this.props.invalidCreateFields)}
@@ -487,7 +468,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
+                                            isDisabled={!this.props.create_passwordlockout}
                                         />
                                     </GridItem>
                                     {renderValidationError("create_passwordresetfailurecount", this.props.invalidCreateFields)}
@@ -507,7 +488,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
+                                            isDisabled={!this.props.create_passwordlockout}
                                         />
                                     </GridItem>
                                     {renderValidationError("create_passwordlockoutduration", this.props.invalidCreateFields)}
@@ -520,22 +501,16 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
+                                            isDisabled={!this.props.create_passwordlockout}
                                             label={_("Do Not Lockout Account Forever")}
                                         />
                                     </GridItem>
                                 </Grid>
                             </div>
-                        </div>
-                    </ExpandableSection>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isSyntaxExpanded ? _("Hide Syntax Settings") : _("Show Syntax Settings")}
-                        onToggle={(event, isOpen) => this.handleSyntaxToggle(event, isOpen)}
-                        isExpanded={this.state.isSyntaxExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText>{_("Syntax Checking")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             <Grid title={_("Enable password syntax checking (passwordCheckSyntax).")}>
                                 <GridItem span={12}>
                                     <Checkbox
@@ -549,7 +524,7 @@ class CreatePolicy extends React.Component {
                                 </GridItem>
                             </Grid>
                             <div className="ds-left-indent">
-                                <Grid className="ds-margin-top">
+                                <Grid>
                                     <GridItem className="ds-label" span={3}>
                                         {_("Minimum Length")}
                                     </GridItem>
@@ -565,7 +540,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordminlength", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordminlength", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -584,7 +559,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordmaxrepeats", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmaxrepeats", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -604,7 +579,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -616,7 +591,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                             label={_("Dictionary Check")}
                                         />
                                     </GridItem>
@@ -630,7 +605,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                             label={_("Reject Palindromes")}
                                         />
                                     </GridItem>
@@ -656,7 +631,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordminalphas", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordminalphas", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -675,7 +650,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordmindigits", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmindigits", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -696,7 +671,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordminuppers", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordminuppers", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -715,7 +690,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordminlowers", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordminlowers", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -736,7 +711,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordminspecials", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordminspecials", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -755,7 +730,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordmin8bit", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmin8bit", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -776,7 +751,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordmincategories", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmincategories", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -802,7 +777,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmaxsequence", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -821,7 +796,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmaxseqsets", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -842,7 +817,7 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmaxclasschars", this.props.invalidCreateFields)}
                                     </GridItem>
@@ -858,7 +833,7 @@ class CreatePolicy extends React.Component {
                                     </GridItem>
                                     <GridItem span={7}>
                                         <TypeaheadSelect
-                                            selected={this.props.passworduserattributes}
+                                            selected={this.props.create_passworduserattributes}
                                             onSelect={this.props.handleChange}
                                             onClear={this.props.onUserAttrsCreateClear}
                                             options={this.props.attrs}
@@ -868,7 +843,7 @@ class CreatePolicy extends React.Component {
                                             noResultsText={_("There are no matching entries")}
                                             ariaLabel="Type an attribute to check"
                                             isMulti={true}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -887,23 +862,18 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             {...getValidationProps("create_passwordmintokenlength", this.props.invalidCreateFields)}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                         {renderValidationError("create_passwordmintokenlength", this.props.invalidCreateFields)}
                                     </GridItem>
                                 </Grid>
                             </div>
-                        </div>
-                    </ExpandableSection>
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isTPRExpanded ? _("Hide Temporary Password Settings") : _("Show Temporary Password Settings")}
-                        onToggle={(event, isOpen) => this.handleTPRToggle(event, isOpen)}
-                        isExpanded={this.state.isTPRExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={4} title={<TabTitleText>{_("Temporary Password Rules")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             {this.props.create_passwordmustchange === false && (
-                                <FormAlert>
+                                <FormAlert className="ds-margin-top">
                                     <Alert
                                         variant="info"
                                         title={_("\"User Must Change Password After Reset\" must be enabled in General Settings to activate TPR.")}
@@ -914,7 +884,6 @@ class CreatePolicy extends React.Component {
                             )}
                             <Grid
                                 title={_("Number of times the temporary password can be used to authenticate (passwordTPRMaxUse).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Max Use")}
@@ -935,7 +904,6 @@ class CreatePolicy extends React.Component {
                             </Grid>
                             <Grid
                                 title={_("Number of seconds before the temporary password expires (passwordTPRDelayExpireAt).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Expires In")}
@@ -956,7 +924,6 @@ class CreatePolicy extends React.Component {
                             </Grid>
                             <Grid
                                 title={_("Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Valid From")}
@@ -975,21 +942,14 @@ class CreatePolicy extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                        </div>
-                    </ExpandableSection>
-                </Form>
-                <Button
-                    isDisabled={this.props.createDisabled}
-                    variant="primary"
-                    className="ds-margin-top-lg ds-margin-left"
-                    onClick={this.props.handleCreatePolicy}
-                >
-                    {_("Create New Policy")}
-                </Button>
-            </div>
+                        </Form>
+                    </Tab>
+                </Tabs>
+            </>
         );
     }
 }
+
 
 export class LocalPwPolicy extends React.Component {
     constructor(props) {
@@ -998,7 +958,8 @@ export class LocalPwPolicy extends React.Component {
             loading: true,
             loaded: false,
             activeTabKey: 0,
-            localActiveTabKey: 0,
+            showCreateModal: false,
+            showEditModal: false,
             modalChecked: false,
             editPolicy: false,
             tableLoading: false,
@@ -1008,18 +969,14 @@ export class LocalPwPolicy extends React.Component {
             policyName: "",
             deleteName: "",
             createDisabled: true,
+            creating: false,
             createPolicyType: "Subtree Policy",
             // Lists of all the attributes for each tab/section.
             // We use the exact attribute name for the ID of
             // each field, so we can loop over them to efficently
             // check for changes, and updating/saving the config.
             rows: [],
-            saveGeneralDisabled: true,
-            saveUserDisabled: true,
-            saveExpDisabled: true,
-            saveLockoutDisabled: true,
-            saveSyntaxDisabled: true,
-            saveTPRDisabled: true,
+            saveEditDisabled: true,
             showDeletePolicy: false,
             // Edit policy
             passwordchange: false,
@@ -1269,11 +1226,10 @@ export class LocalPwPolicy extends React.Component {
             });
         };
 
-        this.handleLocalNavSelect = (event, tabIndex) => {
-            this.setState({
-                localActiveTabKey: tabIndex
-            });
-        };
+        this.openCreateModal = this.openCreateModal.bind(this);
+        this.closeCreateModal = this.closeCreateModal.bind(this);
+        this.closeEditModal = this.closeEditModal.bind(this);
+        this.getCreatePolicyProps = this.getCreatePolicyProps.bind(this);
 
         this.handleSelectToggle = (_event, isSelectOpen) => {
             this.setState({
@@ -1300,12 +1256,7 @@ export class LocalPwPolicy extends React.Component {
         this.handleTPRChange = this.handleTPRChange.bind(this);
         this.loadLocal = this.loadLocal.bind(this);
         this.handleLoadPolicies = this.handleLoadPolicies.bind(this);
-        this.handleResetTab = this.handleResetTab.bind(this);
-        this.handleSaveExp = this.handleSaveExp.bind(this);
-        this.handleSaveGeneral = this.handleSaveGeneral.bind(this);
-        this.handleSaveLockout = this.handleSaveLockout.bind(this);
-        this.handleSaveSyntax = this.handleSaveSyntax.bind(this);
-        this.handleSaveTPR = this.handleSaveTPR.bind(this);
+        this.handleSavePolicy = this.handleSavePolicy.bind(this);
         this.showDeletePolicy = this.showDeletePolicy.bind(this);
     }
 
@@ -1333,9 +1284,56 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    handleResetTab() {
-        // Reset to the table tab
-        this.setState({ localActiveTabKey: 0 });
+    openCreateModal() {
+        this.setState({
+            showCreateModal: true,
+            createDisabled: true,
+            creating: false,
+            policyDN: "",
+            invalid_dn: false,
+            invalidCreateFields: {},
+            createPolicyType: "Subtree Policy",
+        });
+    }
+
+    closeCreateModal() {
+        this.setState({
+            showCreateModal: false,
+            creating: false,
+        });
+    }
+
+    closeEditModal() {
+        this.setState({
+            showEditModal: false,
+            editPolicy: false,
+        });
+    }
+
+    getCreatePolicyProps() {
+        const props = {
+            handleChange: this.onCreateChange,
+            handleSelectChange: this.onCreateSelectChange,
+            attrs: this.props.attrs,
+            passwordexp: this.state.create_passwordexp,
+            passwordchecksyntax: this.state.create_passwordchecksyntax,
+            passwordlockout: this.state.create_passwordlockout,
+            createDisabled: this.state.createDisabled,
+            passworduserattributes: this.state.create_passworduserattributes,
+            invalid_dn: this.state.invalid_dn,
+            policyDN: this.state.policyDN,
+            createPolicyType: this.state.createPolicyType,
+            pwdStorageSchemes: this.props.pwdStorageSchemes,
+            invalidCreateFields: this.state.invalidCreateFields,
+            onUserAttrsCreateToggle: this.handleUserAttrsCreateToggle,
+            onUserAttrsCreateClear: this.handleUserAttrsCreateClear,
+            isUserAttrsCreateOpen: this.state.isUserAttrsCreateOpen,
+        };
+        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs, tpr_attrs);
+        for (const attr of all_attrs) {
+            props['create_' + attr] = this.state['create_' + attr];
+        }
+        return props;
     }
 
     onModalChange(e) {
@@ -1448,7 +1446,7 @@ export class LocalPwPolicy extends React.Component {
         let action = "adduser";
 
         this.setState({
-            loading: true
+            creating: true,
         });
 
         if (this.state.createPolicyType === "Subtree Policy") {
@@ -1484,10 +1482,11 @@ export class LocalPwPolicy extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.handleLoadPolicies();
                     this.setState({
-                        loading: false,
+                        creating: false,
+                        showCreateModal: false,
                     });
+                    this.handleLoadPolicies();
                     let message;
                     let type = "success";
 
@@ -1515,7 +1514,7 @@ export class LocalPwPolicy extends React.Component {
                     const errMsg = getApiErrorMessage(err);
                     this.handleLoadPolicies();
                     this.setState({
-                        loading: false
+                        creating: false,
                     });
                     this.props.addNotification(
                         "error",
@@ -1524,424 +1523,113 @@ export class LocalPwPolicy extends React.Component {
                 });
     }
 
-    handleGeneralChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const general_attr of general_attrs) {
-            if (attr === general_attr && this.state['_' + general_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const general_attr of general_attrs) {
-            if (attr !== general_attr && this.state['_' + general_attr] !== this.state[general_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
+    updateEditPolicyField(attr, value, extraState = {}) {
+        const invalidFields = updateFieldValidation(
+            this.state.invalidFields,
+            attr,
+            value
+        );
+        const nextState = {
+            ...this.state,
+            ...extraState,
             [attr]: value,
-            saveGeneralDisabled: disableSaveBtn,
-            invalidFields: updateFieldValidation(this.state.invalidFields, attr, value),
+            invalidFields,
+        };
+        this.setState({
+            ...extraState,
+            [attr]: value,
+            invalidFields,
+            saveEditDisabled: computeSaveEditDisabled(nextState),
         });
     }
 
-    handleSaveGeneral() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of general_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveGeneral", "Saving general pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = getApiErrorMessage(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
-                    );
-                });
+    handleGeneralChange(e) {
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.updateEditPolicyField(e.target.id, value);
     }
 
     handleExpChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const exp_attr of exp_attrs) {
-            if (attr === exp_attr && this.state['_' + exp_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const exp_attr of exp_attrs) {
-            if (attr !== exp_attr && this.state['_' + exp_attr] !== this.state[exp_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveExpDisabled: disableSaveBtn,
-            invalidFields: updateFieldValidation(this.state.invalidFields, attr, value),
-        });
-    }
-
-    handleSaveExp() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of exp_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveExp", "Saving Expiration pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = getApiErrorMessage(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
-                    );
-                });
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.updateEditPolicyField(e.target.id, value);
     }
 
     handleLockoutChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const lockout_attr of lockout_attrs) {
-            if (attr === lockout_attr && this.state['_' + lockout_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const lockout_attr of lockout_attrs) {
-            if (attr !== lockout_attr && this.state['_' + lockout_attr] !== this.state[lockout_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveLockoutDisabled: disableSaveBtn,
-            invalidFields: updateFieldValidation(this.state.invalidFields, attr, value),
-        });
-    }
-
-    handleSaveLockout() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of lockout_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveLockout", "Saving lockout pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = getApiErrorMessage(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
-                    );
-                });
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.updateEditPolicyField(e.target.id, value);
     }
 
     handleSyntaxChange(e, selection) {
-        let attr;
-        let value;
         if (selection) {
-            attr = "passworduserattributes";
-            value = selection;
+            const attr = "passworduserattributes";
+            const value = Array.isArray(selection) ? selection : [];
+            this.updateEditPolicyField(attr, value, { isUserAttrsEditOpen: false });
         } else {
-            value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-            attr = e.target.id;
+            const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+            this.updateEditPolicyField(e.target.id, value, { isUserAttrsEditOpen: false });
         }
-        let disableSaveBtn = true;
-        // Check if a setting was changed, if so enable the save button
-        for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr === 'passworduserattributes' && attr === 'passworduserattributes') {
-                const orig_val = this.state['_' + syntax_attr].join(' ');
-                if (orig_val !== value) {
-                    value = selection; // restore value
-                    disableSaveBtn = false;
-                    break;
-                }
-                value = selection; // restore value
-            } else if (attr === syntax_attr && this.state['_' + syntax_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr === 'passworduserattributes' && attr !== 'passworduserattributes') {
-                // Typeahead attribute needs special care
-                const orig_val = this.state['_' + syntax_attr].join(' ');
-                const new_val = this.state[syntax_attr].join(' ');
-                if (orig_val !== new_val) {
-                    disableSaveBtn = false;
-                    break;
-                }
-            } else if (attr !== syntax_attr && this.state['_' + syntax_attr] !== this.state[syntax_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        if (selection) {
-            this.setState({
-                [attr]: Array.isArray(selection) ? selection : [],
-                saveSyntaxDisabled: disableSaveBtn,
-                invalidFields: updateFieldValidation(this.state.invalidFields, attr, value),
-                isUserAttrsEditOpen: false
-            });
-        } else {
-            this.setState({
-                [attr]: value,
-                saveSyntaxDisabled: disableSaveBtn,
-                invalidFields: updateFieldValidation(this.state.invalidFields, attr, value),
-                isUserAttrsEditOpen: false
-            });
-        }
-    }
-
-    handleSaveSyntax() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of syntax_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveSyntax", "Saving syntax checking pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = getApiErrorMessage(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
-                    );
-                });
     }
 
     handleTPRChange(e) {
-        const value = e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const tpr_attr of tpr_attrs) {
-            if (attr === tpr_attr && this.state['_' + tpr_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const tpr_attr of tpr_attrs) {
-            if (attr !== tpr_attr && this.state['_' + tpr_attr] !== this.state[tpr_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveTPRDisabled: disableSaveBtn,
-        });
+        this.updateEditPolicyField(e.target.id, e.target.value);
     }
 
-    handleSaveTPR() {
+    handleSavePolicy() {
         this.setState({
-            saving: true
+            saving: true,
         });
 
         const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp",
+            "set",
+            this.state.policyName,
         ];
 
-        for (const attr of tpr_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                const val = this.state[attr];
+        for (const attr of edit_policy_attrs) {
+            if (attrValuesDiffer(attr, this.state["_" + attr], this.state[attr])) {
+                const val = formatAttrValueForCmd(attr, this.state[attr]);
                 cmd.push(this.state.attrMap[attr] + "=" + val);
             }
         }
 
-        log_cmd("handleSaveTPR", "Saving TPR pwpolicy settings", cmd);
+        log_cmd("handleSavePolicy", "Saving local password policy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        saving: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = getApiErrorMessage(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        saving: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg)
-                    );
+            .spawn(cmd, { superuser: true, err: "message" })
+            .done(() => {
+                this.setState({
+                    saving: false,
+                    showEditModal: false,
+                    editPolicy: false,
                 });
+                this.handleLoadPolicies();
+                this.props.addNotification(
+                    "success",
+                    _("Successfully updated password policy configuration")
+                );
+            })
+            .fail((err) => {
+                const errMsg = getApiErrorMessage(err);
+                this.loadLocal(this.state.policyName);
+                this.setState({
+                    saving: false,
+                });
+                this.props.addNotification(
+                    "error",
+                    cockpit.format(
+                        _("Error updating password policy configuration - $0"),
+                        errMsg
+                    )
+                );
+            });
     }
 
     deletePolicy() {
         this.setState({
             loading: true,
             editPolicy: false,
+            showEditModal: false,
         });
 
         const cmd = [
@@ -1991,12 +1679,13 @@ export class LocalPwPolicy extends React.Component {
                         pwpRows.push([row.targetdn, row.pwp_type, basedn]);
                     }
                     this.setState({
-                        localActiveTabKey: 0,
-                        activeKey: 0,
+                        activeTabKey: 0,
                         rows: pwpRows,
                         loaded: true,
                         loading: false,
                         editPolicy: false,
+                        showCreateModal: false,
+                        showEditModal: false,
                         policyDN: "",
                         createPolicyType: "Subtree Policy",
                         policyName: "",
@@ -2005,11 +1694,7 @@ export class LocalPwPolicy extends React.Component {
                         invalidFields: {},
                         invalidCreateFields: {},
                         // Reset edit and create tab
-                        saveGeneralDisabled: true,
-                        saveUserDisabled: true,
-                        saveExpDisabled: true,
-                        saveLockoutDisabled: true,
-                        saveSyntaxDisabled: true,
+                        saveEditDisabled: true,
                         // Edit policy
                         passwordchange: false,
                         passwordmustchange: false,
@@ -2203,6 +1888,14 @@ export class LocalPwPolicy extends React.Component {
     }
 
     loadLocal(name) {
+        this.setState({
+            loading: true,
+            showEditModal: true,
+            editPolicy: false,
+            policyName: name,
+            activeTabKey: 0,
+        });
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "localpwp", "get", name
@@ -2394,15 +2087,11 @@ export class LocalPwPolicy extends React.Component {
                     this.setState({
                         editPolicy: true,
                         loading: false,
-                        localActiveTabKey: 1,
-                        activeKey: 0,
+                        showEditModal: true,
+                        activeTabKey: 0,
                         policyName: name,
                         policyType: config.pwp_type,
-                        saveGeneralDisabled: true,
-                        saveUserDisabled: true,
-                        saveExpDisabled: true,
-                        saveLockoutDisabled: true,
-                        saveSyntaxDisabled: true,
+                        saveEditDisabled: true,
                         // Settings
                         passwordchange: pwChange,
                         passwordmustchange: pwMustChange,
@@ -2492,6 +2181,8 @@ export class LocalPwPolicy extends React.Component {
                     this.setState({
                         loaded: true,
                         loading: false,
+                        showEditModal: false,
+                        editPolicy: false,
                     });
                     this.props.addNotification(
                         "error",
@@ -2501,22 +2192,22 @@ export class LocalPwPolicy extends React.Component {
     }
 
     render() {
-        let edit_tab = "";
+        let editPolicyTabs = null;
         let pwExpirationRows = "";
         let pwLockoutRows = "";
         let pwSyntaxRows = "";
 
-        let saveBtnName = _("Save");
-        const extraPrimaryProps = {};
+        let editSaveBtnName = _("Save");
+        const editSaveExtraPrimaryProps = {};
         if (this.state.saving) {
-            saveBtnName = _("Saving ...");
-            extraPrimaryProps.spinnerAriaValueText = _("Saving");
+            editSaveBtnName = _("Saving ...");
+            editSaveExtraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         if (this.state.passwordchecksyntax) {
             pwSyntaxRows = (
                 <div className="ds-margin-left">
-                    <Grid className="ds-margin-top">
+                    <Grid>
                         <GridItem className="ds-label" span={3}>
                             {_("Minimum Length")}
                         </GridItem>
@@ -2926,7 +2617,7 @@ export class LocalPwPolicy extends React.Component {
         if (this.state.passwordexp) {
             pwExpirationRows = (
                 <div className="ds-margin-left">
-                    <Grid className="ds-margin-top" title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}>
+                    <Grid title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}>
                         <GridItem className="ds-label" span={5}>
                             {_("Password Expiration Time")}
                         </GridItem>
@@ -2999,29 +2690,28 @@ export class LocalPwPolicy extends React.Component {
             );
         }
 
-        if (!this.state.editPolicy) {
-            edit_tab = (
-                <div className="ds-margin-top-xlg ds-center">
-                    <TextContent>
-                        <Text className="ds-center" component={TextVariants.h3}>
-                            {_("Please choose a policy from the ")}<a onClick={this.handleResetTab}>{_("Local Policy Table")}</a>.
-                        </Text>
-                    </TextContent>
+        if (this.state.showEditModal && this.state.loading && !this.state.editPolicy) {
+            editPolicyTabs = (
+                <div className="ds-center ds-margin-top-xlg">
+                    <Spinner size="xl" />
                 </div>
             );
-        } else {
-            edit_tab = (
-                <div className={this.state.loading ? 'ds-fadeout ds-left-margin' : 'ds-fadein ds-left-margin'}>
+        } else if (this.state.editPolicy) {
+            editPolicyTabs = (
+                <div className="ds-left-margin">
                     <TextContent>
-                        <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
+                        <Text className="ds-margin-top" component={TextVariants.h4}>
                             <b>{this.state.policyName}</b> <font size="2">({this.state.policyType})</font>
                         </Text>
                     </TextContent>
                     <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
                             <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal autoComplete="off">
-                                <Grid title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}>
-                                    <GridItem span={12}>
+                                <Grid hasGutter>
+                                    <GridItem
+                                        span={6}
+                                        title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}
+                                    >
                                         <Checkbox
                                             id="passwordtrackupdatetime"
                                             isChecked={this.state.passwordtrackupdatetime}
@@ -3031,9 +2721,7 @@ export class LocalPwPolicy extends React.Component {
                                             label={_("Track Password Update Time")}
                                         />
                                     </GridItem>
-                                </Grid>
-                                <Grid title={_("Allow user's to change their passwords (passwordChange).")}>
-                                    <GridItem span={12}>
+                                    <GridItem span={6} title={_("Allow user's to change their passwords (passwordChange).")}>
                                         <Checkbox
                                             id="passwordchange"
                                             isChecked={this.state.passwordchange}
@@ -3043,9 +2731,7 @@ export class LocalPwPolicy extends React.Component {
                                             label={_("Allow Users To Change Their Passwords")}
                                         />
                                     </GridItem>
-                                </Grid>
-                                <Grid title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
-                                    <GridItem span={12}>
+                                    <GridItem span={6} title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
                                         <Checkbox
                                             id="passwordmustchange"
                                             isChecked={this.state.passwordmustchange}
@@ -3055,9 +2741,20 @@ export class LocalPwPolicy extends React.Component {
                                             label={_("User Must Change Password After Reset")}
                                         />
                                     </GridItem>
-                                </Grid>
-                                <Grid title={_("Maintain a password history for each user (passwordHistory).")}>
-                                    <GridItem span={12}>
+                                    <GridItem
+                                        span={6}
+                                        title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
+                                    >
+                                        <Checkbox
+                                            id="passwordadminskipinfoupdate"
+                                            isChecked={this.state.passwordadminskipinfoupdate}
+                                            onChange={(e, checked) => {
+                                                this.handleGeneralChange(e);
+                                            }}
+                                            label={_("Do not update target entry's password state attributes")}
+                                        />
+                                    </GridItem>
+                                    <GridItem span={6} title={_("Maintain a password history for each user (passwordHistory).")}>
                                         <div className="ds-inline">
                                             <Checkbox
                                                 id="passwordhistory"
@@ -3147,35 +2844,10 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid
-                                    title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
-                                >
-                                    <GridItem offset={3} span={9}>
-                                        <Checkbox
-                                            id="passwordadminskipinfoupdate"
-                                            isChecked={this.state.passwordadminskipinfoupdate}
-                                            onChange={(e, checked) => {
-                                                this.handleGeneralChange(e);
-                                            }}
-                                            label="Do not update target entry's password state attributes"
-                                        />
-                                    </GridItem>
-                                </Grid>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveGeneralDisabled || this.state.saving || hasInvalidField(general_attrs, this.state.invalidFields)}
-                                variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left-sm ds-margin-bottom-md"
-                                onClick={this.handleSaveGeneral}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={1} title={<TabTitleText>{_("Expiration")}</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title={_("Enable a password expiration policy (passwordExp).")}>
                                     <GridItem span={12}>
                                         <Checkbox
@@ -3190,20 +2862,9 @@ export class LocalPwPolicy extends React.Component {
                                 </Grid>
                                 {pwExpirationRows}
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveExpDisabled || this.state.saving || hasInvalidField(exp_attrs, this.state.invalidFields)}
-                                variant="primary"
-                                className="ds-margin-top-lg ds-margin-left"
-                                onClick={this.handleSaveExp}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={2} title={<TabTitleText>{_("Account Lockout")}</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title={_("Enable account lockout (passwordLockout).")}>
                                     <GridItem span={12}>
                                         <Checkbox
@@ -3218,20 +2879,9 @@ export class LocalPwPolicy extends React.Component {
                                 </Grid>
                                 {pwLockoutRows}
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveLockoutDisabled || this.state.saving || hasInvalidField(lockout_attrs, this.state.invalidFields)}
-                                variant="primary"
-                                className="ds-margin-top-lg ds-margin-left"
-                                onClick={this.handleSaveLockout}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={3} title={<TabTitleText>{_("Syntax Checking")}</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title={_("Enable password syntax checking (passwordCheckSyntax).")}>
                                     <GridItem span={12}>
                                         <Checkbox
@@ -3246,17 +2896,6 @@ export class LocalPwPolicy extends React.Component {
                                 </Grid>
                                 {pwSyntaxRows}
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveSyntaxDisabled || this.state.saving || hasInvalidField(syntax_attrs, this.state.invalidFields)}
-                                variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
-                                onClick={this.handleSaveSyntax}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={4} title={<TabTitleText>{_("Temporary Password Rules")}</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
@@ -3335,80 +2974,38 @@ export class LocalPwPolicy extends React.Component {
                                     </GridItem>
                                 </Grid>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveTPRDisabled || this.state.saving}
-                                variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
-                                onClick={this.handleSaveTPR}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                     </Tabs>
                 </div>
             );
         }
 
+        let createBtnName = _("Create New Policy");
+        const createExtraPrimaryProps = {};
+        if (this.state.creating) {
+            createBtnName = _("Creating ...");
+            createExtraPrimaryProps.spinnerAriaValueText = _("Creating");
+        }
+
         let body = (
-            <div className="ds-margin-top-lg">
-                <Tabs activeKey={this.state.localActiveTabKey} onSelect={this.handleLocalNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>{_("Local Policy Table")}</TabTitleText>}>
-                        <div className="ds-margin-top-xlg">
-                            <PwpTable
-                                key={this.state.rows}
-                                rows={this.state.rows}
-                                editPolicy={this.loadLocal}
-                                deletePolicy={this.showDeletePolicy}
-                            />
-                        </div>
-                    </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>{_("Edit Policy")}</TabTitleText>}>
-                        {edit_tab}
-                    </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>{_("Create A Policy")}</TabTitleText>}>
-                        <CreatePolicy
-                            handleChange={this.onCreateChange}
-                            handleSelectChange={this.onCreateSelectChange}
-                            attrs={this.props.attrs}
-                            passwordexp={this.state.create_passwordexp}
-                            passwordchecksyntax={this.state.create_passwordchecksyntax}
-                            passwordlockout={this.state.create_passwordlockout}
-                            createDisabled={this.state.createDisabled}
-                            passworduserattributes={this.state.create_passworduserattributes}
-                            handleCreatePolicy={this.createPolicy}
-                            invalid_dn={this.state.invalid_dn}
-                            key={this.state.rows}
-                            policyDN={this.state.policyDN}
-                            createPolicyType={this.state.createPolicyType}
-                            create_passwordtrackupdatetime={this.state.create_passwordtrackupdatetime}
-                            create_passwordchange={this.state.create_passwordchange}
-                            create_passwordmustchange={this.state.create_passwordmustchange}
-                            create_passwordhistory={this.state.create_passwordhistory}
-                            create_passwordexp={this.state.create_passwordexp}
-                            create_passwordsendexpiringtime={this.state.create_passwordsendexpiringtime}
-                            create_passwordlockout={this.state.create_passwordlockout}
-                            create_passwordunlock={this.state.create_passwordunlock}
-                            create_passwordchecksyntax={this.state.create_passwordchecksyntax}
-                            create_passworddictcheck={this.state.create_passworddictcheck}
-                            create_passwordpalindrome={this.state.create_passwordpalindrome}
-                            create_passwordstoragescheme={this.state.create_passwordstoragescheme}
-                            create_passwordadmindn={this.state.create_passwordadmindn}
-                            create_passwordadminskipinfoupdate={this.state.create_passwordadminskipinfoupdate}
-                            invalidCreateFields={this.state.invalidCreateFields}
-                            onUserAttrsCreateToggle={this.handleUserAttrsCreateToggle}
-                            onUserAttrsCreateClear={this.handleUserAttrsCreateClear}
-                            isUserAttrsCreateOpen={this.state.isUserAttrsCreateOpen}
-                            pwdStorageSchemes={this.props.pwdStorageSchemes}
-                        />
-                    </Tab>
-                </Tabs>
+            <div className="ds-margin-top-xlg">
+                <PwpTable
+                    key={this.state.rows}
+                    rows={this.state.rows}
+                    editPolicy={this.loadLocal}
+                    deletePolicy={this.showDeletePolicy}
+                />
+                <Button
+                    variant="primary"
+                    className="ds-margin-top-lg"
+                    onClick={this.openCreateModal}
+                >
+                    {_("Create New Local Policy")}
+                </Button>
             </div>
         );
 
-        if (this.state.loading || !this.state.loaded) {
+        if (!this.state.loaded || (this.state.loading && !this.state.showCreateModal && !this.state.showEditModal)) {
             body = (
                 <div className="ds-margin-top-xlg ds-center">
                     <Spinner  size="xl" />
@@ -3435,6 +3032,59 @@ export class LocalPwPolicy extends React.Component {
                     </GridItem>
                 </Grid>
                 {body}
+                <Modal
+                    variant={ModalVariant.large}
+                    title={_("Create Local Password Policy")}
+                    isOpen={this.state.showCreateModal}
+                    onClose={this.closeCreateModal}
+                    actions={[
+                        <Button
+                            key="create"
+                            variant="primary"
+                            onClick={this.createPolicy}
+                            isDisabled={this.state.createDisabled || this.state.creating}
+                            isLoading={this.state.creating}
+                            spinnerAriaValueText={this.state.creating ? _("Creating") : undefined}
+                            {...createExtraPrimaryProps}
+                        >
+                            {createBtnName}
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeCreateModal}>
+                            {_("Cancel")}
+                        </Button>,
+                    ]}
+                >
+                    <CreatePolicy
+                        key={this.state.showCreateModal ? "create-open" : "create-closed"}
+                        {...this.getCreatePolicyProps()}
+                    />
+                </Modal>
+                <Modal
+                    variant={ModalVariant.large}
+                    title={this.state.editPolicy
+                        ? cockpit.format(_("Edit Local Password Policy - $0"), this.state.policyName)
+                        : _("Edit Local Password Policy")}
+                    isOpen={this.state.showEditModal}
+                    onClose={this.closeEditModal}
+                    actions={[
+                        <Button
+                            key="save"
+                            variant="primary"
+                            onClick={this.handleSavePolicy}
+                            isDisabled={this.state.saveEditDisabled || this.state.saving}
+                            isLoading={this.state.saving}
+                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
+                            {...editSaveExtraPrimaryProps}
+                        >
+                            {editSaveBtnName}
+                        </Button>,
+                        <Button key="close" variant="link" onClick={this.closeEditModal}>
+                            {_("Close")}
+                        </Button>,
+                    ]}
+                >
+                    {editPolicyTabs}
+                </Modal>
                 <DoubleConfirmModal
                     showModal={this.state.showDeletePolicy}
                     closeHandler={this.closeDeletePolicy}
@@ -3442,7 +3092,7 @@ export class LocalPwPolicy extends React.Component {
                     actionHandler={this.deletePolicy}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    spinning={this.state.tableLoading}
+                    spinning={this.state.loading}
                     mTitle={_("Delete Local Password Policy")}
                     mMsg={_("Are you sure you want to delete this local password policy?")}
                     mSpinningMsg={_("Deleting local password policy ...")}
