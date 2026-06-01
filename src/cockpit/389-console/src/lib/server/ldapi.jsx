@@ -94,7 +94,7 @@ export class ServerLDAPI extends React.Component {
         ];
         log_cmd("getAttributes", "Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
@@ -172,7 +172,7 @@ export class ServerLDAPI extends React.Component {
         ];
         log_cmd("reloadConfig", "Reload server configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -218,7 +218,7 @@ export class ServerLDAPI extends React.Component {
 
         log_cmd("handleSaveConfig", "Saving LDAPI settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.setState({
                         loading: false

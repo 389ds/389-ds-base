@@ -354,7 +354,7 @@ export class SearchDatabase extends React.Component {
                         "-b", info.dn, info.isRole ? "role" : "account", "entry-status", info.dn];
                     log_cmd("processResults", "Checking if entry is activated", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: 'message' })
+                            .spawn(cmd, { superuser: "require", err: 'message' })
                             .done(content => {
                                 if (info.isLockable) {
                                     const status = JSON.parse(content);
@@ -560,7 +560,7 @@ export class SearchDatabase extends React.Component {
             "-b", entryDn, entryType, operationType, entryDn];
         log_cmd("handleLockUnlockEntry", `${operationType} entry`, cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: 'message' })
+                .spawn(cmd, { superuser: "require", err: 'message' })
                 .done(_ => {
                     this.setState({
                         entryMenuIsOpen: !this.state.entryMenuIsOpen,

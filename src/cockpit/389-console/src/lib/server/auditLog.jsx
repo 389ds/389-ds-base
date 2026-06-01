@@ -288,7 +288,7 @@ export class ServerAuditLog extends React.Component {
 
         log_cmd("saveConfig", "Saving audit log settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload();
                     this.refreshConfig(1);
@@ -322,7 +322,7 @@ export class ServerAuditLog extends React.Component {
         ];
         log_cmd("refreshConfig", "load Audit Log configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;

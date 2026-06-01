@@ -385,7 +385,7 @@ export class Schema extends React.Component {
         ];
         log_cmd("loadSyntaxes", "Get syntaxes for attributetypes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     this.setState({
@@ -412,7 +412,7 @@ export class Schema extends React.Component {
         ];
         log_cmd("loadSchemaData", "Get schema objects in one batch", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const attrs = [];
@@ -543,7 +543,7 @@ export class Schema extends React.Component {
             log_cmd("openObjectclassModal", "Fetch ObjectClass data from schema", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -653,7 +653,7 @@ export class Schema extends React.Component {
         log_cmd("deleteObjectclass", "Delete ObjectClass from schema", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -726,7 +726,7 @@ export class Schema extends React.Component {
             log_cmd("cmdOperationObjectclass", `Do the ${action} operation on ObjectClass`, cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -807,7 +807,7 @@ export class Schema extends React.Component {
             log_cmd("openAttributeModal", "Fetch Attribute data from schema", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -947,7 +947,7 @@ export class Schema extends React.Component {
         log_cmd("deleteAttribute", "Delete Attribute from schema", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -1043,7 +1043,7 @@ export class Schema extends React.Component {
         log_cmd("cmdOperationAttribute", `Do the add operation on Attribute`, cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -1154,7 +1154,7 @@ export class Schema extends React.Component {
         log_cmd("cmdOperationAttribute", `Do the replace operation on Attribute`, cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

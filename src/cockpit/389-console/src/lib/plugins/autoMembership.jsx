@@ -349,7 +349,7 @@ class AutoMembership extends React.Component {
         ];
         log_cmd("loadDefinitions", "Get Auto Membership Plugin definitions", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     this.setState({
@@ -392,7 +392,7 @@ class AutoMembership extends React.Component {
         ];
         log_cmd("loadRegexes", "Get Auto Membership Plugin regexes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const regexTableKey = this.state.regexTableKey + 1;
@@ -451,7 +451,7 @@ class AutoMembership extends React.Component {
             log_cmd("openModal", "Fetch the Auto Membership Plugin definition entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -611,7 +611,7 @@ class AutoMembership extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -666,7 +666,7 @@ class AutoMembership extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -758,7 +758,7 @@ class AutoMembership extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -813,7 +813,7 @@ class AutoMembership extends React.Component {
         log_cmd("deleteDefinition", "Delete the Auto Membership Plugin definition entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

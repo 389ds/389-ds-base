@@ -61,7 +61,7 @@ export class AuditFailLogMonitor extends React.Component {
         }
 
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.setState(() => ({
                         auditfaillogData: content,

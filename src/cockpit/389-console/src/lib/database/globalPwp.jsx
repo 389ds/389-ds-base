@@ -200,7 +200,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleSavePasswordStorage", "Saving password storage settings", cmd);
         cockpit
-            .spawn(cmd, { superuser: true, err: "message" })
+            .spawn(cmd, { superuser: "require", err: "message" })
             .done(content => {
                 this.handleLoadGlobal();
                 this.setState({
@@ -296,7 +296,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleSaveGeneral", "Saving general pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadGlobal();
                     this.setState({
@@ -401,7 +401,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleSaveExp", "Saving Expiration pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadGlobal();
                     this.setState({
@@ -479,7 +479,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleSaveLockout", "Saving lockout pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadGlobal();
                     this.setState({
@@ -590,7 +590,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleSaveSyntax", "Saving syntax checking pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadGlobal();
                     this.setState({
@@ -660,7 +660,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleSaveTPR", "Saving TPR settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadGlobal();
                     this.setState({
@@ -708,7 +708,7 @@ export class GlobalPwPolicy extends React.Component {
 
         log_cmd("handleLoadPasswordStorage", "Load password storage settings", cmd);
         cockpit
-            .spawn(cmd, { superuser: true, err: "message" })
+            .spawn(cmd, { superuser: "require", err: "message" })
             .done(content => {
                 const config = JSON.parse(content);
                 const attrs = config.attrs;
@@ -758,7 +758,7 @@ export class GlobalPwPolicy extends React.Component {
         ];
         log_cmd("handleLoadGlobal", "Load global password policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;

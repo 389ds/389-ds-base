@@ -358,7 +358,7 @@ class ReferentialIntegrity extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -427,7 +427,7 @@ class ReferentialIntegrity extends React.Component {
             log_cmd("handleOpenModal", "Fetch the Referential Integrity Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -586,7 +586,7 @@ class ReferentialIntegrity extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -626,7 +626,7 @@ class ReferentialIntegrity extends React.Component {
         log_cmd("deleteConfig", "Delete the Referential Integrity Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

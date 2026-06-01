@@ -178,7 +178,7 @@ export class VLVIndexes extends React.Component {
 
         log_cmd("createSortIndex", "Add index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeCreateSortIndex();
                     this.props.reload(this.props.suffix);
@@ -232,7 +232,7 @@ export class VLVIndexes extends React.Component {
         });
         log_cmd("deleteSortIndex", "delete index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeDeleteSortIndexConfirm();
                     this.props.reload(this.props.suffix);
@@ -276,7 +276,7 @@ export class VLVIndexes extends React.Component {
         ];
         log_cmd("saveVLV", "Add vlv search", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeVLVModal();
                     this.props.reload(this.props.suffix);
@@ -324,7 +324,7 @@ export class VLVIndexes extends React.Component {
         ];
         log_cmd("deleteVLV", "delete LV search and indexes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -371,7 +371,7 @@ export class VLVIndexes extends React.Component {
         ];
         log_cmd("reindexVLV", "reindex VLV indexes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
