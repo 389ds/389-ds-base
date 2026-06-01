@@ -295,7 +295,7 @@ export function is_port_in_use(port) {
 
 export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
-    if (dn === "" || dn.endsWith(",")) {
+    if (dn === undefined || dn === null || dn === "" || dn.endsWith(",")) {
         return false;
     }
 
