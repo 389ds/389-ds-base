@@ -35,7 +35,7 @@ export class ReplAgmtMonitor extends React.Component {
             "repl-agmt", "poke", "--suffix=" + this.props.suffix, agmt_name];
         log_cmd("pokeAgmt", "Awaken the agreement", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",

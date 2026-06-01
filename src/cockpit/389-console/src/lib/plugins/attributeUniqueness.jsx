@@ -297,7 +297,7 @@ class AttributeUniqueness extends React.Component {
         ];
         log_cmd("loadConfigs", "Get Attribute Uniqueness Plugin configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -355,7 +355,7 @@ class AttributeUniqueness extends React.Component {
             log_cmd("openModal", "Fetch the Attribute Uniqueness Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -564,7 +564,7 @@ class AttributeUniqueness extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -630,7 +630,7 @@ class AttributeUniqueness extends React.Component {
         log_cmd("deleteConfig", "Delete the Attribute Uniqueness Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

@@ -279,7 +279,7 @@ export class Suffix extends React.Component {
 
         log_cmd("doImport", "Do online import", import_cmd);
         cockpit
-                .spawn(import_cmd, { pty: true, superuser: true, err: "message" })
+                .spawn(import_cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -394,7 +394,7 @@ export class Suffix extends React.Component {
 
         log_cmd("doExport", "Do online export", export_cmd);
         cockpit
-                .spawn(export_cmd, { pty: true, superuser: true, err: "message" })
+                .spawn(export_cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadLDIFs();
                     this.setState({
@@ -408,7 +408,7 @@ export class Suffix extends React.Component {
                     ];
                     log_cmd("doExport", "Get the ldif directory", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 const attrs = config.attrs;
@@ -482,7 +482,7 @@ export class Suffix extends React.Component {
             "backend", "index", "reindex", "--watch", this.props.suffix];
         log_cmd("doReindex", "Reindex all attributes", cmd);
         cockpit
-                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -550,7 +550,7 @@ export class Suffix extends React.Component {
 
         log_cmd("createSubSuffix", "Create a sub suffix", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.loadSuffixTree(false);
                     this.closeSubSuffixModal();
@@ -612,7 +612,7 @@ export class Suffix extends React.Component {
         }
         log_cmd("createLink", "Create database link", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.loadSuffixTree(false);
                     this.closeLinkModal();
@@ -796,7 +796,7 @@ export class Suffix extends React.Component {
         ];
         log_cmd("doDelete", "Delete database", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.loadSuffixTree(true);
                     this.closeDeleteConfirm();
@@ -861,7 +861,7 @@ export class Suffix extends React.Component {
             log_cmd("saveSuffixConfig", "Save suffix config", cmd);
             const msg = "Successfully updated suffix configuration.";
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload(this.props.suffix);

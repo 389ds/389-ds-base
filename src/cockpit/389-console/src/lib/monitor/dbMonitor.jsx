@@ -122,7 +122,7 @@ export class DatabaseMonitor extends React.Component {
             "monitor", "ldbm"
         ];
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let count = this.state.count + 1;
@@ -633,7 +633,7 @@ export class DatabaseMonitorMDB extends React.Component {
             "monitor", "ldbm"
         ];
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let count = this.state.count + 1;

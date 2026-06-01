@@ -294,7 +294,7 @@ export class LDAPEditor extends React.Component {
             "-b", entryDn, entryType, operationType, entryDn];
         log_cmd("handleLockUnlockEntry", `${operationType} entry`, cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: 'message' })
+                .spawn(cmd, { superuser: "require", err: 'message' })
                 .done(_ => {
                     this.setState({
                         entryMenuIsOpen: !this.state.entryMenuIsOpen,
@@ -348,7 +348,7 @@ export class LDAPEditor extends React.Component {
         ];
         log_cmd("getAttributes", "Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
@@ -642,7 +642,7 @@ export class LDAPEditor extends React.Component {
                     "-b", entryDn, (isRole ? "role" : "account"), "entry-status", entryDn];
                 log_cmd("handleCollapse", "Checking if entry is activated", cmd);
                 cockpit
-                        .spawn(cmd, { superuser: true, err: 'message' })
+                        .spawn(cmd, { superuser: "require", err: 'message' })
                         .done(content => {
                             if ((entryDn !== 'Root DSE') && (entryStateIcon !== "")) {
                                 const status = JSON.parse(content);

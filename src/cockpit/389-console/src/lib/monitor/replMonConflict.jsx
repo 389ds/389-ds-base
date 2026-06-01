@@ -112,7 +112,7 @@ export class ReplMonConflict extends React.Component {
             "repl-conflict", "convert", this.state.conflictEntry, "--new-rdn=" + this.state.convertRDN];
         log_cmd("convertConflict", "convert conflict entry", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
@@ -140,7 +140,7 @@ export class ReplMonConflict extends React.Component {
             "repl-conflict", "swap", this.state.conflictEntry];
         log_cmd("swapConflict", "swap in conflict entry", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
@@ -169,7 +169,7 @@ export class ReplMonConflict extends React.Component {
 
         log_cmd("deleteConflict", "Delete conflict entry", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
@@ -199,7 +199,7 @@ export class ReplMonConflict extends React.Component {
         });
         log_cmd("deleteAllConflicts", "Delete all conflict entries", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
@@ -229,7 +229,7 @@ export class ReplMonConflict extends React.Component {
             "repl-conflict", "compare", dn];
         log_cmd("resolveConflict", "Compare conflict entry with valid entry", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const entries = JSON.parse(content);
                     this.setState({
@@ -282,7 +282,7 @@ export class ReplMonConflict extends React.Component {
             "repl-conflict", "convert-glue", this.state.glueEntry];
         log_cmd("convertGlue", "Convert glue entry to normal entry", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
@@ -323,7 +323,7 @@ export class ReplMonConflict extends React.Component {
             "repl-conflict", "delete-glue", this.state.glueEntry];
         log_cmd("deleteGlue", "Delete glue entry", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
