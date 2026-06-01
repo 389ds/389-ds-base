@@ -241,7 +241,7 @@ export class ServerAuditFailLog extends React.Component {
 
         log_cmd("saveConfig", "Saving audit fail log settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload();
                     this.refreshConfig(1);
@@ -275,7 +275,7 @@ export class ServerAuditFailLog extends React.Component {
         ];
         log_cmd("refreshConfig", "load Audit Fail Log configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;

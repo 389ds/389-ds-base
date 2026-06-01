@@ -280,7 +280,7 @@ export function is_port_in_use(port) {
         log_cmd("is_port_in_use", cmd);
 
         cockpit
-            .spawn(cmd, { superuser: true, err: "message" })
+            .spawn(cmd, { superuser: "require", err: "message" })
             .done((result) => {
                 const isPortInUse = result.trim() !== "free";
                 // Resolve the promise with a result
@@ -417,7 +417,7 @@ export function callCmdStreamPassword(config) {
     }
     let buffer = "";
 
-    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
     proc
             .done(data => {
                 config.addNotification("success", config.success_msg);
@@ -469,7 +469,7 @@ export function parentExists(params) {
 
     return new Promise((resolve) => {
         cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 resolve(data && data.includes("dn:"));
             })

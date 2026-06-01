@@ -95,7 +95,7 @@ class WinSync extends React.Component {
         log_cmd("handleRunFixup", "Run Member UID task", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -249,7 +249,7 @@ class WinSync extends React.Component {
 
         log_cmd('handleSavePlugin', 'Update Posix winsync plugin', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",

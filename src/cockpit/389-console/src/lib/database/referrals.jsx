@@ -110,7 +110,7 @@ export class SuffixReferrals extends React.Component {
         ];
         log_cmd("deleteRef", "Delete suffix referral", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -149,7 +149,7 @@ export class SuffixReferrals extends React.Component {
         ];
         log_cmd("saveRef", "Add referral", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.closeRefModal();

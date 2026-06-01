@@ -120,7 +120,7 @@ export class Plugins extends React.Component {
         ];
         log_cmd("getSchema", "Plugins Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
@@ -138,7 +138,7 @@ export class Plugins extends React.Component {
                     ];
                     log_cmd("getSchema", "Get objectClasses", oc_cmd);
                     cockpit
-                            .spawn(oc_cmd, { superuser: true, err: "message" })
+                            .spawn(oc_cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const ocContent = JSON.parse(content);
                                 const ocs = [];
@@ -185,7 +185,7 @@ export class Plugins extends React.Component {
 
         log_cmd("pluginList", "Get plugins for table rows", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const pluginTableKey = this.state.pluginTableKey + 1;
@@ -255,7 +255,7 @@ export class Plugins extends React.Component {
 
         log_cmd("savePlugin", "Edit the plugin", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     basicPluginSuccess = true;
@@ -290,7 +290,7 @@ export class Plugins extends React.Component {
                         );
                         cockpit
                                 .spawn(data.specificPluginCMD, {
-                                    superuser: true,
+                                    superuser: "require",
                                     err: "message"
                                 })
                                 .done(content => {
@@ -364,7 +364,7 @@ export class Plugins extends React.Component {
         this.setState({ modalSpinning: true });
         log_cmd("togglePlugin", "Switch plugin states from the plugin tab", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     this.pluginList();

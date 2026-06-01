@@ -323,7 +323,7 @@ class EditorTreeView extends React.Component {
             "-b", entryDn, isRole ? "role" : "account", "entry-status", entryDn];
         log_cmd("updateEntryRows", "Checking if entry is activated", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: 'message' })
+                .spawn(cmd, { superuser: "require", err: 'message' })
                 .done(content => {
                     if ((entryDn !== 'Root DSE') && (entryStateIcon !== "")) {
                         const status = JSON.parse(content);
