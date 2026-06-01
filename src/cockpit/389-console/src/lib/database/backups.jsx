@@ -285,7 +285,7 @@ export class Backups extends React.Component {
         ];
         log_cmd("importLDIF", "Importing LDIF", cmd);
         cockpit
-                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.setState({
                         modalSpinning: false,
@@ -325,7 +325,7 @@ export class Backups extends React.Component {
         ];
         log_cmd("deleteLDIF", "Deleting LDIF", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.closeConfirmLDIFDelete();
@@ -382,7 +382,7 @@ export class Backups extends React.Component {
 
         log_cmd("doBackup", "Add backup task", cmd);
         cockpit
-                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.setState({
@@ -395,7 +395,7 @@ export class Backups extends React.Component {
                     ];
                     log_cmd("doBackup", "Get the backup directory", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 const attrs = config.attrs;
@@ -456,7 +456,7 @@ export class Backups extends React.Component {
         ];
         log_cmd("restoreBackup", "Restoring server", cmd);
         cockpit
-                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.setState({
                         modalSpinning: false,
@@ -495,7 +495,7 @@ export class Backups extends React.Component {
         ];
         log_cmd("deleteBackup", "Deleting backup", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.closeConfirmBackupDelete();
@@ -592,7 +592,7 @@ export class Backups extends React.Component {
         let exportBuffer = "";
         log_cmd("doExport", "Do online export", export_cmd);
         cockpit
-                .spawn(export_cmd, { superuser: true, err: "message" })
+                .spawn(export_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.setState({
@@ -605,7 +605,7 @@ export class Backups extends React.Component {
                     ];
                     log_cmd("doExport", "Get the backup directory", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 const attrs = config.attrs;

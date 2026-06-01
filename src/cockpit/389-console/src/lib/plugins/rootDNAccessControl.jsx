@@ -397,7 +397,7 @@ class RootDNAccessControl extends React.Component {
 
         log_cmd('handleSavePlugin', 'Update Root DN access control', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",

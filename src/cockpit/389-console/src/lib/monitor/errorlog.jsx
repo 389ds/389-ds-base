@@ -85,7 +85,7 @@ export class ErrorLogMonitor extends React.Component {
         }
 
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(data => {
                     if (this.state.errorSevLevel !== "Everything") {
                         // Filter Data

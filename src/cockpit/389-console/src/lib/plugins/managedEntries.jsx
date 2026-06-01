@@ -282,7 +282,7 @@ class ManagedEntries extends React.Component {
 
         log_cmd("loadConfigs", "Get Managed Entries templates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     let defCreateDisabled = false;
@@ -321,7 +321,7 @@ class ManagedEntries extends React.Component {
                     ];
                     log_cmd("loadConfigs", "Get Managed Entries Plugin definitions", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const myObject = JSON.parse(content);
                                 const tableKey = this.state.tableKey + 1;
@@ -388,7 +388,7 @@ class ManagedEntries extends React.Component {
             log_cmd("openTempModal", "Fetch the Managed Entries template entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -584,7 +584,7 @@ class ManagedEntries extends React.Component {
             log_cmd("openDefModal", "Fetch the Managed Entries Plugin definition config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -651,7 +651,7 @@ class ManagedEntries extends React.Component {
         log_cmd("deleteDefConfig", "Delete the Managed Entries Plugin definition entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -707,7 +707,7 @@ class ManagedEntries extends React.Component {
         log_cmd("cmdDefOperation", `Do the ${action} operation on the Managed Entries Plugin`, cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -792,7 +792,7 @@ class ManagedEntries extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -832,7 +832,7 @@ class ManagedEntries extends React.Component {
         log_cmd("deleteTemplate", "Delete the Managed Entries Plugin template entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -873,7 +873,7 @@ class ManagedEntries extends React.Component {
         ];
         log_cmd("getAttributes", "Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];

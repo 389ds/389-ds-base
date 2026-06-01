@@ -350,7 +350,7 @@ export class CertificateManagement extends React.Component {
         }
         log_cmd("exportCert", "Exporting certificate", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.getCertFiles();
                     this.reloadCACerts();
@@ -386,7 +386,7 @@ export class CertificateManagement extends React.Component {
 
         log_cmd("deleteTmpCert", "deleting tmp cert file", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .fail((err) => {
                     this.props.addNotification(
                         "warning",
@@ -410,7 +410,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("getCertFiles", "creating tmp cert file for importing", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done((certs_raw) => {
                     const certs = certs_raw.split(/\r?\n/);
                     const certNames = [];
@@ -458,7 +458,7 @@ export class CertificateManagement extends React.Component {
 
             log_cmd("addCert", "creating tmp cert file for importing: ", create_cert_cmd);
             cockpit
-                    .spawn(create_cert_cmd, { superuser: true, err: "message" })
+                    .spawn(create_cert_cmd, { superuser: "require", err: "message" })
                     .done(() => {
                         const cmd = [
                             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -466,7 +466,7 @@ export class CertificateManagement extends React.Component {
                         ];
                         log_cmd("addCert", "Adding cert (tmp): ", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { superuser: "require", err: "message" })
                                 .done(() => {
                                     this.deleteTmpCert(certFile);
                                     this.reloadCACerts();
@@ -523,7 +523,7 @@ export class CertificateManagement extends React.Component {
             }
             log_cmd("addCert", "Adding cert: ", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(() => {
                         this.reloadCACerts();
                         this.closeAddCAModal();
@@ -571,7 +571,7 @@ export class CertificateManagement extends React.Component {
 
         log_cmd("addCSR", "Creating CSR", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadCSRs();
                     this.setState({
@@ -621,7 +621,7 @@ export class CertificateManagement extends React.Component {
 
         log_cmd("showCSR", "Displaying CSR", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.setState({
                         csrContent: content,
@@ -675,7 +675,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("delCert", "Deleting certificate", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadCACerts();
                     this.setState({
@@ -713,7 +713,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("delCSR", "Deleting CSR", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadCSRs();
                     this.setState({
@@ -753,7 +753,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("delKey", "Deleting key", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadOrphanKeys();
                     this.setState({
@@ -843,7 +843,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("doEditCert", "Editing trust flags", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadCACerts();
                     this.setState({
@@ -1048,7 +1048,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("reloadCerts", "Load certificates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
                     const key = this.state.tableKey + 1;
@@ -1079,7 +1079,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("reloadCSRs", "Reload CSRs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const csrs = JSON.parse(content);
                     const key = this.state.tableKey + 1;
@@ -1107,7 +1107,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("reloadOrphanKeys", "Reload Orphan Keys", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const keys = JSON.parse(content);
                     const key = this.state.tableKey + 1;
@@ -1141,7 +1141,7 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("reloadCACerts", "Load certificates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
                     this.setState({

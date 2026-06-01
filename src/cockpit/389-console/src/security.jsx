@@ -307,7 +307,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadSupportedCiphers", "Load the security configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -334,7 +334,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadEnabledCiphers", "Load the security configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -366,7 +366,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadCACerts", "Load CA certificates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
                     this.setState(() => (
@@ -401,7 +401,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadCerts", "Load certificates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
                     const certNames = [];
@@ -440,7 +440,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadCSRs", "Load CSRs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const csrs = JSON.parse(content);
                     this.setState(() => (
@@ -474,7 +474,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadOrphanKeys", "Load Orphan Keys", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const keys = JSON.parse(content);
                     this.setState(() => (
@@ -508,7 +508,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadRSAConfig", "Load the RSA configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const nickname = config.items.nssslpersonalityssl;
@@ -544,7 +544,7 @@ export class Security extends React.Component {
         ];
         log_cmd("loadSecurityConfig", "Load the security configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.items;
@@ -708,12 +708,12 @@ export class Security extends React.Component {
             ];
             log_cmd("enableSecurity", "Update RSA", rsa_cmd);
             cockpit
-                    .spawn(rsa_cmd, { superuser: true, err: "message" })
+                    .spawn(rsa_cmd, { superuser: "require", err: "message" })
                     .done(() => {
                         this.loadSecurityConfig();
                         log_cmd("enableSecurity", "Enable security", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { superuser: "require", err: "message" })
                                 .done(() => {
                                     this.loadSecurityConfig();
                                     this.props.addNotification(
@@ -764,7 +764,7 @@ export class Security extends React.Component {
         } else {
             log_cmd("enableSecurity", "Enable security", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(() => {
                         this.props.addNotification(
                             "success",
@@ -808,7 +808,7 @@ export class Security extends React.Component {
         ];
         log_cmd("disableSecurity", "Disable security", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.props.addNotification(
                         "success",
@@ -935,7 +935,7 @@ export class Security extends React.Component {
             });
 
             cockpit
-                    .spawn(rsa_cmd, { superuser: true, err: "message" })
+                    .spawn(rsa_cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.loadSecurityConfig();
                         if (cmd.length < 6) {
@@ -979,7 +979,7 @@ export class Security extends React.Component {
             });
 
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.loadSecurityConfig(1);
                         this.props.addNotification(

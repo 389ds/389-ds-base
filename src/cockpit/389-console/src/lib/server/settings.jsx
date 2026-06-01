@@ -223,7 +223,7 @@ export class ServerSettings extends React.Component {
         for (const attr of path_attrs) {
             const cmd = `[ -d "${this.state[attr]}" ]`;
             cockpit
-                    .script(cmd, [], { superuser: true, err: "message" })
+                    .script(cmd, [], { superuser: "require", err: "message" })
                     .done(output => {
                         errObj[attr] = false;
                         this.setState({
@@ -577,7 +577,7 @@ async validateSaveBtn(nav_tab, attr, value) {
 
         log_cmd("handleSaveRootDN", "Saving changes to root DN", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.reloadRootDN();
                     this.props.addNotification(
@@ -602,7 +602,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("handleReloadConfig", "Reload Directory Manager configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -658,7 +658,7 @@ async validateSaveBtn(nav_tab, attr, value) {
 
         log_cmd("handleSaveDiskMonitoring", "Saving changes to Disk Monitoring", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
@@ -683,7 +683,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("reloadDiskMonitoring", "Reload Disk Monitoring configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -733,7 +733,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("handleMultivaluedAttributeReplace", "Removing cn=config attribute", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     if (attrs.length > 0) {
                         const cmd = [
@@ -742,7 +742,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                         ];
                         log_cmd("handleMultivaluedAttributeReplace", "Adding multivalued cn=config attribute", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { superuser: "require", err: "message" })
                                 .done(content => {
                                     this.reloadAdvanced();
                                     this.props.addNotification(
@@ -817,7 +817,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         }
         log_cmd("handleSaveAdvanced", "Saving Advanced configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     if (doHaproxy) {
                         this.handleMultivaluedAttributeReplace(addHAproxy);
@@ -846,7 +846,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("reloadAdvanced", "Reload Advanced configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -960,7 +960,7 @@ async validateSaveBtn(nav_tab, attr, value) {
 
         log_cmd("handleSaveConfig", "Applying server config change", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     // Continue with the next mod
                     this.handleReloadConfig();
@@ -986,7 +986,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("handleReloadConfig", "Reload server configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;

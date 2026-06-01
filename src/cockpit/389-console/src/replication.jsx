@@ -136,7 +136,7 @@ export class Replication extends React.Component {
         const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'get-changelog'];
         log_cmd("reloadChangelog", "Reload the changelog", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let clDir = "";
@@ -234,7 +234,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("loadSuffixTree", "Start building the suffix tree", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     let treeData = [];
                     if (content !== "") {
@@ -412,7 +412,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("reloadAgmts", "get repl agreements", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const obj = JSON.parse(content);
                     const rows = [];
@@ -488,7 +488,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("reloadWinsyncAgmts", "Get Winsync Agreements", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const obj = JSON.parse(content);
                     const ws_rows = [];
@@ -564,7 +564,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("reloadConfig", "Reload suffix repl config", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let current_role = "";
@@ -626,7 +626,7 @@ export class Replication extends React.Component {
             'replication', 'get-ruv', '--suffix=' + suffix];
         log_cmd('reloadRUV', 'Get the suffix RUV', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const ruvs = JSON.parse(content);
                     const ruv_rows = [];
@@ -672,7 +672,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("loadLDIFs", "Load replication LDIF Files", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const rows = [];
@@ -718,7 +718,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("loadReplSuffix", "Load suffix repl config", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let current_role = "";
@@ -773,7 +773,7 @@ export class Replication extends React.Component {
                         'replication', 'get-changelog', '--suffix', suffix];
                     log_cmd("loadReplSuffix", "Load the replication info", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 let clMaxEntries = "";
@@ -829,7 +829,7 @@ export class Replication extends React.Component {
                                 ];
                                 log_cmd("loadReplSuffix", "get repl agreements", cmd);
                                 cockpit
-                                        .spawn(cmd, { superuser: true, err: "message" })
+                                        .spawn(cmd, { superuser: "require", err: "message" })
                                         .done(content => {
                                             const obj = JSON.parse(content);
                                             const rows = [];
@@ -897,7 +897,7 @@ export class Replication extends React.Component {
                                             ];
                                             log_cmd("loadReplSuffix", "Get Winsync Agreements", cmd);
                                             cockpit
-                                                    .spawn(cmd, { superuser: true, err: "message" })
+                                                    .spawn(cmd, { superuser: "require", err: "message" })
                                                     .done(content => {
                                                         const obj = JSON.parse(content);
                                                         const ws_rows = [];
@@ -963,7 +963,7 @@ export class Replication extends React.Component {
                                                             'replication', 'get-ruv', '--suffix=' + suffix];
                                                         log_cmd('loadReplSuffix', 'Get the suffix RUV', cmd);
                                                         cockpit
-                                                                .spawn(cmd, { superuser: true, err: "message" })
+                                                                .spawn(cmd, { superuser: "require", err: "message" })
                                                                 .done(content => {
                                                                     const ruvs = JSON.parse(content);
                                                                     const ruv_rows = [];
@@ -1080,7 +1080,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("Suffixes", "Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
