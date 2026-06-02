@@ -1143,6 +1143,47 @@ def test_index_check_fixes_multiple_issues(topology_st):
     standalone.start()
 
 
+
+def test_ignore_entrydn_index(topology_st, log_buffering_enabled):
+    """Healthcheck reports DSBLE0008 when entrydn index is configured.
+
+    :id: 65abefe0-2e6b-45e0-8604-fb33d734e412
+    :setup: Standalone instance
+    :steps:
+        1. Add obsolete entrydn index to userroot
+        2. Run healthcheck
+        3. Remove entrydn index
+        4. Run healthcheck again
+    :expectedresults:
+        1. Success
+        2. healthcheck reports DSBLE0008
+        3. Success
+        4. healthcheck reports no issues found
+    """
+
+    RET_CODE = "DSBLE0008"
+    standalone = topology_st.standalone
+    backend = Backends(standalone).get("userRoot")
+
+    log.info("Add obsolete entrydn index configuration")
+    backend.add_index("entrydn", ["eq"])
+    standalone.restart()
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+
+    log.info("Remove entrydn index configuration")
+    entrydn_index = Index(
+        standalone,
+        "cn=entrydn,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config",
+    )
+    entrydn_index.delete()
+    standalone.restart()
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+
+
 if __name__ == "__main__":
     # Run isolated
     # -s for DEBUG mode

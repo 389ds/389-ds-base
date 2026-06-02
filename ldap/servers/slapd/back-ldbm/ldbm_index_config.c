@@ -56,6 +56,17 @@ ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_st
         return LDAP_OPERATIONS_ERROR;
     }
 
+    if (ldbm_index_entrydn_should_ignore(attrValue->bv_val)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_index_parse_entry",
+                      "%s: Requested to index %s, but %s is on\n",
+                      inst->inst_name, LDBM_ENTRYDN_STR, CONFIG_ENTRYRDN_SWITCH);
+        if (index_name != NULL) {
+            slapi_ch_free_string(index_name);
+            *index_name = NULL;
+        }
+        return LDAP_SUCCESS;
+    }
+
     if (index_name != NULL) {
         slapi_ch_free_string(index_name);
         *index_name = slapi_ch_strdup(attrValue->bv_val);
@@ -140,6 +151,15 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb __attribute__((unused))
 
     returntext[0] = '\0';
     *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, &is_system_index, returntext);
+
+    /*
+     * ldbm_index_parse_entry returns LDAP_SUCCESS with index_name NULL only when entrydn is
+     * ignored (entryrdn on). Skip ainfo_get; the DSE entry may still be added.
+     */
+    if (*returncode == LDAP_SUCCESS && index_name == NULL) {
+        return SLAPI_DSE_CALLBACK_OK;
+    }
+
     if (*returncode == LDAP_SUCCESS) {
         struct attrinfo *ai = NULL;
         /* if the index is a "system" index, we assume it's being added by
@@ -269,6 +289,13 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb __attribute__((unuse
                       edn);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
+    }
+
+    if (ldbm_index_entrydn_should_ignore(attrValue->bv_val)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_index_config_modify_callback",
+                      "%s: Requested to index %s, but %s is on\n",
+                      inst->inst_name, LDBM_ENTRYDN_STR, CONFIG_ENTRYRDN_SWITCH);
+        return SLAPI_DSE_CALLBACK_OK;
     }
 
     ainfo_get(inst->inst_be, attrValue->bv_val, &ainfo);
