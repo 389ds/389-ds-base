@@ -1534,24 +1534,22 @@ bdb_db2index(Slapi_PBlock *pb)
                                       CONFIG_ENTRYRDN_SWITCH);
                         goto err_out;
                     }
+                } else if (ldbm_index_entrydn_should_ignore(attrs[i] + 1)) {
+                    slapi_task_log_notice(task, "%s: Requested to index %s, but %s is on",
+                                          inst->inst_name, LDBM_ENTRYDN_STR, CONFIG_ENTRYRDN_SWITCH);
+                    slapi_log_err(SLAPI_LOG_WARNING,
+                                  "bdb_db2index", "%s: Requested to index %s, but %s is on\n",
+                                  inst->inst_name, LDBM_ENTRYDN_STR,
+                                  CONFIG_ENTRYRDN_SWITCH);
+                    goto err_out;
                 } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYDN_STR) == 0) {
-                    if (entryrdn_get_switch()) { /* subtree-rename: on */
-                        slapi_task_log_notice(task, "%s: Requested to index %s, but %s is on",
-                                inst->inst_name, LDBM_ENTRYDN_STR, CONFIG_ENTRYRDN_SWITCH);
-                        slapi_log_err(SLAPI_LOG_WARNING,
-                                      "bdb_db2index", "%s: Requested to index %s, but %s is on\n",
-                                      inst->inst_name, LDBM_ENTRYDN_STR,
-                                      CONFIG_ENTRYRDN_SWITCH);
-                        goto err_out;
-                    } else {
-                        charray_add(&indexAttrs, attrs[i] + 1);
-                        ai->ai_indexmask |= INDEX_OFFLINE;
-                        slapi_task_log_notice(task, "%s: Indexing attribute: %s",
-                                inst->inst_name, attrs[i] + 1);
-                        slapi_log_err(SLAPI_LOG_INFO,
-                                      "bdb_db2index", "%s: Indexing attribute: %s\n",
-                                      inst->inst_name, attrs[i] + 1);
-                    }
+                    charray_add(&indexAttrs, attrs[i] + 1);
+                    ai->ai_indexmask |= INDEX_OFFLINE;
+                    slapi_task_log_notice(task, "%s: Indexing attribute: %s",
+                            inst->inst_name, attrs[i] + 1);
+                    slapi_log_err(SLAPI_LOG_INFO,
+                                  "bdb_db2index", "%s: Indexing attribute: %s\n",
+                                  inst->inst_name, attrs[i] + 1);
                 } else {
                     if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_OBJECTCLASS) == 0) {
                         index_ext |= DB2INDEX_OBJECTCLASS;

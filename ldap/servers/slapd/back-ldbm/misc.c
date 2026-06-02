@@ -106,9 +106,19 @@ static const char *systemIndexes[] = {
 
 
 int
+ldbm_index_entrydn_should_ignore(const char *index_name)
+{
+    return entryrdn_get_switch() && index_name &&
+           (0 == strcasecmp(index_name, LDBM_ENTRYDN_STR));
+}
+
+int
 ldbm_attribute_always_indexed(const char *attrtype)
 {
     int r = 0;
+    if (ldbm_index_entrydn_should_ignore(attrtype)) {
+        return 0;
+    }
     if (NULL != attrtype) {
         int i = 0;
         while (!r && systemIndexes[i] != NULL) {
