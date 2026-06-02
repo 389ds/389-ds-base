@@ -2513,6 +2513,7 @@ delete_passwdPolicy(passwdPolicy **pwpolicy)
             slapi_ch_free_string(&(*(*pwpolicy)).pw_bad_words);
             slapi_ch_array_free((*(*pwpolicy)).pw_cmp_attrs_array);
             slapi_ch_free_string(&(*(*pwpolicy)).pw_cmp_attrs);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_breach_db_url);
         }
         slapi_ch_free_string(&(*(*pwpolicy)).pw_local_dn);
         slapi_ch_free((void **)pwpolicy);
