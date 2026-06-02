@@ -3829,9 +3829,14 @@ config_set_pw_breach_check(const char *attrname, char *value, char *errorbuf, in
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 #ifndef ENABLE_HIBP
-    if (apply && value && strcasecmp(value, "on") == 0) {
-        slapi_log_err(SLAPI_LOG_WARNING, "config_set_pw_breach_check",
-                      "HIBP breached password checking not enabled - passwordBreachCheck has no effect\n");
+    if (value && strcasecmp(value, "on") == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: HIBP breached password checking is not available. "
+                              "Rebuild with --enable-hibp to enable this feature.", attrname);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_pw_breach_check",
+                      "HIBP breached password checking is not available - "
+                      "rebuild with --enable-hibp to enable this feature\n");
+        return LDAP_UNWILLING_TO_PERFORM;
     }
 #endif
 
@@ -3849,16 +3854,35 @@ config_set_pw_breach_url(const char *attrname, char *value, char *errorbuf, int 
 {
     int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    size_t len;
 
 #ifndef ENABLE_HIBP
     if (apply && value && strlen(value) > 0) {
         slapi_log_err(SLAPI_LOG_WARNING, "config_set_pw_breach_url",
-                      "HIBP breached password checking not enabled  - passwordBreachDbUrl has no effect\n");
+                      "HIBP breached password checking not enabled - passwordBreachDbUrl has no effect\n");
     }
 #endif
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
         value = NULL;
+    }
+
+    /* Validate URL if provided */
+    if (value && strlen(value) > 0) {
+        /* Require https:// endpoint for security */
+        if (strncasecmp(value, "https://", 8) != 0) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: URL must use https://", attrname);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        /* Require trailing slash for correct URL construction */
+        len = strlen(value);
+        if (value[len - 1] != '/') {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: URL must end with a trailing slash (e.g., https://api.pwnedpasswords.com/range/)",
+                                  attrname);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
     }
 
     if (apply) {

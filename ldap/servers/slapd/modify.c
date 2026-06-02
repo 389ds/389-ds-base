@@ -1306,38 +1306,6 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     pwpolicy = new_passwdPolicy(pb, (char *)slapi_sdn_get_ndn(&sdn));
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
-#ifdef ENABLE_HIBP
-    /* Check all passwords against breach database before any other checks */
-    if (pwpolicy->pw_check_breach && mod->mod_bvalues) {
-        Slapi_Value **breach_vals = NULL;
-        valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
-        if (breach_vals) {
-            for (size_t i = 0; breach_vals[i] != NULL; i++) {
-                const char *pwd = slapi_value_get_string(breach_vals[i]);
-                if (pwd && !slapi_is_encoded((char *)pwd)) {
-                    int breach_count = hibp_check_password(pwd, pwpolicy);
-                    if (breach_count > 0) {
-                        slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
-                            "Rejecting password for %s - found in breach database (%d occurrences)\n",
-                            dn, breach_count);
-                        if (pwresponse_req == 1) {
-                            slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
-                        }
-                        send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
-                            "Password found in breach database - choose a different password", 0, NULL);
-                        valuearray_free(&breach_vals);
-                        rc = -1;
-                        goto done;
-                    } else if (breach_count < 0) {
-                        slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
-                            "Failed to check password against breach database for %s\n", dn);
-                    }
-                }
-            }
-            valuearray_free(&breach_vals);
-        }
-    }
-#endif
     /* internal operation has root permissions for subtrees it is allowed to access */
     if (!internal_op) {
         /* slapi_acl_check_mods needs an array of LDAPMods, but
@@ -1391,6 +1359,43 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         }
         /* done with slapi entry e */
         slapi_search_get_entry_done(&entry_pb);
+
+#ifdef ENABLE_HIBP
+        /*
+         * Check password against breach database after ACI validation.
+         */
+        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) &&
+            !pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
+            pwpolicy->pw_check_breach && mod->mod_bvalues) {
+            Slapi_Value **breach_vals = NULL;
+            valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
+            if (breach_vals) {
+                for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                    const char *pwd = slapi_value_get_string(breach_vals[i]);
+                    if (pwd && !slapi_is_encoded((char *)pwd)) {
+                        int breach_count = hibp_check_password(pwd, pwpolicy);
+                        if (breach_count > 0) {
+                            slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                "Rejecting password for %s - found in breach database (%d occurrences)\n",
+                                dn, breach_count);
+                            if (pwresponse_req == 1) {
+                                slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+                            }
+                            send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                "Password found in breach database - choose a different password", 0, NULL);
+                            valuearray_free(&breach_vals);
+                            rc = -1;
+                            goto done;
+                        } else if (breach_count < 0) {
+                            slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                "Failed to check password against breach database for %s\n", dn);
+                        }
+                    }
+                }
+                valuearray_free(&breach_vals);
+            }
+        }
+#endif
 
         /*
          * If this mod is being performed by a password administrator/rootDN,
