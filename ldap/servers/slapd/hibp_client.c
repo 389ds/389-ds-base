@@ -358,6 +358,7 @@ hibp_query_api(const char *prefix, const char *api_url, HIBPResponse *response, 
     if (curl_easy_setopt(curl, CURLOPT_URL, url) != CURLE_OK ||
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, hibp_write_callback) != CURLE_OK ||
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response) != CURLE_OK ||
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS) != CURLE_OK ||
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L) != CURLE_OK ||
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L) != CURLE_OK) {
         slapi_log_err(SLAPI_LOG_ERR, "hibp_query_api",
