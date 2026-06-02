@@ -636,6 +636,7 @@ int ldbm_set_last_usn(Slapi_Backend *be);
  */
 void entryrdn_set_switch(int val);
 int entryrdn_get_switch(void);
+int ldbm_index_entrydn_should_ignore(const char *index_name);
 void entryrdn_set_noancestorid(int val);
 int entryrdn_get_noancestorid(void);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
