@@ -1240,6 +1240,20 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
             if (pt != NULL) {
                 *pt = '\0';
             }
+            if (ldbm_index_entrydn_should_ignore(attrname)) {
+                if (ctx->job && ctx->job->task && ctx->job->inst) {
+                    slapi_task_log_notice(ctx->job->task,
+                                          "%s: Requested to index %s, but the index is no longer applicable",
+                                          ctx->job->inst->inst_name, LDBM_ENTRYDN_STR);
+                }
+                if (ctx->job && ctx->job->inst) {
+                    slapi_log_err(SLAPI_LOG_WARNING,
+                                  "process_db2index_attrs", "%s: Requested to index %s, but the index is no longer applicable\n",
+                                  ctx->job->inst->inst_name, LDBM_ENTRYDN_STR);
+                }
+                slapi_ch_free_string(&attrname);
+                break;
+            }
             slapi_ch_array_add(&ctx->indexAttrs, attrname);
             break;
         case 'T': /* VLV Search to index */
