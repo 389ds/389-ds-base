@@ -1493,11 +1493,11 @@ bdb_db2index(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing: %s\n",
                                   inst->inst_name, LDBM_ENTRYRDN_STR);
                     index_ext |= DB2INDEX_ENTRYRDN;
-                } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYDN_STR) == 0) {
+                } else if (ldbm_index_entrydn_should_ignore(attrs[i] + 1)) {
                     slapi_task_log_notice(task, "%s: Requested to index %s, but the index is no longer applicable",
                                           inst->inst_name, LDBM_ENTRYDN_STR);
                     slapi_log_err(SLAPI_LOG_WARNING,
-                                  "bdb_db2index", "%s: Requested to index %s,but the index is no longer applicable\n",
+                                  "bdb_db2index", "%s: Requested to index %s, but the index is no longer applicable\n",
                                   inst->inst_name, LDBM_ENTRYDN_STR);
                     goto err_out;
                 } else {

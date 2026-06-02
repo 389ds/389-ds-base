@@ -34,7 +34,7 @@ from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
-from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSBLE0004, DSBLE0005, DSBLE0006, DSBLE0007, DSVIRTLE0001, DSCLLE0001
+from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSBLE0004, DSBLE0005, DSBLE0006, DSBLE0007, DSBLE0008, DSVIRTLE0001, DSCLLE0001
 from lib389.plugins import USNPlugin
 from lib389.dseldif import DSEldif
 from lib389._mapped_object_lint import (
@@ -848,6 +848,39 @@ class Backend(DSLdapObject):
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             report['fix'] = report['fix'].replace('BACKEND_NAME', bename)
             yield report
+
+    def _lint_obsolete_entrydn_index(self):
+        """Detect obsolete entrydn index left over from pre-entryrdn migrations."""
+        bename = self.lint_uid()
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        issues = []
+
+        try:
+            self.get_indexes().get('entrydn')
+            issues.append('entrydn index is configured in cn=index')
+        except ldap.NO_SUCH_OBJECT:
+            pass
+        except Exception as e:
+            self._log.debug(f"_lint_obsolete_entrydn_index - config check failed: {e}")
+            issues.append(f'Unable to check entrydn index configuration: {e}')
+
+        db_dir = os.path.join(self._instance.ds_paths.db_dir, bename)
+        if os.path.isdir(db_dir):
+            for name in os.listdir(db_dir):
+                if name == 'entrydn.db' or name.startswith('entrydn.db'):
+                    issues.append(f'entrydn database file present: {name}')
+
+        if not issues:
+            return
+
+        report = copy.deepcopy(DSBLE0008)
+        report['check'] = f'backends:{bename}:obsolete_entrydn_index'
+        report['items'] = [suffix]
+        report['detail'] = report['detail'].replace('BACKEND_NAME', bename)
+        report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+        report['fix'] = report['fix'].replace('BACKEND_NAME', bename)
+        report['fix'] = report['fix'].replace('DB_DIR', db_dir)
+        yield report
 
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value
