@@ -20,6 +20,8 @@ from lib389.cli_conf.monitor import db_monitor
 from lib389.monitor import MonitorLDBM
 from lib389.cli_base import FakeArgs, LogCapture
 from lib389.backend import Backends
+from lib389.dseldif import DSEldif
+
 
 pytestmark = pytest.mark.tier1
 
