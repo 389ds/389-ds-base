@@ -313,8 +313,11 @@ str2simple(char *str, int unescape_filter)
 
     PR_ASSERT(str);
 
-    if ((s = strchr(str, '=')) == NULL) {
+    if ((s = strchr(str, '=')) == NULL || s == str) {
         return (NULL);
+    }
+    if (s[-1] & 0x80) {
+        return NULL;
     }
     value = s;
     LDAP_UTF8INC(value);
