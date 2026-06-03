@@ -1619,6 +1619,8 @@ slapi_dn_find_parent_ext(const char *dn, int is_tombstone)
                     }
                     if (*s) {
                         return (s);
+                    } else {
+                        return (NULL);
                     }
                 }
             }
