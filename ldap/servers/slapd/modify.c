@@ -1375,8 +1375,8 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                     if (pwd && !slapi_is_encoded((char *)pwd)) {
                         int breach_count = hibp_check_password(pwd, pwpolicy);
                         if (breach_count > 0) {
-                            slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                                "Rejecting password for %s - found in breach database (%d occurrences)\n",
+                            slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                "Password for %s found in breach database (%d occurrences)\n",
                                 dn, breach_count);
                             if (pwresponse_req == 1) {
                                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
