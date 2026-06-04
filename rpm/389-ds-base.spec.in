@@ -488,7 +488,7 @@ autoreconf -fiv
 
 # Avoid "Unknown key name 'XXX' in section 'Service', ignoring." warnings from systemd on older releases
 %if 0%{?rhel} && 0%{?rhel} < 9
-  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}/wrappers/*.service.in
+  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts|NoExecPaths)=/d' %{_builddir}/%{name}-%{version}/wrappers/*.service.in
 %endif
 
 # lib389
