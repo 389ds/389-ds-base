@@ -25,6 +25,8 @@ from ._common import (
     ns_slapd_path, libslapd_path, binary_has_sdt_notes,
     _tail, _drive_searches, _drive_searches_concurrent, _StderrReader,
     BPFTRACE_READY_MARKER,
+    collect_usdt_diagnostics, run_workload_with_diagnostics,
+    terminate_process_group,
 )
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -84,62 +86,92 @@ def workload_users(usdt_topo):
             pass
 
 
-def _run_bpftrace_script(script_path, binary_args, drive_load,
-                         ready_timeout=60.0, drain_wait=1.5, exit_timeout=30.0):
+def _run_bpftrace_script(script_path, binary_args, drive_load, inst=None,
+                         ready_timeout=60.0, drain_wait=1.5, exit_timeout=30.0,
+                         workload_timeout=None):
     """Spawn bpftrace, drive load after attach, SIGINT, return (stdout, stderr, rc)."""
 
     cmd = ["bpftrace", script_path, *binary_args]
+    label = os.path.basename(script_path)
+    target_pid = inst.get_pid() if inst is not None else None
     log.info("running: %s", " ".join(cmd))
     proc = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, bufsize=1,
+        text=True, bufsize=1, start_new_session=True,
     )
+    log.info("started bpftrace pid=%s target_pid=%s script=%s",
+             proc.pid, target_pid, label)
     reader = _StderrReader(proc, BPFTRACE_READY_MARKER)
     reader.start()
 
     try:
         if not reader.ready.wait(timeout=ready_timeout):
-            proc.kill()
+            diagnostics = collect_usdt_diagnostics(
+                f"{label}: bpftrace did not attach",
+                inst=inst, target_pid=target_pid, tracer_pid=proc.pid,
+                tracer_stderr=reader.stderr_text,
+            )
+            terminate_process_group(proc)
             stdout, _ = proc.communicate()
             reader.join(timeout=2)
             pytest.fail(
                 f"bpftrace did not attach within {ready_timeout}s.\n"
-                f"stderr tail:\n{_tail(reader.stderr_text, 40)}"
+                f"stderr tail:\n{_tail(reader.stderr_text, 40)}\n"
+                f"stdout:\n{stdout}\n{diagnostics}"
             )
         if proc.poll() is not None:
             stdout, _ = proc.communicate()
             reader.join(timeout=2)
+            diagnostics = collect_usdt_diagnostics(
+                f"{label}: bpftrace exited at attach",
+                inst=inst, target_pid=target_pid, tracer_pid=proc.pid,
+                tracer_stderr=reader.stderr_text,
+                extra=f"returncode={proc.returncode}",
+            )
             pytest.fail(
                 f"bpftrace exited at attach with code {proc.returncode}.\n"
                 f"stderr tail:\n{_tail(reader.stderr_text, 40)}\n"
-                f"stdout:\n{stdout}"
+                f"stdout:\n{stdout}\n{diagnostics}"
             )
 
-        log.debug("bpftrace attached; driving workload")
-        drive_load()
+        log.info("bpftrace attached; driving workload script=%s", label)
+        run_workload_with_diagnostics(
+            drive_load, f"bpftrace {label}",
+            inst=inst, target_pid=target_pid, tracer_pid=proc.pid,
+            tracer_stderr_fn=lambda: reader.stderr_text,
+            timeout=workload_timeout,
+        )
+        log.info("bpftrace workload finished script=%s", label)
         time.sleep(drain_wait)
 
-        log.debug("sending SIGINT to flush bpftrace maps")
-        proc.send_signal(signal.SIGINT)
+        log.info("sending SIGINT to bpftrace pid=%s script=%s", proc.pid, label)
+        if proc.poll() is None:
+            try:
+                proc.send_signal(signal.SIGINT)
+            except ProcessLookupError:
+                pass
         stdout, _ = proc.communicate(timeout=exit_timeout)
     except subprocess.TimeoutExpired:
-        proc.kill()
+        diagnostics = collect_usdt_diagnostics(
+            f"{label}: bpftrace did not exit after SIGINT",
+            inst=inst, target_pid=target_pid, tracer_pid=proc.pid,
+            tracer_stderr=reader.stderr_text,
+        )
+        terminate_process_group(proc)
         stdout, _ = proc.communicate()
         reader.join(timeout=2)
         pytest.fail(
             f"bpftrace did not exit within {exit_timeout}s after SIGINT.\n"
-            f"stderr tail:\n{_tail(reader.stderr_text, 40)}"
+            f"stderr tail:\n{_tail(reader.stderr_text, 40)}\n"
+            f"stdout:\n{stdout}\n{diagnostics}"
         )
     except BaseException:
-        proc.kill()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
+        terminate_process_group(proc)
         reader.join(timeout=2)
         raise
 
     reader.join(timeout=5)
+    log.info("bpftrace exited rc=%s script=%s", proc.returncode, label)
     return stdout, reader.stderr_text, proc.returncode
 
 
@@ -215,6 +247,7 @@ def test_probe_work_queue_bt(usdt_topo, workload_users):
     stdout, stderr, rc = _run_bpftrace_script(
         script, [ns_slapd_path(usdt_topo)],
         drive_load=lambda: _drive_searches_concurrent(inst, n=100, parallel=10),
+        inst=inst,
     )
     log.debug("stdout:\n%s", stdout)
     assert rc == 0, f"bpftrace exited {rc}\nstderr tail:\n{_tail(stderr, 40)}"
@@ -247,6 +280,7 @@ def test_probe_do_search_detail_bt(usdt_topo, workload_users):
         script,
         [ns_slapd_path(usdt_topo), libslapd_path(usdt_topo)],
         drive_load=lambda: _drive_searches(inst, 100),
+        inst=inst,
     )
     log.debug("stdout:\n%s", stdout)
     assert rc == 0, f"bpftrace exited {rc}\nstderr tail:\n{_tail(stderr, 40)}"
@@ -278,6 +312,7 @@ def test_probe_op_shared_search_bt(usdt_topo, workload_users):
     stdout, stderr, rc = _run_bpftrace_script(
         script, [libslapd_path(usdt_topo)],
         drive_load=lambda: _drive_searches(inst, 100),
+        inst=inst,
     )
     log.debug("stdout:\n%s", stdout)
     assert rc == 0, f"bpftrace exited {rc}\nstderr tail:\n{_tail(stderr, 40)}"
@@ -309,6 +344,7 @@ def test_probe_log_access_detail_bt(usdt_topo, workload_users):
     stdout, stderr, rc = _run_bpftrace_script(
         script, [libslapd_path(usdt_topo)],
         drive_load=lambda: _drive_searches(inst, 100),
+        inst=inst,
     )
     log.debug("stdout:\n%s", stdout)
     assert rc == 0, f"bpftrace exited {rc}\nstderr tail:\n{_tail(stderr, 40)}"

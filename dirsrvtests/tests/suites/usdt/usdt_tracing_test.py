@@ -23,6 +23,8 @@ from test389.topologies import topology_st as topo
 from ._common import (
     ns_slapd_path, libslapd_path, binary_has_sdt_notes,
     _tail, _StderrReader, BPFTRACE_READY_MARKER,
+    collect_usdt_diagnostics, run_workload_with_diagnostics,
+    terminate_process_group,
 )
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -47,8 +49,8 @@ pytestmark = [
 ]
 
 
-def _run_bpftrace(pid, program, drive_load=None,
-                  duration_s=10, ready_timeout=30.0):
+def _run_bpftrace(pid, program, drive_load=None, inst=None, label="inline bpftrace",
+                  duration_s=10, ready_timeout=30.0, workload_timeout=None):
     """Attach bpftrace to pid, wait for the attach marker, drive load,
     return stdout. Program must not exit by itself.
     """
@@ -58,46 +60,69 @@ def _run_bpftrace(pid, program, drive_load=None,
     proc = subprocess.Popen(
         ["bpftrace", "-p", str(pid), "-e", full_program],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, bufsize=1,
+        text=True, bufsize=1, start_new_session=True,
     )
+    log.info("started bpftrace pid=%s target_pid=%s label=%s",
+             proc.pid, pid, label)
     reader = _StderrReader(proc, BPFTRACE_READY_MARKER)
     reader.start()
 
     try:
         if not reader.ready.wait(timeout=ready_timeout):
-            proc.kill()
+            diagnostics = collect_usdt_diagnostics(
+                f"{label}: bpftrace did not attach",
+                inst=inst, target_pid=pid, tracer_pid=proc.pid,
+                tracer_stderr=reader.stderr_text,
+            )
+            terminate_process_group(proc)
             stdout, _ = proc.communicate()
             reader.join(timeout=2)
             pytest.fail(
                 f"bpftrace did not attach within {ready_timeout}s.\n"
-                f"stderr tail:\n{_tail(reader.stderr_text, 40)}"
+                f"stderr tail:\n{_tail(reader.stderr_text, 40)}\n"
+                f"stdout:\n{stdout}\n{diagnostics}"
             )
         if proc.poll() is not None:
             stdout, _ = proc.communicate()
             reader.join(timeout=2)
+            diagnostics = collect_usdt_diagnostics(
+                f"{label}: bpftrace exited at attach",
+                inst=inst, target_pid=pid, tracer_pid=proc.pid,
+                tracer_stderr=reader.stderr_text,
+                extra=f"returncode={proc.returncode}",
+            )
             pytest.fail(
                 f"bpftrace exited at attach with code {proc.returncode}.\n"
                 f"stderr tail:\n{_tail(reader.stderr_text, 40)}\n"
-                f"stdout:\n{stdout}"
+                f"stdout:\n{stdout}\n{diagnostics}"
             )
 
         if drive_load is not None:
-            drive_load()
+            log.info("bpftrace attached; driving workload label=%s", label)
+            run_workload_with_diagnostics(
+                drive_load, f"bpftrace {label}",
+                inst=inst, target_pid=pid, tracer_pid=proc.pid,
+                tracer_stderr_fn=lambda: reader.stderr_text,
+                timeout=workload_timeout,
+            )
+            log.info("bpftrace workload finished label=%s", label)
         stdout, _ = proc.communicate(timeout=duration_s + 10)
     except subprocess.TimeoutExpired:
-        proc.kill()
+        diagnostics = collect_usdt_diagnostics(
+            f"{label}: bpftrace did not exit on interval",
+            inst=inst, target_pid=pid, tracer_pid=proc.pid,
+            tracer_stderr=reader.stderr_text,
+        )
+        terminate_process_group(proc)
         stdout, _ = proc.communicate()
         reader.join(timeout=2)
         pytest.fail(
             f"bpftrace did not exit within timeout.\n"
-            f"stderr tail:\n{_tail(reader.stderr_text, 40)}"
+            f"stderr tail:\n{_tail(reader.stderr_text, 40)}\n"
+            f"stdout:\n{stdout}\n{diagnostics}"
         )
     except BaseException:
-        proc.kill()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
+        terminate_process_group(proc)
         reader.join(timeout=2)
         raise
 
@@ -105,9 +130,18 @@ def _run_bpftrace(pid, program, drive_load=None,
     stderr = reader.stderr_text
     if stderr:
         log.info("bpftrace stderr:\n%s", stderr)
-    assert proc.returncode == 0, (
-        f"bpftrace exited non-zero ({proc.returncode}). stderr:\n{stderr}"
-    )
+    if proc.returncode != 0:
+        diagnostics = collect_usdt_diagnostics(
+            f"{label}: bpftrace exited non-zero",
+            inst=inst, target_pid=pid, tracer_pid=proc.pid,
+            tracer_stderr=stderr,
+            extra=f"returncode={proc.returncode}",
+        )
+        pytest.fail(
+            f"bpftrace exited non-zero ({proc.returncode}). "
+            f"stderr:\n{stderr}\nstdout:\n{stdout}\n{diagnostics}"
+        )
+    log.info("bpftrace exited rc=%s label=%s", proc.returncode, label)
     return stdout
 
 
@@ -144,7 +178,11 @@ def _drive_searches(inst, n):
 
 @pytest.fixture(scope="module")
 def usdt_topo(topo):
-    """Standalone with access-log buffering off (probe-vs-log correlation)."""
+    """Standalone with deterministic logging and global work-queue behavior.
+
+    Turbo mode can dispatch persistent connections without going through
+    connection_wait_for_new_work(), so disable it for the work_q__* assertions.
+    """
 
     binary = ns_slapd_path(topo)
     if not binary_has_sdt_notes(binary):
@@ -152,10 +190,16 @@ def usdt_topo(topo):
 
     inst = topo.standalone
     original_buffering = inst.config.get_attr_val_utf8('nsslapd-accesslog-logbuffering')
+    original_turbo = inst.config.get_attr_val_utf8('nsslapd-enable-turbo-mode')
     inst.config.replace('nsslapd-accesslog-logbuffering', 'off')
-    yield topo
-    if original_buffering:
-        inst.config.replace('nsslapd-accesslog-logbuffering', original_buffering)
+    inst.config.replace('nsslapd-enable-turbo-mode', 'off')
+    try:
+        yield topo
+    finally:
+        if original_turbo is not None:
+            inst.config.replace('nsslapd-enable-turbo-mode', original_turbo)
+        if original_buffering is not None:
+            inst.config.replace('nsslapd-accesslog-logbuffering', original_buffering)
 
 
 @pytest.fixture
@@ -183,6 +227,9 @@ def workload_users(usdt_topo):
 def test_work_queue_probes_fire_under_load(usdt_topo, workload_users):
     """All four new work-queue/worker probes fire under search load.
 
+    The module fixture disables turbo mode because turbo processing can bypass
+    connection_wait_for_new_work(), where work_q__dequeue fires.
+
     :id: e1b9575f-fad2-47c3-8c52-33e265af1a3a
     :setup: Standalone instance
     :steps:
@@ -206,6 +253,8 @@ def test_work_queue_probes_fire_under_load(usdt_topo, workload_users):
     stdout = _run_bpftrace(
         inst.get_pid(), program,
         drive_load=lambda: _drive_searches(inst, 200),
+        inst=inst,
+        label="work_queue_probes_fire_under_load",
     )
     counts = _parse_at_scalars(stdout)
     log.info("Probe fire counts: %s", counts)
@@ -218,6 +267,9 @@ def test_work_queue_probes_fire_under_load(usdt_topo, workload_users):
 
 def test_enqueue_dequeue_counts_match(usdt_topo, workload_users):
     """Every enqueued op gets dequeued, within an attach-race tolerance.
+
+    Turbo mode is disabled by the module fixture so this assertion tests the
+    global work-queue enqueue/dequeue path.
 
     :id: 9e143e73-8c5b-42fc-bfda-0a3589aa4bdb
     :setup: Standalone instance
@@ -238,6 +290,8 @@ def test_enqueue_dequeue_counts_match(usdt_topo, workload_users):
     stdout = _run_bpftrace(
         inst.get_pid(), program,
         drive_load=lambda: _drive_searches(inst, 200),
+        inst=inst,
+        label="enqueue_dequeue_counts_match",
     )
     counts = _parse_at_scalars(stdout)
     enq, deq = counts.get("@enq", 0), counts.get("@deq", 0)
@@ -254,6 +308,9 @@ def test_enqueue_dequeue_counts_match(usdt_topo, workload_users):
 
 def test_worker_busy_count_tracks_dequeue(usdt_topo, workload_users):
     """worker__busy fires once per dispatched op.
+
+    worker__busy is broader than work_q__dequeue when turbo mode is enabled;
+    this test disables turbo so the two counters can be compared.
 
     :id: cfd89199-5ca3-4346-b448-96ff89da9eb3
     :setup: Standalone instance
@@ -274,6 +331,8 @@ def test_worker_busy_count_tracks_dequeue(usdt_topo, workload_users):
     stdout = _run_bpftrace(
         inst.get_pid(), program,
         drive_load=lambda: _drive_searches(inst, 200),
+        inst=inst,
+        label="worker_busy_count_tracks_dequeue",
     )
     counts = _parse_at_scalars(stdout)
     deq, bsy = counts.get("@deq", 0), counts.get("@bsy", 0)
@@ -305,7 +364,11 @@ def test_probes_fire_for_all_op_types(usdt_topo):
     def drive_mixed():
         users = UserAccounts(inst, DEFAULT_SUFFIX)
         inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_BASE, "(objectClass=*)")
-        u = users.create_test_user(uid=910001)
+        try:
+            u = users.create_test_user(uid=910001)
+        except ldap.ALREADY_EXISTS:
+            users.get("test_user_910001").delete()
+            u = users.create_test_user(uid=910001)
         try:
             u.set("description", "usdt op-coverage test")
             u.replace("description", "usdt op-coverage test 2")
@@ -315,7 +378,8 @@ def test_probes_fire_for_all_op_types(usdt_topo):
     program = f'usdt:{binary}:work_q__enqueue {{ @enq = count(); }} '
     stdout = _run_bpftrace(
         inst.get_pid(), program,
-        drive_load=drive_mixed, duration_s=8,
+        drive_load=drive_mixed, inst=inst,
+        label="probes_fire_for_all_op_types", duration_s=8,
     )
     counts = _parse_at_scalars(stdout)
     log.info("mixed-op enqueue count: %s", counts)
@@ -346,6 +410,8 @@ def test_worker_idle_thread_idx_in_range(usdt_topo, workload_users):
     stdout = _run_bpftrace(
         inst.get_pid(), program,
         drive_load=lambda: _drive_searches(inst, 50),
+        inst=inst,
+        label="worker_idle_thread_idx_in_range",
     )
     idx_counts = _parse_at_int_map(stdout, "idx")
     log.info("worker__idle thread_idx histogram: %s", idx_counts)
@@ -375,12 +441,21 @@ def test_enqueue_depth_argument_recorded(usdt_topo, workload_users):
     binary = ns_slapd_path(usdt_topo)
 
     def drive_burst():
-        threads = [threading.Thread(target=_drive_searches, args=(inst, 30))
-                   for _ in range(8)]
+        errors = []
+
+        def one_thread():
+            try:
+                _drive_searches(inst, 30)
+            except BaseException as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=one_thread) for _ in range(8)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+        if errors:
+            raise errors[0]
 
     program = (
         f'usdt:{binary}:work_q__enqueue '
@@ -388,7 +463,9 @@ def test_enqueue_depth_argument_recorded(usdt_topo, workload_users):
     )
     stdout = _run_bpftrace(
         inst.get_pid(), program,
-        drive_load=drive_burst, duration_s=8,
+        drive_load=drive_burst,
+        inst=inst,
+        label="enqueue_depth_argument_recorded", duration_s=8,
     )
     log.info("burst depth output:\n%s", stdout)
 
@@ -427,6 +504,8 @@ def test_existing_probes_still_fire(usdt_topo, workload_users):
     stdout = _run_bpftrace(
         inst.get_pid(), program,
         drive_load=lambda: _drive_searches(inst, 50),
+        inst=inst,
+        label="existing_probes_still_fire",
     )
     counts = _parse_at_scalars(stdout)
     log.info("existing-probe counts: %s", counts)
@@ -463,6 +542,8 @@ def test_probe_connid_matches_access_log(usdt_topo, workload_users):
     stdout = _run_bpftrace(
         inst.get_pid(), program,
         drive_load=lambda: _drive_searches(inst, 5),
+        inst=inst,
+        label="probe_connid_matches_access_log",
         duration_s=5,
     )
 
