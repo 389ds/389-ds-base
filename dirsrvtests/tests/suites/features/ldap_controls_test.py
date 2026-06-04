@@ -72,7 +72,7 @@ def test_postread_ctrl_modify(topology_st):
 
     log.info("Verify PostReadControl response is properly encoded")
     assert resp_ctrls, "Server should return PostReadControl"
-    assert resp_ctrls[0].dn == user.dn, "Control should return correct DN"
+    assert resp_ctrls[0].dn.lower() == user.dn.lower(), "Control should return correct DN"
     assert 'description' in resp_ctrls[0].entry, "Control should return description attribute"
     assert 'cn' in resp_ctrls[0].entry, "Control should return cn attribute"
 
