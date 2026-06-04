@@ -462,8 +462,12 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags, PRIntervalTim
                  * Special case: we received unencrypted data that was actually
                  * an unbind.  Copy it to the buffer and return its length.
                  */
-                memcpy(buf, sp->encrypted_buffer, sp->encrypted_buffer_count);
-                return sp->encrypted_buffer_count;
+                uint32_t bytes_to_copy = sp->encrypted_buffer_count;
+                if (bytes_to_copy > (uint32_t)len) {
+                    bytes_to_copy = (uint32_t)len;
+                }
+                memcpy(buf, sp->encrypted_buffer, bytes_to_copy);
+                return bytes_to_copy;
             }
             if (0 >= ret) {
                 /* timeout, connection closed, or error */
