@@ -28,7 +28,7 @@ NoNewPrivileges=yes
 MemoryDenyWriteExecute=yes
 # InaccessiblePaths=/dev/shm  (not possible because semaphore are used)
 NoExecPaths=/dev/shm
-SystemCallFilter=~memfd_create
+SystemCallFilter=~memfd_create:EPERM
 
 [Install]
 WantedBy=multi-user.target
