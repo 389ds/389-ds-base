@@ -2087,3 +2087,67 @@ def validate_max_age(value, ignore_value=None):
     # check value using digits except for the last character which must be a duration unit
     if not re.match(r'^\d+[sSmMhHdDwW]$', value) or value[0] == '0':
         raise ValueError(f"Invalid max age value: {value}")
+
+
+def get_mount_point(dir):
+    path = os.path.realpath(os.path.abspath(dir))
+    while not os.path.ismount(path):
+        path = os.path.dirname(path)
+    return path
+
+
+def get_disk_space(path):
+    stats = os.statvfs(path)
+    block_size = stats.f_frsize
+    total_size = stats.f_blocks * block_size
+    if total_size == 0:
+        return {
+            'total': 0,
+            'available': 0,
+            'used': 0,
+            'percent': 0
+        }
+
+    available_size = stats.f_bavail * block_size
+    used_size = total_size - available_size
+    used_percent = (used_size / total_size) * 100
+    return {
+        'total': total_size,
+        'available': available_size,
+        'used': used_size,
+        'percent': used_percent
+    }
+
+
+def check_asan_report(inst, err_string):
+    """
+    Check if the ASAN report contains the string.
+
+    This is used for CI tests that expect an ASAN report to exist after
+    stopping the server.
+
+    :param inst: Instance object
+    :param err_string: Error string to search for
+    :return: True if the error string is found, False otherwise
+    :raises ValueError: If the ASAN report does not exist
+    """
+    if not inst.has_asan():
+        return False
+
+    asan_report = os.path.join(inst.ds_paths.run_dir,
+                               f"ns-slapd-{inst.serverid}.asan.{inst.get_pid()}")
+
+    # Now we have the pid (and the proper file name) we can stop the server
+    inst.stop()
+
+    # Check the ASAN report
+    try:
+        with open(asan_report, 'r') as f:
+            content = f.read()
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        raise ValueError(f"Failed to read ASAN report '{asan_report}': {e}")
+
+    if err_string in content:
+        return True
+
+    return False
