@@ -2431,11 +2431,26 @@ error:
         }
     }
     if (0 != ret) {
-        dblayer_instance_close(job->inst->inst_be);
-        if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
-            /* If not dryrun NOR upgradedn space */
-            /* if running in the dry run mode, don't touch the db */
-            bdb_delete_instance_dir(be);
+        if (job->flags & FLAG_REINDEXING) {
+            /* Reindex only rebuilds secondary indexes from id2entry
+             * which is never modified during reindex. On failure we
+             * must NOT close or delete the instance, just bring the
+             * backend back online so the server can continue operating
+             * or shut down cleanly.
+             */
+            import_log_notice(job, SLAPI_LOG_CRIT, "bdb_public_bdb_import_main",
+                              "Reindex failed. Indexes may be incomplete."
+                              " The backend is unavailable until offline"
+                              " reindex is performed:"
+                              " stop the server, run 'dsctl <instance> db2index %s',"
+                              " then start the server.",
+                              inst->inst_name);
+        } else {
+            dblayer_instance_close(job->inst->inst_be);
+            if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
+                /* Not dryrun nor upgradedn - delete the half-imported db */
+                bdb_delete_instance_dir(be);
+            }
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {
