@@ -325,20 +325,25 @@ def test_substr_low_values(topology_st, uid_index, create_user):
     _search_and_assert(topology_st, '(uid=*low)', 2, 'low: final matching both')
 
 
-def test_substr_begin_1_middle_3_end_3(topology_st, uid_index, create_user):
-    """Test substring index with nsSubStrBegin=1, nsSubStrMiddle=3, nsSubStrEnd=3.
+def test_substr_begin_2_middle_3_end_3(topology_st, uid_index, create_user):
+    """Test substring index with nsSubStrBegin=2, nsSubStrMiddle=3, nsSubStrEnd=3.
+
+    With begin=2, the begin key stores 1 value character (plus the '^'
+    anchor). This allows single-character initial substring searches
+    to use the index. With end=3, the end key stores 2 value characters
+    (plus '$'), so a final substring search needs at least 2 characters.
 
     :id: c28166e9-41aa-44ee-ba66-3300ea3ea4d1
     :customerscenario: True
     :setup: Standalone instance
     :steps:
-        1. Configure uid index with begin=1, middle=3, end=3
+        1. Configure uid index with begin=2, middle=3, end=3
         2. Reindex uid attribute
         3. Add two test users
-        4. Search with 1-char initial
-        5. Search with 3-char initial
+        4. Search with 1-char initial (uses begin index, N-1=1 value char)
+        5. Search with multi-char initial
         6. Search with 3-char any
-        7. Search with 3-char final
+        7. Search with 2-char final (uses end index, N-1=2 value chars)
         8. Search with 2-char any (shorter than middle=3)
     :expectedresults:
         1. Success
@@ -353,7 +358,7 @@ def test_substr_begin_1_middle_3_end_3(topology_st, uid_index, create_user):
     uid_index.add_many(
         ('objectClass', 'extensibleObject'),
         ('nsIndexType', 'sub'),
-        ('nsSubStrBegin', '1'),
+        ('nsSubStrBegin', '2'),
         ('nsSubStrMiddle', '3'),
         ('nsSubStrEnd', '3'),
     )
@@ -367,23 +372,25 @@ def test_substr_begin_1_middle_3_end_3(topology_st, uid_index, create_user):
 
     _search_and_assert(topology_st, f'(uid={uid1})', 1, 'exact match sanity check')
     _search_and_assert(topology_st, f'(uid={uid1[:len(UID_PREFIX)+2]}*)', 1,
-                       'begin=1 two-char initial')
+                       'begin=2 multi-char initial')
     _search_and_assert(topology_st, '(uid=*deg*)', 2, 'middle=3 any search')
-    _search_and_assert(topology_st, '(uid=*gen)', 2, 'end=3 final search')
+    _search_and_assert(topology_st, '(uid=*gen)', 2,
+                       'end=3 final search (2 value chars + $)')
     _search_and_assert(topology_st, '(uid=*7d*)', 1, 'short any, post-filtered')
 
 
 def test_substr_matching_rule_mixed(topology_st, uid_index, create_user):
     """Test mixed substring lengths via nsMatchingRule format.
 
-    Uses begin=1, middle=3, end=3 via nsMatchingRule format.
+    Uses begin=2, middle=3, end=3 via nsMatchingRule format.
+    With begin=2 the begin key has 1 value character (plus '^').
 
     :id: 0ef6d87e-5ce2-4ea7-a8b7-9cb09f0fcf53
     :customerscenario: True
     :setup: Standalone instance
     :steps:
         1. Configure uid index with nsMatchingRule format:
-           nssubstrbegin=1, nssubstrmiddle=3, nssubstrend=3
+           nssubstrbegin=2, nssubstrmiddle=3, nssubstrend=3
         2. Reindex uid attribute
         3. Add test users
         4. Search with various filters to verify functionality
@@ -395,7 +402,7 @@ def test_substr_matching_rule_mixed(topology_st, uid_index, create_user):
     """
     uid_index.add_many(
         ('nsIndexType', 'sub'),
-        ('nsMatchingRule', 'nssubstrbegin=1'),
+        ('nsMatchingRule', 'nssubstrbegin=2'),
         ('nsMatchingRule', 'nssubstrmiddle=3'),
         ('nsMatchingRule', 'nssubstrend=3'),
     )
@@ -408,7 +415,7 @@ def test_substr_matching_rule_mixed(topology_st, uid_index, create_user):
     _reindex_uid(topology_st)
 
     _search_and_assert(topology_st, f'(uid={uid1[:len(UID_PREFIX)+2]}*)', 1,
-                       'matching rule begin=1')
+                       'matching rule begin=2')
     _search_and_assert(topology_st, '(uid=*rul*)', 2, 'matching rule middle=3')
     _search_and_assert(topology_st, f'(uid=*{uid1[-7:]})', 1, 'matching rule end=3')
 
@@ -456,6 +463,100 @@ def test_substr_mixed_end_gt_middle(topology_st, uid_index, create_user):
                        'begin=2 initial search')
     _search_and_assert(topology_st, '(uid=*endgt)', 2, 'end=3 final search')
     _search_and_assert(topology_st, '(uid=*nd*)', 2, 'middle=2 any search')
+
+
+def test_substr_min_begin_value(topology_st, uid_index, create_user):
+    """Test that nsSubStrBegin=1 is restricted to 2 with a warning.
+
+    A value of 1 for begin or end is too small because the anchor
+    character ('^' or '$') consumes the entire key length, leaving
+    zero value characters. The server should adjust it to 2 and log
+    a warning.
+
+    :id: f8e2a3b1-6c7d-4e9f-a0b2-3c4d5e6f7a8b
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1. Configure uid index with nsSubStrBegin=1 (too small)
+        2. Check that the server logs a warning about the adjustment
+        3. Reindex uid attribute
+        4. Add test users with distinct first characters after prefix
+        5. Search with 1-char initial (should work because begin was adjusted to 2)
+    :expectedresults:
+        1. Success (value accepted but adjusted)
+        2. Warning logged about adjustment
+        3. Success
+        4. Success
+        5. Returns correct results
+    """
+    uid_index.add_many(
+        ('objectClass', 'extensibleObject'),
+        ('nsIndexType', 'sub'),
+        ('nsSubStrBegin', '1'),
+        ('nsSubStrMiddle', '3'),
+        ('nsSubStrEnd', '3'),
+    )
+
+    uid1 = f'{UID_PREFIX}n13adj'
+    uid2 = f'{UID_PREFIX}o14adj'
+    create_user(uid1, 'n user13', 'user13')
+    create_user(uid2, 'o user14', 'user14')
+
+    _reindex_uid(topology_st)
+
+    # With begin adjusted to 2, a 1-char initial uses the begin index key
+    # (the key has 1 value char = N-1 = 2-1).
+    _search_and_assert(topology_st, f'(uid={uid1[:len(UID_PREFIX)+1]}*)', 1,
+                       'adjusted begin=2: 1-char after prefix is selective')
+    _search_and_assert(topology_st, '(uid=*adj)', 2,
+                       'adjusted begin=2: both users found by final match')
+
+    # Verify warning was logged
+    assert topology_st.standalone.searchErrorsLog('nsSubStrBegin')
+    assert topology_st.standalone.searchErrorsLog('too small')
+
+
+def test_substr_end_adjusted_matching_rule(topology_st, uid_index, create_user):
+    """Test that nssubstrend=1 via nsMatchingRule is adjusted to 2.
+
+    :id: 4b48136c-69af-41d8-bcc8-8eeb8d7959a9
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1. Configure uid index with nsMatchingRule: nssubstrend=1
+        2. Check that the server logs a warning about the adjustment
+        3. Reindex uid attribute
+        4. Add test users
+        5. Search with 1-char final (uses end index since adjusted to 2)
+    :expectedresults:
+        1. Success (value accepted but adjusted)
+        2. Warning logged
+        3. Success
+        4. Success
+        5. Returns correct results
+    """
+    uid_index.add_many(
+        ('nsIndexType', 'sub'),
+        ('nsMatchingRule', 'nssubstrend=1'),
+    )
+
+    uid1 = f'{UID_PREFIX}p15endcl'
+    uid2 = f'{UID_PREFIX}q16endcm'
+    create_user(uid1, 'p user15', 'user15')
+    create_user(uid2, 'q user16', 'user16')
+
+    _reindex_uid(topology_st)
+
+    # With end adjusted to 2, the end key has 1 value char.
+    # 1-char final should use the end index: finallen(1) > 2-2=0 -> true
+    _search_and_assert(topology_st, f'(uid=*{uid1[-1:]})', 1,
+                       'adjusted end=2: 1-char final')
+    _search_and_assert(topology_st, f'(uid=*{uid1[-4:]})', 1,
+                       'adjusted end=2: multi-char final')
+
+    # Verify warning was logged
+    assert topology_st.standalone.searchErrorsLog('nssubstrend=1')
+    assert topology_st.standalone.searchErrorsLog('too small')
 
 
 if __name__ == '__main__':
