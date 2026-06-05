@@ -2483,14 +2483,10 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
     slapi_onoff_t global_backend_lock;
     slapi_int_t maxsimplepaged_per_conn; /* max simple paged results reqs handled per connection */
-<<<<<<< HEAD
-    slapi_onoff_t enable_nunc_stans;
-=======
     slapi_int_t maxcontrols_per_op;      /* max LDAP controls allowed per operation */
     slapi_onoff_t enable_nunc_stans; /* Despite the removal of NS, we have to leave the value in
                                       * case someone was setting it.
                                       */
->>>>>>> 08a31c002 (Issue 7503 - CVE-2026-9064 - Add a limit to the number controls per operation)
 #if defined(LINUX)
     int malloc_mxfast;         /* mallopt M_MXFAST */
     int malloc_trim_threshold; /* mallopt M_TRIM_THRESHOLD */

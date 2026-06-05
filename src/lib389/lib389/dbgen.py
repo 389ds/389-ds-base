@@ -113,13 +113,8 @@ usercertificate;binary:: MIIBvjCCASegAwIBAgIBAjANBgkqhkiG9w0BAQQFADAnMQ8wDQYD
 DBGEN_HEADER = """dn: {SUFFIX}
 objectClass: top
 objectClass: domain
-<<<<<<< HEAD
-dc: example
-aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl1"; allow(write) userdn = "ldap:///self";) 
-=======
 dc: {RDN}
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl1"; allow(write) userdn = "ldap:///self";)
->>>>>>> 8fa838a4f... Ticket 49830 - Import fails if backend name is "default"
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl2"; allow(write) groupdn = "ldap:///cn=Directory Administrators, {SUFFIX}";)
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl3"; allow(read, search, compare) userdn = "ldap:///anyone";)
 
