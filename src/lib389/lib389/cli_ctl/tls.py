@@ -44,7 +44,7 @@ def import_client_ca(inst, log, args):
     if nickname.lower() == CERT_NAME.lower() or nickname.lower() == CA_NAME.lower():
         log.error("You may not import a CA with the nickname %s or %s" % (CERT_NAME, CA_NAME))
         return
-    tls.add_cert(nickname=nickname, input_file=cert_path)
+    tls.add_cert(nickname=nickname, cert_file=cert_path)
     tls.edit_cert_trust(nickname, "T,,")
 
 
