@@ -1192,11 +1192,11 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.tls_check_crl,
      CONFIG_SPECIAL_TLS_CHECK_CRL, (ConfigGetFunc)config_get_tls_check_crl,
      "none" /* Allow reset to this value */},
-    {CONFIG_MAXCONTROLSPEROP_ATTRIBUTE, config_set_maxcontrolsperop,
+    {CONFIG_MAXCONTROLS_PER_OP_ATTRIBUTE, config_set_maxcontrolsperop,
      NULL, 0,
-     (void **)&global_slapdFrontendConfig.maxcontrolsperop,
+     (void **)&global_slapdFrontendConfig.maxcontrols_per_op,
      CONFIG_INT, (ConfigGetFunc)config_get_maxcontrolsperop,
-     SLAPD_DEFAULT_MAXCONTROLSPEROP_STR},
+     SLAPD_DEFAULT_MAXCONTROLS_PER_OP_STR},
     /* End config */
     };
 
