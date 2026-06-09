@@ -83,6 +83,7 @@ jobs:
         sudo cp .github/daemon.json /etc/docker/daemon.json
         sudo systemctl unmask docker
         sudo systemctl start docker
+        sudo apparmor_parser -R /etc/apparmor.d/unix-chkpwd 2>/dev/null || true
 
     - name: Free disk space
       run: |
@@ -127,8 +128,12 @@ jobs:
     - name: Make the results file readable by all
       if: always()
       run: |
-        sudo chmod -f -v -R a+r pytest.*ml assets
-        sudo chmod -f -v a+x assets
+        sudo chmod -f -v -R a+r pytest.*ml assets || true
+        sudo chmod -f -v a+x assets || true
+        if [ -d .playwright-screenshots ]; then
+          sudo chmod -f -v -R a+r .playwright-screenshots
+          sudo chmod -f -v a+x .playwright-screenshots
+        fi
     - name: Sanitize filename
       if: always()
       run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
@@ -138,8 +143,10 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
+        include-hidden-files: true
         path: |
           pytest.xml
           pytest.html
           assets
+          .playwright-screenshots
 
