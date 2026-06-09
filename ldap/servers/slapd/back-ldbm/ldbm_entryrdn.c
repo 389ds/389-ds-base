@@ -3356,6 +3356,9 @@ retry_get0:
     do {
         rdn_elem *myelem = NULL;
         dbi_val_t dataret = {0};
+        IDList *direct_children = NULL;
+        idl_iterator child_iter;
+
         for (dblayer_bulk_start(&data); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&data, &dataret); ) {
             ID myid = 0;
             myelem = (rdn_elem *)dataret.data;
@@ -3370,27 +3373,45 @@ retry_get0:
                 }
             }
             myid = id_stored_to_internal(myelem->rdn_elem_id);
+            if (myelem != dataret.data) {
+                /* myelem was alloc by _entryrdn_resolve_redirect */
+                slapi_ch_free((void **)&myelem);
+            }
             rc = idl_append_extend(affectedidl, myid);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_append_childidl",
                               "Appending %d to affected idl failed (%d)\n", myid, rc);
-                if (myelem != dataret.data) {
-                    /* myelem was alloc by _entryrdn_resolve_redirect */
-                    slapi_ch_free((void**)&myelem);
-                }
                 _ENTRYRDN_DEBUG_GOTO_BAIL();
                 goto bail;
             }
-            rc = _entryrdn_append_childidl(ctx, (const char *)myelem->rdn_elem_nrdn_rdn,
-                                           myid, affectedidl);
-            if (myelem != dataret.data) {
-                /* myelem was alloc by _entryrdn_resolve_redirect */
-                slapi_ch_free((void**)&myelem);
-            }
+            rc = idl_append_extend(&direct_children, myid);
             if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_append_childidl",
+                              "Appending %d to direct children idl failed (%d)\n", myid, rc);
                 _ENTRYRDN_DEBUG_GOTO_BAIL();
                 goto bail;
             }
+        }
+
+        /* Recurse after the bulk loop. On LMDB bulk_nextdata advances a
+         * shared cursor, and recursive MOVE_TO_KEY repositions it mid loop,
+         * causing an unbounded re-read of stale duplicate data. */
+        if (direct_children) {
+            child_iter = idl_iterator_init(direct_children);
+            for (;;) {
+                ID childid = idl_iterator_dereference_increment(&child_iter, direct_children);
+
+                if (childid == NOID) {
+                    break;
+                }
+                rc = _entryrdn_append_childidl(ctx, nrdn, childid, affectedidl);
+                if (rc) {
+                    idl_free(&direct_children);
+                    _ENTRYRDN_DEBUG_GOTO_BAIL();
+                    goto bail;
+                }
+            }
+            idl_free(&direct_children);
         }
     retry_get1:
         rc = dblayer_cursor_bulkop(&ctx->cursor, DBI_OP_NEXT_DATA, &key, &data);
