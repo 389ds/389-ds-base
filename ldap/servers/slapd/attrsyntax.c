@@ -226,6 +226,8 @@ attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, PRUint32 schema_f
         return;
 
     if (schema_flags & DSE_SCHEMA_LOCKED) {
+        if (0 != attr_syntax_init_tmp())
+            return;
         PL_HashTableAdd(oid2asi_tmp, oid, a);
     } else {
         if (lock) {
@@ -416,6 +418,8 @@ attr_syntax_add_by_name(struct asyntaxinfo *a, PRUint32 schema_flags, int lock)
         return;
 
     if (schema_flags & DSE_SCHEMA_LOCKED) {
+        if (0 != attr_syntax_init_tmp())
+            return;
         /* insert the attr into the temp global linked list */
         attr_syntax_insert_tmp(a);
 
@@ -1465,13 +1469,6 @@ attr_syntax_init(void)
         }
     }
 
-    if (!oid2asi_tmp) {
-        /* temporary hash table for schema reload */
-        oid2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
-                                      hashNocaseCompare,
-                                      PL_CompareValues, 0, 0);
-    }
-
     if (!name2asi) {
         name2asi = PL_NewHashTable(2047, hashNocaseString,
                                    hashNocaseCompare,
@@ -1492,14 +1489,78 @@ attr_syntax_init(void)
                                    DIRSTRING_SYNTAX_OID,
                                    SLAPI_ATTR_FLAG_NOUSERMOD | SLAPI_ATTR_FLAG_NOEXPOSE);
     }
-    if (!name2asi_tmp) {
-        /* temporary hash table for schema reload */
+
+    return 0;
+}
+
+/*
+ * Create the temporary hash tables used only during schema reload.
+ * These must not be created from attr_syntax_init(): after a reload the
+ * tmp pointers are swapped into place and set to NULL, and recreating them
+ * on every attr_syntax_read_lock() would leak hash tables.
+ */
+int
+attr_syntax_init_tmp(void)
+{
+    int rc = 0;
+
+    if (0 != attr_syntax_init()) {
+        return 1;
+    }
+
+    if (!oid2asi_tmp) {
+        oid2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
+                                      hashNocaseCompare,
+                                      PL_CompareValues, 0, 0);
+        if (!oid2asi_tmp) {
+            slapi_log_err(SLAPI_LOG_ERR, "attr_syntax_init_tmp",
+                          "Failed to create oid2asi_tmp hash table\n");
+            rc = 1;
+        }
+    }
+
+    if (!name2asi_tmp && rc == 0) {
         name2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
                                        hashNocaseCompare,
                                        PL_CompareValues, 0, 0);
+        if (!name2asi_tmp) {
+            slapi_log_err(SLAPI_LOG_ERR, "attr_syntax_init_tmp",
+                          "Failed to create name2asi_tmp hash table\n");
+            rc = 1;
+        }
     }
 
-    return 0;
+    if (rc) {
+        /* destroy everything on failure */
+        attr_syntax_destroy_tmp();
+    }
+
+    return rc;
+}
+
+/*
+ * Discard a failed or abandoned schema reload build in the tmp tables.
+ */
+void
+attr_syntax_destroy_tmp(void)
+{
+    struct asyntaxinfo *asi;
+    struct asyntaxinfo *next;
+
+    for (asi = global_at_tmp; asi != NULL; asi = next) {
+        next = asi->asi_next;
+        attr_syntax_free(asi);
+    }
+    global_at_tmp = NULL;
+
+    if (oid2asi_tmp) {
+        PL_HashTableDestroy(oid2asi_tmp);
+        oid2asi_tmp = NULL;
+    }
+    if (name2asi_tmp) {
+        PL_HashTableDestroy(name2asi_tmp);
+        name2asi_tmp = NULL;
+    }
 }
 
 int
