@@ -288,6 +288,7 @@ slapi_attr_init_syntax(Slapi_Attr *a)
         a->a_mr_eq_plugin = asi->asi_mr_eq_plugin;
         a->a_mr_ord_plugin = asi->asi_mr_ord_plugin;
         a->a_mr_sub_plugin = asi->asi_mr_sub_plugin;
+        attr_syntax_return(asi);
     }
     if (tmp)
         slapi_ch_free_string(&tmp);
