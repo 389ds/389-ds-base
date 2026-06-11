@@ -3320,17 +3320,17 @@ _entryrdn_append_childidl(entryrdn_db_ctx_t *ctx,
     /* E.g., C5 */
     char *keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, id);
     dbi_val_t key = {0};
-    dbi_bulk_t data = {0};
-    char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
+    dbi_val_t dataret = {0};
+    IDList *direct_children = NULL;
+    idl_iterator child_iter;
     int rc = 0;
 
     dblayer_value_set(ctx->be, &key, keybuf, strlen(keybuf) + 1);
-    /* Setting the bulk fetch buffer */
-    dblayer_bulk_set_buffer(ctx->be, &data, buffer, sizeof(buffer), DBI_VF_BULK_DATA);
+    dblayer_value_init(ctx->be, &dataret);
 
 /* Position cursor at the matching key */
 retry_get0:
-    rc = dblayer_cursor_bulkop(&ctx->cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
+    rc = dblayer_cursor_op(&ctx->cursor, DBI_OP_MOVE_TO_KEY, &key, &dataret);
     if (rc) {
         if (DBI_RC_RETRY == rc) {
             slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "_entryrdn_append_childidl",
@@ -3346,7 +3346,7 @@ retry_get0:
             rc = 0; /* okay not to have children */
         } else {
             _entryrdn_cursor_print_error("_entryrdn_append_childidl",
-                                         key.data, data.v.size, data.v.ulen, rc);
+                                         key.data, dataret.size, dataret.ulen, rc);
         }
         _ENTRYRDN_DEBUG_GOTO_BAIL();
         goto bail;
@@ -3355,89 +3355,82 @@ retry_get0:
     /* Iterate over the duplicates to get the direct child's ID */
     do {
         rdn_elem *myelem = NULL;
-        dbi_val_t dataret = {0};
-        IDList *direct_children = NULL;
-        idl_iterator child_iter;
+        ID myid = 0;
 
-        for (dblayer_bulk_start(&data); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&data, &dataret); ) {
-            ID myid = 0;
-            myelem = (rdn_elem *)dataret.data;
-            if (RDN_IS_REDIRECT(myelem)) {
-                rc = _entryrdn_resolve_redirect(ctx, &myelem, 0);
-                if (rc) {
-                    /* Should not have any retry on lmdb and
-                     * DBI_RC_NOTFOUND means that redirect db is corrupted
-                     */
-                    _ENTRYRDN_DEBUG_GOTO_BAIL();
-                    goto bail;
-                }
-            }
-            myid = id_stored_to_internal(myelem->rdn_elem_id);
-            if (myelem != dataret.data) {
-                /* myelem was alloc by _entryrdn_resolve_redirect */
-                slapi_ch_free((void **)&myelem);
-            }
-            rc = idl_append_extend(affectedidl, myid);
+        myelem = (rdn_elem *)dataret.data;
+        if (RDN_IS_REDIRECT(myelem)) {
+            rc = _entryrdn_resolve_redirect(ctx, &myelem, 0);
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_append_childidl",
-                              "Appending %d to affected idl failed (%d)\n", myid, rc);
-                _ENTRYRDN_DEBUG_GOTO_BAIL();
-                goto bail;
-            }
-            rc = idl_append_extend(&direct_children, myid);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_append_childidl",
-                              "Appending %d to direct children idl failed (%d)\n", myid, rc);
+                /* Should not have any retry on lmdb and
+                 * DBI_RC_NOTFOUND means that redirect db is corrupted
+                 */
                 _ENTRYRDN_DEBUG_GOTO_BAIL();
                 goto bail;
             }
         }
-
-        /* Recurse after the bulk loop. On LMDB bulk_nextdata advances a
-         * shared cursor, and recursive MOVE_TO_KEY repositions it mid loop,
-         * causing an unbounded re-read of stale duplicate data. */
-        if (direct_children) {
-            child_iter = idl_iterator_init(direct_children);
-            for (;;) {
-                ID childid = idl_iterator_dereference_increment(&child_iter, direct_children);
-
-                if (childid == NOID) {
-                    break;
-                }
-                rc = _entryrdn_append_childidl(ctx, nrdn, childid, affectedidl);
-                if (rc) {
-                    idl_free(&direct_children);
-                    _ENTRYRDN_DEBUG_GOTO_BAIL();
-                    goto bail;
-                }
-            }
-            idl_free(&direct_children);
+        myid = id_stored_to_internal(myelem->rdn_elem_id);
+        if (myelem != dataret.data) {
+            /* myelem was alloc by _entryrdn_resolve_redirect */
+            slapi_ch_free((void **)&myelem);
         }
-    retry_get1:
-        rc = dblayer_cursor_bulkop(&ctx->cursor, DBI_OP_NEXT_DATA, &key, &data);
+        rc = idl_append_extend(affectedidl, myid);
         if (rc) {
-            if (DBI_RC_RETRY == rc) {
-                slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "_entryrdn_append_childidl",
-                              "Retry cursor get deadlock\n");
-                if (ctx->db_txn) {
-                    _ENTRYRDN_DEBUG_GOTO_BAIL();
-                    goto bail;
-                } else {
-                    /* try again */
-                    goto retry_get1;
-                }
-            } else if (DBI_RC_NOTFOUND == rc) {
-                rc = 0; /* okay not to have children */
-            } else {
-                _entryrdn_cursor_print_error("_entryrdn_append_childidl",
-                                             key.data, data.v.size, data.v.ulen, rc);
-            }
+            slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_append_childidl",
+                          "Appending %d to affected idl failed (%d)\n", myid, rc);
             _ENTRYRDN_DEBUG_GOTO_BAIL();
             goto bail;
         }
-    } while (0 == rc);
+        rc = idl_append_extend(&direct_children, myid);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_append_childidl",
+                          "Appending %d to direct children idl failed (%d)\n", myid, rc);
+            _ENTRYRDN_DEBUG_GOTO_BAIL();
+            goto bail;
+        }
+    retry_get1:
+        rc = dblayer_cursor_op(&ctx->cursor, DBI_OP_NEXT_DATA, &key, &dataret);
+        if (DBI_RC_RETRY == rc) {
+            slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "_entryrdn_append_childidl",
+                          "Retry cursor get deadlock\n");
+            if (ctx->db_txn) {
+                _ENTRYRDN_DEBUG_GOTO_BAIL();
+                goto bail;
+            } else {
+                /* try again */
+                goto retry_get1;
+            }
+        } else if (DBI_RC_NOTFOUND == rc) {
+            rc = 0;
+            break;
+        } else if (rc) {
+            _entryrdn_cursor_print_error("_entryrdn_append_childidl",
+                                         key.data, dataret.size, dataret.ulen, rc);
+            _ENTRYRDN_DEBUG_GOTO_BAIL();
+            goto bail;
+        }
+    } while (1);
+
+    /* Recurse only after all direct children are collected.*/
+    if (direct_children) {
+        child_iter = idl_iterator_init(direct_children);
+        for (;;) {
+            ID childid = idl_iterator_dereference_increment(&child_iter, direct_children);
+            if (childid == NOID) {
+                break;
+            }
+            rc = _entryrdn_append_childidl(ctx, nrdn, childid, affectedidl);
+            if (rc) {
+                _ENTRYRDN_DEBUG_GOTO_BAIL();
+                goto bail;
+            }
+        }
+    }
 
 bail:
+    if (direct_children) {
+        idl_free(&direct_children);
+    }
+    dblayer_value_free(ctx->be, &dataret);
     dblayer_value_free(ctx->be, &key);
     return rc;
 }
