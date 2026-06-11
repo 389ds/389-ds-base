@@ -107,6 +107,8 @@ struct asyntaxinfo *attr_syntax_get_by_name_locking_optional(const char *name, P
 struct asyntaxinfo *attr_syntax_get_global_at(void);
 struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 void attr_syntax_swap_ht(void);
+int attr_syntax_init_tmp(void);
+void attr_syntax_destroy_tmp(void);
 /*
  * Call attr_syntax_return(void) when you are done using a value returned
  * by attr_syntax_get_by_oid(void) or attr_syntax_get_by_name(void).
