@@ -381,19 +381,21 @@ attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
         }
 
         if (delete_it) {
-            if (asi->asi_marked_for_delete) { /* one final check */
-                if (use_lock) {
-                    AS_UNLOCK_READ(name2asi_lock);
-                    AS_LOCK_WRITE(name2asi_lock);
-                }
+            if (use_lock) {
+                AS_UNLOCK_READ(name2asi_lock);
+                AS_LOCK_WRITE(name2asi_lock);
+            }
+            if (slapi_atomic_load_64(&asi->asi_refcnt, __ATOMIC_ACQUIRE) == 0 &&
+                asi->asi_marked_for_delete) /* one final check */
+            {
                 /* ref count is 0 and it's flagged for
                  * deletion, so it's safe to free now */
                 attr_syntax_remove(asi);
                 attr_syntax_free(asi);
-                if (use_lock) {
-                    AS_UNLOCK_WRITE(name2asi_lock);
-                    locked = 0;
-                }
+            }
+            if (use_lock) {
+                AS_UNLOCK_WRITE(name2asi_lock);
+                locked = 0;
             }
         }
     }
@@ -1201,6 +1203,9 @@ slapi_attr_is_dn_syntax_type(char *type)
             dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID)) || (0 == strcmp(syntaxoid, DN_SYNTAX_OID)));
         }
     }
+    if (asi) {
+        attr_syntax_return(asi);
+    }
     return dn_syntax;
 }
 
@@ -1709,7 +1714,10 @@ attr_syntax_swap_ht()
     /* Free the global attr linked list */
     while (global_at) {
         next = global_at->asi_next;
-        attr_syntax_free(global_at);
+        global_at->asi_marked_for_delete = 1;
+        if (slapi_atomic_load_64(&global_at->asi_refcnt, __ATOMIC_ACQUIRE) == 0) {
+            attr_syntax_free(global_at);
+        }
         global_at = next;
     }
 
