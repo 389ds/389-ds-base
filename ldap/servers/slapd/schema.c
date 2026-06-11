@@ -4947,7 +4947,17 @@ slapi_reload_schema_files(char *schemadir)
     }
     slapi_be_Wlock(be); /* be lock must be outer of schemafile lock */
     reload_schemafile_lock();
+    attr_syntax_destroy_tmp();
+    if (0 != attr_syntax_init_tmp()) {
+        reload_schemafile_unlock();
+        slapi_be_Unlock(be);
+        slapi_log_err(SLAPI_LOG_ERR, "schema_reload",
+                      "slapi_reload_schema_files failed to init tmp tables\n");
+        return LDAP_LOCAL_ERROR;
+    }
     oc_delete_all_nolock();
+
+    /* Everything is cleaned up, now parse the schema again */
     rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
                              DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
     if (rc) {
@@ -4968,6 +4978,7 @@ slapi_reload_schema_files(char *schemadir)
         slapi_be_Unlock(be);
         return LDAP_SUCCESS;
     } else {
+        attr_syntax_destroy_tmp();
         reload_schemafile_unlock();
         slapi_be_Unlock(be);
         slapi_log_err(SLAPI_LOG_ERR, "schema_reload",
