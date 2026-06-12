@@ -128,6 +128,9 @@
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 #include "slap.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 #include "plhash.h"
 #if defined(LINUX)
 #include <malloc.h>
@@ -213,6 +216,7 @@ slapi_onoff_t init_pw_exp;
 slapi_onoff_t init_pw_send_expiring;
 slapi_onoff_t init_pw_palindrome;
 slapi_onoff_t init_pw_dict_check;
+slapi_onoff_t init_pw_breach_check;
 slapi_onoff_t init_allow_hashed_pw;
 slapi_onoff_t init_pw_syntax;
 slapi_onoff_t init_schemacheck;
@@ -583,6 +587,21 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_bad_words,
      CONFIG_STRING, NULL, "", NULL},
+    /* password breach check */
+    {CONFIG_PW_BREACH_CHECK_ATTRIBUTE, config_set_pw_breach_check,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_check_breach,
+     CONFIG_ON_OFF, NULL, &init_pw_breach_check, NULL},
+    /* password breach database URL */
+    {CONFIG_PW_BREACH_URL_ATTRIBUTE, config_set_pw_breach_url,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_breach_db_url,
+     CONFIG_STRING, NULL, "", NULL},
+    /* password breach database timeout */
+    {CONFIG_PW_BREACH_TIMEOUT_ATTRIBUTE, config_set_pw_breach_timeout,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_breach_db_timeout,
+     CONFIG_INT, NULL, "5", NULL},
     /* password max sequence */
     {CONFIG_PW_MAX_SEQ_ATTRIBUTE, config_set_pw_max_seq,
      NULL, 0,
@@ -1775,6 +1794,7 @@ pwpolicy_fe_init_onoff(passwdPolicy *pw_policy)
     init_pw_track_update_time = pw_policy->pw_track_update_time;
     init_pw_palindrome = pw_policy->pw_palindrome;
     init_pw_dict_check = pw_policy->pw_check_dict;
+    init_pw_breach_check = pw_policy->pw_check_breach;
 }
 
 void
@@ -3797,6 +3817,114 @@ config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int a
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_dict_path);
         slapdFrontendConfig->pw_policy.pw_dict_path = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_breach_check(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+#ifndef ENABLE_HIBP
+    if (value && strcasecmp(value, "on") == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: HIBP breached password checking is not available. "
+                              "Rebuild with --enable-hibp to enable this feature.", attrname);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_pw_breach_check",
+                      "HIBP breached password checking is not available - "
+                      "rebuild with --enable-hibp to enable this feature\n");
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+#endif
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->pw_policy.pw_check_breach),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_pw_breach_url(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    size_t len;
+
+#ifndef ENABLE_HIBP
+    if (apply && value && strlen(value) > 0) {
+        slapi_log_err(SLAPI_LOG_WARNING, "config_set_pw_breach_url",
+                      "HIBP breached password checking not enabled - passwordBreachDbUrl has no effect\n");
+    }
+#endif
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        value = NULL;
+    }
+
+    /* Validate URL if provided */
+    if (value && strlen(value) > 0) {
+        /* Require https:// endpoint for security */
+        if (strncasecmp(value, "https://", 8) != 0) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: URL must use https://", attrname);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        /* Require trailing slash for correct URL construction */
+        len = strlen(value);
+        if (value[len - 1] != '/') {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: URL must end with a trailing slash (e.g., https://api.pwnedpasswords.com/range/)",
+                                  attrname);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_breach_db_url);
+        slapdFrontendConfig->pw_policy.pw_breach_db_url = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_breach_timeout(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    int32_t timeout;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+#ifndef ENABLE_HIBP
+    if (apply) {
+        slapi_log_err(SLAPI_LOG_WARNING, "config_set_pw_breach_timeout",
+                      "HIBP breached password checking not enabled  - passwordBreachDbTimeout has no effect\n");
+    }
+#endif
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    timeout = strtol(value, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || timeout < 1 || timeout > 300) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: invalid value \"%s\". Must be between 1 and 300.",
+                              attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_breach_db_timeout = timeout;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;

@@ -2356,6 +2356,21 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                         pwdpolicy->pw_check_dict =
                             pw_boolean_str2value(slapi_value_get_string(*sval));
                     }
+                } else if (!strcasecmp(attr_name, "passwordBreachCheck")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_check_breach =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
+                } else if (!strcasecmp(attr_name, "passwordBreachDbUrl")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_breach_db_url =
+                            slapi_ch_strdup(slapi_value_get_string(*sval));
+                    }
+                } else if (!strcasecmp(attr_name, "passwordBreachDbTimeout")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_breach_db_timeout =
+                            atoi(slapi_value_get_string(*sval));
+                    }
                 } else if (!strcasecmp(attr_name, "passwordUserAttributes")) {
                     if ((sval = attr_get_present_values(attr))) {
                         char *attrs = slapi_ch_strdup(slapi_value_get_string(*sval));
@@ -2442,6 +2457,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     pwdpolicy->pw_palindrome = g_pwdpolicy->pw_palindrome;
                     pwdpolicy->pw_check_dict = g_pwdpolicy->pw_check_dict;
                     pwdpolicy->pw_dict_path = g_pwdpolicy->pw_dict_path;
+                    pwdpolicy->pw_check_breach = g_pwdpolicy->pw_check_breach;
+                    pwdpolicy->pw_breach_db_url = g_pwdpolicy->pw_breach_db_url;
+                    pwdpolicy->pw_breach_db_timeout = g_pwdpolicy->pw_breach_db_timeout;
                     pwdpolicy->pw_cmp_attrs_array = config_get_pw_user_attrs_array();
                     pwdpolicy->pw_bad_words_array = config_get_pw_bad_words_array();
                     pwdpolicy->pw_syntax = LDAP_ON; /* Need to enable it to apply the default values */
@@ -2495,6 +2513,7 @@ delete_passwdPolicy(passwdPolicy **pwpolicy)
             slapi_ch_free_string(&(*(*pwpolicy)).pw_bad_words);
             slapi_ch_array_free((*(*pwpolicy)).pw_cmp_attrs_array);
             slapi_ch_free_string(&(*(*pwpolicy)).pw_cmp_attrs);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_breach_db_url);
         }
         slapi_ch_free_string(&(*(*pwpolicy)).pw_local_dn);
         slapi_ch_free((void **)pwpolicy);
