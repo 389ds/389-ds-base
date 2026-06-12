@@ -12,8 +12,10 @@
 
 #include "hibp.h"
 #include "prinit.h"
+#include "prlock.h"
 #include <curl/curl.h>
 #include <pk11pub.h>
+#include <inttypes.h>
 
 #define HIBP_API_URL "https://api.pwnedpasswords.com/range/"
 #define HIBP_API_TIMEOUT_SECS 10
@@ -79,6 +81,341 @@ typedef struct hibp_response
     size_t size;
     size_t capacity;
 } HIBPResponse;
+
+/*
+ * LRU Cache for HIBP API responses
+ *
+ * Caches API responses by hash prefix.
+ * Uses double linked list for LRU ordering.
+ */
+#define HIBP_CACHE_DEFAULT_SIZE 1000    /* Default max cache entries */
+#define HIBP_CACHE_DEFAULT_TTL  86400   /* Default TTL: 24 hours in seconds */
+#define HIBP_CACHE_HASH_BUCKETS 256     /* Hash table buckets */
+#define HIBP_CACHE_HASH_MULTIPLIER 31   /* Prime multiplier for hashing */
+
+typedef struct hibp_cache_entry {
+    char prefix[HIBP_SHA1_HEX_PREFIX_LEN + 1];   /* Hash prefix key */
+    char *response_data;                         /* Cached API response */
+    size_t response_size;
+    time_t created_time;                         /* For TTL expiration */
+    struct hibp_cache_entry *prev;               /* LRU list */
+    struct hibp_cache_entry *next;               /* LRU list */
+    struct hibp_cache_entry *hash_next;          /* Hash bucket link */
+} HIBPCacheEntry;
+
+typedef struct hibp_cache {
+    HIBPCacheEntry *head;                              /* Head of linked list */
+    HIBPCacheEntry *tail;                              /* Tail of linked list */
+    HIBPCacheEntry *buckets[HIBP_CACHE_HASH_BUCKETS];  /* Hash table */
+    size_t size;                                       /* Current entry count */
+    size_t max_size;                                   /* Maximum num of entries */
+    int32_t ttl_seconds;                               /* TTL for entries */
+    PRLock *lock;                                      /* Thread safety */
+    uint64_t hits;                                     /* Cache hit counter */
+    uint64_t misses;                                   /* Cache miss counter */
+} HIBPCache;
+
+static HIBPCache *g_hibp_cache = NULL;
+
+/*
+ * Convert 5 char prefix to bucket index
+ *
+ * Returns: bucket index (0 to HIBP_CACHE_HASH_BUCKETS-1)
+ */
+static unsigned int
+hibp_cache_get_bucket(const char *prefix)
+{
+    unsigned int hash = 0;
+    for (int i = 0; i < HIBP_SHA1_HEX_PREFIX_LEN && prefix[i]; i++) {
+        hash = hash * HIBP_CACHE_HASH_MULTIPLIER + (unsigned char)prefix[i];
+    }
+    return hash % HIBP_CACHE_HASH_BUCKETS;
+}
+
+/*
+ * Unlink entry from tail of LRU list
+ *
+ * Does not free memory
+ */
+static void
+hibp_cache_lru_unlink(HIBPCache *cache, HIBPCacheEntry *entry)
+{
+    if (entry->prev) {
+        entry->prev->next = entry->next;
+    } else {
+        cache->head = entry->next;
+    }
+    if (entry->next) {
+        entry->next->prev = entry->prev;
+    } else {
+        cache->tail = entry->prev;
+    }
+    entry->prev = NULL;
+    entry->next = NULL;
+}
+
+/*
+ * Link entry to head of LRU list
+ */
+static void
+hibp_cache_lru_link(HIBPCache *cache, HIBPCacheEntry *entry)
+{
+    entry->prev = NULL;
+    entry->next = cache->head;
+    if (cache->head) {
+        cache->head->prev = entry;
+    }
+    cache->head = entry;
+    if (!cache->tail) {
+        cache->tail = entry;
+    }
+}
+
+/*
+ * Unlink entry from its hash bucket chain
+ * Does not free memory
+ */
+static void
+hibp_cache_bucket_unlink(HIBPCache *cache, HIBPCacheEntry *entry)
+{
+    unsigned int bucket = hibp_cache_get_bucket(entry->prefix);
+    HIBPCacheEntry *curr = cache->buckets[bucket];
+    HIBPCacheEntry *prev = NULL;
+
+    while (curr) {
+        if (curr == entry) {
+            if (prev) {
+                prev->hash_next = curr->hash_next;
+            } else {
+                cache->buckets[bucket] = curr->hash_next;
+            }
+            entry->hash_next = NULL;
+            return;
+        }
+        prev = curr;
+        curr = curr->hash_next;
+    }
+}
+
+/*
+ * Free a cache entry memory
+ */
+static void
+hibp_cache_entry_free(HIBPCacheEntry *entry)
+{
+    if (entry) {
+        slapi_ch_free_string(&entry->response_data);
+        slapi_ch_free((void **)&entry);
+    }
+}
+
+/*
+ * Evict least recently used entry
+ */
+static void
+hibp_cache_evict_lru(HIBPCache *cache)
+{
+    HIBPCacheEntry *victim = cache->tail;
+    if (!victim) {
+        return;
+    }
+    hibp_cache_lru_unlink(cache, victim);
+    hibp_cache_bucket_unlink(cache, victim);
+    hibp_cache_entry_free(victim);
+    cache->size--;
+}
+
+/*
+ * Check if entry has exceeded TTL
+ *
+ * Returns: 1 if expired, 0 if still valid
+ */
+static int
+hibp_cache_entry_expired(HIBPCache *cache, HIBPCacheEntry *entry)
+{
+    if (cache->ttl_seconds <= 0) {
+        return 0;
+    }
+    return (time(NULL) - entry->created_time) > cache->ttl_seconds;
+}
+
+/*
+ * Look up entry by prefix
+ *
+ * Returns: entry if found and not expired, else NULL
+ */
+static HIBPCacheEntry *
+hibp_cache_lookup(HIBPCache *cache, const char *prefix)
+{
+    unsigned int bucket = hibp_cache_get_bucket(prefix);
+    HIBPCacheEntry *entry = cache->buckets[bucket];
+
+    while (entry) {
+        if (strncmp(entry->prefix, prefix, HIBP_SHA1_HEX_PREFIX_LEN) == 0) {
+            if (hibp_cache_entry_expired(cache, entry)) {
+                /* Entry expired - remove it */
+                hibp_cache_lru_unlink(cache, entry);
+                hibp_cache_bucket_unlink(cache, entry);
+                hibp_cache_entry_free(entry);
+                cache->size--;
+                return NULL;
+            }
+            /* Move to front (most recently used) */
+            hibp_cache_lru_unlink(cache, entry);
+            hibp_cache_lru_link(cache, entry);
+            return entry;
+        }
+        entry = entry->hash_next;
+    }
+    return NULL;
+}
+
+/*
+ * Insert new entry
+ */
+static void
+hibp_cache_insert(HIBPCache *cache, const char *prefix, const char *response_data, size_t response_size)
+{
+    /* Evict if cache is full */
+    while (cache->size >= cache->max_size) {
+        hibp_cache_evict_lru(cache);
+    }
+
+    HIBPCacheEntry *entry = (HIBPCacheEntry *)slapi_ch_calloc(1, sizeof(HIBPCacheEntry));
+    strncpy(entry->prefix, prefix, HIBP_SHA1_HEX_PREFIX_LEN);
+    entry->prefix[HIBP_SHA1_HEX_PREFIX_LEN] = '\0';
+    entry->response_data = slapi_ch_malloc(response_size + 1);
+    memcpy(entry->response_data, response_data, response_size);
+    entry->response_data[response_size] = '\0';
+    entry->response_size = response_size;
+    entry->created_time = time(NULL);
+
+    /* Add to LRU list */
+    hibp_cache_lru_link(cache, entry);
+
+    /* Add to hash bucket */
+    unsigned int bucket = hibp_cache_get_bucket(prefix);
+    entry->hash_next = cache->buckets[bucket];
+    cache->buckets[bucket] = entry;
+
+    cache->size++;
+}
+
+/*
+ * Initialise the HIBP cache
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int
+hibp_cache_init(size_t max_size, int32_t ttl_seconds)
+{
+    if (g_hibp_cache) {
+        return 0;
+    }
+
+    g_hibp_cache = (HIBPCache *)slapi_ch_calloc(1, sizeof(HIBPCache));
+    g_hibp_cache->max_size = max_size > 0 ? max_size : HIBP_CACHE_DEFAULT_SIZE;
+    g_hibp_cache->ttl_seconds = ttl_seconds > 0 ? ttl_seconds : HIBP_CACHE_DEFAULT_TTL;
+    g_hibp_cache->lock = PR_NewLock();
+
+    if (!g_hibp_cache->lock) {
+        slapi_ch_free((void **)&g_hibp_cache);
+        g_hibp_cache = NULL;
+        return -1;
+    }
+
+    slapi_log_err(SLAPI_LOG_INFO, "hibp_cache_init",
+                  "HIBP cache initialised: max_size=%zu, ttl=%d seconds\n",
+                  g_hibp_cache->max_size, g_hibp_cache->ttl_seconds);
+    return 0;
+}
+
+/*
+ * Destroy cache
+ */
+void
+hibp_cache_destroy(void)
+{
+    if (!g_hibp_cache) {
+        return;
+    }
+
+    PR_Lock(g_hibp_cache->lock);
+
+    /* Free all entries */
+    HIBPCacheEntry *entry = g_hibp_cache->head;
+    while (entry) {
+        HIBPCacheEntry *next = entry->next;
+        hibp_cache_entry_free(entry);
+        entry = next;
+    }
+
+    PR_Unlock(g_hibp_cache->lock);
+    PR_DestroyLock(g_hibp_cache->lock);
+
+    slapi_log_err(SLAPI_LOG_INFO, "hibp_cache_destroy",
+                  "HIBP cache destroyed: hits=%" PRIu64 ", misses=%" PRIu64 "\n",
+                  g_hibp_cache->hits, g_hibp_cache->misses);
+
+    slapi_ch_free((void **)&g_hibp_cache);
+    g_hibp_cache = NULL;
+}
+
+/*
+ * Get a cached response for prefix
+ *
+ * Returns: Copy of response data, NULL if not cached
+ *
+ * Caller must free memory
+ */
+char *
+hibp_cache_get(const char *prefix, size_t *response_size)
+{
+    char *result = NULL;
+
+    if (!g_hibp_cache || !prefix) {
+        return NULL;
+    }
+
+    PR_Lock(g_hibp_cache->lock);
+
+    HIBPCacheEntry *entry = hibp_cache_lookup(g_hibp_cache, prefix);
+    if (entry) {
+        result = slapi_ch_malloc(entry->response_size + 1);
+        memcpy(result, entry->response_data, entry->response_size);
+        result[entry->response_size] = '\0';
+        if (response_size) {
+            *response_size = entry->response_size;
+        }
+        g_hibp_cache->hits++;
+    } else {
+        g_hibp_cache->misses++;
+    }
+
+    PR_Unlock(g_hibp_cache->lock);
+    return result;
+}
+
+/*
+ * Store response in cache
+ */
+void
+hibp_cache_put(const char *prefix, const char *response_data, size_t response_size)
+{
+    if (!g_hibp_cache || !prefix || !response_data) {
+        return;
+    }
+
+    PR_Lock(g_hibp_cache->lock);
+
+    /* Check if already cached */
+    HIBPCacheEntry *existing = hibp_cache_lookup(g_hibp_cache, prefix);
+    if (!existing) {
+        hibp_cache_insert(g_hibp_cache, prefix, response_data, response_size);
+    }
+
+    PR_Unlock(g_hibp_cache->lock);
+}
 
 /* One time curl initialisation */
 static PRCallOnceType g_curl_init_control = {0};
@@ -322,6 +659,23 @@ hibp_query_api(const char *prefix, const char *api_url, HIBPResponse *response, 
         return 0;
     }
 
+    /* Check cache first */
+    if (g_hibp_cache) {
+        size_t cached_size;
+        char *cached_data = hibp_cache_get(prefix, &cached_size);
+        if (cached_data) {
+            slapi_log_err(SLAPI_LOG_INFO, "hibp_query_api",
+                          "Cache HIT for prefix %s (size=%zu bytes)\n", prefix, cached_size);
+            response->data = cached_data;
+            response->size = cached_size;
+            response->capacity = cached_size + 1;
+            return 0;
+        } else {
+            slapi_log_err(SLAPI_LOG_INFO, "hibp_query_api",
+                          "Cache MISS for prefix %s - querying API\n", prefix);
+        }
+    }
+
     /* Ensure libcurl library is initialised */
     if (hibp_ensure_curl_init() != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "hibp_query_api",
@@ -390,6 +744,13 @@ hibp_query_api(const char *prefix, const char *api_url, HIBPResponse *response, 
         slapi_ch_free((void **)&response->data);
         curl_easy_cleanup(curl);
         return -1;
+    }
+
+    /* Store successful response in cache */
+    if (g_hibp_cache && response->data && response->size > 0) {
+        hibp_cache_put(prefix, response->data, response->size);
+        slapi_log_err(SLAPI_LOG_INFO, "hibp_query_api",
+                      "Cached response for prefix %s (size=%zu bytes)\n", prefix, response->size);
     }
 
     curl_easy_cleanup(curl);
@@ -550,5 +911,21 @@ hibp_init(void)
         hibp_set_hash_provider(hibp_sha1_nss);
     }
 
+    /* Initialise the response cache with defaults */
+    if (hibp_cache_init(HIBP_CACHE_DEFAULT_SIZE, HIBP_CACHE_DEFAULT_TTL) != 0) {
+        slapi_log_err(SLAPI_LOG_WARNING, "hibp_init",
+                      "Failed to initialise HIBP cache - caching disabled\n");
+    }
+
     return hibp_ensure_curl_init();
+}
+
+/*
+ * Shutdown HIBP subsystem
+ */
+void
+hibp_shutdown(void)
+{
+    hibp_cache_destroy();
+    slapi_log_err(SLAPI_LOG_INFO, "hibp_shutdown", "HIBP subsystem shutdown complete\n");
 }
