@@ -85,7 +85,7 @@ export class AttrEncryption extends React.Component {
         ];
         log_cmd("handleAddEncryptedAttr", "Delete suffix referral", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -121,7 +121,7 @@ export class AttrEncryption extends React.Component {
         ];
         log_cmd("delEncryptedAttr", "Delete encrypted attribute", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(

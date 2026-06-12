@@ -220,7 +220,7 @@ export class DSInstance extends React.Component {
         const cmd = ["dsctl", "-j", serverId, "status"];
         log_cmd("setServerId", "Test if instance is running ", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running) {
@@ -232,7 +232,7 @@ export class DSInstance extends React.Component {
                         ];
                         log_cmd("setServerId", "Load server configuration", cfg_cmd);
                         cockpit
-                                .spawn(cfg_cmd, { superuser: true, err: "message" })
+                                .spawn(cfg_cmd, { superuser: "require", err: "message" })
                                 .done(content => {
                                     const config = JSON.parse(content);
                                     const attrs = config.attrs;
@@ -261,7 +261,7 @@ export class DSInstance extends React.Component {
                                     ];
                                     log_cmd("setServerId", "Test if instance is alive ", cmd);
                                     cockpit
-                                            .spawn(cmd, { superuser: true, err: "message" })
+                                            .spawn(cmd, { superuser: "require", err: "message" })
                                             .done(() => {
                                                 this.updateProgress(25);
                                                 this.setState(
@@ -400,7 +400,7 @@ export class DSInstance extends React.Component {
                     cmd
                 );
                 cockpit
-                        .spawn(cmd, { superuser: true })
+                        .spawn(cmd, { superuser: "require" })
                         .done(data => {
                             this.updateProgress(25);
                             const myObject = JSON.parse(data);
@@ -451,7 +451,7 @@ export class DSInstance extends React.Component {
     loadBackups(initializing) {
         let cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackups", "Load Backups", cmd);
-        cockpit.spawn(cmd, { superuser: true, err: "message" })
+        cockpit.spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.updateProgress(25);
                     const config = JSON.parse(content);
@@ -463,7 +463,7 @@ export class DSInstance extends React.Component {
                     cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
                     log_cmd("loadBackups", "Get the server version", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" }).done(content => {
+                            .spawn(cmd, { superuser: "require", err: "message" }).done(content => {
                                 const monitor = JSON.parse(content);
                                 this.setState({
                                     backupRows: rows,
@@ -522,7 +522,7 @@ export class DSInstance extends React.Component {
         const cmd = ["dsctl", "-j", this.state.serverId, "remove", "--do-it"];
         log_cmd("removeInstance", `Remove the instance`, cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.loadInstanceList();
                     this.addNotification("success", _("Instance was successfully removed"));
@@ -546,7 +546,7 @@ export class DSInstance extends React.Component {
         const cmdStatus = ["dsctl", "-j", this.state.serverId, "status"];
         log_cmd("operateInstance", `Check instance status`, cmdStatus);
         cockpit
-                .spawn(cmdStatus, { superuser: true, err: "message" })
+                .spawn(cmdStatus, { superuser: "require", err: "message" })
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running && action === "start") {
@@ -567,7 +567,7 @@ export class DSInstance extends React.Component {
                         const cmd = ["dsctl", "-j", this.state.serverId, action];
                         log_cmd("operateInstance", `Do ${action} the instance`, cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { superuser: "require", err: "message" })
                                 .done(() => {
                                     this.loadInstanceList(this.state.serverId, action);
                                     if (action === "stop") {

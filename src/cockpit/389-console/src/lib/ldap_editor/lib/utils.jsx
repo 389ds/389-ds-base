@@ -70,7 +70,7 @@ export function getUserSuffixes (serverId, suffixCallback) {
     ];
     log_cmd("getUserSuffixes", "list suffixes", suffixCmd);
     cockpit
-            .spawn(suffixCmd, { superuser: true, err: "message" })
+            .spawn(suffixCmd, { superuser: "require", err: "message" })
             .done(content => {
                 const suffList = JSON.parse(content);
                 suffixCallback(suffList.items);
@@ -99,7 +99,7 @@ export function ldapPing (serverId, pingCallback) {
 
     log_cmd("ldapPing", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(() => {
                 pingCallback(true);
             })
@@ -149,7 +149,7 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
     let result = {};
     const entryArray = []; // Will contain the entry but the numSubordinates and modifyTimestamp.
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // console.log('typeof data = ' + typeof data);
                 // console.log('SUCCESS ' + data);
@@ -259,7 +259,7 @@ export function getSearchEntries (params, resultCallback) {
     let searchResult = null;
     const allEntries = [];
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' }) // string.split("\n\r")
+            .spawn(cmd, { superuser: "require", err: 'message' }) // string.split("\n\r")
             .done(data => {
                 searchResult = data;
             })
@@ -389,7 +389,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
     log_cmd("getBaseLevelEntryAttributes", "", cmd);
     const entryArray = [];
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // TODO: Make this configurable ( option to keep X number of characters )
                 const lines = data.split('\n');
@@ -460,7 +460,7 @@ export function getBaseLevelEntryFullAttributes (serverId, baseDn, entryAttribut
 
     log_cmd("getBaseLevelEntryFullAttributes", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 entryAttributesCallback(data);
             })
@@ -529,7 +529,7 @@ export function getOneLevelEntries (params, oneLevelCallback) {
     let searchResult = null;
     const allEntries = [];
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' }) // string.split("\n\r")
+            .spawn(cmd, { superuser: "require", err: 'message' }) // string.split("\n\r")
             .done(data => {
                 searchResult = data;
             })
@@ -647,7 +647,7 @@ export function runGenericSearch (params, searchCallback) {
 
     log_cmd("runGenericSearch", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const resulEntries = data.split('\n\n'); // Split by empty line.
                 // console.log(`resulEntries = ${resulEntries}`);
@@ -691,7 +691,7 @@ export function listAccessLogs (logDirectory, logListCallback) {
     const logDataArray = [];
 
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // console.log('SUCCESS ' + data);
                 const lines = data.split('\n');
@@ -753,7 +753,7 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
     let result = {};
     log_cmd("modifyLdapEntry", "", cmd_copy);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .input(ldifData, true)
             .input()
             .done(data => {
@@ -799,7 +799,7 @@ export function getAllObjectClasses (serverId, allOcCallback) {
     const result = [];
     log_cmd("getAllObjectClasses", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const myObject = JSON.parse(data);
                 for (const oc of myObject.items) {
@@ -831,7 +831,7 @@ export function getSingleValuedAttributes (serverId, svCallback) {
     const result = [];
     log_cmd("getSingleValuedAttributes", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const myObject = JSON.parse(data);
                 for (const attr of myObject.items) {
@@ -861,7 +861,7 @@ export function getAttributesNameAndOid (serverId, attrCallback) {
     const result = [];
     log_cmd("getAttributesNameAndOid", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const myObject = JSON.parse(data);
                 for (const attr of myObject.items) {
@@ -892,7 +892,7 @@ export function deleteLdapData (serverId, entryDN, numSubordinates, deleteCallba
     let result = {};
     log_cmd("deleteLdapData", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // console.log('SUCCESS - deleteLdapData() ==> ' + data);
                 result = { errorCode: 0, output: data };
@@ -926,7 +926,7 @@ export function showCertificate (certificate, showCertCallback) {
     const certDataArray = [];
 
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
     // .input(decodedCert)
             .done(data => {
                 // console.log('SUCCESS - showCertificate() ==> ' + data);
@@ -1117,7 +1117,7 @@ export function base64encode (fileName, encodingCallback) {
   const encodedValue = null;
   console.log('Command = ' + cmd.toString());
   cockpit
-    .spawn(cmd, { superuser: true, err: 'message' })
+    .spawn(cmd, { superuser: "require", err: 'message' })
     .done(data => {
       encodingCallback(data);
     })

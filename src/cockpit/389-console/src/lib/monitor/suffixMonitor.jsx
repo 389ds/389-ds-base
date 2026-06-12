@@ -135,7 +135,7 @@ export class SuffixMonitor extends React.Component {
         ];
         log_cmd("refreshSuffixCache", "Get suffix monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let count = this.state.count + 1;
@@ -698,7 +698,7 @@ export class SuffixMonitorMDB extends React.Component {
         ];
         log_cmd("refreshSuffixCache", "Get suffix monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let count = this.state.count + 1;

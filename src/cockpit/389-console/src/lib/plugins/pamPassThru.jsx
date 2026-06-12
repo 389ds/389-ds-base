@@ -259,7 +259,7 @@ class PAMPassthroughAuthentication extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("loadPAMConfigs", "Get PAM Passthrough Authentication Plugin Configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -325,7 +325,7 @@ class PAMPassthroughAuthentication extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -462,7 +462,7 @@ class PAMPassthroughAuthentication extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -572,7 +572,7 @@ class PAMPassthroughAuthentication extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

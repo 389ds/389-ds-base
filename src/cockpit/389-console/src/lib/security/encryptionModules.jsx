@@ -107,7 +107,7 @@ function EncryptionModules({ addNotification, serverId, serverCertNames }) {
         ];
         log_cmd("loadEncryptionModules", "Load encryption modules", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const moduleResp = JSON.parse(content);
                     const moduleItems = moduleResp.items || [];
@@ -157,7 +157,7 @@ function EncryptionModules({ addNotification, serverId, serverCertNames }) {
         setActionInProgress(true);
 
         return cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .then(() => {
                     addNotification("success", successMsg);
                     setActionInProgress(false);

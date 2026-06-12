@@ -144,7 +144,7 @@ export class ReplRUV extends React.Component {
 
         log_cmd('cleanRUV', 'Clean the rid', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -206,7 +206,7 @@ export class ReplRUV extends React.Component {
 
         log_cmd("importChangelog", "Import relication changelog via LDIF", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -259,7 +259,7 @@ export class ReplRUV extends React.Component {
 
         log_cmd("exportChangelog", "Import relication changelog via LDIF", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
