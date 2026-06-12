@@ -1,4 +1,7 @@
 #!/bin/env stap
+# Search latency split into four phases.
+# Usage: stap probe_do_search_detail.stp /usr/sbin/ns-slapd /usr/lib64/dirsrv/libslapd.so
+# @1 = ns-slapd (do_search__*); @2 = libslapd.so (op_shared_search__*).
 
 global do_search_full
 global do_search_prepared
@@ -10,24 +13,19 @@ global prepared_times%
 global search_times%
 global finalise_times%
 
-// do_search__entry
-// do_search__prepared
-// do_search__op_shared_search_complete
-// do_search__return
-
 probe process(@1).mark("do_search__entry") {
     entry_times[tid()] = gettimeofday_us()
     prepared_times[tid()] = gettimeofday_us()
 }
 
-probe process(@1).mark("op_shared_search__entry") {
+probe process(@2).mark("op_shared_search__entry") {
     do_search_prepared <<< gettimeofday_us() - prepared_times[tid()]
     delete prepared_times[tid()]
 
     search_times[tid()] = gettimeofday_us()
 }
 
-probe process(@1).mark("op_shared_search__return") {
+probe process(@2).mark("op_shared_search__return") {
     do_search_complete <<< gettimeofday_us() - search_times[tid()]
     delete search_times[tid()]
 

@@ -286,16 +286,19 @@ fi
 AC_SUBST([profiling_defs])
 AC_SUBST([profiling_links])
 
-AC_MSG_CHECKING(for --enable-systemtap)
-AC_ARG_ENABLE(systemtap, AS_HELP_STRING([--enable-systemtap], [Enable systemtap probe features (default: no)]),
-              [], [ enable_systemtap=no ])
-AC_MSG_RESULT($enable_systemtap)
-if test "$enable_systemtap" = yes ; then
-  systemtap_defs="-DSYSTEMTAP"
+AC_MSG_CHECKING(for --enable-usdt)
+AC_ARG_ENABLE(usdt, AS_HELP_STRING([--enable-usdt], [Enable USDT (User-level Statically Defined Tracing) probes, consumed by bpftrace, SystemTap, dtrace, perf (default: no)]),
+              [], [ enable_usdt=no ])
+AC_MSG_RESULT($enable_usdt)
+if test "$enable_usdt" = yes ; then
+  AC_CHECK_HEADER([sys/sdt.h], [],
+    [AC_MSG_ERROR([USDT support requires <sys/sdt.h>. Install systemtap-sdt-devel (Fedora/RHEL) or systemtap-sdt-dev (Debian/Ubuntu).])])
+  usdt_defs="-DUSDT"
 else
-  systemtap_defs=""
+  usdt_defs=""
 fi
-AC_SUBST([systemtap_defs])
+AC_SUBST([usdt_defs])
+AM_CONDITIONAL([USDT], [test "$enable_usdt" = yes])
 
 
 # these enables are for optional or experimental features

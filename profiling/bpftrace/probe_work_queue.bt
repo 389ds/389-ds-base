@@ -1,0 +1,36 @@
+#!/usr/bin/env bpftrace
+/*
+ * Work-queue and worker-thread observability.
+ * Usage: bpftrace probe_work_queue.bt /usr/sbin/ns-slapd
+ *
+ * Mirrors profiling/stap/probe_work_queue.stp.
+ *
+ * work_q__enqueue(connid, opid, depth)
+ * work_q__dequeue(connid, opid, depth)
+ * worker__busy(connid, opid, op_tag, turbo_flag)   -- not used here
+ * worker__idle(thread_idx)
+ * work__blocked(connid, opid)                      -- not used here
+ */
+
+usdt:$1:ns-slapd:work_q__enqueue
+{
+    @queue_depth = hist(arg2);
+    @enqueue_us[arg0, arg1] = nsecs / 1000;
+}
+
+usdt:$1:ns-slapd:work_q__dequeue
+/@enqueue_us[arg0, arg1]/
+{
+    @wait_us = hist((nsecs / 1000) - @enqueue_us[arg0, arg1]);
+    delete(@enqueue_us[arg0, arg1]);
+}
+
+usdt:$1:ns-slapd:worker__idle
+{
+    @idle_counts[arg0] = count();
+}
+
+END
+{
+    clear(@enqueue_us);
+}

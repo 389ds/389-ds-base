@@ -30,7 +30,7 @@
 #include "pratom.h"
 #include "snmp_collator.h"
 
-#ifdef SYSTEMTAP
+#ifdef USDT
 #include <sys/sdt.h>
 #endif
 
@@ -62,7 +62,7 @@ do_search(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_search", "=>\n");
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, do_search__entry);
 #endif
 
@@ -447,7 +447,7 @@ free_and_return:
         slapi_ch_free_string(&rawbase);
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, do_search__return);
 #endif
 }
