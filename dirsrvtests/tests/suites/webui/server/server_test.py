@@ -86,12 +86,10 @@ def test_tuning_and_limits_availability(topology_st, page, browser_name):
     :setup: Standalone instance
     :steps:
          1. Click on Tuning & Limits button on the side panel and check if Number Of Worker Threads is visible.
-         2. Click on Show Advanced Settings button.
-         3. Check if Outbound IO Timeout label is visible.
+         2. Check if Outbound IO Timeout label is visible.
     :expectedresults:
          1. Element is visible
-         2. Success
-         3. Element is visible
+         2. Element is visible
     """
     setup_login(page)
     time.sleep(1)
@@ -102,8 +100,7 @@ def test_tuning_and_limits_availability(topology_st, page, browser_name):
     frame.get_by_text("Number Of Worker Threads").wait_for()
     assert frame.get_by_text("Number Of Worker Threads").is_visible()
 
-    log.info('Open expandable section and check if element is loaded.')
-    frame.get_by_role('button', name='Show Advanced Settings').click()
+    log.info('Check if Outbound IO Timeout is visible.')
     frame.get_by_text('Outbound IO Timeout').wait_for()
     assert frame.get_by_text('Outbound IO Timeout').is_visible()
 
