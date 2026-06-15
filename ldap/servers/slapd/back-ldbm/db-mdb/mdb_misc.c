@@ -319,11 +319,16 @@ dbmdb_start_autotune(struct ldbminfo *li)
             dn_size = clamp_div * (64 * MEGABYTE);
         }
 
-        /* This is the point where we decide to apply or not. If the cache
-         * size is equal or less than MINCACHESIZE then we assume it does not
-         * have a custom value and we can autotune
+        /* This is the point where we decide to apply or not.
+         *
+         * If autosize > 0, we always apply because the admin explicitly
+         * requested autotuning on every startup (and after online import).
+         *
+         * If autosize <= 0 (default), we only apply on first run when
+         * the cache still has the initial default value, so that a
+         * manually configured value is preserved.
          */
-        if (cache_size <= MINCACHESIZE) {
+        if (li->li_cache_autosize > 0 || cache_size <= MINCACHESIZE) {
             slapi_log_err(SLAPI_LOG_NOTICE, "mdb_start_autotune",
                           "cache autosizing: %s entry cache (%" PRIu64 " total): %s\n",
                           inst->inst_name, backend_count,
@@ -331,7 +336,7 @@ dbmdb_start_autotune(struct ldbminfo *li)
             cache_set_max_entries(&(inst->inst_cache), -1, true /* autotuned */);
             cache_set_max_size(&(inst->inst_cache), ec_size, CACHE_TYPE_ENTRY, true);
         }
-        if (dncache_size <= DEFAULT_DNCACHE_SIZE) {
+        if (li->li_cache_autosize > 0 || dncache_size <= DEFAULT_DNCACHE_SIZE) {
             slapi_log_err(SLAPI_LOG_NOTICE, "mdb_start_autotune",
                           "cache autosizing: %s dn cache (%" PRIu64 " total): %s\n",
                           inst->inst_name, backend_count,

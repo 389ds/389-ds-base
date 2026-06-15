@@ -17,6 +17,8 @@ from lib389.topologies import topology_st as topo
 from lib389.backend import Backends
 from lib389.idm.user import UserAccounts
 from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
+from lib389.tasks import ImportTask
+from lib389.dbgen import dbgen_users
 
 
 from lib389._constants import (
@@ -629,6 +631,110 @@ def test_cache_autosize_multi_backends(topo):
     topo.standalone.restart()
     userroot_cachesize = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
     assert int(userroot_cachesize) != 77777777
+
+@pytest.mark.skipif(get_default_db_lib() == "bdb",
+                    reason="MDB-specific test")
+def test_mdb_cache_autotune_after_import(topo):
+    """Check that cache autotuning re-applies after an online import
+
+    When a fresh instance starts with an empty database, autotuning
+    computes a small cache size (64MB). After an online ldif2db import
+    populates the database, the post-import autotune call should recompute
+    and apply larger cache sizes based on the actual database page count
+    without requiring a restart.
+
+    :id: a3e7b2c1-8f4d-4e6a-9c5b-1d2e3f4a5b6c
+    :setup: Standalone instance
+    :steps:
+        1. Record the initial autotuned cache sizes (from empty DB)
+        2. Generate an LDIF with 5000 entries
+        3. Perform an online import (ldif2db)
+        4. Check cache sizes immediately after import
+        5. Restart the server
+        6. Check cache sizes after restart
+    :expectedresults:
+        1. Cache sizes should be at 64MB
+        2. LDIF is generated successfully
+        3. Import completes successfully
+        4. Cache sizes should increase after import
+        5. Server restarts successfully
+        6. Cache sizes should be properly autotuned based on data
+    """
+
+    inst = topo.standalone
+    mdb_config_ldbm = LMDB_LDBMConfig(inst)
+    MEGABYTE_64 = 64 * 1024 * 1024
+
+    log.info("Recreating backend to get an empty database")
+    mdb_config_ldbm.set('nsslapd-cache-autosize', '25')
+
+    backends = Backends(inst)
+    userroot = backends.get('userRoot')
+    userroot.delete()
+
+    backends.create(properties={
+        'nsslapd-suffix': DEFAULT_SUFFIX,
+        'name': 'userRoot',
+    })
+    inst.restart()
+
+    userroot_ldbm = DSLdapObject(inst, DN_USERROOT_LDBM)
+    cachememsize_before = int(userroot_ldbm.get_attr_val_utf8('nsslapd-cachememsize'))
+    dncachememsize_before = int(userroot_ldbm.get_attr_val_utf8('nsslapd-dncachememsize'))
+    log.info("Cache on empty DB: cachememsize=%d, dncachememsize=%d",
+             cachememsize_before, dncachememsize_before)
+
+    assert cachememsize_before == MEGABYTE_64, (
+        f"Expected 64MB entry cache on empty DB, got {cachememsize_before}")
+
+    log.info("Generating LDIF with 5000 entries")
+    ldif_dir = inst.get_ldif_dir()
+    ldif_file = os.path.join(ldif_dir, 'autotune_test.ldif')
+    dbgen_users(inst, 5000, ldif_file, DEFAULT_SUFFIX, generic=True,
+                parent=f"ou=People,{DEFAULT_SUFFIX}")
+
+    log.info("Performing online import")
+    import_task = ImportTask(inst)
+    import_task.import_suffix_from_ldif(ldiffile=ldif_file, suffix=DEFAULT_SUFFIX)
+    import_task.wait(timeout=300)
+    exit_code = import_task.get_exit_code()
+    assert exit_code == 0, f"Import task failed with exit code {exit_code}"
+    os.remove(ldif_file)
+
+    people = DSLdapObject(inst, f"ou=People,{DEFAULT_SUFFIX}")
+    num_subordinates = int(people.get_attr_val_utf8('numSubordinates'))
+    log.info("Imported %d entries", num_subordinates)
+    assert num_subordinates >= 5000, \
+        f"Expected at least 5000 entries, got {num_subordinates}"
+
+    cachememsize_after_import = int(userroot_ldbm.get_attr_val_utf8('nsslapd-cachememsize'))
+    dncachememsize_after_import = int(userroot_ldbm.get_attr_val_utf8('nsslapd-dncachememsize'))
+    log.info("Cache after import (no restart): cachememsize=%d, dncachememsize=%d",
+             cachememsize_after_import, dncachememsize_after_import)
+
+    assert cachememsize_after_import > MEGABYTE_64, (
+        f"Post-import autotune should have increased entry cache above 64MB, "
+        f"got {cachememsize_after_import}")
+    assert dncachememsize_after_import > MEGABYTE_64, (
+        f"Post-import autotune should have increased DN cache above 64MB, "
+        f"got {dncachememsize_after_import}")
+
+    log.info("Restarting server")
+    inst.restart()
+
+    userroot_ldbm = DSLdapObject(inst, DN_USERROOT_LDBM)
+    cachememsize_after_restart = int(userroot_ldbm.get_attr_val_utf8('nsslapd-cachememsize'))
+    dncachememsize_after_restart = int(userroot_ldbm.get_attr_val_utf8('nsslapd-dncachememsize'))
+    log.info("Cache after restart: cachememsize=%d, dncachememsize=%d",
+             cachememsize_after_restart, dncachememsize_after_restart)
+
+    assert cachememsize_after_import == cachememsize_after_restart, (
+        f"Post-import entry cache ({cachememsize_after_import}) "
+        f"!= post-restart entry cache ({cachememsize_after_restart})")
+    assert dncachememsize_after_import == dncachememsize_after_restart, (
+        f"Post-import DN cache ({dncachememsize_after_import}) "
+        f"!= post-restart DN cache ({dncachememsize_after_restart})")
+
 
 if __name__ == '__main__':
     # Run isolated
