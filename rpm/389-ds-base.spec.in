@@ -50,6 +50,8 @@
 # Build cockpit plugin
 %global use_cockpit __COCKPIT_ON__
 
+%bcond usdt 1
+
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
 %{!?with_tmpfiles_d: %global with_tmpfiles_d %{_sysconfdir}/tmpfiles.d}
@@ -220,6 +222,9 @@ BuildRequires:    openssl-devel
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
+%if %{with usdt}
+BuildRequires:    systemtap-sdt-devel
+%endif
 BuildRequires:    cargo
 BuildRequires:    rust
 BuildRequires:    pkgconfig
@@ -311,6 +316,8 @@ Requires:         python3-file-magic
 Source0:          %{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
+# Optional eBPF tracer for the shipped USDT bpftrace scripts.
+Recommends:       bpftrace
 Source2:          %{name}-devel.README
 %if %{bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
@@ -510,6 +517,12 @@ RUST_FLAGS="--enable-rust --enable-rust-offline"
 COCKPIT_FLAGS="--disable-cockpit"
 %endif
 
+%if %{with usdt}
+USDT_FLAGS="--enable-usdt"
+%else
+USDT_FLAGS="--disable-usdt"
+%endif
+
 %if %{bundle_jemalloc}
 # Override page size, bz #1545539
 # 4K
@@ -561,7 +574,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS \
+           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS $USDT_FLAGS \
 %if 0%{?fedora} >= 34 || 0%{?rhel} >= 9
            --with-libldap-r=no \
 %endif

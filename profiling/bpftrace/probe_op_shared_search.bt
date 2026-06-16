@@ -1,0 +1,47 @@
+#!/usr/bin/env bpftrace
+/*
+ * op_shared_search() phase-by-phase latency.
+ * Usage: bpftrace probe_op_shared_search.bt /usr/lib64/dirsrv/libslapd.so
+ * Probes live in libslapd.so, not ns-slapd.
+ *
+ * Mirrors profiling/stap/probe_op_shared_search.stp.
+ */
+
+usdt:$1:ns-slapd:op_shared_search__entry
+{
+    @entry_us[tid] = nsecs / 1000;
+    @prepared_us[tid] = nsecs / 1000;
+}
+
+usdt:$1:ns-slapd:op_shared_search__prepared
+{
+    @op_shared_search_prepared = hist((nsecs / 1000) - @prepared_us[tid]);
+    delete(@prepared_us[tid]);
+
+    @search_us[tid] = nsecs / 1000;
+}
+
+usdt:$1:ns-slapd:op_shared_search__backends
+{
+    @op_shared_search_complete = hist((nsecs / 1000) - @search_us[tid]);
+    delete(@search_us[tid]);
+
+    @finalise_us[tid] = nsecs / 1000;
+}
+
+usdt:$1:ns-slapd:op_shared_search__return
+{
+    @op_shared_search_finalise = hist((nsecs / 1000) - @finalise_us[tid]);
+    delete(@finalise_us[tid]);
+
+    @op_shared_search_full = hist((nsecs / 1000) - @entry_us[tid]);
+    delete(@entry_us[tid]);
+}
+
+END
+{
+    clear(@entry_us);
+    clear(@prepared_us);
+    clear(@search_us);
+    clear(@finalise_us);
+}

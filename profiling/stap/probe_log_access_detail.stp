@@ -1,4 +1,7 @@
 #!/bin/env stap
+# Access-log latency histogram.
+# Usage: stap probe_log_access_detail.stp /usr/lib64/dirsrv/libslapd.so
+# Probes live in libslapd.so, not ns-slapd.
 
 global log_access_full
 global log_access_prepared
@@ -7,11 +10,6 @@ global log_access_complete
 global entry_times%
 global prepared_times%
 global finalise_times%
-
-// vslapd_log_access__entry
-// vslapd_log_access__prepared
-// vslapd_log_access__buffer
-
 
 probe process(@1).mark("vslapd_log_access__entry") {
     entry_times[tid()] = gettimeofday_us()
