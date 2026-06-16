@@ -16,7 +16,7 @@
 #include "log.h"
 #include "slap.h"
 
-#ifdef SYSTEMTAP
+#ifdef USDT
 #include <sys/sdt.h>
 #endif
 
@@ -278,7 +278,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     be_list[0] = NULL;
     referral_list[0] = NULL;
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__entry);
 #endif
 
@@ -689,7 +689,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         }
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__prepared);
 #endif
 
@@ -1008,7 +1008,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         be = next_be; /* this be won't be used for PAGED_RESULTS */
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__backends);
 #endif
 
@@ -1114,7 +1114,7 @@ free_and_return_nolock:
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__return);
 #endif
 }

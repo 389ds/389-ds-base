@@ -52,7 +52,7 @@ SYSTEMD_DEFINES = @systemd_defs@
 CMOCKA_INCLUDES = $(CMOCKA_CFLAGS)
 
 PROFILING_DEFINES = @profiling_defs@
-SYSTEMTAP_DEFINES = @systemtap_defs@
+USDT_DEFINES = @usdt_defs@
 NSPR_INCLUDES = $(NSPR_CFLAGS)
 
 # Rust inclusions.
@@ -158,7 +158,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(SYSTEMTAP_DEFINES) $(RUST_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(USDT_DEFINES) $(RUST_DEFINES)
 AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server
@@ -710,6 +710,23 @@ python_DATA = ldap/admin/src/scripts/failedbinds.py \
 gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
 
 dist_sysctl_DATA = ldap/admin/src/70-dirsrv.conf
+
+if USDT
+profilingstapdir = $(datadir)/$(PACKAGE_NAME)/profiling/stap
+profilingbpftracedir = $(datadir)/$(PACKAGE_NAME)/profiling/bpftrace
+
+dist_profilingstap_DATA = \
+	profiling/stap/probe_work_queue.stp \
+	profiling/stap/probe_do_search_detail.stp \
+	profiling/stap/probe_op_shared_search.stp \
+	profiling/stap/probe_log_access_detail.stp
+
+dist_profilingbpftrace_DATA = \
+	profiling/bpftrace/probe_work_queue.bt \
+	profiling/bpftrace/probe_do_search_detail.bt \
+	profiling/bpftrace/probe_op_shared_search.bt \
+	profiling/bpftrace/probe_log_access_detail.bt
+endif
 
 if SYSTEMD
 # yes, that is an @ in the filename . . .
