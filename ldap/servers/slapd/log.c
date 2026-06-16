@@ -3532,7 +3532,7 @@ log__open_accesslogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_access_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_access_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_access_maxlogsize;
@@ -3703,7 +3703,7 @@ log__open_securitylogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_security_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_security_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_security_maxlogsize;
@@ -6469,7 +6469,7 @@ log__open_errorlogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_error_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_error_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_error_maxlogsize;
@@ -6634,7 +6634,7 @@ log__open_auditlogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_audit_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_audit_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_audit_maxlogsize;
@@ -6799,7 +6799,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_auditfail_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_auditfail_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_auditfail_maxlogsize;
