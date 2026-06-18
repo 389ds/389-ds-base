@@ -848,13 +848,15 @@ __aclp__normalize_acltxt(aci_t *aci_item, char *str)
     s = aclstr;
     while (s && ldap_utf8isspace(s))
         LDAP_UTF8INC(s);
-    assert(s);
+    if (s == NULL || *s == '\0' || *(s + 1) == '\0' || *(s + 2) == '\0') {
+        goto error;
+    }
     *(s + 2) = 'l';
 
     aclName = s + 3;
 
     s = strchr(aclstr, ';');
-    if (NULL == s) {
+    if (NULL == s || aclName >= s) {
         goto error;
     }
 
