@@ -749,7 +749,7 @@ get_entry_type(WorkerQueueData_t *wqelmt, Slapi_DN *sdn)
     const char *ndn = slapi_sdn_get_ndn(sdn);
 
     if (slapi_be_issuffix(be, sdn)) {
-        /* Is this is the root suffix entry */
+        /* Is this the root suffix entry */
         if (wqelmt->wait_id == 1) {
             return DNRC_SUFFIX;
         }
@@ -4193,14 +4193,14 @@ dbmdb_bulk_producer(void *param)
                 thread_abort(info);
                 continue;
             case DNRC_BAD_SUFFIX_ID:
-                import_log_notice(job, SLAPI_LOG_REPL, "dbmdb_bulk_producer",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
                                   "Skipping duplicate suffix entry \"%s\" (wire import id %d).",
                                   slapi_entry_get_dn(entry->ep->ep_entry), entry->id);
                 free_bulk_queue_item(&entry);
                 entry = NULL;
                 continue;
             case DNRC_NOPARENT_DN:
-                import_log_notice(job, SLAPI_LOG_REPL, "dbmdb_bulk_producer",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
                                   "Skipping entry \"%s\" with no extractable parent DN (wire import id %d).",
                                   slapi_entry_get_dn(entry->ep->ep_entry), entry->id);
                 free_bulk_queue_item(&entry);
