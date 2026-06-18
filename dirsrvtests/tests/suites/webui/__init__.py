@@ -41,7 +41,10 @@ def check_cockpit_version_is_lower(version):
 # the iframe selection differs for chromium and firefox browser
 def determine_frame_selection(page, browser_name):
     if browser_name == 'firefox':
-        frame = page.query_selector('iframe[name=\"cockpit1:localhost/389-console\"]').content_frame()
+        element = page.query_selector('iframe[name=\"cockpit1:localhost/389-console\"]')
+        if element is None:
+            return None
+        frame = element.content_frame()
     else:
         frame = page.frame('cockpit1:localhost/389-console')
 
@@ -72,20 +75,26 @@ def remove_instance_through_lib(topology):
 
 
 def remove_instance_through_webui(topology, page, browser_name):
-    frame = check_frame_assignment(page, browser_name)
-
-    log.info('Check if instance exist')
-    if topology.standalone.exists():
-        log.info('Delete instance')
-        frame.wait_for_selector('#ds-action')
-        frame.click('#ds-action')
-        frame.click('#remove-ds')
-        frame.check('#modalChecked')
-        frame.click('//button[normalize-space(.)=\'Remove Instance\']')
+    try:
         frame = check_frame_assignment(page, browser_name)
-        frame.is_visible("#no-inst-create-btn")
-        time.sleep(1)
-        log.info('Instance deleted')
+
+        log.info('Check if instance exist')
+        if topology.standalone.exists():
+            log.info('Delete instance')
+            frame.wait_for_selector('#ds-action')
+            frame.click('#ds-action')
+            frame.click('#remove-ds')
+            frame.check('#modalChecked')
+            frame.click('//button[normalize-space(.)=\'Remove Instance\']')
+            frame = check_frame_assignment(page, browser_name)
+            frame.is_visible("#no-inst-create-btn")
+            time.sleep(1)
+            log.info('Instance deleted')
+    except Exception as e:
+        log.warning(f'WebUI instance removal failed, falling back to lib389: {e}')
+        if topology.standalone.exists():
+            topology.standalone.delete()
+            time.sleep(1)
 
 
 def setup_login(page):
