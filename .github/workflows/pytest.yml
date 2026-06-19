@@ -64,6 +64,7 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix: ${{ fromJson(needs.build.outputs.matrix) }}
 
     steps:
@@ -155,4 +156,3 @@ jobs:
           pytest.html
           assets
           .playwright-screenshots
-
