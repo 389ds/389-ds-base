@@ -2,9 +2,13 @@ name: npm-audit-ci
 
 on:
   push:
+    branches:
+      - main
+      - "389-ds-base-*"
   pull_request:
   schedule:
     - cron:  '0 0 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

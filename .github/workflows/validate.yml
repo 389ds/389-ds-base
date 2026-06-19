@@ -2,7 +2,11 @@ name: Validate tests and minimal Python version
 
 on:
   push:
+    branches:
+      - main
+      - "389-ds-base-*"
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
