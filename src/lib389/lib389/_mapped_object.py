@@ -158,8 +158,8 @@ class DSLdapObject(DSLogging, DSLint):
         self._create_objectclasses = []
         self._rdn_attribute = None
         self._must_attributes = None
-        # attributes, we don't want to compare
-        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid']
+        # Backend-generated attributes that are local to an instance.
+        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid', 'parentid']
         self._server_controls = None
         self._client_controls = None
         self._object_filter = '(objectClass=*)'
@@ -651,8 +651,10 @@ class DSLdapObject(DSLogging, DSLint):
 
         This comparison is a loose comparison, not a strict one i.e. "this object *is* this other object"
         It will just check if the attributes are same.
-        'nsUniqueId' attribute is not checked intentionally because we want to compare arbitrary objects
-        i.e they may have different 'nsUniqueId' but same attributes.
+        Instance-local operational attributes like 'nsUniqueId', 'entryid',
+        and 'parentid' are not checked intentionally because we want to
+        compare arbitrary objects, i.e they may have different internal
+        database identity but same attributes.
 
         Example::
 
