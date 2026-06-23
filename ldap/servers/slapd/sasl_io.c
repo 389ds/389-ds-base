@@ -389,7 +389,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     /* Check if the packet length is larger than our max allowed.  A
      * setting of -1 means that we allow any size SASL IO packet. */
     saslio_limit = config_get_maxsasliosize();
-    if ((saslio_limit != -1) && (packet_length > (uint32_t)saslio_limit)) {
+    if ((saslio_limit != -1) && (packet_length > saslio_limit)) {
         slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
                       "SASL encrypted packet length exceeds maximum allowed limit (length=%" PRIu32 ", limit=%" PRIu32")."
                       "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
