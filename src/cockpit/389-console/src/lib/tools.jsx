@@ -2,6 +2,19 @@ import cockpit from "cockpit";
 
 const _ = cockpit.gettext;
 
+export function replaceFileContent(filePath, content, options = { superuser: "require" }) {
+    const fileHandle = cockpit.file(filePath, options);
+    return fileHandle
+            .replace(content)
+            .always(() => {
+                try {
+                    fileHandle.close();
+                } catch (err) {
+                    console.error("Error closing file handle:", err);
+                }
+            });
+}
+
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
         const filteredRows = [];
