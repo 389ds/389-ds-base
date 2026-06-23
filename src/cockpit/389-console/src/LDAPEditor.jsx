@@ -44,6 +44,7 @@ import EditorTableView from './lib/ldap_editor/tableView.jsx';
 import EditorTreeView from './lib/ldap_editor/treeView.jsx';
 import { SearchDatabase } from './lib/ldap_editor/search.jsx';
 import GenericWizard from './lib/ldap_editor/wizards/genericWizard.jsx';
+import { EffectivePwpModal } from './lib/ldap_editor/effectivePwpModal.jsx';
 import { SyncAltIcon } from '@patternfly/react-icons';
 import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 
@@ -107,7 +108,29 @@ export class LDAPEditor extends React.Component {
             allObjectclasses: [],
             isConfirmModalOpen: false,
             isTreeViewAction: false,
-            currentRowKey: -1
+            currentRowKey: -1,
+            showPwpModal: false,
+            pwpModalEntryDn: '',
+            pwpModalUserType: '',
+            pwpModalSelector: '',
+        };
+
+        this.handlePwpModalClose = () => {
+            this.setState({
+                showPwpModal: false,
+                pwpModalEntryDn: '',
+                pwpModalUserType: '',
+                pwpModalSelector: '',
+            });
+        };
+
+        this.openPwpModal = (entryDn, userPwpLookup) => {
+            this.setState({
+                showPwpModal: true,
+                pwpModalEntryDn: entryDn,
+                pwpModalUserType: userPwpLookup.userType,
+                pwpModalSelector: userPwpLookup.selector,
+            });
         };
 
         this.handleConfirmModalToggle = () => {
@@ -183,6 +206,17 @@ export class LDAPEditor extends React.Component {
                     operationType: "unlock",
                     isTreeViewAction: true
                 }, () => { this.handleConfirmModalToggle() });
+                return;
+            }
+            if (aTarget.name === ENTRY_MENU.getPwp) {
+                this.setState({
+                    entryMenuIsOpen: false,
+                }, () => {
+                    this.openPwpModal(aTarget.value, {
+                        userType: aTarget.getAttribute('data-user-type'),
+                        selector: aTarget.getAttribute('data-selector'),
+                    });
+                });
                 return;
             }
 
@@ -554,7 +588,9 @@ export class LDAPEditor extends React.Component {
                     entryState: "",
                     isRole: info.isRole,
                     isLockable: info.isLockable,
-                    ldapsubentry: info.ldapsubentry
+                    ldapsubentry: info.ldapsubentry,
+                    isUser: info.isUser,
+                    userPwpLookup: info.userPwpLookup,
                 },
                 {
                     // customRowId: info.parentId + 1,
@@ -1080,6 +1116,12 @@ export class LDAPEditor extends React.Component {
                     });
                 }
             },
+            ...(rowData.isUser && rowData.userPwpLookup ? [{
+                title: _("View Password Policy ..."),
+                onClick: () => {
+                    this.openPwpModal(rowData.rawdn, rowData.userPwpLookup);
+                }
+            }] : []),
             {
                 isSeparator: true
             },
@@ -1247,6 +1289,15 @@ export class LDAPEditor extends React.Component {
                         suffixDn={this.state.emptyDN}
                         editorLdapServer={this.props.serverId}
                     />}
+                <EffectivePwpModal
+                    isOpen={this.state.showPwpModal}
+                    onClose={this.handlePwpModalClose}
+                    serverId={this.props.serverId}
+                    suffixList={this.state.suffixList}
+                    entryDn={this.state.pwpModalEntryDn}
+                    userType={this.state.pwpModalUserType}
+                    selector={this.state.pwpModalSelector}
+                />
                 <Modal
                     // TODO: Fix confirmation modal formatting and size; add operation to the tables
                     variant={ModalVariant.medium}

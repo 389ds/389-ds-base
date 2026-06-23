@@ -46,6 +46,7 @@ import { ENTRY_MENU } from './lib/constants.jsx';
 import EditorTableView from './tableView.jsx';
 import { getApiErrorMessage, log_cmd, valid_dn } from '../tools.jsx';
 import GenericWizard from './wizards/genericWizard.jsx';
+import { EffectivePwpModal } from './effectivePwpModal.jsx';
 
 const _ = cockpit.gettext;
 
@@ -104,6 +105,28 @@ export class SearchDatabase extends React.Component {
             isWizardOpen: false,
             wizardEntryDn: '',
             treeViewRootSuffixes: [], // TODO when aci's are ready (is there a better list of suffixes?)
+            showPwpModal: false,
+            pwpModalEntryDn: '',
+            pwpModalUserType: '',
+            pwpModalSelector: '',
+        };
+
+        this.handlePwpModalClose = () => {
+            this.setState({
+                showPwpModal: false,
+                pwpModalEntryDn: '',
+                pwpModalUserType: '',
+                pwpModalSelector: '',
+            });
+        };
+
+        this.openPwpModal = (entryDn, userPwpLookup) => {
+            this.setState({
+                showPwpModal: true,
+                pwpModalEntryDn: entryDn,
+                pwpModalUserType: userPwpLookup.userType,
+                pwpModalSelector: userPwpLookup.selector,
+            });
         };
 
         this.initialResultText = _("Loading ...");
@@ -419,7 +442,9 @@ export class SearchDatabase extends React.Component {
                                         rawdn: info.dn,
                                         isLockable: info.isLockable,
                                         isRole: info.isRole,
-                                        entryState
+                                        entryState,
+                                        isUser: info.isUser,
+                                        userPwpLookup: info.userPwpLookup,
                                     },
                                     {
                                         parent: rowNumber,
@@ -465,7 +490,9 @@ export class SearchDatabase extends React.Component {
                                 info.modifyTimestamp,
                             ],
                             rawdn: info.dn,
-                            entryState: ""
+                            entryState: "",
+                            isUser: info.isUser,
+                            userPwpLookup: info.userPwpLookup,
                         },
                         {
                             parent: rowNumber,
@@ -702,6 +729,12 @@ export class SearchDatabase extends React.Component {
                     });
                 }
             },
+            ...(rowData.isUser && rowData.userPwpLookup ? [{
+                title: _("View Password Policy ..."),
+                onClick: () => {
+                    this.openPwpModal(rowData.rawdn, rowData.userPwpLookup);
+                }
+            }] : []),
             {
                 isSeparator: true
             },
@@ -765,6 +798,15 @@ export class SearchDatabase extends React.Component {
                         allObjectclasses={this.props.allObjectclasses}
                     />
                 )}
+                <EffectivePwpModal
+                    isOpen={this.state.showPwpModal}
+                    onClose={this.handlePwpModalClose}
+                    serverId={this.props.serverId}
+                    suffixList={this.props.suffixList}
+                    entryDn={this.state.pwpModalEntryDn}
+                    userType={this.state.pwpModalUserType}
+                    selector={this.state.pwpModalSelector}
+                />
                 <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                     <Grid className="ds-margin-left">
                         <div className="ds-container">

@@ -61,7 +61,8 @@ import { ENTRY_MENU } from './lib/constants.jsx';
 import { getApiErrorMessage, log_cmd } from "../tools.jsx";
 import {
     showCertificate,
-    b64DecodeUnicode
+    b64DecodeUnicode,
+    getUserPwpLookupFromEntry,
 } from './lib/utils.jsx';
 
 const _ = cockpit.gettext;
@@ -221,6 +222,8 @@ class EditorTreeView extends React.Component {
                 entryModTimeLocal: '',
                 entryIcon: null,
                 entryDn: '', // An empty value disables the actions dropdown menu.
+                isUserEntry: false,
+                userPwpLookup: null,
                 latestEntryRefreshTime: Date.now(),
                 searching: false,
             });
@@ -241,6 +244,9 @@ class EditorTreeView extends React.Component {
         const fullEntry = treeViewItem.fullEntry;
         const encodedValues = [];
         let isRole = false;
+        let objectclasses = [];
+        let uid = '';
+        let cn = '';
         fullEntry
                 .filter(data => (data.attribute + data.value !== '') && // Filter out empty lines
             (data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
@@ -281,6 +287,13 @@ class EditorTreeView extends React.Component {
                         }
                         if (myVal === 'nsroledefinition') {
                             isRole = true;
+                        }
+                        if (attrLowerCase === 'objectclass') {
+                            objectclasses.push(myVal);
+                        } else if (attrLowerCase === 'uid') {
+                            uid = val.trim();
+                        } else if (attrLowerCase === 'cn') {
+                            cn = val.trim();
                         }
                         // TODO: Use a better logic to assign icons!
                         // console.log(`!entryIcon = ${!entryIcon}`);
@@ -346,6 +359,12 @@ class EditorTreeView extends React.Component {
                     }
                 })
                 .finally(() => {
+                    const userPwpLookup = getUserPwpLookupFromEntry(
+                        entryDn,
+                        objectclasses,
+                        { uid: uid ? [uid] : [], cn: cn ? [cn] : [] }
+                    );
+                    const isUserEntry = userPwpLookup !== null;
                     const tableModificationTime = Date.now();
                     this.setState({
                         entryRows,
@@ -360,7 +379,9 @@ class EditorTreeView extends React.Component {
                         tableModificationTime,
                         entryIcon,
                         entryStateIcon,
-                        isRole
+                        isRole,
+                        isUserEntry,
+                        userPwpLookup,
                     }, () => {
                         // Now decode the encoded values.
                         // A sample object stored in the variable encodedValues looks like { index: entryRows.length, line: line }
@@ -439,18 +460,18 @@ class EditorTreeView extends React.Component {
                                                                 });
 
                                                         decodedValue =
-                                (
-                                    <>
-                                        <div>
-                                            <Alert variant={type} isInline title={diffMessage} />
-                                            <TextContent>
-                                                <TextList component={TextListVariants.dl}>
-                                                    {certItems}
-                                                </TextList>
-                                            </TextContent>
-                                        </div>
-                                    </>
-                                );
+                                                            (
+                                                                <>
+                                                                    <div>
+                                                                        <Alert variant={type} isInline title={diffMessage} />
+                                                                        <TextContent>
+                                                                            <TextList component={TextListVariants.dl}>
+                                                                                {certItems}
+                                                                            </TextList>
+                                                                        </TextContent>
+                                                                    </div>
+                                                                </>
+                                                            );
 
                                                         const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
                                                         finalRows.splice(myObj.index, 1, newRow);
@@ -499,7 +520,7 @@ class EditorTreeView extends React.Component {
             entryModTimeLocal, isEmptySuffix, isEntryTooLarge,
             tableModificationTime, showEmptySuffixModal, entryState,
             newSuffixData, isTreeLoading, refreshButtonTriggerTime,
-            latestEntryRefreshTime, entryStateIcon, timeFormat
+            latestEntryRefreshTime, entryStateIcon, timeFormat, isUserEntry, userPwpLookup
         } = this.state;
 
         const { loading } = this.props;
@@ -599,6 +620,18 @@ class EditorTreeView extends React.Component {
             >
                 {_("Class of Service ...")}
             </DropdownItem>,
+            ...(isUserEntry && userPwpLookup ? [
+                <DropdownItem
+                    key="tree-view-get-pwp"
+                    component="button"
+                    name={ENTRY_MENU.getPwp}
+                    value={entryDn}
+                    data-user-type={userPwpLookup.userType}
+                    data-selector={userPwpLookup.selector}
+                >
+                    {_("View Password Policy ...")}
+                </DropdownItem>,
+            ] : []),
             /*
             <DropdownItem
                 isDisabled
