@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -258,6 +258,39 @@ def test_target_set_above_the_entry_test(topo):
         domain.add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
                           f'(targetattr="*")(version 3.0; acl "Name of the ACI"; deny absolute '
                           f'(all)userdn="ldap:///anyone";)')
+
+
+INVALID_ACLTXT_HEADER_VALUES = [
+    pytest.param(
+        '(targetattr="*")(version 3.0;)',
+        id="empty_acltxt_header",
+    ),
+    pytest.param(
+        '(targetattr="*")(version 3.0; v;)',
+        id="short_acltxt_header",
+    ),
+    pytest.param(
+        '(targetattr="*")(version 3.0; abc;)',
+        id="missing_acl_name",
+    ),
+]
+
+@pytest.mark.parametrize("real_value", INVALID_ACLTXT_HEADER_VALUES)
+def test_invalid_acltxt_header_is_rejected(topo, real_value):
+    """Verify malformed ACL text headers are rejected and
+    ASAN doesn't complain
+
+    :id: 95f19087-afbb-44eb-b692-595bdeaf7b23
+    :parametrized: yes
+    :setup: Standalone Instance
+    :steps:
+        1. Add an ACI value with an invalid ACL text header
+    :expectedresults:
+        1. The add operation fails with invalid syntax
+    """
+    domain = Domain(topo.standalone, DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        domain.add("aci", real_value)
 
 
 if __name__ == "__main__":
