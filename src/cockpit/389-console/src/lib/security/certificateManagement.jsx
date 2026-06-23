@@ -24,7 +24,7 @@ import {
     ExportCertModal,
 } from "./securityModals.jsx";
 import PropTypes from "prop-types";
-import { getApiErrorMessage, log_cmd } from "../../lib/tools.jsx";
+import { getApiErrorMessage, log_cmd, replaceFileContent } from "../../lib/tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -450,15 +450,12 @@ export class CertificateManagement extends React.Component {
         if (this.state.certRadioUpload && this.state.uploadValue) {
             // Certificate was copied and pasted.  Need to create a tmp file for import
             const certFile = this.props.certDir + "/tmp-cert-" + Date.now() + ".tmp";
-            const certText = this.state.uploadValue;
-            const create_cert_cmd = [
-                '/bin/sh', '-c',
-                '/usr/bin/echo -e \'' + certText + '\' > ' + certFile
-            ];
+            const certText = this.state.uploadValue.endsWith("\n")
+                ? this.state.uploadValue
+                : this.state.uploadValue + "\n";
 
-            log_cmd("addCert", "creating tmp cert file for importing: ", create_cert_cmd);
-            cockpit
-                    .spawn(create_cert_cmd, { superuser: "require", err: "message" })
+            log_cmd("addCert", "Creating tmp cert file for importing", [certFile]);
+            replaceFileContent(certFile, certText)
                     .done(() => {
                         const cmd = [
                             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
