@@ -11,6 +11,7 @@
 import logging
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
+from lib389.dseldif import DSEldif
 from lib389.plugins import DNAPlugin, DNAPluginConfigs
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts
@@ -45,10 +46,13 @@ def dna_plugin(topology_st, request):
     inst.restart()
 
     def fin():
-        inst.stop()
-        dse_ldif = DSEldif(inst)
-        dse_ldif.delete_dn(f'cn=dna config,{plugin.dn}')
-        inst.start()
+        try:
+            inst.stop()
+            dse_ldif = DSEldif(inst)
+            dse_ldif.delete_dn(f'cn=dna config,{plugin.dn}')
+        finally:
+            if not inst.status():
+                inst.start()
     request.addfinalizer(fin)
 
     return dna_config

@@ -1341,6 +1341,11 @@ def test_acct_policy_consumer(topology_m1c1, request):
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
 
+    # Pause replication before restarting supplier/consumer so release_replica
+    # can complete cleanly
+    topology_m1c1.pause_all_replicas()
+    time.sleep(5)
+
     # Configure lastLoginTime on supplier and consumer
     plugin = AccountPolicyPlugin(supplier)
     plugin.enable()
@@ -1361,6 +1366,10 @@ def test_acct_policy_consumer(topology_m1c1, request):
     accp.set('alwaysrecordlogin', 'yes')
     accp.set('stateattrname', 'lastLoginTime')
     consumer.restart(timeout=10)
+
+    # Allow replication to resume before bind tests
+    topology_m1c1.resume_all_replicas()
+    time.sleep(2)
 
     # On supplier
     # Do 3 binds with a delay to
@@ -1404,6 +1413,8 @@ def test_acct_policy_consumer(topology_m1c1, request):
 
     def fin():
         user_supplier.delete()
+        topology_m1c1.pause_all_replicas()
+        time.sleep(5)
         log.info('Disabling Global accpolicy plugin and removing pwpolicy attrs')
         try:
             plugin = AccountPolicyPlugin(supplier)
