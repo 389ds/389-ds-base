@@ -234,7 +234,7 @@ sync_start(Slapi_PBlock *pb)
      * in the order that they were applied
      */
     PR_NewThreadPrivateIndex(&thread_primary_op, sync_thread_primary_op_destructor);
-    sync_persist_initialize(argc, argv);
+    sync_persist_initialize(argc, argv, e);
 
     return (0);
 }

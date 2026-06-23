@@ -6,13 +6,23 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+from argparse import ArgumentTypeError
 from lib389.plugins import ContentSyncPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add_attr
 from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'allow_openldap': 'syncrepl-allow-openldap',
+    'queue_max_size': 'syncrepl-queue-max-size',
+    'max_concurrent': 'syncrepl-max-concurrent',
 }
+
+def check_queue_size(value):
+    ivalue = int(value)
+    if 100 <= ivalue <= 100000:
+        return str(ivalue)
+    else:
+        raise ArgumentTypeError(f"{value} should be in the range [100, 100000]")
 
 def contentsync_edit(inst, basedn, log, args):
     log = log.getChild('contentsync_edit')
@@ -29,6 +39,10 @@ def contentsync_add(inst, basedn, log, args):
 def _add_parser_args(parser):
     parser.add_argument('--allow-openldap', choices=['on', 'off'], type=str.lower,
                         help='Allows openldap servers to act as read only consumers of this server via syncrepl')
+    parser.add_argument('--queue-max-size', type=check_queue_size,
+                        help='Limits the number of entries not yet processed (range [100, 100000])')
+    parser.add_argument('--max-concurrent', type=str,
+                        help='Limits the number of persistent searches running at the same time')
 
 def create_parser(subparsers):
     contentsync_parser = subparsers.add_parser('contentsync', help='Manage and configure Content Sync Plugin (aka syncrepl)', formatter_class=CustomHelpFormatter)
