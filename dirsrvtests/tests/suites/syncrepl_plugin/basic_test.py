@@ -918,3 +918,90 @@ def test_sync_repl_non_root_persist(topology, request):
             pass
 
     request.addfinalizer(fin)
+
+def test_syncrepl_queue_size(topology):
+    """ Test basic that the setting of the queue size
+    ranges [100-100000]
+
+    :id: 11745605-5d53-4983-82d2-2fe7bdadc745
+
+    :setup: Standalone instance
+
+    :steps:
+        1. Enable Retro Changelog
+        2. Enable Syncrepl
+        3. set 'syncrepl-queue-max-size' to a value less that minimum (100)
+        4. Check that an error message is logged
+        5. set 'syncrepl-queue-max-size' to a value greater that max (100000)
+        6. Check that an error message is logged
+        7. set 'syncrepl-queue-max-size' to a value in the range [100, 100000]
+        8. Check that the new value appears in PLUGIN_LOG
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+    st = topology.standalone
+    st.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
+
+    # Enable RetroChangelog.
+    rcl = RetroChangelogPlugin(st)
+    rcl.enable()
+    # Enable sync repl
+    csp = ContentSyncPlugin(st)
+    csp.enable()
+
+    # check invalid low value
+    csp.replace('syncrepl-queue-max-size', '10')
+    st.restart()
+    assert st.ds_error_log.match('.*sync_persist_initialize - Queue max size is too small.*')
+
+    # check invalid high value
+    csp.replace('syncrepl-queue-max-size', '200000')
+    st.restart()
+    assert st.ds_error_log.match('.*sync_persist_initialize - Queue max size is too large.*')
+
+    # check valid value
+    csp.replace('syncrepl-queue-max-size', '5000')
+    st.restart()
+    assert st.ds_error_log.match('.*sync_persist_initialize - Queue max size is set to 5000.*')
+
+def test_syncrepl_queue_size_with_legacy_pluginarg(topology):
+    """Verify queue size config is honored when legacy pluginarg0 is present
+
+    :id: 83545ba4-782e-4326-9057-a90496ee82ad
+    :setup: Standalone instance
+    :steps:
+        1. Enable Retro Changelog and Content Sync
+        2. Set legacy nsslapd-pluginarg0 and new syncrepl-queue-max-size
+        3. Restart the server
+        4. Check startup logs for the configured queue size
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. The configured queue size is applied
+    """
+    st = topology.standalone
+    st.config.loglevel(vals=(ErrorLog.DEFAULT, ErrorLog.PLUGIN))
+
+    rcl = RetroChangelogPlugin(st)
+    rcl.enable()
+
+    csp = ContentSyncPlugin(st)
+    csp.enable()
+    csp.replace('nsslapd-pluginarg0', '5')
+    csp.replace('syncrepl-queue-max-size', '5000')
+
+    st.restart()
+
+    assert st.ds_error_log.match(
+        '.*sync_persist_initialize - Queue max size is set to 5000.*',
+        after_pattern='.*starting up.*'
+    )
