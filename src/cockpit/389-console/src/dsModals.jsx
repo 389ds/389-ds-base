@@ -9,7 +9,8 @@ import {
     bad_file_name,
     valid_dn,
     valid_db_name,
-    callCmdStreamPassword
+    callCmdStreamPassword,
+    replaceFileContent
 } from "./lib/tools.jsx";
 import {
     Button,
@@ -282,15 +283,12 @@ export class CreateInstanceModal extends React.Component {
                                              * Success we have our setup file and it has the correct permissions.
                                              * Now populate the setup file...
                                              */
-                                            const cmd = [
-                                                '/bin/sh', '-c',
-                                                '/usr/bin/echo -e \'' + setup_inf + '\' >> ' + setup_file
-                                            ];
-
+                                            const setupFileContent = setup_inf.endsWith("\n")
+                                                ? setup_inf
+                                                : setup_inf + "\n";
                                             // Do not log inf file as it contains the DM password
-                                            log_cmd("handleCreateInstance", "Apply changes to INF file...", "");
-                                            cockpit
-                                                    .spawn(cmd, { superuser: true, err: "message" })
+                                            log_cmd("handleCreateInstance", "Apply changes to INF file...", [setup_file]);
+                                            replaceFileContent(setup_file, setupFileContent)
                                                     .fail(err => {
                                                         this.setState({
                                                             loadingCreate: false
@@ -301,50 +299,66 @@ export class CreateInstanceModal extends React.Component {
                                                         );
                                                     })
                                                     .done(() => {
-                                                        /*
-                                                         * Next, create the instance...
-                                                         */
-                                                        const cmd = ["dscreate", "-j", "from-file", setup_file];
-                                                        log_cmd("handleCreateInstance", "Creating instance...", cmd);
+                                                        const final_chmod_cmd = ["chmod", "600", setup_file];
+                                                        log_cmd("handleCreateInstance", "Reset INF file permissions after write...", final_chmod_cmd);
                                                         cockpit
-                                                                .spawn(cmd, {
-                                                                    superuser: true,
-                                                                    err: "message"
-                                                                })
+                                                                .spawn(final_chmod_cmd, { superuser: true, err: "message" })
                                                                 .fail(err => {
-                                                                    const errMsg = JSON.parse(err.message);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
+                                                                    cockpit.spawn(rm_cmd, { superuser: true, err: "message" }); // Remove Inf file with clear text password
                                                                     this.setState({
                                                                         loadingCreate: false
                                                                     });
                                                                     addNotification(
                                                                         "error",
-                                                                        `${errMsg.desc}`
+                                                                        cockpit.format(_("Failed to set permissions on setup file $0: $1"), setup_file, err.message)
                                                                     );
                                                                 })
                                                                 .done(() => {
-                                                                    // Success!!!  Now set Root DN pw, and cleanup everything up...
-                                                                    log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true });
+                                                                    /*
+                                                                     * Next, create the instance...
+                                                                     */
+                                                                    const cmd = ["dscreate", "-j", "from-file", setup_file];
+                                                                    log_cmd("handleCreateInstance", "Creating instance...", cmd);
+                                                                    cockpit
+                                                                            .spawn(cmd, {
+                                                                                superuser: true,
+                                                                                err: "message"
+                                                                            })
+                                                                            .fail(err => {
+                                                                                const errMsg = JSON.parse(err.message);
+                                                                                cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
+                                                                                this.setState({
+                                                                                    loadingCreate: false
+                                                                                });
+                                                                                addNotification(
+                                                                                    "error",
+                                                                                    `${errMsg.desc}`
+                                                                                );
+                                                                            })
+                                                                            .done(() => {
+                                                                                // Success!!!  Now set Root DN pw, and cleanup everything up...
+                                                                                log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
+                                                                                cockpit.spawn(rm_cmd, { superuser: true });
 
-                                                                    const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
-                                                                        'directory_manager', 'password_change'];
-                                                                    const config = {
-                                                                        cmd: dm_pw_cmd,
-                                                                        promptArg: "",
-                                                                        passwd: createDMPassword,
-                                                                        addNotification,
-                                                                        success_msg: cockpit.format(_("Successfully created instance: slapd-$0"), createServerId),
-                                                                        error_msg: _("Failed to set Directory Manager password"),
-                                                                        state_callback: () => { this.setState({ loadingCreate: false }) },
-                                                                        reload_func: loadInstanceList,
-                                                                        reload_arg: createServerId,
-                                                                        ext_func: closeHandler,
-                                                                        ext_arg: "",
-                                                                        funcName: "handleCreateInstance",
-                                                                        funcDesc: _("Set Directory Manager password...")
-                                                                    };
-                                                                    callCmdStreamPassword(config);
+                                                                                const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
+                                                                                    'directory_manager', 'password_change'];
+                                                                                const config = {
+                                                                                    cmd: dm_pw_cmd,
+                                                                                    promptArg: "",
+                                                                                    passwd: createDMPassword,
+                                                                                    addNotification,
+                                                                                    success_msg: cockpit.format(_("Successfully created instance: slapd-$0"), createServerId),
+                                                                                    error_msg: _("Failed to set Directory Manager password"),
+                                                                                    state_callback: () => { this.setState({ loadingCreate: false }) },
+                                                                                    reload_func: loadInstanceList,
+                                                                                    reload_arg: createServerId,
+                                                                                    ext_func: closeHandler,
+                                                                                    ext_arg: "",
+                                                                                    funcName: "handleCreateInstance",
+                                                                                    funcDesc: _("Set Directory Manager password...")
+                                                                                };
+                                                                                callCmdStreamPassword(config);
+                                                                            });
                                                                 });
                                                     });
                                         });
