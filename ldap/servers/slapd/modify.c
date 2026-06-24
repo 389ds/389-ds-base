@@ -1361,9 +1361,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         slapi_search_get_entry_done(&entry_pb);
 
 #ifdef ENABLE_HIBP
-        /*
-         * Check password against breach database after ACI validation.
-         */
+        /* Check password against breach database after ACI validation (admin bypass) */
         if (!SLAPI_IS_MOD_DELETE(mod->mod_op) &&
             !pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
             pwpolicy->pw_check_breach && mod->mod_bvalues) {
