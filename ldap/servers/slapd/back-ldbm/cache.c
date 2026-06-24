@@ -511,11 +511,13 @@ lru_delete(struct cache *cache, void *ptr)
         return;
     }
     e = (struct backcommon *)ptr;
+    PR_ASSERT(e->ep_state & ENTRY_STATE_LRU);
 
 #ifdef LDAP_CACHE_DEBUG_LRU
     pinned_verify(cache, __LINE__);
     lru_verify(cache, e, 1);
 #endif
+    e->ep_state &= ~ENTRY_STATE_LRU;
     if (e->ep_lruprev)
         e->ep_lruprev->ep_lrunext = e->ep_lrunext;
     else
@@ -543,11 +545,14 @@ lru_add(struct cache *cache, void *ptr)
     e = (struct backcommon *)ptr;
     ASSERT(e->ep_refcnt == 0);
     ASSERT((e->ep_state & ENTRY_STATE_PINNED) == 0);
+    PR_ASSERT((e->ep_state & ENTRY_STATE_LRU) == 0);
+    PR_ASSERT(e->ep_type != CACHE_TYPE_UNKNOWN);
 
 #ifdef LDAP_CACHE_DEBUG_LRU
     pinned_verify(cache, __LINE__);
     lru_verify(cache, e, 0);
 #endif
+    e->ep_state |= ENTRY_STATE_LRU;
     e->ep_lruprev = NULL;
     e->ep_lrunext = cache->c_lruhead;
     cache->c_lruhead = e;
@@ -837,8 +842,10 @@ entrycache_flush(struct cache *cache)
                           "Unexpected NULL entry while flushing cache - LRU list may be corrupted\n");
             break;
         }
+        PR_ASSERT(e->ep_state & ENTRY_STATE_LRU);
         ASSERT(e->ep_refcnt == 0);
         e->ep_refcnt++;
+        e->ep_state &= ~ENTRY_STATE_LRU;
         if (entrycache_remove_int(cache, e) < 0) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "entrycache_flush", "Unable to delete entry\n");
@@ -1595,6 +1602,7 @@ cache_return(struct cache *cache, void **ptr)
         return;
     }
     bep = *(struct backcommon **)ptr;
+    PR_ASSERT((bep->ep_state & ENTRY_STATE_LRU) == 0);
     if (CACHE_TYPE_ENTRY == bep->ep_type) {
         entrycache_return(cache, (struct backentry **)ptr, PR_FALSE);
     } else if (CACHE_TYPE_DN == bep->ep_type) {
@@ -1647,7 +1655,7 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
                 backentry_free(bep);
             } else {
                 pinned_verify(cache, __LINE__);
-                if (!pinned_add(cache, e)) {
+                if (!pinned_add(cache, e) && ((e->ep_state & ENTRY_STATE_LRU) == 0)) {
                     lru_add(cache, e);
                 }
                 pinned_verify(cache, __LINE__);
@@ -1693,6 +1701,7 @@ cache_find_dn(struct cache *cache, const char *dn, unsigned long ndnlen)
         }
         if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
+        PR_ASSERT((e->ep_state & ENTRY_STATE_LRU) == 0);
         e->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -1723,6 +1732,7 @@ cache_find_id(struct cache *cache, ID id)
         }
         if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
+        PR_ASSERT((e->ep_state & ENTRY_STATE_LRU) == 0);
         e->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -1753,6 +1763,7 @@ cache_find_uuid(struct cache *cache, const char *uuid)
         }
         if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
+        PR_ASSERT((e->ep_state & ENTRY_STATE_LRU) == 0);
         e->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -2504,7 +2515,9 @@ dncache_flush(struct cache *cache)
                           "Unexpected NULL entry while flushing cache - LRU list may be corrupted\n");
             break;
         }
+        PR_ASSERT(dn->ep_state & ENTRY_STATE_LRU);
         ASSERT(dn->ep_refcnt == 0);
+        dn->ep_state &= ~ENTRY_STATE_LRU;
         dn->ep_refcnt++;
         if (dncache_remove_int(cache, dn) < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "dncache_flush", "Unable to delete entry\n");
