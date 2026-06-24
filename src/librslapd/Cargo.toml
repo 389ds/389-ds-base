@@ -19,4 +19,4 @@ libc = "0.2"
 concread = "0.5.10"
 
 [build-dependencies]
-cbindgen = "0.26"
+cbindgen = "0.29"

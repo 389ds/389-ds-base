@@ -18,7 +18,7 @@ paste = "1.0"
 slapi_r_plugin = { path="../../slapi_r_plugin" }
 uuid = { version = "1.0", features = [ "v4" ] }
 openssl = { version = "0.10" }
-base64 = "0.13"
+base64 = "0.22"
 
 [build-dependencies]
 cc = { version = "1.0", features = ["parallel"] }
