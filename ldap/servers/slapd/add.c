@@ -670,8 +670,9 @@ op_shared_add(Slapi_PBlock *pb)
                  */
                 present_values = attr_get_present_values(attr);
 #ifdef ENABLE_HIBP
-                /* Check all passwords against breach database */
-                if (pwpolicy->pw_check_breach) {
+                /* Check all passwords against breach database (admin bypass) */
+                if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
+                    pwpolicy->pw_check_breach) {
                     for (size_t i = 0; present_values[i] != NULL; i++) {
                         const char *pwd = slapi_value_get_string(present_values[i]);
                         if (pwd && !slapi_is_encoded((char *)pwd)) {
