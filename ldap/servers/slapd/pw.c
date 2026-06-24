@@ -2461,7 +2461,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     pwdpolicy->pw_check_dict = g_pwdpolicy->pw_check_dict;
                     pwdpolicy->pw_dict_path = g_pwdpolicy->pw_dict_path;
                     pwdpolicy->pw_check_breach = g_pwdpolicy->pw_check_breach;
-                    pwdpolicy->pw_breach_db_url = g_pwdpolicy->pw_breach_db_url;
+                    pwdpolicy->pw_breach_db_url = slapi_ch_strdup(g_pwdpolicy->pw_breach_db_url);
                     pwdpolicy->pw_breach_db_timeout = g_pwdpolicy->pw_breach_db_timeout;
                     pwdpolicy->pw_cmp_attrs_array = config_get_pw_user_attrs_array();
                     pwdpolicy->pw_bad_words_array = config_get_pw_bad_words_array();

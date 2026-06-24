@@ -601,7 +601,7 @@ static struct config_get_and_set
     {CONFIG_PW_BREACH_TIMEOUT_ATTRIBUTE, config_set_pw_breach_timeout,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_breach_db_timeout,
-     CONFIG_INT, NULL, "5", NULL},
+     CONFIG_INT, NULL, "10", NULL},
     /* password max sequence */
     {CONFIG_PW_MAX_SEQ_ATTRIBUTE, config_set_pw_max_seq,
      NULL, 0,
