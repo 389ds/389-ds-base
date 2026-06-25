@@ -28,6 +28,7 @@ SASL_OVERFLOW_PAYLOAD_SIZE = 65536
 
 def test_sasl_io_packet_length_overflow(topology_st):
     """Malformed SASL length prefix must not crash the server
+
     :id: 318f871d-2f17-461b-98ed-04cdff6ab41a
     :setup: Standalone instance
     :steps:
