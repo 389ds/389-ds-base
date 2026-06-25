@@ -1969,6 +1969,72 @@ def test_uid_lexicographic_range_search(topo):
         inst.restart()
 
 
+INTEGER_ORDERING_MATCH = 'integerOrderingMatch'
+
+
+def _run_dbverify(inst, bename=BENAME2):
+    """Run dbverify with the server stopped; restart if it was running."""
+    was_running = inst.status()
+    if was_running:
+        inst.stop()
+    try:
+        assert inst.dbverify(bename), 'dbverify reported index corruption'
+    finally:
+        if was_running:
+            inst.start()
+
+
+def _reindex_uidnumber(inst):
+    tasks = Tasks(inst)
+    assert tasks.reindex(
+        suffix=SUFFIX2,
+        attrname='uidNumber',
+        args={TASK_WAIT: True},
+    ) == 0
+
+
+def test_dynamic_nsmatchingrule_reindex_dbverify(topo, add_backend_and_ldif_50K_users):
+    """Dynamic nsMatchingRule changes apply to reindex without false dbverify errors
+
+    :id: cd209c5c-bb3b-44ca-abc7-96fec63967e0
+    :setup: Standalone instance with 50k posixAccount entries imported
+    :steps:
+        1. Run dbverify on the imported database
+        2. Ensure the uidNumber index (pres, eq) is present and reindex
+        3. Run dbverify
+        4. Add integerOrderingMatch to the index, reindex, run dbverify
+        5. Remove integerOrderingMatch, reindex, run dbverify
+    :expectedresults:
+        1. dbverify succeeds
+        2. Reindex completes successfully
+        3. dbverify succeeds
+        4. dbverify succeeds (no false corruption after matching rule add)
+        5. dbverify succeeds after matching rule removal
+    """
+    inst = topo.standalone
+    backend = Backends(inst).get_backend(SUFFIX2)
+
+    _run_dbverify(inst)
+
+    # Ensure the index is present and has the correct attributes
+    try:
+        backend.add_index('uidNumber', ['pres', 'eq'])
+    except ldap.ALREADY_EXISTS:
+        backend.get_index('uidNumber').ensure_attr_state({'nsIndexType': ['pres', 'eq']})
+
+    _reindex_uidnumber(inst)
+    _run_dbverify(inst)
+
+    uid_index = backend.get_index('uidNumber')
+    uid_index.add('nsMatchingRule', INTEGER_ORDERING_MATCH)
+    _reindex_uidnumber(inst)
+    _run_dbverify(inst)
+
+    uid_index.remove('nsMatchingRule', INTEGER_ORDERING_MATCH)
+    _reindex_uidnumber(inst)
+    _run_dbverify(inst)
+
+
 if __name__ == "__main__":
     # Run isolated
     # -s for DEBUG mode
