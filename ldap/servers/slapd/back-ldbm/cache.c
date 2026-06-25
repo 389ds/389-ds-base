@@ -512,6 +512,7 @@ lru_delete(struct cache *cache, void *ptr)
     }
     e = (struct backcommon *)ptr;
     PR_ASSERT(e->ep_state & ENTRY_STATE_LRU);
+    PR_ASSERT(e->ep_state & ENTRY_STATE_PINNED);
 
 #ifdef LDAP_CACHE_DEBUG_LRU
     pinned_verify(cache, __LINE__);
