@@ -1563,6 +1563,66 @@ def test_additional_corner_cases(topo, policy_setup, _fixture_for_additional_cas
     ])
 
 
+@pytest.mark.parametrize('value,result',
+                         [('0', ldap.SUCCESS),
+                          ('24', ldap.SUCCESS),
+                          pytest.param('-1', ldap.CONSTRAINT_VIOLATION, marks=pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/7284')),
+                          pytest.param('30', ldap.CONSTRAINT_VIOLATION, marks=pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/7284')),
+                          pytest.param('a', ldap.CONSTRAINT_VIOLATION, marks=pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/7284'))])
+def test_create_local_pwp_with_passwordInHistory(topo, value, result):
+    """Verify local password policy passwordInHistory accepts only values 0-24
+
+    :id: e7c4a1b2-3d5f-4a8e-9c1b-2f6e8d4a7b03
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Enable nsslapd-pwpolicy-local
+        2. Create a dedicated OU under the default suffix
+        3. Create a subtree local password policy with passwordInHistory set to
+           value using PwPolicyManager.create_subtree_policy
+        4. For successful creation, verify passwordInHistory on the policy entry
+        5. Delete the local password policy and OU
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success for value 0 or 24; CONSTRAINT_VIOLATION for -1, 30, or a
+           (invalid cases marked xfail)
+        4. passwordInHistory matches value when creation succeeds
+        5. Success
+    """
+    inst = topo.standalone
+    inst.config.replace('nsslapd-pwpolicy-local', 'on')
+
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
+    ou = ous.create(properties={'ou': f'pwpinhist{value}'})
+
+    pwp = PwPolicyManager(inst)
+
+    try:
+        if result == ldap.SUCCESS:
+            policy_entry = pwp.create_subtree_policy(ou.dn, {'passwordInHistory': value})
+            assert policy_entry.get_attr_val_utf8('passwordInHistory') == value
+        else:
+            with pytest.raises(result):
+                pwp.create_subtree_policy(ou.dn, {'passwordInHistory': value})
+    except ldap.LDAPError:
+        raise
+    finally:
+        try:
+            pwp.delete_local_policy(ou.dn)
+        except ValueError:
+            container = nsContainer(inst, f'cn=nsPwPolicyContainer,{ou.dn}')
+            try:
+                if container.exists():
+                    container.delete()
+            except ldap.LDAPError:
+                pass
+        try:
+            ou.delete()
+        except ldap.LDAPError:
+            pass
+
+
 def test_get_pwpolicy_cn_with_quotes(topology_m1, policy_qoutes_setup):
     """Test that that we can get pwpolicy when
     cn attr includes quotes
