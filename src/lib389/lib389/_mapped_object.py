@@ -159,7 +159,8 @@ class DSLdapObject(DSLogging, DSLint):
         self._rdn_attribute = None
         self._must_attributes = None
         # Backend-generated attributes that are local to an instance.
-        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid', 'parentid']
+        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid', 'parentid',
+                                 'numsubordinates', 'hassubordinates', 'tombstonenumsubordinates']
         self._server_controls = None
         self._client_controls = None
         self._object_filter = '(objectClass=*)'
