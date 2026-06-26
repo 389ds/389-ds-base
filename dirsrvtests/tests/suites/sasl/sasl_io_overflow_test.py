@@ -17,7 +17,7 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts
 from lib389.saslmap import SaslMappings
 from lib389.utils import *
-from lib389.topologies import topology_st
+from libtest.topologies import topology_st
 
 pytestmark = pytest.mark.tier1
 
