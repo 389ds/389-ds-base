@@ -57,7 +57,7 @@ def test_ticket49471(topo):
 
     # If you need any test suite initialization,
     # please, write additional fixture for that (including finalizer).
-    # Topology for suites are predefined in libtest/topologies.py.
+    # Topology for suites are predefined in test389/topologies.py.
 
     # If you need host, port or any other data about instance,
     # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)

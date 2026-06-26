@@ -53,14 +53,14 @@ pytestmark = pytest.mark.tier1
 
 ## Test Topology Fixtures
 
-Tests use predefined topology fixtures from `lib389.topologies`:
+Tests use predefined topology fixtures from `test389.topologies`:
 
 ```python
-from lib389.topologies import topology_st as topo          # Standalone
-from lib389.topologies import topology_m2 as topo           # 2 suppliers
-from lib389.topologies import topology_m3 as topo_m3        # 3 suppliers
-from lib389.topologies import topology_m4 as topo_m4        # 4 suppliers
-from lib389.topologies import topology_m2c2 as topo_m2c2    # 2 suppliers + 2 consumers
+from test389.topologies import topology_st as topo          # Standalone
+from test389.topologies import topology_m2 as topo           # 2 suppliers
+from test389.topologies import topology_m3 as topo_m3        # 3 suppliers
+from test389.topologies import topology_m4 as topo_m4        # 4 suppliers
+from test389.topologies import topology_m2c2 as topo_m2c2    # 2 suppliers + 2 consumers
 ```
 
 Access instances via `topo.standalone`, `topo.ms["supplier1"]`, `topo.ms["supplier2"]`, etc.
@@ -95,11 +95,11 @@ import pytest
 import ldap
 import logging
 import os
-from lib389.topologies import topology_st as topo
-from lib389._constants import DEFAULT_SUFFIX, PASSWORD
-from lib389.idm.user import UserAccounts, UserAccount
-from lib389.plugins import MemberOfPlugin
-from lib389.utils import ds_supports_new_changelog
+from test389.topologies import topology_st as topo
+from test389._constants import DEFAULT_SUFFIX, PASSWORD
+from test389.idm.user import UserAccounts, UserAccount
+from test389.plugins import MemberOfPlugin
+from test389.utils import ds_supports_new_changelog
 
 pytestmark = pytest.mark.tier1
 

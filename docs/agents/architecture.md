@@ -39,7 +39,7 @@ Key paths within lib389:
 | Path | Contents |
 |------|----------|
 | `lib389/__init__.py` | Core `DirSrv` class, constants, utilities |
-| `lib389/topologies.py` | Pytest fixtures for test topologies |
+| `test389/topologies.py` | Pytest fixtures for test topologies |
 | `lib389/replica.py` | Replication, changelog classes |
 | `lib389/plugins.py` | Plugin configuration classes |
 | `lib389/idm/` | Identity management (users, groups, accounts, roles) |

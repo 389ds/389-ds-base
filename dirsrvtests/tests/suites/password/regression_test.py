@@ -259,7 +259,7 @@ def test_unhashed_pw_switch(topo_supplier):
     inst.restart()
     # If you need any test suite initialization,
     # please, write additional fixture for that (including finalizer).
-    # Topology for suites are predefined in libtest/topologies.py.
+    # Topology for suites are predefined in test389/topologies.py.
 
     # enable dynamic plugins, memberof and retro cl plugin
     #
