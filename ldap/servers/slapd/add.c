@@ -37,6 +37,9 @@
 #include "slap.h"
 #include "pratom.h"
 #include "csngen.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 
 /* Forward declarations */
 static int add_internal_pb(Slapi_PBlock *pb);
@@ -666,6 +669,30 @@ op_shared_add(Slapi_PBlock *pb)
                  * Check password syntax, unless this is a pwd admin/rootDN
                  */
                 present_values = attr_get_present_values(attr);
+#ifdef ENABLE_HIBP
+                /* Check all passwords against breach database (admin bypass) */
+                if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
+                    pwpolicy->pw_check_breach) {
+                    for (size_t i = 0; present_values[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(present_values[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            int breach_count = hibp_check_password(pwd, pwpolicy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_add",
+                                    "Password for %s found in breach database (%d occurrences)\n",
+                                    slapi_entry_get_dn_const(e), breach_count);
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database", 0, NULL);
+                                goto done;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_add",
+                                    "Failed to check password against breach database for %s\n",
+                                    slapi_entry_get_dn_const(e));
+                            }
+                        }
+                    }
+                }
+#endif
                 if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
                     check_pw_syntax(pb, slapi_entry_get_sdn_const(e),
                                     present_values, NULL, e, 0) != 0) {
