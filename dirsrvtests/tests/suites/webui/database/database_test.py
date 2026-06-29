@@ -14,6 +14,7 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389._constants import DEFAULT_SUFFIX
 from lib389.pwpolicy import PwPolicyManager
 from test389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login
@@ -238,15 +239,19 @@ def test_local_policy_availability(topology_st, page, browser_name):
         :setup: Standalone instance
         :steps:
              1. Click on Database tab, click on Local Policies button on side panel.
-             2. Check if Local Password Policies columnheader is visible.
-             3. Click on Edit Policy tab and check if Please choose a policy from the Local Policy Table heading is visible.
-             4. Click on Create A Policy tab and check if Target DN input field is visible.
+             2. Check if Local Password Policies heading is visible.
+             3. Click on Create New Local Policy and check if Target DN input field is visible.
+             4. Click on Edit Policy row action and check if General Settings tab is visible.
         :expectedresults:
              1. Success
              2. Element is visible
              3. Element is visible
              4. Element is visible
         """
+    policy_dn = f'ou=People,{DEFAULT_SUFFIX}'
+    ppm = PwPolicyManager(topology_st.standalone)
+    ppm.create_subtree_policy(policy_dn, {})
+
     setup_login(page)
     time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
@@ -254,16 +259,21 @@ def test_local_policy_availability(topology_st, page, browser_name):
     log.info('Click on Local Policies button and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
     frame.locator('#localpwpolicy').click()
-    frame.get_by_role('columnheader', name='Local Password Policies').wait_for()
-    assert frame.get_by_role('columnheader', name='Local Password Policies').is_visible()
+    frame.get_by_role('heading', name='Local Password Policies').wait_for()
+    assert frame.get_by_role('heading', name='Local Password Policies').is_visible()
 
-    log.info('Click on Edit Policy tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Edit Policy').click()
-    assert frame.get_by_role('heading', name='Please choose a policy from the Local Policy Table.').is_visible()
-
-    log.info('Click on Create A Policy tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Create A Policy').click()
+    log.info('Click Create New Local Policy and check if Target DN field is loaded.')
+    frame.get_by_role('button', name='Create New Local Policy').click()
+    frame.locator('#policyDN').wait_for()
     assert frame.locator('#policyDN').is_visible()
+    frame.get_by_role('button', name='Cancel').click()
+
+    log.info('Open Edit Policy action and check if edit modal is loaded.')
+    frame.get_by_label('pwp table').get_by_role('button', name='Actions').click()
+    frame.get_by_role('menuitem', name='Edit Policy').click()
+    frame.get_by_role('dialog').get_by_role('tab', name='General Settings').wait_for()
+    assert frame.get_by_role('dialog').get_by_role('tab', name='General Settings').is_visible()
+    frame.get_by_role('button', name='Close').click()
 
 
 def test_suffixes_policy_availability(topology_st, page, browser_name):
