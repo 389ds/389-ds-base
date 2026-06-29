@@ -16,7 +16,8 @@
 
 #define TEST_PBKDF2_TOTAL_LENGTH 324
 #define TEST_PBKDF2_MIN_ITERATIONS 2048
-#define TEST_PBKDF2_MAX_ITERATIONS 1000000
+#define TEST_PBKDF2_ACCEPT_MAX_ITERATIONS 50000
+#define TEST_PBKDF2_ACCEPT_LIMIT 10000
 
 /* Build a PBKDF2_SHA256 payload with the given iteration count */
 static void
@@ -33,6 +34,7 @@ test_plugin_pwdstorage_nss_setup(void **state __attribute__((unused)))
 {
     int result = NSS_Initialize(NULL, "", "", SECMOD_DB, NSS_INIT_READONLY | NSS_INIT_NOCERTDB | NSS_INIT_NOMODDB);
     assert_true(result == 0);
+    pbkdf2_sha256_set_accept_max_iterations(TEST_PBKDF2_ACCEPT_MAX_ITERATIONS);
     return result;
 }
 
@@ -103,8 +105,10 @@ test_plugin_pwdstorage_pbkdf2_pw_cmp_invalid_hash(void **state __attribute__((un
     char hash_bin_long[TEST_PBKDF2_TOTAL_LENGTH + 4];
     char hash_b64[LDIF_BASE64_LEN(TEST_PBKDF2_TOTAL_LENGTH + 4) + 1];
 
-    /* Iteration count above PBKDF2_MAX_ITERATIONS */
-    test_pbkdf2_prepare_hash(hash_bin, TEST_PBKDF2_MAX_ITERATIONS + 1);
+    pbkdf2_sha256_set_accept_max_iterations(TEST_PBKDF2_ACCEPT_LIMIT);
+
+    /* Iteration count above accept max */
+    test_pbkdf2_prepare_hash(hash_bin, TEST_PBKDF2_ACCEPT_LIMIT + 1);
     memset(hash_b64, 0, sizeof(hash_b64));
     assert_true(PL_Base64Encode(hash_bin, TEST_PBKDF2_TOTAL_LENGTH, hash_b64) != NULL);
     assert_true(pbkdf2_sha256_pw_cmp("password", hash_b64) != 0);
