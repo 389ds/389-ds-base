@@ -96,10 +96,10 @@ import ldap
 import logging
 import os
 from test389.topologies import topology_st as topo
-from test389._constants import DEFAULT_SUFFIX, PASSWORD
-from test389.idm.user import UserAccounts, UserAccount
-from test389.plugins import MemberOfPlugin
-from test389.utils import ds_supports_new_changelog
+from lib389._constants import DEFAULT_SUFFIX, PASSWORD
+from lib389.idm.user import UserAccounts, UserAccount
+from lib389.plugins import MemberOfPlugin
+from lib389.utils import ds_supports_new_changelog
 
 pytestmark = pytest.mark.tier1
 
