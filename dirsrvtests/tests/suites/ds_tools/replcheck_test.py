@@ -546,6 +546,23 @@ def test_dsreplcheck_timeout_connection_mechanisms(topo_tls_ldapi):
         assert OUTPUT in ensure_str(result)
 
 
+@pytest.mark.parametrize("suffix,expected_escaped", [
+    ("dc=example,dc=com",                  "dc=example,dc=com"),
+    ("dc=example,dc=com*",                 "dc=example,dc=com\\2a"),
+    ("dc=example,dc=com)(|(objectclass=*", "dc=example,dc=com\\29\\28|\\28objectclass=\\2a"),
+    ("*)(|(cn=*",                          "\\2a\\29\\28|\\28cn=\\2a"),
+])
+def test_replica_filter_suffix_escaping(suffix, expected_escaped):
+    """Regression: suffix must be escaped before interpolation into LDAP filters."""
+    import ldap.filter
+    escaped = ldap.filter.escape_filter_chars(suffix)
+    assert escaped == expected_escaped
+    filt = "(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=%s))" % escaped
+    assert filt.startswith("(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=")
+    assert filt.endswith("))")
+    assert filt.count("(") == filt.count(")")
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

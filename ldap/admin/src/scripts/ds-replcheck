@@ -37,6 +37,11 @@ mdcsn_pattern = re.compile(';mdcsn-([A-Fa-f0-9]+)')
 adcsn_pattern = re.compile(';adcsn-([A-Fa-f0-9]+)')
 
 
+def _build_replica_filter(suffix, objectclass="nsds5replica", extra_clauses=""):
+    escaped = ldap.filter.escape_filter_chars(suffix)
+    return "(&(objectclass=%s)(nsDS5ReplicaRoot=%s)%s)" % (objectclass, escaped, extra_clauses)
+
+
 def get_entry(entries, dn):
     """Loop over a list of enties looking for a matching dn
     :param entries - A List of LDAP entries
@@ -947,7 +952,7 @@ def validate_suffix(ldapnode, suffix, hostname, port):
 
     # Check suffix is replicated
     try:
-        replica_filter = "(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=%s))" % suffix
+        replica_filter = _build_replica_filter(suffix)
         supplier_replica = ldapnode.search_s("cn=config",ldap.SCOPE_SUBTREE,replica_filter)
         if (len(supplier_replica) != 1):
             print(f"Error: Failed to validate suffix in {hostname}:{port}. {suffix} is not replicated.")
@@ -1078,7 +1083,7 @@ def connect_to_replicas(opts):
     if opts['verbose']:
         print("Getting Supplier's replica ID")
     try:
-        search_filter = "(&(objectclass=nsds5Replica)(nsDS5ReplicaRoot={})(nsDS5ReplicaId=*))".format(opts['suffix'])
+        search_filter = _build_replica_filter(opts['suffix'], objectclass="nsds5Replica", extra_clauses="(nsDS5ReplicaId=*)")
         replica_entry = supplier.search_s("cn=config", ldap.SCOPE_SUBTREE, search_filter)
         if len(replica_entry) > 0:
             opts['rid'] = ensure_int(replica_entry[0][1]['nsDS5ReplicaId'][0])
