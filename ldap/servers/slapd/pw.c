@@ -462,7 +462,10 @@ checkPrefix(char *cipher, char *schemaName, char **encrypt, char **algid)
                 } else {
                     char algid_buf[256];
 
-                    /* extract the algid (length is never greater than 216 */
+                    /* extract the algid - enforce buffer limit */
+                    if ((end - delim) >= (int)sizeof(algid_buf)) {
+                        return 1;  /* algid too long, error */
+                    }
                     memcpy(algid_buf, delim + 1, (end - delim));
                     algid_buf[end - delim - 1] = '\0';
                     *algid = slapi_ch_strdup(algid_buf);
