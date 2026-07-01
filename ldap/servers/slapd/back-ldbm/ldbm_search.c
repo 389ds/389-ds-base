@@ -355,6 +355,96 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     return function_result;
 }
 
+/*
+ * RFC 4518 2.6.1 insignificant space handling for substring assertion values.
+ * Returns a newly allocated string if the value was modified, NULL if unchanged.
+ */
+static char *
+ldbm_search_substring_shrink_blanks(const char *val, int trim_spaces)
+{
+    char *head;
+    char *s;
+    char *end;
+    int ends_with_space = 0;
+
+    if (val == NULL) {
+        return NULL;
+    }
+
+    head = slapi_ch_strdup(val);
+    s = head;
+
+    if (trim_spaces & SHRINK_LEADING_BLANK) {
+        while (ldap_utf8isspace(s)) {
+            LDAP_UTF8INC(s);
+        }
+        if (head != s) {
+            LDAP_UTF8DEC(s);
+        }
+    }
+    if (trim_spaces & TRIM_LEADING_BLANK) {
+        while (ldap_utf8isspace(s)) {
+            LDAP_UTF8INC(s);
+        }
+    }
+
+    if (*s == '\0' && s != head) {
+        head[0] = ' ';
+        head[1] = '\0';
+        if (strcmp(head, val) == 0) {
+            slapi_ch_free_string(&head);
+            return NULL;
+        }
+        return head;
+    }
+
+    if (s != head) {
+        memmove(head, s, strlen(s) + 1);
+    }
+
+    end = head + strlen(head);
+    if (end > head) {
+        char *nd = ldap_utf8prev(end);
+
+        if (nd && nd >= head && ldap_utf8isspace(nd)) {
+            ends_with_space = 1;
+        }
+    }
+
+    if (ends_with_space && (trim_spaces & SHRINK_TRAILING_BLANK)) {
+        char *nd;
+        char *d = end;
+
+        nd = ldap_utf8prev(d);
+        while (nd && nd >= head && ldap_utf8isspace(nd)) {
+            d = nd;
+            nd = ldap_utf8prev(d);
+            if (ldap_utf8isspace(nd)) {
+                *d = '\0';
+            } else {
+                break;
+            }
+        }
+    }
+    if (ends_with_space && (trim_spaces & TRIM_TRAILING_BLANK)) {
+        char *nd;
+        char *d = end;
+
+        nd = ldap_utf8prev(d);
+        while (nd && nd >= head && ldap_utf8isspace(nd)) {
+            d = nd;
+            nd = ldap_utf8prev(d);
+            *d = '\0';
+        }
+    }
+
+    if (strcmp(head, val) == 0) {
+        slapi_ch_free_string(&head);
+        return NULL;
+    }
+    return head;
+}
+
 static int
 ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
 {
@@ -395,20 +485,72 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
             p = bigpat;
         }
         if (f->f_sub_initial != NULL) {
+            char *alt;
             *p++ = '^';
-            p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+            /*
+             * rfc4518 2.6.1 Insignificant Space Handling
+             * For input strings that are substring assertion values:
+             *
+             * If the input string is an initial or an any substring that ends in
+             * one or more space characters, it is modified to end with exactly
+             * one SPACE character;
+             */
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_initial,
+                                                      TRIM_LEADING_BLANK | SHRINK_TRAILING_BLANK);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+            }
+
         }
         for (i = 0; f->f_sub_any && f->f_sub_any[i]; i++) {
+            char *alt;
             /* ".*" + value */
             *p++ = '.';
             *p++ = '*';
-            p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+            /*
+             * rfc4518 2.6.1 Insignificant Space Handling
+             * For input strings that are substring assertion values:
+             *
+             * If the input string is an initial or an any substring that ends in
+             * one or more space characters, it is modified to end with exactly
+             * one SPACE character;
+             *
+             * If the input string is an any or a final substring that starts in
+             * one or more space characters, it is modified to start with exactly
+             * one SPACE character;
+             */
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_any[i],
+                                                      SHRINK_LEADING_BLANK | SHRINK_TRAILING_BLANK);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+            }
         }
         if (f->f_sub_final != NULL) {
+            char *alt;
             /* ".*" + value */
             *p++ = '.';
             *p++ = '*';
-            p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+            /*
+             * rfc4518 2.6.1 Insignificant Space Handling
+             * For input strings that are substring assertion values:
+             *
+             * If the input string is an any or a final substring that starts in
+             * one or more space characters, it is modified to start with exactly
+             * one SPACE character;
+             */
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_final, SHRINK_LEADING_BLANK);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+            }
             strcat(p, "$");
         }
 

@@ -769,6 +769,7 @@ def test_extensible_search(topology_st, _searches, attr, value):
     :expectedresults:
         1. Pass
     """
+    topology_st.standalone.config.set("nsslapd-verify-filter-schema", "warn-invalid")
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     assert len(cos.filter(attr)) == value
 
