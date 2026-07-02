@@ -940,6 +940,25 @@ attr_index_config(
         if (k > 0) {
             a->ai_index_rules = official_rules;
             a->ai_indexmask |= INDEX_RULES;
+            if (!slapi_matchingrule_is_ordering(official_rules[0], attrsyntax_oid) &&
+                slapi_matchingrule_can_use_compare_fn(attrValue->bv_val) &&
+                !a->ai_sattr.a_mr_ord_plugin) {
+                    /* the configured ordering matching rule (nsMatchingRule) is NOT compatible with the attribute syntax
+                     * In addition we have not identified a matching rule so we are falling back to the configured one
+                     */
+
+                    /* set the ordering matching rule */
+                    a->ai_sattr.a_mr_ord_plugin = plugin_mr_find(official_rules[0]);
+                    if (!a->ai_sattr.a_mr_ord_plugin) {
+                        slapi_log_err(SLAPI_LOG_ERR, "attr_index_config",
+                                      "Failed to find ordering matching rule \"%s\"\n",
+                                      official_rules[0]);
+                    } else {
+                        slapi_log_err(SLAPI_LOG_INFO, "attr_index_config",
+                            "Ordering %s index with the configured matching rule \"%s\" but the matching rule is not compatible with the attribute syntax\n",
+                            a->ai_type, official_rules[0]);
+                    }
+            }
         } else {
             slapi_ch_free((void **)&official_rules);
         }
