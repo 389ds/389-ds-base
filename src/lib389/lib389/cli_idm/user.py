@@ -7,6 +7,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
+
+from lib389.pwpolicy import PwPolicyManager
 from lib389.idm.user import (
     nsUserAccount,
     nsUserAccounts,
@@ -88,6 +91,19 @@ def rename(inst, basedn, log, args, warn=True):
     _generic_rename(inst, basedn, log.getChild('_generic_rename'), MANY_DICT[args.user_type], rdn, args)
 
 
+def get_pwp(inst, basedn, log, args):
+    """Show the effective password policy for a user account."""
+    log = log.getChild('get_pwp')
+    selector = _get_arg(args.selector, msg="Enter username to look up password policy for")
+    user_type = getattr(args, 'user_type', None) or DEFAULT_USER_TYPE
+    pwp_manager = PwPolicyManager(inst)
+    report = pwp_manager.get_effective_policy(basedn, user_type, selector)
+    if args.json:
+        log.info(json.dumps(pwp_manager.format_report_json(report), indent=4))
+    else:
+        log.info(pwp_manager.format_report_text(report))
+
+
 def create_parser(subparsers, user_type=DEFAULT_USER_TYPE):
     user_parser = subparsers.add_parser('user',
                                         help='Manage posix users.  The organizationalUnit (by default "ou=people") needs '
@@ -115,6 +131,20 @@ def create_parser(subparsers, user_type=DEFAULT_USER_TYPE):
     get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get)
     get_parser.add_argument('selector', nargs='?', help='The term to search for')
+
+    get_pwp_parser = subcommands.add_parser(
+        'get-pwp',
+        help='Show the effective password policy for a user',
+        formatter_class=CustomHelpFormatter,
+        description='Resolve and display the password policy (global, user local, or subtree '
+                    'local) that applies to the user, including all effective settings.',
+    )
+    get_pwp_parser.set_defaults(func=get_pwp)
+    get_pwp_parser.add_argument(
+        'selector',
+        nargs='?',
+        help='The user identifier to look up (same as user get, typically uid)',
+    )
 
     get_dn_parser = subcommands.add_parser('get_dn', help='get_dn', formatter_class=CustomHelpFormatter)
     get_dn_parser.set_defaults(func=get_dn)
