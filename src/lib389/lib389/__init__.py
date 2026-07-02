@@ -3536,3 +3536,9 @@ class DirSrv(SimpleLDAPObject, object):
         if self._containerised or container_result.returncode == 0:
             return True
         return False
+
+    def get_pid(self):
+        """
+        Get the pid of the running server
+        """
+        return pid_from_file(self.pid_file())
