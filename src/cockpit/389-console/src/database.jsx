@@ -404,6 +404,7 @@ export class Database extends React.Component {
                                         dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
                                         dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
                                         dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
+                                        ndncachemaxsize: '0',
                                     },
                                 configUpdated: 1
                             }), () => {
@@ -439,6 +440,7 @@ export class Database extends React.Component {
                                         dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
                                         dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
                                         dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
+                                        ndncachemaxsize: '0',
                                     },
                                 configUpdated: 1
                             }), () => {
