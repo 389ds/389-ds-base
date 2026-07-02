@@ -103,6 +103,9 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     int32_t parent_op = 0;
     int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
     int32_t cache_mod_phase = 0; /* set when we reach the cache modification phase */
+    int32_t e_locked = 0;             /* non-zero when entry 'e' cache lock is held */
+    int32_t parent_locked = 0;        /* non-zero when parententry cache lock is held */
+    int32_t newparent_locked = 0;     /* non-zero when newparententry cache lock is held */
     struct timespec parent_time;
     Slapi_Mods *smods_add_rdn = NULL;
 
@@ -233,8 +236,27 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
             Slapi_Entry *ent = NULL;
 
-            /* don't release SERIAL LOCK */
-            dblayer_txn_abort_ext(li, &txn, PR_FALSE);
+            /*
+             * Unlock entry cache locks before releasing SERIAL LOCK
+             * to maintain lock ordering (SERIAL LOCK -> entry locks)
+             * and prevent AB-BA deadlock on retry.
+             * Entries stay refcounted in cache, so pointers remain valid.
+             */
+            if (e_locked) {
+                cache_unlock_entry(&inst->inst_cache, e);
+                e_locked = 0;
+            }
+            if (parent_locked && parententry) {
+                cache_unlock_entry(&inst->inst_cache, parententry);
+                parent_locked = 0;
+            }
+            if (newparent_locked && newparententry) {
+                cache_unlock_entry(&inst->inst_cache, newparententry);
+                newparent_locked = 0;
+            }
+
+            /* Release SERIAL LOCK */
+            dblayer_txn_abort(be, &txn);
             /* txn is no longer valid - reset slapi_txn to the parent */
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
@@ -340,13 +362,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             }
 #endif
         }
-        if (0 == retry_count) {
-            /* First time, hold SERIAL LOCK */
-            retval = dblayer_txn_begin(be, parent_txn, &txn);
-        } else {
-            /* Otherwise, no SERIAL LOCK */
-            retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);
-        }
+        retval = dblayer_txn_begin(be, parent_txn, &txn);
         if (0 != retval) {
             ldap_result_code = LDAP_OPERATIONS_ERROR;
             if (LDBM_OS_ERR_IS_DISKFULL(retval))
@@ -356,6 +372,51 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
         /* stash the transaction */
         slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+
+        /* Re-lock entries after SERIAL LOCK to maintain lock ordering */
+        if (retry_count > 0) {
+            if (e) {
+                int lock_rc = cache_lock_entry(&inst->inst_cache, e);
+                if (lock_rc != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
+                                  "conn=%" PRIu64 " op=%d Failed to re-lock entry "
+                                  "after deadlock retry (rc=%d)\n",
+                                  conn_id, op_id, lock_rc);
+                    CACHE_RETURN(&inst->inst_cache, &e);
+                    e = NULL;
+                    ldap_result_code = LDAP_OPERATIONS_ERROR;
+                    retval = -1;
+                    goto error_return;
+                }
+                e_locked = 1;
+            }
+            if (parententry) {
+                int lock_rc = cache_lock_entry(&inst->inst_cache, parententry);
+                if (lock_rc != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
+                                  "conn=%" PRIu64 " op=%d Failed to re-lock parent "
+                                  "entry after deadlock retry (rc=%d)\n",
+                                  conn_id, op_id, lock_rc);
+                    ldap_result_code = LDAP_OPERATIONS_ERROR;
+                    retval = -1;
+                    goto error_return;
+                }
+                parent_locked = 1;
+            }
+            if (newparententry) {
+                int lock_rc = cache_lock_entry(&inst->inst_cache, newparententry);
+                if (lock_rc != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
+                                  "conn=%" PRIu64 " op=%d Failed to re-lock new parent "
+                                  "entry after deadlock retry (rc=%d)\n",
+                                  conn_id, op_id, lock_rc);
+                    ldap_result_code = LDAP_OPERATIONS_ERROR;
+                    retval = -1;
+                    goto error_return;
+                }
+                newparent_locked = 1;
+            }
+        }
 
         if (0 == retry_count) { /* just once */
             rc = 0;
@@ -489,6 +550,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
                 goto error_return; /* error result set and sent by find_entry2modify() */
             }
+            e_locked = 1;
             if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
                 !is_resurect_operation) {
                 ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
@@ -525,6 +587,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             }
 
             modify_init(&parent_modify_context, parententry);
+            parent_locked = 1;
 
             /* Fetch and lock the new parent of the entry that is moving */
             if (slapi_sdn_get_ndn(dn_newsuperiordn) != NULL) {
@@ -539,6 +602,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     goto error_return; /* error result set and sent by find_entry2modify() */
                 }
                 modify_init(&newparent_modify_context, newparententry);
+                newparent_locked = 1;
             }
 
             opcsn = operation_get_csn(operation);
@@ -1448,7 +1512,14 @@ common_return:
         }
     }
 
-    moddn_unlock_and_return_entry(be, &e);
+    if (e_locked) {
+        moddn_unlock_and_return_entry(be, &e);
+        e_locked = 0;
+    } else if (e) {
+        /* Unlocked during retry, not re-locked -- just return to cache */
+        CACHE_RETURN(&inst->inst_cache, &e);
+        e = NULL;
+    }
 
     if (ruv_c_init) {
         modify_term(&ruv_c, be);
@@ -1496,12 +1567,22 @@ common_return:
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
                   "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
                   conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry);
+    /* Parent/newparent unlocked during retry but not re-locked (error path).
+     * Return to cache and NULL out to prevent double-unlock in modify_term. */
+    if (!parent_locked && parent_modify_context.old_entry) {
+        CACHE_RETURN(&(inst->inst_cache), &(parent_modify_context.old_entry));
+        parent_modify_context.old_entry = NULL;
+    }
     myrc = modify_term(&parent_modify_context, be);
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
                   "conn=%" PRIu64 " op=%d modify_term: rc=%d\n", conn_id, op_id, myrc);
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
                   "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
                   conn_id, op_id, newparent_modify_context.old_entry, newparent_modify_context.new_entry);
+    if (!newparent_locked && newparent_modify_context.old_entry) {
+        CACHE_RETURN(&(inst->inst_cache), &(newparent_modify_context.old_entry));
+        newparent_modify_context.old_entry = NULL;
+    }
     myrc = modify_term(&newparent_modify_context, be);
     if (free_modrdn_existing_entry) {
         done_with_pblock_entry(pb, SLAPI_MODRDN_EXISTING_ENTRY);
