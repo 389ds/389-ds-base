@@ -62,7 +62,8 @@ export class WinsyncAgmts extends React.Component {
             agmtWinSubtree: "",
             agmtDSSubtree: "",
             agmtOneWaySync: "both", // "both", "toWindows", "fromWindows"
-            agmtSyncInterval: "",
+            agmtSyncInterval: "300",
+            _agmtSyncInterval: "300",
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
@@ -105,7 +106,6 @@ export class WinsyncAgmts extends React.Component {
         this.onCreateChange = this.onCreateChange.bind(this);
         this.onEditChange = this.onEditChange.bind(this);
         this.onModalChange = this.onModalChange.bind(this);
-        this.onTAFracAttrChange = this.onTAFracAttrChange.bind(this);
         this.onTAFracAttrChangeEdit = this.onTAFracAttrChangeEdit.bind(this);
         this.createAgmt = this.createAgmt.bind(this);
         this.showEditAgmt = this.showEditAgmt.bind(this);
@@ -449,25 +449,12 @@ export class WinsyncAgmts extends React.Component {
     }
 
     onTAFracAttrChangeEdit (selection) {
-        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+        const e = { target: { id: 'agmtFracAttrs', value: "", type: 'input', name: 'agmt-modal'} };
         const newFracAttrs = Array.isArray(selection) ? selection : [];
         this.setState({
             agmtFracAttrs: newFracAttrs,
             isExcludeAttrsEditOpen: false,
         }, () => { this.onEditChange(e) });
-    }
-
-    onTAFracAttrChange (values) {
-        const e = {
-            target: {
-                name: 'agmt-modal',
-                id: 'agmtFracAttrs',
-                value: values,
-                type: 'input',
-                toggle: 'isExcludeAttrCreateOpen',
-            }
-        };
-        this.handleChange(e);
     }
 
     showConfirmDeleteAgmt (agmtName) {
@@ -531,7 +518,8 @@ export class WinsyncAgmts extends React.Component {
             agmtWinSubtree: "",
             agmtDSSubtree: "",
             agmtOneWaySync: "both", // "both", "toWindows", "fromWindows"
-            agmtSyncInterval: "",
+            agmtSyncInterval: "300",
+            _agmtSyncInterval: "300",
             errObj: {
                 // Marks all these fields as required
                 agmtName: true,
@@ -594,7 +582,7 @@ export class WinsyncAgmts extends React.Component {
                     let agmtWinSubtree = "";
                     let agmtDSSubtree = "";
                     let agmtOneWaySync = "both";
-                    let agmtSyncInterval = "";
+                    let agmtSyncInterval = "300";
 
                     for (const attr in config.attrs) {
                         const val = config.attrs[attr][0];
@@ -1212,7 +1200,7 @@ export class WinsyncAgmts extends React.Component {
                     closeHandler={this.closeCreateAgmtModal}
                     handleChange={this.onCreateChange}
                     handleTimeChange={this.onTimeChange}
-                    handleFracChange={this.onTAFracAttrChange}
+                    handleFracChange={this.onTAFracAttrChangeEdit}
                     onSelectToggle={this.handleExcludeAttrCreateToggle}
                     onSelectClear={this.handleExcludeAttrCreateClear}
                     isExcludeAttrOpen={this.state.isExcludeAttrCreateOpen}

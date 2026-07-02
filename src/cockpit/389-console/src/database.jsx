@@ -373,10 +373,11 @@ export class Database extends React.Component {
                             dblocksMonitoring = true;
                         }
 
-                        this.setState(() => (
+                        this.setState((prevState) => (
                             {
                                 globalDBConfig:
                                     {
+                                        ...prevState.globalDBConfig,
                                         loading: false,
                                         activeTab,
                                         db_cache_auto,
@@ -404,6 +405,7 @@ export class Database extends React.Component {
                                         dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
                                         dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
                                         dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
+                                        ndncachemaxsize: '0',
                                     },
                                 configUpdated: 1
                             }), () => {
@@ -419,10 +421,11 @@ export class Database extends React.Component {
                             db_cache_auto = true;
                         }
 
-                        this.setState(() => (
+                        this.setState((prevState) => (
                             {
                                 globalDBConfig:
                                     {
+                                        ...prevState.globalDBConfig,
                                         loading: false,
                                         activeTab,
                                         looklimit: attrs['nsslapd-lookthroughlimit'][0],
@@ -439,6 +442,7 @@ export class Database extends React.Component {
                                         dynamiclistattr: attrs['nsslapd-dynamic-lists-attr'][0],
                                         dynamicoc: attrs['nsslapd-dynamic-lists-oc'][0],
                                         dynamicurlattr: attrs['nsslapd-dynamic-lists-url-attr'][0],
+                                        ndncachemaxsize: '0',
                                     },
                                 configUpdated: 1
                             }), () => {
