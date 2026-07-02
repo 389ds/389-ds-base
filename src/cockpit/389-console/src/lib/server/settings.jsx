@@ -330,9 +330,10 @@ async validateSaveBtn(nav_tab, attr, value) {
             }
         } else if (nav_tab === "adv") {
             // Handle special cases for anon limit dn
-            if (attr === 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
+            if (attr === 'nsslapd-anonlimitsdn' && value !== "" && !valid_dn(value)) {
                 valueErr = true;
                 errObj[attr] = true;
+                disableSaveBtn = true;
             }
             if (value === "" && attr !== 'nsslapd-anonlimitsdn' && (typeof value !== "boolean")) {
                 valueErr = true;
@@ -1660,7 +1661,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                validated={this.state.errObjAdv.anonLimitsDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                                validated={this.state.errObjAdv['nsslapd-anonlimitsdn'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>

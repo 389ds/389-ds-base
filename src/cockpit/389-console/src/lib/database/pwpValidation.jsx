@@ -8,6 +8,14 @@ import {
 
 const _ = cockpit.gettext;
 
+/*
+ * Password-policy number ranges from slapd validation
+ * (ldap/servers/slapd/libglobs.c, modify.c, slap.h).
+ * Duration/age fields use MAX_ALLOWED_TIME_IN_SECS (INT32_MAX).
+ */
+export const INT32_MAX = 2147483647;
+const TPR_DELAY_MAX = 7 * 24 * 3600; /* 1 week in seconds */
+
 export const FIELD_RANGES = {
     passwordinhistory: { min: 0, max: 24 },
     passwordminlength: { min: 2, max: 512 },
@@ -18,18 +26,21 @@ export const FIELD_RANGES = {
     passwordminspecials: { min: 0, max: 64 },
     passwordmin8bit: { min: 0, max: 64 },
     passwordmaxrepeats: { min: 0, max: 64 },
-    passwordmincategories: { min: 0, max: 5 },
+    passwordmincategories: { min: 1, max: 5 },
     passwordmintokenlength: { min: 1, max: 64 },
     passwordmaxfailure: { min: 1, max: 32767 },
-    passwordmaxsequence: { min: 0 },
-    passwordmaxseqsets: { min: 0 },
-    passwordmaxclasschars: { min: 0 },
-    passwordresetfailurecount: { min: 0 },
-    passwordlockoutduration: { min: 0 },
-    passwordminage: { min: 0 },
-    passwordmaxage: { min: 0 },
-    passwordgracelimit: { min: 0 },
-    passwordwarning: { min: 0 },
+    passwordmaxsequence: { min: 0, max: 10 },
+    passwordmaxseqsets: { min: 0, max: 10 },
+    passwordmaxclasschars: { min: 0, max: 1024 },
+    passwordresetfailurecount: { min: 0, max: INT32_MAX },
+    passwordlockoutduration: { min: 0, max: INT32_MAX },
+    passwordminage: { min: 0, max: INT32_MAX },
+    passwordmaxage: { min: 0, max: INT32_MAX },
+    passwordgracelimit: { min: 0, max: INT32_MAX },
+    passwordwarning: { min: 0, max: INT32_MAX },
+    passwordtprmaxuse: { min: -1, max: 255 },
+    passwordtprdelayexpireat: { min: -1, max: TPR_DELAY_MAX },
+    passwordtprdelayvalidfrom: { min: -1, max: TPR_DELAY_MAX },
 };
 
 // Strips create_ prefix to find the base field name in FIELD_RANGES
@@ -64,7 +75,8 @@ export const updateFieldValidation = (invalidFields, attr, value) => {
     return newInvalidFields;
 };
 
-// Returns { min, max?, validated } props to spread on a TextInput
+// Returns { min, max?, validated } props for legacy TextInput number fields.
+// Prefer DsNumberInput with fieldName and invalidFields for new code.
 export const getValidationProps = (fieldName, invalidFields) => {
     const range = FIELD_RANGES[baseFieldName(fieldName)];
     if (!range) return {};
@@ -89,7 +101,10 @@ export const renderValidationError = (fieldName, invalidFields) => {
                 range.min,
                 range.max
             )
-            : _("Value must be a non-negative integer");
+            : cockpit.format(
+                _("Value must be an integer greater than or equal to $0"),
+                range.min
+            );
     return (
         <GridItem span={5}>
             <FormHelperText className="ds-left-margin">
