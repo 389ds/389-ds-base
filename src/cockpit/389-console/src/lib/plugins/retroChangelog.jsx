@@ -213,7 +213,7 @@ class RetroChangelog extends React.Component {
     updateFields() {
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "Retro Changelog Plugin");
-            let maxAge = "";
+            let maxAge = 0;
             let maxAgeUnit = "w";
 
             if (pluginRow["nsslapd-changelogmaxage"] !== undefined) {

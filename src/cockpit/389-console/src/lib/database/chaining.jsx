@@ -23,6 +23,7 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 import PropTypes from "prop-types";
 import {
     SyncAltIcon,
@@ -572,28 +573,26 @@ export class ChainingDatabaseConfig extends React.Component {
                                     {_("Size Limit")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defSizeLimit}
-                                        type="number"
                                         id="defSizeLimit"
-                                        aria-describedby="defSizeLimit"
-                                        name="defSizeLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
-                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}>
+                                <GridItem className="ds-label" offset={5} span={2} title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}>
                                     {_("Max Operations Per Conn")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defConcurOpLimit}
-                                        type="number"
                                         id="defConcurOpLimit"
-                                        aria-describedby="defConcurOpLimit"
-                                        name="defConcurOpLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -604,28 +603,26 @@ export class ChainingDatabaseConfig extends React.Component {
                                     {_("Time Limit")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defTimeLimit}
-                                        type="number"
                                         id="defTimeLimit"
-                                        aria-describedby="defTimeLimit"
-                                        name="defTimeLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
-                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}>
+                                <GridItem className="ds-label" offset={5} span={2} title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}>
                                     {_("Connection Lifetime")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defConnLife}
-                                        type="number"
                                         id="defConnLife"
-                                        aria-describedby="defConnLife"
-                                        name="defConnLife"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -636,28 +633,26 @@ export class ChainingDatabaseConfig extends React.Component {
                                     {_("Max TCP Connections")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defBindConnLimit}
-                                        type="number"
                                         id="defBindConnLimit"
-                                        aria-describedby="defBindConnLimit"
-                                        name="defBindConnLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
-                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}>
+                                <GridItem className="ds-label" offset={5} span={2} title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}>
                                     {_("Max LDAP Connections")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defOpConnLimit}
-                                        type="number"
                                         id="defOpConnLimit"
-                                        aria-describedby="defOpConnLimit"
-                                        name="defOpConnLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -668,28 +663,26 @@ export class ChainingDatabaseConfig extends React.Component {
                                     {_("Abandoned Op Check Interval")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defSearchCheck}
-                                        type="number"
                                         id="defSearchCheck"
-                                        aria-describedby="defSearchCheck"
-                                        name="defSearchCheck"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
-                                <GridItem className="ds-label" offset={4} span={2} title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}>
+                                <GridItem className="ds-label" offset={5} span={2} title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}>
                                     {_("Max Binds Per Connection")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defConcurLimit}
-                                        type="number"
                                         id="defConcurLimit"
-                                        aria-describedby="defConcurLimit"
-                                        name="defConcurLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -700,28 +693,26 @@ export class ChainingDatabaseConfig extends React.Component {
                                     {_("Database Link Hop Limit")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defHopLimit}
-                                        type="number"
                                         id="defHopLimit"
-                                        aria-describedby="defHopLimit"
-                                        name="defHopLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
-                                <GridItem className="ds-label" offset={4} span={2} title={_("The amount of time before the bind attempt times out. (nsbindtimeout).")}>
+                                <GridItem className="ds-label" offset={5} span={2} title={_("The amount of time before the bind attempt times out. (nsbindtimeout).")}>
                                     {_("Bind Timeout")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defBindTimeout}
-                                        type="number"
                                         id="defBindTimeout"
-                                        aria-describedby="defBindTimeout"
-                                        name="defBindTimeout"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -732,13 +723,12 @@ export class ChainingDatabaseConfig extends React.Component {
                                     {_("Bind Retry Limit")}
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <DsNumberInput
                                         value={this.state.defBindRetryLimit}
-                                        type="number"
                                         id="defBindRetryLimit"
-                                        aria-describedby="defBindRetryLimit"
-                                        name="defBindRetryLimit"
-                                        onChange={(e, str) => {
+                                        min={-1}
+                                        max={INT32_MAX}
+                                        onChange={(e) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -1468,13 +1458,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Size Limit")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.sizelimit}
-                                    type="number"
                                     id="sizelimit"
-                                    aria-describedby="sizelimit"
-                                    name="sizelimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1488,13 +1477,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Time Limit")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.sizelimit}
-                                    type="number"
                                     id="timelimit"
-                                    aria-describedby="timelimit"
-                                    name="timelimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1508,13 +1496,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Max TCP Connections")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.bindconnlimit}
-                                    type="number"
                                     id="bindconnlimit"
-                                    aria-describedby="bindconnlimit"
-                                    name="bindconnlimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1528,13 +1515,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Max LDAP Connections")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.opconnlimit}
-                                    type="number"
                                     id="opconnlimit"
-                                    aria-describedby="opconnlimit"
-                                    name="opconnlimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1548,13 +1534,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Max Binds Per Connection")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.concurrbindlimit}
-                                    type="number"
                                     id="concurrbindlimit"
-                                    aria-describedby="concurrbindlimit"
-                                    name="concurrbindlimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1568,13 +1553,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Bind Timeout")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.bindtimeout}
-                                    type="number"
                                     id="bindtimeout"
-                                    aria-describedby="bindtimeout"
-                                    name="bindtimeout"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1588,13 +1572,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Bind Retry Limit")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.bindtimeout}
-                                    type="number"
                                     id="bindretrylimit"
-                                    aria-describedby="bindretrylimit"
-                                    name="bindretrylimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1608,13 +1591,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Max Operations Per Connection")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.concurroplimit}
-                                    type="number"
                                     id="concurroplimit"
-                                    aria-describedby="concurroplimit"
-                                    name="concurroplimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1628,13 +1610,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Connection Lifetime")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.connlifetime}
-                                    type="number"
                                     id="connlifetime"
-                                    aria-describedby="connlifetime"
-                                    name="connlifetime"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1648,13 +1629,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Abandoned Op Check Interval")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.searchcheckinterval}
-                                    type="number"
                                     id="searchcheckinterval"
-                                    aria-describedby="searchcheckinterval"
-                                    name="searchcheckinterval"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1668,13 +1648,12 @@ export class ChainingConfig extends React.Component {
                                 {_("Hop Limit")}
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.hoplimit}
-                                    type="number"
                                     id="hoplimit"
-                                    aria-describedby="hoplimit"
-                                    name="hoplimit"
-                                    onChange={(e, str) => {
+                                    min={-1}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.onChange(e);
                                     }}
                                 />
