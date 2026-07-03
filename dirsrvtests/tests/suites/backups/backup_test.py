@@ -327,7 +327,7 @@ def test_backup_task_after_failure(mytopo):
     inst = mytopo.standalone
     tasks = inst.tasks
     archive_dir1 = f'{inst.ds_paths.backup_dir}/bak1'
-    archive_dir1b = f'{inst.ds_paths.backup_dir}/bak1b'
+    dir1bidx = 1
     archive_dir2 = f'{inst.ds_paths.backup_dir}/bak2'
 
     # Sometime the backup complete too fast, so lets retry if first
@@ -342,6 +342,8 @@ def test_backup_task_after_failure(mytopo):
         done,exitCode,warningCode = (False, None, None)
         while not done:
             if os.path.isdir(archive_dir1):
+                archive_dir1b = f'{inst.ds_paths.backup_dir}/bak1b{dir1bidx}'
+                dir1bidx += 1
                 os.rename(archive_dir1, archive_dir1b)
             done,exitCode,warningCode = tasks.checkTask(tasks.entry)
             time.sleep(0.01)
