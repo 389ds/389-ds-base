@@ -238,9 +238,9 @@ def test_local_policy_availability(topology_st, page, browser_name):
         :setup: Standalone instance
         :steps:
              1. Click on Database tab, click on Local Policies button on side panel.
-             2. Check if Local Password Policies columnheader is visible.
-             3. Click on Edit Policy tab and check if Please choose a policy from the Local Policy Table heading is visible.
-             4. Click on Create A Policy tab and check if Target DN input field is visible.
+             2. Check if Local Password Policies table is visible.
+             3. Click on Create New Local Policy button and check if Target DN input field is visible.
+             4. If a policy exists, click Edit Policy row action and check if edit modal is visible.
         :expectedresults:
              1. Success
              2. Element is visible
@@ -254,16 +254,32 @@ def test_local_policy_availability(topology_st, page, browser_name):
     log.info('Click on Local Policies button and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
     frame.locator('#localpwpolicy').click()
-    frame.get_by_role('columnheader', name='Local Password Policies').wait_for()
-    assert frame.get_by_role('columnheader', name='Local Password Policies').is_visible()
+    pwp_table = frame.locator('[aria-label="pwp table"]')
+    pwp_table.wait_for()
+    assert pwp_table.is_visible()
+    no_policies = frame.get_by_text('No Local Policies', exact=True)
+    unknown_policy_type = frame.get_by_text('Unknown policy type', exact=True)
 
-    log.info('Click on Edit Policy tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Edit Policy').click()
-    assert frame.get_by_role('heading', name='Please choose a policy from the Local Policy Table.').is_visible()
+    if no_policies.count() > 0:
+        assert frame.get_by_role('columnheader', name='Local Password Policies').is_visible()
+        assert no_policies.is_visible()
+    else:
+        assert frame.get_by_role('columnheader', name='Target DN').is_visible()
+        assert frame.get_by_role('columnheader', name='Policy Type').is_visible()
+        assert frame.get_by_role('columnheader', name='Database Suffix').is_visible()
 
-    log.info('Click on Create A Policy tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Create A Policy').click()
+    log.info('Click on Create New Local Policy button and check if element is loaded.')
+    frame.get_by_role('button', name='Create New Local Policy').click()
+    frame.locator('#policyDN').wait_for()
     assert frame.locator('#policyDN').is_visible()
+    frame.get_by_role('button', name='Cancel').click()
+
+    if no_policies.count() == 0 and unknown_policy_type.count() == 0:
+        log.info('Click on Edit Policy row action and check if edit modal is loaded.')
+        pwp_table.get_by_role('button', name='Kebab toggle').first.click()
+        frame.get_by_role('menuitem', name='Edit Policy').click()
+        frame.locator('#passwordminage').wait_for()
+        assert frame.locator('#passwordminage').is_visible()
 
 
 def test_suffixes_policy_availability(topology_st, page, browser_name):
