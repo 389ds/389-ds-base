@@ -513,6 +513,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/snmp_collator.h \
 	ldap/servers/slapd/sslerrstrs.h \
 	ldap/servers/slapd/statechange.h \
+	ldap/servers/slapd/threadpool_stats.h \
 	ldap/servers/slapd/uuid.h \
 	ldap/servers/slapd/vattr_spi.h \
 	ldap/servers/slapd/views.h \
@@ -1970,6 +1971,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/strdup.c \
 	ldap/servers/slapd/stubs.c \
 	ldap/servers/slapd/tempnam.c  \
+	ldap/servers/slapd/threadpool_stats.c \
 	ldap/servers/slapd/unbind.c \
 	ldap/servers/slapd/subentries.c
 

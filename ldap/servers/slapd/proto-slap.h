@@ -263,6 +263,7 @@ int config_set_ldapi_auto_dn_suffix(const char *attrname, char *value, char *err
 #endif
 int config_set_anon_limits_dn(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_slapi_counters(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_thread_pool_stats(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_srvtab(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sizelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pagedsizelimit(const char *attrname, char *value, char *errorbuf, int apply);
@@ -455,6 +456,7 @@ char *config_get_ldapi_auto_dn_suffix(void);
 #endif
 char *config_get_anon_limits_dn(void);
 int config_get_slapi_counters(void);
+int32_t config_get_thread_pool_stats(void);
 char *config_get_srvtab(void);
 int config_get_sizelimit(void);
 int config_get_pagedsizelimit(void);
