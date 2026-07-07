@@ -59,8 +59,8 @@
 #define PBKDF2_MINIMUM 2048
 #define PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR "nsslapd-pwdPBKDF2AcceptMaxIterations"
 
-static uint32_t PBKDF2_ITERATIONS = 8192;
-static uint32_t PBKDF2_ACCEPT_MAX_ITERATIONS = 0;
+static uint32_t pbkdf2Iterations = 8192;
+static uint32_t pbkdf2AcceptMaxIterations = 0;
 
 static const char *schemeName = PBKDF2_SHA256_SCHEME_NAME;
 static const uint32_t schemeNameLength = PBKDF2_SHA256_NAME_LEN;
@@ -209,8 +209,10 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
     /*
      * Preload the salt and iterations to the output.
      * memcpy the iterations to the hash_out
-     * We use ntohl on this value to make sure it's correct endianess.
+     * We use htonl on this value to make sure it's correct endianess.
      */
+    uint32_t rounds = iterations;
+
     iterations = htonl(iterations);
     memcpy(hash, &iterations, PBKDF2_ITERATIONS_LENGTH);
     /* memcpy the salt to the hash_out */
@@ -220,7 +222,7 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
      *                      This offset is to make the hash function put the values
      *                      In the correct part of the memory.
      */
-    if (pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, PBKDF2_ITERATIONS) != SECSuccess) {
+    if (pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, rounds) != SECSuccess) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Could not generate pbkdf2_sha256_hash!\n");
         slapi_ch_free_string(&enc);
         return NULL;
@@ -238,7 +240,7 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
 char *
 pbkdf2_sha256_pw_enc(const char *pwd)
 {
-    return pbkdf2_sha256_pw_enc_rounds(pwd, PBKDF2_ITERATIONS);
+    return pbkdf2_sha256_pw_enc_rounds(pwd, pbkdf2Iterations);
 }
 
 int32_t
@@ -276,10 +278,10 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
     pbkdf2_sha256_extract(dbhash, &saltItem, &iterations);
 
     /* Check if the iteration count is within range */
-    uint32_t accept_max = PBKDF2_ACCEPT_MAX_ITERATIONS;
+    uint32_t accept_max = pbkdf2AcceptMaxIterations;
 
     if (accept_max == 0) {
-        accept_max = PBKDF2_ITERATIONS;
+        accept_max = pbkdf2Iterations;
     }
     if (iterations < PBKDF2_MINIMUM || iterations > accept_max) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
@@ -394,7 +396,7 @@ pbkdf2_sha256_get_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
         accept_max = (uint32_t)configured;
     }
 
-    PBKDF2_ACCEPT_MAX_ITERATIONS = accept_max;
+    pbkdf2AcceptMaxIterations = accept_max;
     slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
                   "PBKDF2 accept max iterations set to %" PRIu32 " \n", accept_max);
     return 0;
@@ -403,7 +405,7 @@ pbkdf2_sha256_get_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
 void
 pbkdf2_sha256_set_accept_max_iterations(uint32_t accept_max)
 {
-    PBKDF2_ACCEPT_MAX_ITERATIONS = accept_max;
+    pbkdf2AcceptMaxIterations = accept_max;
 }
 
 int
@@ -413,11 +415,11 @@ pbkdf2_sha256_start(Slapi_PBlock *pb)
     uint64_t time_nsec = pbkdf2_sha256_benchmark_iterations();
 
     /* Calculate the iterations and set it globally */
-    PBKDF2_ITERATIONS = pbkdf2_sha256_calculate_iterations(time_nsec);
+    pbkdf2Iterations = pbkdf2_sha256_calculate_iterations(time_nsec);
     slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
-                  "Based on CPU performance, chose %" PRIu32 " rounds\n", PBKDF2_ITERATIONS);
+                  "Based on CPU performance, chose %" PRIu32 " rounds\n", pbkdf2Iterations);
 
-    return pbkdf2_sha256_get_accept_max_iterations(pb, PBKDF2_ITERATIONS);
+    return pbkdf2_sha256_get_accept_max_iterations(pb, pbkdf2Iterations);
 }
 
 /* Do we need the matching close function? */
