@@ -14,11 +14,17 @@ const MIN_PBKDF2_ROUNDS: usize = 10_000;
 const MAX_PBKDF2_ROUNDS: usize = 10_000_000;
 
 const PBKDF2_ROUNDS_ATTR: &str = "nsslapd-pwdPBKDF2NumIterations";
-// Each algorithm gets its own atomic counter for thread-safe round configuration
+const PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR: &str = "nsslapd-pwdPBKDF2AcceptMaxIterations";
+// Each algorithm gets its own atomic counter for thread-safe round and accept max iterations
 static PBKDF2_ROUNDS: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 static PBKDF2_ROUNDS_SHA1: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 static PBKDF2_ROUNDS_SHA256: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 static PBKDF2_ROUNDS_SHA512: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
+
+static PBKDF2_ACCEPT_MAX: AtomicUsize = AtomicUsize::new(0);
+static PBKDF2_ACCEPT_MAX_SHA1: AtomicUsize = AtomicUsize::new(0);
+static PBKDF2_ACCEPT_MAX_SHA256: AtomicUsize = AtomicUsize::new(0);
+static PBKDF2_ACCEPT_MAX_SHA512: AtomicUsize = AtomicUsize::new(0);
 
 // Thread-local storage for test environment
 #[cfg(test)]
@@ -27,6 +33,10 @@ thread_local! {
     static TEST_PBKDF2_ROUNDS_SHA1: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
     static TEST_PBKDF2_ROUNDS_SHA256: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
     static TEST_PBKDF2_ROUNDS_SHA512: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
+    static TEST_PBKDF2_ACCEPT_MAX: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
+    static TEST_PBKDF2_ACCEPT_MAX_SHA1: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
+    static TEST_PBKDF2_ACCEPT_MAX_SHA256: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
+    static TEST_PBKDF2_ACCEPT_MAX_SHA512: std::cell::Cell<Option<usize>> = std::cell::Cell::new(None);
 }
 
 const PBKDF2_SALT_LEN: usize = 24;
@@ -122,7 +132,7 @@ macro_rules! impl_slapi_pbkdf2_plugin {
 
             fn start(pb: &mut PblockRef) -> Result<(), PluginError> {
                 log_error!(ErrorLevel::Trace, "{} plugin start", Self::scheme_name());
-                PwdChanCrypto::handle_pbkdf2_rounds_config(pb, Self::digest_type())?;
+                PwdChanCrypto::handle_pbkdf2_config(pb, Self::digest_type())?;
                 Ok(())
             }
 
@@ -157,19 +167,68 @@ impl_slapi_pbkdf2_plugin!(pbkdf2_sha256::PwdChanPbkdf2Sha256);
 impl_slapi_pbkdf2_plugin!(pbkdf2_sha512::PwdChanPbkdf2Sha512);
 
 impl PwdChanCrypto {
+    fn validate_pbkdf2_config_rounds(rounds: usize) -> Result<(), PluginError> {
+        if rounds < MIN_PBKDF2_ROUNDS || rounds > MAX_PBKDF2_ROUNDS {
+            #[cfg(not(test))]
+            log_error!(
+                ErrorLevel::Error,
+                "Invalid PBKDF2 number of iterations {}, must be between {} and {}",
+                rounds,
+                MIN_PBKDF2_ROUNDS,
+                MAX_PBKDF2_ROUNDS
+            );
+            return Err(PluginError::InvalidConfiguration);
+        }
+
+        Ok(())
+    }
+
+    fn validate_pbkdf2_stored_iterations(iterations: usize, digest: MessageDigest,
+    ) -> Result<(), PluginError> {
+        if iterations < MIN_PBKDF2_ROUNDS {
+            #[cfg(not(test))]
+            log_error!(
+                ErrorLevel::Warning,
+                "PBKDF2 iteration count {} is below minimum {}",
+                iterations,
+                MIN_PBKDF2_ROUNDS
+            );
+            return Err(PluginError::InvalidConfiguration);
+        }
+
+        let accept_max = Self::get_pbkdf2_accept_max(digest)?;
+        if iterations > accept_max {
+            #[cfg(not(test))]
+            log_error!(
+                ErrorLevel::Warning,
+                "PBKDF2 iteration count {} exceeds accept max {}",
+                iterations,
+                accept_max
+            );
+            return Err(PluginError::InvalidConfiguration);
+        }
+
+        Ok(())
+    }
+
     #[inline(always)]
-    fn pbkdf2_decompose(encrypted: &str) -> Result<(usize, Vec<u8>, Vec<u8>), PluginError> {
+    fn pbkdf2_decompose(encrypted: &str, digest: MessageDigest,
+    ) -> Result<(usize, Vec<u8>, Vec<u8>), PluginError>
+    {
         let mut part_iter = encrypted.split('$');
 
         let iter = part_iter
             .next()
             .ok_or(PluginError::MissingValue)
             .and_then(|iter_str| {
-                usize::from_str_radix(iter_str, 10).map_err(|e| {
-                    log_error!(ErrorLevel::Error, "Invalid Integer {} -> {:?}", iter_str, e);
+                usize::from_str_radix(iter_str, 10).map_err(|_e| {
+                    #[cfg(not(test))]
+                    log_error!(ErrorLevel::Error, "Invalid Integer {} -> {:?}", iter_str, _e);
                     PluginError::InvalidStrToInt
                 })
             })?;
+
+        Self::validate_pbkdf2_stored_iterations(iter, digest)?;
 
         let salt = part_iter
             .next()
@@ -177,8 +236,9 @@ impl PwdChanCrypto {
             .and_then(|ab64| {
                 let s = ab64_to_b64!(ab64);
                 base64::decode_config(&s, base64::STANDARD.decode_allow_trailing_bits(true))
-                    .map_err(|e| {
-                        log_error!(ErrorLevel::Error, "Invalid Base 64 {} -> {:?}", s, e);
+                    .map_err(|_e| {
+                        #[cfg(not(test))]
+                        log_error!(ErrorLevel::Error, "Invalid Base 64 {} -> {:?}", s, _e);
                         PluginError::InvalidBase64
                     })
             })?;
@@ -189,8 +249,9 @@ impl PwdChanCrypto {
             .and_then(|ab64| {
                 let s = ab64_to_b64!(ab64);
                 base64::decode_config(&s, base64::STANDARD.decode_allow_trailing_bits(true))
-                    .map_err(|e| {
-                        log_error!(ErrorLevel::Error, "Invalid Base 64 {} -> {:?}", s, e);
+                    .map_err(|_e| {
+                        #[cfg(not(test))]
+                        log_error!(ErrorLevel::Error, "Invalid Base 64 {} -> {:?}", s, _e);
                         PluginError::InvalidBase64
                     })
             })?;
@@ -203,11 +264,18 @@ impl PwdChanCrypto {
         encrypted: &str,
         digest: MessageDigest,
     ) -> Result<bool, PluginError> {
-        let (iter, salt, hash_expected) = Self::pbkdf2_decompose(encrypted).map_err(|e| {
-            // This means our DB content is flawed.
-            log_error!(ErrorLevel::Error, "invalid hashed pw -> {:?}", e);
-            e
-        })?;
+        let (iter, salt, hash_expected) = Self::pbkdf2_decompose(encrypted, digest)
+            .map_err(|e| {
+                match e {
+                    // Iteration bounds are logged in validate_pbkdf2_stored_iterations.
+                    PluginError::InvalidConfiguration => e,
+                    _ => {
+                        #[cfg(not(test))]
+                        log_error!(ErrorLevel::Error, "invalid hashed pw -> {:?}", e);
+                        e
+                    }
+                }
+            })?;
         // Need to pre-alloc the space as as_mut_slice can't resize.
         let mut hash_input: Vec<u8> = (0..hash_expected.len()).map(|_| 0).collect();
 
@@ -288,75 +356,89 @@ impl PwdChanCrypto {
         }
     }
 
-    fn handle_pbkdf2_rounds_config(pb: &mut PblockRef, digest: MessageDigest) -> Result<(), PluginError> {
-        let mut rounds = Self::get_rounds_atomic(digest).load(Ordering::Relaxed);
-        let mut source = "default";
+    fn get_accept_max_atomic(digest: MessageDigest) -> &'static AtomicUsize {
+        match digest {
+            d if d == MessageDigest::sha1() => &PBKDF2_ACCEPT_MAX_SHA1,
+            d if d == MessageDigest::sha256() => &PBKDF2_ACCEPT_MAX_SHA256,
+            d if d == MessageDigest::sha512() => &PBKDF2_ACCEPT_MAX_SHA512,
+            _ => &PBKDF2_ACCEPT_MAX,
+        }
+    }
 
-        // Try to get the entry from the parameter block
+    fn digest_name(digest: MessageDigest) -> &'static str {
+        match digest {
+            d if d == MessageDigest::sha1() => "PBKDF2-SHA1",
+            d if d == MessageDigest::sha256() => "PBKDF2-SHA256",
+            d if d == MessageDigest::sha512() => "PBKDF2-SHA512",
+            _ => "PBKDF2",
+        }
+    }
+
+    fn parse_config_usize_attr(
+        entry: &EntryRef,
+        attr: &str,
+    ) -> Result<usize, PluginError> {
+        let value_array = entry
+            .get_attr(attr)
+            .ok_or(PluginError::InvalidConfiguration)?;
+        let value = value_array.first().ok_or(PluginError::InvalidConfiguration)?;
+        let value_str: String = value.as_ref().try_into().map_err(|_| {
+            log_error!(ErrorLevel::Error, "Failed to parse {} value", attr);
+            PluginError::InvalidConfiguration
+        })?;
+
+        value_str.parse::<usize>().map_err(|e| {
+            log_error!(
+                ErrorLevel::Error,
+                "Invalid {} value '{}': {}",
+                attr,
+                value_str,
+                e
+            );
+            PluginError::InvalidConfiguration
+        })
+    }
+
+    fn handle_pbkdf2_config(pb: &mut PblockRef, digest: MessageDigest) -> Result<(), PluginError> {
+        let mut rounds = Self::get_rounds_atomic(digest).load(Ordering::Relaxed);
+
         let entry = pb.get_op_add_entryref()
             .map_err(|_| PluginError::InvalidConfiguration)?;
 
-        // Check if the rounds attribute exists and get its value
-        if let Some(value_array) = entry.get_attr(PBKDF2_ROUNDS_ATTR) {
-            if let Some(value) = value_array.first() {
-                let rounds_str: String = value
-                    .as_ref()
-                    .try_into()
-                    .map_err(|_| {
-                        log_error!(
-                            ErrorLevel::Error,
-                            "Failed to parse {} value",
-                            PBKDF2_ROUNDS_ATTR
-                        );
-                        PluginError::InvalidConfiguration
-                    })?;
-
-                rounds = rounds_str.parse::<usize>().map_err(|e| {
-                    log_error!(
-                        ErrorLevel::Error,
-                        "Invalid PBKDF2 number of iterations value '{}': {}",
-                        rounds_str,
-                        e
-                    );
-                    PluginError::InvalidConfiguration
-                })?;
-                source = "configuration";
-            }
+        if entry.get_attr(PBKDF2_ROUNDS_ATTR).is_some() {
+            rounds = Self::parse_config_usize_attr(&entry, PBKDF2_ROUNDS_ATTR)?;
         }
 
         Self::set_pbkdf2_rounds(digest, rounds)?;
 
-        let digest_name = if digest == MessageDigest::sha1() {
-            "PBKDF2-SHA1"
-        } else if digest == MessageDigest::sha256() {
-            "PBKDF2-SHA256"
-        } else if digest == MessageDigest::sha512() {
-            "PBKDF2-SHA512"
-        } else {
-            "Unknown"
-        };
+        let digest_name = Self::digest_name(digest);
+        log_error_ext!(
+            ErrorLevel::Info,
+            digest_name,
+            "Number of iterations set to {}",
+            rounds,
+        );
+
+        let mut accept_max = rounds;
+
+        if entry.get_attr(PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR).is_some() {
+            accept_max = Self::parse_config_usize_attr(&entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR)?;
+        }
+
+        Self::set_pbkdf2_accept_max(digest, accept_max)?;
 
         log_error_ext!(
             ErrorLevel::Info,
             digest_name,
-            "Number of iterations set to {} from {}",
-            rounds,
-            source
+            "PBKDF2 accept max iterations set to {}",
+            accept_max,
         );
+
         Ok(())
     }
 
     fn set_pbkdf2_rounds(digest: MessageDigest, rounds: usize) -> Result<(), PluginError> {
-        if rounds < MIN_PBKDF2_ROUNDS || rounds > MAX_PBKDF2_ROUNDS {
-            log_error!(
-                ErrorLevel::Error,
-                "Invalid PBKDF2 number of iterations {}, must be between {} and {}",
-                rounds,
-                MIN_PBKDF2_ROUNDS,
-                MAX_PBKDF2_ROUNDS
-            );
-            return Err(PluginError::InvalidConfiguration);
-        }
+        Self::validate_pbkdf2_config_rounds(rounds)?;
 
         #[cfg(test)]
         {
@@ -413,6 +495,73 @@ impl PwdChanCrypto {
         // If not in test mode or no thread-local value, use global
         Ok(Self::get_rounds_atomic(digest).load(Ordering::Relaxed))
     }
+
+    fn set_pbkdf2_accept_max(digest: MessageDigest, accept_max: usize) -> Result<(), PluginError> {
+        if accept_max < MIN_PBKDF2_ROUNDS {
+            #[cfg(not(test))]
+            log_error!(
+                ErrorLevel::Error,
+                "Invalid PBKDF2 accept max iterations {}, must be at least {}",
+                accept_max,
+                MIN_PBKDF2_ROUNDS
+            );
+            return Err(PluginError::InvalidConfiguration);
+        }
+
+        #[cfg(test)]
+        {
+            match digest {
+                d if d == MessageDigest::sha1() => {
+                    TEST_PBKDF2_ACCEPT_MAX_SHA1.with(|cell| cell.set(Some(accept_max)));
+                }
+                d if d == MessageDigest::sha256() => {
+                    TEST_PBKDF2_ACCEPT_MAX_SHA256.with(|cell| cell.set(Some(accept_max)));
+                }
+                d if d == MessageDigest::sha512() => {
+                    TEST_PBKDF2_ACCEPT_MAX_SHA512.with(|cell| cell.set(Some(accept_max)));
+                }
+                _ => {
+                    TEST_PBKDF2_ACCEPT_MAX.with(|cell| cell.set(Some(accept_max)));
+                }
+            }
+        }
+
+        #[cfg(not(test))]
+        {
+            Self::get_accept_max_atomic(digest).store(accept_max, Ordering::Relaxed);
+        }
+
+        Ok(())
+    }
+
+    fn get_pbkdf2_accept_max(digest: MessageDigest) -> Result<usize, PluginError> {
+        #[cfg(test)]
+        {
+            let thread_local_value = match digest {
+                d if d == MessageDigest::sha1() => {
+                    TEST_PBKDF2_ACCEPT_MAX_SHA1.with(|cell| cell.get())
+                }
+                d if d == MessageDigest::sha256() => {
+                    TEST_PBKDF2_ACCEPT_MAX_SHA256.with(|cell| cell.get())
+                }
+                d if d == MessageDigest::sha512() => {
+                    TEST_PBKDF2_ACCEPT_MAX_SHA512.with(|cell| cell.get())
+                }
+                _ => TEST_PBKDF2_ACCEPT_MAX.with(|cell| cell.get()),
+            };
+
+            if let Some(value) = thread_local_value {
+                return Ok(value);
+            }
+        }
+
+        let accept_max = Self::get_accept_max_atomic(digest).load(Ordering::Relaxed);
+        if accept_max == 0 {
+            return Self::get_pbkdf2_rounds(digest);
+        }
+
+        Ok(accept_max)
+    }
 }
 
 #[cfg(test)]
@@ -435,11 +584,18 @@ mod tests {
         TEST_PBKDF2_ROUNDS_SHA1.with(|cell| cell.set(None));
         TEST_PBKDF2_ROUNDS_SHA256.with(|cell| cell.set(None));
         TEST_PBKDF2_ROUNDS_SHA512.with(|cell| cell.set(None));
-        
+        TEST_PBKDF2_ACCEPT_MAX.with(|cell| cell.set(None));
+        TEST_PBKDF2_ACCEPT_MAX_SHA1.with(|cell| cell.set(None));
+        TEST_PBKDF2_ACCEPT_MAX_SHA256.with(|cell| cell.set(None));
+        TEST_PBKDF2_ACCEPT_MAX_SHA512.with(|cell| cell.set(None));
+
         // Set default values for this thread
         PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha1(), DEFAULT_PBKDF2_ROUNDS).unwrap();
         PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha256(), DEFAULT_PBKDF2_ROUNDS).unwrap();
         PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha512(), DEFAULT_PBKDF2_ROUNDS).unwrap();
+        PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha1(), DEFAULT_PBKDF2_ROUNDS).unwrap();
+        PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha256(), DEFAULT_PBKDF2_ROUNDS).unwrap();
+        PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha512(), DEFAULT_PBKDF2_ROUNDS).unwrap();
     }
 
     #[test]
@@ -535,23 +691,126 @@ mod tests {
     }
 
     #[test]
+    fn test_pbkdf2_accept_max_configuration() {
+        // Reset to defaults first
+        reset_pbkdf2_rounds();
+
+        // Test different accept max for each algorithm
+        assert!(PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha1(), 15000).is_ok());
+        assert!(PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha256(), 20000).is_ok());
+        assert!(PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha512(), 25000).is_ok());
+
+        // Verify each algorithm has its own accept max setting
+        assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(MessageDigest::sha1()).unwrap(), 15000);
+        assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(MessageDigest::sha256()).unwrap(), 20000);
+        assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(MessageDigest::sha512()).unwrap(), 25000);
+
+        // Reset to defaults after test
+        reset_pbkdf2_rounds();
+    }
+
+    #[test]
+    fn test_pbkdf2_accept_max_limits() {
+        // Reset to defaults first
+        reset_pbkdf2_rounds();
+
+        // Test min limit - should fail
+        let result = PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha1(), MIN_PBKDF2_ROUNDS - 1);
+        assert!(result.is_err());
+
+        // Test min accept max - should succeed
+        let result = PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha1(), MIN_PBKDF2_ROUNDS);
+        assert!(result.is_ok());
+
+        // Test high accept max - should succeed
+        let result = PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha256(), 600000);
+        assert!(result.is_ok());
+
+        // Reset to defaults after test
+        reset_pbkdf2_rounds();
+    }
+
+    #[test]
     fn test_pbkdf2_decompose() {
+        // Reset to defaults first
+        reset_pbkdf2_rounds();
+
+        // Valid hash - should succeed
         let valid_hash = "10000$salt123$hash456";
-        let result = PwdChanCrypto::pbkdf2_decompose(valid_hash);
+        let result = PwdChanCrypto::pbkdf2_decompose(valid_hash, MessageDigest::sha256());
         assert!(result.is_ok());
         let (iter, _salt, _hash) = result.unwrap();
         assert_eq!(iter, 10000);
 
-        // Test invalid format
-        let invalid_hash = "invalid";
-        assert!(PwdChanCrypto::pbkdf2_decompose(invalid_hash).is_err());
+        // Iteration count above accept max - should fail
+        let high_hash = format!("{}$salt123$hash456", DEFAULT_PBKDF2_ROUNDS + 1);
+        let result = PwdChanCrypto::pbkdf2_decompose(&high_hash, MessageDigest::sha256());
+        assert!(result.is_err());
+
+        // Iteration count below min - should fail
+        let low_hash = format!("{}$salt123$hash456", MIN_PBKDF2_ROUNDS - 1);
+        let result = PwdChanCrypto::pbkdf2_decompose(&low_hash, MessageDigest::sha256());
+        assert!(result.is_err());
+
+        // Invalid format - should fail
+        let result = PwdChanCrypto::pbkdf2_decompose("invalid", MessageDigest::sha256());
+        assert!(result.is_err());
+
+        // Reset to defaults after test
+        reset_pbkdf2_rounds();
+    }
+
+    #[test]
+    fn test_pbkdf2_compare_accept_max_iterations() {
+        // Reset to defaults first
+        reset_pbkdf2_rounds();
+
+        assert!(PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha256(), 10000).is_ok());
+        assert!(PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha256(), 10000).is_ok());
+        assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(MessageDigest::sha256()).unwrap(), 10000);
+
+        // Stored iterations above accept max - should fail
+        let encrypted = "36000$eElFb3p1WlZBb1lt$uW1b35DUKyhvQAf1mBqMvoBDcqSD06juzyO/nmyV0+w=";
+        let result = PwdChanCrypto::pbkdf2_compare("eicieY7ahchaoCh0eeTa", encrypted, MessageDigest::sha256());
+        assert!(result.is_err());
+
+        assert!(PwdChanCrypto::set_pbkdf2_accept_max(MessageDigest::sha256(), 60000).is_ok());
+        assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(MessageDigest::sha256()).unwrap(), 60000);
+
+        // Stored iterations within accept max - should succeed
+        let result = PwdChanCrypto::pbkdf2_compare("eicieY7ahchaoCh0eeTa", encrypted, MessageDigest::sha256());
+        assert!(result == Ok(true));
+
+        // Reset to defaults after test
+        reset_pbkdf2_rounds();
+    }
+
+    #[test]
+    fn test_pbkdf2_compare_reject_invalid_iterations() {
+        // Reset to defaults first
+        reset_pbkdf2_rounds();
+
+        let encrypted_tail = "henZGfPWw79Cs8ORDeVNrQ$1dTJy73v6n3bnTmTZFghxHXHLsAzKaAy8SksDfZBPIw";
+
+        // Stored iterations above accept max - should fail
+        let high_hash = format!("{}${}", DEFAULT_PBKDF2_ROUNDS + 1, encrypted_tail);
+        let result = PwdChanCrypto::pbkdf2_compare("password", &high_hash, MessageDigest::sha256());
+        assert!(result.is_err());
+
+        // Stored iterations below min - should fail
+        let low_hash = format!("{}${}", MIN_PBKDF2_ROUNDS - 1, encrypted_tail);
+        let result = PwdChanCrypto::pbkdf2_compare("password", &low_hash, MessageDigest::sha256());
+        assert!(result.is_err());
+
+        // Reset to defaults after test
+        reset_pbkdf2_rounds();
     }
 
     #[test]
     fn pwdchan_pbkdf2_sha1_basic() {
         // Reset to defaults first
         reset_pbkdf2_rounds();
-        
+
         PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha1(), 10000).unwrap();
 
         let encrypted = "10000$IlfapjA351LuDSwYC0IQ8Q$saHqQTuYnjJN/tmAndT.8mJt.6w";
@@ -576,7 +835,7 @@ mod tests {
     fn pwdchan_pbkdf2_sha256_basic() {
         // Reset to defaults first
         reset_pbkdf2_rounds();
-        
+
         PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha256(), 10000).unwrap();
 
         let encrypted = "10000$henZGfPWw79Cs8ORDeVNrQ$1dTJy73v6n3bnTmTZFghxHXHLsAzKaAy8SksDfZBPIw";
@@ -609,7 +868,7 @@ mod tests {
     fn pwdchan_pbkdf2_sha512_basic() {
         // Reset to defaults first
         reset_pbkdf2_rounds();
-        
+
         PwdChanCrypto::set_pbkdf2_rounds(MessageDigest::sha512(), 10000).unwrap();
 
         let encrypted = "10000$Je1Uw19Bfv5lArzZ6V3EPw$g4T/1sqBUYWl9o93MVnyQ/8zKGSkPbKaXXsT8WmysXQJhWy8MRP2JFudSL.N9RklQYgDPxPjnfum/F2f/TrppA";
