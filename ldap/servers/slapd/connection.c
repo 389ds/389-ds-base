@@ -438,12 +438,12 @@ init_op_threads()
     }
     pthread_condattr_destroy(&condAttr); /* no longer needed */
 
+    max_threads = config_get_threadnumber();
     work_q_stack = PR_CreateStack("connection_work_q");
     op_stack = PR_CreateStack("connection_operation");
     alloc_per_thread_snmp_vars(max_threads);
     init_thread_private_snmp_vars();
 
-    max_threads = config_get_threadnumber();
     threads_indexes = (int32_t *) slapi_ch_calloc(max_threads, sizeof(int32_t));
     for (size_t i = 0; i < max_threads; i++) {
         threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
