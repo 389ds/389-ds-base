@@ -147,6 +147,7 @@ def _open_threadpool_file(path, inst, tp_stats_enabled, explicit=False):
             raise ValueError(
                 "server is running but the thread-pool status file is missing "
                 "(initialization may have failed - check the errors log; "
+                "nsslapd-thread-pool-stats was switched on without a restart; "
                 "or the server predates this feature, or nsslapd-rundir mismatch)"
             )
         raise ValueError("instance is not running (status file is removed on clean shutdown)")
@@ -299,7 +300,7 @@ def _read_threadpool_status(inst, file_path=None):
         if rundir is None:
             rundir = inst.ds_paths.run_dir
             warnings.append("nsslapd-rundir is missing from dse.ldif; using lib389 run_dir fallback")
-        path = os.path.join(rundir, f"{_server_file_prefix(inst.serverid)}.threadpool")
+        path = os.path.join(rundir, f"{_server_file_prefix(inst.serverid)}.monitor", "threadpool")
         archives = _crash_archives(path)
         configured_threads = _config_threadnumber(dse)
         tp_stats_enabled = _config_tp_stats_enabled(dse)
@@ -333,6 +334,11 @@ def _read_threadpool_status(inst, file_path=None):
     finally:
         os.close(fd)
 
+    if not tp_stats_enabled:
+        warnings.append(
+            "nsslapd-thread-pool-stats is off in cn=config; the running server "
+            "keeps publishing diagnostics until it is restarted"
+        )
     if archives:
         warnings.append(
             f"{len(archives)} crash archive(s) in {os.path.dirname(path)}, "
@@ -457,6 +463,6 @@ def create_parser(subparsers):
     status_parser.add_argument(
         "--file", default=None,
         help="Read this thread-pool status file instead of the instance's live file "
-             "(e.g. a crash file preserved as <file>.YYYYMMDD-HHMMSS)",
+             "(e.g. a crash file preserved as threadpool.YYYYMMDD-HHMMSS)",
     )
     status_parser.set_defaults(func=thread_pool_status)

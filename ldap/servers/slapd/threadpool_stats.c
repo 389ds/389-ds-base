@@ -29,7 +29,8 @@
 #include "threadpool_stats.h"
 
 #define TP_STATS_COMPONENT "threadpool_stats"
-#define TP_STATS_EXTENSION ".threadpool"
+#define TP_STATS_DIR_SUFFIX ".monitor"
+#define TP_STATS_FILENAME "threadpool"
 #define TP_STATS_HEARTBEAT_INTERVAL_MS 1000
 #define TP_STATS_ARCHIVE_KEEP 5
 
@@ -127,9 +128,9 @@ tp_stats_op_name(uint32_t op_tag, char *buf, size_t buflen)
 }
 
 /*
- * <rundir>/slapd-<instance>.threadpool, matching what the dsctl reader
- * derives from the instance config. Returns NULL when rundir or the
- * slapd-<instance> name cannot be resolved: a file at any other path
+ * <rundir>/slapd-<instance>.monitor/threadpool, matching what the dsctl
+ * reader derives from the instance config. Returns NULL when rundir or
+ * the slapd-<instance> name cannot be resolved: a file at any other path
  * would be unreachable for the reader, so the caller disables the
  * feature instead.
  */
@@ -146,11 +147,61 @@ tp_stats_make_path(void)
     }
 
     if (rundir != NULL && instname != NULL) {
-        path = slapi_ch_smprintf("%s/%s%s", rundir, instname, TP_STATS_EXTENSION);
+        path = slapi_ch_smprintf("%s/%s%s/%s", rundir, instname,
+                                 TP_STATS_DIR_SUFFIX, TP_STATS_FILENAME);
     }
     slapi_ch_free_string(&rundir);
     slapi_ch_free_string(&configdir);
     return path;
+}
+
+/*
+ * Create the per-instance monitor directory the status file lives in.
+ * A pre-existing entry is accepted only when lstat says it is a real
+ * directory owned by the server (a planted symlink fails the check).
+ * The directory is never removed at shutdown: crash archives stay in it.
+ */
+static int
+tp_stats_prepare_dir(const char *path)
+{
+    const char *slash = strrchr(path, '/');
+    struct stat st = {0};
+    char *dir = NULL;
+    int rc = -1;
+
+    if (slash == NULL) {
+        return -1;
+    }
+    dir = slapi_ch_smprintf("%.*s", (int)(slash - path), path);
+
+    if (mkdir(dir, 0750) != 0) {
+        if (errno != EEXIST) {
+            int err = errno;
+            slapi_log_err(SLAPI_LOG_WARNING, TP_STATS_COMPONENT,
+                          "Could not create thread-pool monitor directory %s: %d (%s)\n",
+                          dir, err, slapd_system_strerror(err));
+            goto done;
+        }
+        if (lstat(dir, &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != geteuid()) {
+            slapi_log_err(SLAPI_LOG_WARNING, TP_STATS_COMPONENT,
+                          "Refusing unsafe thread-pool monitor directory %s (mode=%o uid=%ld)\n",
+                          dir, (unsigned int)st.st_mode, (long)st.st_uid);
+            goto done;
+        }
+    }
+
+    if (chmod(dir, 0750) != 0) {
+        int err = errno;
+        slapi_log_err(SLAPI_LOG_WARNING, TP_STATS_COMPONENT,
+                      "Could not set permissions on thread-pool monitor directory %s: %d (%s)\n",
+                      dir, err, slapd_system_strerror(err));
+        goto done;
+    }
+    rc = 0;
+
+done:
+    slapi_ch_free_string(&dir);
+    return rc;
 }
 
 static int
@@ -387,6 +438,11 @@ tp_stats_init(uint32_t max_workers)
     if (path == NULL) {
         slapi_log_err(SLAPI_LOG_WARNING, TP_STATS_COMPONENT,
                       "Thread-pool status mmap disabled: could not resolve runtime path\n");
+        return -1;
+    }
+
+    if (tp_stats_prepare_dir(path) != 0) {
+        slapi_ch_free_string(&path);
         return -1;
     }
 

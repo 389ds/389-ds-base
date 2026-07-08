@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import signal
 import stat
 import struct
@@ -47,7 +48,20 @@ def _threadpool_path(inst):
     if rundir is None:
         rundir = inst.ds_paths.run_dir
     prefix = inst.serverid if inst.serverid.startswith("slapd-") else f"slapd-{inst.serverid}"
-    return os.path.join(rundir, f"{prefix}.threadpool")
+    return os.path.join(rundir, f"{prefix}.monitor", "threadpool")
+
+
+def _monitor_dir(inst):
+    return os.path.dirname(_threadpool_path(inst))
+
+
+def _ensure_monitor_dir(inst):
+    """Create the monitor dir owned like the run dir, for planting files while stopped"""
+    dirname = _monitor_dir(inst)
+    rundir_st = os.stat(os.path.dirname(dirname))
+    os.makedirs(dirname, exist_ok=True)
+    os.chown(dirname, rundir_st.st_uid, rundir_st.st_gid)
+    return dirname
 
 
 def _wait_threadpool_file(inst, timeout=5):
@@ -121,20 +135,23 @@ def test_file_created_mode(topo):
     :setup: Standalone instance
     :steps:
         1. Resolve the thread-pool mmap path from dse.ldif.
-        2. Inspect the file metadata.
-        3. Compare mode and owner with the runtime directory.
+        2. Inspect the file and monitor directory metadata.
+        3. Compare modes and owners with the runtime directory.
     :expectedresults:
         1. The file exists.
-        2. The mode is 0640.
-        3. The file owner matches the runtime directory owner.
+        2. The file mode is 0640 and the monitor directory mode is 0750.
+        3. The file and directory owners match the runtime directory owner.
     """
     inst = topo.standalone
     path = _wait_threadpool_file(inst)
 
     st = os.stat(path)
-    rundir_st = os.stat(os.path.dirname(path))
+    dir_st = os.stat(os.path.dirname(path))
+    rundir_st = os.stat(os.path.dirname(os.path.dirname(path)))
     assert stat.S_IMODE(st.st_mode) == 0o640
+    assert stat.S_IMODE(dir_st.st_mode) == 0o750
     assert st.st_uid == rundir_st.st_uid
+    assert dir_st.st_uid == rundir_st.st_uid
 
 
 def test_file_unlinked_on_stop(topo):
@@ -375,11 +392,11 @@ def test_symlink_rejected(topo):
     """
     inst = topo.standalone
     path = _threadpool_path(inst)
-    rundir = os.path.dirname(path)
-    decoy = os.path.join(rundir, "threadpool-decoy")
+    decoy = os.path.join(_monitor_dir(inst), "threadpool-decoy")
 
     inst.stop()
     try:
+        _ensure_monitor_dir(inst)
         with open(decoy, "wb") as decoy_file:
             decoy_file.truncate(4096)
 
@@ -412,6 +429,57 @@ def test_symlink_rejected(topo):
             os.unlink(decoy)
         # Full restart either way: a failed-safe startup leaves the feature
         # disabled and would leak into the following tests.
+        if inst.status():
+            inst.restart()
+        else:
+            inst.start()
+
+
+def test_symlink_monitor_dir_rejected(topo):
+    """A symlink at the monitor directory path is refused at startup
+
+    :id: 5b15d3e7-72e4-4d4c-ad79-3905fea1d0b7
+    :setup: Standalone instance
+    :steps:
+        1. Stop the instance and replace the monitor directory with a symlink
+           to a decoy directory.
+        2. Start the instance.
+        3. Check the errors log, the decoy directory, and dsctl output.
+        4. Clean up and restart the instance.
+    :expectedresults:
+        1. The symlink is in place before startup.
+        2. The instance starts.
+        3. The feature failed safe: the unsafe-directory warning is logged,
+           no status file was written into the decoy, and dsctl reports the
+           missing file.
+        4. The instance is restored for later tests.
+    """
+    inst = topo.standalone
+    monitor_dir = _monitor_dir(inst)
+    decoy_dir = os.path.join(os.path.dirname(monitor_dir), "monitor-decoy")
+
+    inst.stop()
+    try:
+        os.makedirs(decoy_dir, exist_ok=True)
+        if os.path.islink(monitor_dir):
+            os.unlink(monitor_dir)
+        elif os.path.isdir(monitor_dir):
+            shutil.rmtree(monitor_dir)
+        os.symlink(decoy_dir, monitor_dir)
+        inst.start()
+
+        assert os.path.islink(monitor_dir)
+        assert inst.ds_error_log.match(".*Refusing unsafe thread-pool monitor directory.*")
+        assert not os.path.exists(os.path.join(decoy_dir, "threadpool"))
+        result = _run_dsctl_threadpool(inst)
+        assert result.returncode != 0
+    finally:
+        if os.path.islink(monitor_dir):
+            os.unlink(monitor_dir)
+        if os.path.isdir(decoy_dir):
+            shutil.rmtree(decoy_dir)
+        # A failed-safe startup leaves the feature disabled and would leak
+        # into the following tests.
         if inst.status():
             inst.restart()
         else:
@@ -463,14 +531,17 @@ def test_feature_disabled_by_config(topo):
     :setup: Standalone instance
     :steps:
         1. Set nsslapd-thread-pool-stats to an invalid value.
-        2. Set nsslapd-thread-pool-stats to off and restart.
-        3. Check the mmap file, dsctl output, and cn=monitor.
-        4. Set nsslapd-thread-pool-stats back to on and restart.
+        2. Set nsslapd-thread-pool-stats to off and run dsctl before restarting.
+        3. Restart and check the mmap file, dsctl output, and cn=monitor.
+        4. Set nsslapd-thread-pool-stats back to on and run dsctl before
+           restarting.
+        5. Restart.
     :expectedresults:
         1. The invalid value is rejected.
-        2. The instance restarts with the feature disabled.
+        2. dsctl still reports data with a restart-pending warning.
         3. The file is absent, dsctl explains why, and threadpoolworker is gone.
-        4. The feature is active again.
+        4. dsctl fails with a message mentioning the missing restart.
+        5. The feature is active again.
     """
     inst = topo.standalone
     path = _threadpool_path(inst)
@@ -480,6 +551,9 @@ def test_feature_disabled_by_config(topo):
 
     try:
         inst.config.replace("nsslapd-thread-pool-stats", "off")
+        # The running server keeps publishing until it is restarted
+        data = _json_result(_run_dsctl_threadpool(inst, json_output=True))
+        assert any("until it is restarted" in warning for warning in data["warnings"])
         inst.restart()
 
         assert not os.path.exists(path)
@@ -487,6 +561,12 @@ def test_feature_disabled_by_config(topo):
         assert result.returncode != 0
         assert "disabled by nsslapd-thread-pool-stats" in _cmd_output(result)
         assert not Monitor(inst).get_thread_pool_workers()
+
+        inst.config.replace("nsslapd-thread-pool-stats", "on")
+        # Enabled in cn=config, but the running server has no file yet
+        result = _run_dsctl_threadpool(inst)
+        assert result.returncode != 0
+        assert "without a restart" in _cmd_output(result)
     finally:
         inst.config.replace("nsslapd-thread-pool-stats", "on")
         inst.restart()
@@ -516,6 +596,7 @@ def test_invalid_file_rejected(topo):
 
     inst.stop()
     try:
+        _ensure_monitor_dir(inst)
         with open(path, "wb") as f:
             f.write(b"\x00" * 100)
         result = _run_dsctl_threadpool(inst)
@@ -660,7 +741,8 @@ def test_archive_pruned_to_five(topo):
     inst.stop()
     _purge_archives(inst)
     try:
-        rundir_st = os.stat(os.path.dirname(path))
+        _ensure_monitor_dir(inst)
+        dir_st = os.stat(os.path.dirname(path))
         for dummy in dummies:
             with open(dummy, "wb") as f:
                 f.write(b"\x00")
@@ -672,7 +754,7 @@ def test_archive_pruned_to_five(topo):
                              0, 0, 0, 0, 0, 0, 0)
         with open(path, "wb") as f:
             f.write(header.ljust(TP_STATS_HEADER_SIZE + TP_STATS_WORKER_SLOT_SIZE, b"\x00"))
-        os.chown(path, rundir_st.st_uid, rundir_st.st_gid)
+        os.chown(path, dir_st.st_uid, dir_st.st_gid)
 
         inst.start()
 
