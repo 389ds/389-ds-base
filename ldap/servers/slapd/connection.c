@@ -462,6 +462,7 @@ init_op_threads()
     }
     pthread_condattr_destroy(&condAttr); /* no longer needed */
 
+    max_threads = config_get_threadnumber();
     work_q_stack = PR_CreateStack("connection_work_q");
     op_stack = PR_CreateStack("connection_operation");
     alloc_per_thread_snmp_vars(max_threads);
