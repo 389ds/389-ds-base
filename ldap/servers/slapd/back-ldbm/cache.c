@@ -2312,7 +2312,7 @@ dncache_find_id(struct cache *cache, ID id)
     cache_lock(cache);
     if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&bdn)) {
         /* need to check entry state */
-        if (bdn->ep_state != 0) {
+        if ((bdn->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= dncache_find_id (NOT FOUND)\n");
@@ -2320,6 +2320,7 @@ dncache_find_id(struct cache *cache, ID id)
         }
         if (bdn->ep_refcnt == 0)
             lru_delete(cache, (void *)bdn);
+        PR_ASSERT((bdn->ep_state & ENTRY_STATE_LRU) == 0);
         bdn->ep_refcnt++;
         cache->c_stats.hits++;
     }
