@@ -177,24 +177,39 @@ def test_smd5_reject_short_hash(topology_st):
         5. Server remains up
     """
     inst = topology_st.standalone
+    orig_allow_hashed = inst.config.get_attr_val_utf8('nsslapd-allow-hashed-passwords') or 'off'
+    orig_upgrade_hash = inst.config.get_attr_val_utf8('nsslapd-enable-upgrade-hash') or 'off'
+
     inst.config.set('nsslapd-allow-hashed-passwords', 'on')
     inst.config.set('nsslapd-enable-upgrade-hash', 'off')
 
-    # Ensure a clean start in case a prior run crashed the process.
-    inst.start()
+    inst.restart()
 
-    users = UserAccounts(inst, DEFAULT_SUFFIX)
-    user = users.create_test_user()
-    short_hash = _craft_smd5_short_hash(3)
+    user = None
+    try:
+        users = UserAccounts(inst, DEFAULT_SUFFIX)
+        user = users.create_test_user()
+        short_hash = _craft_smd5_short_hash(3)
 
-    log.info('Setting truncated SMD5 hash')
-    user.set('userPassword', short_hash)
+        log.info('Setting truncated SMD5 hash')
+        user.set('userPassword', short_hash)
 
-    with pytest.raises(ldap.INVALID_CREDENTIALS):
-        user.bind('doesntmatter')
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            user.bind('doesntmatter')
 
-    assert inst.status(), 'Server crashed comparing short SMD5 hash'
-    user.delete()
+        assert inst.status(), 'Server crashed comparing short SMD5 hash'
+    finally:
+        if user is not None:
+            try:
+                if user.exists():
+                    user.delete()
+            except ldap.LDAPError:
+                pass
+        try:
+            inst.config.set('nsslapd-allow-hashed-passwords', orig_allow_hashed)
+            inst.config.set('nsslapd-enable-upgrade-hash', orig_upgrade_hash)
+        except ldap.LDAPError:
+            pass
 
 
 def test_pbkdf2_algo(topology_st):
