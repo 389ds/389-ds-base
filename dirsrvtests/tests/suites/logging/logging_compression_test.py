@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2025 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -39,7 +39,17 @@ def log_rotated_count(log_type, log_dir, check_compressed=False):
     return len(log_files)
 
 
-def update_and_sleep(inst, suffix, sleep=True):
+def wait_for_compressed_logs(log_type, log_dir, min_count=1, timeout=120):
+    """Wait for background log compression to finish."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if log_rotated_count(log_type, log_dir, check_compressed=True) >= min_count:
+            return
+        time.sleep(1)
+    assert log_rotated_count(log_type, log_dir, check_compressed=True) >= min_count
+
+
+def update_and_sleep(inst, suffix, sleep=61):
     for loop in range(2):
         for count in range(10):
             suffix.replace('description', str(count))
@@ -48,13 +58,10 @@ def update_and_sleep(inst, suffix, sleep=True):
                 suffix.add('doesNotExist', 'error')
             # For security log we need binds to populate the log
             DirectoryManager(inst).bind()
+            time.sleep(0.5)
 
-        if sleep:
-            # log rotation smallest unit is 1 minute
-            time.sleep(61)
-        else:
-            # should still sleep for a little bit
-            time.sleep(1)
+        # log rotation smallest unit is 1 minute
+        time.sleep(sleep/(loop+1))
 
 
 def test_logging_compression(topo):
@@ -102,6 +109,7 @@ def test_logging_compression(topo):
         inst.config.set('nsslapd-' + ds_log + '-logrotationtimeunit', timeunit)
         inst.config.set('nsslapd-' + ds_log + '-maxlogsize', '1')
         inst.config.set('nsslapd-' + ds_log + '-maxlogsperdir', '3')
+        inst.config.set('nsslapd-' + ds_log + '-compress', 'on')
 
     # Perform ops that will write to each log
     update_and_sleep(topo.standalone, suffix)
@@ -110,21 +118,31 @@ def test_logging_compression(topo):
     for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
         assert log_rotated_count(log_type, log_dir) > 0
 
-    # Enable log compression on all logs
-    for ds_log in ['accesslog', 'auditlog', 'auditfaillog', 'errorlog', 'securitylog']:
-        inst.config.set('nsslapd-' + ds_log + '-compress', 'on')
-
     # Perform ops that will write to each log
-    update_and_sleep(topo.standalone, suffix)
+    update_and_sleep(topo.standalone, suffix, sleep=30)
 
-    # Make sure all logs were rotated again and are compressed
+    # Make sure all logs were rotated again and are compressed (async maintenance)
     for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
-        assert log_rotated_count(log_type, log_dir, check_compressed=True) > 0
+        wait_for_compressed_logs(log_type, log_dir)
 
-    # Make sure log deletion is working
-    update_and_sleep(topo.standalone, suffix, sleep=False)
+    # Make sure we have two rotated/compressed logs
     for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
         assert log_rotated_count(log_type, log_dir) == 2
+
+    # Take note of the current compressed log names
+    log_file = f'{log_dir}/access.2*.gz'
+    log_files_before = glob.glob(log_file)
+
+    # Make sure log deletion is working
+    update_and_sleep(topo.standalone, suffix)
+    for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
+        assert log_rotated_count(log_type, log_dir) == 2
+
+    # Grab a fresh list of rotated files
+    log_files_after = glob.glob(log_file)
+
+    # The logs should be different if deletion worked
+    assert log_files_before != log_files_after, "Log files should be different after deletion"
 
 
 if __name__ == '__main__':

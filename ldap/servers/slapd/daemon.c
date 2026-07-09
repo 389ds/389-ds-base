@@ -1517,6 +1517,7 @@ slapd_daemon(daemon_ports_t *ports)
      * access & security logs when we can guarantee that the buffered content
      * is "complete".
      */
+    logs_maintenance_shutdown();
     logs_flush();
 
     be_cleanupall();
