@@ -812,6 +812,9 @@ main(int argc, char **argv)
         goto cleanup;
     }
 
+    /* Initialize the logs maintenance thread */
+    logs_maintenance_init();
+
     /*
      * if we were called upon to do special database stuff, do it and be
      * done.
