@@ -1002,6 +1002,13 @@ def test_concurrent_modifications_during_indexing(topo, homeDirectory_index_clea
     else:
         log.info("Indexing completed too quickly to observe UNWILLING_TO_PERFORM")
 
+    # On slow machines the reindex can outlive the monitoring loop; the final
+    # modifications below are only expected to succeed once it is done.
+    log.info("Waiting for the indexing task to complete")
+    reindex_task.wait(timeout=600)
+    exit_code = reindex_task.get_exit_code()
+    assert exit_code == 0, f"Reindex task failed or timed out: {exit_code}"
+
     test_users[0].replace('sn', 'final_test')
     assert test_users[0].get_attr_val_utf8('sn') == 'final_test'
 
