@@ -2,6 +2,9 @@ name: Test
 
 on:
   push:
+    branches:
+      - main
+      - "389-ds-base-*"
   pull_request:
   schedule:
     - cron:  '0 0 * * *'
@@ -64,6 +67,7 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix: ${{ fromJson(needs.build.outputs.matrix) }}
 
     steps:
@@ -155,4 +159,3 @@ jobs:
           pytest.html
           assets
           .playwright-screenshots
-
