@@ -19,6 +19,7 @@ import time
 import random
 import string
 from shutil import rmtree
+from lib389.backend import DatabaseConfig
 from lib389.dbgen import dbgen_users
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccount, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
@@ -1317,8 +1318,108 @@ def test_get_with_normalized_rid_dict():
     assert nrd.get('099') is None
 
 
-@pytest.mark.ds49915
-@pytest.mark.bz1626375
+def test_online_init_no_duplicate_suffix(topo_m2, request):
+    """Total init must preserve tree order without sending the suffix twice
+
+    :id: f0ccfb02-6c9d-48dd-9482-8a2c0763d485
+    :setup: Two suppliers replication setup
+    :steps:
+        1. Add a parent with more direct children than the ID list scan limit
+        2. Move the subtree below a newer top-level ancestor
+        3. Lower the ID list scan limit on supplier1
+        4. Perform online initialization from supplier1 to supplier2
+        5. Search supplier2 for entries with the suffix DN
+        6. Compare the number of entries on both suppliers
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Exactly one entry has the suffix DN
+        6. Both suppliers have the same number of entries
+    """
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+
+    scan_limit = 100
+    parent_rdn = 'ou=total-init-scanlimit'
+    ancestor_rdn = 'ou=total-init-ancestor'
+    original_parent_dn = f'{parent_rdn},{DEFAULT_SUFFIX}'
+    ancestor_dn = f'{ancestor_rdn},{DEFAULT_SUFFIX}'
+    moved_parent_dn = f'{parent_rdn},{ancestor_dn}'
+    db_config = DatabaseConfig(m1)
+    original_scan_limit = db_config.get_attr_vals_utf8('nsslapd-idlistscanlimit')
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    def delete_test_subtrees(supplier):
+        deleted = False
+        for dn in (moved_parent_dn, original_parent_dn, ancestor_dn):
+            try:
+                supplier.delete_branch_s(dn, ldap.SCOPE_SUBTREE)
+                deleted = True
+            except ldap.NO_SUCH_OBJECT:
+                pass
+        return deleted
+
+    def fin():
+        for supplier in (m1, m2):
+            if not supplier.status():
+                supplier.start()
+        db_config.set([('nsslapd-idlistscanlimit', original_scan_limit)])
+        try:
+            if delete_test_subtrees(m1):
+                repl.wait_for_replication(m1, m2)
+            else:
+                delete_test_subtrees(m2)
+        except Exception as err:
+            log.warning("Replication cleanup failed, deleting supplier2 entries directly: %s", err)
+            delete_test_subtrees(m2)
+
+    request.addfinalizer(fin)
+
+    test_parent = OrganizationalUnits(m1, DEFAULT_SUFFIX).create(
+        properties={'ou': 'total-init-scanlimit'}
+    )
+    # Force the parentid index lookup for this parent past the ALLIDS threshold.
+    test_children = OrganizationalUnits(m1, test_parent.dn)
+    for idx in range(scan_limit + 1):
+        last_child = test_children.create(properties={'ou': f'child{idx}'})
+
+    test_ancestor = OrganizationalUnits(m1, DEFAULT_SUFFIX).create(
+        properties={'ou': 'total-init-ancestor'}
+    )
+    assert int(test_ancestor.get_attr_val_utf8('entryid')) > int(
+        last_child.get_attr_val_utf8('entryid')
+    )
+    test_parent.rename(parent_rdn, newsuperior=test_ancestor.dn)
+    assert test_parent.dn.lower() == moved_parent_dn.lower()
+    assert repl.wait_for_replication(m1, m2)
+
+    db_config.set([('nsslapd-idlistscanlimit', str(scan_limit))])
+    assert db_config.get_attr_val_utf8('nsslapd-idlistscanlimit') == str(scan_limit)
+
+    agmt = Agreements(m1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    # The consumer used to store the suffix entry twice: the supplier sent
+    # it explicitly and again as part of the bulk import candidate list
+    filter_all = '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))'
+    m2entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filter_all,
+                            escapehatch='i am sure')
+    suffix_entries = [e for e in m2entries if e.dn.lower() == DEFAULT_SUFFIX.lower()]
+    log.info("%d entries with the suffix DN found on supplier2", len(suffix_entries))
+    assert len(suffix_entries) == 1
+
+    m1entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filter_all,
+                            escapehatch='i am sure')
+    log.info("supplier1 has %d entries, supplier2 has %d entries",
+             len(m1entries), len(m2entries))
+    assert len(m1entries) == len(m2entries)
+
+
 def test_online_reinit_may_hang(topo_with_sigkill):
     """Online reinitialization may hang when the first
        entry of the DB is RUV entry instead of the suffix
