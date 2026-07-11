@@ -2894,7 +2894,7 @@ dbmdb_idl_new_fetch(backend *be, dbi_db_t *db, dbi_val_t *inkey, dbi_txn_t *txn,
         }
     }
 
-    if (allidslimit && count >= allidslimit) {
+    if ((NEW_IDL_NO_ALLID != *flag_err) && allidslimit && count >= allidslimit) {
         idl = idl_allids(be);
         slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_idl_new_fetch", "%s returns allids (attribute: %s)\n",
                       (char *)key.mv_data, index_id);
