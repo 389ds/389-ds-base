@@ -851,6 +851,16 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
     }
 
     dnrc = get_entry_type(wqelmt, &param->sdn);
+    if (dnrc == DNRC_BAD_SUFFIX_ID && (param->flags & EIP_RDN)) {
+        /* In reindex mode the sdn contains only the RDN. A non-root record
+         * with an explicit parentid is therefore a regular entry even when
+         * its RDN equals a one-RDN suffix. */
+        char *pidstr = NULL;
+        if (get_value_from_string(wqelmt->data, "parentid", &pidstr) == 0) {
+            slapi_ch_free_string(&pidstr);
+            dnrc = DNRC_OK;
+        }
+    }
     if (dnrc == DNRC_SUFFIX) {
         if ( param->eid != 1) {
             dnrc = DNRC_BAD_SUFFIX_ID;
