@@ -66,3 +66,4 @@ int test_plugin_pwdstorage_nss_stop(void **state);
 
 void test_plugin_pwdstorage_pbkdf2_auth(void **state);
 void test_plugin_pwdstorage_pbkdf2_rounds(void **state);
+void test_plugin_pwdstorage_pbkdf2_pw_cmp_invalid_hash(void **state);
