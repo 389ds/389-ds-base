@@ -26,6 +26,9 @@ run_plugin_tests(void)
         cmocka_unit_test_setup_teardown(test_plugin_pwdstorage_pbkdf2_rounds,
                                         test_plugin_pwdstorage_nss_setup,
                                         test_plugin_pwdstorage_nss_stop),
+        cmocka_unit_test_setup_teardown(test_plugin_pwdstorage_pbkdf2_pw_cmp_invalid_hash,
+                                        test_plugin_pwdstorage_nss_setup,
+                                        test_plugin_pwdstorage_nss_stop),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
