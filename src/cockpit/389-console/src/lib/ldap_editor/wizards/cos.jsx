@@ -13,23 +13,130 @@ import AddCosTemplate from './operations/addCosTemplate.jsx';
 
 const _ = cockpit.gettext;
 
+const COS_TYPE_OPTIONS = [
+    { value: 'CoSDefinition', inputId: 'radio-cos-def-step' },
+    { value: 'CoSTemplate', inputId: 'radio-cos-template-step' },
+];
+
+/*
+ * Step 1 CoS-type radios. Kept as a component so arrow-key changes update
+ * selection and sidebar steps without losing focus on the radio group.
+ */
+class CoSGetStartedStep extends React.Component {
+    focusSelectedRadio = () => {
+        const option = COS_TYPE_OPTIONS.find(opt => opt.value === this.props.selected);
+        if (!option) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            document.getElementById(option.inputId)?.focus();
+        });
+    };
+
+    componentDidMount () {
+        this.focusSelectedRadio();
+    }
+
+    componentDidUpdate (prevProps) {
+        if (prevProps.selected !== this.props.selected) {
+            this.focusSelectedRadio();
+        }
+    }
+
+    handleKeyDown = (event) => {
+        const isArrow = event.key === 'ArrowUp' || event.key === 'ArrowDown' ||
+            event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+        if (!isArrow) {
+            return;
+        }
+
+        event.stopPropagation();
+        event.preventDefault();
+
+        const { selected, onSelect } = this.props;
+        const currentIdx = COS_TYPE_OPTIONS.findIndex(opt => opt.value === selected);
+        if (currentIdx === -1) {
+            return;
+        }
+
+        const step = (event.key === 'ArrowDown' || event.key === 'ArrowRight') ? 1 : -1;
+        const nextIdx = (currentIdx + step + COS_TYPE_OPTIONS.length) % COS_TYPE_OPTIONS.length;
+        const next = COS_TYPE_OPTIONS[nextIdx];
+
+        onSelect(next.value);
+    };
+
+    render () {
+        const { selected, onChange } = this.props;
+
+        return (
+            <div
+                role="radiogroup"
+                aria-label={_("CoS type")}
+                onKeyDown={this.handleKeyDown}
+            >
+                <Radio
+                    className="ds-margin-top-lg"
+                    value="CoSDefinition"
+                    isChecked={selected === 'CoSDefinition'}
+                    onChange={onChange}
+                    label={_("Create a new CoS Definition")}
+                    description={_("The CoS definition entry identifies the type of CoS used. The CoS definition entry is below the branch at which it is effective.")}
+                    name="radio-cos-step-btn-group"
+                    id="radio-cos-def-step"
+                />
+                <Radio
+                    className="ds-margin-top-lg"
+                    value="CoSTemplate"
+                    isChecked={selected === 'CoSTemplate'}
+                    onChange={onChange}
+                    label={_("Create a new CoS Template")}
+                    description={_("The CoS template entry contains a list of the shared attribute values. Changes to the template entry attribute values are automatically applied to all the entries within the scope of the CoS.")}
+                    name="radio-cos-step-btn-group"
+                    id="radio-cos-template-step"
+                />
+            </div>
+        );
+    }
+}
+
 class CoSEntryWizard extends React.Component {
     constructor (props) {
         super(props);
 
         this.state = {
-            stepIdReached: 1,
-            getStartedStepRadio: 'CoSDefinition'
+            getStartedStepRadio: 'CoSDefinition',
+            activeWizardType: 'CoSDefinition',
         };
     }
 
-    handleOnChange = (event, _) => {
-        // console.log('event.currentTarget.value = ' + event.currentTarget.value);
-        this.setState({ getStartedStepRadio: event.currentTarget.value });
+    componentDidUpdate (prevProps) {
+        if (this.props.isWizardOpen && !prevProps.isWizardOpen) {
+            this.setState({
+                getStartedStepRadio: 'CoSDefinition',
+                activeWizardType: 'CoSDefinition',
+            });
+        }
+    }
+
+    handleOnChange = (event) => {
+        this.setSelectedCosType(event.currentTarget.value);
+    };
+
+    setSelectedCosType = (value) => {
+        this.setState(prevState => {
+            if (prevState.getStartedStepRadio === value &&
+                prevState.activeWizardType === value) {
+                return null;
+            }
+            return {
+                getStartedStepRadio: value,
+                activeWizardType: value,
+            };
+        });
     };
 
     createInitialLayout = () => {
-        // Creation of a CoS entry
         return ([
             {
                 id: 1,
@@ -53,25 +160,10 @@ class CoSEntryWizard extends React.Component {
                                 </TextContent>
                             </GridItem>
                         </Grid>
-                        <Radio
-                          className="ds-margin-top-lg"
-                          value="CoSDefinition"
-                          isChecked={this.state.getStartedStepRadio === 'CoSDefinition'}
-                          onChange={(event, _) => this.handleOnChange(event, _)}
-                          label={_("Create a new CoS Definition")}
-                          description={_("The CoS definition entry identifies the type of CoS used. The CoS definition entry is below the branch at which it is effective.")}
-                          name="radio-new-step-start"
-                          id="radio-new-step-start-1"
-                        />
-                        <Radio
-                          className="ds-margin-top-lg"
-                          value="CoSTemplate"
-                          isChecked={this.state.getStartedStepRadio === 'CoSTemplate'}
-                          onChange={(event, _) => this.handleOnChange(event, _)}
-                          label={_("Create a new CoS Template")}
-                          description={_("The CoS template entry contains a list of the shared attribute values. Changes to the template entry attribute values are automatically applied to all the entries within the scope of the CoS.")}
-                          name="radio-new-step-start"
-                          id="radio-new-step-start-2"
+                        <CoSGetStartedStep
+                            selected={this.state.getStartedStepRadio}
+                            onChange={this.handleOnChange}
+                            onSelect={this.setSelectedCosType}
                         />
                     </div>
                 )
@@ -80,9 +172,7 @@ class CoSEntryWizard extends React.Component {
     };
 
     render () {
-        const {
-            getStartedStepRadio
-        } = this.state;
+        const { activeWizardType } = this.state;
 
         const initialStep = this.createInitialLayout();
 
@@ -97,7 +187,7 @@ class CoSEntryWizard extends React.Component {
             addNotification: this.props.addNotification
         };
 
-        if (getStartedStepRadio === 'CoSDefinition') {
+        if (activeWizardType === 'CoSDefinition') {
             return (
                 <AddCosDefinition
                     {...wizardProps}
@@ -110,17 +200,17 @@ class CoSEntryWizard extends React.Component {
                     cosDefType="pointer"
                 />
             );
-        } else if (getStartedStepRadio === 'CoSTemplate') {
-            return (
-                <AddCosTemplate
-                    {...wizardProps}
-                    allObjectclasses={this.props.allObjectclasses}
-                    treeViewRootSuffixes={this.props.treeViewRootSuffixes}
-                    definitionWizardEntryDn=""
-                    stepReached={1}
-                />
-            );
         }
+
+        return (
+            <AddCosTemplate
+                {...wizardProps}
+                allObjectclasses={this.props.allObjectclasses}
+                treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+                definitionWizardEntryDn=""
+                stepReached={1}
+            />
+        );
     }
 }
 
