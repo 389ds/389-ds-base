@@ -153,6 +153,7 @@ static const char *internal_entries[] =
         "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsSlapdPlugin\n"
+        "objectclass: pwdPBKDF2PluginConfig\n"
         "cn: PBKDF2_SHA256\n"
         "nsslapd-pluginpath: libpwdstorage-plugin\n"
         "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
