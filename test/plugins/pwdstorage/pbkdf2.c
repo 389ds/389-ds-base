@@ -8,14 +8,33 @@
 
 #include "../../test_slapd.h"
 
+#include <arpa/inet.h>
 #include <nss.h>
 #include <pwdstorage.h>
+#include <plbase64.h>
+#include <string.h>
+
+#define TEST_PBKDF2_TOTAL_LENGTH 324
+#define TEST_PBKDF2_MIN_ITERATIONS 2048
+#define TEST_PBKDF2_ACCEPT_MAX_ITERATIONS 50000
+#define TEST_PBKDF2_ACCEPT_LIMIT 10000
+
+/* Build a PBKDF2_SHA256 payload with the given iteration count */
+static void
+test_pbkdf2_prepare_hash(char *hash_bin, uint32_t iterations)
+{
+    uint32_t be = htonl(iterations);
+
+    memset(hash_bin, 'A', TEST_PBKDF2_TOTAL_LENGTH);
+    memcpy(hash_bin, &be, sizeof(be));
+}
 
 int
 test_plugin_pwdstorage_nss_setup(void **state __attribute__((unused)))
 {
     int result = NSS_Initialize(NULL, "", "", SECMOD_DB, NSS_INIT_READONLY | NSS_INIT_NOCERTDB | NSS_INIT_NOMODDB);
     assert_true(result == 0);
+    pbkdf2_sha256_set_accept_max_iterations(TEST_PBKDF2_ACCEPT_MAX_ITERATIONS);
     return result;
 }
 
@@ -29,7 +48,6 @@ test_plugin_pwdstorage_nss_stop(void **state __attribute__((unused)))
 void
 test_plugin_pwdstorage_pbkdf2_auth(void **state __attribute__((unused)))
 {
-
 #if (NSS_VMAJOR * 100 + NSS_VMINOR) > 328
     /* Check that given various known passwords and hashes they validate (or don't) */
 
@@ -76,5 +94,50 @@ test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused)))
     assert_true(pbkdf2_sha256_calculate_iterations(800000000) == 2048);
     assert_true(pbkdf2_sha256_calculate_iterations(5000000) == 10000);
     assert_true(pbkdf2_sha256_calculate_iterations(2500000) == 20000);
+#endif
+}
+
+void
+test_plugin_pwdstorage_pbkdf2_pw_cmp_invalid_hash(void **state __attribute__((unused)))
+{
+#if (NSS_VMAJOR * 100 + NSS_VMINOR) > 328
+    char hash_bin[TEST_PBKDF2_TOTAL_LENGTH];
+    char hash_bin_long[TEST_PBKDF2_TOTAL_LENGTH + 4];
+    char hash_b64[LDIF_BASE64_LEN(TEST_PBKDF2_TOTAL_LENGTH + 4) + 1];
+
+    pbkdf2_sha256_set_accept_max_iterations(TEST_PBKDF2_ACCEPT_LIMIT);
+
+    /* Iteration count above accept max */
+    test_pbkdf2_prepare_hash(hash_bin, TEST_PBKDF2_ACCEPT_LIMIT + 1);
+    memset(hash_b64, 0, sizeof(hash_b64));
+    assert_true(PL_Base64Encode(hash_bin, TEST_PBKDF2_TOTAL_LENGTH, hash_b64) != NULL);
+    assert_true(pbkdf2_sha256_pw_cmp("password", hash_b64) != 0);
+
+    /* Iterations count below TEST_PBKDF2_MIN_ITERATIONS */
+    test_pbkdf2_prepare_hash(hash_bin, TEST_PBKDF2_MIN_ITERATIONS - 1);
+    memset(hash_b64, 0, sizeof(hash_b64));
+    assert_true(PL_Base64Encode(hash_bin, TEST_PBKDF2_TOTAL_LENGTH, hash_b64) != NULL);
+    assert_true(pbkdf2_sha256_pw_cmp("password", hash_b64) != 0);
+
+    /* Decoded payload shorter than TEST_PBKDF2_TOTAL_LENGTH */
+    test_pbkdf2_prepare_hash(hash_bin, TEST_PBKDF2_MIN_ITERATIONS);
+    memset(hash_b64, 0, sizeof(hash_b64));
+    assert_true(PL_Base64Encode(hash_bin, TEST_PBKDF2_TOTAL_LENGTH - 1, hash_b64) != NULL);
+    assert_true(pbkdf2_sha256_pw_cmp("password", hash_b64) != 0);
+
+    /* Decoded payload longer than TEST_PBKDF2_TOTAL_LENGTH */
+    test_pbkdf2_prepare_hash(hash_bin_long, TEST_PBKDF2_MIN_ITERATIONS);
+    memset(hash_bin_long + TEST_PBKDF2_TOTAL_LENGTH, 'A', sizeof(hash_bin_long) - TEST_PBKDF2_TOTAL_LENGTH);
+    memset(hash_b64, 0, sizeof(hash_b64));
+    assert_true(PL_Base64Encode(hash_bin_long, sizeof(hash_bin_long), hash_b64) != NULL);
+    assert_true(pbkdf2_sha256_pw_cmp("password", hash_b64) != 0);
+
+    /* Invalid base64 input */
+    test_pbkdf2_prepare_hash(hash_bin, TEST_PBKDF2_MIN_ITERATIONS);
+    memset(hash_b64, 0, sizeof(hash_b64));
+    assert_true(PL_Base64Encode(hash_bin, TEST_PBKDF2_TOTAL_LENGTH, hash_b64) != NULL);
+    /* Corrupt a valid base64 char */
+    hash_b64[10] = '!';
+    assert_true(pbkdf2_sha256_pw_cmp("password", hash_b64) != 0);
 #endif
 }
