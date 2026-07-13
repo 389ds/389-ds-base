@@ -142,7 +142,6 @@ class GenericUpdate extends React.Component {
     }
 
     componentDidMount () {
-        console.log('In GenericUpdate - componentDidMount()');
         // TODO:
         // Use an ldapsearch request on the schema entry.
         // Check with RHDS Engineering ( dsconf? to retrieve the list of attrs for a given oc)
