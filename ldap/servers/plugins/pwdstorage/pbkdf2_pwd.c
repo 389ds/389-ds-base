@@ -15,6 +15,7 @@
  *
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -57,10 +58,11 @@
  * it's still better than ssha512.
  */
 #define PBKDF2_MINIMUM 2048
+#define PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT 50000
 #define PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR "nsslapd-pwdPBKDF2AcceptMaxIterations"
 
 static uint32_t pbkdf2Iterations = 8192;
-static uint32_t pbkdf2AcceptMaxIterations = 0;
+static uint32_t pbkdf2AcceptMaxIterations = PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT;
 
 static const char *schemeName = PBKDF2_SHA256_SCHEME_NAME;
 static const uint32_t schemeNameLength = PBKDF2_SHA256_NAME_LEN;
@@ -278,15 +280,10 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
     pbkdf2_sha256_extract(dbhash, &saltItem, &iterations);
 
     /* Check if the iteration count is within range */
-    uint32_t accept_max = pbkdf2AcceptMaxIterations;
-
-    if (accept_max == 0) {
-        accept_max = pbkdf2Iterations;
-    }
-    if (iterations < PBKDF2_MINIMUM || iterations > accept_max) {
+    if (iterations < PBKDF2_MINIMUM || iterations > pbkdf2AcceptMaxIterations) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
                       "PBKDF2 iteration count %" PRIu32 " is out of range (max %" PRIu32 ")\n",
-                      iterations, accept_max);
+                      iterations, pbkdf2AcceptMaxIterations);
         return result;
     }
 
@@ -376,7 +373,7 @@ pbkdf2_sha256_calculate_iterations(uint64_t time_nsec)
 }
 
 
-static int
+static void
 pbkdf2_sha256_get_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
 {
     Slapi_Entry *entry = NULL;
@@ -385,21 +382,22 @@ pbkdf2_sha256_get_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
     /* Check config entry for accept max iterations */
     slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &entry);
     if (entry != NULL && slapi_entry_attr_exists(entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR)) {
-        unsigned long configured = slapi_entry_attr_get_ulong(entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR);
+        int64_t configured = slapi_entry_attr_get_longlong(entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR);
 
-        if (configured < PBKDF2_MINIMUM) {
+        if (configured < PBKDF2_MINIMUM || configured > INT_MAX) {
             slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
-                          "Invalid %s value %lu, must be at least %" PRIu32 " \n",
-                          PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR, configured, PBKDF2_MINIMUM);
-            return -1;
+                          "Invalid %s value %" PRId64 ", must be between %" PRIu32
+                          " and %d; using the default %" PRIu32 "\n",
+                          PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR, configured,
+                          PBKDF2_MINIMUM, INT_MAX, default_max);
+        } else {
+            accept_max = (uint32_t)configured;
         }
-        accept_max = (uint32_t)configured;
     }
 
     pbkdf2AcceptMaxIterations = accept_max;
     slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
-                  "PBKDF2 accept max iterations set to %" PRIu32 " \n", accept_max);
-    return 0;
+                  "PBKDF2 accept max iterations set to %" PRIu32 "\n", accept_max);
 }
 
 void
@@ -416,10 +414,14 @@ pbkdf2_sha256_start(Slapi_PBlock *pb)
 
     /* Calculate the iterations and set it globally */
     pbkdf2Iterations = pbkdf2_sha256_calculate_iterations(time_nsec);
+    pbkdf2_sha256_get_accept_max_iterations(pb, PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT);
+    if (pbkdf2Iterations > pbkdf2AcceptMaxIterations) {
+        pbkdf2Iterations = pbkdf2AcceptMaxIterations;
+    }
     slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
                   "Based on CPU performance, chose %" PRIu32 " rounds\n", pbkdf2Iterations);
 
-    return pbkdf2_sha256_get_accept_max_iterations(pb, pbkdf2Iterations);
+    return 0;
 }
 
 /* Do we need the matching close function? */
