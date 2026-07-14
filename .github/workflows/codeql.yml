@@ -47,7 +47,10 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build_mode }}
-          queries: +security-and-quality
+          config-file: ./.github/codeql/codeql-config.yml
+          # Keep code scanning security-focused; security-and-quality produces
+          # thousands of low-value lint/maintainability alerts in this tree.
+          queries: +security-extended
 
       - name: Configure
         if: matrix.language == 'c-cpp'
