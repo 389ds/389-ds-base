@@ -1987,6 +1987,9 @@ get_ruvelement_from_berval(const struct berval *bval)
         /* replica id must be here */
         i = 0;
         while (isdigit(bval->bv_val[urlbegin])) {
+            if (i >= RIDSTR_SIZE - 1) {
+                goto loser;
+            }
             ridbuff[i] = bval->bv_val[urlbegin];
             i++;
             urlbegin++;
