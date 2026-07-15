@@ -47,6 +47,8 @@ test_plugin_pwdstorage_nss_setup(void **state __attribute__((unused)))
 {
     int result = NSS_Initialize(NULL, "", "", SECMOD_DB, NSS_INIT_READONLY | NSS_INIT_NOCERTDB | NSS_INIT_NOMODDB);
     assert_true(result == 0);
+    /* Each test starts from the shipped default ceiling regardless of test order */
+    pbkdf2_sha256_set_accept_max_iterations(PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT);
     return result;
 }
 

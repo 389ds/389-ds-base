@@ -58,11 +58,15 @@
  * it's still better than ssha512.
  */
 #define PBKDF2_MINIMUM 2048
-#define PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT 50000
 #define PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR "nsslapd-pwdPBKDF2AcceptMaxIterations"
 
 static uint32_t pbkdf2Iterations = 8192;
 static uint32_t pbkdf2AcceptMaxIterations = PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT;
+
+/* Rejections of out-of-range iteration counts are logged at most once per interval */
+#define PBKDF2_REJECT_LOG_INTERVAL 300
+static uint64_t pbkdf2RejectLastLogTime = 0;
+static uint64_t pbkdf2RejectSuppressed = 0;
 
 static const char *schemeName = PBKDF2_SHA256_SCHEME_NAME;
 static const uint32_t schemeNameLength = PBKDF2_SHA256_NAME_LEN;
@@ -245,6 +249,41 @@ pbkdf2_sha256_pw_enc(const char *pwd)
     return pbkdf2_sha256_pw_enc_rounds(pwd, pbkdf2Iterations);
 }
 
+static void
+pbkdf2_sha256_log_rejected_iterations(uint32_t iterations)
+{
+    uint64_t now = (uint64_t)slapi_current_rel_time_t();
+    uint64_t last = slapi_atomic_load_64(&pbkdf2RejectLastLogTime, __ATOMIC_RELAXED);
+
+    if (last != 0 && (now - last) < PBKDF2_REJECT_LOG_INTERVAL) {
+        slapi_atomic_incr_64(&pbkdf2RejectSuppressed, __ATOMIC_RELAXED);
+        return;
+    }
+    slapi_atomic_store_64(&pbkdf2RejectLastLogTime, now, __ATOMIC_RELAXED);
+    uint64_t suppressed = slapi_atomic_load_64(&pbkdf2RejectSuppressed, __ATOMIC_RELAXED);
+    slapi_atomic_store_64(&pbkdf2RejectSuppressed, 0, __ATOMIC_RELAXED);
+
+    if (iterations > pbkdf2AcceptMaxIterations) {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                      "Rejected a password hash with iteration count %" PRIu32
+                      " above the accepted maximum %" PRIu32 ". If these hashes are legitimate, raise "
+                      PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR
+                      " ('dsconf <instance> plugin pwstorage-scheme pbkdf2-sha256-legacy set-accept-max-iterations') and restart the server\n",
+                      iterations, pbkdf2AcceptMaxIterations);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                      "Rejected a password hash with iteration count %" PRIu32
+                      " below the supported minimum %" PRIu32 "\n",
+                      iterations, PBKDF2_MINIMUM);
+    }
+
+    if (suppressed > 0) {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                      "%" PRIu64 " additional out-of-range iteration rejections were suppressed in the last %" PRIu64 " seconds\n",
+                      suppressed, now - last);
+    }
+}
+
 int32_t
 pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
 {
@@ -281,9 +320,7 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
 
     /* Check if the iteration count is within range */
     if (iterations < PBKDF2_MINIMUM || iterations > pbkdf2AcceptMaxIterations) {
-        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
-                      "PBKDF2 iteration count %" PRIu32 " is out of range (max %" PRIu32 ")\n",
-                      iterations, pbkdf2AcceptMaxIterations);
+        pbkdf2_sha256_log_rejected_iterations(iterations);
         return result;
     }
 
@@ -373,8 +410,8 @@ pbkdf2_sha256_calculate_iterations(uint64_t time_nsec)
 }
 
 
-static void
-pbkdf2_sha256_get_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
+static uint32_t
+pbkdf2_sha256_read_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
 {
     Slapi_Entry *entry = NULL;
     uint32_t accept_max = default_max;
@@ -395,9 +432,7 @@ pbkdf2_sha256_get_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
         }
     }
 
-    pbkdf2AcceptMaxIterations = accept_max;
-    slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
-                  "PBKDF2 accept max iterations set to %" PRIu32 "\n", accept_max);
+    return accept_max;
 }
 
 void
@@ -409,14 +444,19 @@ pbkdf2_sha256_set_accept_max_iterations(uint32_t accept_max)
 int
 pbkdf2_sha256_start(Slapi_PBlock *pb)
 {
-    /* Run the time generator */
     uint64_t time_nsec = pbkdf2_sha256_benchmark_iterations();
+    uint32_t benched_iterations = pbkdf2_sha256_calculate_iterations(time_nsec);
 
-    /* Calculate the iterations and set it globally */
-    pbkdf2Iterations = pbkdf2_sha256_calculate_iterations(time_nsec);
-    pbkdf2_sha256_get_accept_max_iterations(pb, PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT);
+    pbkdf2AcceptMaxIterations = pbkdf2_sha256_read_accept_max_iterations(pb, PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT);
+    slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
+                  "PBKDF2 accept max iterations set to %" PRIu32 "\n", pbkdf2AcceptMaxIterations);
+
+    pbkdf2Iterations = benched_iterations;
     if (pbkdf2Iterations > pbkdf2AcceptMaxIterations) {
         pbkdf2Iterations = pbkdf2AcceptMaxIterations;
+        slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
+                      "Benchmark chose %" PRIu32 " rounds; capping at the configured accept max %" PRIu32 "\n",
+                      benched_iterations, pbkdf2AcceptMaxIterations);
     }
     slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
                   "Based on CPU performance, chose %" PRIu32 " rounds\n", pbkdf2Iterations);
