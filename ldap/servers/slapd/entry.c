@@ -162,13 +162,13 @@ str2entry_state_information_from_type(struct berval *atype,
             if (NULL == semicolonp) {
                 semicolonp = p; /* the first semicolon */
             }
-        } else if (strncmp(p + 1, "deletedattribute", 16) == 0) {
+        } else if (p[0] != 0 && strncmp(p + 1, "deletedattribute", 16) == 0) {
             p[0] = '\0';
             *attr_state = ATTRIBUTE_DELETED;
             if (NULL == semicolonp) {
                 semicolonp = p; /* the first semicolon */
             }
-        } else if (strncmp(p + 1, "deleted", 7) == 0) {
+        } else if (p[0] != 0 && strncmp(p + 1, "deleted", 7) == 0) {
             p[0] = '\0';
             *value_state = VALUE_DELETED;
             if (NULL == semicolonp) {
