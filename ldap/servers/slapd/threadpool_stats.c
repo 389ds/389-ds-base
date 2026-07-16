@@ -34,6 +34,15 @@
 #define TP_STATS_HEARTBEAT_INTERVAL_MS 1000
 #define TP_STATS_ARCHIVE_KEEP 5
 
+/*
+ * Crash archives are named <file>.YYYYMMDD-HHMMSS; the suffix is produced
+ * by strftime(TP_STATS_ARCHIVE_TIME_FMT). The lib389 reader matches the
+ * same pattern (\.\d{8}-\d{6}$).
+ */
+#define TP_STATS_ARCHIVE_TIME_FMT "%Y%m%d-%H%M%S"
+#define TP_STATS_ARCHIVE_DATE_LEN (sizeof("YYYYMMDD") - 1)
+#define TP_STATS_ARCHIVE_STAMP_LEN (sizeof("YYYYMMDD-HHMMSS") - 1)
+
 static tp_stats_header_t *tp_stats_header = NULL;
 static int tp_stats_fd = -1;
 static size_t tp_stats_len = 0;
@@ -61,11 +70,11 @@ tp_load_32(uint32_t *ptr, int memorder)
 }
 
 static tp_worker_slot_t *
-tp_stats_slot_at(tp_stats_header_t *header, uint32_t idx)
+tp_stats_slot_at(tp_stats_header_t *header, size_t idx)
 {
     return (tp_worker_slot_t *)((uint8_t *)header +
                                 TP_STATS_HEADER_SIZE +
-                                ((size_t)idx * TP_STATS_WORKER_SLOT_SIZE));
+                                (idx * TP_STATS_WORKER_SLOT_SIZE));
 }
 
 static tp_worker_slot_t *
@@ -213,11 +222,13 @@ tp_stats_name_cmp(const void *a, const void *b)
 static bool
 tp_stats_is_archive_suffix(const char *suffix)
 {
-    if (strlen(suffix) != 15 || suffix[8] != '-') {
+    if (suffix == NULL || strlen(suffix) != TP_STATS_ARCHIVE_STAMP_LEN ||
+        suffix[TP_STATS_ARCHIVE_DATE_LEN] != '-') {
         return false;
     }
-    for (int i = 0; i < 15; i++) {
-        if (i != 8 && !isdigit((unsigned char)suffix[i])) {
+    for (size_t i = 0; i < TP_STATS_ARCHIVE_STAMP_LEN; i++) {
+        /* Every character is a digit except the '-' after the date part */
+        if (i != TP_STATS_ARCHIVE_DATE_LEN && !isdigit((unsigned char)suffix[i])) {
             return false;
         }
     }
@@ -323,7 +334,7 @@ tp_stats_archive_crash_file(const char *path)
 
     now = slapi_current_utc_time();
     if (localtime_r(&now, &tms) == NULL ||
-        strftime(tbuf, sizeof(tbuf), "%Y%m%d-%H%M%S", &tms) == 0) {
+        strftime(tbuf, sizeof(tbuf), TP_STATS_ARCHIVE_TIME_FMT, &tms) == 0) {
         return;
     }
 
@@ -716,7 +727,7 @@ tp_stats_as_entry(Slapi_Entry *e)
     }
 
     now_ns = tp_stats_mono_ns();
-    for (uint32_t i = 0; i < header->max_workers; i++) {
+    for (size_t i = 0; i < header->max_workers; i++) {
         char buf[256];
         char op_buf[32];
         uint32_t state;
@@ -741,7 +752,7 @@ tp_stats_as_entry(Slapi_Entry *e)
 
         op_name = tp_stats_op_name(op_tag, op_buf, sizeof(op_buf));
         snprintf(buf, sizeof(buf),
-                 "worker=%" PRIu32 " state=%s op=%s duration_ns=%" PRIu64,
+                 "worker=%zu state=%s op=%s duration_ns=%" PRIu64,
                  i + 1, tp_stats_state_name(state), op_name, duration_ns);
         val.bv_val = buf;
         val.bv_len = strlen(buf);
