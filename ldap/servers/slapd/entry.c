@@ -120,7 +120,8 @@ str2entry_state_information_from_type(struct berval *atype,
     *value_state = VALUE_PRESENT;
     *attr_state = ATTRIBUTE_PRESENT;
     while (p != NULL) {
-        if (p[3] == 'c' && p[4] == 's' && p[5] == 'n' && p[6] == '-') {
+        if (p[0] != '\0' && p[1] != '\0' && p[2] != '\0' &&
+            p[3] == 'c' && p[4] == 's' && p[5] == 'n' && p[6] == '-') {
             CSNType t = CSN_TYPE_UNKNOWN;
             if (p[1] == 'x' && p[2] == '1') {
                 t = CSN_TYPE_UNKNOWN;
