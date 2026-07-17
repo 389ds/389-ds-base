@@ -348,6 +348,9 @@ def test_prehashed_pwd(topology_st):
         7. Update user password with hash value
         8. Bind with hashed password cleartext
         9. Check users passwordHistory
+        10. Restart the server and bind with the pre-hashed password
+        11. Change the password so the pre-hashed password enters passwordHistory
+        12. Verify the pre-hashed password cannot be reused
 
     :expectedresults:
         1. Password history policy should be configured successfully
@@ -359,6 +362,9 @@ def test_prehashed_pwd(topology_st):
         7. Password change accepted
         8. Successful bind
         9. Users passwordHistory should contain 2 enteries
+        10. Successful bind after restart
+        11. Password change accepted
+        12. Password reuse rejected
     """
 
     # Configure password history policy and add a test user
@@ -408,6 +414,15 @@ def test_prehashed_pwd(topology_st):
         assert False
     else:
         log.info('Correct number of passwords found in history.')
+
+    # Verify the pre-hashed password remains valid after plugin startup runs again
+    topology_st.standalone.restart()
+    user.rebind('password2')
+
+    # Move the pre-hashed password into history and verify it cannot be reused
+    user.replace('userpassword', 'password3')
+    user.rebind('password3')
+    change_password(user, 'password2', success=False)
 
     # Done
     log.info('Test suite PASSED.')
