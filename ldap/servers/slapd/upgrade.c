@@ -98,6 +98,59 @@ upgrade_AES_reverpwd_plugin(void)
     return uresult;
 }
 
+/*
+ * Add the PBKDF2 configuration object class to existing C PBKDF2-SHA256
+ * password storage plugin entries.
+ */
+static upgrade_status
+upgrade_pbkdf2_sha256_config(void)
+{
+    struct slapi_pblock *search_pb = slapi_pblock_new();
+    Slapi_Entry *plugin_entry = NULL;
+    Slapi_DN *sdn = NULL;
+    const char *plugin_dn = "cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config";
+    char *plugin_attr = "objectClass";
+    char *config_oc = "pwdPBKDF2PluginConfig";
+
+    sdn = slapi_sdn_new_dn_byref(plugin_dn);
+    slapi_search_get_entry(&search_pb, sdn, NULL, &plugin_entry, NULL);
+    if (plugin_entry && !slapi_entry_attr_hasvalue(plugin_entry, plugin_attr, config_oc)) {
+        Slapi_PBlock *mod_pb = slapi_pblock_new();
+        LDAPMod mod_add;
+        LDAPMod *mods[2];
+        char *add_val[2];
+        int32_t result;
+
+        add_val[0] = config_oc;
+        add_val[1] = 0;
+        mod_add.mod_op = LDAP_MOD_ADD;
+        mod_add.mod_type = plugin_attr;
+        mod_add.mod_values = add_val;
+        mods[0] = &mod_add;
+        mods[1] = 0;
+
+        slapi_modify_internal_set_pb(mod_pb, plugin_dn,
+                mods, 0, 0, (void *)plugin_get_default_component_id(), 0);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        if (result != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "upgrade_pbkdf2_sha256_config",
+                    "Failed to add %s to '%s', error %d; continuing because "
+                    "the object class is optional\n",
+                    config_oc, plugin_dn, result);
+        } else {
+            slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_pbkdf2_sha256_config",
+                    "Upgrade task: added %s to '%s'\n",
+                    config_oc, plugin_dn);
+        }
+        slapi_pblock_destroy(mod_pb);
+    }
+    slapi_search_get_entry_done(&search_pb);
+    slapi_sdn_free(&sdn);
+
+    return UPGRADE_SUCCESS;
+}
+
 static upgrade_status
 upgrade_143_entryuuid_exists(void)
 {
@@ -743,6 +796,10 @@ upgrade_server(void)
     }
 
     if (upgrade_AES_reverpwd_plugin() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_pbkdf2_sha256_config() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 
