@@ -436,7 +436,7 @@ idl_parentid_walk_push(ID **stack, size_t *stack_size, size_t *stack_top, ID id)
 /*
  * Walk the parentid index depth-first starting at root_id.
  * For each parent, look up index key "=parent_id" (direct get, not cursor next),
- * append the parent to the IDList, then visit each child the same way.
+ * append each descendant (but not root_id) to the IDList, then visit its children.
  */
 static int
 idl_parentid_walk_tree(idl_parentid_walk_ctx_t *ctx, ID root_id, ID **stack,
@@ -457,13 +457,18 @@ idl_parentid_walk_tree(idl_parentid_walk_ctx_t *ctx, ID root_id, ID **stack,
             return -1;
         }
 
-        if (idl_append_extend(&ctx->idl, parent_id) != 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "idl_new_parentid_sorted_range_fetch",
-                          "Unable to extend id list for attribute (%s)\n", ctx->index_id);
-            idl_free(&ctx->idl);
-            return -1;
+        if (parent_id != root_id) {
+            /* The suffix entry itself is not a candidate: bulk import
+             * (total init) sends it separately before walking the tree,
+             * and the pre-walk implementation never returned it either. */
+            if (idl_append_extend(&ctx->idl, parent_id) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "idl_new_parentid_sorted_range_fetch",
+                              "Unable to extend id list for attribute (%s)\n", ctx->index_id);
+                idl_free(&ctx->idl);
+                return -1;
+            }
+            ctx->count++;
         }
-        ctx->count++;
 
 #if defined(DB_ALLIDS_ON_READ)
         if ((NEW_IDL_NO_ALLID != *(ctx->flag_err)) && ctx->ai && (ctx->idl != NULL) &&
@@ -474,7 +479,10 @@ idl_parentid_walk_tree(idl_parentid_walk_ctx_t *ctx, ID root_id, ID **stack,
         }
 #endif
         idl_parentid_set_index_key(ctx, parent_id);
-        fetch_err = 0;
+        /* idl_new_fetch resets *err to 0 on success, so re-arm the
+         * no-allids hint for every fetch: collapsing one parent's
+         * children to ALLIDS would collapse the whole candidate list. */
+        fetch_err = NEW_IDL_NO_ALLID;
         children = idl_new_fetch(ctx->be, ctx->db, &ctx->key, ctx->txn, ctx->ai,
                                  &fetch_err, ctx->allidslimit);
         if (fetch_err != 0 && fetch_err != DB_NOTFOUND) {
