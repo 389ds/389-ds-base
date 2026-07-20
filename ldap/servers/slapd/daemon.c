@@ -59,6 +59,7 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "snmp_collator.h"
+#include "threadpool_stats.h"
 #include <private/pprio.h>
 #include <ssl.h>
 #include "fe.h"
@@ -1181,6 +1182,7 @@ slapd_daemon(daemon_ports_t *ports)
     PRFileDesc **i_unix = NULL;
     PRFileDesc **fdesp = NULL;
     uint64_t threads;
+    int32_t threadnumber = config_get_threadnumber();
     int in_referral_mode = config_check_referral_mode();
     int connection_table_size = get_connection_table_size();
     the_connection_table = connection_table_new(connection_table_size);
@@ -1229,7 +1231,11 @@ slapd_daemon(daemon_ports_t *ports)
     }
 
     init_ct_list_threads();
-    init_op_threads();
+    tp_stats_init(threadnumber > 0 ? (uint32_t)threadnumber : 0);
+    init_op_threads(threadnumber);
+    /* Heartbeat must not start before init_op_threads: its callback reads
+     * per_thread_snmp_vars, which alloc_per_thread_snmp_vars reallocates. */
+    tp_stats_start_heartbeat();
 
     /* Start the SNMP collator if counters are enabled. */
     if (config_get_slapi_counters()) {
@@ -1479,6 +1485,7 @@ slapd_daemon(daemon_ports_t *ports)
     pageresult_lock_cleanup();
     eq_stop(); /* deprecated */
     eq_stop_rel();
+    tp_stats_close();
     if (!in_referral_mode) {
         task_shutdown();
         uniqueIDGenCleanup();

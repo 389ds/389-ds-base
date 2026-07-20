@@ -22,6 +22,7 @@
 #include "prcvar.h"
 #include "prlog.h" /* for PR_ASSERT */
 #include "fe.h"
+#include "threadpool_stats.h"
 #include <sasl/sasl.h>
 #include <stdbool.h>
 #if defined(LINUX)
@@ -437,7 +438,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
 
 /* Create a pool of threads for handling the operations */
 void
-init_op_threads()
+init_op_threads(int32_t threadnumber)
 {
     pthread_condattr_t condAttr;
     int32_t rc;
@@ -467,7 +468,7 @@ init_op_threads()
     }
     pthread_condattr_destroy(&condAttr); /* no longer needed */
 
-    max_threads = config_get_threadnumber();
+    max_threads = threadnumber;
     work_q_stack = PR_CreateStack("connection_work_q");
     op_stack = PR_CreateStack("connection_operation");
     alloc_per_thread_snmp_vars(max_threads);
@@ -1730,6 +1731,7 @@ connection_threadmain(void *arg)
     char tname[16];
     snprintf(tname, sizeof(tname), "worker-%d", *snmp_vars_idx);
     slapi_set_thread_name(tname);
+    tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
     /* wait forever for new pb until one is available or shutdown */
     int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;
@@ -1759,6 +1761,7 @@ connection_threadmain(void *arg)
             if (is_busy) {
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
+            tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -1772,6 +1775,7 @@ connection_threadmain(void *arg)
                 is_busy = false;
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
+            tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
 
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
@@ -1792,6 +1796,7 @@ connection_threadmain(void *arg)
                 if (is_busy) {
                     slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
                 }
+                tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
                 return;
@@ -1807,6 +1812,7 @@ connection_threadmain(void *arg)
                     if (is_busy) {
                         slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
                     }
+                    tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
                     return;
@@ -1883,6 +1889,7 @@ connection_threadmain(void *arg)
             while (val > slapi_atomic_load_32(&max_busy_workers, __ATOMIC_RELAXED)) {
                 slapi_atomic_store_32(&max_busy_workers, val, __ATOMIC_RELAXED);
             }
+            tp_stats_worker_busy((uint32_t)*snmp_vars_idx);
         }
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -1891,6 +1898,7 @@ connection_threadmain(void *arg)
             if (is_busy) {
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
+            tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -2100,6 +2108,7 @@ connection_threadmain(void *arg)
         /*
          * Call the do_<operation> function to process this request.
          */
+        tp_stats_worker_operation_start((uint32_t)*snmp_vars_idx, conn->c_connid, (uint64_t)op->o_opid, (uint32_t)op->o_tag);
         connection_dispatch_operation(conn, op, pb);
 
     done:
@@ -2107,6 +2116,7 @@ connection_threadmain(void *arg)
             if (is_busy) {
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
+            tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
             connection_make_readable_nolock(conn);
@@ -2130,6 +2140,7 @@ connection_threadmain(void *arg)
         PR_AtomicIncrement(&conn->c_opscompleted);
         /* total number of ops for the server */
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
+        tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
         /* If this op isn't a persistent search, remove it */
         if (op->o_flags & OP_FLAG_PS) {
             /* Release the connection (i.e. decrease refcnt) at the condition

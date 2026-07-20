@@ -245,6 +245,7 @@ slapi_onoff_t init_close_on_failed_bind;
 slapi_onoff_t init_minssf_exclude_rootdse;
 slapi_onoff_t init_force_sasl_external;
 slapi_onoff_t init_slapi_counters;
+slapi_onoff_t init_thread_pool_stats;
 slapi_onoff_t init_entryusn_global;
 slapi_onoff_t init_disk_monitoring;
 slapi_onoff_t init_disk_threshold_readonly;
@@ -956,6 +957,11 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.slapi_counters,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_slapi_counters,
      &init_slapi_counters, NULL},
+    {CONFIG_THREAD_POOL_STATS_ATTRIBUTE, config_set_thread_pool_stats,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.thread_pool_stats,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_thread_pool_stats,
+     &init_thread_pool_stats, NULL},
     {CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
      log_set_mindiskspace, SLAPD_ACCESS_LOG,
      (void **)&global_slapdFrontendConfig.accesslog_minfreespace,
@@ -1867,6 +1873,7 @@ FrontendConfig_init(void)
     init_close_on_failed_bind = cfg->close_on_failed_bind = LDAP_OFF;
     cfg->allow_anon_access = SLAPD_DEFAULT_ALLOW_ANON_ACCESS;
     init_slapi_counters = cfg->slapi_counters = LDAP_ON;
+    init_thread_pool_stats = cfg->thread_pool_stats = LDAP_ON;
     cfg->threadnumber = util_get_hardware_threads();
     cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
     cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
@@ -2239,6 +2246,11 @@ alloc_global_snmp_vars()
 
 /* Allocated the next slots of the arrays of counters
  * with a slot per worker thread
+ *
+ * Must complete before any reader of per_thread_snmp_vars starts (worker
+ * threads, snmp collator, thread-pool stats heartbeat): the slot count and
+ * the array pointer are published without synchronization, and the realloc
+ * frees the old array under a concurrent reader.
  */
 void
 alloc_per_thread_snmp_vars(int32_t maxthread)
@@ -3444,6 +3456,23 @@ config_set_slapi_counters(const char *attrname, char *value, char *errorbuf, int
 
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->slapi_counters), errorbuf, apply);
+
+    return retVal;
+}
+
+/*
+ * Enable/disable the thread-pool status diagnostics (mmap file, "dsctl
+ * thread-pool status", threadpoolworker on cn=monitor). Read once at
+ * startup; changing it requires a restart.
+ */
+int32_t
+config_set_thread_pool_stats(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->thread_pool_stats), errorbuf, apply);
 
     return retVal;
 }
@@ -6343,6 +6372,13 @@ config_get_slapi_counters()
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     return slapi_atomic_load_32(&(slapdFrontendConfig->slapi_counters), __ATOMIC_ACQUIRE);
 
+}
+
+int32_t
+config_get_thread_pool_stats(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return slapi_atomic_load_32(&(slapdFrontendConfig->thread_pool_stats), __ATOMIC_ACQUIRE);
 }
 
 char *

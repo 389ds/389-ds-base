@@ -49,6 +49,7 @@ static const char *requires_restart[] = {
     "cn=config:nsslapd-numlisteners",
     "cn=config:" CONFIG_RETURN_EXACT_CASE_ATTRIBUTE,
     "cn=config:" CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
+    "cn=config:" CONFIG_THREAD_POOL_STATS_ATTRIBUTE,
     "cn=config,cn=ldbm:nsslapd-idlistscanlimit",
     "cn=config,cn=ldbm:nsslapd-parentcheck",
     "cn=config,cn=ldbm:nsslapd-dbcachesize",

@@ -2298,6 +2298,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LDAPI_AUTH_DN_ATTRIBUTE "nsslapd-authenticateAsDN"
 #define CONFIG_ANON_LIMITS_DN_ATTRIBUTE "nsslapd-anonlimitsdn"
 #define CONFIG_SLAPI_COUNTER_ATTRIBUTE "nsslapd-counters"
+#define CONFIG_THREAD_POOL_STATS_ATTRIBUTE "nsslapd-thread-pool-stats"
 #define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
 #define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
 #define CONFIG_ACCESSLOG_ATTRIBUTE "nsslapd-accesslog"
@@ -2726,6 +2727,7 @@ typedef struct _slapdFrontendConfig
     char *ldapi_auto_dn_suffix;           /* suffix to be appended to auto gen DNs */
     char *ldapi_auto_mapping_base;        /* suffix/subtree containing LDAPI mapping entries */
     slapi_onoff_t slapi_counters;         /* switch to turn slapi_counters on/off */
+    slapi_onoff_t thread_pool_stats;      /* switch to turn thread-pool status diagnostics on/off */
     slapi_onoff_t allow_unauth_binds;     /* switch to enable/disable unauthenticated binds */
     slapi_onoff_t require_secure_binds;   /* switch to require simple binds to use a secure channel */
     slapi_onoff_t allow_anon_access;      /* switch to enable/disable anonymous access */

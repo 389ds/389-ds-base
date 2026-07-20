@@ -58,7 +58,7 @@ void connection_post_shutdown_cleanup(void);
  */
 void connection_abandon_operations(Connection *conn);
 int connection_activity(Connection *conn, int maxthreads);
-void init_op_threads(void);
+void init_op_threads(int32_t threadnumber);
 int connection_new_private(Connection *conn);
 void connection_remove_operation(Connection *conn, Operation *op);
 void connection_remove_operation_ext(Slapi_PBlock *pb, Connection *conn, Operation *op);
