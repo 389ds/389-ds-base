@@ -219,6 +219,7 @@ tp_stats_name_cmp(const void *a, const void *b)
     return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
+/* The expected suffix format is 'YYYYMMDD-HHMMSS' */
 static bool
 tp_stats_is_archive_suffix(const char *suffix)
 {
