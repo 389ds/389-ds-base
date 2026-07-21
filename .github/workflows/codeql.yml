@@ -43,7 +43,7 @@ jobs:
         run: dnf install -y which
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build_mode }}
@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload build and configuration artifacts
         if: always() && matrix.language == 'c-cpp'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: codeql-build-cpp
           path: |
@@ -76,4 +76,4 @@ jobs:
           if-no-files-found: ignore
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
