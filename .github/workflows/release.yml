@@ -60,13 +60,13 @@ jobs:
           TAG=${{ steps.get_version.outputs.version }} make -f rpm.mk dist-bz2
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.get_version.outputs.version }}.tar.bz2
           path: ${{ steps.get_version.outputs.version }}.tar.bz2
 
       - name: Release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           tag_name: ${{ steps.get_version.outputs.version }}
           files: |
