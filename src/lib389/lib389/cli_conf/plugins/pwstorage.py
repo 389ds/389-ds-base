@@ -34,7 +34,9 @@ def _get_pbkdf2_plugin(inst, variant):
 def pbkdf2_get_iterations(inst, basedn, log, args):
     log = log.getChild('pbkdf2_get_iterations')
     plugin = _get_pbkdf2_plugin(inst, args.variant)
+
     attr = 'nsslapd-pwdpbkdf2numiterations'
+
     if hasattr(args, 'json') and args.json:
         vals = {}
         rounds = plugin.get_rounds()
@@ -120,7 +122,20 @@ def create_parser(subparsers):
 
     legacy_variant = 'pbkdf2-sha256-legacy'
     for variant in sorted((*PBKDF2_VARIANTS, legacy_variant)):
-        variant_parser = scheme_subcommands.add_parser(variant, help=f'Manage {variant.upper()} scheme',
+        if variant == 'pbkdf2':
+            variant_help = (
+                'Manage legacy PBKDF2 scheme ({PBKDF2}); settings are independent '
+                'of pbkdf2-sha1 even though both use SHA-1'
+            )
+        elif variant == 'pbkdf2-sha1':
+            variant_help = (
+                'Manage PBKDF2-SHA1 scheme ({PBKDF2-SHA1}); settings are independent '
+                'of legacy pbkdf2 even though both use SHA-1'
+            )
+        else:
+            variant_help = f'Manage {variant.upper()} scheme'
+
+        variant_parser = scheme_subcommands.add_parser(variant, help=variant_help,
                                                        formatter_class=CustomHelpFormatter)
 
         variant_subcommands = variant_parser.add_subparsers(help='action')
