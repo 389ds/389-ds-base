@@ -79,6 +79,7 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sechash.h>
@@ -2720,14 +2721,15 @@ static const struct pwpolicy_attr_value_check
 #define PWPOLICY_ATTR_CHECK_COUNT \
     (sizeof(pwpolicy_attr_value_checklist) / sizeof(pwpolicy_attr_value_checklist[0]))
 
-static int
+/* Local password policies only. */
+static bool
 entry_is_pwpolicy(Slapi_Entry *e)
 {
     Slapi_Value target;
-    int is_pwp;
+    bool is_pwp;
 
     if (e == NULL) {
-        return 0;
+        return false;
     }
 
     slapi_value_init(&target);
