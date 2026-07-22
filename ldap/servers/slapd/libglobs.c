@@ -266,6 +266,7 @@ slapi_onoff_t init_enable_nunc_stans;
 #endif
 slapi_onoff_t init_extract_pem;
 slapi_onoff_t init_ignore_vattrs;
+slapi_onoff_t init_enable_or_filter_lookup;
 slapi_onoff_t init_enable_upgrade_hash;
 slapi_special_filter_verify_t init_verify_filter_schema;
 slapi_onoff_t init_enable_ldapssotoken;
@@ -1221,6 +1222,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.ignore_vattrs,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_vattrs, &init_ignore_vattrs, NULL},
+    {CONFIG_ENABLE_OR_FILTER_LOOKUP, config_set_enable_or_filter_lookup,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.enable_or_filter_lookup,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_or_filter_lookup, &init_enable_or_filter_lookup, NULL},
     {CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE, config_set_unhashed_pw_switch,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.unhashed_pw_switch,
@@ -2061,6 +2066,7 @@ FrontendConfig_init(void)
     cfg->ndn_cache_max_size = SLAPD_DEFAULT_NDN_SIZE;
     init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
     init_ignore_vattrs = cfg->ignore_vattrs = LDAP_ON;
+    init_enable_or_filter_lookup = cfg->enable_or_filter_lookup = LDAP_ON;
     cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
     cfg->unhashed_pw_switch = SLAPD_DEFAULT_UNHASHED_PW_SWITCH;
     init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
@@ -2532,6 +2538,14 @@ config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int 
     retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->ignore_vattrs), errorbuf, apply);
 
     return retVal;
+}
+
+int
+config_set_enable_or_filter_lookup(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    return config_set_onoff(attrname, value, &(slapdFrontendConfig->enable_or_filter_lookup), errorbuf, apply);
 }
 
 int32_t
@@ -6199,6 +6213,14 @@ config_get_ignore_vattrs()
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     return (int)slapdFrontendConfig->ignore_vattrs;
+}
+
+int
+config_get_enable_or_filter_lookup()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    return (int)slapdFrontendConfig->enable_or_filter_lookup;
 }
 
 int32_t
