@@ -689,6 +689,7 @@ slapi_filter_dup(Slapi_Filter *f)
         return NULL;
     }
 
+    /* f_or_lookup borrows child pointers, so it is never copied. */
     out->f_choice = f->f_choice;
     out->f_hash = f->f_hash;
     out->f_flags = f->f_flags;
@@ -780,6 +781,8 @@ slapi_filter_free(struct slapi_filter *f, int recurse)
     case LDAP_FILTER_AND:
     case LDAP_FILTER_OR:
     case LDAP_FILTER_NOT:
+        /* Not gated on recurse: a non-recursive free still frees this node. */
+        filter_or_lookup_free(&f->f_or_lookup);
         if (recurse) {
             struct slapi_filter *fl, *next;
 

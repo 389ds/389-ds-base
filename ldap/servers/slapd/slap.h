@@ -553,12 +553,19 @@ struct subfilt
 /*
  * represents a search filter
  */
+struct slapi_filter_or_lookup; /* slapi-private.h */
 struct slapi_filter
 {
     int f_flags;
     unsigned long f_choice; /* values taken from ldap.h */
     PRUint32 f_hash;        /* for quick comparisons */
     void *assigned_decoder;
+    /*
+     * Equality lookup table for large OR nodes.  Built only on the
+     * backend's per-search filter dups; owned by this node, never copied
+     * by slapi_filter_dup, freed in slapi_filter_free.  NULL elsewhere.
+     */
+    struct slapi_filter_or_lookup *f_or_lookup;
 
     union
     {
@@ -2418,6 +2425,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_NDN_CACHE_SIZE "nsslapd-ndn-cache-max-size"
 #define CONFIG_ALLOWED_SASL_MECHS "nsslapd-allowed-sasl-mechanisms"
 #define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
+#define CONFIG_ENABLE_OR_FILTER_LOOKUP "nsslapd-enable-or-filter-lookup"
 #define CONFIG_SASL_MAPPING_FALLBACK "nsslapd-sasl-mapping-fallback"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_SEARCH_RETURN_ORIGINAL_TYPE "nsslapd-search-return-original-type-switch"
@@ -2762,6 +2770,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t return_orig_type; /* if on, search returns original type set in attr list */
     slapi_onoff_t sasl_mapping_fallback;
     slapi_onoff_t ignore_vattrs;
+    slapi_onoff_t enable_or_filter_lookup; /* equality-lookup tables for large OR filters */
     slapi_onoff_t unhashed_pw_switch; /* switch to on/off/nolog unhashed pw */
     slapi_onoff_t enable_turbo_mode;
     slapi_int_t connection_buffer;    /* values are CONNECTION_BUFFER_* below */
