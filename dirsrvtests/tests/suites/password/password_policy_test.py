@@ -1566,9 +1566,9 @@ def test_additional_corner_cases(topo, policy_setup, _fixture_for_additional_cas
 @pytest.mark.parametrize('value,result',
                          [('0', ldap.SUCCESS),
                           ('24', ldap.SUCCESS),
-                          pytest.param('-1', ldap.CONSTRAINT_VIOLATION, marks=pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/7284')),
-                          pytest.param('30', ldap.CONSTRAINT_VIOLATION, marks=pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/7284')),
-                          pytest.param('a', ldap.CONSTRAINT_VIOLATION, marks=pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/7284'))])
+                          ('-1', ldap.CONSTRAINT_VIOLATION),
+                          ('30', ldap.CONSTRAINT_VIOLATION),
+                          ('a', ldap.CONSTRAINT_VIOLATION)])
 def test_create_local_pwp_with_passwordInHistory(topo, value, result):
     """Verify local password policy passwordInHistory accepts only values 0-24
 
