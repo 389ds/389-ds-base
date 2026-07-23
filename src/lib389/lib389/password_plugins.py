@@ -59,24 +59,24 @@ class PBKDF2BasePlugin(PasswordPlugin):
     def __init__(self, instance, dn):
         super(PBKDF2BasePlugin, self).__init__(instance, dn)
         self._create_objectclasses.append('pwdPBKDF2PluginConfig')
-        
+
     def set_rounds(self, rounds):
         """Set the number of rounds for PBKDF2 hashing (requires restart)
-        
+
         :param rounds: Number of rounds
         :type rounds: int
         """
         # Ensure the pwdPBKDF2PluginConfig objectClass is present
         self.ensure_present('objectClass', 'pwdPBKDF2PluginConfig')
-        
+
         rounds = int(rounds)
         if rounds < 10000 or rounds > 10000000:
             raise ValueError("PBKDF2 rounds must be between 10,000 and 10,000,000")
         self.replace('nsslapd-pwdPBKDF2NumIterations', str(rounds))
-        
+
     def get_rounds(self):
         """Get the current number of rounds
-        
+
         :param use_json: Whether to return JSON formatted output
         :type use_json: bool
         :returns: Current rounds setting or JSON string
@@ -86,6 +86,35 @@ class PBKDF2BasePlugin(PasswordPlugin):
         if rounds:
             return rounds
         return self.DEFAULT_ROUNDS
+
+    def set_accept_max_iterations(self, accept_max):
+        """Set the maximum PBKDF2 iterations accepted from stored hashes on bind.
+
+        :param accept_max: Maximum iteration count accepted on compare
+        :type accept_max: int
+        """
+        self.ensure_present('objectClass', 'pwdPBKDF2PluginConfig')
+
+        accept_max = int(accept_max)
+        if accept_max < 10000:
+            raise ValueError("PBKDF2 accept max iterations must be at least 10,000")
+        self.replace('nsslapd-pwdPBKDF2AcceptMaxIterations', str(accept_max))
+
+    def get_accept_max_iterations(self):
+        """Get the maximum PBKDF2 iterations accepted from stored hashes on bind.
+
+        :returns: Configured accept max, or encrypt rounds if unset
+        :rtype: int
+        """
+        accept_max = self.get_attr_val_int('nsslapd-pwdPBKDF2AcceptMaxIterations')
+        if accept_max:
+            return accept_max
+        return self.get_rounds()
+
+    def delete_accept_max_iterations(self):
+        """Remove the accept max iterations override (default to encrypt rounds)."""
+        self.ensure_present('objectClass', 'pwdPBKDF2PluginConfig')
+        self.remove_all('nsslapd-pwdPBKDF2AcceptMaxIterations')
 
 
 class PBKDF2Plugin(PBKDF2BasePlugin):
