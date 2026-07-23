@@ -798,6 +798,20 @@ def add_agmt(inst, basedn, log, args):
         properties['nsds5replicatedattributelisttotal'] = frac_total_list
     if args.strip_list is not None:
         properties['nsds5replicastripattrs'] = args.strip_list
+    if args.conn_timeout is not None:
+        properties['nsds5replicatimeout'] = args.conn_timeout
+    if args.protocol_timeout is not None:
+        properties['nsds5replicaprotocoltimeout'] = args.protocol_timeout
+    if args.wait_async_results is not None:
+        properties['nsds5replicawaitforasyncresults'] = args.wait_async_results
+    if args.busy_wait_time is not None:
+        properties['nsds5replicabusywaittime'] = args.busy_wait_time
+    if args.session_pause_time is not None:
+        properties['nsds5replicaSessionPauseTime'] = args.session_pause_time
+    if args.flow_control_window is not None:
+        properties['nsds5replicaflowcontrolwindow'] = args.flow_control_window
+    if args.flow_control_pause is not None:
+        properties['nsds5replicaflowcontrolpause'] = args.flow_control_pause
 
     # Handle the optional bootstrap settings
     if args.bootstrap_bind_dn is not None:
