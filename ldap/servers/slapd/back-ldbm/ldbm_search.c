@@ -1167,6 +1167,28 @@ ldbm_back_search(Slapi_PBlock *pb)
                 tmp_err = LDAP_OPERATIONS_ERROR;
                 tmp_desc = "Could not compile regex for filter matching";
             }
+        } else if (!filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE) &&
+                   !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) {
+            /* Build the large-OR lookup tables on the operation-private,
+             * normalized dups.  Tombstone/RUV searches keep the classic
+             * walk.  VLV admits undefined filter-test results, so its
+             * tables must not claim boolean context. */
+            int32_t or_nodes = 0;
+            int32_t or_largest = 0;
+
+            or_nodes = filter_or_lookup_build(sr->sr_norm_filter, &or_largest,
+                                              !virtual_list_view);
+            if (filter_intent && sr->sr_norm_filter_intent &&
+                !filter_flag_is_set(filter_intent, SLAPI_FILTER_TOMBSTONE) &&
+                !filter_flag_is_set(filter_intent, SLAPI_FILTER_RUV)) {
+                or_nodes += filter_or_lookup_build(sr->sr_norm_filter_intent,
+                                                   &or_largest, !virtual_list_view);
+            }
+            if (or_nodes) {
+                slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_search",
+                              "OR filter equality lookup engaged: %d node(s), largest %d branches\n",
+                              or_nodes, or_largest);
+            }
         }
     } else {
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Skipped Filter Test\n");

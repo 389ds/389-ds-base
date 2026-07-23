@@ -601,6 +601,8 @@ int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *error
 int config_get_schemamod(void);
 int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_ignore_vattrs(void);
+int config_set_enable_or_filter_lookup(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_enable_or_filter_lookup(void);
 int config_set_sasl_mapping_fallback(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_sasl_mapping_fallback(void);
 int config_get_unhashed_pw_switch(void);

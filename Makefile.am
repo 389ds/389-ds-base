@@ -1134,6 +1134,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/features.c \
 	ldap/servers/slapd/fileio.c \
 	ldap/servers/slapd/filter.c \
+	ldap/servers/slapd/filter_or_lookup.c \
 	ldap/servers/slapd/filtercmp.c \
 	ldap/servers/slapd/filterentry.c \
 	ldap/servers/slapd/generation.c \
