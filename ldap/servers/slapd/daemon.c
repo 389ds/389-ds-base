@@ -32,6 +32,9 @@
 #include <time.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <dlfcn.h>
+#include <sys/ptrace.h>
+#include <sys/wait.h>
 #define TCPLEN_T int
 #ifdef NEED_FILIO
 #include <sys/filio.h>
@@ -141,6 +144,8 @@ static PRFileDesc **createprlistensockets(unsigned short port,
                                           int local);
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen);
 static void set_shutdown(int);
+static void set_lsan_check(int);
+static volatile sig_atomic_t lsan_check_requested = 0;
 static void setup_pr_ct_firsttime_pds(Connection_Table *ct);
 #ifdef ENABLE_EPOLL
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, int epoll_fd);
@@ -1385,7 +1390,9 @@ slapd_daemon(daemon_ports_t *ports)
 #endif /* !ENABLE_EPOLL */
     /* The meat of the operation is in a loop on a call to select */
     while (!g_get_shutdown()) {
-
+        if (lsan_check_requested) {
+            slapd_lsan_check();
+        }
         usleep(500 * 1000);
     }
     /* We get here when the server is shutting down */
@@ -2460,13 +2467,8 @@ init_shutdown_detect(void)
 #endif
     (void)SIGNAL(SIGPIPE, SIG_IGN);
     (void)SIGNAL(SIGCHLD, slapd_wait4child);
-#ifndef LINUX
-    /* linux uses USR1/USR2 for thread synchronization, so we aren't
-     * allowed to mess with those.
-     */
-    (void)SIGNAL(SIGUSR1, slapd_do_nothing);
+    (void)SIGNAL(SIGUSR1, set_lsan_check);
     (void)SIGNAL(SIGUSR2, set_shutdown);
-#endif
     (void)SIGNAL(SIGTERM, set_shutdown);
     (void)SIGNAL(SIGINT, set_shutdown);
     (void)SIGNAL(SIGHUP, set_shutdown);
@@ -2593,26 +2595,88 @@ set_shutdown(int sig __attribute__((unused)))
     (void)SIGNAL(SIGHUP, set_shutdown);
 }
 
-#ifndef LINUX
-void
-slapd_do_nothing(int sig)
-{
-    /* don't log anything from a signal handler:
-     * you could be holding a lock when the signal was trapped.  more
-     * specifically, you could be holding the logfile lock (and deadlock
-     * yourself).
-     */
-    (void)SIGNAL(SIGUSR1, slapd_do_nothing);
+static int (*lsan_check_fn)(void) = NULL;
 
-#if 0
-    /*
-     * Actually do a little more: dump the conn struct and
-     * send it to a tmp file
-     */
-    connection_table_dump(connection_table);
-#endif
+static void
+set_lsan_check(int sig)
+{
+    lsan_check_requested = 1;
+    (void)SIGNAL(SIGUSR1, set_lsan_check);
 }
-#endif /* LINUX */
+
+/*
+ * Check if ptrace is available by forking a child and attempting
+ * PTRACE_ATTACH. If ptrace is denied (SELinux, non-dumpable process,
+ * seccomp, containers), LSan calls exit(1) which would kill the server.
+ */
+static int
+lsan_ptrace_available(void)
+{
+    pid_t child, ret;
+    int status;
+    int available = 0;
+
+    child = fork();
+    if (child == -1) {
+        return 0;
+    }
+
+    if (child == 0) {
+        /* Child: try to ptrace the parent */
+        if (ptrace(PTRACE_ATTACH, getppid(), NULL, NULL) == 0) {
+            /* Attached - detach and exit success */
+            waitpid(getppid(), NULL, 0);
+            ptrace(PTRACE_DETACH, getppid(), NULL, NULL);
+            _exit(0);
+        }
+        _exit(1);
+    }
+
+    /* Parent: wait for child result */
+    ret = waitpid(child, &status, 0);
+    if (ret == child && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        available = 1;
+    }
+
+    return available;
+}
+
+void
+slapd_lsan_check(void)
+{
+    int num_leaks = 0;
+
+    lsan_check_requested = 0;
+
+    if (!lsan_check_fn) {
+        lsan_check_fn = (int (*)(void))dlsym(RTLD_DEFAULT, "__lsan_do_recoverable_leak_check");
+
+        if (!lsan_check_fn) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_lsan_check",
+                          "LeakSanitizer leak check function not available - "
+                          "ensure the server is built with AddressSanitizer enabled "
+                          "or run with LD_PRELOAD=/path/to/libasan.so\n");
+            return;
+        }
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
+                      "LeakSanitizer leak check function initialized successfully\n");
+    }
+
+    if (!lsan_ptrace_available()) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_lsan_check",
+                      "Cannot perform leak check - ptrace is not permitted. "
+                      "Check: SELinux 'allow dirsrv_t self:process ptrace' "
+                      "(ausearch -m avc -c ns-slapd), "
+                      "and /proc/sys/fs/suid_dumpable (must be 1)\n");
+        return;
+    }
+
+    slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
+                  "SIGUSR1 signal received - performing recoverable leak check\n");
+    num_leaks = lsan_check_fn();
+    slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
+                  "Leak check completed - %d leak(s) detected\n", num_leaks);
+}
 
 void
 slapd_wait4child(int sig __attribute__((unused)))
@@ -2932,7 +2996,8 @@ destroysignalpipe(void)
 #include <pthread.h> /* for sigwait */
 /*
  * Set up a thread to catch signals
- * SIGUSR1 (ignore), SIGCHLD (call slapd_wait4child),
+ * SIGUSR1 (run LeakSanitizer recoverable leak check),
+ * SIGCHLD (call slapd_wait4child),
  * SIGUSR2 (set slapd_shutdown), SIGTERM (set slapd_shutdown),
  * SIGHUP (set slapd_shutdown)
  */
@@ -2962,7 +3027,8 @@ catch_signals()
             slapi_log_err(SLAPI_LOG_TRACE, "catch_signals", "detected signal %d\n", sig);
             switch (sig) {
             case SIGUSR1:
-                continue; /* ignore SIGUSR1 */
+                slapd_lsan_check();
+                break;
             case SIGUSR2: /* fallthrough */
             case SIGTERM: /* fallthrough */
             case SIGHUP:
