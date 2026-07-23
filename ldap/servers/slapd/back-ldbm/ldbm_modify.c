@@ -527,6 +527,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     int is_noop = 0;
     int fixup_tombstone = 0;
     int ec_locked = 0;
+    int e_locked = 0;
     int result_sent = 0;
     int32_t parent_op = 0;
     int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
@@ -620,6 +621,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
             ldap_result_code = -1;
             goto error_return; /* error result sent by find_entry2modify() */
         }
+        e_locked = 1;
     }
 
     txn.back_txn_txn = NULL; /* ready to create the child transaction */
@@ -627,8 +629,19 @@ ldbm_back_modify(Slapi_PBlock *pb)
         int cache_rc = 0;
         int new_mod_count = 0;
         if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
-            /* don't release SERIAL LOCK */
-            dblayer_txn_abort_ext(li, &txn, PR_FALSE);
+            /*
+             * Unlock entry cache lock before releasing SERIAL LOCK
+             * to maintain lock ordering (SERIAL LOCK -> entry locks)
+             * and prevent AB-BA deadlock on retry.
+             * Entry stays refcounted in cache, so pointer remains valid.
+             */
+            if (e_locked) {
+                cache_unlock_entry(&inst->inst_cache, e);
+                e_locked = 0;
+            }
+
+            /* Release SERIAL LOCK */
+            dblayer_txn_abort(be, &txn);
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
             /*
              * Since be_txn_preop functions could have modified the entry/mods,
@@ -678,13 +691,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
         /* Nothing above here modifies persistent store, everything after here is subject to the transaction */
         /* dblayer_txn_begin holds SERIAL lock,
          * which should be outside of locking the entry (find_entry2modify) */
-        if (0 == retry_count) {
-            /* First time, hold SERIAL LOCK */
-            retval = dblayer_txn_begin(be, parent_txn, &txn);
-        } else {
-            /* Otherwise, no SERIAL LOCK */
-            retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);
-        }
+        retval = dblayer_txn_begin(be, parent_txn, &txn);
         if (0 != retval) {
             if (LDBM_OS_ERR_IS_DISKFULL(retval))
                 disk_full = 1;
@@ -693,6 +700,22 @@ ldbm_back_modify(Slapi_PBlock *pb)
         }
         /* stash the transaction for plugins */
         slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
+
+        /* Re-lock entry after SERIAL LOCK to maintain lock ordering */
+        if (retry_count > 0 && e) {
+            int lock_rc = cache_lock_entry(&inst->inst_cache, e);
+            if (lock_rc != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
+                              "Failed to re-lock entry after deadlock "
+                              "retry (rc=%d)\n", lock_rc);
+                CACHE_RETURN(&inst->inst_cache, &e);
+                e = NULL;
+                ldap_result_code = LDAP_OPERATIONS_ERROR;
+                retval = -1;
+                goto error_return;
+            }
+            e_locked = 1;
+        }
 
         if (0 == retry_count) { /* just once */
             if (!MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
@@ -706,6 +729,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
                     ldap_result_code = -1;
                     goto error_return; /* error result sent by find_entry2modify() */
                 }
+                e_locked = 1;
             }
             assert(e);
 
@@ -993,6 +1017,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     /* we must return both e (which has been deleted) and new entry ec to cache */
     /* cache_replace removes e from the cache hash tables */
     cache_unlock_entry(&inst->inst_cache, e);
+    e_locked = 0;
     CACHE_RETURN(&inst->inst_cache, &e);
     /* lock new entry in cache to prevent usage until we are complete */
     cache_lock_entry(&inst->inst_cache, ec);
@@ -1141,7 +1166,10 @@ common_return:
         } else if (e) {
             /* if ec was not in cache, cache_replace was not done.
              * i.e., e was not unlocked. */
-            cache_unlock_entry(&inst->inst_cache, e);
+            if (e_locked) {
+                cache_unlock_entry(&inst->inst_cache, e);
+                e_locked = 0;
+            }
             CACHE_RETURN(&inst->inst_cache, &e);
         }
         CACHE_RETURN(&inst->inst_cache, &ec);
