@@ -2712,6 +2712,8 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize, i
                                "The OID \"%s\" is also used by the attribute type \"%s\"",
                                pnew_oc->oc_oid, pasyntaxinfo->asi_name);
         rc = LDAP_TYPE_OR_VALUE_EXISTS;
+    }
+    if (pasyntaxinfo) {
         attr_syntax_return(pasyntaxinfo);
     }
 
@@ -3343,6 +3345,8 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, si
             if (NULL == atype->at_ordering_oid) {
                 atype->at_ordering_oid = slapi_ch_strdup(asi_parent->asi_mr_ordering);
             }
+        }
+        if (asi_parent) {
             attr_syntax_return(asi_parent);
         }
     }
@@ -4393,9 +4397,9 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be, struct dse **local_psche
                               schema_flags, 0, 0, 0);
         }
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "init_schema_dse_ext", "Could not add"
-                                                                " attribute type \"objectClass\" to the schema: %s\n",
-                          errorbuf);
+            slapi_log_err(SLAPI_LOG_ERR, "init_schema_dse_ext",
+                    "Could not add attribute type \"objectClass\" to the schema: %s\n",
+                    errorbuf);
         }
 
         rc = dse_read_file(*local_pschemadse, pb);
@@ -4935,7 +4939,7 @@ slapi_reload_schema_files(char *schemadir)
 
     if (NULL == be) {
         slapi_log_err(SLAPI_LOG_ERR, "schema_reload",
-                      "slapi_reload_schema_files failed\n");
+                      "slapi_reload_schema_files failed - be is NULL\n");
         return LDAP_LOCAL_ERROR;
     }
     slapi_be_Wlock(be); /* be lock must be outer of schemafile lock */
@@ -4971,11 +4975,12 @@ slapi_reload_schema_files(char *schemadir)
         slapi_be_Unlock(be);
         return LDAP_SUCCESS;
     } else {
+        dse_destroy(my_pschemadse); /* still need to destroy it on error */
         attr_syntax_destroy_tmp();
         reload_schemafile_unlock();
         slapi_be_Unlock(be);
         slapi_log_err(SLAPI_LOG_ERR, "schema_reload",
-                      "slapi_reload_schema_files failed\n");
+                      "slapi_reload_schema_files - init_schema_dse_ext failed\n");
         return LDAP_LOCAL_ERROR;
     }
 }
