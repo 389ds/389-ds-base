@@ -2,6 +2,19 @@ import cockpit from "cockpit";
 
 const _ = cockpit.gettext;
 
+export function replaceFileContent(filePath, content, options = { superuser: "require" }) {
+    const fileHandle = cockpit.file(filePath, options);
+    return fileHandle
+            .replace(content)
+            .always(() => {
+                try {
+                    fileHandle.close();
+                } catch (err) {
+                    console.error("Error closing file handle:", err);
+                }
+            });
+}
+
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
         const filteredRows = [];
@@ -280,7 +293,7 @@ export function is_port_in_use(port) {
         log_cmd("is_port_in_use", cmd);
 
         cockpit
-            .spawn(cmd, { superuser: true, err: "message" })
+            .spawn(cmd, { superuser: "require", err: "message" })
             .done((result) => {
                 const isPortInUse = result.trim() !== "free";
                 // Resolve the promise with a result
@@ -295,7 +308,7 @@ export function is_port_in_use(port) {
 
 export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
-    if (dn === "" || dn.endsWith(",")) {
+    if (dn === undefined || dn === null || dn === "" || dn.endsWith(",")) {
         return false;
     }
 
@@ -417,7 +430,7 @@ export function callCmdStreamPassword(config) {
     }
     let buffer = "";
 
-    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
     proc
             .done(data => {
                 config.addNotification("success", config.success_msg);
@@ -469,7 +482,7 @@ export function parentExists(params) {
 
     return new Promise((resolve) => {
         cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 resolve(data && data.includes("dn:"));
             })

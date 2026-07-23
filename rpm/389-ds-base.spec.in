@@ -60,8 +60,8 @@
 # Build cockpit plugin
 %bcond cockpit 1
 
-# Build HIBP password breach checking (requires libcurl)
 %bcond hibp 0
+%bcond usdt 1
 
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
@@ -138,6 +138,9 @@ BuildRequires:    libcurl-devel
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
+%if %{with usdt}
+BuildRequires:    systemtap-sdt-devel
+%endif
 BuildRequires:    cargo
 BuildRequires:    rust
 BuildRequires:    pkgconfig
@@ -216,6 +219,11 @@ Requires:         zlib-devel
 Requires:         python3-file-magic
 # Picks up our systemd deps.
 %{?systemd_requires}
+
+%if %{with usdt}
+# Optional eBPF tracer for the shipped USDT bpftrace scripts.
+Recommends:       bpftrace
+%endif
 
 
 Source0:          %{name}-%{version}.tar.bz2
@@ -420,6 +428,12 @@ RUST_FLAGS="--enable-rust --enable-rust-offline"
 COCKPIT_FLAGS="--disable-cockpit"
 %endif
 
+%if %{with usdt}
+USDT_FLAGS="--enable-usdt"
+%else
+USDT_FLAGS="--disable-usdt"
+%endif
+
 %if %{with bundle_jemalloc}
 # Override page size, bz #1545539
 # 4K
@@ -477,7 +491,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS \
+           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS $USDT_FLAGS \
 %if 0%{?fedora} >= 34 || 0%{?rhel} >= 9
            --with-libldap-r=no \
 %endif
@@ -488,7 +502,7 @@ autoreconf -fiv
 
 # Avoid "Unknown key name 'XXX' in section 'Service', ignoring." warnings from systemd on older releases
 %if 0%{?rhel} && 0%{?rhel} < 9
-  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}/wrappers/*.service.in
+  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts|NoExecPaths)=/d' %{_builddir}/%{name}-%{version}/wrappers/*.service.in
 %endif
 
 # lib389

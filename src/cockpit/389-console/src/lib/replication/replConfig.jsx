@@ -147,7 +147,7 @@ export class ReplConfig extends React.Component {
         });
         log_cmd('doRoleChange', 'change replica role', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload();
                     this.props.addNotification(
@@ -422,7 +422,7 @@ export class ReplConfig extends React.Component {
         });
         log_cmd("deleteManager", "Deleting Replication Manager", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reloadConfig(this.props.suffix);
                     this.setState({
@@ -495,7 +495,7 @@ export class ReplConfig extends React.Component {
             log_cmd("handleSaveConfig", "Applying replication changes", cmd);
             const msg = _("Successfully updated replication configuration.");
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reloadConfig(this.props.suffix);
                         this.props.addNotification(

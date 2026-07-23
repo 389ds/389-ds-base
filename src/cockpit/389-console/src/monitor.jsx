@@ -285,7 +285,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("getTree", "Start building the suffix tree", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const treeData = JSON.parse(content);
                     this.processTree(treeData);
@@ -478,7 +478,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadLogLocations", "Get log locations", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -499,7 +499,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadReplicatedSuffixes", "Load replication suffixes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let replSuffix = "";
@@ -520,7 +520,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorLDBM", "Load database monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -536,7 +536,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorServer", "Load server monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -554,7 +554,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("reloadServer", "Load server monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -572,7 +572,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorSNMP", "Load snmp monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -588,7 +588,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadDiskSpace", "Load disk space info", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const disks = JSON.parse(content);
                     const rows = [];
@@ -611,7 +611,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("reloadDisks", "Reload disk stats", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const disks = JSON.parse(content);
                     const rows = [];
@@ -632,7 +632,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("getDBEngine", "Get DB Implementation", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -655,7 +655,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("reloadSNMP", "Load snmp monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -675,7 +675,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorChaining", "Load suffix monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -705,7 +705,7 @@ export class Monitor extends React.Component {
             "repl-tasks", "list-cleanruv-tasks", "--suffix=" + replSuffix];
         log_cmd("loadCleanTasks", "Load clean tasks", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -728,7 +728,7 @@ export class Monitor extends React.Component {
             "repl-tasks", "list-abortruv-tasks", "--suffix=" + replSuffix];
         log_cmd("loadAbortCleanTasks", "Load abort tasks", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -751,7 +751,7 @@ export class Monitor extends React.Component {
             "repl-conflict", "list", replSuffix];
         log_cmd("loadConflicts", "Load conflict entries", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -775,7 +775,7 @@ export class Monitor extends React.Component {
             "repl-conflict", "list-glue", replSuffix];
         log_cmd("loadGlues", "Load glue entries", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -801,7 +801,7 @@ export class Monitor extends React.Component {
         const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
         log_cmd("loadDSRC", "Check for replication monitor configurations in the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(dsrc_content => {
                     const content = JSON.parse(dsrc_content);
                     const credRows = [];
@@ -845,7 +845,7 @@ export class Monitor extends React.Component {
             "replication", "winsync-status", "--suffix=" + replSuffix];
         log_cmd("loadWinsyncAgmts", "Load winsync agmt status", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -878,7 +878,7 @@ export class Monitor extends React.Component {
             "replication", "status", "--suffix=" + suffix];
         log_cmd("gatherAllReplicaHosts", "Get replication hosts for repl report", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -927,7 +927,7 @@ export class Monitor extends React.Component {
                 "replication", "status", "--suffix=" + treeViewItem.suffix];
             log_cmd("onHandleLoadMonitorReplication", "Load replication suffix info", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         const config = JSON.parse(content);
                         this.loadDSRC();
@@ -965,7 +965,7 @@ export class Monitor extends React.Component {
             "replication", "status", "--suffix=" + replSuffix];
         log_cmd("reloadReplAgmts", "Load replication agmts", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -982,7 +982,7 @@ export class Monitor extends React.Component {
             "replication", "winsync-status", "--suffix=" + replSuffix];
         log_cmd("reloadReplWinsyncAgmts", "Load winysnc agmts", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({

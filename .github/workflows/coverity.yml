@@ -12,11 +12,11 @@ jobs:
       image: quay.io/389ds/ci-images:fedora
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Checkout and configure
         run: autoreconf -fvi && ./configure
 
-      - uses: vapier/coverity-scan-action@v1
+      - uses: vapier/coverity-scan-action@2068473c7bdf8c2fb984a6a40ae76ee7facd7a85 # v1
         with:
           project: '389ds/389-ds-base'
           command: make

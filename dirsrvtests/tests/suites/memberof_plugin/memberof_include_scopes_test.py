@@ -134,7 +134,7 @@ def test_multiple_scopes(topo):
     assert not group.present("member", INCLUDED_USER)
     assert not group.present("member", EXCLUDED_USER)
 
-def test_memberof_scope_multiple_backends(topology_st):
+def test_memberof_scope_multiple_backends(topo):
     """Test memberOf plugin correctly handles multiple backends with different scopes
 
     :id: 96419128-70a4-4a81-943e-8d1e9c92f241
@@ -156,7 +156,7 @@ def test_memberof_scope_multiple_backends(topology_st):
         6. Success
         7. Success
     """
-    inst = topology_st.standalone
+    inst = topo.standalone
     outscope_suffix = 'dc=other,dc=org'
 
     # Create a backend 2

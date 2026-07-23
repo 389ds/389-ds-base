@@ -68,6 +68,13 @@ class Monitor(DSLdapObject):
         maxbusyworkers = self.get_attr_vals_utf8('maxbusyworkers')
         return (currentworkqueue, maxworkqueue, currentbusyworkers, maxbusyworkers)
 
+    def get_thread_pool_workers(self):
+        """Get sanitized per-worker thread pool status values from cn=monitor
+
+        :returns: Values of threadpoolworker attribute of cn=monitor
+        """
+        return self.get_attr_vals_utf8('threadpoolworker')
+
     def get_backends(self):
         """Get backends related attributes value for cn=monitor
 
@@ -207,6 +214,7 @@ class Monitor(DSLdapObject):
             'maxworkqueue',
             'currentbusyworkers',
             'maxbusyworkers',
+            'threadpoolworker',
         ])
         status.update(stats)
 

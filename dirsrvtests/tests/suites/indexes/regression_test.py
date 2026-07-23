@@ -12,30 +12,25 @@ import pytest
 import ldap
 import logging
 import glob
-import random
 import re
-from contextlib import suppress
 from lib389.backend import Backend, Backends, DatabaseConfig
-from lib389.cli_base import FakeArgs
-from lib389.cli_ctl.dbgen import dbgen_create_groups
 from lib389.cli_ctl.dblib import DbscanHelper
 from lib389.config import LDBMConfig
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, PW_DM, SER_ROOT_DN, SER_ROOT_PW
-from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
+from lib389.cos import CosClassicDefinition, CosTemplate
 from lib389.dbgen import dbgen_users
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.idm.domain import Domain
-from lib389.idm.group import Groups, Group
+from lib389.idm.group import Groups
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.user import UserAccount, UserAccounts
-from lib389.index import Index, Indexes
+from lib389.index import Index
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.plugins import MemberOfPlugin
 from lib389.properties import TASK_WAIT
 from lib389.tasks import Tasks, Task
 from test389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
-from textwrap import dedent
 
 pytestmark = pytest.mark.tier1
 
@@ -1007,6 +1002,13 @@ def test_concurrent_modifications_during_indexing(topo, homeDirectory_index_clea
     else:
         log.info("Indexing completed too quickly to observe UNWILLING_TO_PERFORM")
 
+    # On slow machines the reindex can outlive the monitoring loop; the final
+    # modifications below are only expected to succeed once it is done.
+    log.info("Waiting for the indexing task to complete")
+    reindex_task.wait(timeout=600)
+    exit_code = reindex_task.get_exit_code()
+    assert exit_code == 0, f"Reindex task failed or timed out: {exit_code}"
+
     test_users[0].replace('sn', 'final_test')
     assert test_users[0].get_attr_val_utf8('sn') == 'final_test'
 
@@ -1053,6 +1055,10 @@ def homeDirectory_setup(request, topo, homeDirectory_index_cleanup):
     return user_list, index
 
 
+MIXED_VALUE = "/home/mYhOmEdIrEcToRy"
+LOWER_VALUE = "/home/myhomedirectory"
+
+
 def setup_matching_rule(topo, index):
     index.replace('nsMatchingRule',
                   ['caseIgnoreIA5Match', 'caseExactIA5Match'])
@@ -1065,6 +1071,25 @@ def setup_matching_rule(topo, index):
         attrname='homeDirectory',
         args={TASK_WAIT: True}
     ) == 0
+
+
+def _reindex_homedirectory(inst):
+    """Run a blocking reindex task for homeDirectory on the default suffix."""
+    tasks = Tasks(inst)
+    assert (
+        tasks.reindex(
+            suffix=DEFAULT_SUFFIX,
+            attrname="homeDirectory",
+            args={TASK_WAIT: True},
+        )
+        == 0
+    )
+
+
+def _assert_homedirectory_errlog_clean(inst):
+    """Assert reindex did not log an unknown or invalid matching rule."""
+    errlog = DirsrvErrorLog(inst)
+    assert not errlog.match("unknown or invalid matching rule")
 
 
 def test_reindex_homedirectory_matching_rules(topo, homeDirectory_setup):
@@ -1089,7 +1114,7 @@ def test_reindex_homedirectory_matching_rules(topo, homeDirectory_setup):
         3. Assertion holds (no match found)
     """
 
-    user_list, index = homeDirectory_setup
+    _, index = homeDirectory_setup
 
     log.info("Remove existing error logs so the scan is limited to reindex/matching-rule output")
     topo.standalone.deleteErrorLogs(restart=True)
@@ -1097,8 +1122,7 @@ def test_reindex_homedirectory_matching_rules(topo, homeDirectory_setup):
     setup_matching_rule(topo, index)
 
     log.info("Scan error log for bad matching rule")
-    errlog = DirsrvErrorLog(topo.standalone)
-    assert not errlog.match("unknown or invalid matching rule")
+    _assert_homedirectory_errlog_clean(topo.standalone)
 
 
 def test_reindex_homedirectory_mixed_value(topo, homeDirectory_setup):
@@ -1128,10 +1152,6 @@ def test_reindex_homedirectory_mixed_value(topo, homeDirectory_setup):
         5. No entry found
         6. One entry found
     """
-
-    MIXED_VALUE = "/home/mYhOmEdIrEcToRy"
-    LOWER_VALUE = "/home/myhomedirectory"
-
     user_list, index = homeDirectory_setup
     setup_matching_rule(topo, index)
 
@@ -1139,34 +1159,103 @@ def test_reindex_homedirectory_mixed_value(topo, homeDirectory_setup):
     log.info("Replace homeDirectory with mixed-case value")
     target.replace('homeDirectory', MIXED_VALUE)
 
-
-    inst = topo.standalone
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
 
     log.info("Search with plain eq search")
-    r = inst.search_s(target.dn, ldap.SCOPE_BASE, f"(homeDirectory={MIXED_VALUE})")
+    r = users.filter(f"(homeDirectory={MIXED_VALUE})")
     assert len(r) == 1
 
     log.info("Search with caseExactIA5Match")
-    r = inst.search_s(
-        target.dn, ldap.SCOPE_BASE, f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})"
-    )
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})")
     assert len(r) == 1
 
     log.info("Search with lower-case value")
-    r = inst.search_s(target.dn, ldap.SCOPE_BASE, f"(homeDirectory={LOWER_VALUE})")
+    r = users.filter(f"(homeDirectory={LOWER_VALUE})")
     assert len(r) == 0
 
     log.info("Search with caseExactIA5Match and lower-case value")
-    r = inst.search_s(
-        target.dn, ldap.SCOPE_BASE, f"(homeDirectory:caseExactIA5Match:={LOWER_VALUE})"
-    )
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={LOWER_VALUE})")
     assert len(r) == 0
 
     log.info("Search with caseIgnoreIA5Match and lower-case value")
-    r = inst.search_s(
-        target.dn, ldap.SCOPE_BASE, f"(homeDirectory:caseIgnoreIA5Match:={LOWER_VALUE})"
-    )
+    r = users.filter(f"(homeDirectory:caseIgnoreIA5Match:={LOWER_VALUE})")
     assert len(r) == 1
+
+    log.info("Subtree search with exact stored homeDirectory value")
+    r = users.filter(f"(homeDirectory={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Subtree search with caseExactIA5Match and exact stored value")
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Subtree search with lower-case value does not match default eq")
+    r = users.filter(f"(homeDirectory={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Subtree search with caseExactIA5Match and lower-case value")
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Subtree search with caseIgnoreIA5Match and lower-case value")
+    r = users.filter(f"(homeDirectory:caseIgnoreIA5Match:={LOWER_VALUE})")
+    assert len(r) == 1
+
+
+def test_homedirectory_caseexactia5_reindex_after_dual_ia5(topo, homeDirectory_setup):
+    """homeDirectory caseExactIA5Match reindex after dual IA5 index (ticket 48746).
+
+    Covers the full ticket 48746 sequence on one index instance: index with
+    caseIgnoreIA5Match and caseExactIA5Match, reindex, set a mixed-case value,
+    base-scope extensible filter search, then replace matching rules with
+    caseExactIA5Match only and reindex without crash or invalid-MR errors.
+
+    :id: 17636675-0273-42cd-afdc-1511cf3a1d7e
+    :setup: Standalone instance, homeDirectory_setup fixture
+    :steps:
+        1. Set nsMatchingRule to caseIgnoreIA5Match and caseExactIA5Match, reindex
+        2. Verify the error log has no unknown or invalid matching rule
+        3. Set a mixed-case homeDirectory on new_account1
+        4. Base-scope search with (homeDirectory:caseExactIA5Match:=<mixed>)
+        5. Set nsMatchingRule to caseExactIA5Match only, reindex
+        6. Verify the error log is still clean
+    :expectedresults:
+        1. Reindex succeeds
+        2. No invalid matching-rule message in the error log
+        3. Success
+        4. One entry is returned (server stays up)
+        5. Reindex succeeds
+        6. No invalid matching-rule message in the error log
+    """
+    user_list, index = homeDirectory_setup
+    inst = topo.standalone
+    target = user_list[1]
+
+    inst.deleteErrorLogs(restart=True)
+
+    log.info("Index homeDirectory with caseIgnoreIA5Match and caseExactIA5Match")
+    setup_matching_rule(topo, index)
+    _assert_homedirectory_errlog_clean(inst)
+
+    log.info("Set mixed-case homeDirectory on new_account1")
+    target.replace("homeDirectory", MIXED_VALUE)
+
+    log.info(
+        "Base-scope caseExactIA5Match search with exact stored value "
+        "(loads filter MR before CES-only reindex)"
+    )
+    results = target.search(
+        scope="base",
+        filter=f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})",
+    )
+    assert len(results) == 1
+    assert results[0].dn.lower() == target.dn.lower()
+
+    log.info("Reindex homeDirectory with caseExactIA5Match only")
+    index.replace("nsMatchingRule", ["caseExactIA5Match"])
+    inst.restart()
+    _reindex_homedirectory(inst)
+    _assert_homedirectory_errlog_clean(inst)
 
 
 def test_idl_range_limit(topo, add_some_entries):

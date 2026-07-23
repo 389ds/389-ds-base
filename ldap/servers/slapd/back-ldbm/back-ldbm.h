@@ -320,8 +320,9 @@ typedef struct
 #define HASHLOC(mem, node) (u_long) & (((mem *)0L)->node)
 
 /* type to set ep_type */
-#define CACHE_TYPE_ENTRY 0
-#define CACHE_TYPE_DN    1
+#define CACHE_TYPE_ENTRY     0
+#define CACHE_TYPE_DN        1
+#define CACHE_TYPE_UNKNOWN   2
 
 struct backcommon
 {
@@ -336,6 +337,7 @@ struct backcommon
 #define ENTRY_STATE_INVALID    0x8  /* cache entry is invalid and needs to be removed */
 #define ENTRY_STATE_UNAVAILABLE 0xf /* entry is not fully created or is deleted */
 #define ENTRY_STATE_PINNED     0x10 /* cache entry is pinned (never removed by the lru) */
+#define ENTRY_STATE_LRU        0x20 /* cache entry is queued in the lru */
     int32_t ep_refcnt;              /* entry reference cnt */
     size_t ep_size;                 /* for cache tracking */
     struct timespec ep_create_time; /* the time the entry was added to the cache */

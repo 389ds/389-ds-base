@@ -5,6 +5,7 @@
   ],
   "labels": ["dependencies"],
   "schedule": ["before 9am on monday"],
+  "ignoreDeps": ["quay.io/389ds/ci-images"],
   "cargo": {
     "enabled": true,
     "managerFilePatterns": [

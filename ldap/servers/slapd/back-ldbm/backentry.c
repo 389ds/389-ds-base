@@ -25,6 +25,7 @@ backentry_free(struct backentry **bep)
     ep = *bep;
 
     PR_ASSERT(ep->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_NOTINCACHE | ENTRY_STATE_INVALID));
+    PR_ASSERT((ep->ep_state & (ENTRY_STATE_LRU | ENTRY_STATE_PINNED)) == 0);
     if (ep->ep_entry != NULL) {
         slapi_entry_free(ep->ep_entry);
     }
@@ -42,7 +43,7 @@ backentry_alloc()
     struct backentry *ec;
     ec = (struct backentry *)slapi_ch_calloc(1, sizeof(struct backentry));
     ec->ep_state = ENTRY_STATE_NOTINCACHE;
-    ec->ep_type = CACHE_TYPE_ENTRY;
+    ec->ep_type = CACHE_TYPE_UNKNOWN;
 #ifdef LDAP_CACHE_DEBUG
     ec->debug_sig = 0x45454545;
 #endif

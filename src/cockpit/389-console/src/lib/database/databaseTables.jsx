@@ -1019,6 +1019,9 @@ class PwpTable extends React.Component {
                 onClick: () => this.props.editPolicy(rowData[0])
             },
             {
+                isSeparator: true
+            },
+            {
                 title: _("Delete policy"),
                 onClick: () => this.props.deletePolicy(rowData[0])
             },

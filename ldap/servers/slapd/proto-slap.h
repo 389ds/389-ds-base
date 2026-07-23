@@ -108,8 +108,10 @@ struct asyntaxinfo *attr_syntax_get_by_name_locking_optional(const char *name, P
 struct asyntaxinfo *attr_syntax_get_global_at(void);
 struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 void attr_syntax_swap_ht(void);
+int attr_syntax_init_tmp(void);
+void attr_syntax_destroy_tmp(void);
+
 uint64_t attr_syntax_copy_ht(PLHashTable **new_name2asi, PLHashTable **new_oid2asi, struct asyntaxinfo **free_list);
-int attr_syntax_free_ht(PLHashTable *ht);
 uint64_t attr_syntax_get_version(void);
 void attr_syntax_bump_version(void);
 
@@ -266,6 +268,7 @@ int config_set_ldapi_auto_dn_suffix(const char *attrname, char *value, char *err
 #endif
 int config_set_anon_limits_dn(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_slapi_counters(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_thread_pool_stats(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_srvtab(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sizelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pagedsizelimit(const char *attrname, char *value, char *errorbuf, int apply);
@@ -458,6 +461,7 @@ char *config_get_ldapi_auto_dn_suffix(void);
 #endif
 char *config_get_anon_limits_dn(void);
 int config_get_slapi_counters(void);
+int32_t config_get_thread_pool_stats(void);
 char *config_get_srvtab(void);
 int config_get_sizelimit(void);
 int config_get_pagedsizelimit(void);

@@ -35,7 +35,7 @@
 #include <assert.h>
 #include <execinfo.h>
 
-#ifdef SYSTEMTAP
+#ifdef USDT
 #include <sys/sdt.h>
 #endif
 
@@ -2463,7 +2463,7 @@ vslapd_log_audit(const char *log_data, PRBool json_format)
     int32_t rc = LDAP_SUCCESS;
     int32_t msg_len = strlen(log_data);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_audit__entry);
 #endif
 
@@ -2500,12 +2500,12 @@ vslapd_log_audit(const char *log_data, PRBool json_format)
         }
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_audit__prepared);
 #endif
     log_append_audit_buffer(tnl, loginfo.log_audit_buffer, buffer, blen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_audit__buffer);
 #endif
 
@@ -2594,7 +2594,7 @@ vslapd_log_auditfail(const char *log_data, PRBool json_format)
     int32_t rc = LDAP_SUCCESS;
     int32_t msg_len = strlen(log_data);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__entry);
 #endif
 
@@ -2631,12 +2631,12 @@ vslapd_log_auditfail(const char *log_data, PRBool json_format)
         }
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__prepared);
 #endif
     log_append_auditfail_buffer(tnl, loginfo.log_auditfail_buffer, buffer, blen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__buffer);
 #endif
 
@@ -3190,7 +3190,7 @@ vslapd_log_access(const char *fmt, va_list ap)
     struct timespec tsnow;
     time_t tnl;
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__entry);
 #endif
 
@@ -3231,13 +3231,13 @@ vslapd_log_access(const char *fmt, va_list ap)
         rc = -1;
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__prepared);
 #endif
 
     log_append_access_buffer(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__buffer);
 #endif
 
@@ -3532,7 +3532,7 @@ log__open_accesslogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_access_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_access_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_access_maxlogsize;
@@ -3703,7 +3703,7 @@ log__open_securitylogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_security_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_security_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_security_maxlogsize;
@@ -4166,7 +4166,7 @@ vslapd_log_security(const char *log_data)
     int32_t blen = TBUFSIZE;
     int32_t rc = LDAP_SUCCESS;
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_security__entry);
 #endif
 
@@ -4176,13 +4176,13 @@ vslapd_log_security(const char *log_data)
         return -1;
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_security__prepared);
 #endif
     tnl = slapi_current_utc_time();
     log_append_security_buffer(tnl, loginfo.log_security_buffer, buffer, blen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_security__buffer);
 #endif
 
@@ -6469,7 +6469,7 @@ log__open_errorlogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_error_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_error_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_error_maxlogsize;
@@ -6634,7 +6634,7 @@ log__open_auditlogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_audit_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_audit_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_audit_maxlogsize;
@@ -6799,7 +6799,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_auditfail_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_auditfail_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_auditfail_maxlogsize;

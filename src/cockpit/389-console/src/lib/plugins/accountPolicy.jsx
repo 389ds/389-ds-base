@@ -250,7 +250,7 @@ class AccountPolicy extends React.Component {
             log_cmd("sharedConfigExists", "Check if Account Policy config entry exists", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -309,7 +309,7 @@ class AccountPolicy extends React.Component {
             log_cmd("handleOpenModal", "Fetch the Account Policy Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -497,7 +497,7 @@ class AccountPolicy extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -572,7 +572,7 @@ class AccountPolicy extends React.Component {
         log_cmd("deleteConfig", "Delete the Account Policy Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -735,7 +735,7 @@ class AccountPolicy extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {

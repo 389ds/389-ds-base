@@ -148,7 +148,7 @@ export class SuffixIndexes extends React.Component {
         ];
         log_cmd("loadIndexes (suffix config)", "Get matching rules", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const mrContent = JSON.parse(content);
                     const mrs = [];
@@ -164,7 +164,7 @@ export class SuffixIndexes extends React.Component {
                     ];
                     log_cmd("loadIndexes (suffix config)", "Get current index list", idx_cmd);
                     cockpit
-                            .spawn(idx_cmd, { superuser: true, err: "message" })
+                            .spawn(idx_cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const idxContent = JSON.parse(content);
                                 const indexList = idxContent.items;
@@ -174,7 +174,7 @@ export class SuffixIndexes extends React.Component {
                                 ];
                                 log_cmd("loadIndexes (suffix config)", "Get attrs", attr_cmd);
                                 cockpit
-                                        .spawn(attr_cmd, { superuser: true, err: "message" })
+                                        .spawn(attr_cmd, { superuser: "require", err: "message" })
                                         .done(content => {
                                             const attrContent = JSON.parse(content);
                                             const attrs = [];
@@ -323,7 +323,7 @@ export class SuffixIndexes extends React.Component {
 
         log_cmd("saveIndex", "Create new index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     // this.loadIndexes();
                     this.props.reload(this.props.suffix);
@@ -410,7 +410,7 @@ export class SuffixIndexes extends React.Component {
         });
         log_cmd("reindexAttr", "index attribute", reindex_cmd);
         cockpit
-                .spawn(reindex_cmd, { superuser: true, err: "message" })
+                .spawn(reindex_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -501,7 +501,7 @@ export class SuffixIndexes extends React.Component {
             });
             log_cmd("saveEditIndex", "Edit index", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reload(this.props.suffix);
                         this.closeEditIndexModal();
@@ -582,7 +582,7 @@ export class SuffixIndexes extends React.Component {
         });
         log_cmd("deleteIndex", "deleteEdit index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",

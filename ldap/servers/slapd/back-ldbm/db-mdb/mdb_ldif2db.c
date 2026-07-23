@@ -1014,8 +1014,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
 
             bdn = dncache_find_id(&inst->inst_dncache, temp_id);
             if (bdn) {
-                /* don't free dn */
-                dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                /* Copy the dn: the cached bdn may be evicted and freed
+                 * once the reference is returned. */
+                dn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+                free_dn = true;
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
                 slapi_rdn_done(&psrdn);
             } else if (return_orig_dn &&
@@ -1070,10 +1072,11 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                     slapi_ch_free_string(&pdn);
                 }
                 slapi_rdn_done(&psrdn);
-                /* dn is not dup'ed in slapi_sdn_new_dn_passin.
-                 * It's set to bdn and put in the dn cache. */
-                /* don't free dn */
-                sdn = slapi_sdn_new_dn_passin(dn);
+                /* Copy dn into the sdn so that dn stays valid even if
+                 * the cached bdn is freed (CACHE_ADD failure or eviction
+                 * by another thread) before we are done with it. */
+                sdn = slapi_sdn_new_dn_byval(dn);
+                free_dn = true;
                 bdn = backdn_init(sdn, temp_id, 0);
                 myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                 if (myrc) {
@@ -1561,7 +1564,9 @@ _export_or_index_parents(ldbm_instance *inst,
             char *pdn = NULL;
 
             bdn = dncache_find_id(&inst->inst_dncache, pid);
-            if (!bdn) {
+            if (bdn) {
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            } else {
                 /* we put pdn to dn cache, which could be used
                  * in _get_and_add_parent_rdns */
                 rc = entryrdn_lookup_dn(be, prdn, pid, &pdn, NULL, NULL);
@@ -1573,18 +1578,18 @@ _export_or_index_parents(ldbm_instance *inst,
                     bdn = backdn_init(psdn, pid, 0);
                     myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     if (myrc) {
-                        backdn_free(&bdn);
                         slapi_log_err(SLAPI_LOG_CACHE,
                                       "_export_or_index_parents",
                                       "%s is already in the dn cache (%d)\n",
                                       pdn, myrc);
+                        backdn_free(&bdn);
                     } else {
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
                         slapi_log_err(SLAPI_LOG_CACHE,
                                       "_export_or_index_parents",
                                       "entryrdn_lookup_dn returned: %s, "
                                       "and set to dn cache\n",
                                       pdn);
+                        CACHE_RETURN(&inst->inst_dncache, &bdn);
                     }
                 }
             }

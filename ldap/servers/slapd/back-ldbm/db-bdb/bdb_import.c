@@ -1765,16 +1765,28 @@ bdb_import_monitor_threads(ImportJob *job, int *status)
             /* Now calculate our rate of progress overall for this chunk */
             if (time_now != job->start_time) {
                 /* log a cute chart of the worker progress */
+                uint32_t history_size = 0;
+                double rate = 0.0;
+
                 bdb_import_log_status_start(job);
                 bdb_import_log_status_add_line(job,
-                                           "Index status for import of %s:", job->inst->inst_name);
+                                               "Index status for import of %s:",
+                                               job->inst->inst_name);
                 bdb_import_log_status_add_line(job,
-                                           "-------Index Task-------State---Entry----Rate-");
+                        "-------Index Task-------State---Entry----Rate-");
 
                 bdb_import_push_progress_history(job, foreman->last_ID_processed,
-                                             time_now);
-                job->average_progress_rate =
-                    (double)(HISTORY(IMPORT_JOB_PROG_HISTORY_SIZE - 1) + 1 - foreman->first_ID) /
+                                                 time_now);
+
+                history_size = HISTORY(IMPORT_JOB_PROG_HISTORY_SIZE - 1) + 1;
+                if (foreman->first_ID > history_size) {
+                    /* Import is stalled and subtracting first_ID will
+                     * underflow the rate - so set it to 0.0 */
+                    rate = 0.0;
+                } else {
+                    rate = (double)(history_size - foreman->first_ID);
+                }
+                job->average_progress_rate = rate /
                     (double)(TIMES(IMPORT_JOB_PROG_HISTORY_SIZE - 1) - job->start_time);
                 job->recent_progress_rate =
                     PROGRESS(0, IMPORT_JOB_PROG_HISTORY_SIZE - 1);
@@ -2428,11 +2440,26 @@ error:
         }
     }
     if (0 != ret) {
-        dblayer_instance_close(job->inst->inst_be);
-        if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
-            /* If not dryrun NOR upgradedn space */
-            /* if running in the dry run mode, don't touch the db */
-            bdb_delete_instance_dir(be);
+        if (job->flags & FLAG_REINDEXING) {
+            /* Reindex only rebuilds secondary indexes from id2entry
+             * which is never modified during reindex. On failure we
+             * must NOT close or delete the instance, just bring the
+             * backend back online so the server can continue operating
+             * or shut down cleanly.
+             */
+            import_log_notice(job, SLAPI_LOG_CRIT, "bdb_public_bdb_import_main",
+                              "Reindex failed. Indexes may be incomplete."
+                              " The backend is unavailable until offline"
+                              " reindex is performed:"
+                              " stop the server, run 'dsctl <instance> db2index %s',"
+                              " then start the server.",
+                              inst->inst_name);
+        } else {
+            dblayer_instance_close(job->inst->inst_be);
+            if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
+                /* Not dryrun nor upgradedn - delete the half-imported db */
+                bdb_delete_instance_dir(be);
+            }
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {

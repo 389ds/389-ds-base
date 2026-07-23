@@ -1376,8 +1376,9 @@ multisupplier_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
             /* Outbound replication agreements need to all be restarted now */
             /* XXXGGOOD RESTART REEPL AGREEMENTS */
         } else {
-            /* Unless bail out, we return uninitialized response */
-            goto free_and_return;
+            /* No active replication session on this connection, treat as
+             * already released so the supplier can shut down cleanly */
+            response = NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED;
         }
     }
 send_response:

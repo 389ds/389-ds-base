@@ -10,7 +10,8 @@ import {
     valid_dn,
     valid_db_name,
     callCmdStreamPassword,
-    getApiErrorMessage
+    getApiErrorMessage,
+    replaceFileContent
 } from "./lib/tools.jsx";
 import {
     Button,
@@ -233,7 +234,7 @@ export class CreateInstanceModal extends React.Component {
         const hostname_cmd = ["hostnamectl", "status", "--static"];
         log_cmd("handleCreateInstance", "Get FQDN ...", hostname_cmd);
         cockpit
-                .spawn(hostname_cmd, { superuser: true, err: "message" })
+                .spawn(hostname_cmd, { superuser: "require", err: "message" })
                 .fail(err => {
                     const errMsg = getApiErrorMessage(err);
                     this.setState({
@@ -254,7 +255,7 @@ export class CreateInstanceModal extends React.Component {
                     const create_file_cmd = ["touch", setup_file];
                     log_cmd("handleCreateInstance", "Setting FQDN...", create_file_cmd);
                     cockpit
-                            .spawn(create_file_cmd, { superuser: true, err: "message" })
+                            .spawn(create_file_cmd, { superuser: "require", err: "message" })
                             .fail(err => {
                                 this.setState({
                                     loadingCreate: false
@@ -271,9 +272,9 @@ export class CreateInstanceModal extends React.Component {
                                 const chmod_cmd = ["chmod", "600", setup_file];
                                 log_cmd("handleCreateInstance", "Setting initial INF file permissions...", chmod_cmd);
                                 cockpit
-                                        .spawn(chmod_cmd, { superuser: true, err: "message" })
+                                        .spawn(chmod_cmd, { superuser: "require", err: "message" })
                                         .fail(err => {
-                                            cockpit.spawn(rm_cmd, { superuser: true, err: "message" }); // Remove Inf file with clear text password
+                                            cockpit.spawn(rm_cmd, { superuser: "require", err: "message" }); // Remove Inf file with clear text password
                                             this.setState({
                                                 loadingCreate: false
                                             });
@@ -287,16 +288,12 @@ export class CreateInstanceModal extends React.Component {
                                              * Success we have our setup file and it has the correct permissions.
                                              * Now populate the setup file...
                                              */
-                                            const cmd = [
-                                                '/bin/sh', '-c',
-                                                '/usr/bin/echo -e \'' + setup_inf + '\' >> ' + setup_file
-                                            ];
-
-                                            let createBuffer = "";
+                                            const setupFileContent = setup_inf.endsWith("\n")
+                                                ? setup_inf
+                                                : setup_inf + "\n";
                                             // Do not log inf file as it contains the DM password
-                                            log_cmd("handleCreateInstance", "Apply changes to INF file...", "");
-                                            cockpit
-                                                    .spawn(cmd, { superuser: true, err: "message" })
+                                            log_cmd("handleCreateInstance", "Apply changes to INF file...", [setup_file]);
+                                            replaceFileContent(setup_file, setupFileContent)
                                                     .fail(err => {
                                                         this.setState({
                                                             loadingCreate: false
@@ -307,55 +304,71 @@ export class CreateInstanceModal extends React.Component {
                                                         );
                                                     })
                                                     .done(() => {
-                                                        /*
-                                                         * Next, create the instance...
-                                                         */
-                                                        const cmd = ["dscreate", "-j", "from-file", setup_file];
-                                                        log_cmd("handleCreateInstance", "Creating instance...", cmd);
+                                                        const final_chmod_cmd = ["chmod", "600", setup_file];
+                                                        log_cmd("handleCreateInstance", "Reset INF file permissions after write...", final_chmod_cmd);
                                                         cockpit
-                                                                .spawn(cmd, {
-                                                                    superuser: true,
-                                                                    err: "message"
-                                                                })
+                                                                .spawn(final_chmod_cmd, { superuser: "require", err: "message" })
                                                                 .fail(err => {
-                                                                    const errMsg = getApiErrorMessage(err.message);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
+                                                                    cockpit.spawn(rm_cmd, { superuser: "require", err: "message" }); // Remove Inf file with clear text password
                                                                     this.setState({
                                                                         loadingCreate: false
                                                                     });
                                                                     addNotification(
                                                                         "error",
-                                                                        `${errMsg}`
+                                                                        cockpit.format(_("Failed to set permissions on setup file $0: $1"), setup_file, err.message)
                                                                     );
                                                                 })
                                                                 .done(() => {
-                                                                    // Success!!!  Now set Root DN pw, and cleanup everything up...
-                                                                    log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true });
+                                                                    /*
+                                                                     * Next, create the instance...
+                                                                     */
+                                                                    const cmd = ["dscreate", "-j", "from-file", setup_file];
+                                                                    log_cmd("handleCreateInstance", "Creating instance...", cmd);
+                                                                    cockpit
+                                                                            .spawn(cmd, {
+                                                                                superuser: "require",
+                                                                                err: "message"
+                                                                            })
+                                                                            .fail(err => {
+                                                                                const errMsg = getApiErrorMessage(err.message);
+                                                                                cockpit.spawn(rm_cmd, { superuser: "require" }); // Remove Inf file with clear text password
+                                                                                this.setState({
+                                                                                    loadingCreate: false
+                                                                                });
+                                                                                addNotification(
+                                                                                    "error",
+                                                                                    `${errMsg}`
+                                                                                );
+                                                                            })
+                                                                            .done(() => {
+                                                                                // Success!!!  Now set Root DN pw, and cleanup everything up...
+                                                                                log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
+                                                                                cockpit.spawn(rm_cmd, { superuser: "require" });
 
-                                                                    const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
-                                                                        'directory_manager', 'password_change'];
-                                                                    const config = {
-                                                                        cmd: dm_pw_cmd,
-                                                                        promptArg: "",
-                                                                        passwd: createDMPassword,
-                                                                        addNotification,
-                                                                        success_msg: cockpit.format(_("Successfully created instance: slapd-$0"), createServerId),
-                                                                        error_msg: _("Failed to set Directory Manager password"),
-                                                                        state_callback: () => { this.setState({ loadingCreate: false }) },
-                                                                        reload_func: loadInstanceList,
-                                                                        reload_arg: createServerId,
-                                                                        ext_func: closeHandler,
-                                                                        ext_arg: "",
-                                                                        funcName: "handleCreateInstance",
-                                                                        funcDesc: _("Set Directory Manager password...")
-                                                                    };
-                                                                    callCmdStreamPassword(config);
-                                                                })
-                                                                .stream(line => {
-                                                                    this.setState({
-                                                                        createBuffer: this.state.createBuffer + line
-                                                                    });
+                                                                                const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
+                                                                                    'directory_manager', 'password_change'];
+                                                                                const config = {
+                                                                                    cmd: dm_pw_cmd,
+                                                                                    promptArg: "",
+                                                                                    passwd: createDMPassword,
+                                                                                    addNotification,
+                                                                                    success_msg: cockpit.format(_("Successfully created instance: slapd-$0"), createServerId),
+                                                                                    error_msg: _("Failed to set Directory Manager password"),
+                                                                                    state_callback: () => { this.setState({ loadingCreate: false }) },
+                                                                                    reload_func: loadInstanceList,
+                                                                                    reload_arg: createServerId,
+                                                                                    ext_func: closeHandler,
+                                                                                    ext_arg: "",
+                                                                                    funcName: "handleCreateInstance",
+                                                                                    funcDesc: _("Set Directory Manager password...")
+                                                                                };
+                                                                                callCmdStreamPassword(config);
+                                                                            })
+                                                                            .stream(line => {
+                                                                                this.setState({
+                                                                                    createBuffer: this.state.createBuffer + line
+                                                                                });
+                                                                            });
                                                                 });
                                                     });
                                         });
@@ -734,7 +747,7 @@ export class SchemaReloadModal extends React.Component {
         }
         log_cmd("handleReloadSchema", "Reload schema files", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(data => {
                     addNotification("success", _("Successfully reloaded schema"));
                     this.setState({
@@ -954,7 +967,7 @@ export class ManageBackupsModal extends React.Component {
 
         const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
-                .spawn(cmd, { superuser: true })
+                .spawn(cmd, { superuser: "require" })
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running === true) {
@@ -980,7 +993,7 @@ export class ManageBackupsModal extends React.Component {
                         let backupBuffer = "";
                         log_cmd("doBackup", "Add backup task online", cmd);
                         cockpit
-                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
                                     this.props.reload();
                                     this.setState({
@@ -993,7 +1006,7 @@ export class ManageBackupsModal extends React.Component {
                                     ];
                                     log_cmd("doBackup", "Get the backup directory", cmd);
                                     cockpit
-                                            .spawn(cmd, { superuser: true, err: "message" })
+                                            .spawn(cmd, { superuser: "require", err: "message" })
                                             .done(content => {
                                                 const config = JSON.parse(content);
                                                 const attrs = config.attrs;
@@ -1049,7 +1062,7 @@ export class ManageBackupsModal extends React.Component {
 
                         log_cmd("doBackup", "Doing backup of the server offline", cmd);
                         cockpit
-                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
                                     this.props.reload();
                                     this.setState({
@@ -1092,7 +1105,7 @@ export class ManageBackupsModal extends React.Component {
         let backupBuffer = "";
         const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
-                .spawn(cmd, { superuser: true })
+                .spawn(cmd, { superuser: "require" })
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running === true) {
@@ -1107,7 +1120,7 @@ export class ManageBackupsModal extends React.Component {
                         ];
                         log_cmd("restoreBackup", "Restoring server online", cmd);
                         cockpit
-                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
                                     this.setState({
                                         restoreCompleted: true,
@@ -1143,7 +1156,7 @@ export class ManageBackupsModal extends React.Component {
                         ];
                         log_cmd("restoreBackup", "Restoring server offline", cmd);
                         cockpit
-                                .spawn(cmd, { pty: true, superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
                                     this.setState({
                                         restoreCompleted: true,
@@ -1190,7 +1203,7 @@ export class ManageBackupsModal extends React.Component {
         ];
         log_cmd("deleteBackup", "Deleting backup", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload();
                     this.setState({

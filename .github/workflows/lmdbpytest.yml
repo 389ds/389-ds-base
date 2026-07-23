@@ -2,6 +2,9 @@ name: LMDB Test
 
 on:
   push:
+    branches:
+      - main
+      - "389-ds-base-*"
   pull_request:
   schedule:
     - cron:  '0 0 * * *'
@@ -36,7 +39,7 @@ jobs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -52,7 +55,7 @@ jobs:
         run: tar -cvf dist.tar dist/
 
       - name: Upload RPMs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rpms
           path: dist.tar
@@ -64,14 +67,15 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix: ${{ fromJson(needs.build.outputs.matrix) }}
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
+      uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
       with:
         limit-access-to-actor: true
       if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled }}
@@ -83,6 +87,7 @@ jobs:
         sudo cp .github/daemon.json /etc/docker/daemon.json
         sudo systemctl unmask docker
         sudo systemctl start docker
+        sudo apparmor_parser -R /etc/apparmor.d/unix-chkpwd 2>/dev/null || true
 
     - name: Free disk space
       run: |
@@ -100,7 +105,7 @@ jobs:
         df -h
 
     - name: Download RPMs
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
       with:
         name: rpms
 
@@ -127,19 +132,24 @@ jobs:
     - name: Make the results file readable by all
       if: always()
       run: |
-        sudo chmod -f -v -R a+r pytest.*ml assets
-        sudo chmod -f -v a+x assets
+        sudo chmod -f -v -R a+r pytest.*ml assets || true
+        sudo chmod -f -v a+x assets || true
+        if [ -d .playwright-screenshots ]; then
+          sudo chmod -f -v -R a+r .playwright-screenshots
+          sudo chmod -f -v a+x .playwright-screenshots
+        fi
     - name: Sanitize filename
       if: always()
       run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
 
     - name: Upload pytest test results
       if: always()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
+        include-hidden-files: true
         path: |
           pytest.xml
           pytest.html
           assets
-
+          .playwright-screenshots

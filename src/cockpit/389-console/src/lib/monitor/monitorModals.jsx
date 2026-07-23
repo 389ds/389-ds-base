@@ -3051,7 +3051,7 @@ class ChooseLagReportModal extends React.Component {
         });
 
         // First get all directories in the specified path
-        cockpit.spawn(["ls", "-1A", reportDirectory], { superuser: true, err: "ignore" })
+        cockpit.spawn(["ls", "-1A", reportDirectory], { superuser: "require", err: "ignore" })
             .then(output => {
                 if (!output.trim()) {
                     this.setState({ loading: false });
@@ -3065,7 +3065,7 @@ class ChooseLagReportModal extends React.Component {
 
                 // Stat each candidate to determine if it's a directory
                 const statPromises = candidates.map(p =>
-                    cockpit.spawn(["stat", "-c", "%F", p], { superuser: true, err: "ignore" })
+                    cockpit.spawn(["stat", "-c", "%F", p], { superuser: "require", err: "ignore" })
                         .then(type => ({ path: p, isDir: type.trim().toLowerCase().includes("directory") }))
                         .catch(() => ({ path: p, isDir: false }))
                 );
@@ -3079,7 +3079,7 @@ class ChooseLagReportModal extends React.Component {
 
                 const promises = directories.map(dir => {
                     // Check which report files exist in this directory
-                    return cockpit.spawn(["ls", "-1A", dir], { superuser: true, err: "ignore" })
+                    return cockpit.spawn(["ls", "-1A", dir], { superuser: "require", err: "ignore" })
                         .then(output => {
                             const files = output.trim().split('\n').filter(f => f);
 
@@ -3115,7 +3115,7 @@ class ChooseLagReportModal extends React.Component {
                             let creationTime = "";
 
                             // Try to get the directory creation time using stat
-                            return cockpit.spawn(["stat", "-c", "%y", dir], { superuser: true, err: "ignore" })
+                            return cockpit.spawn(["stat", "-c", "%y", dir], { superuser: "require", err: "ignore" })
                                 .then(statOutput => {
                                     // Format the creation time from stat output
                                     try {

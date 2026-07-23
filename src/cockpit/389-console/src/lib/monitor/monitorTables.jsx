@@ -2766,7 +2766,7 @@ class ExistingLagReportsTable extends React.Component {
         const deletedFiles = [];
 
         // First, list all files in the directory to verify they're report files
-        cockpit.spawn(["ls", "-1A", reportPath], { superuser: true, err: "message" })
+        cockpit.spawn(["ls", "-1A", reportPath], { superuser: "require", err: "message" })
             .then(output => {
                 const files = output.trim().split('\n').filter(f => f);
 
@@ -2796,7 +2796,7 @@ class ExistingLagReportsTable extends React.Component {
                 // Delete each file individually and track progress
                 const deletePromises = files.map(file => {
                     const filePath = `${reportPath}/${file}`;
-                    return cockpit.spawn(["rm", "-f", filePath], { superuser: true, err: "message" })
+                    return cockpit.spawn(["rm", "-f", filePath], { superuser: "require", err: "message" })
                         .then(() => {
                             deletedFiles.push(file);
                             return Promise.resolve();
@@ -2811,7 +2811,7 @@ class ExistingLagReportsTable extends React.Component {
             })
             .then(() => {
                 // After all files are deleted, remove the directory
-                return cockpit.spawn(["rmdir", reportPath], { superuser: true, err: "message" });
+                return cockpit.spawn(["rmdir", reportPath], { superuser: "require", err: "message" });
             })
             .then(() => {
                 // Success! Remove the report from the list

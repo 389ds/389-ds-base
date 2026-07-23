@@ -248,7 +248,7 @@ export class ServerSASL extends React.Component {
         ];
         log_cmd("handleLoadConfig", "Get SASL settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -288,7 +288,7 @@ export class ServerSASL extends React.Component {
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -301,7 +301,7 @@ export class ServerSASL extends React.Component {
         const cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
         log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const saslMapObj = JSON.parse(content);
                     const mappings = [];
@@ -400,7 +400,7 @@ export class ServerSASL extends React.Component {
 
         log_cmd("createMapping", "Create sasl mapping", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadConfig();
                     this.props.addNotification(
@@ -452,11 +452,11 @@ export class ServerSASL extends React.Component {
 
         log_cmd("editMapping", "deleting sasl mapping", delete_cmd);
         cockpit
-                .spawn(delete_cmd, { superuser: true, err: "message" })
+                .spawn(delete_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     log_cmd("editMapping", "Create new sasl mapping", create_cmd);
                     cockpit
-                            .spawn(create_cmd, { superuser: true, err: "message" })
+                            .spawn(create_cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 this.handleLoadConfig();
                                 this.props.addNotification(
@@ -507,7 +507,7 @@ export class ServerSASL extends React.Component {
         ];
         log_cmd("deleteMapping", "Delete sasl mapping", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadConfig();
                     this.props.addNotification(
@@ -564,7 +564,7 @@ export class ServerSASL extends React.Component {
 
         log_cmd("handleSaveConfig", "Applying SASL config change", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadConfig();
                     this.props.addNotification(

@@ -1,0 +1,79 @@
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: quay.io/389ds/ci-images:fedora
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c-cpp
+            build_mode: manual
+          - language: python
+            build_mode: none
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Add GITHUB_WORKSPACE as a safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install CodeQL dependencies
+        run: dnf install -y which
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build_mode }}
+          config-file: ./.github/codeql/codeql-config.yml
+          # Keep code scanning security-focused; security-and-quality produces
+          # thousands of low-value lint/maintainability alerts in this tree.
+          queries: +security-extended
+
+      - name: Configure
+        if: matrix.language == 'c-cpp'
+        run: |
+          set -o pipefail
+          (autoreconf -fvi && ./configure) 2>&1 | tee codeql-build.log
+
+      - name: Build
+        if: matrix.language == 'c-cpp'
+        run: |
+          set -o pipefail
+          make -j$(nproc) 2>&1 | tee -a codeql-build.log
+
+      - name: Upload build and configuration artifacts
+        if: always() && matrix.language == 'c-cpp'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: codeql-build-cpp
+          path: |
+            codeql-build.log
+            config.log
+            config.h
+          if-no-files-found: ignore
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4

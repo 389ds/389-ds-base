@@ -16,6 +16,7 @@
 #include "fe.h"
 #include <sasl/sasl.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 /*
  * I/O Shim Layer for SASL Encryption
@@ -371,6 +372,14 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     /* Decode the length */
     packet_length = ntohl(*(uint32_t *)sp->encrypted_buffer);
     /* add length itself (for Cyrus SASL library) */
+    if (packet_length > (UINT32_MAX - sizeof(uint32_t))) {
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
+                      "SASL packet length would overflow (%" PRIu32 ")\n",
+                      packet_length);
+        PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
+        *err = PR_BUFFER_OVERFLOW_ERROR;
+        return -1;
+    }
     packet_length += sizeof(uint32_t);
 
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",

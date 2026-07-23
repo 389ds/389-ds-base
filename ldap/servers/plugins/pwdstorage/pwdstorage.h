@@ -89,6 +89,8 @@ char *smd5_pw_enc(const char *pwd);
 int gost_yescrypt_pw_cmp(const char *userpwd, const char *dbpwd);
 char *gost_yescrypt_pw_enc(const char *pwd);
 
+#define PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT 50000
+
 int pbkdf2_sha256_start(Slapi_PBlock *pb);
 int pbkdf2_sha256_close(Slapi_PBlock *pb);
 SECStatus pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, PRUint32 iterations);
@@ -98,6 +100,7 @@ int pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd);
 /* For testing pbkdf2 only */
 uint64_t pbkdf2_sha256_benchmark_iterations(void);
 PRUint32 pbkdf2_sha256_calculate_iterations(uint64_t time_nsec);
+void pbkdf2_sha256_set_accept_max_iterations(uint32_t accept_max);
 
 /* Utility functions */
 PRUint32 pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen);

@@ -882,7 +882,7 @@ export class ReplAgmts extends React.Component {
 
         log_cmd('showEditAgmt', 'Edit replication agreement', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let agmtName = "";
@@ -1166,7 +1166,7 @@ export class ReplAgmts extends React.Component {
 
         let buffer = "";
         let error = null;
-        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
         proc
                 .done(data => {
                     this.props.reload(this.props.suffix);
@@ -1216,7 +1216,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'poke', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('pokeAgmt', 'send updates now', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1241,7 +1241,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'init', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('initAgmt', 'Initialize agreement', init_cmd);
         cockpit
-                .spawn(init_cmd, { superuser: true, err: "message" })
+                .spawn(init_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const agmtIntervalCount = this.state.agmtInitCounter + 1;
                     const intervals = this.state.agmtInitIntervals;
@@ -1306,7 +1306,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'enable', this.state.agmtName, '--suffix=' + this.props.suffix];
         log_cmd('enableAgmt', 'enable agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1331,7 +1331,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'disable', this.state.agmtName, '--suffix=' + this.props.suffix];
         log_cmd('disableAgmt', 'Disable agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1355,7 +1355,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'delete', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('deleteAgmt', 'Delete agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1464,7 +1464,7 @@ export class ReplAgmts extends React.Component {
 
         let buffer = "";
         let error = null;
-        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
         proc
                 .done(data => {
                     this.props.reload(this.props.suffix);
@@ -1518,7 +1518,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'init-status', '--suffix=' + this.props.suffix, agmtName];
         log_cmd('watchAgmtInit', 'Get initialization status for agmt', status_cmd);
         cockpit
-                .spawn(status_cmd, { superuser: true, err: "message" })
+                .spawn(status_cmd, { superuser: "require", err: "message" })
                 .done(data => {
                     const init_status = JSON.parse(data);
                     if (init_status.startsWith('Agreement successfully initialized') ||

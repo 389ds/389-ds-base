@@ -45,13 +45,6 @@ struct idl_private
     int dummy;
 };
 
-/* Used to store leftover parentid and entry ids */
-typedef struct _range_id_pair
-{
-    ID key;
-    ID id;
-} idl_range_id_pair;
-
 /* lmdb iterator callback context */
 typedef struct {
     backend *be;
@@ -62,17 +55,30 @@ typedef struct {
     struct timespec *expire_time;
     int lookthrough_limit;
     int operator;
-    idl_range_id_pair *leftover;
-    size_t leftoverlen;
-    size_t leftovercnt;
     IDList *idl;
-    IdRange_t *idrange_list;
     int flag_err;
     ID lastid;
-    ID suffix;
     uint64_t count;
     char *index_id;
 } idl_range_ctx_t;
+
+/* Context for depth-first parentid index walk (bulk import) */
+typedef struct {
+    backend *be;
+    dbi_db_t *db;
+    dbi_txn_t *txn;
+    struct attrinfo *ai;
+    IDList *idl;
+    int *flag_err;
+    int allidslimit;
+    int sizelimit;
+    struct timespec *expire_time;
+    int lookthrough_limit;
+    uint64_t count;
+    char *index_id;
+    char keybuf[32];
+    dbi_val_t key;
+} idl_parentid_walk_ctx_t;
 
 
 static int idl_tune = DEFAULT_IDL_TUNE; /* tuning parameters for IDL code */
@@ -383,22 +389,272 @@ keycmp(dbi_val_t *L, dbi_val_t *R, value_compare_fn_type cmp_fn)
     return cmp_fn(&Lv, &Rv);
 }
 
+static void
+idl_parentid_sorted_suffix_init(backend *be, ID *suffix, const char *logfn)
+{
+    struct _back_info_index_key bck_info;
+    int rc;
+
+    bck_info.index = SLAPI_ATTR_PARENTID;
+    bck_info.key = "0";
+    *suffix = 0;
+
+    rc = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_WARNING, logfn,
+                      "Total update: fail to retrieve suffix entryID, continue assuming it is the first entry\n");
+    }
+    if (bck_info.key_found) {
+        *suffix = bck_info.id;
+    }
+}
+
+static void
+idl_parentid_set_index_key(idl_parentid_walk_ctx_t *ctx, ID parent_id)
+{
+    ctx->key.ulen = sizeof(ctx->keybuf);
+    ctx->key.size = PR_snprintf(ctx->keybuf, ctx->key.ulen, "%c%lu",
+                                EQ_PREFIX, (u_long)parent_id);
+    ctx->key.size++; /* include the null terminator */
+    dblayer_value_set_buffer(ctx->be, &ctx->key, ctx->keybuf, ctx->key.size);
+}
+
+static int
+idl_parentid_walk_check_limits(idl_parentid_walk_ctx_t *ctx)
+{
+    if (ctx->idl) {
+        if ((ctx->lookthrough_limit != -1) &&
+            (ctx->idl->b_nids > (ID)ctx->lookthrough_limit)) {
+            idl_free(&ctx->idl);
+            ctx->idl = idl_allids(ctx->be);
+            slapi_log_err(SLAPI_LOG_TRACE, "idl_new_parentid_sorted_range_fetch",
+                          "lookthrough_limit exceeded\n");
+            *(ctx->flag_err) = LDAP_ADMINLIMIT_EXCEEDED;
+            return -1;
+        }
+        if ((ctx->sizelimit > 0) && (ctx->idl->b_nids > (ID)ctx->sizelimit)) {
+            slapi_log_err(SLAPI_LOG_TRACE, "idl_new_parentid_sorted_range_fetch",
+                          "sizelimit exceeded\n");
+            *(ctx->flag_err) = LDAP_SIZELIMIT_EXCEEDED;
+            return -1;
+        }
+    }
+    if (slapi_timespec_expire_check(ctx->expire_time) == TIMER_EXPIRED) {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_parentid_sorted_range_fetch",
+                      "timelimit exceeded\n");
+        *(ctx->flag_err) = LDAP_TIMELIMIT_EXCEEDED;
+        return -1;
+    }
+    return 0;
+}
+
+static int
+idl_parentid_walk_push(ID **stack, size_t *stack_size, size_t *stack_top, ID id)
+{
+    if (*stack_top >= *stack_size) {
+        size_t new_size = (*stack_size == 0) ? 256 : (*stack_size * 2);
+        ID *new_stack = (ID *)slapi_ch_realloc((char *)*stack, new_size * sizeof(ID));
+
+        if (new_stack == NULL) {
+            return -1;
+        }
+        *stack = new_stack;
+        *stack_size = new_size;
+    }
+    (*stack)[(*stack_top)++] = id;
+    return 0;
+}
+
+/*
+ * Walk the parentid index depth-first starting at root_id.
+ * For each parent, look up index key "=parent_id" (direct get, not cursor next),
+ * append each descendant (but not root_id) to the IDList, then visit its children.
+ */
+static int
+idl_parentid_walk_tree(idl_parentid_walk_ctx_t *ctx, ID root_id, ID **stack,
+                       size_t *stack_size, size_t *stack_top)
+{
+    IDList *children = NULL;
+    int fetch_err = 0;
+    size_t i;
+
+    if (idl_parentid_walk_push(stack, stack_size, stack_top, root_id) != 0) {
+        return -1;
+    }
+
+    while (*stack_top > 0) {
+        ID parent_id = (*stack)[--(*stack_top)];
+
+        if (idl_parentid_walk_check_limits(ctx) != 0) {
+            return -1;
+        }
+
+        if (parent_id != root_id) {
+            /* The suffix entry itself is not a candidate: bulk import
+             * (total init) sends it separately before walking the tree,
+             * and the pre-walk implementation never returned it either. */
+            if (idl_append_extend(&ctx->idl, parent_id) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "idl_new_parentid_sorted_range_fetch",
+                              "Unable to extend id list for attribute (%s)\n", ctx->index_id);
+                idl_free(&ctx->idl);
+                return -1;
+            }
+            ctx->count++;
+        }
+
+#if defined(DB_ALLIDS_ON_READ)
+        if ((NEW_IDL_NO_ALLID != *(ctx->flag_err)) && ctx->ai && (ctx->idl != NULL) &&
+            idl_new_exceeds_allidslimit(ctx->count, ctx->ai, ctx->allidslimit)) {
+            ctx->idl->b_nids = 1;
+            ctx->idl->b_ids[0] = ALLID;
+            return 0;
+        }
+#endif
+        idl_parentid_set_index_key(ctx, parent_id);
+        /* idl_fetch_ext resets *err to 0 on success, so re-arm the
+         * no-allids hint for every fetch: collapsing one parent's
+         * children to ALLIDS would collapse the whole candidate list. */
+        fetch_err = NEW_IDL_NO_ALLID;
+        children = idl_fetch_ext(ctx->be, ctx->db, &ctx->key, ctx->txn, ctx->ai,
+                                 &fetch_err, ctx->allidslimit);
+        if (fetch_err != 0 && fetch_err != DBI_RC_NOTFOUND) {
+            slapi_log_err(SLAPI_LOG_ERR, "idl_new_parentid_sorted_range_fetch",
+                          "Failed to read parentid index key %s (err=%d)\n",
+                          (char *)ctx->key.data, fetch_err);
+            *(ctx->flag_err) = fetch_err;
+            return -1;
+        }
+        if (children == NULL) {
+            continue;
+        }
+        if (ALLIDS(children)) {
+            idl_free(&ctx->idl);
+            ctx->idl = idl_allids(ctx->be);
+            idl_free(&children);
+            return 0;
+        }
+        for (i = children->b_nids; i > 0; i--) {
+            if (idl_parentid_walk_push(stack, stack_size, stack_top,
+                                       children->b_ids[i - 1]) != 0) {
+                idl_free(&children);
+                return -1;
+            }
+        }
+        idl_free(&children);
+    }
+    return 0;
+}
+
+/*
+ * Build an IDList from the parentid index with ancestors before descendants.
+ * Uses direct key lookups (idl_fetch) and depth-first traversal from the
+ * suffix entry, rather than a full index scan with membership checks.
+ *
+ * Used during bulk import (SLAPI_OP_RANGE_NO_IDL_SORT).
+ */
+static IDList *
+idl_new_parentid_sorted_range_fetch(
+    backend *be,
+    dbi_db_t *db,
+    dbi_val_t *lowerkey,
+    dbi_val_t *upperkey,
+    dbi_txn_t *txn,
+    struct attrinfo *ai,
+    int *flag_err,
+    int allidslimit,
+    int sizelimit,
+    struct timespec *expire_time,
+    int lookthrough_limit,
+    int operator)
+{
+    int ret = 0;
+    ID suffix = 0;
+    ID *stack = NULL;
+    size_t stack_size = 0;
+    size_t stack_top = 0;
+    char *index_id = get_index_name(be, db, ai);
+    idl_parentid_walk_ctx_t walk = {0};
+    IDList *suffix_idl = NULL;
+    int suffix_err = 0;
+
+    walk.be = be;
+    walk.db = db;
+    walk.txn = txn;
+    walk.ai = ai;
+    walk.flag_err = flag_err;
+    walk.allidslimit = allidslimit;
+    walk.sizelimit = sizelimit;
+    walk.expire_time = expire_time;
+    walk.lookthrough_limit = lookthrough_limit;
+    walk.index_id = index_id;
+    walk.idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE);
+    if (walk.idl == NULL) {
+        *flag_err = ENOMEM;
+        return NULL;
+    }
+
+    idl_parentid_sorted_suffix_init(be, &suffix, "idl_new_parentid_sorted_range_fetch");
+    if (suffix == 0) {
+        idl_parentid_set_index_key(&walk, 0);
+        suffix_idl = idl_fetch_ext(be, db, &walk.key, txn, ai, &suffix_err, allidslimit);
+        if (suffix_idl && suffix_idl->b_nids > 0 && !ALLIDS(suffix_idl)) {
+            suffix = suffix_idl->b_ids[0];
+        }
+        idl_free(&suffix_idl);
+    }
+    if (suffix == 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "idl_new_parentid_sorted_range_fetch",
+                      "Unable to determine suffix entry ID for parentid tree walk\n");
+        idl_free(&walk.idl);
+        *flag_err = LDAP_UNWILLING_TO_PERFORM;
+        return NULL;
+    }
+
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+        char *included = ((operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) ? "not " : "";
+        slapi_log_err(SLAPI_LOG_FILTER,
+                      "idl_new_parentid_sorted_range_fetch",
+                      "Walking parentid index from suffix ID %u, keys %s to %s\n",
+                      suffix, (char *)lowerkey->data,
+                      upperkey && upperkey->data ? (char *)upperkey->data : "(none)");
+        slapi_log_err(SLAPI_LOG_FILTER, "idl_new_parentid_sorted_range_fetch",
+                      "Candidate list is not sorted. lower key is %sincluded.\n", included);
+    }
+
+    if (idl_parentid_walk_tree(&walk, suffix, &stack, &stack_size, &stack_top) != 0) {
+        if (*flag_err == 0) {
+            *flag_err = LDAP_UNWILLING_TO_PERFORM;
+        }
+        ret = *flag_err;
+    }
+
+    slapi_ch_free((void **)&stack);
+
+    if (walk.idl && (walk.idl->b_nids == 1) && (walk.idl->b_ids[0] == ALLID)) {
+        idl_free(&walk.idl);
+        walk.idl = idl_allids(be);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_parentid_sorted_range_fetch",
+                      "%s returns allids\n", index_id);
+    } else {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_parentid_sorted_range_fetch",
+                      "%s returns nids=%lu\n", index_id, (u_long)IDL_NIDS(walk.idl));
+    }
+
+    if (ret) {
+        slapi_log_err(SLAPI_LOG_ERR, "idl_new_parentid_sorted_range_fetch",
+                      "Failed to build parentid candidate list on %s index. Error is %d\n",
+                      index_id, ret);
+    }
+    *flag_err = ret;
+    slapi_log_err(SLAPI_LOG_FILTER, "idl_new_parentid_sorted_range_fetch",
+                  "Found %d candidates; error code is: %d\n",
+                  walk.idl ? walk.idl->b_nids : 0, *flag_err);
+    return walk.idl;
+}
+
 /*
  * Perform the range search in the idl layer instead of the index layer
  * to improve the performance.
- */
-/*
- * NOTE:
- * In the total update (bulk import), an entry requires its ancestors already added.
- * To guarantee it, the range search with parentid is used with setting the flag
- * SLAPI_OP_RANGE_NO_IDL_SORT in operator.
- * In bulk import the range search is parentid>=1 to retrieve all the entries
- * But we need to order the IDL with the parents first => retrieve the suffix entry ID
- * to store the children
- *
- * If the flag is set,
- * 1. the IDList is not sorted by the ID.
- * 2. holding to add an ID to the IDList unless the key is found in the IDList.
  */
 IDList *
 idl_new_range_fetch(
@@ -430,38 +686,18 @@ idl_new_range_fetch(
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int coreop = operator&SLAPI_OP_RANGE;
-    ID key = 0xff; /* random- to suppress compiler warning */
-    ID suffix = 0; /* random- to suppress compiler warning */
-    idl_range_id_pair *leftover = NULL;
-    size_t leftoverlen = 32;
-    size_t leftovercnt = 0;
     char *index_id = get_index_name(be, db, ai);
-    IdRange_t *idrange_list = NULL;
-
 
     if (NULL == flag_err) {
         return NULL;
     }
-    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-            struct _back_info_index_key bck_info;
-            int rc;
-            /* We are doing a bulk import
-             * try to retrieve the suffix entry id from the index
-             */
-
-            bck_info.index = SLAPI_ATTR_PARENTID;
-            bck_info.key = "0";
-
-            if ((rc = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info))) {
-                slapi_log_err(SLAPI_LOG_WARNING, "idl_new_range_fetch", "Total update: fail to retrieve suffix entryID, continue assuming it is the first entry\n");
-            }
-            if (bck_info.key_found) {
-                suffix = bck_info.id;
-            }
-    }
-
     if (NEW_IDL_NOOP == *flag_err) {
         return NULL;
+    }
+    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+        return idl_new_parentid_sorted_range_fetch(be, db, lowerkey, upperkey, txn, ai,
+                                                 flag_err, allidslimit, sizelimit,
+                                                 expire_time, lookthrough_limit, operator);
     }
     if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
         char *included = ((operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) ? "not " : "";
@@ -552,9 +788,6 @@ idl_new_range_fetch(
             *flag_err = LDAP_TIMELIMIT_EXCEEDED;
             goto error;
         }
-        if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-            key = (ID)strtol((char *)cur_key.data + 1, (char **)NULL, 10);
-        }
         while (DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret)) {
             if (dataret.size != sizeof(ID)) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
@@ -570,38 +803,7 @@ idl_new_range_fetch(
             }
             /* note the last id read to check for dups */
             lastid = id;
-            /* we got another ID, add it to our IDL */
-            if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-                if ((count == 0) && (suffix == 0)) {
-                    /* First time.  Keep the suffix ID.
-                     * note that 'suffix==0' mean we did not retrieve the suffix entry id
-                     * from the parentid index (key '=0'), so let assume the first
-                     * found entry is the one from the suffix
-                     */
-                    suffix = key;
-                    idl_append_extend(&idl, id);
-                    idrange_add_id(&idrange_list, id);
-                } else if ((key == suffix) || idl_id_is_in_idlist_ranges(idl, idrange_list, key)) {
-                    /* the parent is the suffix or already in idl. */
-                    idl_append_extend(&idl, id);
-                    idrange_add_id(&idrange_list, id);
-                } else {
-                    /* Otherwise, keep the {key,id} in leftover array */
-                    if (!leftover) {
-                        leftover = (idl_range_id_pair *)slapi_ch_calloc(leftoverlen, sizeof(idl_range_id_pair));
-                    } else if (leftovercnt == leftoverlen) {
-                        leftover = (idl_range_id_pair *)slapi_ch_realloc((char *)leftover, 2 * leftoverlen * sizeof(idl_range_id_pair));
-                        memset(leftover + leftovercnt, 0, leftoverlen);
-                        leftoverlen *= 2;
-                    }
-                    leftover[leftovercnt].key = key;
-                    leftover[leftovercnt].id = id;
-                    leftovercnt++;
-                }
-            } else {
-                idl_append_extend(&idl, id);
-            }
-
+            idl_append_extend(&idl, id);
             count++;
         }
 
@@ -684,26 +886,9 @@ error:
     *flag_err = ret;
 
     /* sort idl */
-    if (idl && !ALLIDS(idl) && !(operator&SLAPI_OP_RANGE_NO_IDL_SORT)) {
+    if (idl && !ALLIDS(idl)) {
         qsort((void *)&idl->b_ids[0], idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
     }
-    if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
-        size_t remaining = leftovercnt;
-
-        while(remaining > 0) {
-            for (size_t i = 0; i < leftovercnt; i++) {
-                if (leftover[i].key > 0 && idl_id_is_in_idlist_ranges(idl, idrange_list, leftover[i].key) != 0) {
-                    /* if the leftover key has its parent in the idl */
-                    idl_append_extend(&idl, leftover[i].id);
-                    idrange_add_id(&idrange_list, leftover[i].id);
-                    leftover[i].key = 0;
-                    remaining--;
-                }
-            }
-        }
-    }
-    slapi_ch_free((void **)&leftover);
-    idrange_free(&idrange_list);
     slapi_log_err(SLAPI_LOG_FILTER, "idl_new_range_fetch",
                   "Found %d candidates; error code is: %d\n",
                   idl ? idl->b_nids : 0, *flag_err);
@@ -769,38 +954,7 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
                       "Detected duplicate id %d due to DB_MULTIPLE error - skipping\n", id);
         return DBI_RC_SUCCESS;
     }
-    /* we got another ID, add it to our IDL */
-    if (rctx->operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-        ID keyval = (ID)strtol((char *)key->data + 1, (char **)NULL, 10);
-        if ((rctx->count == 0) && (rctx->suffix == 0)) {
-            /* First time.  Keep the suffix ID.
-             * note that 'suffix==0' mean we did not retrieve the suffix entry id
-             * from the parentid index (key '=0'), so let assume the first
-             * found entry is the one from the suffix
-             */
-            rctx->suffix = keyval;
-            idl_append_extend(&rctx->idl, id);
-            idrange_add_id(&rctx->idrange_list, id);
-        } else if ((keyval == rctx->suffix) || idl_id_is_in_idlist_ranges(rctx->idl, rctx->idrange_list, keyval)) {
-            /* the parent is the suffix or already in idl. */
-            idl_append_extend(&rctx->idl, id);
-            idrange_add_id(&rctx->idrange_list, id);
-        } else {
-            /* Otherwise, keep the {keyval,id} in leftover array */
-            if (!rctx->leftover) {
-                rctx->leftover = (idl_range_id_pair *)slapi_ch_calloc(rctx->leftoverlen, sizeof(idl_range_id_pair));
-            } else if (rctx->leftovercnt == rctx->leftoverlen) {
-                rctx->leftover = (idl_range_id_pair *)slapi_ch_realloc((char *)rctx->leftover, 2 * rctx->leftoverlen * sizeof(idl_range_id_pair));
-                memset(rctx->leftover + rctx->leftovercnt, 0, rctx->leftoverlen * sizeof(idl_range_id_pair));
-                rctx->leftoverlen *= 2;
-            }
-            rctx->leftover[rctx->leftovercnt].key = keyval;
-            rctx->leftover[rctx->leftovercnt].id = id;
-            rctx->leftovercnt++;
-        }
-    } else {
-        idl_append_extend(&rctx->idl, id);
-    }
+    idl_append_extend(&rctx->idl, id);
 #if defined(DB_ALLIDS_ON_READ)
     /* enforce the allids read limit */
     if ((NEW_IDL_NO_ALLID != rctx->flag_err) && rctx->ai && (rctx->idl != NULL) &&
@@ -845,6 +999,11 @@ idl_lmdb_range_fetch(
     if ((NULL == flag_err) || (NEW_IDL_NOOP == *flag_err)) {
         return NULL;
     }
+    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+        return idl_new_parentid_sorted_range_fetch(be, db, lowerkey, upperkey, txn, ai,
+                                                 flag_err, allidslimit, sizelimit,
+                                                 expire_time, lookthrough_limit, operator);
+    }
     if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
         char *included = ((operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) ? "not " : "";
         const char *sorted = (operator & SLAPI_OP_RANGE_NO_IDL_SORT) ? "not " : "";
@@ -877,32 +1036,11 @@ idl_lmdb_range_fetch(
     idl_range_ctx.expire_time = expire_time;
     idl_range_ctx.lookthrough_limit = lookthrough_limit;
     idl_range_ctx.operator = operator;
-    idl_range_ctx.leftover = NULL;
-    idl_range_ctx.leftoverlen = 32;
-    idl_range_ctx.leftovercnt = 0;
     idl_range_ctx.idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE);
     idl_range_ctx.flag_err = 0;
     idl_range_ctx.lastid = 0;
     idl_range_ctx.count = 0;
     idl_range_ctx.index_id = index_id;
-    idl_range_ctx.idrange_list = NULL;
-    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-            struct _back_info_index_key bck_info;
-            /* We are doing a bulk import
-             * try to retrieve the suffix entry id from the index
-             */
-
-            bck_info.index = SLAPI_ATTR_PARENTID;
-            bck_info.key = "0";
-
-            if ((ret = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info))) {
-                slapi_log_err(SLAPI_LOG_WARNING, "idl_lmdb_range_fetch",
-                              "Total update: fail to retrieve suffix entryID, continue assuming it is the first entry\n");
-            }
-            if (bck_info.key_found) {
-                idl_range_ctx.suffix = bck_info.id;
-            }
-    }
 
     /*
      * Iterate
@@ -952,27 +1090,9 @@ error:
     }
 
     /* sort idl */
-    if (!ALLIDS(idl_range_ctx.idl) && !(operator&SLAPI_OP_RANGE_NO_IDL_SORT)) {
+    if (!ALLIDS(idl_range_ctx.idl)) {
         qsort((void *)&idl_range_ctx.idl->b_ids[0], idl_range_ctx.idl->b_nids, sizeof(ID), idl_sort_cmp);
     }
-    if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
-        size_t remaining = idl_range_ctx.leftovercnt;
-
-        while(remaining > 0) {
-            for (size_t i = 0; i < idl_range_ctx.leftovercnt; i++) {
-                if (idl_range_ctx.leftover[i].key > 0 &&
-                    idl_id_is_in_idlist_ranges(idl_range_ctx.idl, idl_range_ctx.idrange_list, idl_range_ctx.leftover[i].key) != 0) {
-                    /* if the leftover key has its parent in the idl */
-                    idl_append_extend(&idl_range_ctx.idl, idl_range_ctx.leftover[i].id);
-                    idrange_add_id(&idl_range_ctx.idrange_list, idl_range_ctx.leftover[i].id);
-                    idl_range_ctx.leftover[i].key = 0;
-                    remaining--;
-                }
-            }
-        }
-    }
-    slapi_ch_free((void **)&idl_range_ctx.leftover);
-    idrange_free(&idl_range_ctx.idrange_list);
     *flag_err = idl_range_ctx.flag_err;
     slapi_log_err(SLAPI_LOG_FILTER, "idl_lmdb_range_fetch",
                   "Found %d candidates; error code is: %d\n",
