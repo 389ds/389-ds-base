@@ -886,6 +886,8 @@ int slapd_log_audit(char *buffer, PRBool json);
 int slapd_log_auditfail(char *buffer, PRBool json);
 int32_t slapd_log_access_json(char *buffer);
 void logs_flush(void);
+void logs_maintenance_init(void);
+void logs_maintenance_shutdown(void);
 
 int access_log_openf(char *pathname, int locked);
 int security_log_openf(char *pathname, int locked);
