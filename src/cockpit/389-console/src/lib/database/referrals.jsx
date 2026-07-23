@@ -15,6 +15,7 @@ import {
     ValidatedOptions,
 } from "@patternfly/react-core";
 import { log_cmd, valid_port, valid_dn, getApiErrorMessage } from "../tools.jsx";
+import { DsNumberInput } from "../dsNumberInput.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -293,6 +294,7 @@ export class SuffixReferrals extends React.Component {
                     previewValue={this.state.refValue}
                     refProtocol={this.state.refProtocol}
                     refScope={this.state.refScope}
+                    refPort={this.state.refPort}
                     error={this.state.errObj}
                     saving={this.state.saving}
                     saveBtnDisabled={this.state.saveBtnDisabled}
@@ -317,6 +319,7 @@ class AddReferralModal extends React.Component {
             saveBtnDisabled,
             refProtocol,
             refScope,
+            refPort,
         } = this.props;
 
         if (previewValue === "") {
@@ -385,15 +388,15 @@ class AddReferralModal extends React.Component {
                             {_("Port Number")}
                         </GridItem>
                         <GridItem span={9}>
-                            <TextInput
-                                type="number"
+                            <DsNumberInput
                                 id="refPort"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="refPort"
-                                onChange={(e, checked) => {
+                                value={refPort}
+                                min={1}
+                                max={65535}
+                                validated={error.refPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                onChange={(e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.refPort ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>

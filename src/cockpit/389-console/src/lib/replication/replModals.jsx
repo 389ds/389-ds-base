@@ -26,6 +26,7 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 import PropTypes from "prop-types";
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 
@@ -400,16 +401,15 @@ export class WinsyncAgmtModal extends React.Component {
                                         {_("Windows AD Port")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={agmtPort}
-                                            type="number"
                                             id="agmtPort"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="agmtPort"
-                                            onChange={(e, str) => {
+                                            min={1}
+                                            max={65535}
+                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                            onChange={(e) => {
                                                 handleChange(e);
                                             }}
-                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -585,16 +585,15 @@ export class WinsyncAgmtModal extends React.Component {
                                         {_("Synchronization Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={agmtSyncInterval}
-                                            type="number"
                                             id="agmtSyncInterval"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="agmtSyncInterval"
-                                            onChange={(e, str) => {
+                                            min={1}
+                                            max={INT32_MAX}
+                                            validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
+                                            onChange={(e) => {
                                                 handleChange(e);
                                             }}
-                                            validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1173,16 +1172,15 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Consumer Port")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={agmtPort}
-                                            type="number"
                                             id="agmtPort"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="agmtPort"
-                                            onChange={(e, str) => {
+                                            min={1}
+                                            max={65535}
+                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                            onChange={(e) => {
                                                 handleChange(e);
                                             }}
-                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText  >
                                             {_("Port must be between 1 and 65535")}
@@ -1515,7 +1513,7 @@ export class ChangeReplRoleModal extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("New Role")}
                         </GridItem>
-                        <GridItem span={3}>
+                        <GridItem span={4}>
                             <FormSelect
                                 value={newRole}
                                 id="newRole"
@@ -1749,7 +1747,7 @@ export class EnableReplModal extends React.Component {
                         <GridItem span={3} className="ds-label">
                             {_("Replication Role")}
                         </GridItem>
-                        <GridItem span={2}>
+                        <GridItem span={3}>
                             <TypeaheadSelect
                                 selected={enableRole}
                                 onSelect={(e, selection) => {

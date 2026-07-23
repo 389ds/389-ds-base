@@ -28,6 +28,7 @@ import {
 import PropTypes from "prop-types";
 import { SyncAltIcon } from '@patternfly/react-icons';
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import { BanIcon } from '@patternfly/react-icons/dist/js/icons/ban-icon';
 
 const _ = cockpit.gettext;
 
@@ -1838,7 +1839,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("Database maximum size in megabytes. The practical maximum size of an LMDB database is limited by the system's addressable memory (nsslapd-mdb-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Maximum Size")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -1872,7 +1873,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -1900,7 +1901,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("ID List Scan Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -1928,7 +1929,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Paged Search Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -1956,7 +1957,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Paged Search ID List Scan Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -1984,7 +1985,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Range Search Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -2034,7 +2035,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Normalized DN Cache Max Size") }
                                         </GridItem>
                                         <GridItem span={8}>
@@ -2080,7 +2081,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("Location for database memory mapped files, this element is read only.")}
                                             className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Home Directory")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -2098,7 +2099,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of read transactions that can be opened simultaneously. A value of 0 means this value is computed by the server (nsslapd-mdb-max-readers).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Max Readers")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -2126,7 +2127,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of named database instances that can be included within the memory mapped database file. A value of 0 means this value is computed by the server (nsslapd-mdb-max-dbs).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Max DBs")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -2154,29 +2155,45 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("Enable entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead.")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             Cache {_("Memory Percentage")}
                                         </GridItem>
                                         <GridItem span={8}>
-                                            <NumberInput
-                                                value={Number(this.state.autosize)}
-                                                min={this.getFieldMinValue("autosize")}
-                                                max={this.getFieldMaxValue("autosize")}
-                                                onMinus={() => { this.onConfigMinus("autosize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "autosize") }}
-                                                onBlur={() => { this.onConfigChangeBlur("autosize") }}
-                                                onPlus={() => { this.onConfigPlus("autosize") }}
-                                                inputName="input"
-                                                inputAriaLabel="number input"
-                                                minusBtnAriaLabel="minus"
-                                                plusBtnAriaLabel="plus"
-                                                widthChars={10}
-                                                unit="%"
-                                                validated={'autosize' in this.state.error &&
-                                                    this.state.error['autosize']
-                                                    ? ValidatedOptions.error
-                                                    : ValidatedOptions.default}
-                                            />
+                                            <div className="ds-inline">
+                                                <NumberInput
+                                                    value={Number(this.state.autosize)}
+                                                    min={this.getFieldMinValue("autosize")}
+                                                    max={this.getFieldMaxValue("autosize")}
+                                                    onMinus={() => { this.onConfigMinus("autosize") }}
+                                                    onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                                    onBlur={() => { this.onConfigChangeBlur("autosize") }}
+                                                    onPlus={() => { this.onConfigPlus("autosize") }}
+                                                    inputName="input"
+                                                    inputAriaLabel="number input"
+                                                    minusBtnAriaLabel="minus"
+                                                    plusBtnAriaLabel="plus"
+                                                    widthChars={10}
+                                                    unit="%"
+                                                    validated={'autosize' in this.state.error &&
+                                                        this.state.error['autosize']
+                                                        ? ValidatedOptions.error
+                                                        : ValidatedOptions.default}
+                                                />
+                                            </div>
+                                            <div className="ds-inline ds-left-margin-md ds-lower-field">
+                                                <Button
+                                                    variant="secondary"
+                                                    isDisabled={this.state.autosize === 0}
+                                                    size="sm"
+                                                    icon={<BanIcon />}
+                                                    onClick={() => {
+                                                        this.setState({ autosize: 0 }, () => { this.validateSaveBtn() } )}
+                                                    }
+                                                    title="Sets the memory percentage to zero to disable auto-tuning"
+                                                >
+                                                    {_("Disable auto-tuning")}
+                                                </Button>
+                                            </div>
                                             <HelperText>
                                                 <HelperTextItem variant="indeterminate">
                                                     Set the percentage to zero to manually tune entry cache

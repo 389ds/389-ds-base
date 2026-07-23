@@ -5,6 +5,7 @@ import {
 	Alert,
 	Button,
 	Checkbox,
+	Divider,
 	Form,
 	FormAlert,
 	FormSelect,
@@ -21,10 +22,10 @@ import {
 	TextVariants
 } from '@patternfly/react-core';
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput } from "../dsNumberInput.jsx";
 import PropTypes from "prop-types";
 import { SyncAltIcon } from '@patternfly/react-icons';
 import {
-    getValidationProps,
     hasInvalidField,
     renderValidationError,
     updateFieldValidation,
@@ -999,48 +1000,9 @@ export class GlobalPwPolicy extends React.Component {
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            {_("Minimum Length")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("The minimum number of characters in the password (passwordMinLength).")}
-                                value={this.state.passwordminlength}
-                                type="number"
-                                id="passwordminlength"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminlength"
-                                {...getValidationProps("passwordminlength", this.state.invalidFields)}
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                            {renderValidationError("passwordminlength", this.state.invalidFields)}
-                        </GridItem>
-
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Max Repeated Chars")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                type="number"
-                                title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}
-                                value={this.state.passwordmaxrepeats}
-                                id="passwordmaxrepeats"
-                                aria-describedby="passwordmaxrepeats"
-                                name="passwordmaxrepeats"
-                                onChange={(e, str) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                                {...getValidationProps("passwordmaxrepeats", this.state.invalidFields)}
-                            />
-                            {renderValidationError("passwordmaxrepeats", this.state.invalidFields)}
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
                             {_("Prohibited Words")}
                         </GridItem>
-                        <GridItem span={7}>
+                        <GridItem span={8}>
                             <TextInput
                                 title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
                                 value={this.state.passwordbadwords}
@@ -1054,6 +1016,41 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={3}>
+                            {_("Minimum Length")}
+                        </GridItem>
+                        <GridItem span={1}>
+                            <DsNumberInput
+                                title={_("The minimum number of characters in the password (passwordMinLength).")}
+                                value={this.state.passwordminlength}
+                                id="passwordminlength"
+                                fieldName="passwordminlength"
+                                invalidFields={this.state.invalidFields}
+                                onChange={(e, checked) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                            />
+                            {renderValidationError("passwordminlength", this.state.invalidFields)}
+                        </GridItem>
+                        <GridItem className="ds-label" offset={6} span={3}>
+                            {_("Max Repeated Chars")}
+                        </GridItem>
+                        <GridItem span={1}>
+                            <DsNumberInput
+                                title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}
+                                value={this.state.passwordmaxrepeats}
+                                id="passwordmaxrepeats"
+                                fieldName="passwordmaxrepeats"
+                                invalidFields={this.state.invalidFields}
+                                onChange={(e, str) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                            />
+                            {renderValidationError("passwordmaxrepeats", this.state.invalidFields)}
+                        </GridItem>
+                    </Grid>
+
                     <Grid className="ds-margin-top">
                         <GridItem span={3}title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
                             <Checkbox
@@ -1080,8 +1077,8 @@ export class GlobalPwPolicy extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid>
-                        <GridItem span={10}>
-                            <hr />
+                        <GridItem span={11}>
+                            <Divider />
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top">
@@ -1089,14 +1086,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Alpha's")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}
                                 value={this.state.passwordminalphas}
-                                type="number"
                                 id="passwordminalphas"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminalphas"
-                                {...getValidationProps("passwordminalphas", this.state.invalidFields)}
+                                fieldName="passwordminalphas"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1107,14 +1102,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Digits")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).")}
                                 value={this.state.passwordmindigits}
-                                type="number"
                                 id="passwordmindigits"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmindigits"
-                                {...getValidationProps("passwordmindigits", this.state.invalidFields)}
+                                fieldName="passwordmindigits"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1127,14 +1120,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Uppercase")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("Reject passwords with fewer than this many uppercase characters (passwordMinUppers).")}
                                 value={this.state.passwordminuppers}
-                                type="number"
                                 id="passwordminuppers"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminuppers"
-                                {...getValidationProps("passwordminuppers", this.state.invalidFields)}
+                                fieldName="passwordminuppers"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1145,14 +1136,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Lowercase")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}
                                 value={this.state.passwordminlowers}
-                                type="number"
                                 id="passwordminlowers"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminlowers"
-                                {...getValidationProps("passwordminlowers", this.state.invalidFields)}
+                                fieldName="passwordminlowers"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1165,14 +1154,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Special")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
                                 value={this.state.passwordminspecials}
-                                type="number"
                                 id="passwordminspecials"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminspecials"
-                                {...getValidationProps("passwordminspecials", this.state.invalidFields)}
+                                fieldName="passwordminspecials"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1183,14 +1170,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum 8-bit")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).")}
                                 value={this.state.passwordmin8bit}
-                                type="number"
                                 id="passwordmin8bit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmin8bit"
-                                {...getValidationProps("passwordmin8bit", this.state.invalidFields)}
+                                fieldName="passwordmin8bit"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1203,14 +1188,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Categories")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}
                                 value={this.state.passwordmincategories}
-                                type="number"
                                 id="passwordmincategories"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmincategories"
-                                {...getValidationProps("passwordmincategories", this.state.invalidFields)}
+                                fieldName="passwordmincategories"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1219,8 +1202,8 @@ export class GlobalPwPolicy extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid>
-                        <GridItem span={10}>
-                            <hr />
+                        <GridItem span={11}>
+                            <Divider />
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top">
@@ -1228,14 +1211,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Maximum Sequences")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("The maximum number of allowed monotonic characters sequences (passwordMaxSequence).")}
                                 value={this.state.passwordmaxsequence}
-                                type="number"
                                 id="passwordmaxsequence"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxsequence"
-                                {...getValidationProps("passwordmaxsequence", this.state.invalidFields)}
+                                fieldName="passwordmaxsequence"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1246,14 +1227,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Max Sequence Sets")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).")}
                                 value={this.state.passwordmaxseqsets}
-                                type="number"
                                 id="passwordmaxseqsets"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxseqsets"
-                                {...getValidationProps("passwordmaxseqsets", this.state.invalidFields)}
+                                fieldName="passwordmaxseqsets"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1266,14 +1245,12 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Max Seq Per Class")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
+                            <DsNumberInput
                                 title={_("The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).")}
                                 value={this.state.passwordmaxclasschars}
-                                type="number"
                                 id="passwordmaxclasschars"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxclasschars"
-                                {...getValidationProps("passwordmaxclasschars", this.state.invalidFields)}
+                                fieldName="passwordmaxclasschars"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
@@ -1282,15 +1259,15 @@ export class GlobalPwPolicy extends React.Component {
                         {renderValidationError("passwordmaxclasschars", this.state.invalidFields)}
                     </Grid>
                     <Grid>
-                        <GridItem span={10}>
-                            <hr />
+                        <GridItem span={11}>
+                            <Divider />
                         </GridItem>
                     </Grid>
                     <Grid title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Check User Attributes")}
                         </GridItem>
-                        <GridItem span={7}>
+                        <GridItem span={8}>
                             <TypeaheadSelect
                                 selected={this.state.passworduserattributes}
                                 onSelect={this.handleSyntaxChange}
@@ -1310,16 +1287,14 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Minimum Token Length")}
                         </GridItem>
                         <GridItem span={1}>
-                            <TextInput
-                                type="number"
+                            <DsNumberInput
                                 value={this.state.passwordmintokenlength}
                                 id="passwordmintokenlength"
-                                aria-describedby="passwordmintokenlength"
-                                name="passwordmintokenlength"
+                                fieldName="passwordmintokenlength"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, str) => {
                                     this.handleSyntaxChange(e);
                                 }}
-                                {...getValidationProps("passwordmintokenlength", this.state.invalidFields)}
                             />
                         </GridItem>
                         {renderValidationError("passwordmintokenlength", this.state.invalidFields)}
@@ -1336,13 +1311,11 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Number of Failed Logins That Locks out Account")}
                         </GridItem>
                         <GridItem span={2}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.state.passwordmaxfailure}
-                                type="number"
                                 id="passwordmaxfailure"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxfailure"
-                                {...getValidationProps("passwordmaxfailure", this.state.invalidFields)}
+                                fieldName="passwordmaxfailure"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
@@ -1355,13 +1328,11 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Time Until <i>Failure Count</i> Resets")}
                         </GridItem>
                         <GridItem span={2}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.state.passwordresetfailurecount}
-                                type="number"
                                 id="passwordresetfailurecount"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordresetfailurecount"
-                                {...getValidationProps("passwordresetfailurecount", this.state.invalidFields)}
+                                fieldName="passwordresetfailurecount"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
@@ -1374,13 +1345,11 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Time Until Account Unlocked")}
                         </GridItem>
                         <GridItem span={2}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.state.passwordlockoutduration}
-                                type="number"
                                 id="passwordlockoutduration"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordlockoutduration"
-                                {...getValidationProps("passwordlockoutduration", this.state.invalidFields)}
+                                fieldName="passwordlockoutduration"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
@@ -1412,13 +1381,11 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Password Expiration Time")}
                         </GridItem>
                         <GridItem span={2}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.state.passwordmaxage}
-                                type="number"
                                 id="passwordmaxage"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxage"
-                                {...getValidationProps("passwordmaxage", this.state.invalidFields)}
+                                fieldName="passwordmaxage"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
@@ -1431,13 +1398,11 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Allowed Logins After Password Expires")}
                         </GridItem>
                         <GridItem span={2}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.state.passwordgracelimit}
-                                type="number"
                                 id="passwordgracelimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordgracelimit"
-                                {...getValidationProps("passwordgracelimit", this.state.invalidFields)}
+                                fieldName="passwordgracelimit"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
@@ -1450,13 +1415,11 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Send Password Expiring Warning")}
                         </GridItem>
                         <GridItem span={2}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.state.passwordwarning}
-                                type="number"
                                 id="passwordwarning"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordwarning"
-                                {...getValidationProps("passwordwarning", this.state.invalidFields)}
+                                fieldName="passwordwarning"
+                                invalidFields={this.state.invalidFields}
                                 onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
@@ -1581,13 +1544,11 @@ export class GlobalPwPolicy extends React.Component {
                                             />
                                         </div>
                                         <div className="ds-inline ds-left-margin ds-raise-field-md ds-width-sm">
-                                            <TextInput
+                                            <DsNumberInput
                                                 value={this.state.passwordinhistory}
-                                                type="number"
                                                 id="passwordinhistory"
-                                                aria-describedby="horizontal-form-name-helper"
-                                                name="passwordinhistory"
-                                                {...getValidationProps("passwordinhistory", this.state.invalidFields)}
+                                                fieldName="passwordinhistory"
+                                                invalidFields={this.state.invalidFields}
                                                 onChange={(e, checked) => {
                                                     this.handleGeneralChange(e);
                                                 }}
@@ -1603,13 +1564,11 @@ export class GlobalPwPolicy extends React.Component {
                                         {_("Password Minimum Age")}
                                     </GridItem>
                                     <GridItem span={1}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={this.state.passwordminage}
-                                            type="number"
                                             id="passwordminage"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordminage"
-                                            {...getValidationProps("passwordminage", this.state.invalidFields)}
+                                            fieldName="passwordminage"
+                                            invalidFields={this.state.invalidFields}
                                             onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
@@ -1646,12 +1605,12 @@ export class GlobalPwPolicy extends React.Component {
                                         }
                                     >
                                         <div className="ds-inline">
-                                            <TextInput
+                                            <DsNumberInput
                                                 value={this.state[password_storage_attrs[0]] || ''}
-                                                type="number"
                                                 id={password_storage_attrs[0]}
-                                                aria-describedby="horizontal-form-name-helper"
-                                                name={password_storage_attrs[0]}
+                                                fieldName={password_storage_attrs[0]}
+                                                min={10000}
+                                                max={10000000}
                                                 onChange={(e, checked) => {
                                                     this.handlePasswordStorageChange(e);
                                                 }}
@@ -1807,14 +1766,13 @@ export class GlobalPwPolicy extends React.Component {
                                         {_("Password Max Use")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={this.state.passwordtprmaxuse}
-                                            type="number"
                                             id="passwordtprmaxuse"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordtprmaxuse"
+                                            fieldName="passwordtprmaxuse"
+                                            invalidFields={this.state.invalidFields}
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(e, checked) => {
+                                            onChange={(e) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -1829,14 +1787,13 @@ export class GlobalPwPolicy extends React.Component {
                                         {_("Password Expires In")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={this.state.passwordtprdelayexpireat}
-                                            type="number"
                                             id="passwordtprdelayexpireat"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordtprdelayexpireat"
+                                            fieldName="passwordtprdelayexpireat"
+                                            invalidFields={this.state.invalidFields}
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(e, checked) => {
+                                            onChange={(e) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -1851,14 +1808,13 @@ export class GlobalPwPolicy extends React.Component {
                                         {_("Password Valid From")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={this.state.passwordtprdelayvalidfrom}
-                                            type="number"
                                             id="passwordtprdelayvalidfrom"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordtprdelayvalidfrom"
+                                            fieldName="passwordtprdelayvalidfrom"
+                                            invalidFields={this.state.invalidFields}
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(e, checked) => {
+                                            onChange={(e) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />

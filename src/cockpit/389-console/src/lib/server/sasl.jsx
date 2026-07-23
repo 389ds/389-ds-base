@@ -16,6 +16,7 @@ import {
 	TextVariants
 } from '@patternfly/react-core';
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
@@ -625,13 +626,12 @@ export class ServerSASL extends React.Component {
                                 {_("Max SASL Buffer Size")}
                             </GridItem>
                             <GridItem span={2}>
-                                <TextInput
+                                <DsNumberInput
                                     value={this.state.maxBufSize}
-                                    type="number"
                                     id="maxBufSize"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="maxBufSize"
-                                    onChange={(e, str) => {
+                                    min={2097152}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.handleChange(e);
                                     }}
                                 />
