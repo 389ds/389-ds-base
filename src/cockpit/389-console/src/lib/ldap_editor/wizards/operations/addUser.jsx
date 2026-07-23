@@ -129,7 +129,8 @@ class AddUser extends React.Component {
 
         this.requiredAttrs = {
             'Basic Account': [
-                'cn', 'displayName',
+                // uid is not technically required, but dsidm expects it
+                'uid', 'cn', 'displayName',
             ],
             'Traditional Account': [
                 'cn', 'sn',

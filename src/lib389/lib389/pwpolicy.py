@@ -8,12 +8,192 @@
 
 import ldap
 from ldap import filter as ldap_filter
-from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389._mapped_object import DSLdapObject, DSLdapObjects, _normalise_attrs
 from lib389.backend import Backends
 from lib389.config import Config
 from lib389.idm.account import Account
 from lib389.idm.nscontainer import nsContainers, nsContainer
+from lib389.idm.user import (
+    BasicUserAccounts,
+    nsUserAccounts,
+    TraditionalUserAccounts,
+)
+from lib389.idm.services import ServiceAccounts
 from lib389.cos import CosPointerDefinitions, CosPointerDefinition, CosTemplates
+
+
+POLICY_TYPE_GLOBAL = 'Global Policy'
+POLICY_TYPE_USER = 'User Policy'
+POLICY_TYPE_SUBTREE = 'Subtree Policy'
+
+SYNTAX_POLICY_ATTRS = [
+    'passwordchecksyntax',
+    'passwordminlength',
+    'passwordmindigits',
+    'passwordminalphas',
+    'passwordminuppers',
+    'passwordminlowers',
+    'passwordminspecials',
+    'passwordmin8bit',
+    'passwordmaxrepeats',
+    'passwordpalindrome',
+    'passwordmaxsequence',
+    'passwordmaxseqsets',
+    'passwordmaxclasschars',
+    'passwordmincategories',
+    'passwordmintokenlength',
+    'passwordbadwords',
+    'passworduserattributes',
+    'passworddictcheck',
+    'passworddictpath',
+]
+
+GLOBAL_ONLY_POLICY_ATTRS = [
+    'passwordisglobalpolicy',
+    'nsslapd-pwpolicy-local',
+    'nsslapd-allow-hashed-passwords',
+    'nsslapd-pwpolicy-inherit-global',
+]
+
+USER_TYPE_ACCOUNTS = {
+    'posix': nsUserAccounts,
+    'basic': BasicUserAccounts,
+    'service': ServiceAccounts,
+    'traditional': TraditionalUserAccounts,
+}
+
+# Defaults from pwpolicy_init_defaults() in ldap/servers/slapd/libglobs.c
+LOCAL_PW_POLICY_DEFAULTS = {
+    'passwordchange': 'on',
+    'passwordmustchange': 'off',
+    'passwordchecksyntax': 'off',
+    'passwordexp': 'off',
+    'passwordsendexpiringtime': 'off',
+    'passwordminlength': '8',
+    'passwordmindigits': '0',
+    'passwordminalphas': '0',
+    'passwordminuppers': '0',
+    'passwordminlowers': '0',
+    'passwordminspecials': '0',
+    'passwordmin8bit': '0',
+    'passwordmaxrepeats': '0',
+    'passwordmincategories': '3',
+    'passwordmintokenlength': '3',
+    'passwordmaxage': '8640000',
+    'passwordminage': '0',
+    'passwordwarning': '86400',
+    'passwordhistory': 'off',
+    'passwordinhistory': '6',
+    'passwordlockout': 'off',
+    'passwordmaxfailure': '3',
+    'passwordunlock': 'on',
+    'passwordlockoutduration': '3600',
+    'passwordresetfailurecount': '600',
+    'passwordTPRMaxUse': '-1',
+    'passwordTPRDelayExpireAt': '-1',
+    'passwordTPRDelayValidFrom': '-1',
+    'passwordgracelimit': '0',
+    'passwordadmindn': '',
+    'passwordadminskipinfoupdate': 'off',
+    'passwordtrackupdatetime': 'off',
+    'passwordpalindrome': 'off',
+    'passwordmaxsequence': '0',
+    'passwordmaxseqsets': '0',
+    'passwordmaxclasschars': '0',
+    'passwordbadwords': '',
+    'passworduserattributes': '',
+    'passworddictcheck': 'off',
+    'passworddictpath': '',
+    'passwordstoragescheme': '',
+}
+
+
+def _decode_cn_dn_fragment(fragment):
+    """Decode LDAP escaped characters in a cn-stored DN fragment."""
+    return (fragment.replace('\\3D', '=').replace('\\3d', '=')
+            .replace('\\2C', ',').replace('\\2c', ','))
+
+
+def _parse_policy_target_from_cn(cn_value):
+    """Return the policy target DN encoded in a policy entry cn value."""
+    if not cn_value:
+        return None
+    cn_value = cn_value.strip("'").strip('"')
+    cn_lower = cn_value.lower()
+    prefixes = (
+        'cn=nspwpolicyentry_user,',
+        'cn=nspwpolicyentry_subtree,',
+    )
+    if not any(cn_lower.startswith(p) for p in prefixes):
+        return None
+    try:
+        dn_comps = ldap.dn.explode_dn(cn_value)
+        dn_comps.pop(0)
+        if dn_comps:
+            return ','.join(dn_comps)
+    except ldap.DECODING_ERROR:
+        # Decoding errors are ok, just proceed
+        pass
+
+    remainder = _decode_cn_dn_fragment(cn_value[cn_value.index(',') + 1:])
+    try:
+        return ldap.dn.dn2str(ldap.dn.str2dn(remainder))
+    except ldap.DECODING_ERROR:
+        # It's ok, just return the remainder
+        return remainder
+
+
+def _classify_policy_from_pwdpolicysubentry(pwp_dn, pwp_entry):
+    """Return policy type, source DN, and target DN for a local policy entry."""
+    cn = pwp_entry.get_attr_val_utf8('cn') or ''
+    cn_l = cn.lower()
+    if 'nspwpolicyentry_user' in cn_l:
+        policy_type = POLICY_TYPE_USER
+    elif 'nspwpolicyentry_subtree' in cn_l:
+        policy_type = POLICY_TYPE_SUBTREE
+    else:
+        raise ValueError(
+            'Unable to determine password policy type for entry "{}"'.format(pwp_dn))
+    target = _parse_policy_target_from_cn(cn)
+    if not target:
+        raise ValueError(
+            'Unable to parse password policy target from policy entry "{}"'.format(pwp_dn))
+    return policy_type, pwp_dn, target
+
+
+def _attr_is_on(value):
+    if value is None:
+        return False
+    return str(value).lower() in ('on', 'true', '1', 'yes')
+
+
+def _should_show_inherited_value(value):
+    """Return True when an inherited setting should appear in local policy output."""
+    if value is None:
+        return False
+    text = str(value).strip()
+    if not text or text == '0':
+        return False
+    if text.lower() == 'off':
+        return False
+    return True
+
+
+def _first_attr_value(attrs, attr_name, default=''):
+    if not attrs:
+        return default
+    values = attrs.get(attr_name, [])
+    if values:
+        return values[0]
+    attr_lower = attr_name.lower()
+    for key, vals in attrs.items():
+        if key.lower() == attr_lower and vals:
+            return vals[0]
+    return default
+
+
+def _make_attr_entry(value, inherited=False):
+    return {'values': ['' if value is None else str(value)], 'inherited': inherited}
 
 
 class PwPolicyManager(object):
@@ -72,6 +252,178 @@ class PwPolicyManager(object):
             'pwptprmaxuse': 'passwordTPRMaxUse',
             'pwptprdelayexpireat': 'passwordTPRDelayExpireAt',
             'pwptprdelayvalidfrom': 'passwordTPRDelayValidFrom'
+        }
+
+    def policy_attribute_names(self, include_global_only=False):
+        """Return sorted password policy attribute names for CLI output."""
+        names = sorted(set(self.arg_to_attr.values()))
+        if include_global_only:
+            for attr in GLOBAL_ONLY_POLICY_ATTRS:
+                if attr not in names:
+                    names.append(attr)
+            names.sort()
+        return names
+
+    def _local_policy_attribute_names(self):
+        """Return password policy attribute names stored on local policy entries."""
+        return sorted(set(self.arg_to_attr.values()) | {'passwordstoragescheme'})
+
+    def _report_attribute_names(self, report):
+        """Return attribute names to emit for a policy report."""
+        if report['policy_type'] == POLICY_TYPE_GLOBAL:
+            return self.policy_attribute_names(include_global_only=True)
+        local = []
+        inherited = []
+        for attr in sorted(report['attrs'].keys()):
+            if report['attrs'][attr].get('inherited'):
+                inherited.append(attr)
+            else:
+                local.append(attr)
+        return local + inherited
+
+    def resolve_user_dn(self, basedn, user_type, selector, parent_basedn=None):
+        """Resolve a dsidm user selector to an entry DN."""
+        if not selector:
+            raise ValueError('A user identifier is required')
+        accounts_class = USER_TYPE_ACCOUNTS.get(user_type or 'posix', nsUserAccounts)
+        if parent_basedn is not None:
+            accounts = accounts_class(self._instance, parent_basedn, rdn=None)
+        else:
+            accounts = accounts_class(self._instance, basedn)
+        if not accounts.exists(selector):
+            raise ValueError('User "{}" was not found'.format(selector))
+        return accounts.get(selector).dn
+
+    def get_effective_policy(self, basedn, user_type, selector, parent_basedn=None):
+        """Resolve the effective password policy for a user account."""
+        user_dn = self.resolve_user_dn(basedn, user_type, selector, parent_basedn)
+        user_entry = Account(self._instance, user_dn)
+        user_attrs = user_entry.get_all_attrs_utf8()
+        if not user_attrs:
+            raise ValueError('User entry "{}" was not found'.format(user_dn))
+
+        if self._instance.config.get_attr_val_utf8_l('nsslapd-pwpolicy-local') == 'on':
+            pwp_subentry_vals = user_attrs.get('pwdpolicysubentry', [])
+            pwp_dn = pwp_subentry_vals[0] if pwp_subentry_vals else None
+        else:
+            pwp_dn = None
+
+        global_attrs_raw = self._get_global_policy_attrs()
+
+        if pwp_dn is None:
+            return {
+                'dn': user_dn,
+                'policy_type': POLICY_TYPE_GLOBAL,
+                'policy_dn': Config(self._instance).dn,
+                'policy_target': 'global',
+                'attrs': self._build_global_effective_attrs(global_attrs_raw),
+            }
+
+        pwp_entry = PwPolicyEntry(self._instance, pwp_dn)
+        if not pwp_entry.exists():
+            raise ValueError(
+                'Assigned password policy entry "{}" could not be found'.format(pwp_dn))
+        if not pwp_entry.present('objectClass', 'passwordpolicy'):
+            raise ValueError(
+                'Assigned password policy entry "{}" is not a valid password policy'.format(pwp_dn))
+
+        policy_type, policy_dn, policy_target = _classify_policy_from_pwdpolicysubentry(
+            pwp_dn, pwp_entry)
+        policy_attrs_raw = _normalise_attrs(pwp_entry.get_all_attrs_utf8())
+        effective = self._build_local_effective_attrs(policy_attrs_raw, global_attrs_raw)
+
+        return {
+            'dn': user_dn,
+            'policy_type': policy_type,
+            'policy_dn': policy_dn,
+            'policy_target': policy_target,
+            'attrs': effective,
+        }
+
+    def _get_global_policy_attrs(self):
+        config = Config(self._instance)
+        attr_names = self.policy_attribute_names(include_global_only=True)
+        attrs = _normalise_attrs(config.get_attrs_vals_utf8(attr_names))
+        # Some config attributes may be returned only under schema canonical names.
+        all_attrs = _normalise_attrs(config.get_all_attrs_utf8())
+        for name in attr_names:
+            if name not in attrs or not attrs[name]:
+                if name in all_attrs and all_attrs[name]:
+                    attrs[name] = all_attrs[name]
+        return attrs
+
+    def _build_global_effective_attrs(self, global_attrs_raw):
+        effective = {}
+        for attr in self.policy_attribute_names(include_global_only=True):
+            value = _first_attr_value(global_attrs_raw, attr, LOCAL_PW_POLICY_DEFAULTS.get(attr, ''))
+            effective[attr] = _make_attr_entry(value, inherited=False)
+        return effective
+
+    def _build_local_effective_attrs(self, policy_attrs_raw, global_attrs_raw):
+        """Build attrs for a local policy: explicit entry values plus inherited syntax."""
+        policy_attrs_raw = _normalise_attrs(policy_attrs_raw)
+        global_attrs_raw = _normalise_attrs(global_attrs_raw)
+        effective = {}
+        local_attrs = set()
+
+        for attr in self._local_policy_attribute_names():
+            if attr in policy_attrs_raw and policy_attrs_raw[attr]:
+                effective[attr] = _make_attr_entry(
+                    _first_attr_value(policy_attrs_raw, attr), inherited=False)
+                local_attrs.add(attr)
+
+        if 'passwordchecksyntax' in local_attrs:
+            local_syntax_on = _attr_is_on(effective['passwordchecksyntax']['values'][0])
+        else:
+            local_syntax_on = False
+
+        inherit_global = _attr_is_on(
+            _first_attr_value(global_attrs_raw, 'nsslapd-pwpolicy-inherit-global', 'off'))
+        global_syntax_on = _attr_is_on(
+            _first_attr_value(global_attrs_raw, 'passwordchecksyntax', 'off'))
+
+        if not local_syntax_on and inherit_global and global_syntax_on:
+            for attr in SYNTAX_POLICY_ATTRS:
+                if attr == 'passwordchecksyntax' or attr in local_attrs:
+                    continue
+                value = _first_attr_value(global_attrs_raw, attr, '')
+                if not _should_show_inherited_value(value):
+                    continue
+                effective[attr] = _make_attr_entry(value, inherited=True)
+
+        return effective
+
+    def format_report_text(self, report):
+        """Format an effective policy report for human-readable CLI output."""
+        lines = [
+            'dn: {}'.format(report['dn']),
+            'passwordPolicy: {}'.format(report['policy_type']),
+            'passwordPolicyDN: {}'.format(report['policy_dn']),
+            'passwordPolicyTarget: {}'.format(report['policy_target']),
+            '------------------- Policy Settings -------------------',
+        ]
+        for attr in self._report_attribute_names(report):
+            item = report['attrs'][attr]
+            value = item['values'][0] if item['values'] else ''
+            suffix = ' (inherited)' if item.get('inherited') else ''
+            lines.append('{}: {}{}'.format(attr, value, suffix))
+        return '\n'.join(lines) + '\n'
+
+    def format_report_json(self, report):
+        """Format an effective policy report as a JSON-serializable dict."""
+        attrs_out = {}
+        for attr in self._report_attribute_names(report):
+            item = report['attrs'][attr]
+            values = list(item['values'])
+            if item.get('inherited'):
+                values.append('inherited')
+            attrs_out[attr] = values
+        return {
+            'dn': report['dn'],
+            'policy_type': report['policy_type'],
+            'policy_dn': report['policy_dn'],
+            'policy_target': report['policy_target'],
+            'attrs': attrs_out,
         }
 
     def is_subtree_policy(self, dn):
