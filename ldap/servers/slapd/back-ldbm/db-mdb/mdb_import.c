@@ -781,6 +781,24 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             index->ai->ai_indexmask &= ~INDEX_OFFLINE;
             index = index->next;
         }
+        /* Re-enable fsync before going back online */
+        {
+            struct ldbminfo *li = (struct ldbminfo *)inst->inst_be->be_database->plg_private;
+            dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+            if (ctx->env) {
+                unsigned int env_flags = 0;
+                mdb_env_get_flags(ctx->env, &env_flags);
+                if (env_flags & MDB_NOSYNC) {
+                    int nosync_rc = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 0);
+                    if (nosync_rc != 0) {
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_all_done",
+                                      "Failed to clear MDB_NOSYNC flag "
+                                      "(error %d: %s)\n",
+                                      nosync_rc, mdb_strerror(nosync_rc));
+                    }
+                }
+            }
+        }
         /* start up the instance */
         rc = dbmdb_instance_start(job->inst->inst_be, DBLAYER_NORMAL_MODE);
         if (rc == 0) {
@@ -1413,6 +1431,7 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     backend *be = NULL;
     PRThread *thread = NULL;
     int ret = 0;
+    int nosync_set = 0;  /* Track whether we set MDB_NOSYNC */
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
@@ -1484,6 +1503,30 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     if (ret != 0)
         goto fail;
 
+    /*
+     * Skip per-commit fsync during bulk import (nsslapd-mdb-online-import-nosync).
+     * Same optimization as dbmdb_ldif2db. The backend is offline so intermediate
+     * durability is not needed. The writer thread calls mdb_env_sync() at the end.
+     * Note: MDB_NOSYNC is environment-level and affects all backends.
+     */
+    if (MDB_CONFIG(li)->dsecfg.online_import_nosync) {
+        dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+        unsigned int env_flags = 0;
+
+        mdb_env_get_flags(ctx->env, &env_flags);
+        if (!(env_flags & MDB_NOSYNC)) {
+            ret = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 1);
+            if (ret != 0) {
+                slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_bulk_import_start",
+                              "Failed to set MDB_NOSYNC (error %d: %s). "
+                              "Import will continue with fsync enabled.\n",
+                              ret, mdb_strerror(ret));
+            } else {
+                nosync_set = 1;
+            }
+        }
+    }
+
     /* END OF COPIED SECTION */
 
     pthread_mutex_lock(&job->wire_lock);
@@ -1521,6 +1564,18 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     return 0;
 
 fail:
+    if (nosync_set) {
+        dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+        if (ctx->env) {
+            int nosync_rc = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 0);
+            if (nosync_rc != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_start",
+                              "Failed to clear MDB_NOSYNC on failure path "
+                              "(error %d: %s).\n",
+                              nosync_rc, mdb_strerror(nosync_rc));
+            }
+        }
+    }
     PR_Lock(job->inst->inst_config_mutex);
     job->inst->inst_flags &= ~INST_FLAG_BUSY;
     PR_Unlock(job->inst->inst_config_mutex);
