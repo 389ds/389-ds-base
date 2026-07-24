@@ -781,6 +781,14 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             index->ai->ai_indexmask &= ~INDEX_OFFLINE;
             index = index->next;
         }
+        /* Re-enable fsync before going back online */
+        {
+            struct ldbminfo *li = (struct ldbminfo *)inst->inst_be->be_database->plg_private;
+            dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+            if (ctx->env) {
+                mdb_env_set_flags(ctx->env, MDB_NOSYNC, 0);
+            }
+        }
         /* start up the instance */
         rc = dbmdb_instance_start(job->inst->inst_be, DBLAYER_NORMAL_MODE);
         if (rc == 0) {
@@ -1483,6 +1491,19 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
     if (ret != 0)
         goto fail;
+
+    /* Disable fsync on each commit during bulk import */
+    {
+        dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+        ret = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 1);
+        if (ret != 0) {
+            slapi_log_err(SLAPI_LOG_ALERT, "dbmdb_bulk_import_start",
+                          "Failed to set MDB_NOSYNC flag on database environment. "
+                          "(error %d: %s)\n",
+                          ret, mdb_strerror(ret));
+            goto fail;
+        }
+    }
 
     /* END OF COPIED SECTION */
 
