@@ -1208,6 +1208,7 @@ vattr_test_filter_or_lookup(
             const struct berval *bv = slapi_value_get_berval(va[i]);
             struct berval probe = {0, NULL};
             struct slapi_filter *branch;
+            char stack_val[512];
             char *copy;
             char *norm = NULL;
             int32_t norm_failed = 0;
@@ -1215,8 +1216,12 @@ vattr_test_filter_or_lookup(
             if (bv == NULL || bv->bv_val == NULL) {
                 return 0;
             }
-            /* Normalizers modify their input in place; copy the value. */
-            copy = slapi_ch_malloc(bv->bv_len + 1);
+            /* Normalizers modify their input in place; copy the value.
+             * In-place results never outgrow the input, so the stack
+             * buffer needs the same bv_len + 1 bound as the heap path. */
+            copy = (bv->bv_len < sizeof(stack_val))
+                       ? stack_val
+                       : slapi_ch_malloc(bv->bv_len + 1);
             memcpy(copy, bv->bv_val, bv->bv_len);
             copy[bv->bv_len] = '\0';
             if (ol->ol_type_is_dn) {
@@ -1243,14 +1248,18 @@ vattr_test_filter_or_lookup(
                 probe.bv_len = strlen(probe.bv_val);
             }
             if (norm_failed) {
-                slapi_ch_free_string(&copy);
+                if (copy != stack_val) {
+                    slapi_ch_free_string(&copy);
+                }
                 return 0;
             }
             branch = filter_or_lookup_probe(ol, &probe);
             if (norm != NULL && norm != copy) {
                 slapi_ch_free_string(&norm);
             }
-            slapi_ch_free_string(&copy);
+            if (copy != stack_val) {
+                slapi_ch_free_string(&copy);
+            }
 
             if (branch == NULL) {
                 continue;
