@@ -82,6 +82,18 @@ struct or_lookup_family {
     int32_t supported;
 };
 
+/*
+ * Per-child memo carried from the counting passes into the table fill,
+ * so each branch resolves its family and key length exactly once.  The
+ * family index is only valid until families[] is sorted; the fill pass
+ * matches on fam_first_ord, which survives the sort.
+ */
+struct or_lookup_child_scratch {
+    int32_t fam_idx;      /* index into families[]; -1 = no family */
+    size_t fam_first_ord; /* stable family identity; SIZE_MAX = none */
+    size_t key_len;       /* memoized or_lookup_child_key_len; 0 = unusable */
+};
+
 static int
 or_lookup_family_cmp(const void *ap, const void *bp)
 {
@@ -301,7 +313,9 @@ filter_or_lookup_free(struct slapi_filter_or_lookup **ol)
  */
 static int32_t
 or_lookup_annotate_type(struct slapi_filter *f, const char *type, int32_t is_dn,
-                        int32_t boolean_ctx)
+                        int32_t boolean_ctx,
+                        const struct or_lookup_child_scratch *scratch,
+                        size_t win_first_ord)
 {
     struct slapi_filter *fc;
     struct slapi_filter_or_key *tab = NULL;
@@ -322,7 +336,9 @@ or_lookup_annotate_type(struct slapi_filter *f, const char *type, int32_t is_dn,
     rest = (struct slapi_filter **)slapi_ch_calloc(n_children, sizeof(*rest));
 
     for (fc = f->f_or; fc != NULL; fc = fc->f_next, ord++) {
-        size_t key_len = or_lookup_child_key_len(fc, type, is_dn);
+        size_t key_len = (scratch[ord].fam_first_ord == win_first_ord)
+                             ? scratch[ord].key_len
+                             : 0;
 
         if (key_len > 0) {
             tab[tab_n].ok_key = fc->f_ava.ava_value.bv_val;
@@ -335,7 +351,8 @@ or_lookup_annotate_type(struct slapi_filter *f, const char *type, int32_t is_dn,
         }
     }
 
-    /* The preflight count and this pass must agree. */
+    /* Agrees with the preflight count by construction: both read the
+     * same per-child memo. */
     if (tab_n < FILTER_OR_LOOKUP_THRESHOLD) {
         slapi_ch_free((void **)&tab);
         slapi_ch_free((void **)&rest);
@@ -375,6 +392,7 @@ or_lookup_annotate(struct slapi_filter *f, int32_t boolean_ctx)
     struct slapi_filter *fc;
     struct or_lookup_family *families = NULL;
     struct or_lookup_family *family;
+    struct or_lookup_child_scratch *scratch = NULL;
     PLHashTable *by_type = NULL;
     size_t n_children = 0;
     size_t n_families = 0;
@@ -396,6 +414,8 @@ or_lookup_annotate(struct slapi_filter *f, int32_t boolean_ctx)
     /* families[] keeps first-occurrence order; the hash is lookup only. */
     families = (struct or_lookup_family *)slapi_ch_calloc(n_children,
                                                            sizeof(*families));
+    scratch = (struct or_lookup_child_scratch *)slapi_ch_calloc(
+        n_children, sizeof(*scratch));
     by_type = PL_NewHashTable((PRUint32)n_children,
                               hashNocaseString,
                               hashNocaseCompare,
@@ -406,6 +426,9 @@ or_lookup_annotate(struct slapi_filter *f, int32_t boolean_ctx)
 
     for (fc = f->f_or; fc != NULL; fc = fc->f_next, ord++) {
         const char *type;
+
+        scratch[ord].fam_idx = -1;
+        scratch[ord].fam_first_ord = SIZE_MAX;
 
         if (fc->f_choice != LDAP_FILTER_EQUALITY || fc->f_ava.ava_type == NULL ||
             strchr(fc->f_ava.ava_type, ';') != NULL) {
@@ -423,6 +446,8 @@ or_lookup_annotate(struct slapi_filter *f, int32_t boolean_ctx)
             }
             n_families++;
         }
+        scratch[ord].fam_idx = (int32_t)(family - families);
+        scratch[ord].fam_first_ord = family->first_ord;
         if (or_lookup_child_hashable(fc, family->type)) {
             family->eligible++;
         }
@@ -436,16 +461,15 @@ or_lookup_annotate(struct slapi_filter *f, int32_t boolean_ctx)
         families[i].supported = or_lookup_type_supported(families[i].type,
                                                          &families[i].is_dn);
     }
-    for (fc = f->f_or; fc != NULL; fc = fc->f_next) {
-        if (fc->f_choice != LDAP_FILTER_EQUALITY || fc->f_ava.ava_type == NULL ||
-            strchr(fc->f_ava.ava_type, ';') != NULL) {
-            continue;
-        }
-        family = (struct or_lookup_family *)PL_HashTableLookup(by_type,
-                                                               fc->f_ava.ava_type);
-        if (family != NULL && family->supported &&
-            or_lookup_child_key_len(fc, family->type, family->is_dn) > 0) {
-            family->usable++;
+    for (fc = f->f_or, ord = 0; fc != NULL; fc = fc->f_next, ord++) {
+        family = (scratch[ord].fam_idx >= 0) ? &families[scratch[ord].fam_idx]
+                                             : NULL;
+        if (family != NULL && family->supported) {
+            scratch[ord].key_len =
+                or_lookup_child_key_len(fc, family->type, family->is_dn);
+            if (scratch[ord].key_len > 0) {
+                family->usable++;
+            }
         }
     }
 
@@ -457,7 +481,8 @@ or_lookup_annotate(struct slapi_filter *f, int32_t boolean_ctx)
          i < n_families && families[i].usable >= FILTER_OR_LOOKUP_THRESHOLD;
          i++) {
         k = or_lookup_annotate_type(f, families[i].type, families[i].is_dn,
-                                    boolean_ctx);
+                                    boolean_ctx, scratch,
+                                    families[i].first_ord);
         if (k > 0) {
             break;
         }
@@ -467,6 +492,7 @@ done:
     if (by_type != NULL) {
         PL_HashTableDestroy(by_type);
     }
+    slapi_ch_free((void **)&scratch);
     slapi_ch_free((void **)&families);
     return k;
 }

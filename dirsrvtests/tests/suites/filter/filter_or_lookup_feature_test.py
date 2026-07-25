@@ -47,6 +47,7 @@ AVA_LOG_RE = re.compile(
 
 FEATURE_ATTRS = ('olFeatureLookupA', 'olFeatureLookupB', 'olFeatureLookupC')
 FEATURE_TIME_ATTR = 'olFeatureLookupTime'
+FEATURE_DN_ATTR = 'olFeatureLookupDN'
 
 
 def escaped_equalities(attr, values):
@@ -201,6 +202,18 @@ def lookup_feature_data(topo):
         schema.add_attributetype(params)
         added_attrs.append(FEATURE_TIME_ATTR)
 
+        params = OBJECT_MODEL_PARAMS[AttributeType].copy()
+        params.update({
+            'names': (FEATURE_DN_ATTR,),
+            'oid': '2.16.840.1.113730.3.8.999.6275.105',
+            'desc': 'DN-syntax large equality OR lookup family',
+            'equality': 'distinguishedNameMatch',
+            'syntax': '1.3.6.1.4.1.1466.115.121.1.12',
+            'x_origin': ('large equality OR lookup feature test',),
+        })
+        schema.add_attributetype(params)
+        added_attrs.append(FEATURE_DN_ATTR)
+
         container = OrganizationalUnits(inst, DEFAULT_SUFFIX).create(
             properties={'ou': 'olLookupFeatureData'})
         objects = UnsafeExtensibleObjects(inst, container.dn)
@@ -228,6 +241,7 @@ def lookup_feature_data(topo):
             'olFeatureLookupA': 'a-fallback-hit',
             FEATURE_TIME_ATTR: '20260101000000Z',
         })
+        add_entry('family-dn', {FEATURE_DN_ATTR: container.dn})
 
         yield {
             'base': container.dn,
@@ -308,6 +322,45 @@ def test_or_lookup_config_threshold_and_runtime_toggle(topo,
         if (original is not None and
                 inst.config.get_attr_val_utf8(OR_LOOKUP_ATTR) != original):
             inst.config.set(OR_LOOKUP_ATTR, original)
+
+
+def test_or_lookup_dn_family_engages(topo, lookup_feature_data):
+    """Require table engagement and parity for a DN-syntax family.
+
+    :id: 5b1f8c3e-9a0d-4f6b-8a34-cd2e05c7a911
+    :setup: Standalone instance with a distinguishedNameMatch attribute
+    :steps:
+        1. Search a 16-branch DN equality OR naming one stored value
+        2. Inspect the operation summary
+        3. Disable lookup and repeat the search
+    :expectedresults:
+        1. Exactly the DN-carrying entry returns
+        2. The summary reports a largest family of 16 branches
+        3. Results stay identical and no summary is emitted while disabled
+    """
+    inst = topo.standalone
+    base = lookup_feature_data['base']
+    dns = lookup_feature_data['dns']
+    # Misses must be fixed points of DN case normalization (lowercase,
+    # no spaces) or the DN key validation drops them below threshold.
+    values = [base] + [f'cn=ol-dn-miss-{i:02d},{base.lower()}'
+                       for i in range(15)]
+    filterstr = escaped_or_of(FEATURE_DN_ATTR, values)
+
+    with backend_debug_log(inst):
+        before = len(eng_summaries(inst))
+        assert search_dns_result(
+            inst, filterstr, base=base,
+            scope=ldap.SCOPE_ONELEVEL) == [dns['family-dn']]
+        summaries = eng_summaries(inst)[before:]
+        assert summaries and all(largest == 16 for _, largest in summaries)
+
+        with lookup_disabled(inst):
+            before = len(eng_summaries(inst))
+            assert search_dns_result(
+                inst, filterstr, base=base,
+                scope=ldap.SCOPE_ONELEVEL) == [dns['family-dn']]
+            assert len(eng_summaries(inst)) == before
 
 
 def test_or_lookup_dominant_family_order_independent(topo,

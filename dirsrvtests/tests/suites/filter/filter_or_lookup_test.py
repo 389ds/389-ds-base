@@ -1023,8 +1023,19 @@ def test_or_cos_vattr_fallback(topo, create_data):
             # leaves this ordinary user attribute unserved on current builds.
             'cosAttribute': 'postalCode default'})
         definition_created = True
+        # The CoS cache rebuild thread clears its change-notification flag
+        # after a rebuild finishes, so a definition ADD landing while the
+        # template's rebuild is still in flight can be silently dropped
+        # and nothing re-triggers it.  Poll, and re-arm the pipeline once
+        # with a no-op definition MODIFY if the value has not appeared by
+        # the halfway mark.
         deadline = time.monotonic() + 15
+        rearm_at = time.monotonic() + 7
+        rearmed = False
         while postal_values() != ['olvirtualzip']:
+            if not rearmed and time.monotonic() >= rearm_at:
+                definition.replace('description', 'cos-notify-rearm')
+                rearmed = True
             assert time.monotonic() < deadline
             time.sleep(0.25)
         values = ['olvirtualzip'] + ghosts(20, prefix='olzip')

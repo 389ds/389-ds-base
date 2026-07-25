@@ -1168,11 +1168,16 @@ ldbm_back_search(Slapi_PBlock *pb)
                 tmp_desc = "Could not compile regex for filter matching";
             }
         } else if (!filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE) &&
-                   !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) {
+                   !filter_flag_is_set(filter, SLAPI_FILTER_RUV) &&
+                   sr->sr_candidates != NULL &&
+                   (ALLIDS(sr->sr_candidates) ||
+                    IDL_NIDS(sr->sr_candidates) > 0)) {
             /* Build the large-OR lookup tables on the operation-private,
              * normalized dups.  Tombstone/RUV searches keep the classic
              * walk.  VLV admits undefined filter-test results, so its
-             * tables must not claim boolean context. */
+             * tables must not claim boolean context.  An empty candidate
+             * list never reaches the per-entry test, so a table would be
+             * built and freed unused. */
             int32_t or_nodes = 0;
             int32_t or_largest = 0;
 
