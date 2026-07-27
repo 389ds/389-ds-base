@@ -766,6 +766,14 @@ op_shared_add(Slapi_PBlock *pb)
         }
         /* expand objectClass values to reflect the inheritance hierarchy */
         slapi_schema_expand_objectclasses(e);
+
+        /* Validate password policy attrs */
+        if (!internal_op) {
+            if ((err = check_pw_policy_attrs(e, NULL, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
+                send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
+                goto done;
+            }
+        }
     }
 
     /*
