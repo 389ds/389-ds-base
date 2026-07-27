@@ -66,34 +66,6 @@ mod_op_image(int op)
 }
 #endif
 
-/* an AttrCheckFunc function should return an LDAP result code (LDAP_SUCCESS if all goes well). */
-typedef int (*AttrCheckFunc)(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
-
-static struct attr_value_check
-{
-    const char *attr_name; /* the name of the attribute */
-    AttrCheckFunc checkfunc;
-    long minval;
-    long maxval;
-} AttrValueCheckList[] = {
-    {CONFIG_PW_SYNTAX_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_CHANGE_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_LOCKOUT_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_MUSTCHANGE_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_EXP_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_UNLOCK_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_HISTORY_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_MINAGE_ATTRIBUTE, check_pw_duration_value, -1, -1},
-    {CONFIG_PW_WARNING_ATTRIBUTE, check_pw_duration_value, 0, -1},
-    {CONFIG_PW_MINLENGTH_ATTRIBUTE, attr_check_minmax, 2, 512},
-    {CONFIG_PW_MAXFAILURE_ATTRIBUTE, attr_check_minmax, 1, 32767},
-    {CONFIG_PW_INHISTORY_ATTRIBUTE, attr_check_minmax, 0, 24},
-    {CONFIG_PW_LOCKDURATION_ATTRIBUTE, check_pw_duration_value, -1, -1},
-    {CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, check_pw_resetfailurecount_value, -1, -1},
-    {CONFIG_PW_GRACELIMIT_ATTRIBUTE, attr_check_minmax, 0, -1},
-    {CONFIG_PW_STORAGESCHEME_ATTRIBUTE, check_pw_storagescheme_value, -1, -1},
-    {CONFIG_PW_MAXAGE_ATTRIBUTE, check_pw_duration_value, -1, -1}};
-
 /* This function is called to process operation that come over external connections */
 void
 do_modify(Slapi_PBlock *pb)
@@ -662,7 +634,6 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
     int err;
     LDAPMod *lc_mod = NULL;
     struct slapdplugin *p = NULL;
-    int numattr;
     char *proxydn = NULL;
     int proxy_err = LDAP_SUCCESS;
     char *errtext = NULL;
@@ -795,42 +766,13 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
 
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
 
-    /* The following section checks the valid values of fine-grained
-     * password policy attributes.
-     * 1. First, it checks if the entry has "passwordpolicy" objectclass.
-     * 2. If yes, then if the mods contain any passwdpolicy specific attributes.
-     * 3. If yes, then it invokes corrosponding checking function.
-     */
+    /* Validate password policy attrs */
     if (!repl_op && !internal_op && normdn && slapi_search_get_entry(&entry_pb, sdn, NULL, &e, NULL) == LDAP_SUCCESS) {
-        Slapi_Value target;
-        slapi_value_init(&target);
-        slapi_value_set_string(&target, "passwordpolicy");
-        if ((slapi_entry_attr_has_syntax_value(e, "objectclass", &target)) == 1) {
-            numattr = sizeof(AttrValueCheckList) / sizeof(AttrValueCheckList[0]);
-            while (tmpmods && *tmpmods) {
-                if ((*tmpmods)->mod_bvalues != NULL &&
-                    !SLAPI_IS_MOD_DELETE((*tmpmods)->mod_op)) {
-                    for (size_t i = 0; i < numattr; i++) {
-                        if (slapi_attr_type_cmp((*tmpmods)->mod_type,
-                                                AttrValueCheckList[i].attr_name, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
-                            /* The below function call is good for
-                             * single-valued attrs only
-                             */
-                            if ((err = AttrValueCheckList[i].checkfunc(AttrValueCheckList[i].attr_name,
-                                                                       (*tmpmods)->mod_bvalues[0]->bv_val, AttrValueCheckList[i].minval,
-                                                                       AttrValueCheckList[i].maxval, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
-                                /* return error */
-                                send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
-                                goto free_and_return;
-                            }
-                        }
-                    }
-                }
-                tmpmods++;
-            } /* end of (while */
-        }     /* end of if (found */
-        value_done(&target);
-    } /* end of if (!repl_op */
+        if ((err = check_pw_policy_attrs(e, tmpmods, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
+            send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
+            goto free_and_return;
+        }
+    }
 
     /* can get lastmod only after backend is selected */
     slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
