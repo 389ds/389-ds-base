@@ -1582,6 +1582,26 @@ def test_bind_entry_missing_passwd(topology_st):
         user.bind("some_password")
 
 
+def test_bind_with_no_dn(topology_st):
+    """
+    :id: fedb831e-811e-11f1-8bfa-c85309d5c3e3
+    :setup: Standalone Instance
+    :steps:
+        1. Bind with no DN and no password
+        2. Bind with no DN and some password
+    :expectedresults:
+        1. Success
+        2. Fails with error 48
+    """
+    ldc = ldap.initialize(f'ldap://localhost:{topology_st.standalone.port}')
+    ldc.set_option(ldap.OPT_TIMEOUT, 5)
+    ldc.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
+    ldc.bind_s(None, None)
+    with pytest.raises(ldap.INAPPROPRIATE_AUTH):
+        ldc.bind_s(None, "Some password")
+    ldc.unbind()                   
+
+
 def test_connection_buffer_size(topology_st):
     """Test connection buffer size adjustable with different values(valid values and invalid)
 
