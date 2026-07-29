@@ -184,6 +184,9 @@ retry:
                             dblayer_read_txn_abort(be, &txn);
                             goto retry;
                         } else {
+                            if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                                ldbm_fetch_retry_sleep(retry_count);
+                            }
                             continue;
                         }
                     } else {
