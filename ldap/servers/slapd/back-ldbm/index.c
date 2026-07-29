@@ -1077,7 +1077,6 @@ index_read_ext_allids(
     }
     for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
         *err = NEW_IDL_DEFAULT;
-        PRIntervalTime interval;
         idl_free(&idl);
         idl = idl_fetch_ext(be, db, &key, db_txn, ai, err, allidslimit);
         if (*err == DBI_RC_RETRY) {
@@ -1085,23 +1084,13 @@ index_read_ext_allids(
             slapi_log_err(SLAPI_LOG_BACKLDBM, "index_read_ext_allids",
                           "DBI_RC_RETRY on retry %d/%d for %s\n",
                           retry_count + 1, IDL_FETCH_RETRY_COUNT, basetype);
-#ifdef FIX_TXN_DEADLOCKS
-#error can only retry here if txn == NULL - otherwise, have to abort and retry txn
-#endif
-            /* Exponential backoff with jitter, capped at 200ms */
-            {
-                PRUint32 backoff_ms = 10;
-                int i;
-                for (i = 0; i < retry_count && backoff_ms < 200; i++) {
-                    backoff_ms *= 2;
-                }
-                if (backoff_ms > 200) {
-                    backoff_ms = 200;
-                }
-                backoff_ms += slapi_rand() % (backoff_ms + 1);
-                interval = PR_MillisecondsToInterval(backoff_ms);
+            if (NULL != db_txn) {
+                /* Only the caller can retry its own transaction */
+                break;
             }
-            DS_Sleep(interval);
+            if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                ldbm_fetch_retry_sleep(retry_count);
+            }
             continue;
         } else if (*err == DBI_RC_NOTFOUND) {
             /* Key not found in index - this is normal, not an error */
@@ -1119,9 +1108,14 @@ index_read_ext_allids(
             break;
         }
     }
-    if (retry_count == IDL_FETCH_RETRY_COUNT) {
-        ldbm_nasty("index_read_ext_allids", "index_read retry count exceeded", 1046, *err);
-        /* Ensure we don't return NULL after exhausting retries */
+    if (*err == DBI_RC_RETRY) {
+        if (NULL == db_txn && retry_count == IDL_FETCH_RETRY_COUNT) {
+            slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
+                          "Index read on %s gave up after %d attempts due to "
+                          "transient lock conflicts. Error is %d\n",
+                          basetype, IDL_FETCH_RETRY_COUNT, *err);
+        }
+        /* Never return NULL on a transient failure */
         if (idl == NULL) {
             idl = idl_alloc(0);
         }
@@ -1672,11 +1666,42 @@ index_range_read_ext(
         *err = NEW_IDL_NO_ALLID;
     }
     if (idl_get_idl_new()) { /* new idl */
-        slapi_log_err(SLAPI_LOG_FILTER,
-                      "index_range_read_ext", "Getting index range from keys %s to %s.\n", (char*)cur_key.data, (char*)upperkey.data);
-        idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
-                                  ai, err, allidslimit, sizelimit, &expire_time,
-                                  lookthrough_limit, operator);
+        int retry_count = 0;
+        int idl_flags = *err; /* *err carries NEW_IDL_* input flags (e.g. NEW_IDL_NO_ALLID) */
+
+        /* A transient lock conflict (DBI_RC_RETRY) aborts the whole walk.
+         * Retrying is safe: the fetchers leave the caller's cur_key intact
+         * on failure and their internal read txn is already aborted. */
+        for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
+            if (retry_count > 0) {
+                /* Drop partial results, restore the input flags */
+                idl_free(&idl);
+                *err = idl_flags;
+            }
+            idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
+                                      ai, err, allidslimit, sizelimit, &expire_time,
+                                      lookthrough_limit, operator);
+            if (*err != DBI_RC_RETRY) {
+                break;
+            }
+            if (db_txn != NULL) {
+                /* Only the caller can retry its own transaction */
+                break;
+            }
+            ldbm_nasty("index_range_read_ext", "Retrying range fetch", 1091, *err);
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "index_range_read_ext",
+                          "DBI_RC_RETRY on range fetch retry %d/%d for %s\n",
+                          retry_count + 1, IDL_FETCH_RETRY_COUNT, type);
+            if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                ldbm_fetch_retry_sleep(retry_count);
+            }
+        }
+        if (*err == DBI_RC_RETRY && NULL == db_txn) {
+            slapi_log_err(SLAPI_LOG_ERR, "index_range_read_ext",
+                          "Range read on the %s index gave up after %d attempts "
+                          "due to transient lock conflicts. Error is %d\n",
+                          type, IDL_FETCH_RETRY_COUNT, *err);
+        }
     } else { /* old idl */
         int retry_count = 0;
         while (*err == 0 &&
@@ -1745,6 +1770,9 @@ index_range_read_ext(
 #ifdef FIX_TXN_DEADLOCKS
 #error if txn != NULL, have to abort and retry the transaction, not just the fetch
 #endif
+                    if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                        ldbm_fetch_retry_sleep(retry_count);
+                    }
                     continue;
                 } else {
                     break;
