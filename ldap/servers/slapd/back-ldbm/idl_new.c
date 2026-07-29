@@ -195,6 +195,9 @@ idl_new_fetch(
      * race conditions. Without a transaction, concurrent modifications to
      * index pages can corrupt cursor state, leading to crashes in BDB's
      * internal functions (e.g., negative size passed to memmove).
+     * Serializable isolation is required: the walk spans more pages than
+     * the cursor's current one, and degree-2 (DB_READ_COMMITTED) cursors
+     * reintroduced this crash under the #7124 reproducer.
      */
     dblayer_txn_init(li, &s_txn);
     dblayer_read_txn_begin(be, txn, &s_txn);
@@ -689,6 +692,9 @@ idl_new_range_fetch(
      * race conditions. Without a transaction, concurrent modifications to
      * index pages can corrupt cursor state, leading to crashes in BDB's
      * internal functions (e.g., negative size passed to memmove).
+     * Serializable isolation is required: the walk spans more pages than
+     * the cursor's current one, and degree-2 (DB_READ_COMMITTED) cursors
+     * reintroduced this crash under the #7124 reproducer.
      */
     dblayer_txn_init(li, &s_txn);
     dblayer_read_txn_begin(be, txn, &s_txn);
@@ -850,6 +856,14 @@ error:
         }
     }
     if (ret) {
+        if (ret == DBI_RC_RETRY) {
+            /* Transient conflict: the caller retries, and logs if it gives up */
+            ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 4, ret);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
+                          "Failed to build range candidate list on %s index. Error is %d\n",
+                          index_id, ret);
+        }
         dblayer_read_txn_abort(be, &s_txn);
     } else {
         dblayer_read_txn_commit(be, &s_txn);
