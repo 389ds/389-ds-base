@@ -59,7 +59,8 @@ test_libslapd_csngen_clock_failure(void **state __attribute__((unused)))
     mock_clock_should_fail = 1;
     rc = csngen_new_csn(gen, &csn, PR_FALSE);
     assert_int_equal(rc, CSN_TIME_ERROR);
-    /* Note: csn may not be set to NULL on error, just check return code */
+    /* Free csn if allocated on error path */
+    csn_free(&csn);
     
     csngen_free(&gen);
 }
@@ -142,7 +143,8 @@ test_libslapd_csngen_multiple_clock_failures(void **state __attribute__((unused)
     for (int i = 0; i < 5; i++) {
         rc = csngen_new_csn(gen, &csn, PR_FALSE);
         assert_int_equal(rc, CSN_TIME_ERROR);
-        /* Note: csn may not be set to NULL on error, just check return code */
+        /* Free csn if allocated on error path */
+        csn_free(&csn);
     }
     
     mock_clock_should_fail = 0;
