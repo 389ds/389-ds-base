@@ -1204,15 +1204,18 @@ def test_password_breach_check_config(topo):
     value = inst.config.get_attr_val_utf8('passwordBreachCheck')
     assert value.lower() == 'off'
 
-    # Verify setting passwordBreachCheck to 'on' (requires HIBP support)
+    # Verify setting passwordBreachCheck
     try:
         inst.config.set('passwordBreachCheck', 'on')
         value = inst.config.get_attr_val_utf8('passwordBreachCheck')
         assert value.lower() == 'on'
         # Reset
         inst.config.set('passwordBreachCheck', 'off')
+        value = inst.config.get_attr_val_utf8('passwordBreachCheck')
+        assert value.lower() == 'off'
     except ldap.UNWILLING_TO_PERFORM:
-        pytest.skip("HIBP support not compiled in")
+        # HIBP support not compiled in
+        pass
 
     # Verify invalid value is rejected
     with pytest.raises(ldap.OPERATIONS_ERROR):

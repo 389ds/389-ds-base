@@ -1038,6 +1038,13 @@ main(int argc, char **argv)
     pw_exp_init();
     op_stat_init();
 
+#ifdef ENABLE_HIBP
+    /* Initialise breached password checking. */
+    if (hibp_init() != 0) {
+        slapi_log_err(SLAPI_LOG_WARNING, "main", "Failed to initialise breached password checks\n");
+    }
+#endif
+
     plugin_print_lists();
     plugin_startall(argc, argv, NULL /* specific plugin list */);
     compute_plugins_started();
@@ -1082,13 +1089,6 @@ main(int argc, char **argv)
 
     /* pw_init() needs to be here since it uses aci function calls.  */
     pw_init();
-
-#ifdef ENABLE_HIBP
-    /* Initialise breached password checking */
-    if (hibp_init() != 0) {
-        slapi_log_err(SLAPI_LOG_WARNING, "main", "Failed to initialise breached password checks\n");
-    }
-#endif
 
     /* Initialize the sasl mapping code */
     if (sasl_map_init()) {

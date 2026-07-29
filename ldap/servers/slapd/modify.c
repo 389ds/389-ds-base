@@ -1037,20 +1037,27 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
          */
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 #ifdef ENABLE_HIBP
-        /* Check rootpw against breach database before hashing */
+        /* Check rootpw against breach database before hashing. Only check
+         * if the requestor is root, unauth users will be rejected by DSE ACL. */
+        int isroot = 0;
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
         slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-        if (slapdFrontendConfig->pw_policy.pw_check_breach) {
+        if (isroot && slapdFrontendConfig->pw_policy.pw_check_breach) {
+            passwdPolicy rootpw_policy = {0};
+            rootpw_policy.pw_check_breach = LDAP_ON;
+            rootpw_policy.pw_breach_db_url = config_get_pw_breach_url();
+            rootpw_policy.pw_breach_db_timeout = slapdFrontendConfig->pw_policy.pw_breach_db_timeout;
             for (size_t i = 0; mods && mods[i]; i++) {
-                if (strcasecmp(mods[i]->mod_type, CONFIG_ROOTPW_ATTRIBUTE) == 0 &&
-                    mods[i]->mod_bvalues) {
+                if (strcasecmp(mods[i]->mod_type, CONFIG_ROOTPW_ATTRIBUTE) == 0 && mods[i]->mod_bvalues) {
                     for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
                         char *val = mods[i]->mod_bvalues[j]->bv_val;
                         if (val && !slapi_is_encoded(val)) {
-                            int breach_count = hibp_check_password(val, &slapdFrontendConfig->pw_policy);
+                            int breach_count = hibp_check_password(val, &rootpw_policy);
                             if (breach_count > 0) {
                                 slapi_log_err(SLAPI_LOG_WARNING, "op_shared_modify",
                                     "Rejecting rootDN password - found in breach database (%d occurrences)\n",
                                     breach_count);
+                                slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
                                 send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                     "Password found in breach database - choose a different password", 0, NULL);
                                 goto free_and_return;
@@ -1062,6 +1069,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                     }
                 }
             }
+            slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
         }
 #endif
         if (hash_rootpw(mods) != 0) {
@@ -1304,35 +1312,38 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
 
 #ifdef ENABLE_HIBP
         /* Check password against breach database after ACI validation (admin bypass) */
-        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) &&
-            !pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
-            pwpolicy->pw_check_breach && mod->mod_bvalues) {
-            Slapi_Value **breach_vals = NULL;
-            valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
-            if (breach_vals) {
-                for (size_t i = 0; breach_vals[i] != NULL; i++) {
-                    const char *pwd = slapi_value_get_string(breach_vals[i]);
-                    if (pwd && !slapi_is_encoded((char *)pwd)) {
-                        int breach_count = hibp_check_password(pwd, pwpolicy);
-                        if (breach_count > 0) {
-                            slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
-                                "Password for %s found in breach database (%d occurrences)\n",
-                                dn, breach_count);
-                            if (pwresponse_req == 1) {
-                                slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_check_breach && mod->mod_bvalues) {
+            if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+                slapi_log_err(SLAPI_LOG_DEBUG, "op_shared_allow_pw_change",
+                    "Skipping breach check for %s - admin bypass\n", dn);
+            } else {
+                Slapi_Value **breach_vals = NULL;
+                valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
+                if (breach_vals) {
+                    for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(breach_vals[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            int breach_count = hibp_check_password(pwd, pwpolicy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                    "Password for %s found in breach database (%d occurrences)\n",
+                                    dn, breach_count);
+                                if (pwresponse_req == 1) {
+                                    slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+                                }
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database - choose a different password", 0, NULL);
+                                valuearray_free(&breach_vals);
+                                rc = -1;
+                                goto done;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                    "Failed to check password against breach database for %s\n", dn);
                             }
-                            send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
-                                "Password found in breach database - choose a different password", 0, NULL);
-                            valuearray_free(&breach_vals);
-                            rc = -1;
-                            goto done;
-                        } else if (breach_count < 0) {
-                            slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
-                                "Failed to check password against breach database for %s\n", dn);
                         }
                     }
+                    valuearray_free(&breach_vals);
                 }
-                valuearray_free(&breach_vals);
             }
         }
 #endif

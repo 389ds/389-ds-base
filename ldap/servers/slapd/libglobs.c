@@ -3923,6 +3923,19 @@ config_set_pw_breach_url(const char *attrname, char *value, char *errorbuf, int 
     return retVal;
 }
 
+char *
+config_get_pw_breach_url(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_strdup(slapdFrontendConfig->pw_policy.pw_breach_db_url);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
 int32_t
 config_set_pw_breach_timeout(const char *attrname, char *value, char *errorbuf, int apply)
 {
