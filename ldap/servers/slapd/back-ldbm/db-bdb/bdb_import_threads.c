@@ -21,6 +21,7 @@
 
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
+#include "../attrcrypt.h"
 
 #define indextype_EQUALITY "eq"
 
@@ -580,7 +581,7 @@ bdb_import_producer(void *param)
 
                 /* Check if this type is configured for encryption. */
                 ainfo_get(be, type, &ai);
-                if (ai->ai_attrcrypt != NULL) {
+                if (ai->ai_attrcrypt != NULL && ai->ai_attrcrypt->attrcrypt_cipher) {
                     /* Make a copy of the entry to use for syntax
                      * checking if a copy has not been made yet. */
                     if (e_copy == NULL) {
