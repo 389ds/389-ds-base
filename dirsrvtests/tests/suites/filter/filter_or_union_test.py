@@ -139,7 +139,7 @@ def test_or_two_lists_fastpath(topo, create_users):
     :id: 6d82c4a9-1f35-47e0-bc76-084a9d5e213f
     :setup: Standalone instance with 500 users over 20 sn groups
     :steps:
-        1. Search (|(sn=OrSn0)(sn=OrSn1))
+        1. Search ``(|(sn=OrSn0)(sn=OrSn1))``
     :expectedresults:
         1. Exactly the 50 users of the two groups are returned
     """
@@ -197,8 +197,8 @@ def test_or_inside_and(topo, create_users):
     :id: 82c6e3f7-0b94-45d1-a7c8-d19e5f04b263
     :setup: Standalone instance with 500 users over 20 sn groups
     :steps:
-        1. Search (&(sn=OrSn0)(|(uid=...)(uid=...)...)) where only some of
-           the OR's uids are in group 0
+        1. Search ``(&(sn=OrSn0)(|(uid=...)(uid=...)...))`` where only some
+           of the OR's uids are in group 0
     :expectedresults:
         1. Exactly the OR's group-0 members are returned
     """

@@ -580,7 +580,7 @@ def test_or_inside_and(topo, create_data):
     :id: 0d7f92c6-3ab1-48e5-bc70-61e94d28a5f7
     :setup: Standalone instance with 400 users, groups, and a subentry
     :steps:
-        1. Search (&(sn=OlSn0)(|...30 uids across all sn groups...))
+        1. Search ``(&(sn=OlSn0)(|...30 uids across all sn groups...))``
     :expectedresults:
         1. Exactly the OR's group-0 members are returned
     """
@@ -592,7 +592,7 @@ def test_or_inside_and(topo, create_data):
 
 def test_or_referral_wrapper(topo, create_data):
     """Verify a large OR on a suffix containing a referral entry (the
-    executed filter gains the (|(f)(objectclass=referral)) wrapper)
+    executed filter gains the ``(|(f)(objectclass=referral))`` wrapper)
     returns the exact result set with and without ManageDsaIT
 
     :id: 4e8a1c59-f723-4b06-9d84-c2571e0af938
@@ -934,7 +934,7 @@ def test_not_of_or_complement(topo, create_data):
     :id: 19f7d3c0-b485-4a62-9e17-c30d86f2e5b9
     :setup: Standalone instance with 400 users, groups, and a subentry
     :steps:
-        1. Search (&(objectClass=posixAccount)(!(|...20 live uids...)))
+        1. Search ``(&(objectClass=posixAccount)(!(|...20 live uids...)))``
     :expectedresults:
         1. Exactly all posixAccount entries except the 20 are returned
     """
@@ -952,7 +952,7 @@ def test_not_of_or_denied_user(topo, create_data):
     :setup: Standalone instance with 400 users, groups, and a subentry
     :steps:
         1. Deny uid read for a bind user
-        2. Search (&(objectClass=posixAccount)(!(|...20 live uids...)))
+        2. Search ``(&(objectClass=posixAccount)(!(|...20 live uids...)))``
            as that user
         3. Repeat with optional lookup disabled when available
     :expectedresults:
