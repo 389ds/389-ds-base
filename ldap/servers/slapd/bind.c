@@ -475,6 +475,15 @@ do_bind(Slapi_PBlock *pb)
 
         /* accept null binds */
         if (dn == NULL || *dn == '\0') {
+            if (cred.bv_len > 0) {
+                /* RFC 4513 does not specify this case. Let's reject it. */
+                send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                                 "Bind with a null DN and non-empty password is rejected", 0, NULL);
+                /* increment BindSecurityErrorcount */
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_log_security(pb, SECURITY_BIND_FAILED,  SECURITY_MSG_INVALID_PASSWD);
+                goto free_and_return;
+            }
             slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsAnonymousBinds);
             /* by definition anonymous is also unauthenticated so increment
                that counter */
@@ -487,6 +496,7 @@ do_bind(Slapi_PBlock *pb)
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
                 slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_ANONYMOUS_BIND);
                 goto free_and_return;
             }
 
