@@ -1255,6 +1255,7 @@ def test_rdn_write_modrdn_anonymous(topology_m2, rdn_write_setup):
     ANONYMOUS_DN = ""
     topology_m2.ms["supplier1"].close()
     topology_m2.ms["supplier1"].binddn = ANONYMOUS_DN
+    topology_m2.ms['supplier1'].bindpw = None
     topology_m2.ms["supplier1"].open()
     msg_id = topology_m2.ms["supplier1"].search_ext("", ldap.SCOPE_BASE, "objectclass=*")
     rtype, rdata, rmsgid, response_ctrl = topology_m2.ms["supplier1"].result3(msg_id)
