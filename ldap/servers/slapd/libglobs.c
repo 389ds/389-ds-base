@@ -7430,12 +7430,27 @@ config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int 
 
     if (retVal != LDAP_SUCCESS) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "%s: \"%s\" is invalid. Value must range from -1 to %lld",
-                              attrname, value, (long long int)LONG_MAX);
-    } else if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapdFrontendConfig->maxsasliosize = maxsasliosize;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+                              "%s: \"%s\" is invalid. Value must range from -1 to %u",
+                              attrname, value, SLAPD_MAX_SASLIO_SIZE);
+        return retVal;
+    }
+
+    /* Cap at the Cyrus SASL 3-octet protocol maximum (0xFFFFFF).
+     * Follow the nsslapd-maxdescriptors pattern: enforce the hard limit
+     * and return LDAP_UNWILLING_TO_PERFORM so startup is not blocked. */
+    if (maxsasliosize > SLAPD_MAX_SASLIO_SIZE) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" exceeds the SASL protocol maximum (%u). "
+                              "Server will use a setting of %u.",
+                              attrname, value, SLAPD_MAX_SASLIO_SIZE,
+                              SLAPD_MAX_SASLIO_SIZE);
+        maxsasliosize = SLAPD_MAX_SASLIO_SIZE;
+        retVal = LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32(&(slapdFrontendConfig->maxsasliosize),
+                              (int32_t)maxsasliosize, __ATOMIC_RELEASE);
     }
 
     return retVal;
@@ -7444,12 +7459,8 @@ config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int 
 int32_t
 config_get_maxsasliosize()
 {
-    int32_t maxsasliosize;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-    maxsasliosize = slapdFrontendConfig->maxsasliosize;
-
-    return maxsasliosize;
+    return slapi_atomic_load_32(&(slapdFrontendConfig->maxsasliosize), __ATOMIC_ACQUIRE);
 }
 
 int
