@@ -280,8 +280,14 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_LOOKTHROUGHLIMIT 5000 /* use -1 for no limit */
 #define SLAPD_DEFAULT_GROUPNESTLEVEL 5
 #define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL 40 /* use -1 for no limit */
-#define SLAPD_DEFAULT_MAX_SASLIO_SIZE 2097152  /* 2MB in bytes.  Use -1 for no limit */
+#define SLAPD_DEFAULT_MAX_SASLIO_SIZE 2097152  /* 2MB in bytes */
 #define SLAPD_DEFAULT_MAX_SASLIO_SIZE_STR "2097152"
+/*
+ * Absolute upper bound for nsslapd-maxsasliosize: the Cyrus SASL
+ * protocol encodes the token length in 3 octets, so the maximum
+ * token payload is 0xFFFFFF bytes.
+ */
+#define SLAPD_MAX_SASLIO_SIZE 0xFFFFFFU
 #define SLAPD_DEFAULT_IOBLOCK_TIMEOUT 10000 /* 10 second in ms */
 #define SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR "10000"
 #define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT 300000 /* 5 minutes in ms */
