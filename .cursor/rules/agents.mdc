@@ -1,8 +1,14 @@
 ---
-description: Always read the AGENTS.md project guide before starting any task
+description: Route through AGENTS.md and the docs/agents guides before any task
 alwaysApply: true
 ---
 
-Before working on any task in this repository, **always** read `AGENTS.md` at the project root and the detailed guides it links to under `docs/agents/`.
+Before any task, read `AGENTS.md` at the repo root. It is an index: use its
+orientation table to open the specific `docs/agents/<topic>.md` guide(s) for the
+areas your task touches, before editing files in those areas. Do not bulk-read
+every guide.
 
-This is mandatory for every conversation - do not skip it.
+Step-by-step task recipes with guardrails live in `.agents/skills/<name>/SKILL.md`
+(verify-changes, write-test, commit-and-pr, add-config-attribute, add-cli-option,
+touch-backend, ui-expose-attribute). When a task matches one, read it in full and
+follow its numbered steps.

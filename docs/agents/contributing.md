@@ -1,103 +1,106 @@
-# Contributing to 389 Directory Server
+# Contributing
 
-## Reporting Issues
+Commit shape, copyright headers, formatting, and PR rules for 389-ds-base.
+Build and CI mechanics: [building.md](building.md). Test requirements:
+[testing.md](testing.md). Cockpit UI conventions: [ui.md](ui.md).
 
-File bugs and feature requests on [GitHub Issues](https://github.com/389ds/389-ds-base/issues). Check the backlog first to avoid duplicates. The repository provides two issue templates (both automatically labeled `needs triage`):
+## Commit message format
 
-### Bug Report
+Subject: `Issue NNNN - short summary` — the GitHub issue number, a spaced
+hyphen, then the summary. Never type a `(#PR)` suffix: GitHub appends it at
+squash-merge, and the PR number does not exist when you commit.
 
-Use this template when reporting a defect. Fill in each section:
+Body: a `Bug Description:` paragraph (what is broken and why) followed by a
+`Fix Description:` paragraph (what the change does). A simple change may use a
+single `Description:` paragraph instead.
 
-- **Issue Description** — clear, concise summary of the bug
-- **Package Version and Platform** — OS/distro, exact package version (e.g. `389-ds-base-3.2.0-6.fc42.x86_64`), browser if UI-related
-- **Steps to Reproduce** — numbered steps to trigger the problem
-- **Expected results** — what should have happened instead
-- **Screenshots** — attach if applicable
-- **Additional context** — logs, configuration, environment details
+Trailers, each on its own line after the body:
 
-### Feature Request
+| Trailer | Rule |
+|---|---|
+| `Fixes: <full issue URL>` | use when the commit fully resolves the issue |
+| `Relates: <full issue URL>` | use when the issue stays open |
+| `Reviewed by:` | added by humans at merge time — do not write it yourself |
+| `Assisted by: <tool name>` | the established AI-attribution trailer |
 
-Use this template when suggesting new functionality:
+`Signed-off-by:` (DCO) is not the convention in this repo — do not add it.
 
-- **Is your feature request related to a problem?** — describe the pain point or use case
-- **Describe the solution you'd like** — what the desired behavior looks like
-- **Describe alternatives you've considered** — other approaches you evaluated
-- **Additional context** — mockups, screenshots, or related issues
+Canonical example:
 
-### Security Issues
+```text
+Issue 7529 - Fix WebUI local policy availability test
 
-Security issues should **not** be reported via GitHub issues. Use [GitHub's security advisory feature](https://github.com/389ds/389-ds-base/security/advisories) instead.
+Description: Update the local password policy WebUI test to match the
+current table and modal workflow. Check empty and populated table states,
+open the Create New Local Policy modal, and verify the edit action only
+when editable policies are present.
 
-## Getting Started
-
-1. Fork the repository on GitHub.
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/<your-username>/389-ds-base.git
-   cd 389-ds-base
-   ```
-3. Create a branch for your changes:
-   ```bash
-   git checkout -b issue-NNNNN
-   ```
-4. Build and verify:
-   ```bash
-   autoreconf -fiv
-   ./configure --enable-debug --with-openldap --enable-cmocka
-   make
-   make lib389
-   sudo make install
-   sudo make lib389-install
-   make check
-   ```
-5. Commit your changes (see [Commit Messages](#commit-messages)).
-6. Push to your fork and open a Pull Request.
-
-## Pull Request Guidelines
-
-All PRs should be submitted against the `main` branch.
-
-PRs should include:
-- **Well-documented code changes.** The commit message should explain *why* the change was made.
-- **Tests.** New features and bug fixes should include test coverage.
-- **Documentation updates** if the changes affect user-facing behavior.
-
-For larger features, open an issue first so the approach can be discussed before significant implementation work.
-
-## Commit Messages
-
-This project uses the following commit message format. Every commit **must** reference a GitHub issue number:
-
-```
-Issue ##### - Short description of the change
-
-Description:
-Explain what the change does and why it is needed.
-
-Relates: https://github.com/389ds/389-ds-base/issues/#####
-
-Reviewed by: ???
-Assisted by: ???
+Fixes: https://github.com/389ds/389-ds-base/issues/7529
 ```
 
-### Format rules
+Workflow: see the commit-and-pr skill (`.agents/skills/commit-and-pr/SKILL.md`).
 
-- **Subject line**: `Issue ##### - <concise summary>` (under 72 characters when possible)
-- **Blank line** after the subject
-- **Description**: Explain *what* and *why*, not just *how*
-- **Relates/Fixes**: Link to the GitHub issue. Use `Fixes:` when the commit fully resolves the issue, `Relates:` for partial work
-- **Reviewed by**: The reviewer's name or GitHub handle
-- **Assisted by**: If AI tools or other contributors assisted (e.g. `Cursor`, `Claude`)
+## Copyright headers
 
-## Code Review
+New `.c`/`.h` files open with exactly this block, current year
+(`ldap/servers/slapd/threadpool_stats.c`):
 
-Once a PR is submitted, a maintainer will review it. If nobody responds within two weeks, ping a maintainer.
+```c
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright (C) 2026 Red Hat, Inc.
+ * All rights reserved.
+ *
+ * License: GPL (version 3 or any later version).
+ * See LICENSE for details.
+ * END COPYRIGHT BLOCK **/
+```
 
-Keep an eye on CI results. If something fails, check the logs to see if it's related to your change.
+New `.py` files use the `#` form; test files under `dirsrvtests/` end the
+block with a trailing bare `#`
+(`dirsrvtests/tests/stress/backend/range_deadlock_test.py`):
 
-## Communication
+```python
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2026 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
+```
 
-- [389 Directory Server Wiki](https://www.port389.org/)
-- [GitHub Issues](https://github.com/389ds/389-ds-base/issues) — bugs and feature requests
-- [GitHub Pull Requests](https://github.com/389ds/389-ds-base/pulls) — code contributions
-- [Contributing Guide on port389.org](https://www.port389.org/docs/389ds/contributing.html) — full upstream contributing guide
+| File kind | Rule | Example |
+|---|---|---|
+| New `.c` / `.h` | 7-line `/** ... **/` block, Red Hat only | `ldap/servers/slapd/threadpool_stats.c` |
+| Legacy `.c` / `.h` | keep existing Sun/Netscape lines — never strip them | `ldap/servers/slapd/back-ldbm/back-ldbm.h` |
+| Test `.py` under `dirsrvtests/` | `#` block ending with a bare `#` | `dirsrvtests/tests/stress/backend/range_deadlock_test.py` |
+| lib389 `.py` | same `#` block, blank line instead of the bare `#` | `src/lib389/lib389/cli_ctl/threadpool.py` |
+| `.jsx` / `.tsx` (Cockpit UI) | no header — start at the imports | `src/cockpit/389-console/src/lib/database/pwpFixupTasks.tsx` |
+
+## Formatting
+
+`.clang-format` at the repo root is Mozilla-derived: 4-space indent,
+`ColumnLimit: 0` (no line-length wrapping), `SortIncludes: false` (never
+reorder includes). No CI job enforces formatting for any language, so match
+the style of the file you are editing and do not run repo-wide formatters. In
+particular there is no prettier config — never run `npm run prettier:fix`
+([ui.md](ui.md)). Python style follows the existing files, gated only by the
+vermin Python-version floor ([building.md](building.md)).
+
+## Pull requests
+
+- Target `main`.
+- Treat agent references as part of the implementation: if code, CI, or an
+  interface changes behavior described under `docs/agents/` or
+  `.agents/skills/`, update every affected guide or skill in the same change.
+  Keep technical claims checkable with `path (symbol)` citations.
+- Every bugfix carries a regression test and every feature carries tests —
+  see [testing.md](testing.md).
+- The repo squash-merges. Keep one logical commit per PR: amend and
+  force-push instead of stacking fixup commits.
+- Report security issues through GitHub security advisories, never public
+  issues.
+- Verify the change before pushing via the verify-changes skill
+  (`.agents/skills/verify-changes/SKILL.md`) — it routes through the
+  environment's build/test skill and never builds on an unprepared host.
