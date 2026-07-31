@@ -147,6 +147,14 @@ pagedresults_parse_control_value(Slapi_PBlock *pb,
     ber_free(ber, 1);
     if (cookie.bv_len <= 0) {
         /* first time? */
+        if (be == NULL) {
+            slapi_log_err(SLAPI_LOG_WARNING, "pagedresults_parse_control_value",
+                          "Paged results request has no backend defined, "
+                          "no paged-results slot will be created\n");
+            slapi_ch_free((void **)&cookie.bv_val);
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+            return LDAP_PROTOCOL_ERROR;
+        }
         int maxlen = conn->c_pagedresults.prl_maxlen;
         if (conn->c_pagedresults.prl_count == maxlen) {
             if (0 == maxlen) { /* first time */

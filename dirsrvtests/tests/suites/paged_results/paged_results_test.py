@@ -14,9 +14,8 @@ from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX, BACKEND_NAME, PASSWORD
-
-from lib389._controls import SSSRequestControl
+from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX
+from lib389._controls import SSSRequestControl, UseOneBackendExtControl
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.cli_base import FakeArgs
 from lib389.config import LDBMConfig
