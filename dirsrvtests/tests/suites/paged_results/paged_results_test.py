@@ -16,7 +16,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX
-from lib389._controls import SSSRequestControl
+from lib389._controls import SSSRequestControl, UseOneBackendExtControl
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.cli_base import FakeArgs
 from lib389.config import LDBMConfig
@@ -1316,6 +1316,75 @@ def test_search_referral(topology_st):
     topology_st.standalone.config.remove_all('nsslapd-referral')
     referral = topology_st.standalone.config.get_attr_val_utf8('nsslapd-referral')
     assert (referral == None)
+
+
+def test_search_null_backend_crash(topology_st):
+    """Test that a paged search referencing a non-existent backend via
+    USE_ONE_BACKEND_EXT does not crash the server.
+
+    Per RFC 2696, the client MUST send a searchRequest with all values
+    identical to the initial request (except messageID, cookie, and
+    optionally pageSize). Changing the backend between requests is a
+    protocol violation and must be rejected.
+
+    :id: 6af20a11-e854-4cec-9333-bde4c03f93c9
+    :setup: Standalone instance
+    :steps:
+        1. Send a search with USE_ONE_BACKEND_EXT control naming a
+           non-existent backend and a Simple Paged Results control
+           with an empty cookie. The server refuses to create a
+           paged-results slot because the backend is NULL and returns
+           LDAP_UNAVAILABLE_CRITICAL_EXTENSION (critical control
+           failed).
+        2. On the same connection, send a second search with
+           USE_ONE_BACKEND_EXT naming a valid backend and a Simple
+           Paged Results control with cookie '0' (references slot 0,
+           which was never created). The server rejects the invalid
+           cookie.
+        3. Verify the server is still running.
+    :expectedresults:
+        1. Server returns LDAP_UNAVAILABLE_CRITICAL_EXTENSION.
+        2. Server returns LDAP_UNAVAILABLE_CRITICAL_EXTENSION
+           (invalid cookie, critical control).
+        3. Success
+    """
+
+    inst = topology_st.standalone
+    inst.restart()
+
+    BOGUS_BACKEND = "doesNotExist"
+    VALID_BACKEND = "userRoot"
+
+    # Request 1: USE_ONE_BACKEND_EXT("doesNotExist") + SPR(empty cookie)
+    # No paged-results slot is created because backend is NULL;
+    # server logs a warning and rejects the critical control.
+    log.info('Request 1: paged search with non-existent backend (empty cookie)')
+    uob_ctrl_1 = UseOneBackendExtControl(criticality=True, backend_name=BOGUS_BACKEND)
+    spr_ctrl_1 = SimplePagedResultsControl(True, size=10, cookie=b'')
+
+    search_obj_1 = DSLdapObject(inst, DEFAULT_SUFFIX)
+    search_obj_1._server_controls = [uob_ctrl_1, spr_ctrl_1]
+
+    with pytest.raises(ldap.UNAVAILABLE_CRITICAL_EXTENSION):
+        search_obj_1.search(scope='subtree', filter='(objectClass=*)')
+
+    # Request 2: USE_ONE_BACKEND_EXT("userRoot") + SPR(cookie='0')
+    # Before the fix this would dereference NULL in slapi_be_Rlock() -> SIGSEGV.
+    # Now the cookie is invalid (no slot was ever created) so the server
+    # rejects the request.
+    log.info('Request 2: paged search with valid backend (cookie="0")')
+    uob_ctrl_2 = UseOneBackendExtControl(criticality=True, backend_name=VALID_BACKEND)
+    spr_ctrl_2 = SimplePagedResultsControl(True, size=10, cookie=b'0')
+
+    search_obj_2 = DSLdapObject(inst, DEFAULT_SUFFIX)
+    search_obj_2._server_controls = [uob_ctrl_2, spr_ctrl_2]
+
+    with pytest.raises(ldap.UNAVAILABLE_CRITICAL_EXTENSION):
+        search_obj_2.search(scope='subtree', filter='(objectClass=*)')
+
+    log.info('Confirm server is still running')
+    assert inst.status(), "Server crashed"
+
 
 if __name__ == '__main__':
     # Run isolated
