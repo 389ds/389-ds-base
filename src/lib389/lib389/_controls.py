@@ -238,3 +238,49 @@ class SSSResponseControl(ResponseControl):
         self.result_code = p.getComponentByName('sortResult').prettyOut(self.result)
         self.attribute_type_error = p.getComponentByName('attributeType')
 
+
+class UseOneBackendControl(RequestControl):
+    """Route a search to a single named backend instance.
+
+    This is a 389 DS-specific control (OID 2.16.840.1.113730.3.4.14).
+    The control value must be the backend instance name (e.g. 'userRoot').
+
+    Example::
+
+        >>> ctrl = UseOneBackendControl(criticality=True, backend_name='userRoot')
+    """
+    controlType = CONTROL_USE_ONE_BACKEND
+
+    def __init__(self, criticality=True, backend_name=None):
+        RequestControl.__init__(self, self.controlType, criticality)
+        if backend_name is None:
+            raise ValueError("backend_name is required for UseOneBackendControl")
+        self.backend_name = backend_name
+
+    def encodeControlValue(self):
+        return self.backend_name.encode('utf-8')
+
+
+class UseOneBackendExtControl(RequestControl):
+    """Route a search to a single backend instance (extended version).
+
+    This is the "smart" variant of UseOneBackendControl
+    (OID 2.16.840.1.113730.3.4.20). If a backend_name is supplied it is
+    used directly; if omitted or ``None`` the server auto-selects the
+    backend from the search base DN.
+
+    Example::
+
+        >>> ctrl = UseOneBackendExtControl(criticality=True, backend_name='userRoot')
+        >>> ctrl = UseOneBackendExtControl(criticality=True)  # auto-select
+    """
+    controlType = CONTROL_USE_ONE_BACKEND_EXT
+
+    def __init__(self, criticality=True, backend_name=None):
+        RequestControl.__init__(self, self.controlType, criticality)
+        self.backend_name = backend_name
+
+    def encodeControlValue(self):
+        if self.backend_name:
+            return self.backend_name.encode('utf-8')
+        return b''
