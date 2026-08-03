@@ -150,6 +150,39 @@ def test_online_import_nosync_config(topology_m1c1):
     assert val == 'off', f"Expected 'off', got '{val}'"
 
 
+def test_online_import_nosync_logging(loaded_m1c1):
+    """Test that MDB_NOSYNC engage/clear is logged during online import.
+
+    :id: a3b2c1d0-4e5f-6a7b-8c9d-0e1f2a3b4c5d
+    :setup: Supplier + Consumer with entries loaded
+    :steps:
+        1. Enable nsslapd-mdb-online-import-nosync on consumer
+        2. Run total init
+        3. Check consumer error log for MDB_NOSYNC enabled message
+        4. Check consumer error log for MDB_NOSYNC cleared message
+    :expectedresults:
+        1. Config set succeeds
+        2. Total init completes
+        3. Log contains "MDB_NOSYNC enabled for online import"
+        4. Log contains "MDB_NOSYNC cleared"
+    """
+    topology, agmt = loaded_m1c1
+    consumer = topology.cs["consumer1"]
+
+    LMDB_LDBMConfig(consumer).set('nsslapd-mdb-online-import-nosync', 'on')
+
+    (done, error) = _do_reinit(agmt, REINIT_TIMEOUT)
+    assert done, f"Total init failed: {error}"
+
+    # Check that the engage message was logged
+    assert consumer.searchErrorsLog("MDB_NOSYNC enabled for online import"), \
+        "Expected 'MDB_NOSYNC enabled for online import' in consumer error log"
+
+    # Check that the clear message was logged
+    assert consumer.searchErrorsLog("MDB_NOSYNC cleared"), \
+        "Expected 'MDB_NOSYNC cleared' in consumer error log"
+
+
 def test_online_import_nosync_throughput():
     """Test that total init with nosync=on is faster than nosync=off.
 
