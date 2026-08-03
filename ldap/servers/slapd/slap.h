@@ -1931,6 +1931,13 @@ void slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx);
 void *slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb);
 void slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem);
 
+/*
+ * Wait until deferred memberOf work for this operation completes (or shutdown).
+ * No-op unless memberof armed deferred work on this pblock (lazy sync).
+ * Notify is performed by memberof via SLAPI_DEFERRED_MEMBEROF set to 0.
+ */
+void slapi_pblock_wait_deferred_memberof(Slapi_PBlock *pb);
+
 /* index if substrlens */
 #define INDEX_SUBSTRBEGIN  0
 #define INDEX_SUBSTRMIDDLE 1
