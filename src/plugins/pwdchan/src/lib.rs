@@ -21,6 +21,16 @@ const B64_PERMISSIVE: GeneralPurpose = GeneralPurpose::new(
         .with_decode_allow_trailing_bits(true),
 );
 
+/// A base64 engine that tolerates non-canonical trailing bits.
+/// OpenLDAP/passlib's ab64 encoding can produce trailing bits that
+/// the strict STANDARD engine rejects. This matches the old
+/// `base64::STANDARD.decode_allow_trailing_bits(true)` behavior.
+const B64_PERMISSIVE: GeneralPurpose = GeneralPurpose::new(
+    &base64::alphabet::STANDARD,
+    GeneralPurposeConfig::new()
+        .with_decode_allow_trailing_bits(true),
+);
+
 const DEFAULT_PBKDF2_ROUNDS: usize = 100_000;
 const MIN_PBKDF2_ROUNDS: usize = 10_000;
 const MAX_PBKDF2_ROUNDS: usize = 10_000_000;
@@ -437,7 +447,11 @@ impl PwdChanCrypto {
         output.push('$');
         // Finally the base64 hash
         general_purpose::STANDARD.encode_string(&hash_input, &mut output);
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 9361a3acc (Migrate pwdchan to base64 0.23 Engine API)
         Ok(output)
     }
 
