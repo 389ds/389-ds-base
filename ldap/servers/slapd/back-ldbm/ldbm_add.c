@@ -1460,17 +1460,8 @@ common_return:
             ldap_result_code = LDAP_SUCCESS;
         }
         if (!result_sent) {
-            int deferred;
-
             if (!is_internal) {
-                slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
-                if (deferred) {
-                    PRIntervalTime delay = PR_MillisecondsToInterval(100);
-                    while (deferred && !g_get_shutdown()) {
-                        DS_Sleep(delay);
-                        slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
-                    }
-                }
+                slapi_pblock_wait_deferred_memberof(pb);
             }
             slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL);
         }
