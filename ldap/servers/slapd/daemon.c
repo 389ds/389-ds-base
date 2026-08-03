@@ -146,6 +146,7 @@ static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t a
 static void set_shutdown(int);
 static void set_lsan_check(int);
 static volatile sig_atomic_t lsan_check_requested = 0;
+static volatile sig_atomic_t lsan_check_in_progress = 0;
 static void setup_pr_ct_firsttime_pds(Connection_Table *ct);
 #ifdef ENABLE_EPOLL
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, int epoll_fd);
@@ -2622,6 +2623,13 @@ lsan_ptrace_available(void)
     }
 
     if (child == 0) {
+        /* Reset inherited signal handlers to avoid interference */
+        signal(SIGCHLD, SIG_DFL);
+        signal(SIGUSR1, SIG_DFL);
+        signal(SIGUSR2, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+        signal(SIGHUP, SIG_DFL);
+
         /* Child: try to ptrace the parent */
         if (ptrace(PTRACE_ATTACH, getppid(), NULL, NULL) == 0) {
             /* Attached - detach and exit success */
@@ -2644,9 +2652,16 @@ lsan_ptrace_available(void)
 void
 slapd_lsan_check(void)
 {
-    int num_leaks = 0;
+    int result = 0;
 
     lsan_check_requested = 0;
+
+    /* Prevent concurrent leak checks from main loop and catch_signals thread */
+    if (__sync_lock_test_and_set(&lsan_check_in_progress, 1)) {
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
+                      "Leak check already in progress, skipping\n");
+        return;
+    }
 
     if (!lsan_check_fn) {
         lsan_check_fn = (int (*)(void))dlsym(RTLD_DEFAULT, "__lsan_do_recoverable_leak_check");
@@ -2656,6 +2671,7 @@ slapd_lsan_check(void)
                           "LeakSanitizer leak check function not available - "
                           "ensure the server is built with AddressSanitizer enabled "
                           "or run with LD_PRELOAD=/path/to/libasan.so\n");
+            __sync_lock_release(&lsan_check_in_progress);
             return;
         }
         slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
@@ -2668,14 +2684,23 @@ slapd_lsan_check(void)
                       "Check: SELinux 'allow dirsrv_t self:process ptrace' "
                       "(ausearch -m avc -c ns-slapd), "
                       "and /proc/sys/fs/suid_dumpable (must be 1)\n");
+        __sync_lock_release(&lsan_check_in_progress);
         return;
     }
 
     slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
                   "SIGUSR1 signal received - performing recoverable leak check\n");
-    num_leaks = lsan_check_fn();
-    slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
-                  "Leak check completed - %d leak(s) detected\n", num_leaks);
+    result = lsan_check_fn();
+    if (result) {
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
+                      "Leak check completed - leaks found, "
+                      "check ASAN_OPTIONS/LSAN_OPTIONS log_path for the full report\n");
+    } else {
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_lsan_check",
+                      "Leak check completed - no leaks found\n");
+    }
+
+    __sync_lock_release(&lsan_check_in_progress);
 }
 
 void
