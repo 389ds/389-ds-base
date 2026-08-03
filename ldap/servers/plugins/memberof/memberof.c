@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include "slapi-plugin.h"
 #include "string.h"
 #include "nspr.h"
@@ -51,6 +52,7 @@ static void *_PluginID = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
 static Slapi_RWLock *config_rwlock = NULL;
 static Slapi_DN* _pluginDN = NULL;
+static Slapi_DN** ignored_containers_sdn = NULL;
 static int usetxn = 0;
 static int premodfn = 0;
 static PRLock *fixup_lock = NULL;
@@ -131,6 +133,7 @@ static int memberof_postop_close(Slapi_PBlock *pb);
 int memberof_push_deferred_task(Slapi_PBlock *pb);
 
 /* supporting cast */
+static bool is_ignored_container(Slapi_DN *sdn, Slapi_PBlock *pb);
 static int memberof_oktodo(Slapi_PBlock *pb);
 static Slapi_DN *memberof_getsdn(Slapi_PBlock *pb);
 static int memberof_modop_one(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op, Slapi_DN *op_this_sdn, Slapi_DN *op_to_sdn);
@@ -231,7 +234,6 @@ memberof_postop_init(Slapi_PBlock *pb)
      * Get plugin identity and stored it for later use
      * Used for internal operations
      */
-
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &memberof_plugin_identity);
     PR_ASSERT(memberof_plugin_identity);
     memberof_set_plugin_id(memberof_plugin_identity);
@@ -246,7 +248,6 @@ memberof_postop_init(Slapi_PBlock *pb)
            slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)memberof_postop_close) != 0);
 
     if (!ret) {
-
         if (slapi_register_plugin("bepostoperation",        /* op type */
                                   1,                        /* Enabled */
                                   "memberof_bepostop_init", /* this function desc */
@@ -255,10 +256,9 @@ memberof_postop_init(Slapi_PBlock *pb)
                                   NULL,
                                   memberof_plugin_identity  /* access control */)) {
             slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "memberof_postop_init - memberof_be_postop_init Failed\n");
+                          "memberof_postop_init - slapi_register_plugin: memberof_be_postop_init Failed\n");
             ret = 1;
         }
-
     }
 
     if (!ret && !usetxn &&
@@ -270,7 +270,7 @@ memberof_postop_init(Slapi_PBlock *pb)
                               NULL,                          /* ? */
                               memberof_plugin_identity /* access control */)) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "memberof_postop_init - Failed\n");
+                      "memberof_postop_init - slapi_register_plugin: memberof_internal_postop_init failed\n");
         ret = -1;
     } else if (ret) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -288,11 +288,11 @@ memberof_postop_init(Slapi_PBlock *pb)
                                       NULL,                  /* ? */
                                       memberof_plugin_identity /* access control */)) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "memberof_preop_init - Failed\n");
+                      "memberof_postop_init - slapi_register_plugin: memberof_preop_init failed\n");
         ret = -1;
     } else if (ret) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "memberof_preop_init - Failed\n");
+                      "memberof_postop_init - Failed\n");
         ret = -1;
     }
 
@@ -387,7 +387,7 @@ remove_deferred_task(MemberofDeferredList *deferred_list)
     MemberofDeferredTask *task;
     if ((deferred_list == NULL) || (deferred_list->current_task == 0)) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                        "Unexpected empty/not allocated deferred list\n");
+                      "remove_deferred_task - Unexpected empty/not allocated deferred list\n");
         return NULL;
     }
 
@@ -396,7 +396,7 @@ remove_deferred_task(MemberofDeferredList *deferred_list)
     if (task == NULL) {
         /* error condition current_task said there was a task available */
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "Unexpected current_task counter said there was %d task(s)\n",
+                      "remove_deferred_task - Unexpected current_task counter said there was %d task(s)\n",
                       deferred_list->current_task);
         deferred_list->current_task = 0;
         return NULL;
@@ -427,7 +427,7 @@ add_deferred_task(MemberofDeferredList *deferred_list, MemberofDeferredTask *tas
 {
     if (deferred_list == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                        "Not allocated deferred list\n");
+                      "add_deferred_task - Not allocated deferred list\n");
         return -1;
     }
     pthread_mutex_lock(&deferred_list->deferred_list_mutex);
@@ -516,7 +516,7 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
         post_sdn = slapi_entry_get_sdn(post_e);
     }
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                  "deferred_mod_func: target %s\n", slapi_sdn_get_dn(sdn));
+                  "deferred_modrdn_func: target %s\n", slapi_sdn_get_dn(sdn));
 
     if (pre_sdn && post_sdn && slapi_sdn_compare(pre_sdn, post_sdn) == 0) {
         /* Regarding memberof plugin, this rename is a no-op
@@ -608,7 +608,8 @@ bail:
 skip_op:
     if (ret) {
         slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "Failed applying deferred updates: memberof values are invalid, please run fixup task\n");
+                      "deferred_modrdn_func - Failed applying deferred updates: "
+                      "memberof values are invalid, please run fixup task\n");
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
@@ -635,7 +636,7 @@ deferred_del_func(MemberofDeferredDelTask *task)
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                  "deferred_mod_func: target %s\n", slapi_sdn_get_dn(sdn));
+                  "deferred_del_func: target %s\n", slapi_sdn_get_dn(sdn));
 
     memberof_rlock_config();
     mainConfig = memberof_get_config();
@@ -671,7 +672,8 @@ bail:
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "Failed applying deferred updates: memberof values are invalid, please run fixup task\n");
+                      "deferred_del_func - Failed applying deferred updates: "
+                      "memberof values are invalid, please run fixup task\n");
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
@@ -698,9 +700,11 @@ deferred_add_func(MemberofDeferredAddTask *task)
     pb = task->pb;
 
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                  "deferred_mod_func: target %s\n", slapi_sdn_get_dn(sdn));
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                  "deferred_add_func: target %s\n",
+                  slapi_sdn_get_dn(sdn));
 
     /* is the entry of interest? */
     memberof_rlock_config();
@@ -738,7 +742,8 @@ deferred_add_func(MemberofDeferredAddTask *task)
 bail:
     if (ret) {
         slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "Failed applying deferred updates: memberof values are invalid, please run fixup task\n");
+                      "deferred_add_func - Failed applying deferred updates: "
+                      "memberof values are invalid, please run fixup task\n");
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
@@ -770,7 +775,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
     pb = task->pb;
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                  "deferred_mod_func: target %s\n", slapi_sdn_get_dn(sdn));
+                  "deferred_mod_func - target %s\n", slapi_sdn_get_dn(sdn));
     /* get the mod set */
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     smods = slapi_mods_new();
@@ -815,7 +820,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
                 /* add group DN to targets */
                 if ((ret = memberof_add_smod_list(pb, &configCopy, sdn, smod))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                  "memberof_postop_modify - Failed to add dn (%s) to target.  "
+                                  "deferred_mod_func - Failed to add dn (%s) to target.  "
                                   "Error (%d)\n",
                                   slapi_sdn_get_dn(sdn), ret);
                     slapi_mod_done(next_mod);
@@ -832,7 +837,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
                 if (slapi_mod_get_num_values(smod) == 0) {
                     if ((ret = memberof_replace_list(pb, &configCopy, sdn))) {
                         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                      "memberof_postop_modify - Failed to replace list (%s).  "
+                                      "deferred_mod_func - Failed to replace list (%s).  "
                                       "Error (%d)\n",
                                       slapi_sdn_get_dn(sdn), ret);
                         slapi_mod_done(next_mod);
@@ -842,7 +847,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
                     /* remove group DN from target values in smod*/
                     if ((ret = memberof_del_smod_list(pb, &configCopy, sdn, smod))) {
                         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                      "memberof_postop_modify: failed to remove dn (%s).  "
+                                      "deferred_mod_func: failed to remove dn (%s).  "
                                       "Error (%d)\n",
                                       slapi_sdn_get_dn(sdn), ret);
                         slapi_mod_done(next_mod);
@@ -856,7 +861,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
                 /* replace current values */
                 if ((ret = memberof_replace_list(pb, &configCopy, sdn))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                  "memberof_postop_modify - Failed to replace values in  dn (%s).  "
+                                  "deferred_mod_func - Failed to replace values in  dn (%s).  "
                                   "Error (%d)\n",
                                   slapi_sdn_get_dn(sdn), ret);
                     slapi_mod_done(next_mod);
@@ -869,7 +874,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
                 slapi_log_err(
                     SLAPI_LOG_ERR,
                     MEMBEROF_PLUGIN_SUBSYSTEM,
-                    "memberof_postop_modify - Unknown mod type\n");
+                    "deferred_mod_func - Unknown mod type\n");
                 ret = SLAPI_PLUGIN_FAILURE;
                 break;
             }
@@ -893,7 +898,8 @@ bail:
                       "deferred_mod_func - fail to update new members of %s. Run fixup-task\n",
                       slapi_sdn_get_dn(task->target_sdn));
         slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "Failed applying deferred updates: memberof values are invalid, please run fixup task\n");
+                      "deferred_mod_func - Failed applying deferred updates: "
+                      "memberof values are invalid, please run fixup task\n");
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
     }
@@ -1175,6 +1181,19 @@ memberof_postop_start(Slapi_PBlock *pb)
         }
     }
 
+    if (ignored_containers_sdn == NULL) {
+        /* allocates ignored_containers_sdn of Slapi_DN* only once */
+        char *ignored_containers[4] = { "cn=config", "cn=schema", "cn=changelog", NULL};
+        size_t i;
+
+        for (i = 0; ignored_containers[i]; i++);
+        ignored_containers_sdn = (Slapi_DN **)slapi_ch_calloc(i + 1, sizeof(Slapi_DN *));
+
+        for (i = 0; ignored_containers[i]; i++) {
+            ignored_containers_sdn[i] = slapi_sdn_new_dn_byval(ignored_containers[i]);
+        }
+    }
+
     /* Set the alternate config area if one is defined. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
     if (config_area) {
@@ -1413,7 +1432,7 @@ memberof_postop_del(Slapi_PBlock *pb)
         deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
 
-        if (deferred_update) {
+        if (deferred_update && !is_ignored_container(sdn, pb)) {
             MemberofDeferredTask* task;
             Slapi_Operation *op;
             int deferred_op_running = 1;
@@ -1771,8 +1790,9 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
         mainConfig = memberof_get_config();
         deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
+        slapi_pblock_get(pb, SLAPI_TARGET_SDN, &origin_sdn);
 
-        if (deferred_update) {
+        if (deferred_update && !is_ignored_container(origin_sdn, pb)) {
             MemberofDeferredTask* task;
             Slapi_Operation *op;
             int deferred_op_running = 1;
@@ -1786,7 +1806,6 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
             op = internal_operation_new(SLAPI_OPERATION_MODRDN, 0);
             slapi_pblock_set(task->d_modrdn->pb, SLAPI_OPERATION, op);
 
-            slapi_pblock_get(pb, SLAPI_TARGET_SDN, &origin_sdn);
             /* Should be freed with slapi_sdn_free(copied_sdn) */
             copied_sdn = slapi_sdn_dup(origin_sdn);
             slapi_pblock_set(task->d_modrdn->pb, SLAPI_TARGET_SDN, copied_sdn);
@@ -2088,7 +2107,7 @@ memberof_postop_modify(Slapi_PBlock *pb)
         memberof_set_entry_info(entry, NULL, &entry_info);
         memberof_unlock_config();
 
-        if (deferred_update) {
+        if (deferred_update && !is_ignored_container(sdn, pb)) {
             MemberofDeferredTask* task;
             LDAPMod **copied_mods = NULL;
             Slapi_DN *copied_sdn;
@@ -2311,6 +2330,35 @@ memberof_push_deferred_task(Slapi_PBlock *pb)
 }
 
 /*
+ * Check if the target DN is an ignored container
+ *
+ * Return true if the target DN is an ignored container or an RUV update
+ * Return false if the target DN is not an ignored container and should be
+ * considered for deferred updates
+ */
+static bool
+is_ignored_container(Slapi_DN *target_sdn, Slapi_PBlock *pb) {
+    bool ignore = false;
+    Operation *operation = NULL;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+    if (operation && operation_is_flag_set(operation, OP_FLAG_REPL_RUV)) {
+        /* Skip RUV updates */
+        return true;
+    }
+
+    for (size_t i = 0; ignored_containers_sdn &&ignored_containers_sdn[i]; i++) {
+        int check = slapi_sdn_issuffix(target_sdn, ignored_containers_sdn[i]);
+        if (check != 0) {
+            /* This entry is an ignored container */
+            ignore = true;
+            break;
+        }
+    }
+    return ignore;
+}
+
+/*
  * memberof_postop_add()
  *
  * All members in the membership attribute of the new entry get retrieved
@@ -2349,7 +2397,7 @@ memberof_postop_add(Slapi_PBlock *pb)
         deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
 
-        if (deferred_update) {
+        if (deferred_update && !is_ignored_container(sdn, pb)) {
             MemberofDeferredTask* task;
             Slapi_Operation *op;
             int deferred_op_running = 1;
