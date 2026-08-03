@@ -228,7 +228,11 @@ typedef struct slapi_pblock
     struct _slapi_pblock_intop *pb_intop;
     struct _slapi_pblock_intplugin *pb_intplugin;
     struct _slapi_pblock_deprecated *pb_deprecated;
+    /* Deferred memberOf sync elements */
     int pb_deferred_memberof;
+    int pb_deferred_memberof_sync_inited;
+    pthread_mutex_t pb_deferred_memberof_mutex;
+    pthread_cond_t pb_deferred_memberof_cv;
 
 #ifdef PBLOCK_ANALYTICS
     uint32_t analytics_init;
