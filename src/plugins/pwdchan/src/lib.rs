@@ -1,13 +1,24 @@
 #![deny(warnings)]
 #[macro_use]
 extern crate slapi_r_plugin;
-use base64;
+use base64::Engine as _;
+use base64::engine::{GeneralPurpose, general_purpose::{self, GeneralPurposeConfig}};
 use openssl::{hash::MessageDigest, pkcs5::pbkdf2_hmac, rand::rand_bytes};
 use slapi_r_plugin::prelude::*;
 use std::fmt::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::convert::TryInto;
 use std::os::raw::c_char;
+
+/// A base64 engine that tolerates non-canonical trailing bits.
+/// OpenLDAP/passlib's ab64 encoding can produce trailing bits that
+/// the strict STANDARD engine rejects. This matches the old
+/// `base64::STANDARD.decode_allow_trailing_bits(true)` behavior.
+const B64_PERMISSIVE: GeneralPurpose = GeneralPurpose::new(
+    &base64::alphabet::STANDARD,
+    GeneralPurposeConfig::new()
+        .with_decode_allow_trailing_bits(true),
+);
 
 const DEFAULT_PBKDF2_ROUNDS: usize = 100_000;
 const MIN_PBKDF2_ROUNDS: usize = 10_000;
@@ -176,7 +187,7 @@ impl PwdChanCrypto {
             .ok_or(PluginError::MissingValue)
             .and_then(|ab64| {
                 let s = ab64_to_b64!(ab64);
-                base64::decode_config(&s, base64::STANDARD.decode_allow_trailing_bits(true))
+                B64_PERMISSIVE.decode(&s)
                     .map_err(|e| {
                         log_error!(ErrorLevel::Error, "Invalid Base 64 {} -> {:?}", s, e);
                         PluginError::InvalidBase64
@@ -188,7 +199,7 @@ impl PwdChanCrypto {
             .ok_or(PluginError::MissingValue)
             .and_then(|ab64| {
                 let s = ab64_to_b64!(ab64);
-                base64::decode_config(&s, base64::STANDARD.decode_allow_trailing_bits(true))
+                B64_PERMISSIVE.decode(&s)
                     .map_err(|e| {
                         log_error!(ErrorLevel::Error, "Invalid Base 64 {} -> {:?}", s, e);
                         PluginError::InvalidBase64
@@ -269,11 +280,11 @@ impl PwdChanCrypto {
             PluginError::Format
         })?;
         // the base64 salt
-        base64::encode_config_buf(&salt, base64::STANDARD, &mut output);
+        general_purpose::STANDARD.encode_string(&salt, &mut output);
         // Push the delim
         output.push('$');
         // Finally the base64 hash
-        base64::encode_config_buf(&hash_input, base64::STANDARD, &mut output);
+        general_purpose::STANDARD.encode_string(&hash_input, &mut output);
         
         Ok(output)
     }
