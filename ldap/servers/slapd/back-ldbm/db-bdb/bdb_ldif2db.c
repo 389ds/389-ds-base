@@ -1494,12 +1494,13 @@ bdb_db2index(Slapi_PBlock *pb)
                                   inst->inst_name, LDBM_ENTRYRDN_STR);
                     index_ext |= DB2INDEX_ENTRYRDN;
                 } else if (ldbm_index_entrydn_should_ignore(attrs[i] + 1)) {
+                    /* Warn and skip obsolete entrydn*/
                     slapi_task_log_notice(task, "%s: Requested to index %s, but the index is no longer applicable",
                                           inst->inst_name, LDBM_ENTRYDN_STR);
                     slapi_log_err(SLAPI_LOG_WARNING,
                                   "bdb_db2index", "%s: Requested to index %s, but the index is no longer applicable\n",
                                   inst->inst_name, LDBM_ENTRYDN_STR);
-                    goto err_out;
+                    break;
                 } else {
                     if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_OBJECTCLASS) == 0) {
                         index_ext |= DB2INDEX_OBJECTCLASS;
