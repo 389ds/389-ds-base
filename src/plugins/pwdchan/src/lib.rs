@@ -6,9 +6,10 @@ use base64::engine::{GeneralPurpose, general_purpose::{self, GeneralPurposeConfi
 use openssl::{hash::MessageDigest, pkcs5::pbkdf2_hmac, rand::rand_bytes};
 use slapi_r_plugin::prelude::*;
 use std::fmt::Write;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::convert::TryInto;
 use std::os::raw::c_char;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// A base64 engine that tolerates non-canonical trailing bits.
 /// OpenLDAP/passlib's ab64 encoding can produce trailing bits that
@@ -21,6 +22,7 @@ const B64_PERMISSIVE: GeneralPurpose = GeneralPurpose::new(
 );
 
 const DEFAULT_PBKDF2_ROUNDS: usize = 100_000;
+const DEFAULT_PBKDF2_ACCEPT_MAX: usize = 100_000;
 const MIN_PBKDF2_ROUNDS: usize = 10_000;
 const MAX_PBKDF2_ROUNDS: usize = 10_000_000;
 
@@ -33,16 +35,30 @@ const SCHEME_PBKDF2_SHA1: &str = "PBKDF2-SHA1";
 const SCHEME_PBKDF2_SHA256: &str = "PBKDF2-SHA256";
 const SCHEME_PBKDF2_SHA512: &str = "PBKDF2-SHA512";
 
-// Each algorithm gets its own atomic counter for thread-safe round and accept max iterations
+// Rejections outside range iteration counts are logged at most once per interval.
+const PBKDF2_REJECT_LOG_INTERVAL: u64 = 300;
+
+// Each algorithm gets its own atomic counter for thread-safe round and accept max iterations.
 static PBKDF2_ROUNDS: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 static PBKDF2_ROUNDS_SHA1: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 static PBKDF2_ROUNDS_SHA256: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 static PBKDF2_ROUNDS_SHA512: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 
-static PBKDF2_ACCEPT_MAX: AtomicUsize = AtomicUsize::new(0);
-static PBKDF2_ACCEPT_MAX_SHA1: AtomicUsize = AtomicUsize::new(0);
-static PBKDF2_ACCEPT_MAX_SHA256: AtomicUsize = AtomicUsize::new(0);
-static PBKDF2_ACCEPT_MAX_SHA512: AtomicUsize = AtomicUsize::new(0);
+static PBKDF2_ACCEPT_MAX: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ACCEPT_MAX);
+static PBKDF2_ACCEPT_MAX_SHA1: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ACCEPT_MAX);
+static PBKDF2_ACCEPT_MAX_SHA256: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ACCEPT_MAX);
+static PBKDF2_ACCEPT_MAX_SHA512: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ACCEPT_MAX);
+
+// Rejection log throttling and suppression counters.
+static PBKDF2_REJECT_LAST_LOG: AtomicU64 = AtomicU64::new(0);
+static PBKDF2_REJECT_LAST_LOG_SHA1: AtomicU64 = AtomicU64::new(0);
+static PBKDF2_REJECT_LAST_LOG_SHA256: AtomicU64 = AtomicU64::new(0);
+static PBKDF2_REJECT_LAST_LOG_SHA512: AtomicU64 = AtomicU64::new(0);
+
+static PBKDF2_REJECT_SUPPRESSED: AtomicU64 = AtomicU64::new(0);
+static PBKDF2_REJECT_SUPPRESSED_SHA1: AtomicU64 = AtomicU64::new(0);
+static PBKDF2_REJECT_SUPPRESSED_SHA256: AtomicU64 = AtomicU64::new(0);
+static PBKDF2_REJECT_SUPPRESSED_SHA512: AtomicU64 = AtomicU64::new(0);
 
 // Thread-local storage for test environment
 #[cfg(test)]
@@ -202,22 +218,90 @@ impl PwdChanCrypto {
     }
 
     fn validate_pbkdf2_stored_iterations(iterations: usize, scheme: &str) -> Result<(), PluginError> {
-        Self::validate_pbkdf2_rounds(iterations)?;
-
         let accept_max = Self::get_pbkdf2_accept_max(scheme)?;
-        if iterations > accept_max {
-            #[cfg(not(test))]
-            log_error!(
-                ErrorLevel::Warning,
-                "{} iteration count {} exceeds accept max {}",
-                scheme,
-                iterations,
-                accept_max
-            );
+        if iterations < MIN_PBKDF2_ROUNDS || iterations > accept_max {
+            Self::log_rejected_iterations(scheme, iterations, accept_max);
             return Err(PluginError::InvalidConfiguration);
         }
 
         Ok(())
+    }
+
+    fn get_reject_log_atomics(
+        scheme: &str,
+    ) -> Result<(&'static AtomicU64, &'static AtomicU64), PluginError> {
+        match scheme {
+            SCHEME_PBKDF2 => Ok((&PBKDF2_REJECT_LAST_LOG, &PBKDF2_REJECT_SUPPRESSED)),
+            SCHEME_PBKDF2_SHA1 => Ok((
+                &PBKDF2_REJECT_LAST_LOG_SHA1,
+                &PBKDF2_REJECT_SUPPRESSED_SHA1,
+            )),
+            SCHEME_PBKDF2_SHA256 => Ok((
+                &PBKDF2_REJECT_LAST_LOG_SHA256,
+                &PBKDF2_REJECT_SUPPRESSED_SHA256,
+            )),
+            SCHEME_PBKDF2_SHA512 => Ok((
+                &PBKDF2_REJECT_LAST_LOG_SHA512,
+                &PBKDF2_REJECT_SUPPRESSED_SHA512,
+            )),
+            _ => Err(PluginError::Unknown),
+        }
+    }
+
+    fn log_rejected_iterations(scheme: &str, iterations: usize, accept_max: usize) {
+        let Ok((last_log, suppressed_ctr)) = Self::get_reject_log_atomics(scheme) else {
+            return;
+        };
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let last = last_log.load(Ordering::Relaxed);
+
+        if last != 0 && now.saturating_sub(last) < PBKDF2_REJECT_LOG_INTERVAL {
+            suppressed_ctr.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
+
+        last_log.store(now, Ordering::Relaxed);
+        let suppressed = suppressed_ctr.swap(0, Ordering::Relaxed);
+
+        #[cfg(not(test))]
+        {
+            if iterations > accept_max {
+                log_error_ext!(
+                    ErrorLevel::Error,
+                    scheme,
+                    "Rejected a password hash with iteration count {} above the accepted maximum {}",
+                    iterations,
+                    accept_max,
+                );
+            } else {
+                log_error_ext!(
+                    ErrorLevel::Error,
+                    scheme,
+                    "Rejected a password hash with iteration count {} below the supported minimum {}",
+                    iterations,
+                    MIN_PBKDF2_ROUNDS,
+                );
+            }
+
+            if suppressed > 0 {
+                log_error_ext!(
+                    ErrorLevel::Error,
+                    scheme,
+                    "{} additional outside range iteration rejections were suppressed in the last {} seconds",
+                    suppressed,
+                    now.saturating_sub(last),
+                );
+            }
+        }
+
+        #[cfg(test)]
+        {
+            let _ = (iterations, accept_max, suppressed, last, now);
+        }
     }
 
     #[inline(always)]
@@ -311,7 +395,11 @@ impl PwdChanCrypto {
     }
 
     fn pbkdf2_encrypt(cleartext: &str, digest: MessageDigest, scheme: &str) -> Result<String, PluginError> {
-        let rounds = Self::get_pbkdf2_rounds(scheme)?;
+        let mut rounds = Self::get_pbkdf2_rounds(scheme)?;
+        let accept_max = Self::get_pbkdf2_accept_max(scheme)?;
+        if rounds > accept_max {
+            rounds = accept_max;
+        }
         let (hash_length, str_length, header) = Self::scheme_format(scheme)?;
 
         // generate salt
@@ -349,13 +437,8 @@ impl PwdChanCrypto {
         // Push the delim
         output.push('$');
         // Finally the base64 hash
-<<<<<<< HEAD
         general_purpose::STANDARD.encode_string(&hash_input, &mut output);
-        
-=======
-        base64::encode_config_buf(&hash_input, base64::STANDARD, &mut output);
 
->>>>>>> 987ffaa27 (first)
         Ok(output)
     }
 
@@ -448,33 +531,122 @@ impl PwdChanCrypto {
         })
     }
 
-    fn handle_pbkdf2_config(pb: &mut PblockRef, scheme: &str) -> Result<(), PluginError> {
-        let mut rounds = Self::get_pbkdf2_rounds(scheme)?;
-        let mut source = "default";
-
-        let entry = pb.get_op_add_entryref()
-            .map_err(|_| PluginError::InvalidConfiguration)?;
-
-        if entry.get_attr(PBKDF2_ROUNDS_ATTR).is_some() {
-            rounds = Self::parse_config_usize_attr(&entry, PBKDF2_ROUNDS_ATTR)?;
-            source = "configuration";
+    fn read_config_usize_attr(entry: &EntryRef, attr: &str) -> Option<usize> {
+        match Self::parse_config_usize_attr(entry, attr) {
+            Ok(value) => Some(value),
+            Err(_) => None,
         }
+    }
 
-        let mut accept_max = rounds;
+    // Resolve startup rounds and accept-max from optional configured values.
+    fn resolve_pbkdf2_startup_config(
+        configured_rounds: Option<usize>,
+        configured_accept_max: Option<usize>,
+    ) -> (usize, usize, &'static str, Option<usize>) {
+        let (mut rounds, source) = match configured_rounds {
+            Some(value) if Self::validate_pbkdf2_rounds(value).is_ok() => {
+                (value, "configuration")
+            }
+            _ => (DEFAULT_PBKDF2_ROUNDS, "default"),
+        };
 
-        if entry.get_attr(PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR).is_some() {
-            accept_max = Self::parse_config_usize_attr(&entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR)?;
-        }
+        let accept_max = match configured_accept_max {
+            Some(value) if Self::validate_pbkdf2_rounds(value).is_ok() => value,
+            _ => DEFAULT_PBKDF2_ACCEPT_MAX,
+        };
 
-        // Preserve accept_max >= rounds: raise accept_max first when needed.
-        let current_rounds = Self::get_pbkdf2_rounds(scheme)?;
-        if accept_max >= current_rounds {
-            Self::set_pbkdf2_accept_max(scheme, accept_max)?;
-            Self::set_pbkdf2_rounds(scheme, rounds)?;
+        let capped_from = if rounds > accept_max {
+            let original = rounds;
+            rounds = accept_max;
+            Some(original)
         } else {
-            Self::set_pbkdf2_rounds(scheme, rounds)?;
-            Self::set_pbkdf2_accept_max(scheme, accept_max)?;
+            None
+        };
+
+        (rounds, accept_max, source, capped_from)
+    }
+
+    fn handle_pbkdf2_config(pb: &mut PblockRef, scheme: &str) -> Result<(), PluginError> {
+        // Keep verification ceiling independent of generation rounds.
+        let mut configured_rounds = None;
+        let mut configured_accept_max = None;
+
+        if let Ok(entry) = pb.get_op_add_entryref() {
+            if entry.get_attr(PBKDF2_ROUNDS_ATTR).is_some() {
+                match Self::read_config_usize_attr(&entry, PBKDF2_ROUNDS_ATTR) {
+                    Some(value) if Self::validate_pbkdf2_rounds(value).is_ok() => {
+                        configured_rounds = Some(value);
+                    }
+                    Some(value) => {
+                        log_error_ext!(
+                            ErrorLevel::Error,
+                            scheme,
+                            "Invalid {} value {}, must be between {} and {}; using the default {}",
+                            PBKDF2_ROUNDS_ATTR,
+                            value,
+                            MIN_PBKDF2_ROUNDS,
+                            MAX_PBKDF2_ROUNDS,
+                            DEFAULT_PBKDF2_ROUNDS,
+                        );
+                        // Soft fallback: leave configured_rounds as None.
+                    }
+                    None => {
+                        log_error_ext!(
+                            ErrorLevel::Error,
+                            scheme,
+                            "Invalid {} value; using the default {}",
+                            PBKDF2_ROUNDS_ATTR,
+                            DEFAULT_PBKDF2_ROUNDS,
+                        );
+                    }
+                }
+            }
+
+            if entry.get_attr(PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR).is_some() {
+                match Self::read_config_usize_attr(&entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR) {
+                    Some(value) if Self::validate_pbkdf2_rounds(value).is_ok() => {
+                        configured_accept_max = Some(value);
+                    }
+                    Some(value) => {
+                        log_error_ext!(
+                            ErrorLevel::Error,
+                            scheme,
+                            "Invalid {} value {}, must be between {} and {}; using the default {}",
+                            PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR,
+                            value,
+                            MIN_PBKDF2_ROUNDS,
+                            MAX_PBKDF2_ROUNDS,
+                            DEFAULT_PBKDF2_ACCEPT_MAX,
+                        );
+                    }
+                    None => {
+                        log_error_ext!(
+                            ErrorLevel::Error,
+                            scheme,
+                            "Invalid {} value; using the default {}",
+                            PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR,
+                            DEFAULT_PBKDF2_ACCEPT_MAX,
+                        );
+                    }
+                }
+            }
         }
+
+        let (rounds, accept_max, source, capped_from) =
+            Self::resolve_pbkdf2_startup_config(configured_rounds, configured_accept_max);
+
+        if let Some(original_rounds) = capped_from {
+            log_error_ext!(
+                ErrorLevel::Info,
+                scheme,
+                "Configured {} rounds; capping at the configured accept max {}",
+                original_rounds,
+                accept_max,
+            );
+        }
+
+        Self::set_pbkdf2_accept_max(scheme, accept_max)?;
+        Self::set_pbkdf2_rounds(scheme, rounds)?;
 
         log_error_ext!(
             ErrorLevel::Info,
@@ -496,34 +668,6 @@ impl PwdChanCrypto {
 
     fn set_pbkdf2_rounds(scheme: &str, rounds: usize) -> Result<(), PluginError> {
         Self::validate_pbkdf2_rounds(rounds)?;
-
-        // Skip when accept max is unset (0); compare then falls back to rounds.
-        #[cfg(test)]
-        let configured_accept_max = Self::get_test_accept_max(scheme);
-        #[cfg(not(test))]
-        let configured_accept_max = {
-            let accept_max = Self::get_accept_max_atomic(scheme)?.load(Ordering::Relaxed);
-            if accept_max == 0 {
-                None
-            } else {
-                Some(accept_max)
-            }
-        };
-        if let Some(accept_max) = configured_accept_max {
-            if rounds > accept_max {
-                #[cfg(not(test))]
-                log_error_ext!(
-                    ErrorLevel::Error,
-                    scheme,
-                    "Invalid rounds {} for {}, must be <= {} {}",
-                    rounds,
-                    scheme,
-                    PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR,
-                    accept_max
-                );
-                return Err(PluginError::InvalidConfiguration);
-            }
-        }
 
         #[cfg(test)]
         {
@@ -552,21 +696,6 @@ impl PwdChanCrypto {
     fn set_pbkdf2_accept_max(scheme: &str, accept_max: usize) -> Result<(), PluginError> {
         Self::validate_pbkdf2_rounds(accept_max)?;
 
-        let rounds = Self::get_pbkdf2_rounds(scheme)?;
-        if accept_max < rounds {
-            #[cfg(not(test))]
-            log_error_ext!(
-                ErrorLevel::Error,
-                scheme,
-                "Invalid {} value {} for {}, must be >= configured rounds {}",
-                PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR,
-                accept_max,
-                scheme,
-                rounds
-            );
-            return Err(PluginError::InvalidConfiguration);
-        }
-
         #[cfg(test)]
         {
             Self::set_test_accept_max(scheme, Some(accept_max));
@@ -588,12 +717,7 @@ impl PwdChanCrypto {
             }
         }
 
-        let accept_max = Self::get_accept_max_atomic(scheme)?.load(Ordering::Relaxed);
-        if accept_max == 0 {
-            return Self::get_pbkdf2_rounds(scheme);
-        }
-
-        Ok(accept_max)
+        Ok(Self::get_accept_max_atomic(scheme)?.load(Ordering::Relaxed))
     }
 }
 
@@ -630,7 +754,7 @@ mod tests {
             SCHEME_PBKDF2_SHA512,
         ] {
             PwdChanCrypto::set_pbkdf2_rounds(scheme, DEFAULT_PBKDF2_ROUNDS).unwrap();
-            PwdChanCrypto::set_pbkdf2_accept_max(scheme, DEFAULT_PBKDF2_ROUNDS).unwrap();
+            PwdChanCrypto::set_pbkdf2_accept_max(scheme, DEFAULT_PBKDF2_ACCEPT_MAX).unwrap();
         }
     }
 
@@ -779,9 +903,7 @@ mod tests {
         let result = PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, MIN_PBKDF2_ROUNDS - 1);
         assert!(result.is_err());
 
-        // Test max rounds - should succeed
-        // Accept max must be raised first so max rounds is allowed.
-        PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, MAX_PBKDF2_ROUNDS).unwrap();
+        // Test max rounds - should succeed even without raising accept max.
         let result = PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, MAX_PBKDF2_ROUNDS);
         assert!(result.is_ok());
 
@@ -813,38 +935,137 @@ mod tests {
     }
 
     #[test]
-    fn test_pbkdf2_accept_max_must_be_at_least_rounds() {
+    fn test_pbkdf2_accept_max_independent_of_rounds() {
         reset_pbkdf2_rounds();
 
+        // Lowering generation rounds must not force the verification ceiling down.
         PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 50000).unwrap();
+        PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, DEFAULT_PBKDF2_ACCEPT_MAX)
+            .unwrap();
+        PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 20000).unwrap();
 
-        let result = PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 40000);
-        assert!(result.is_err());
+        assert_eq!(
+            PwdChanCrypto::get_pbkdf2_rounds(SCHEME_PBKDF2_SHA256).unwrap(),
+            20000
+        );
+        assert_eq!(
+            PwdChanCrypto::get_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256).unwrap(),
+            DEFAULT_PBKDF2_ACCEPT_MAX
+        );
 
-        let result = PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 50000);
-        assert!(result.is_ok());
+        // Accept max below generation rounds is allowed; encrypt caps instead.
+        assert!(PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 15000).is_ok());
+        assert_eq!(
+            PwdChanCrypto::get_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256).unwrap(),
+            15000
+        );
 
         reset_pbkdf2_rounds();
     }
 
     #[test]
-    fn test_pbkdf2_rounds_must_not_exceed_accept_max() {
+    fn test_pbkdf2_encrypt_caps_rounds_to_accept_max() {
         reset_pbkdf2_rounds();
 
-        PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 20000).unwrap();
-        PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 20000).unwrap();
+        PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 15000).unwrap();
+        PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 30000).unwrap();
 
-        // Raising rounds above accept max would create hashes compare rejects.
-        let result = PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 30000);
-        assert!(result.is_err());
+        let encrypted = PwdChanCrypto::pbkdf2_encrypt(
+            "password",
+            MessageDigest::sha256(),
+            SCHEME_PBKDF2_SHA256,
+        )
+        .unwrap();
+        let rounds: usize = encrypted
+            .trim_start_matches("{PBKDF2-SHA256}")
+            .split('$')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(rounds, 15000);
 
-        let result = PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 20000);
-        assert!(result.is_ok());
+        reset_pbkdf2_rounds();
+    }
 
-        PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 30000).unwrap();
-        let result = PwdChanCrypto::set_pbkdf2_rounds(SCHEME_PBKDF2_SHA256, 30000);
-        assert!(result.is_ok());
+    #[test]
+    fn test_pbkdf2_startup_config_soft_fallback_and_cap() {
+        // Missing config -> independent defaults.
+        let (rounds, accept_max, source, capped_from) =
+            PwdChanCrypto::resolve_pbkdf2_startup_config(None, None);
+        assert_eq!(rounds, DEFAULT_PBKDF2_ROUNDS);
+        assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
+        assert_eq!(source, "default");
+        assert!(capped_from.is_none());
 
+        // Invalid values fall back to defaults (soft).
+        let (rounds, accept_max, source, capped_from) =
+            PwdChanCrypto::resolve_pbkdf2_startup_config(
+                Some(MIN_PBKDF2_ROUNDS - 1),
+                Some(MAX_PBKDF2_ROUNDS + 1),
+            );
+        assert_eq!(rounds, DEFAULT_PBKDF2_ROUNDS);
+        assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
+        assert_eq!(source, "default");
+        assert!(capped_from.is_none());
+
+        // Lowered rounds keep the independent accept-max default.
+        let (rounds, accept_max, source, capped_from) =
+            PwdChanCrypto::resolve_pbkdf2_startup_config(Some(20000), None);
+        assert_eq!(rounds, 20000);
+        assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
+        assert_eq!(source, "configuration");
+        assert!(capped_from.is_none());
+
+        // Rounds above accept-max are capped, not rejected.
+        let (rounds, accept_max, source, capped_from) =
+            PwdChanCrypto::resolve_pbkdf2_startup_config(Some(30000), Some(15000));
+        assert_eq!(rounds, 15000);
+        assert_eq!(accept_max, 15000);
+        assert_eq!(source, "configuration");
+        assert_eq!(capped_from, Some(30000));
+    }
+
+    fn reset_reject_log_state(scheme: &str) {
+        let (last_log, suppressed) = PwdChanCrypto::get_reject_log_atomics(scheme).unwrap();
+        last_log.store(0, Ordering::Relaxed);
+        suppressed.store(0, Ordering::Relaxed);
+    }
+
+    #[test]
+    fn test_pbkdf2_reject_log_throttle() {
+        reset_pbkdf2_rounds();
+        reset_reject_log_state(SCHEME_PBKDF2_SHA256);
+        PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 10000).unwrap();
+
+        let (last_log, suppressed) =
+            PwdChanCrypto::get_reject_log_atomics(SCHEME_PBKDF2_SHA256).unwrap();
+
+        // First rejection records last-log time and does not suppress.
+        assert!(PwdChanCrypto::validate_pbkdf2_stored_iterations(
+            20000,
+            SCHEME_PBKDF2_SHA256
+        )
+        .is_err());
+        let first_log = last_log.load(Ordering::Relaxed);
+        assert_ne!(first_log, 0);
+        assert_eq!(suppressed.load(Ordering::Relaxed), 0);
+
+        // Further rejections inside the interval only bump the suppressed count.
+        assert!(PwdChanCrypto::validate_pbkdf2_stored_iterations(
+            20000,
+            SCHEME_PBKDF2_SHA256
+        )
+        .is_err());
+        assert!(PwdChanCrypto::validate_pbkdf2_stored_iterations(
+            MIN_PBKDF2_ROUNDS - 1,
+            SCHEME_PBKDF2_SHA256
+        )
+        .is_err());
+        assert_eq!(last_log.load(Ordering::Relaxed), first_log);
+        assert_eq!(suppressed.load(Ordering::Relaxed), 2);
+
+        reset_reject_log_state(SCHEME_PBKDF2_SHA256);
         reset_pbkdf2_rounds();
     }
 

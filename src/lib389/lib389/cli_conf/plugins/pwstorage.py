@@ -55,7 +55,10 @@ def pbkdf2_set_iterations(inst, basedn, log, args):
     log = log.getChild('pbkdf2_set_iterations')
     plugin = _get_pbkdf2_plugin(inst, args.variant)
     plugin.set_rounds(args.iterations)
-    log.info(f'Successfully set number of iterations for {args.variant} to {args.iterations}')
+    log.info(
+        f'Successfully set number of iterations for {args.variant} to {args.iterations}. '
+        'A server restart is required for the change to take effect'
+    )
 
 
 def pbkdf2_get_accept_max_iterations(inst, basedn, log, args):
@@ -105,14 +108,20 @@ def pbkdf2_variant_set_accept_max_iterations(inst, basedn, log, args):
     log = log.getChild('pbkdf2_variant_set_accept_max_iterations')
     plugin = _get_pbkdf2_plugin(inst, args.variant)
     plugin.set_accept_max_iterations(args.iterations)
-    log.info(f'Successfully set accept max iterations for {args.variant} to {args.iterations}')
+    log.info(
+        f'Successfully set accept max iterations for {args.variant} to {args.iterations}. '
+        'A server restart is required for the change to take effect'
+    )
 
 
 def pbkdf2_delete_accept_max_iterations(inst, basedn, log, args):
     log = log.getChild('pbkdf2_delete_accept_max_iterations')
     plugin = _get_pbkdf2_plugin(inst, args.variant)
     plugin.delete_accept_max_iterations()
-    log.info(f'Successfully removed accept max iterations override for {args.variant}')
+    log.info(
+        f'Successfully removed accept max iterations override for {args.variant}. '
+        'A server restart is required for the change to take effect'
+    )
 
 
 def create_parser(subparsers):
@@ -186,11 +195,14 @@ def create_parser(subparsers):
             'set-accept-max-iterations',
             help='Set maximum iterations accepted from stored hashes on bind',
             formatter_class=CustomHelpFormatter)
-        set_accept.add_argument('iterations', type=int, help='Maximum iterations accepted on bind (>= 10,000)')
+        set_accept.add_argument(
+            'iterations',
+            type=int,
+            help='Maximum iterations accepted on bind (10,000-10,000,000)')
         set_accept.set_defaults(func=pbkdf2_variant_set_accept_max_iterations, variant=variant)
 
         delete_accept = variant_subcommands.add_parser(
             'delete-accept-max-iterations',
-            help='Remove accept max iterations override (default to encrypt rounds)',
+            help='Remove accept max iterations override, revert to default',
             formatter_class=CustomHelpFormatter)
         delete_accept.set_defaults(func=pbkdf2_delete_accept_max_iterations, variant=variant)
