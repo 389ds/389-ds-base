@@ -66,7 +66,7 @@ def setup_breach_policy(topology_st):
 
 
 @pytest.fixture(scope="function")
-def test_user(topology_st):
+def breach_user(topology_st):
     """Create a test user for each test."""
     inst = topology_st.standalone
     inst.simple_bind_s(DN_DM, PASSWORD)
@@ -91,7 +91,7 @@ def test_user(topology_st):
         pass
 
 
-def test_breached_password_rejected(topology_st, setup_breach_policy, test_user):
+def test_breached_password_rejected(topology_st, setup_breach_policy, breach_user):
     """Test that a known breached password is rejected.
 
     :id: 0fd8610d-eaed-423d-b96e-253da63d7ac4
@@ -125,7 +125,7 @@ def test_breached_password_rejected(topology_st, setup_breach_policy, test_user)
         log.info(f'Breached password correctly rejected: {e}')
 
 
-def test_safe_password_accepted(topology_st, setup_breach_policy, test_user):
+def test_safe_password_accepted(topology_st, setup_breach_policy, breach_user):
     """Test that a safe password is accepted.
 
     :id: 62f7c432-2c09-48e6-8642-44881b2ca80a
@@ -161,7 +161,7 @@ def test_safe_password_accepted(topology_st, setup_breach_policy, test_user):
     log.info('Safe password correctly accepted')
 
 
-def test_breach_check_disabled(topology_st, hibp_enabled, test_user):
+def test_breach_check_disabled(topology_st, hibp_enabled, breach_user):
     """Test that breached passwords are allowed when check is disabled.
 
     :id: eba14842-290c-4a84-a032-481c8ac6a623
@@ -213,7 +213,7 @@ def test_breach_check_disabled(topology_st, hibp_enabled, test_user):
     inst.config.set('passwordCheckSyntax', 'on')
 
 
-def test_admin_can_set_breached_password(topology_st, setup_breach_policy, test_user):
+def test_admin_can_set_breached_password(topology_st, setup_breach_policy, breach_user):
     """Test that admin (Directory Manager) can set breached passwords.
 
     :id: cef5588d-9c20-4ecd-b563-362925732db5
@@ -281,7 +281,7 @@ def test_user_add_with_breached_password(topology_st, setup_breach_policy):
     user.delete()
 
 
-def test_direct_modify_breached_password(topology_st, setup_breach_policy, test_user):
+def test_direct_modify_breached_password(topology_st, setup_breach_policy, breach_user):
     """Test HIBP check via direct LDAP modify operation.
 
     :id: 7d2a832b-abd8-4682-85d9-860661e2c82a
@@ -311,7 +311,7 @@ def test_direct_modify_breached_password(topology_st, setup_breach_policy, test_
         log.info(f'Direct modify correctly rejected breached password: {e}')
 
 
-def test_passwd_extop_breached_password(topology_st, setup_breach_policy, test_user):
+def test_passwd_extop_breached_password(topology_st, setup_breach_policy, breach_user):
     """Test HIBP check via Password Modify Extended Operation.
 
     Note: passwd_s requires a secure connection, this test attempts the

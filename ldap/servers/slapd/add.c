@@ -673,6 +673,23 @@ op_shared_add(Slapi_PBlock *pb)
                 /* Check all passwords against breach database (admin bypass) */
                 if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
                     pwpolicy->pw_check_breach) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion */
+                    size_t cleartext_count = 0;
+                    for (size_t i = 0; present_values[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(present_values[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_add",
+                            "Too many cleartext password values (%zu) for %s - max %d allowed\n",
+                            cleartext_count, slapi_entry_get_dn_const(e), HIBP_MAX_PASSWORDS_PER_OP);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        goto done;
+                    }
+
                     for (size_t i = 0; present_values[i] != NULL; i++) {
                         const char *pwd = slapi_value_get_string(present_values[i]);
                         if (pwd && !slapi_is_encoded((char *)pwd)) {

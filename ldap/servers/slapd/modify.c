@@ -1049,6 +1049,24 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
             rootpw_policy.pw_breach_db_timeout = slapdFrontendConfig->pw_policy.pw_breach_db_timeout;
             for (size_t i = 0; mods && mods[i]; i++) {
                 if (strcasecmp(mods[i]->mod_type, CONFIG_ROOTPW_ATTRIBUTE) == 0 && mods[i]->mod_bvalues) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion */
+                    size_t cleartext_count = 0;
+                    for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
+                        char *val = mods[i]->mod_bvalues[j]->bv_val;
+                        if (val && !slapi_is_encoded(val)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_modify",
+                            "Too many cleartext rootpw values (%zu) - max %d allowed\n",
+                            cleartext_count, HIBP_MAX_PASSWORDS_PER_OP);
+                        slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        goto free_and_return;
+                    }
+
                     for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
                         char *val = mods[i]->mod_bvalues[j]->bv_val;
                         if (val && !slapi_is_encoded(val)) {
@@ -1320,6 +1338,25 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                 Slapi_Value **breach_vals = NULL;
                 valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
                 if (breach_vals) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion. */
+                    size_t cleartext_count = 0;
+                    for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(breach_vals[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_allow_pw_change",
+                            "Too many cleartext password values (%zu) for %s - max %d allowed\n",
+                            cleartext_count, dn, HIBP_MAX_PASSWORDS_PER_OP);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        valuearray_free(&breach_vals);
+                        rc = -1;
+                        goto done;
+                    }
+
                     for (size_t i = 0; breach_vals[i] != NULL; i++) {
                         const char *pwd = slapi_value_get_string(breach_vals[i]);
                         if (pwd && !slapi_is_encoded((char *)pwd)) {
