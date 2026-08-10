@@ -115,6 +115,17 @@ jobs:
     - name: Run pytest in a container
       run: |
         set -x
+        # quay.io pulls transiently time out (issue 7528); an implicit pull
+        # by 'docker run' has no retry, so pull explicitly with backoff
+        for i in 1 2 3 4 5; do
+          sudo docker pull quay.io/389ds/ci-images:test && break
+          if [ "$i" -eq 5 ]; then
+            echo "Image pull failed after $i attempts"
+            exit 1
+          fi
+          echo "Pull failed, retrying in $((i * 15))s..."
+          sleep $((i * 15))
+        done
         CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
         until sudo docker exec $CID sh -c "systemctl is-system-running"
         do
