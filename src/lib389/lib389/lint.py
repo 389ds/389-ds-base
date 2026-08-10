@@ -115,6 +115,22 @@ systems, you may want to reindex offline or use the --wait option to monitor tas
 """
 }
 
+DSBLE0008 = {
+    'dsle': 'DSBLE0008',
+    'severity': 'HIGH',
+    'description': 'Obsolete entrydn index configuration.',
+    'items': [],
+    'detail': """An entrydn index is configured on backend BACKEND_NAME but this server uses
+entryrdn for DN-based indexing. This can cause inconsistent search results
+and index task failures.
+""",
+    'fix': """Remove the obsolete entrydn index and on disk files, then reindex entryrdn:
+
+    # dsconf YOUR_INSTANCE backend index delete BACKEND_NAME --attr entrydn
+    # rm -f DB_DIR/entrydn.db*
+    # dsconf YOUR_INSTANCE backend index reindex BACKEND_NAME --attr entryrdn"""
+}
+
 # Config checks
 DSCLE0002 = {
     'dsle': 'DSCLE0002',

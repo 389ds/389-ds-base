@@ -1240,6 +1240,20 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
             if (pt != NULL) {
                 *pt = '\0';
             }
+            if (ldbm_index_entrydn_should_ignore(attrname)) {
+                if (ctx->job && ctx->job->task && ctx->job->inst) {
+                    slapi_task_log_notice(ctx->job->task,
+                                          "%s: Requested to index %s, but the index is no longer applicable",
+                                          ctx->job->inst->inst_name, LDBM_ENTRYDN_STR);
+                }
+                if (ctx->job && ctx->job->inst) {
+                    slapi_log_err(SLAPI_LOG_WARNING,
+                                  "process_db2index_attrs", "%s: Requested to index %s, but the index is no longer applicable\n",
+                                  ctx->job->inst->inst_name, LDBM_ENTRYDN_STR);
+                }
+                slapi_ch_free_string(&attrname);
+                break;
+            }
             slapi_ch_array_add(&ctx->indexAttrs, attrname);
             break;
         case 'T': /* VLV Search to index */
@@ -1307,6 +1321,37 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
             job->flags |= FLAG_REINDEXING; /* call dbmdb_index_producer */
             dbmdb_import_init_writer(job, IM_INDEX);
             process_db2index_attrs(pb, job->writer_ctx);
+            /*
+             * If specific indexes were requested but all were skipped
+             * do not fall through to a full rebuild.
+             */
+            {
+                char **req_attrs = NULL;
+                ImportCtx_t *ctx = job->writer_ctx;
+
+                slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &req_attrs);
+                if (req_attrs && req_attrs[0] && ctx &&
+                    !ctx->indexAttrs && !ctx->indexVlvs) {
+                    if (job->task) {
+                        slapi_task_log_notice(job->task,
+                                              "%s: No applicable indexes to rebuild",
+                                              job->inst->inst_name);
+                    }
+                    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_run_ldif2db",
+                                  "%s: No applicable indexes to rebuild\n",
+                                  job->inst->inst_name);
+                    /* Backend was set busy before we got here */
+                    instance_set_not_busy(job->inst);
+                    if (job->task) {
+                        slapi_task_log_status(job->task, "%s: Finished indexing.",
+                                              job->inst->inst_name);
+                    }
+                    dbmdb_free_import_ctx(job);
+                    dbmdb_import_free_job(job);
+                    FREE(job);
+                    return 0;
+                }
+            }
         }
     } else {
         dbmdb_import_init_writer(job, IM_IMPORT);
