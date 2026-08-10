@@ -89,7 +89,8 @@ def log_buffering_enabled(topology_st, request):
     return standalone
 
 
-def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None):
+def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None,
+                                   isnot=False):
     # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
     if (
         ds_is_newer("3.0.0")
@@ -118,23 +119,39 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
         log.info("Use healthcheck with --json option")
         args.json = json
         health_check_run(instance, topology.logcap.log, args)
-        assert topology.logcap.contains(searched_code)
-        log.info("healthcheck returned searched code: %s" % searched_code)
+        if isnot:
+            assert not topology.logcap.contains(searched_code)
+            log.info("healthcheck did not return searched code: %s" % searched_code)
+        else:
+            assert topology.logcap.contains(searched_code)
+            log.info("healthcheck returned searched code: %s" % searched_code)
 
         if searched_code2 is not None:
-            assert topology.logcap.contains(searched_code2)
-            log.info("healthcheck returned searched code: %s" % searched_code2)
+            if isnot:
+                assert not topology.logcap.contains(searched_code2)
+                log.info("healthcheck did not return searched code: %s" % searched_code2)
+            else:
+                assert topology.logcap.contains(searched_code2)
+                log.info("healthcheck returned searched code: %s" % searched_code2)
     else:
         log.info("Use healthcheck without --json option")
         args.json = json
         health_check_run(instance, topology.logcap.log, args)
 
-        assert topology.logcap.contains(searched_code)
-        log.info("healthcheck returned searched code: %s" % searched_code)
+        if isnot:
+            assert not topology.logcap.contains(searched_code)
+            log.info("healthcheck did not return searched code: %s" % searched_code)
+        else:
+            assert topology.logcap.contains(searched_code)
+            log.info("healthcheck returned searched code: %s" % searched_code)
 
         if searched_code2 is not None:
-            assert topology.logcap.contains(searched_code2)
-            log.info("healthcheck returned searched code: %s" % searched_code2)
+            if isnot:
+                assert not topology.logcap.contains(searched_code2)
+                log.info("healthcheck did not return searched code: %s" % searched_code2)
+            else:
+                assert topology.logcap.contains(searched_code2)
+                log.info("healthcheck returned searched code: %s" % searched_code2)
 
     log.info("Clear the log")
     topology.logcap.flush()
@@ -1252,6 +1269,48 @@ def test_index_check_fixes_multiple_issues(topology_st):
 
     log.info("Start the server")
     standalone.start()
+
+
+
+def test_ignore_entrydn_index(topology_st, log_buffering_enabled):
+    """Healthcheck reports DSBLE0008 when entrydn index is configured.
+
+    :id: 65abefe0-2e6b-45e0-8604-fb33d734e412
+    :setup: Standalone instance
+    :steps:
+        1. Add obsolete entrydn index to userroot
+        2. Run healthcheck
+        3. Remove entrydn index
+        4. Run healthcheck again
+    :expectedresults:
+        1. Success
+        2. healthcheck reports DSBLE0008
+        3. Success
+        4. healthcheck no longer reports DSBLE0008
+    """
+
+    RET_CODE = "DSBLE0008"
+    standalone = topology_st.standalone
+    backend = Backends(standalone).get("userRoot")
+
+    log.info("Add obsolete entrydn index configuration")
+    backend.add_index("entrydn", ["eq"])
+    standalone.restart()
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+
+    log.info("Remove entrydn index configuration")
+    entrydn_index = Index(
+        standalone,
+        "cn=entrydn,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config",
+    )
+    entrydn_index.delete()
+    standalone.restart()
+
+    # Only check DSBLE0008 is gone
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE, isnot=True)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE, isnot=True)
 
 
 if __name__ == "__main__":

@@ -4404,8 +4404,10 @@ dbmdb_free_import_ctx(ImportJob *job)
         slapi_ch_free((void**)&ctx->workerq.slots);
         dbmdb_import_q_destroy(&ctx->writerq);
         dbmdb_import_q_destroy(&ctx->bulkq);
-        slapi_ch_free((void**)&ctx->id2entry->name);
-        slapi_ch_free((void**)&ctx->id2entry);
+        if (ctx->id2entry) {
+            slapi_ch_free((void**)&ctx->id2entry->name);
+            slapi_ch_free((void**)&ctx->id2entry);
+        }
         avl_free(ctx->indexes, free_ii);
         ctx->indexes = NULL;
         charray_free(ctx->indexAttrs);
