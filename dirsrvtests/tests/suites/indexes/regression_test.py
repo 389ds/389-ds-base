@@ -541,6 +541,61 @@ def test_task_status(topo):
     assert reindex_task.get_exit_code() == 0
 
 
+def test_reindex_entrydn_only_is_noop(topo):
+    """Reindex of obsolete entrydn alone must not rebuild all indexes.
+
+    When entryrdn is in use, leftover entrydn index config is ignored. A
+    reindex task for only entrydn must warn, finish successfully, and not
+    fall through to a full attribute rebuild.
+
+    :id: e3bbda7a-82f0-409f-a926-d86835c56aaa
+    :setup: Standalone instance
+    :steps:
+        1. Add obsolete entrydn index configuration
+        2. Clear the error log and restart
+        3. Run an online reindex task for entrydn only
+        4. Check task exit code and log messages
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Task completes with exit code 0
+        4. Log shows entrydn is no longer applicable / no applicable
+           indexes; no "Indexing attribute: cn" (full rebuild)
+    """
+    inst = topo.standalone
+    backend = Backends(inst).get(DEFAULT_BENAME)
+
+    log.info("Add obsolete entrydn index configuration")
+    backend.add_index("entrydn", ["eq"])
+    inst.restart()
+
+    log.info("Clear error log so assertions are limited to this reindex")
+    inst.deleteErrorLogs(restart=True)
+
+    log.info("Reindex entrydn only")
+    tasks = Tasks(inst)
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='entrydn',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(inst, tasks.dn)
+    assert reindex_task.get_exit_code() == 0
+    task_log = reindex_task.get_task_log() or ""
+    assert "no longer applicable" in task_log.lower() or \
+           "no applicable indexes" in task_log.lower(), \
+           f"Unexpected task log: {task_log}"
+
+    errlog = DirsrvErrorLog(inst)
+    assert errlog.match(".*no longer applicable") or errlog.match(".*No applicable indexes")
+    assert not errlog.match(".*Indexing attribute: cn"), \
+        "entrydn-only reindex must not fall through to a full index rebuild"
+
+    log.info("Remove obsolete entrydn index configuration")
+    Index(inst, f"cn=entrydn,cn=index,cn={DEFAULT_BENAME},cn=ldbm database,cn=plugins,cn=config").delete()
+    inst.restart()
+
+
 def count_keys(inst, bename, attr, prefix=''):
     indexfile = os.path.join(inst.dbdir, bename, attr + '.db')
     # (bdb - we should also accept a version number for .db suffix)
