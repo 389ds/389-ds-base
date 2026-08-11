@@ -38,6 +38,7 @@ TOTAL_PROTOCOL_OID = "2.16.840.1.113730.3.6.2"
 REPLICA_READY = 0x00
 RELEASE_SUCCEEDED = 0x09
 
+REPL_MANAGER_DN = 'cn=replication manager,cn=config'
 REPL_MANAGER_PW = 'replmanagerpw'
 FAKE_SUPPLIER_RID = 400
 
@@ -50,11 +51,13 @@ ANCESTOR_DN = f"ou=init-ancestor,{DEFAULT_SUFFIX}"
 PARENT_DN = f"ou=init-parent,{ANCESTOR_DN}"
 TOMBSTONE_DN = f"nsuniqueid={CHILD_UUID},uid=init-orphan,{PARENT_DN}"
 
+MISSING_PARENT_UUID = "44444444-44444444-44444444-44444444"
+ORPHAN_UUID = "33333333-33333333-33333333-33333333"
+ORPHAN_DN = f"nsuniqueid={ORPHAN_UUID},uid=stranded-orphan,{DEFAULT_SUFFIX}"
 
-# Minimal DER encoders for the total update payloads.  The grammar mirrors
-# the consumer's decoders: decode_startrepl_extop()/decode_endrepl_extop()
-# in repl_extop.c and decode_total_update_extop()/my_ber_scanf_attr()/
-# my_ber_scanf_value() in repl5_total.c.
+
+# Minimal DER encoders for the total update payloads.  The grammar matches
+# the consumer's decoders in repl_extop.c (start/end) and repl5_total.c (entry).
 def _ber(tag, payload):
     n = len(payload)
     if n < 0x80:
@@ -115,31 +118,17 @@ def _send_entry(conn, uniqueid, dn, attrs):
         raise AssertionError(f"consumer rejected entry {dn}: {exc}") from exc
 
 
-def test_lmdb_bulk_import_tombstone_released_by_live_parent(topo):
-    """A tombstone processed before its live parent must not be lost
+def _send_suffix(conn):
+    _send_entry(conn, SUFFIX_UUID, DEFAULT_SUFFIX, {
+        'objectClass': ['top', 'domain'],
+        'dc': ['example'],
+    })
 
-    :id: 33dc80a2-28b7-4571-9cda-18c93f855c3a
-    :setup: Standalone instance using the LMDB backend
-    :steps:
-        1. Configure a replica and a replication manager on the instance
-        2. Start a total update session and send the suffix entry
-        3. Send a parent whose own parent has not been sent yet
-        4. Send a tombstone whose nsparentuniqueid names that parent
-        5. Send more entries than the bulk queue can hold
-        6. Send the missing ancestor, then finish the session
-        7. Search for the parent and for the tombstone
-    :expectedresults:
-        1. Success
-        2. The consumer answers REPLICA_READY
-        3. The parent parks on the waiting queue, unregistered
-        4. The tombstone parks, keyed by the parent's nsuniqueid
-        5. The tombstone's batch is drained before the ancestor arrives
-        6. The ancestor releases the parent, the parent releases the
-           tombstone, and the session ends successfully
-        7. Both entries were imported
-    """
+
+@pytest.fixture(scope="module")
+def repl_consumer(topo):
+    """Configure the instance as a replica the sessions below bind to."""
     inst = topo.standalone
-
     mgr = BootstrapReplicationManager(inst)
     mgr.create(properties={'cn': 'replication manager',
                            'userPassword': REPL_MANAGER_PW})
@@ -151,14 +140,42 @@ def test_lmdb_bulk_import_tombstone_released_by_live_parent(topo):
         'nsDS5Flags': '1',
         'nsDS5ReplicaBindDN': mgr.dn,
     })
+    return inst
 
-    # Hand-driven supplier side of a total update.  Only this path can
-    # exercise the bug: the entry extop carries the uniqueid in its
-    # payload, while a plain add discards client-supplied nsuniqueid
-    # (NO-USER-MODIFICATION), so no add-based test can pair the
-    # tombstone's nsparentuniqueid with its parent's uuid.
-    supplier = ldap.initialize(f"ldap://{inst.host}:{inst.port}")
-    supplier.simple_bind_s(mgr.dn, REPL_MANAGER_PW)
+
+def _supplier_connection(inst):
+    """Connection acting as the total update supplier.
+
+    Only the entry extop lets the test choose nsuniqueid values (a plain
+    add discards them), and the bug needs exact uuid pairing."""
+    conn = ldap.initialize(f"ldap://{inst.host}:{inst.port}")
+    conn.simple_bind_s(REPL_MANAGER_DN, REPL_MANAGER_PW)
+    return conn
+
+
+def test_lmdb_bulk_import_tombstone_released_by_live_parent(repl_consumer):
+    """A tombstone processed before its live parent must not be lost
+
+    :id: 33dc80a2-28b7-4571-9cda-18c93f855c3a
+    :setup: Standalone instance using the LMDB backend, configured as a replica
+    :steps:
+        1. Start a total update session and send the suffix entry
+        2. Send a parent whose own parent has not been sent yet
+        3. Send a tombstone whose nsparentuniqueid names that parent
+        4. Send more entries than the bulk queue can hold
+        5. Send the missing ancestor, then finish the session
+        6. Search for the parent and for the tombstone
+    :expectedresults:
+        1. The consumer answers REPLICA_READY
+        2. The parent parks on the waiting queue, unregistered
+        3. The tombstone parks, keyed by the parent's nsuniqueid
+        4. The tombstone's batch is drained before the ancestor arrives
+        5. The ancestor releases the parent, the parent releases the
+           tombstone, and the session ends successfully
+        6. Both entries were imported
+    """
+    inst = repl_consumer
+    supplier = _supplier_connection(inst)
 
     started = False
     try:
@@ -167,20 +184,15 @@ def test_lmdb_bulk_import_tombstone_released_by_live_parent(topo):
         assert code == REPLICA_READY, f"start response {code}"
         started = True
 
-        _send_entry(supplier, SUFFIX_UUID, DEFAULT_SUFFIX, {
-            'objectClass': ['top', 'domain'],
-            'dc': ['example'],
-        })
-        # The parent chain: init-parent waits for init-ancestor, which is
-        # sent last, so init-parent stays unregistered while the tombstone
-        # below is processed -- deterministically, whatever the consumer's
-        # batching does.
+        _send_suffix(supplier)
+        # init-ancestor is sent last, so init-parent cannot register
+        # before the tombstone is processed, whatever the batching.
         _send_entry(supplier, PARENT_UUID, PARENT_DN, {
             'objectClass': ['top', 'organizationalUnit'],
             'ou': ['init-parent'],
         })
-        # Parks keyed by PARENT_UUID -- the comparison that regressed
-        # in 4b82bf6d3.
+        # Parks on waitingq keyed by PARENT_UUID (the comparison broken
+        # by 4b82bf6d3).
         _send_entry(supplier, CHILD_UUID, TOMBSTONE_DN, {
             'objectClass': ['top', 'person', 'extensibleObject', 'nsTombstone'],
             'uid': ['init-orphan'],
@@ -188,9 +200,8 @@ def test_lmdb_bulk_import_tombstone_released_by_live_parent(topo):
             'sn': ['init-orphan'],
             'nsparentuniqueid': [PARENT_UUID],
         })
-        # The bulk queue caps at 64 entries, so 65 fillers force the
-        # tombstone's batch to be drained before the ancestor can share
-        # a (LIFO-processed) batch with it.
+        # 65 fillers exceed the 64-slot bulk queue, keeping the ancestor
+        # out of the tombstone's LIFO-drained batch.
         for idx in range(65):
             _send_entry(supplier, f"eeeeeeee-{idx:08x}-eeeeeeee-eeeeeeee",
                         f"ou=filler-{idx},{DEFAULT_SUFFIX}", {
@@ -215,8 +226,7 @@ def test_lmdb_bulk_import_tombstone_released_by_live_parent(topo):
                 pass
         supplier.unbind_s()
 
-    # A stranded tombstone is freed silently on the unfixed server; name
-    # the cause before the assertions.
+    # Surface the producer's log lines so a failure names its cause.
     for pattern in ('.*was never imported.*', '.*Aborting bulk import.*'):
         for line in inst.ds_error_log.match(pattern):
             log.info("error log: %s", line.strip())
@@ -225,6 +235,69 @@ def test_lmdb_bulk_import_tombstone_released_by_live_parent(topo):
     found = Tombstones(inst, DEFAULT_SUFFIX).filter(f'(nsUniqueId={CHILD_UUID})')
     log.info("%d matching tombstones found after total update", len(found))
     assert len(found) == 1
+
+
+def test_lmdb_bulk_import_aborts_on_stranded_tombstone(repl_consumer, request):
+    """A tombstone whose parent never arrives must be named and abort the import
+
+    :id: b7f2a9c1-4d3e-4f5a-9b8c-2e6d7a1f0c43
+    :setup: Standalone instance using the LMDB backend, configured as a replica
+    :steps:
+        1. Start a total update session and send the suffix entry
+        2. Send a tombstone whose nsparentuniqueid never appears in the stream
+        3. Finish the session
+        4. Check the error log
+    :expectedresults:
+        1. The consumer answers REPLICA_READY
+        2. The tombstone parks on the waiting queue
+        3. The session ends
+        4. The stranded entry is named in the error log and the import aborts
+    """
+    inst = repl_consumer
+
+    def fin():
+        # The abort leaves the backend wiped and offline; restore it
+        # with a minimal successful import.
+        conn = _supplier_connection(inst)
+        try:
+            conn.extop_s(ExtendedRequest(START_OID, _start_payload()))
+            _send_suffix(conn)
+            conn.extop_s(ExtendedRequest(END_OID, _end_payload()))
+        except ldap.LDAPError as exc:
+            log.warning("restore import failed: %s", exc)
+        finally:
+            conn.unbind_s()
+
+    request.addfinalizer(fin)
+
+    supplier = _supplier_connection(inst)
+    try:
+        _, raw = supplier.extop_s(ExtendedRequest(START_OID, _start_payload()))
+        code = _response_code(raw)
+        assert code == REPLICA_READY, f"start response {code}"
+
+        _send_suffix(supplier)
+        # Parks on a nsuniqueid that no entry in the stream will register.
+        _send_entry(supplier, ORPHAN_UUID, ORPHAN_DN, {
+            'objectClass': ['top', 'person', 'extensibleObject', 'nsTombstone'],
+            'uid': ['stranded-orphan'],
+            'cn': ['stranded-orphan'],
+            'sn': ['stranded-orphan'],
+            'nsparentuniqueid': [MISSING_PARENT_UUID],
+        })
+        # No response-code assert: the DONE path still reports success
+        # after an abort (separate propagation issue).
+        supplier.extop_s(ExtendedRequest(END_OID, _end_payload()))
+    finally:
+        supplier.unbind_s()
+
+    detail = inst.ds_error_log.match(
+        '.*dbmdb_bulk_producer.*stranded-orphan.*was never imported.*')
+    for line in detail:
+        log.info("error log: %s", line.strip())
+    assert len(detail) == 1
+    assert inst.ds_error_log.match(
+        '.*Aborting bulk import: 1 entries had no parent in the import stream.*')
 
 
 if __name__ == '__main__':
