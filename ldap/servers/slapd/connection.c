@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2025 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1733,7 +1733,7 @@ connection_threadmain(void *arg)
     slapi_set_thread_name(tname);
     tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
     /* wait forever for new pb until one is available or shutdown */
-    int32_t interval = 0; /* used be  10 seconds */
+    int32_t interval = 0; /* used be 10 seconds */
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
@@ -1744,11 +1744,14 @@ connection_threadmain(void *arg)
     int doshutdown = 0;
     int maxthreads = 0;
     bool is_busy = false;
+    uint64_t attr_syntax_version = 0;
+    PLHashTable *oid2asi_ht = NULL;
+    PLHashTable *name2asi_ht = NULL;
+    struct asyntaxinfo *free_list = NULL;
 
-#if defined(hpux)
-    /* Arrange to ignore SIGPIPE signals. */
-    SIGNAL(SIGPIPE, SIG_IGN);
-#endif
+    /* initialize attr syntax hash tables */
+    attr_syntax_version = init_td_attr_syntax_ht(&name2asi_ht, &oid2asi_ht, &free_list);
+
     thread_private_snmp_vars_set_idx(*snmp_vars_idx);
 
     while (1) {
@@ -1763,9 +1766,12 @@ connection_threadmain(void *arg)
             }
             tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
-            g_decr_active_threadcnt();
-            return;
+            goto cleanup;
         }
+
+        /* Check and update thread attr syntaxhash tables */
+        attr_syntax_version = update_td_attr_syntax_ht(attr_syntax_version, &name2asi_ht,
+                                                       &oid2asi_ht, &free_list);
 
         if (!thread_turbo_flag && !more_data) {
 	        Connection *pb_conn = NULL;
@@ -1798,8 +1804,7 @@ connection_threadmain(void *arg)
                 }
                 tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
                 slapi_pblock_destroy(pb);
-                g_decr_active_threadcnt();
-                return;
+                goto cleanup;
             case CONN_FOUND_WORK_TO_DO:
                 /* note - don't need to lock here - connection should only
                    be used by this thread - since c_gettingber is set to 1
@@ -1814,8 +1819,7 @@ connection_threadmain(void *arg)
                     }
                     tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
                     slapi_pblock_destroy(pb);
-                    g_decr_active_threadcnt();
-                    return;
+                    goto cleanup;
                 }
 
                 pthread_mutex_lock(&(pb_conn->c_mutex));
@@ -1901,7 +1905,7 @@ connection_threadmain(void *arg)
             tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
-            return;
+            goto cleanup;
         }
         maxthreads = conn->c_max_threads_per_conn;
         more_data = 0;
@@ -2127,7 +2131,7 @@ connection_threadmain(void *arg)
             pthread_mutex_unlock(&(conn->c_mutex));
             signal_listner(conn->c_ct_list);
             slapi_pblock_destroy(pb);
-            return;
+            goto cleanup;
         }
         /*
          * done with this operation. delete it from the op
@@ -2221,6 +2225,13 @@ connection_threadmain(void *arg)
             pthread_mutex_unlock(&(conn->c_mutex));
         }
     } /* while (1) */
+
+cleanup:
+    /* Free attribute syntax hash tables */
+    cleanup_td_attr_syntax_ht(name2asi_ht, oid2asi_ht, free_list);
+
+    /* Now decrement thread count */
+    g_decr_active_threadcnt();
 }
 
 /* thread need to hold conn->c_mutex before calling this function */
