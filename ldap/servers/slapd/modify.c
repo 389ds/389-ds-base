@@ -36,6 +36,9 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "pratom.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 #if defined(irix) || defined(aix)
 #include <time.h>
 #endif
@@ -1033,6 +1036,60 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
          * but it will detect that the password is already hashed.
          */
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+#ifdef ENABLE_HIBP
+        /* Check rootpw against breach database before hashing. Only check
+         * if the requestor is root, unauth users will be rejected by DSE ACL. */
+        int isroot = 0;
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+        if (isroot && slapdFrontendConfig->pw_policy.pw_check_breach) {
+            passwdPolicy rootpw_policy = {0};
+            rootpw_policy.pw_check_breach = LDAP_ON;
+            rootpw_policy.pw_breach_db_url = config_get_pw_breach_url();
+            rootpw_policy.pw_breach_db_timeout = slapdFrontendConfig->pw_policy.pw_breach_db_timeout;
+            for (size_t i = 0; mods && mods[i]; i++) {
+                if (strcasecmp(mods[i]->mod_type, CONFIG_ROOTPW_ATTRIBUTE) == 0 && mods[i]->mod_bvalues) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion */
+                    size_t cleartext_count = 0;
+                    for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
+                        char *val = mods[i]->mod_bvalues[j]->bv_val;
+                        if (val && !slapi_is_encoded(val)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_modify",
+                            "Too many cleartext rootpw values (%zu) - max %d allowed\n",
+                            cleartext_count, HIBP_MAX_PASSWORDS_PER_OP);
+                        slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        goto free_and_return;
+                    }
+
+                    for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
+                        char *val = mods[i]->mod_bvalues[j]->bv_val;
+                        if (val && !slapi_is_encoded(val)) {
+                            int breach_count = hibp_check_password(val, &rootpw_policy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_modify",
+                                    "Rejecting rootDN password - found in breach database (%d occurrences)\n",
+                                    breach_count);
+                                slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database - choose a different password", 0, NULL);
+                                goto free_and_return;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_modify",
+                                    "Failed to check rootDN password against breach database - allowing (fail-open)\n");
+                            }
+                        }
+                    }
+                }
+            }
+            slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+        }
+#endif
         if (hash_rootpw(mods) != 0) {
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Failed to hash root user's password", 0, NULL);
@@ -1271,6 +1328,63 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         /* done with slapi entry e */
         slapi_search_get_entry_done(&entry_pb);
 
+#ifdef ENABLE_HIBP
+        /* Check password against breach database after ACI validation (admin bypass) */
+        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_check_breach && mod->mod_bvalues) {
+            if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+                slapi_log_err(SLAPI_LOG_DEBUG, "op_shared_allow_pw_change",
+                    "Skipping breach check for %s - admin bypass\n", dn);
+            } else {
+                Slapi_Value **breach_vals = NULL;
+                valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
+                if (breach_vals) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion. */
+                    size_t cleartext_count = 0;
+                    for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(breach_vals[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_allow_pw_change",
+                            "Too many cleartext password values (%zu) for %s - max %d allowed\n",
+                            cleartext_count, dn, HIBP_MAX_PASSWORDS_PER_OP);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        valuearray_free(&breach_vals);
+                        rc = -1;
+                        goto done;
+                    }
+
+                    for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(breach_vals[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            int breach_count = hibp_check_password(pwd, pwpolicy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                    "Password for %s found in breach database (%d occurrences)\n",
+                                    dn, breach_count);
+                                if (pwresponse_req == 1) {
+                                    slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+                                }
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database - choose a different password", 0, NULL);
+                                valuearray_free(&breach_vals);
+                                rc = -1;
+                                goto done;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                    "Failed to check password against breach database for %s\n", dn);
+                            }
+                        }
+                    }
+                    valuearray_free(&breach_vals);
+                }
+            }
+        }
+#endif
+
         /*
          * If this mod is being performed by a password administrator/rootDN,
          * just return success.
@@ -1319,7 +1433,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         }
     } else if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
         /* This is an internal operation, but we still need to check if this
-         * is a password admin */
+           is a password admin */
         if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_history) {
             /* Updating pw history, get the old password */
             get_old_pw(pb, &sdn, old_pw);
