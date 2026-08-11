@@ -10,6 +10,9 @@
 
 #include "slap.h"
 
+/* Maximum number of cleartext password values allowed per operation.*/
+#define HIBP_MAX_PASSWORDS_PER_OP 5
+
 /*
  * Function pointer for pluggable SHA-1 implementation
  * Allows for different hash implementations (FIPS vs non FIPS)

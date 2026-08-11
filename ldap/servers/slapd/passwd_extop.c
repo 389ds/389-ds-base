@@ -32,6 +32,9 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 
 /* Type of connection for this operation;*/
 #define LDAP_EXTOP_PASSMOD_CONN_SECURE
@@ -810,6 +813,30 @@ parse_req_done:
     /* Fetch any present request controls so we can use them when
      * performing the modify operation. */
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &req_controls);
+
+#ifdef ENABLE_HIBP
+    /* Check password against breach database (admin bypass) */
+    if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+        slapi_log_err(SLAPI_LOG_DEBUG, "passwd_modify_extop",
+            "Skipping breach check for %s - admin bypass\n", dn);
+    } else if (pwpolicy->pw_check_breach && newPasswd && !slapi_is_encoded((char *)newPasswd)) {
+        int breach_count = hibp_check_password(newPasswd, pwpolicy);
+        if (breach_count > 0) {
+            slapi_log_err(SLAPI_LOG_WARNING, "passwd_modify_extop",
+                "Password for %s found in breach database (%d occurrences)\n",
+                dn, breach_count);
+            if (need_pwpolicy_ctrl) {
+                slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+            }
+            errMesg = "Password found in breach database - choose a different password";
+            rc = LDAP_CONSTRAINT_VIOLATION;
+            goto free_and_return;
+        } else if (breach_count < 0) {
+            slapi_log_err(SLAPI_LOG_WARNING, "passwd_modify_extop",
+                "Failed to check password against breach database - allowing (fail-open)\n");
+        }
+    }
+#endif
 
     /* Now we're ready to make actual password change */
     ret = passwd_modify_userpassword(pb, targetEntry, newPasswd, req_controls, &resp_controls);
