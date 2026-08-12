@@ -22,9 +22,11 @@ const B64_PERMISSIVE: GeneralPurpose = GeneralPurpose::new(
 );
 
 const DEFAULT_PBKDF2_ROUNDS: usize = 100_000;
-const DEFAULT_PBKDF2_ACCEPT_MAX: usize = 100_000;
 const MIN_PBKDF2_ROUNDS: usize = 10_000;
 const MAX_PBKDF2_ROUNDS: usize = 10_000_000;
+// Missing/invalid accept-max falls back to the highest generation limit the
+// plugin already allowed, so upgraded installs keep verifying existing hashes.
+const DEFAULT_PBKDF2_ACCEPT_MAX: usize = MAX_PBKDF2_ROUNDS;
 
 const PBKDF2_ROUNDS_ATTR: &str = "nsslapd-pwdPBKDF2NumIterations";
 const PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR: &str = "nsslapd-pwdPBKDF2AcceptMaxIterations";
@@ -355,18 +357,15 @@ impl PwdChanCrypto {
         digest: MessageDigest,
         scheme: &str,
     ) -> Result<bool, PluginError> {
-        let (iter, salt, hash_expected) = Self::pbkdf2_decompose(encrypted, scheme)
-            .map_err(|e| {
-                match e {
-                    // Iteration bounds are logged in validate_pbkdf2_stored_iterations.
-                    PluginError::InvalidConfiguration => e,
-                    _ => {
-                        #[cfg(not(test))]
-                        log_error!(ErrorLevel::Error, "invalid hashed pw -> {:?}", e);
-                        e
-                    }
-                }
-            })?;
+        let (iter, salt, hash_expected) = match Self::pbkdf2_decompose(encrypted, scheme) {
+            Ok(parts) => parts,
+            Err(PluginError::InvalidConfiguration) => return Ok(false),
+            Err(e) => {
+                #[cfg(not(test))]
+                log_error!(ErrorLevel::Error, "invalid hashed pw -> {:?}", e);
+                return Err(e);
+            }
+        };
         // Need to pre-alloc the space as as_mut_slice can't resize.
         let mut hash_input: Vec<u8> = (0..hash_expected.len()).map(|_| 0).collect();
 
@@ -538,7 +537,6 @@ impl PwdChanCrypto {
         }
     }
 
-    // Resolve startup rounds and accept-max from optional configured values.
     fn resolve_pbkdf2_startup_config(
         configured_rounds: Option<usize>,
         configured_accept_max: Option<usize>,
@@ -581,23 +579,22 @@ impl PwdChanCrypto {
                         log_error_ext!(
                             ErrorLevel::Error,
                             scheme,
-                            "Invalid {} value {}, must be between {} and {}; using the default {}",
+                            "Invalid {} value {}, must be between {} and {}",
                             PBKDF2_ROUNDS_ATTR,
                             value,
                             MIN_PBKDF2_ROUNDS,
                             MAX_PBKDF2_ROUNDS,
-                            DEFAULT_PBKDF2_ROUNDS,
                         );
-                        // Soft fallback: leave configured_rounds as None.
+                        return Err(PluginError::InvalidConfiguration);
                     }
                     None => {
                         log_error_ext!(
                             ErrorLevel::Error,
                             scheme,
-                            "Invalid {} value; using the default {}",
+                            "Invalid {} value",
                             PBKDF2_ROUNDS_ATTR,
-                            DEFAULT_PBKDF2_ROUNDS,
                         );
+                        return Err(PluginError::InvalidConfiguration);
                     }
                 }
             }
@@ -998,12 +995,8 @@ mod tests {
         assert_eq!(source, "default");
         assert!(capped_from.is_none());
 
-        // Invalid values fall back to defaults (soft).
         let (rounds, accept_max, source, capped_from) =
-            PwdChanCrypto::resolve_pbkdf2_startup_config(
-                Some(MIN_PBKDF2_ROUNDS - 1),
-                Some(MAX_PBKDF2_ROUNDS + 1),
-            );
+            PwdChanCrypto::resolve_pbkdf2_startup_config(None, Some(MAX_PBKDF2_ROUNDS + 1));
         assert_eq!(rounds, DEFAULT_PBKDF2_ROUNDS);
         assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
         assert_eq!(source, "default");
@@ -1013,6 +1006,22 @@ mod tests {
         let (rounds, accept_max, source, capped_from) =
             PwdChanCrypto::resolve_pbkdf2_startup_config(Some(20000), None);
         assert_eq!(rounds, 20000);
+        assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
+        assert_eq!(source, "configuration");
+        assert!(capped_from.is_none());
+
+        // Valid 600k rounds stay under the default (10m) accept-max ceiling.
+        let (rounds, accept_max, source, capped_from) =
+            PwdChanCrypto::resolve_pbkdf2_startup_config(Some(600_000), None);
+        assert_eq!(rounds, 600_000);
+        assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
+        assert_eq!(source, "configuration");
+        assert!(capped_from.is_none());
+
+        // Max generation rounds are accepted when accept-max is unset.
+        let (rounds, accept_max, source, capped_from) =
+            PwdChanCrypto::resolve_pbkdf2_startup_config(Some(MAX_PBKDF2_ROUNDS), None);
+        assert_eq!(rounds, MAX_PBKDF2_ROUNDS);
         assert_eq!(accept_max, DEFAULT_PBKDF2_ACCEPT_MAX);
         assert_eq!(source, "configuration");
         assert!(capped_from.is_none());
@@ -1085,8 +1094,12 @@ mod tests {
         let result = PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA1, MIN_PBKDF2_ROUNDS);
         assert!(result.is_ok());
 
-        // Test high accept max - should succeed
-        let result = PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 600000);
+        // Fresh-install-style 600k ceiling - should succeed
+        let result = PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 600_000);
+        assert!(result.is_ok());
+
+        // Absolute policy maximum - should succeed
+        let result = PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, MAX_PBKDF2_ROUNDS);
         assert!(result.is_ok());
 
         // Test accept max above policy/OpenSSL limit - should fail
@@ -1111,7 +1124,7 @@ mod tests {
         assert_eq!(iter, 10000);
 
         // Iteration count above accept max - should fail
-        let high_hash = format!("{}$salt123$hash456", DEFAULT_PBKDF2_ROUNDS + 1);
+        let high_hash = format!("{}$salt123$hash456", DEFAULT_PBKDF2_ACCEPT_MAX + 1);
         let result = PwdChanCrypto::pbkdf2_decompose(&high_hash, SCHEME_PBKDF2_SHA256);
         assert!(result.is_err());
 
@@ -1137,7 +1150,7 @@ mod tests {
         assert!(PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 10000).is_ok());
         assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256).unwrap(), 10000);
 
-        // Stored iterations above accept max - should fail
+        // Stored iterations above accept max - normal compare failure after throttled log.
         let encrypted = "36000$eElFb3p1WlZBb1lt$uW1b35DUKyhvQAf1mBqMvoBDcqSD06juzyO/nmyV0+w=";
         let result = PwdChanCrypto::pbkdf2_compare(
             "eicieY7ahchaoCh0eeTa",
@@ -1145,7 +1158,7 @@ mod tests {
             MessageDigest::sha256(),
             SCHEME_PBKDF2_SHA256,
         );
-        assert!(result.is_err());
+        assert_eq!(result, Ok(false));
 
         assert!(PwdChanCrypto::set_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256, 60000).is_ok());
         assert_eq!(PwdChanCrypto::get_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256).unwrap(), 60000);
@@ -1170,17 +1183,17 @@ mod tests {
 
         let encrypted_tail = "henZGfPWw79Cs8ORDeVNrQ$1dTJy73v6n3bnTmTZFghxHXHLsAzKaAy8SksDfZBPIw";
 
-        // Stored iterations above accept max - should fail
-        let high_hash = format!("{}${}", DEFAULT_PBKDF2_ROUNDS + 1, encrypted_tail);
+        // Stored iterations above accept max - normal compare failure.
+        let high_hash = format!("{}${}", DEFAULT_PBKDF2_ACCEPT_MAX + 1, encrypted_tail);
         let result = PwdChanCrypto::pbkdf2_compare(
             "password",
             &high_hash,
             MessageDigest::sha256(),
             SCHEME_PBKDF2_SHA256,
         );
-        assert!(result.is_err());
+        assert_eq!(result, Ok(false));
 
-        // Stored iterations below min - should fail
+        // Stored iterations below min - normal compare failure.
         let low_hash = format!("{}${}", MIN_PBKDF2_ROUNDS - 1, encrypted_tail);
         let result = PwdChanCrypto::pbkdf2_compare(
             "password",
@@ -1188,9 +1201,52 @@ mod tests {
             MessageDigest::sha256(),
             SCHEME_PBKDF2_SHA256,
         );
-        assert!(result.is_err());
+        assert_eq!(result, Ok(false));
 
         // Reset to defaults after test
+        reset_pbkdf2_rounds();
+    }
+
+    #[test]
+    fn test_pbkdf2_default_accept_max_allows_600k_and_10m_boundary() {
+        reset_pbkdf2_rounds();
+
+        // Unset accept-max falls back to MAX_PBKDF2_ROUNDS so upgraded
+        // installs keep verifying hashes the plugin could previously create.
+        assert_eq!(DEFAULT_PBKDF2_ACCEPT_MAX, MAX_PBKDF2_ROUNDS);
+        assert_eq!(
+            PwdChanCrypto::get_pbkdf2_accept_max(SCHEME_PBKDF2_SHA256).unwrap(),
+            DEFAULT_PBKDF2_ACCEPT_MAX
+        );
+        assert!(PwdChanCrypto::validate_pbkdf2_stored_iterations(
+            600_000,
+            SCHEME_PBKDF2_SHA256
+        )
+        .is_ok());
+        assert!(PwdChanCrypto::validate_pbkdf2_stored_iterations(
+            MAX_PBKDF2_ROUNDS,
+            SCHEME_PBKDF2_SHA256
+        )
+        .is_ok());
+        assert!(PwdChanCrypto::validate_pbkdf2_stored_iterations(
+            MAX_PBKDF2_ROUNDS + 1,
+            SCHEME_PBKDF2_SHA256
+        )
+        .is_err());
+
+        // Compare maps out-of-range iterations to Ok(false), not Err.
+        let encrypted_tail = "henZGfPWw79Cs8ORDeVNrQ$1dTJy73v6n3bnTmTZFghxHXHLsAzKaAy8SksDfZBPIw";
+        let over_max_hash = format!("{}${}", MAX_PBKDF2_ROUNDS + 1, encrypted_tail);
+        assert_eq!(
+            PwdChanCrypto::pbkdf2_compare(
+                "password",
+                &over_max_hash,
+                MessageDigest::sha256(),
+                SCHEME_PBKDF2_SHA256,
+            ),
+            Ok(false)
+        );
+
         reset_pbkdf2_rounds();
     }
 

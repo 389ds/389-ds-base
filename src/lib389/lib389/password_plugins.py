@@ -55,8 +55,7 @@ class SSHAPlugin(PasswordPlugin):
 class PBKDF2BasePlugin(PasswordPlugin):
     """Base class for all PBKDF2 variants"""
     DEFAULT_ROUNDS = 100000
-    # Independent verification ceiling default
-    ACCEPT_MAX_DEFAULT = 100000
+    ACCEPT_MAX_DEFAULT = 10000000
     ACCEPT_MAX_MIN = 10000
     ACCEPT_MAX_MAX = 10000000
 
