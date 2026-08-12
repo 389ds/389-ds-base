@@ -21,11 +21,12 @@ srpm_build_deps:
 actions:
   post-upstream-clone:
     - cargo install cargo-license
-    - make -f rpm.mk rpmspec
+    - make -f rpm.mk rpmroot rpmspec
   create-archive:
-    - make -f rpm.mk download-cargo-dependencies tarballs
+    - make -f rpm.mk BUNDLE_LIBDB=1 download-cargo-dependencies tarballs
     - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
     - "bash -c 'ls -1 dist/sources/389-ds-base*.tar.bz2'"
+
   get-current-version:
     - rpmspec -q --qf "%{Version}" --srpm rpm/389-ds-base.spec
 
@@ -45,10 +46,20 @@ jobs:
 - job: copr_build
   trigger: pull_request
   targets:
-    - fedora-all
+    fedora-all:
+        without_opts:
+            - bundle_libdb
+    epel-10:
+        with_opts:
+            - bundle_libdb
 
 - job: copr_build
   trigger: commit
   branch: main
   targets:
-    - fedora-all
+    fedora-all:
+        without_opts:
+            - bundle_libdb
+    epel-10:
+        with_opts:
+            - bundle_libdb
