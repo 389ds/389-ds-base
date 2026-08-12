@@ -31,6 +31,7 @@ from lib389.utils import ds_is_older
 pytestmark = pytest.mark.tier1
 
 PBKDF2_NUM_ITERATIONS_DEFAULT = 100000
+FRESH_INSTALL_ACCEPT_MAX = 600000
 
 PBKDF2_SCHEMES = [
     ('PBKDF2-SHA1', PBKDF2SHA1Plugin, PBKDF2_NUM_ITERATIONS_DEFAULT),
@@ -547,6 +548,56 @@ def test_pbkdf2_invalid_accept_max_soft_fallback(topo, new_user):
         pwd_hash = new_user.get_attr_val_utf8('userPassword')
         assert pwd_hash.startswith(
             f'{{PBKDF2-SHA256}}{PBKDF2_NUM_ITERATIONS_DEFAULT}$'
+        )
+        topo.standalone.simple_bind_s(new_user.dn, 'Secret123')
+    finally:
+        topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+        plugin.remove_all('nsslapd-pwdpbkdf2numiterations')
+        plugin.remove_all('nsslapd-pwdpbkdf2acceptmaxiterations')
+        topo.standalone.restart()
+
+
+def test_pbkdf2_missing_accept_max_allows_existing_600k_hash(topo, new_user):
+    """Missing accept-max falls back to 10m and still verifies existing 600k hashes
+
+    :id: 33776566-dd5c-4ef6-a8db-eb3d15c0d66e
+    :setup: Standalone
+    :steps:
+        1. Configure PBKDF2-SHA256 with 600,000 generation rounds
+        2. Store a user password hashed at 600,000 rounds
+        3. Remove accept-max (upgraded install without the attribute) and restart
+        4. Bind with the existing password
+        5. Confirm the soft-fallback accept-max is logged as 10,000,000
+    :expectedresults:
+        1. Pass
+        2. Stored hash uses 600,000 rounds
+        3. Server starts without accept-max configured
+        4. Existing 600k hash still authenticates
+        5. Runtime default accept-max is 10,000,000
+    """
+    scheme_name = 'PBKDF2-SHA256'
+    plugin = PBKDF2SHA256Plugin(topo.standalone)
+    try:
+        topo.standalone.config.loglevel((ErrorLog.DEFAULT, ErrorLog.PLUGIN))
+        plugin.set_accept_max_iterations(FRESH_INSTALL_ACCEPT_MAX)
+        plugin.set_rounds(FRESH_INSTALL_ACCEPT_MAX)
+        topo.standalone.restart()
+        topo.standalone.config.replace('passwordStorageScheme', scheme_name)
+
+        new_user.set('userPassword', 'Secret123')
+        pwd_hash = new_user.get_attr_val_utf8('userPassword')
+        assert pwd_hash.startswith(
+            f'{{PBKDF2-SHA256}}{FRESH_INSTALL_ACCEPT_MAX}$'
+        )
+
+        plugin.remove_all('nsslapd-pwdpbkdf2acceptmaxiterations')
+        plugin.remove_all('nsslapd-pwdpbkdf2numiterations')
+        topo.standalone.deleteErrorLogs()
+        topo.standalone.restart()
+
+        assert plugin.get_attr_val_utf8('nsslapd-pwdPBKDF2AcceptMaxIterations') is None
+        assert topo.standalone.searchErrorsLog(
+            f'PBKDF2 accept max iterations set to {PBKDF2SHA256Plugin.ACCEPT_MAX_DEFAULT}'
         )
         topo.standalone.simple_bind_s(new_user.dn, 'Secret123')
     finally:
