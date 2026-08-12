@@ -1442,6 +1442,18 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             syserr = PR_GetOSError();
             if (SLAPD_PR_WOULD_BLOCK_ERROR(err) ||
                 SLAPD_SYSTEM_WOULD_BLOCK_ERROR(syserr)) {
+
+                /*
+                 * We blocked, is this the first read in a PDU? We don't want to
+                 * wait here on a new operation, but we do if there is actually data coming
+                 * in and getting queued up.
+                 */
+                if (new_operation && !conn_buffered_data_avail_nolock(conn, &conn_closed)) {
+                    /* If so, we return */
+                    ret = CONN_TIMEDOUT;
+                    goto done;
+                }
+
                 struct PRPollDesc pr_pd;
                 PRIntervalTime timeout = PR_MillisecondsToInterval(CONN_TURBO_TIMEOUT_INTERVAL);
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
@@ -1458,29 +1470,22 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         ret = CONN_SHUTDOWN;
                         goto done;
                     }
-                    /* We timed out, is this the first read in a PDU ? */
-                    if (new_operation) {
-                        /* If so, we return */
-                        ret = CONN_TIMEDOUT;
+                    /* Loop, unless we exceeded the ioblock timeout */
+                    if (waits_done > ioblocktimeout_waits) {
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
+                                      "ioblocktimeout expired on connection %" PRIu64 "\n", conn->c_connid);
+                        disconnect_server_nomutex(conn, conn->c_connid, -1,
+                                                  SLAPD_DISCONNECT_IO_TIMEOUT, 0);
+                        ret = CONN_DONE;
                         goto done;
                     } else {
-                        /* Otherwise we loop, unless we exceeded the ioblock timeout */
-                        if (waits_done > ioblocktimeout_waits) {
-                            slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
-                                          "ioblocktimeout expired on connection %" PRIu64 "\n", conn->c_connid);
-                            disconnect_server_nomutex(conn, conn->c_connid, -1,
-                                                      SLAPD_DISCONNECT_IO_TIMEOUT, 0);
-                            ret = CONN_DONE;
-                            goto done;
-                        } else {
 
-                            /* The turbo mode may cause threads starvation.
-                                  Do a yield here to reduce the starving.
-                            */
-                            PR_Sleep(PR_INTERVAL_NO_WAIT);
+                        /* The turbo mode may cause threads starvation.
+                              Do a yield here to reduce the starving.
+                        */
+                        PR_Sleep(PR_INTERVAL_NO_WAIT);
 
-                            continue;
-                        }
+                        continue;
                     }
                 }
                 if (-1 == ret) {
