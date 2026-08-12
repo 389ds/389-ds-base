@@ -232,9 +232,7 @@ Source2:          %{name}-devel.README
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
 Source5:          jemalloc-5.3.0_throw_bad_alloc.patch
 %endif
-%if %{with bundle_libdb}
 Source4:          https://fedorapeople.org/groups/389ds/libdb-5.3.28-59.tar.bz2
-%endif
 
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
