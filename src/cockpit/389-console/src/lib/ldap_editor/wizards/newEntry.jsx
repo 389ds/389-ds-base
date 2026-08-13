@@ -256,12 +256,8 @@ variant="custom" isInline
             editorLdapServer: this.props.editorLdapServer,
             setWizardOperationInfo: this.props.setWizardOperationInfo,
             firstStep: initialStep,
-<<<<<<< HEAD
-            onReload: this.props.onReload
-=======
             onReload: this.props.onReload,
             addNotification: this.props.addNotification,
->>>>>>> aa377a647 (Issue 7637 - UI - Using Arrow Keys in New Object Wizard Resulted in DOM Reload)
         };
 
         if (activeWizardType === 'User') {
