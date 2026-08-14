@@ -32,6 +32,7 @@ export class ReplMonConflict extends React.Component {
             showConfirmConvertConflict: false,
             showConfirmSwapConflict: false,
             showConfirmDeleteConflict: false,
+            showConfirmDeleteAllConflicts: false,
             showCompareModal: false,
             showConfirmDeleteGlue: false,
             showConfirmConvertGlue: false,
@@ -56,6 +57,7 @@ export class ReplMonConflict extends React.Component {
         this.convertConflict = this.convertConflict.bind(this);
         this.swapConflict = this.swapConflict.bind(this);
         this.deleteConflict = this.deleteConflict.bind(this);
+        this.deleteAllConflicts = this.deleteAllConflicts.bind(this);
         this.resolveConflict = this.resolveConflict.bind(this);
         this.convertGlue = this.convertGlue.bind(this);
         this.deleteGlue = this.deleteGlue.bind(this);
@@ -64,6 +66,7 @@ export class ReplMonConflict extends React.Component {
         this.confirmConvertGlue = this.confirmConvertGlue.bind(this);
         this.closeConfirmDeleteGlue = this.closeConfirmDeleteGlue.bind(this);
         this.closeConfirmConvertGlue = this.closeConfirmConvertGlue.bind(this);
+        this.closeConfirmDeleteAllConflicts = this.closeConfirmDeleteAllConflicts.bind(this);
         this.onRadioChange = this.onRadioChange.bind(this);
         this.onChange = this.onChange.bind(this);
         this.onConflictConversion = this.onConflictConversion.bind(this);
@@ -73,13 +76,14 @@ export class ReplMonConflict extends React.Component {
         this.closeConfirmDeleteConflict = this.closeConfirmDeleteConflict.bind(this);
         this.closeConfirmConvertConflict = this.closeConfirmConvertConflict.bind(this);
         this.closeConfirmSwapConflict = this.closeConfirmSwapConflict.bind(this);
+        this.confirmDeleteAllConflicts = this.confirmDeleteAllConflicts.bind(this);
     }
 
     componentDidMount() {
         this.props.enableTree();
     }
 
-    onRadioChange(value, evt) {
+    onRadioChange(e, value) {
         // Handle the radio button changes
         const radioID = {
             swapConflictRadio: false,
@@ -87,7 +91,7 @@ export class ReplMonConflict extends React.Component {
             convertConflictRadio: false,
         };
 
-        radioID[evt.target.id] = value;
+        radioID[e.target.id] = value;
         this.setState({
             swapConflictRadio: radioID.swapConflictRadio,
             deleteConflictRadio: radioID.deleteConflictRadio,
@@ -95,17 +99,10 @@ export class ReplMonConflict extends React.Component {
         });
     }
 
-    onChange(value, evt) {
-        // PF 4 version
-        if (evt.target.type === 'number') {
-            if (value) {
-                value = parseInt(value);
-            } else {
-                value = 1;
-            }
-        }
+    onChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [evt.target.id]: value
+            [e.target.id]: value
         });
     }
 
@@ -117,7 +114,7 @@ export class ReplMonConflict extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConflicts();
+                    this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
                         "success",
                         _("Replication conflict entry was converted into a valid entry")
@@ -145,7 +142,7 @@ export class ReplMonConflict extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConflicts();
+                    this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
                         "success",
                         _("Replication Conflict Entry is now the Valid Entry")
@@ -174,7 +171,7 @@ export class ReplMonConflict extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConflicts();
+                    this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
                         "success",
                         _("Replication conflict entry was deleted")
@@ -191,6 +188,39 @@ export class ReplMonConflict extends React.Component {
                         cockpit.format(_("Failed to delete conflict entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
                     );
                     this.closeConfirmDeleteConflict();
+                });
+    }
+
+    deleteAllConflicts () {
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "repl-conflict", "delete-all", this.props.suffix];
+        this.setState({
+            modalSpinning: true,
+        });
+        log_cmd("deleteAllConflicts", "Delete all conflict entries", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.props.reloadConflicts(this.props.suffix);
+                    this.props.addNotification(
+                        "success",
+                        _("All conflict entries were deleted")
+                    );
+                    this.setState({
+                        showConfirmDeleteAllConflicts: false,
+                        modalSpinning: false,
+                    });
+                })
+                .fail(err => {
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Failed to delete all conflict entries: $0 - $1"),
+                                       this.props.suffix, err)
+                    );
+                    this.setState({
+                        showConfirmDeleteAllConflicts: false,
+                        modalSpinning: false,
+                    });
                 });
     }
 
@@ -221,6 +251,14 @@ export class ReplMonConflict extends React.Component {
                 });
     }
 
+    closeConfirmDeleteAllConflicts () {
+        this.setState({
+            showConfirmDeleteAllConflicts: false,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
     confirmConvertGlue (dn) {
         this.setState({
             showConfirmConvertGlue: true,
@@ -246,7 +284,7 @@ export class ReplMonConflict extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConflicts();
+                    this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
                         "success",
                         _("Replication glue entry was converted")
@@ -272,6 +310,14 @@ export class ReplMonConflict extends React.Component {
         });
     }
 
+    confirmDeleteAllConflicts () {
+        this.setState({
+            showConfirmDeleteAllConflicts: true,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
     deleteGlue () {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "delete-glue", this.state.glueEntry];
@@ -279,7 +325,7 @@ export class ReplMonConflict extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConflicts();
+                    this.props.reloadConflicts(this.props.suffix);
                     this.props.addNotification(
                         "success",
                         _("Replication glue entry was deleted")
@@ -389,6 +435,7 @@ export class ReplMonConflict extends React.Component {
     render () {
         const conflictEntries = this.props.data?.conflicts || [];
         const glueEntries = this.props.data?.glues || [];
+        const deleteBtnName = this.state.modalSpinning ? "Deleting All Conflict Entries ..." : "Delete All Conflict Entries";
 
         return (
             <div>
@@ -396,7 +443,7 @@ export class ReplMonConflict extends React.Component {
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Monitor Conflict and Glue Entries")}
-                            <Button 
+                            <Button
                                 variant="plain"
                                 aria-label={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
@@ -423,6 +470,20 @@ export class ReplMonConflict extends React.Component {
                                 resolveConflict={this.resolveConflict}
                                 key={conflictEntries}
                             />
+                            {conflictEntries.length > 0 &&
+                                <Button
+                                    variant="secondary"
+                                    ouiaId="DangerSecondary"
+                                    isDanger
+                                    aria-label={"Delete all conflict entries"}
+                                    className="ds-margin-top-lg"
+                                    onClick={this.confirmDeleteAllConflicts}
+                                    isDisabled={this.state.modalSpinning}
+                                    isLoading={this.state.modalSpinning}
+                                >
+                                    {deleteBtnName}
+                                </Button>
+                            }
                         </div>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>{_("Glue Entries ")}<font size="2">({glueEntries.length})</font></TabTitleText>}>
@@ -461,7 +522,7 @@ export class ReplMonConflict extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteGlue}
                     closeHandler={this.closeConfirmDeleteGlue}
-                    handleChange={this.onFieldChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteGlue}
                     spinning={this.state.modalSpinning}
                     item={this.state.glueEntry}
@@ -474,7 +535,7 @@ export class ReplMonConflict extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmConvertGlue}
                     closeHandler={this.closeConfirmConvertGlue}
-                    handleChange={this.onFieldChange}
+                    handleChange={this.onChange}
                     actionHandler={this.convertGlue}
                     spinning={this.state.modalSpinning}
                     item={this.state.glueEntry}
@@ -487,7 +548,7 @@ export class ReplMonConflict extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmConvertConflict}
                     closeHandler={this.closeConfirmConvertConflict}
-                    handleChange={this.onFieldChange}
+                    handleChange={this.onChange}
                     actionHandler={this.convertConflict}
                     spinning={this.state.modalSpinning}
                     item={this.state.conflictEntry}
@@ -500,7 +561,7 @@ export class ReplMonConflict extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmSwapConflict}
                     closeHandler={this.closeConfirmSwapConflict}
-                    handleChange={this.onFieldChange}
+                    handleChange={this.onChange}
                     actionHandler={this.swapConflict}
                     spinning={this.state.modalSpinning}
                     item={this.state.conflictEntry}
@@ -513,7 +574,7 @@ export class ReplMonConflict extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteConflict}
                     closeHandler={this.closeConfirmDeleteConflict}
-                    handleChange={this.onFieldChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteConflict}
                     spinning={this.state.modalSpinning}
                     item={this.state.conflictEntry}
@@ -522,6 +583,19 @@ export class ReplMonConflict extends React.Component {
                     mMsg={_("Are you really sure you want to delete this conflict entry?")}
                     mSpinningMsg={_("Deleting Conflict Entry ...")}
                     mBtnName={_("Delete Conflict")}
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDeleteAllConflicts}
+                    closeHandler={this.closeConfirmDeleteAllConflicts}
+                    handleChange={this.onChange}
+                    actionHandler={this.deleteAllConflicts}
+                    spinning={this.state.modalSpinning}
+                    item={conflictEntries.length + " conflict entries"}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Delete All Conflict Entries")}
+                    mMsg={_("Are you really sure you want to delete all conflict entries?")}
+                    mSpinningMsg={_("Deleting All Conflict Entries ...")}
+                    mBtnName={_("Delete All Conflict Entries")}
                 />
             </div>
         );

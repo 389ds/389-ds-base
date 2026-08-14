@@ -1406,6 +1406,7 @@ referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 void
 referint_thread_func(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("referint");
     PRFileDesc *prfd = NULL;
     char *logfilename = NULL;
     char thisline[MAX_LINE];

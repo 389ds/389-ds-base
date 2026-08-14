@@ -359,6 +359,7 @@ roles_cache_create_suffix(Slapi_DN *sdn)
 static void
 roles_cache_wait_on_change(void *arg)
 {
+    slapi_set_thread_name("roles-cache");
     roles_cache_def *roles_def = (roles_cache_def *)arg;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_wait_on_change\n");

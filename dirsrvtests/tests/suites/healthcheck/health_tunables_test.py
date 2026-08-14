@@ -32,6 +32,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=F
     args.verbose = instance.verbose
     args.list_errors = list_errors
     args.list_checks = list_checks
+    args.exclude_check = []
     args.check = check
     args.dry_run = False
     args.json = json

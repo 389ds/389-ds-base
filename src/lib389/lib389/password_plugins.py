@@ -116,6 +116,43 @@ class PBKDF2SHA512Plugin(PBKDF2BasePlugin):
         super(PBKDF2SHA512Plugin, self).__init__(instance, dn)
 
 
+class PBKDF2SHA256LegacyPlugin(PasswordPlugin):
+    """Legacy C PBKDF2_SHA256 password storage scheme"""
+    ACCEPT_MAX_MIN = 2048
+    ACCEPT_MAX_MAX = 2147483647
+    ACCEPT_MAX_DEFAULT = 50000
+
+    def __init__(self, instance, dn=f'cn=PBKDF2_SHA256,{DN_PWDSTORAGE_SCHEMES}'):
+        super(PBKDF2SHA256LegacyPlugin, self).__init__(instance, dn)
+        self._create_objectclasses.append('pwdPBKDF2PluginConfig')
+
+    def set_accept_max_iterations(self, iterations):
+        """Set the maximum accepted PBKDF2 iteration count (requires restart)
+
+        :param iterations: Maximum accepted iteration count
+        :type iterations: int
+        """
+        self.ensure_present('objectClass', 'pwdPBKDF2PluginConfig')
+
+        iterations = int(iterations)
+        if iterations < self.ACCEPT_MAX_MIN or iterations > self.ACCEPT_MAX_MAX:
+            raise ValueError(
+                "PBKDF2 accept max iterations must be between 2,048 and 2,147,483,647"
+            )
+        self.replace('nsslapd-pwdPBKDF2AcceptMaxIterations', str(iterations))
+
+    def get_accept_max_iterations(self):
+        """Get the maximum accepted PBKDF2 iteration count
+
+        :returns: Maximum accepted iteration count
+        :rtype: int
+        """
+        iterations = self.get_attr_val_int('nsslapd-pwdPBKDF2AcceptMaxIterations')
+        if iterations:
+            return iterations
+        return self.ACCEPT_MAX_DEFAULT
+
+
 class PasswordPlugins(Plugins):
     def __init__(self, instance):
         super(PasswordPlugins, self).__init__(instance=instance)

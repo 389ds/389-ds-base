@@ -357,6 +357,12 @@ deref_parse_ctrl_value(DerefSpecList *speclist, const struct berval *ctrlbv, int
     }
 
     ber = ber_init((struct berval *)ctrlbv);
+    if (!ber) {
+        *ldapcode = LDAP_UNWILLING_TO_PERFORM;
+        *ldaperrtext = "Deref control parsing failed to initialize BER element";
+        return;
+    }
+
     for (tag = ber_first_element(ber, &len, &last);
          (tag != LBER_ERROR) && (tag != LBER_END_OF_SEQORSET);
          tag = ber_next_element(ber, &len, last)) {

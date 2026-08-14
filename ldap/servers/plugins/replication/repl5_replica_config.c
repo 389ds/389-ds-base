@@ -279,10 +279,17 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     replica_add_by_dn(replica_root);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
-    PR_ASSERT(mtnode_ext);
-
+    if (mtnode_ext == NULL) {
+        if (errortext != NULL) {
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "replica root '%s' does not exist", replica_root);
+        }
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - replica root '%s' does not exist",
+            replica_root);
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        goto done;
+    }
     if (mtnode_ext->replica) {
-        if ( errortext != NULL ) {
+        if (errortext != NULL) {
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, MSG_ALREADYCONFIGURED, replica_root);
         }
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_ALREADYCONFIGURED, replica_root);
@@ -306,15 +313,16 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
 
     /* add replica object to the hash */
     *returncode = replica_add_by_name(replica_get_name(r), r); /* Increments object refcnt */
-    /* delete the dn from the dn hash - done with configuration */
-    replica_delete_by_dn(replica_root);
 
 done:
+
+    /* delete the dn from the dn hash - done with configuration */
+    replica_delete_by_dn(replica_root);
 
     PR_Unlock(s_configLock);
 
     if (*returncode != LDAP_SUCCESS) {
-        if (mtnode_ext->replica)
+        if (mtnode_ext && mtnode_ext->replica)
             object_release(mtnode_ext->replica);
         return SLAPI_DSE_CALLBACK_ERROR;
     } else

@@ -96,7 +96,7 @@ def test_max_age(topo, setup_max_age):
     do_mods(supplier, 10)
 
     time.sleep(1)  # Trimming should not have occurred
-    if supplier.searchErrorsLog("Trimmed") is True:
+    if supplier.searchErrorsLog("trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
@@ -106,12 +106,12 @@ def test_max_age(topo, setup_max_age):
         cl.set_trim_interval('5')
 
     time.sleep(3)  # Trimming should not have occurred
-    if supplier.searchErrorsLog("Trimmed") is True:
+    if supplier.searchErrorsLog("trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
     time.sleep(3)  # Trimming should have occurred
-    if supplier.searchErrorsLog("Trimmed") is False:
+    if supplier.searchErrorsLog("trimmed") is False:
         log.fatal('Trimming event did not occur')
         assert False
 
@@ -145,7 +145,7 @@ def test_max_entries(topo, setup_max_entries):
     do_mods(supplier, 10)
 
     time.sleep(1)  # Trimming should have occurred
-    if supplier.searchErrorsLog("Trimmed") is True:
+    if supplier.searchErrorsLog("trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
@@ -155,7 +155,7 @@ def test_max_entries(topo, setup_max_entries):
         cl.set_trim_interval('5')
 
     time.sleep(6)  # Trimming should have occurred
-    if supplier.searchErrorsLog("Trimmed") is False:
+    if supplier.searchErrorsLog("trimmed") is False:
         log.fatal('Trimming event did not occur')
         assert False
 

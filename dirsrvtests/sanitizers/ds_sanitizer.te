@@ -1,0 +1,17 @@
+module ds_sanitizer 1.0;
+
+# Targeted policy for runtime sanitizer injection into ns-slapd.
+# Grants only the permissions needed for LD_PRELOAD-based LSan/TSan.
+# Install: setup_host.sh compiles and loads this module.
+# Remove:  semodule -r ds_sanitizer
+
+require {
+    type dirsrv_t;
+    class process { ptrace execmem };
+}
+
+# LSan/TSan suspend threads via ptrace for leak/race scanning at exit.
+allow dirsrv_t self:process ptrace;
+
+# Sanitizer runtimes may JIT-compile interceptor trampolines.
+allow dirsrv_t self:process execmem;

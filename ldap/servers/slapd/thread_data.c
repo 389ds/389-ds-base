@@ -60,6 +60,14 @@ slapi_td_init(void)
  *  Wrapper Functions
  */
 
+/* Set OS-level thread name (visible in ps, top, perf, pstack, etc.)
+ * The name is silently truncated to 15 characters by the kernel. */
+void
+slapi_set_thread_name(const char *name)
+{
+    pthread_setname_np(pthread_self(), name);
+}
+
 /* plugin list locking */
 int32_t
 slapi_td_set_plugin_locked()

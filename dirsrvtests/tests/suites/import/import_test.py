@@ -453,7 +453,7 @@ def test_entry_with_escaped_characters_fails_to_import_and_index(topo, _import_c
             count += 1
     # Now re-index the database
     topo.standalone.stop()
-    topo.standalone.db2index()
+    topo.standalone.db2index(bename="userroot")
     topo.standalone.start()
     # Should not return error.
     assert not topo.standalone.searchErrorsLog('error')

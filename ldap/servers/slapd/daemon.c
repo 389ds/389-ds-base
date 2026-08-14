@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -25,6 +25,7 @@
 #include <sys/wait.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdbool.h>
 #if defined(HAVE_MNTENT_H)
 #include <mntent.h>
 #endif
@@ -425,6 +426,7 @@ disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space)
 void
 disk_monitoring_thread(void *nothing __attribute__((unused)))
 {
+    slapi_set_thread_name("disk-mon");
     char **dirs = NULL;
     char *dirstr = NULL;
     uint64_t previous_mark = 0;
@@ -945,6 +947,7 @@ convert_pbe_des_to_aes(void)
 void
 accept_thread(void *vports)
 {
+    slapi_set_thread_name("listener");
     daemon_ports_t *ports = (daemon_ports_t *)vports;
     Connection_Table *ct = the_connection_table;
     PRIntn num_poll = 0;
@@ -1366,6 +1369,10 @@ slapd_daemon(daemon_ports_t *ports)
         task_cancel_all();
     }
 
+    /* Call plugin pre close functions */
+    plugin_pre_closeall();
+
+    /* Now wait for active threads to terminate */
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
@@ -1673,6 +1680,7 @@ setup_pr_read_pds(Connection_Table *ct)
                 } else {
                     if (c->c_threadnumber >= c->c_max_threads_per_conn) {
                         c->c_maxthreadsblocked++;
+                        c->c_flagblocked = true;
                         if (c->c_maxthreadsblocked == 1 && connection_has_psearch(c)) {
                             slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
                                     "Connection (conn=%" PRIu64 ") has a running persistent search "

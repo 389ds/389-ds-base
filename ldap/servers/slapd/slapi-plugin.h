@@ -1,6 +1,6 @@
 /* BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -6109,6 +6109,9 @@ int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout) __attribute
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 int slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout);
 
+/* Set OS-level thread name for visibility in ps, top, perf, etc. (max 15 chars) */
+void slapi_set_thread_name(const char *name);
+
 /**
  * Creates a new read/write lock
  * If prio_writer the rwlock gives priority on writers
@@ -6789,7 +6792,7 @@ time_t slapi_current_time(void) __attribute__((deprecated));
  * and should NOT be used for timer information.
  */
 int32_t slapi_clock_gettime(struct timespec *tp);
-/* 
+/*
  * slapi_clock_gettime should have better been called
  * slapi_clock_utc_gettime but sice the function pre-existed
  * we are just adding an alias (to avoid risking to break
@@ -7093,6 +7096,7 @@ typedef struct slapi_plugindesc
 
 /* miscellaneous plugin functions */
 #define SLAPI_PLUGIN_CLOSE_FN     210
+#define SLAPI_PLUGIN_PRE_CLOSE_FN 211
 #define SLAPI_PLUGIN_START_FN     212
 #define SLAPI_PLUGIN_CLEANUP_FN   232
 #define SLAPI_PLUGIN_POSTSTART_FN 233
@@ -7337,6 +7341,8 @@ typedef enum _slapi_op_note_t {
     SLAPI_OP_NOTE_FULL_UNINDEXED = 0x04,
     SLAPI_OP_NOTE_FILTER_INVALID = 0x08,
     SLAPI_OP_NOTE_MFA_AUTH = 0x10,
+    SLAPI_OP_NOTE_ASYNCH_OP = 0x20,
+    SLAPI_OP_NOTE_ASYNCH_BLOCKED = 0x40,
 } slapi_op_note_t;
 
 

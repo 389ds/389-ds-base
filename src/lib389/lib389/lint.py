@@ -57,6 +57,35 @@ DSBLE0003 = {
     'fix': """You need to import an LDIF file, or create the suffix entry, in order to initialize the database."""
 }
 
+DSBLE0007 = {
+    'dsle': 'DSBLE0007',
+    'severity': 'HIGH',
+    'description': 'Missing or incorrect system indexes.',
+    'items': [],
+    'detail': """System indexes are essential for proper directory server operation. Missing or
+incorrectly configured system indexes can lead to poor search performance, replication
+issues, and other operational problems.
+
+The following system indexes should be present with correct configuration:
+EXPECTED_INDEXES
+
+Current discrepancies:
+DISCREPANCIES
+""",
+    'fix': """Add the missing system indexes or fix the incorrect configurations using dsconf:
+
+REMEDIATION_COMMANDS
+
+After adding or modifying indexes, you may need to reindex the affected attributes:
+
+REINDEX_COMMANDS
+
+WARNING: Reindexing can be resource-intensive and may impact server performance on a live system.
+Consider scheduling reindexing during maintenance windows or periods of low activity. For production
+systems, you may want to reindex offline or use the --wait option to monitor task completion.
+"""
+}
+
 # Config checks
 DSCLE0001 = {
     'dsle': 'DSCLE0001',
@@ -519,6 +548,17 @@ until the time issues have been resolved:
 
 Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_server/11/html/administration_guide/managing_replication-troubleshooting_replication_related_problems
 and find the paragraph "Too much time skew"."""
+}
+
+DSSKEWLE0004 = {
+    'dsle': 'DSSKEWLE0004',
+    'severity': 'Low',
+    'description': 'Extensive time skew.',
+    'items': ['Replication'],
+    'detail': """The time skew is over 365 days. If the time skew continues to
+increase eventually serious replication problems can occur.""",
+    'fix': """Avoid making changes to the system time, and make sure the clocks
+on all the replicas are correct."""
 }
 
 DSLOGNOTES0001 = {

@@ -7,7 +7,11 @@ on:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
   workflow_dispatch:  # Allow manual triggering
 
-permissions: 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
   actions: read
   packages: read
   contents: read
@@ -17,7 +21,7 @@ jobs:
     name: Cargo Tests
     runs-on: ubuntu-latest
     container:
-      image: quay.io/389ds/ci-images:fedora
+      image: quay.io/389ds/ci-images:el8test
     
     steps:
       - name: Checkout

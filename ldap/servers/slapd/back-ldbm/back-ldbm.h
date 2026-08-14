@@ -165,7 +165,7 @@ typedef unsigned short u_int16_t;
 #define SUBLEN 3
 #define LDBM_CACHE_RETRY_COUNT 1000        /* Number of times we re-try a cache operation */
 #define RETRY_CACHE_LOCK       2           /* error code to signal a retry of the cache lock */
-#define IDL_FETCH_RETRY_COUNT  5           /* Number of times we re-try idl_fetch if it returns deadlock */
+#define IDL_FETCH_RETRY_COUNT  10          /* Number of times we re-try idl_fetch if it returns deadlock */
 #define IMPORT_SUBCOUNT_HASHTABLE_SIZE 500 /* Number of buckets in hash used to accumulate subcount for broody parents */
 
 /* minimum max ids that a single index entry can map to in ldbm */
@@ -284,6 +284,18 @@ typedef struct _idlist_set
 #define ALLIDS(idl)         ((idl)->b_nmax == ALLIDSBLOCK)
 #define INDIRECT_BLOCK(idl) ((idl)->b_nids == INDBLOCK)
 #define IDL_NIDS(idl)       (idl ? (idl)->b_nids : (NIDS)0)
+
+/*
+ * used by the supplier during online total init
+ * it stores the ranges of ID that are already present
+ * in the candidate list ('parentid>=1')
+ */
+typedef struct IdRange {
+    ID first;
+    ID last;
+    struct IdRange *next;
+} IdRange_t;
+
 
 typedef size_t idl_iterator;
 

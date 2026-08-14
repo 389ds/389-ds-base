@@ -409,6 +409,7 @@ __aclinit__RegisterAttributes(void)
     rv = ACL_MethodRegister(&errp, DS_METHOD, &methodinfo);
     if (rv < 0) {
         acl_print_acllib_err(&errp, NULL);
+        nserrDispose(&errp);
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "__aclinit__RegisterAttributes - Unable to Register the methods\n");
         return ACL_ERR;
@@ -416,6 +417,7 @@ __aclinit__RegisterAttributes(void)
     rv = ACL_MethodSetDefault(&errp, methodinfo);
     if (rv < 0) {
         acl_print_acllib_err(&errp, NULL);
+        nserrDispose(&errp);
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "__aclinit__RegisterAttributes - Unable to Set the default method\n");
         return ACL_ERR;
@@ -424,6 +426,7 @@ __aclinit__RegisterAttributes(void)
                                 methodinfo, ACL_DBTYPE_ANY, ACL_AT_FRONT, NULL);
     if (rv < 0) {
         acl_print_acllib_err(&errp, NULL);
+        nserrDispose(&errp);
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "__aclinit__RegisterAttributes - Unable to Register Attr ip\n");
         return ACL_ERR;
@@ -432,6 +435,7 @@ __aclinit__RegisterAttributes(void)
                                 methodinfo, ACL_DBTYPE_ANY, ACL_AT_FRONT, NULL);
     if (rv < 0) {
         acl_print_acllib_err(&errp, NULL);
+        nserrDispose(&errp);
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "__aclinit__RegisterAttributes - Unable to Register Attr dns\n");
         return ACL_ERR;

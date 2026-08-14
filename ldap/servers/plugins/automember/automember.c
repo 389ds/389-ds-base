@@ -1755,9 +1755,10 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
 
         mod_pb = slapi_pblock_new();
         /* Do a single mod with error overrides for DEL/ADD */
-        result = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_dn_byval(group_dn), mods,
-                                                        automember_get_plugin_id(), 0);
-
+        Slapi_DN *sdn = slapi_sdn_new_normdn_byref(group_dn);
+        result = slapi_single_modify_internal_override(mod_pb, sdn, mods,
+                                                       automember_get_plugin_id(), 0);
+        slapi_sdn_free(&sdn);
         if(add){
             if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -2299,6 +2300,7 @@ automember_task_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __at
 void
 automember_task_abort_thread(void *arg)
 {
+    slapi_set_thread_name("automem-abort");
     Slapi_Task *task = (Slapi_Task *)arg;
 
     slapi_task_inc_refcount(task);
@@ -2455,6 +2457,7 @@ out:
 void
 automember_rebuild_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-rebld");
     Slapi_Task *task = (Slapi_Task *)arg;
     struct configEntry *config = NULL;
     Slapi_PBlock *search_pb = NULL;
@@ -2758,6 +2761,7 @@ out:
 void
 automember_export_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-exprt");
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
@@ -2948,6 +2952,7 @@ out:
 void
 automember_map_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-map");
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_Entry *e = NULL;
     int result = SLAPI_DSE_CALLBACK_OK;

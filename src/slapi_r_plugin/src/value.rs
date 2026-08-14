@@ -61,7 +61,7 @@ impl ValueArrayRef {
         ValueArrayRef { raw_slapi_val }
     }
 
-    pub fn iter(&self) -> ValueArrayRefIter {
+    pub fn iter(&self) -> ValueArrayRefIter<'_> {
         ValueArrayRefIter {
             idx: 0,
             va_ref: &self,

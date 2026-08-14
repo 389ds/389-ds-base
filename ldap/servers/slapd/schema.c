@@ -1410,6 +1410,7 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
     const char *attr_desc, *syntaxoid;
     char *outp, syntaxlengthbuf[128];
     int i;
+    int nb_aliases = 0;
 
     vals[0] = &val;
 
@@ -1435,6 +1436,7 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
     if (asip->asi_aliases != NULL) {
         for (i = 0; asip->asi_aliases[i] != NULL; ++i) {
             aliaslen += strlen(asip->asi_aliases[i]);
+            nb_aliases++;
         }
     }
 
@@ -1452,15 +1454,42 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
      * XXX: 256 is a magic number... it must be big enough to account for
      * all of the fixed sized items we output.
      */
-    sizedbuffer_allocate(aew->psbAttrTypes, 256 + strlen(asip->asi_oid) +
-                                                strlen(asip->asi_name) +
-                                                aliaslen + strlen_null_ok(attr_desc) +
-                                                strlen(syntaxoid) +
-                                                strlen_null_ok(asip->asi_superior) +
-                                                strlen_null_ok(asip->asi_mr_equality) +
-                                                strlen_null_ok(asip->asi_mr_ordering) +
-                                                strlen_null_ok(asip->asi_mr_substring) +
-                                                strcat_extensions(NULL, asip->asi_extensions));
+    {
+        int asi_oid_strlen = strlen(asip->asi_oid) + 8;      /* "( %s NAME " */
+        int asi_name_strlen = strlen(asip->asi_name) + 6;    /* "( '%s' ...)" */
+        int asi_aliases_strlen = aliaslen + nb_aliases * 3;  /* "'%s' " */
+        int asi_desc_strlen = strlen_null_ok(attr_desc) + 7; /* "DESC '%s'" */
+        int asi_syntaxoid_strlen = strlen("SYNTAX ") + strlen(syntaxoid) + strlen(syntaxlengthbuf);
+        int asi_superior_strlen = strlen("SUP ") + strlen_null_ok(asip->asi_superior);
+        int asi_mr_equality_strlen = strlen("EQUALITY ") + strlen_null_ok(asip->asi_mr_equality);
+        int asi_mr_ordering_strlen = strlen("ORDERING ") + strlen_null_ok(asip->asi_mr_ordering);
+        int asi_mr_substring_strlen = strlen("SUBSTR ") + strlen_null_ok(asip->asi_mr_substring);
+        int asi_flags_strlen = strlen("SINGLE-VALUE ") +
+                               strlen(schema_obsolete_with_spaces) +
+                               strlen(schema_collective_with_spaces) +
+                               strlen(schema_nousermod_with_spaces) +
+                               strlen("USAGE distributedOperation ") +
+                               strlen("USAGE dSAOperation ") +
+                               strlen("USAGE directoryOperation ");
+        int asi_extension_strlen = strcat_extensions(NULL, asip->asi_extensions);
+
+        if (aew->enquote_sup_oc) {
+            /* it enquote the syntax oid */
+            asi_syntaxoid_strlen += 2;
+        }
+
+    sizedbuffer_allocate(aew->psbAttrTypes, 256 + asi_oid_strlen +
+                                                  asi_name_strlen +
+                                                  asi_aliases_strlen +
+                                                  asi_desc_strlen +
+                                                  asi_syntaxoid_strlen +
+                                                  asi_superior_strlen +
+                                                  asi_mr_equality_strlen +
+                                                  asi_mr_ordering_strlen +
+                                                  asi_mr_substring_strlen +
+                                                  asi_extension_strlen +
+                                                  asi_flags_strlen);
+    }
 
     /*
      * Overall strategy is to maintain a pointer to the next location in
@@ -4918,7 +4947,17 @@ slapi_reload_schema_files(char *schemadir)
     }
     slapi_be_Wlock(be); /* be lock must be outer of schemafile lock */
     reload_schemafile_lock();
+    attr_syntax_destroy_tmp();
+    if (0 != attr_syntax_init_tmp()) {
+        reload_schemafile_unlock();
+        slapi_be_Unlock(be);
+        slapi_log_err(SLAPI_LOG_ERR, "schema_reload",
+                      "slapi_reload_schema_files failed to init tmp tables\n");
+        return LDAP_LOCAL_ERROR;
+    }
     oc_delete_all_nolock();
+
+    /* Everything is cleaned up, now parse the schema again */
     rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
                              DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
     if (rc) {
@@ -4939,6 +4978,7 @@ slapi_reload_schema_files(char *schemadir)
         slapi_be_Unlock(be);
         return LDAP_SUCCESS;
     } else {
+        attr_syntax_destroy_tmp();
         reload_schemafile_unlock();
         slapi_be_Unlock(be);
         slapi_log_err(SLAPI_LOG_ERR, "schema_reload",

@@ -57,7 +57,7 @@ export class ExportCertModal extends React.Component {
         }
 
         const title = <>{_("Export Certificate:")} &nbsp;&nbsp;<i>{nickName}</i></>;
-        const desc = <>{_("Enter the full path and file name, if the path portion is omitted the cetificate is written to the server's certificate directory ")}<i>{certDir}</i></>;
+        const desc = <>{_("Enter the full path and file name, if the path portion is omitted the certificate is written to the server's certificate directory ")}<i>{certDir}</i></>;
 
         return (
             <Modal

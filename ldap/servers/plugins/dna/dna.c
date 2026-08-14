@@ -9,6 +9,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <stdbool.h>
 
 
 /**
@@ -167,6 +168,7 @@ static const char *_PluginDN = NULL;
 static char *hostname = NULL;
 static char *portnum = NULL;
 static char *secureportnum = NULL;
+static bool security_enabled = false;
 
 static Slapi_Eq_Context eq_ctx = {0};
 
@@ -694,7 +696,13 @@ dna_close(Slapi_PBlock *pb __attribute__((unused)))
     slapi_destroy_rwlock(g_dna_cache_lock);
     g_dna_cache_lock = NULL;
 
-    dna_delete_global_servers();
+    if (g_dna_cache_server_lock) {
+        dna_server_write_lock();
+        dna_delete_global_servers();
+        dna_server_unlock();
+    } else {
+        dna_delete_global_servers();
+    }
     slapi_destroy_rwlock(g_dna_cache_server_lock);
     g_dna_cache_server_lock = NULL;
 
@@ -767,7 +775,8 @@ out:
 }
 
 /*
- * Free the global linkedl ist of shared servers
+ * Free the global linked list of shared servers
+ * Caller must hold dna_server_write_lock() before invoking this helper.
  */
 static void
 dna_delete_global_servers(void)
@@ -793,14 +802,18 @@ static int
 dna_load_shared_servers(void)
 {
     struct configEntry *config_entry = NULL;
-    struct dnaServer *server = NULL, *global_servers = NULL;
+    struct dnaServer *server = NULL, *global_tail = NULL;
     PRCList *server_list = NULL;
     PRCList *config_list = NULL;
-    int freed_servers = 0;
     int ret = 0;
 
-    /* Now build the new list. */
     dna_write_lock();
+    /* Hold the server list lock for the full rebuild so concurrent updates
+     * cannot free or append entries underneath us. */
+    dna_server_write_lock();
+    dna_delete_global_servers();
+    global_tail = NULL;
+
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         config_list = PR_LIST_HEAD(dna_global_config);
         while (config_list != dna_global_config) {
@@ -810,34 +823,31 @@ dna_load_shared_servers(void)
             if (dna_get_shared_servers(config_entry,
                                        &shared_list,
                                        1 /* get all the servers */)) {
+                dna_server_unlock();
                 dna_unlock();
                 return -1;
             }
 
-            dna_server_write_lock();
-            if (!freed_servers) {
-                dna_delete_global_servers();
-                freed_servers = 1;
-            }
             if (shared_list) {
                 server_list = PR_LIST_HEAD(shared_list);
                 while (server_list != shared_list) {
                     server = (struct dnaServer *)server_list;
-                    if (global_servers == NULL) {
-                        dna_global_servers = global_servers = server;
+                    if (dna_global_servers == NULL) {
+                        dna_global_servers = global_tail = server;
                     } else {
-                        global_servers->next = server;
-                        global_servers = server;
+                        global_tail->next = server;
+                        global_tail = server;
                     }
                     server_list = PR_NEXT_LINK(server_list);
                 }
                 slapi_ch_free((void **)&shared_list);
             }
-            dna_server_unlock();
 
             config_list = PR_NEXT_LINK(config_list);
         }
     }
+
+    dna_server_unlock();
     dna_unlock();
 
     return ret;
@@ -1535,6 +1545,29 @@ dna_delete_shared_servers(PRCList **servers)
     return;
 }
 
+/*
+ * dna_is_server_isolated()
+ *
+ * Returns true if the server cannot be reached by other servers
+ * for DNA range requests. This happens when the LDAP port is disabled
+ * (nsslapd-port: 0) AND security/LDAPS is also off — meaning only LDAPI
+ * is available. This is the state FreeIPA may put the server during
+ * upgrades.
+ *
+ * Note: if port is 0 but security is on (LDAPS-only mode), the server
+ * can be reached via the secure port, so it's not isolated.
+ */
+static bool
+dna_is_server_isolated(void)
+{
+    if (portnum == NULL || strcmp(portnum, "0") == 0) {
+        if (!security_enabled) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static int
 dna_load_host_port(void)
 {
@@ -1542,7 +1575,8 @@ dna_load_host_port(void)
     int status = DNA_SUCCESS;
     Slapi_Entry *e = NULL;
     Slapi_DN *config_dn = NULL;
-    char *attrs[4];
+    char *attrs[5];
+    char *secval = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                   "--> dna_load_host_port\n");
@@ -1550,7 +1584,8 @@ dna_load_host_port(void)
     attrs[0] = "nsslapd-localhost";
     attrs[1] = "nsslapd-port";
     attrs[2] = "nsslapd-secureport";
-    attrs[3] = NULL;
+    attrs[3] = "nsslapd-security";
+    attrs[4] = NULL;
 
     config_dn = slapi_sdn_new_ndn_byref("cn=config");
     if (config_dn) {
@@ -1562,6 +1597,13 @@ dna_load_host_port(void)
         hostname = slapi_entry_attr_get_charptr(e, "nsslapd-localhost");
         portnum = slapi_entry_attr_get_charptr(e, "nsslapd-port");
         secureportnum = slapi_entry_attr_get_charptr(e, "nsslapd-secureport");
+        secval = slapi_entry_attr_get_charptr(e, "nsslapd-security");
+        if (secval && strcasecmp(secval, "on") == 0) {
+            security_enabled = true;
+        } else {
+            security_enabled = false;
+        }
+        slapi_ch_free_string(&secval);
     }
     slapi_search_get_entry_done(&pb);
 
@@ -1616,8 +1658,25 @@ dna_update_config_event(time_t event_time __attribute__((unused)), void *arg __a
             if (config_entry->shared_cfg_dn != NULL) {
                 int rc = 0;
                 Slapi_PBlock *dna_pb = NULL;
-                Slapi_DN *sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
-                Slapi_Backend *be = slapi_be_select(sdn);
+                Slapi_DN *sdn = NULL;
+                Slapi_Backend *be = NULL;
+
+                /* Skip shared config update if the server is isolated
+                 * (port=0 and security off). The server cannot be reached
+                 * by other servers for range requests in this state.
+                 * Note: LDAPS-only mode (port=0, security on) is not skipped. */
+                if (dna_is_server_isolated()) {
+                    slapi_log_err(SLAPI_LOG_WARNING, DNA_PLUGIN_SUBSYSTEM,
+                                  "dna_update_config_event - Server is isolated "
+                                  "(port is disabled and security is off). "
+                                  "Skipping shared config update for %s\n",
+                                  config_entry->shared_cfg_dn);
+                    list = PR_NEXT_LINK(list);
+                    continue;
+                }
+
+                sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
+                be = slapi_be_select(sdn);
 
                 slapi_sdn_free(&sdn);
                 if (be) {
@@ -2666,42 +2725,56 @@ dna_update_shared_config(struct configEntry *config_entry)
             /* If the shared config for this instance doesn't
              * already exist, we add it. */
             if (ret == LDAP_NO_SUCH_OBJECT) {
-                Slapi_Entry *e = NULL;
-                Slapi_DN *sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
-                char bind_meth[DNA_REMOTE_BUFSIZ];
-                char conn_prot[DNA_REMOTE_BUFSIZ];
+                /* Don't create a shared config entry if the server is
+                 * isolated (port=0 and security off). This prevents
+                 * creating orphaned entries.
+                 * This check covers all callers of dna_update_shared_config
+                 * (dna_notice_allocation, dna_activate_next_range, etc). */
+                if (dna_is_server_isolated()) {
+                    slapi_log_err(SLAPI_LOG_WARNING, DNA_PLUGIN_SUBSYSTEM,
+                                  "dna_update_shared_config - Server is isolated "
+                                  "(port is disabled and security is off). "
+                                  "Skipping creation of shared config entry: %s\n",
+                                  config_entry->shared_cfg_dn);
+                    ret = LDAP_SUCCESS;
+                } else {
+                    Slapi_Entry *e = NULL;
+                    Slapi_DN *sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
+                    char bind_meth[DNA_REMOTE_BUFSIZ];
+                    char conn_prot[DNA_REMOTE_BUFSIZ];
 
-                /* Set up the new shared config entry */
-                e = slapi_entry_alloc();
-                /* the entry now owns the dup'd dn */
-                slapi_entry_init_ext(e, sdn, NULL); /* sdn is copied into e */
-                slapi_sdn_free(&sdn);
+                    /* Set up the new shared config entry */
+                    e = slapi_entry_alloc();
+                    /* the entry now owns the dup'd dn */
+                    slapi_entry_init_ext(e, sdn, NULL); /* sdn is copied into e */
+                    slapi_sdn_free(&sdn);
 
-                slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, DNA_SHAREDCONFIG);
-                slapi_entry_add_string(e, DNA_HOSTNAME, hostname);
-                slapi_entry_add_string(e, DNA_PORTNUM, portnum);
-                if (secureportnum) {
-                    slapi_entry_add_string(e, DNA_SECURE_PORTNUM, secureportnum);
+                    slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, DNA_SHAREDCONFIG);
+                    slapi_entry_add_string(e, DNA_HOSTNAME, hostname);
+                    slapi_entry_add_string(e, DNA_PORTNUM, portnum);
+                    if (secureportnum) {
+                        slapi_entry_add_string(e, DNA_SECURE_PORTNUM, secureportnum);
+                    }
+                    slapi_entry_add_string(e, DNA_REMAINING, remaining_vals);
+
+                    /* Grab the remote server settings */
+                    dna_server_read_lock();
+                    if (dna_get_shared_config_attr_val(config_entry, DNA_REMOTE_BIND_METHOD, bind_meth)) {
+                        slapi_entry_add_string(e, DNA_REMOTE_BIND_METHOD, bind_meth);
+                    }
+                    if (dna_get_shared_config_attr_val(config_entry, DNA_REMOTE_CONN_PROT, conn_prot)) {
+                        slapi_entry_add_string(e, DNA_REMOTE_CONN_PROT, conn_prot);
+                    }
+                    dna_server_unlock();
+
+                    /* clear pb for re-use */
+                    slapi_pblock_init(pb);
+
+                    /* e will be consumed by slapi_add_internal() */
+                    slapi_add_entry_internal_set_pb(pb, e, NULL, getPluginID(), 0);
+                    slapi_add_internal_pb(pb);
+                    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
                 }
-                slapi_entry_add_string(e, DNA_REMAINING, remaining_vals);
-
-                /* Grab the remote server settings */
-                dna_server_read_lock();
-                if (dna_get_shared_config_attr_val(config_entry, DNA_REMOTE_BIND_METHOD, bind_meth)) {
-                    slapi_entry_add_string(e, DNA_REMOTE_BIND_METHOD, bind_meth);
-                }
-                if (dna_get_shared_config_attr_val(config_entry, DNA_REMOTE_CONN_PROT, conn_prot)) {
-                    slapi_entry_add_string(e, DNA_REMOTE_CONN_PROT, conn_prot);
-                }
-                dna_server_unlock();
-
-                /* clear pb for re-use */
-                slapi_pblock_init(pb);
-
-                /* e will be consumed by slapi_add_internal() */
-                slapi_add_entry_internal_set_pb(pb, e, NULL, getPluginID(), 0);
-                slapi_add_internal_pb(pb);
-                slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
             }
 
             if (ret != LDAP_SUCCESS) {

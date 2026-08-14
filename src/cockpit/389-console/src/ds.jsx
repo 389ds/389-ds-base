@@ -694,9 +694,9 @@ export class DSInstance extends React.Component {
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>
                         <div className="ds-margin-top-lg">
-                            <Progress 
-                                value={progressValue} 
-                                label={`${progressValue}%`} 
+                            <Progress
+                                value={progressValue}
+                                label={`${progressValue}%`}
                                 measureLocation={ProgressMeasureLocation.inside}
                                 aria-label="Directory Server Configuration loading progress"
                             />
@@ -772,8 +772,8 @@ export class DSInstance extends React.Component {
                             position={DropdownPosition.right}
                             onSelect={this.handleDropdown}
                             toggle={
-                                <DropdownToggle 
-                                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)} 
+                                <DropdownToggle
+                                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
                                     toggleIndicator={CaretDownIcon}
                                     variant="primary"
                                     id="ds-dropdown"

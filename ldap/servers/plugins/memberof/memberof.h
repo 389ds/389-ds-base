@@ -44,6 +44,7 @@
 #define MEMBEROF_DEFERRED_UPDATE_ATTR "memberOfDeferredUpdate"
 #define MEMBEROF_AUTO_ADD_OC      "memberOfAutoAddOC"
 #define MEMBEROF_NEED_FIXUP       "memberOfNeedFixup"
+#define MEMBEROF_LAUNCH_FIXUP     "memberOfLaunchFixup"
 #define NSMEMBEROF                "nsMemberOf"
 #define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
 #define DN_SYNTAX_OID             "1.3.6.1.4.1.1466.115.121.1.12"
@@ -138,6 +139,7 @@ typedef struct memberofconfig
     PLHashTable *fixup_cache;
     Slapi_Task *task;
     int need_fixup;
+    PRBool launch_fixup;
 } MemberOfConfig;
 
 /* The key to access the hash table is the normalized DN

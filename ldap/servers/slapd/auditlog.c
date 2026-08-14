@@ -103,7 +103,25 @@ create_masked_entry_string(Slapi_Entry *original_entry, int *len)
 
             /* Check if this is a password attribute that needs masking */
             if (is_password_attribute(line_start)) {
-                strcpy(colon_pos + 1, " **********************");
+                const char mask[] = " **********************";
+                size_t mask_len = (sizeof mask)-1;
+                size_t avail = 0;
+
+                /* Calculate available space from colon_pos+1 to end of value */
+                if (next_line != NULL) {
+                    avail = (size_t)(next_line - (colon_pos + 1));
+                } else {
+                    avail = strlen(colon_pos + 1);
+                }
+
+                if (mask_len <= avail) {
+                    memcpy(colon_pos + 1, mask, mask_len);
+                    /* Space-fill remaining space to avoid leaking original value */
+                    memset(colon_pos + 1 + mask_len, ' ', avail - mask_len);
+                } else {
+                    /* Mask is longer than available space -- truncate mask */
+                    memcpy(colon_pos + 1, mask, avail);
+                }
             }
 
             *colon_pos = saved_colon;  /* Restore colon */
