@@ -107,7 +107,7 @@ log = logging.getLogger(__name__)
 
 Nothing exports `DEBUGGING` — define it in your own module. Truthiness trap: any non-empty string enables it, including `DEBUGGING=0`. When enabled, instances are built verbose with extra server log levels, and hand-written finalizers stop instances instead of deleting them so you can inspect state.
 
-The library fixtures all call `create_topology(..., request=request)` (`dirsrvtests/lib/test389/topologies.py (create_topology)`), which registers a shared finalizer that stops — never deletes — every instance at module end, and arms a SIGALRM watchdog (default 85 minutes; on expiry it kills `ns-slapd` with TERM, then QUIT so cores are distinguishable, then raises `TimeoutError`). Adjust the timeout with `set_timeout()` from an autouse module-scoped fixture that runs before the topology fixture (`dirsrvtests/tests/suites/lib389/timeout_test.py`).
+The library fixtures all call `create_topology(..., request=request)` (`dirsrvtests/lib/test389/topologies.py (create_topology)`), which registers a shared finalizer that stops every instance at module end and — unless `DEBUGGING` is set — runs the `cleanup_cb`, removes the ssca certificate database, and deletes the instances. It also arms a SIGALRM watchdog (default 85 minutes; on expiry it kills `ns-slapd` with TERM, then QUIT so cores are distinguishable, then raises `TimeoutError`). Adjust the timeout with `set_timeout()` from an autouse module-scoped fixture that runs before the topology fixture (`dirsrvtests/tests/suites/lib389/timeout_test.py`).
 
 A custom fixture must either pass `request=` through to `create_topology`, or register an explicit finalizer — canonical shape from `dirsrvtests/tests/suites/replication/conftest.py (topology_m2)`:
 
@@ -153,7 +153,7 @@ Workflow: see the write-test skill (.agents/skills/write-test/SKILL.md).
 
 | Variable | Effect |
 |---|---|
-| `DEBUGGING` | verbose instances, DEBUG logging, extra server log levels; hand-written finalizers stop instead of delete. Any non-empty value counts |
+| `DEBUGGING` | verbose instances, DEBUG logging, extra server log levels; finalizers — the library one included — stop instead of delete. Any non-empty value counts |
 | `NSSLAPD_DB_LIB` | backend selection (`bdb`/`mdb`), read by `get_default_db_lib()` (`src/lib389/lib389/utils.py`); unset means `mdb` |
 | `DS389_MDB_MAX_SIZE` | overrides the lmdb map size for created instances |
 | `TLS_HOSTNAME_CHECK` | only an empty value disables `nsslapd-ssl-check-hostname` — same truthiness trap as `DEBUGGING` |

@@ -77,6 +77,17 @@ CI-exact commands and known silent-failure traps.
   verify-changes skill routes this); with no such skill, run only the static
   gates and report the rest as unverified — never configure, build, or run
   tests directly, as unprepared setups differ per developer.
+- `ns-slapd` is heavily multi-threaded: every operation runs on a worker thread
+  (`ldap/servers/slapd/connection.c (connection_threadmain)`), and plugin, DSE,
+  and housekeeping callbacks run concurrently against shared state. Any change
+  that touches threading or shared data must be thread-safe — no data races,
+  one fixed lock order, every lock released on every exit path. Primitives and
+  per-object rules: [docs/agents/c-server.md](docs/agents/c-server.md).
+- Performance is critical: server code sits on the hot path of every LDAP
+  operation. Write the most performant implementation that is still correct —
+  no new allocations, copies, locks, or internal searches on per-operation
+  paths without need. See the performance section in
+  [docs/agents/c-server.md](docs/agents/c-server.md).
 - In new test code prefer the modern lib389 object API over raw `add_s`-style
   calls; existing raw calls are not style precedent.
 - Match the style of the file you are editing; no formatter runs in CI.

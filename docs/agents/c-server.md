@@ -1,6 +1,6 @@
 # C Server Development (ldap/servers/slapd/)
 
-SLAPI memory ownership, pblock discipline, return codes, threads, logging, and the cn=config/DSE system.
+SLAPI memory ownership, pblock discipline, return codes, threads, performance, logging, and the cn=config/DSE system.
 File paths below are relative to `ldap/servers/slapd/` unless prefixed. Plugin anatomy and registration:
 [plugins.md](plugins.md). back-ldbm internals: [backends.md](backends.md). Request flow and repo map:
 [architecture.md](architecture.md).
@@ -167,6 +167,31 @@ On the failure path: never restore a parameter you already replaced — on a DB 
 
 - `slapi_sdn_dup(src)` calls `slapi_sdn_get_dn(src)` — duplicating a shared SDN mutates the source (`dn.c (slapi_sdn_dup)`).
 - `slapi_current_time()` is deprecated and "NOT THREAD SAFE. DO NOT USE IT." — use `slapi_current_time_hr()` (`slapi-plugin.h (slapi_current_time)`).
+
+Writing concurrent code:
+
+- Operation callbacks run concurrently on worker threads (`connection.c (connection_threadmain)`), and a live config modify runs a plugin's DSE callback on another worker at the same time (the config-lock pattern in [plugins.md](plugins.md)). Anything outside locals and the per-operation pblock is shared state and needs a synchronization owner: `slapi_new_mutex()` / `slapi_new_rwlock()`, the `slapi_atomic_*` family (`slapi-plugin.h (slapi_atomic_incr_64)`), or `Slapi_Counter`.
+- Release every lock on every exit path — early returns, `goto bail`, and error branches are where missed unlocks hide, and a leaked lock deadlocks the next worker thread that contends it.
+- Nested locks need one fixed acquisition order across all call paths. betxn callbacks already run inside the backend's transaction (see [plugins.md](plugins.md)), so audit ordering across module boundaries, not just within one file.
+- A change that touches threading is done only when it is provably free of data races and deadlocks; walk every new lock/unlock pair and every access to shared data before calling it complete.
+
+## Performance
+
+Code in the operation path runs for every LDAP request the server serves; treat added
+per-operation cost as a regression and pick the most performant implementation that is
+still correct. Before adding work to an operation callback, filter/index evaluation, or
+a plugin pre/post hook:
+
+- Hoist invariant work to startup, plugin start, or config-change time — never
+  recompute per operation what a config callback can compute once.
+- Prefer the borrowing getters over copies where the lifetime allows (`_get_ref` vs
+  `_charptr` — see the getter table above), and the memoized `Slapi_DN` forms over
+  re-normalizing a DN.
+- Keep critical sections short. Prefer `slapi_atomic_*` / `Slapi_Counter` to a mutex
+  for counters and flags, and a `Slapi_RWLock` read lock for read-mostly state.
+- An internal search (`slapi_search_internal_*`) is a full extra operation with its own
+  plugin chain — never add one to a per-operation path when the result can be cached
+  at config time or derived from data already in hand.
 
 ## Logging
 
