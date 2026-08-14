@@ -30,6 +30,7 @@ static pthread_cond_t housekeeping_cvar;
 static void
 housecleaning(void *cur_time __attribute__((unused)))
 {
+    slapi_set_thread_name("housekeep");
     while (!g_get_shutdown()) {
         struct timespec current_time = {0};
         /*

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -23,6 +23,7 @@
 #include "prlog.h" /* for PR_ASSERT */
 #include "fe.h"
 #include <sasl/sasl.h>
+#include <stdbool.h>
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif
@@ -75,6 +76,8 @@ static PRStack *work_q_stack;         /* stack of work_q structs so we don't hav
 static PRInt32 work_q_stack_size;     /* size of work_q_stack */
 static PRInt32 work_q_stack_size_max; /* max size of work_q_stack */
 static PRInt32 op_shutdown = 0;       /* if non-zero, server is shutting down */
+static int32_t current_busy_workers = 0;   /* workers currently processing ops */
+static int32_t max_busy_workers = 0;       /* high water mark of busy workers */
 
 #define LDAP_SOCKET_IO_BUFFER_SIZE 512 /* Size of the buffer we give to the I/O system for reads */
 
@@ -459,6 +462,7 @@ init_op_threads()
     }
     pthread_condattr_destroy(&condAttr); /* no longer needed */
 
+    max_threads = config_get_threadnumber();
     work_q_stack = PR_CreateStack("connection_work_q");
     op_stack = PR_CreateStack("connection_operation");
     alloc_per_thread_snmp_vars(max_threads);
@@ -567,6 +571,19 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 
     /* Set the start time */
     slapi_operation_set_time_started(op);
+
+    /* difficult to detect false asynch operations
+     * Indeed because of scheduling of threads a previous
+     * operation may have sent its result but not yet updated
+     * the completed count.
+     * To avoid false positive lets set a limit of 2.
+     */
+    if ((conn->c_opsinitiated - conn->c_opscompleted) > 2) {
+        unsigned int opnote;
+        opnote = slapi_pblock_get_operation_notes(pb);
+        opnote |= SLAPI_OP_NOTE_ASYNCH_OP; /* the operation is dispatch while others are running */
+        slapi_pblock_set_operation_notes(pb, opnote);
+    }
 
     /* If the minimum SSF requirements are not met, only allow
      * bind and extended operations through.  The bind and extop
@@ -1006,10 +1023,16 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
         slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "no work to do\n");
         ret = CONN_NOWORK;
     } else {
+        Connection *conn = wqitem;
         /* make new pb */
-        slapi_pblock_set(pb, SLAPI_CONNECTION, wqitem);
+        slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
         slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
         slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
+        if (conn->c_flagblocked) {
+            /* flag this new operation that it was blocked by maxthreadperconn */
+            slapi_pblock_set_operation_notes(pb, SLAPI_OP_NOTE_ASYNCH_BLOCKED);
+            conn->c_flagblocked = false;
+        }
     }
 
     pthread_mutex_unlock(&work_q_lock);
@@ -1243,36 +1266,45 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 
                     /* If bval is NULL and we don't have an error - we still want the proper log and update */
                     if ((haproxy_rc == HAPROXY_HEADER_PARSED) && (proxy_connection)) {
-                        /* Normalize IP addresses */
+                        /* Normalize IP addresses for logging */
                         normalize_IPv4(conn->cin_addr, buf_ip, sizeof(buf_ip), str_ip, sizeof(str_ip));
                         normalize_IPv4(&pr_netaddr_dest, buf_haproxy_destip, sizeof(buf_haproxy_destip),
                                        str_haproxy_destip, sizeof(str_haproxy_destip));
-                        size_t ip_len = strlen(buf_ip);
-                        size_t destip_len = strlen(buf_haproxy_destip);
 
-                        /* Now, reset RC and set it to 0 only if a match is found */
+                        /* Initialize match result - will be set to 0 if both IPs match */
                         haproxy_rc = -1;
 
-                        /* 
-                         * We need to allow a configuration where DS instance and HAProxy are on the same machine.
-                         * In this case, we need to check if
-                         * the HAProxy client IP (which will be a loopback address) matches one of the the trusted IP addresses,
-                         * while still checking that
-                         * the HAProxy header destination IP address matches one of the trusted IP addresses.
-                         * Additionally, this change will also allow configuration having
-                         * HAProxy listening on a different subnet than one used to forward the request.
+                        /*
+                         * Validate connection against trusted IPs/subnets.
+                         *
+                         * Both the HAProxy client IP and the destination IP from the HAProxy header
+                         * must match one of the configured trusted IP addresses or subnets.
+                         * This allows configurations where DS instance and HAProxy are on the same machine.
+                         *
+                         * Uses parsed binary entries for efficient matching during connection handling.
                          */
-                        for (size_t i = 0; bvals[i] != NULL; ++i) {
-                            size_t bval_len = strlen(bvals[i]->bv_val);
+                        haproxy_trusted_entry_t *parsed_entries = NULL;
+                        size_t parsed_count = 0;
 
-                            /* Check if the Client IP (HAProxy's machine IP) address matches the trusted IP address */
-                            if (!trusted_matches_ip_found) {
-                                trusted_matches_ip_found = (bval_len == ip_len) && (strncasecmp(bvals[i]->bv_val, buf_ip, ip_len) == 0);
-                            }
-                            /* Check if the HAProxy header destination IP address matches the trusted IP address */
-                            if (!trusted_matches_destip_found) {
-                                trusted_matches_destip_found = (bval_len == destip_len) && (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, destip_len) == 0);
-                            }
+                        parsed_entries = g_get_haproxy_trusted_ip_parsed(&parsed_count);
+
+                        if (parsed_entries && parsed_count > 0) {
+                            /* Use parsed binary entries for matching */
+                            trusted_matches_ip_found = haproxy_ip_matches_parsed(conn->cin_addr,
+                                                                                 parsed_entries,
+                                                                                 parsed_count);
+                            trusted_matches_destip_found = haproxy_ip_matches_parsed(&pr_netaddr_dest,
+                                                                                     parsed_entries,
+                                                                                     parsed_count);
+                        } else {
+                            /* Parsed entries should always be available after config load.
+                             * If they're not, this indicates a configuration initialization failure. */
+                            slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
+                                          "HAProxy trusted IPs not properly initialized - disconnecting connection\n");
+                            disconnect_server_nomutex(conn, conn->c_connid, -1,
+                                                      SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
+                            ret = CONN_DONE;
+                            goto done;
                         }
 
                         if (trusted_matches_ip_found && trusted_matches_destip_found) {
@@ -1291,8 +1323,8 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         /* Replace cin_addr and cin_destaddr in the Connection struct with received addresses */
                         slapi_ch_free((void**)&conn->cin_addr);
                         slapi_ch_free((void**)&conn->cin_destaddr);
-                        conn->cin_addr = (PRNetAddr*)malloc(sizeof(PRNetAddr));
-                        conn->cin_destaddr = (PRNetAddr*)malloc(sizeof(PRNetAddr));
+                        conn->cin_addr = (PRNetAddr*)slapi_ch_malloc(sizeof(PRNetAddr));
+                        conn->cin_destaddr = (PRNetAddr*)slapi_ch_malloc(sizeof(PRNetAddr));
                         memcpy(conn->cin_addr, &pr_netaddr_from, sizeof(PRNetAddr));
                         memcpy(conn->cin_destaddr, &pr_netaddr_dest, sizeof(PRNetAddr));
                         conn->c_ipaddr = slapi_ch_strdup(str_haproxy_ip);
@@ -1614,6 +1646,9 @@ connection_threadmain(void *arg)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     int32_t *snmp_vars_idx = (int32_t *) arg;
+    char tname[16];
+    snprintf(tname, sizeof(tname), "worker-%d", *snmp_vars_idx);
+    slapi_set_thread_name(tname);
     /* wait forever for new pb until one is available or shutdown */
     int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;
@@ -1626,6 +1661,7 @@ connection_threadmain(void *arg)
     int doshutdown = 0;
     int maxthreads = 0;
     long bypasspollcnt = 0;
+    bool is_busy = false;
 
 #if defined(hpux)
     /* Arrange to ignore SIGPIPE signals. */
@@ -1640,6 +1676,9 @@ connection_threadmain(void *arg)
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                           "op_thread received shutdown signal\n");
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -1647,6 +1686,12 @@ connection_threadmain(void *arg)
 
         if (!thread_turbo_flag && !more_data) {
 	        Connection *pb_conn = NULL;
+
+            /* Mark this worker as idle before blocking on the work queue */
+            if (is_busy) {
+                is_busy = false;
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
 
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
@@ -1661,6 +1706,9 @@ connection_threadmain(void *arg)
             case CONN_SHUTDOWN:
                 slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                               "op_thread received shutdown signal\n");
+                if (is_busy) {
+                    slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+                }
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
                 return;
@@ -1673,6 +1721,9 @@ connection_threadmain(void *arg)
                 slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
                 if (pb_conn == NULL) {
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
+                    if (is_busy) {
+                        slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+                    }
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
                     return;
@@ -1737,11 +1788,26 @@ connection_threadmain(void *arg)
                 slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
             }
         }
-        /* Once we're here we have a pb */
+        /* Once we're here we have a pb - mark this worker as busy */
+        if (!is_busy) {
+            is_busy = true;
+            int32_t val = slapi_atomic_incr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            /*
+             * Best-effort high-water mark: without a CAS primitive two threads
+             * could race and briefly regress the value, but it self-corrects on
+             * the next higher peak.  Acceptable for a monitoring-only metric.
+             */
+            while (val > slapi_atomic_load_32(&max_busy_workers, __ATOMIC_RELAXED)) {
+                slapi_atomic_store_32(&max_busy_workers, val, __ATOMIC_RELAXED);
+            }
+        }
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
         if (conn == NULL || op == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -1869,6 +1935,7 @@ connection_threadmain(void *arg)
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
+                    conn->c_flagblocked = true;
                     if (conn->c_maxthreadsblocked == 1 && connection_has_psearch(conn)) {
                         slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
                                 "Connection (conn=%" PRIu64 ") has a running persistent search "
@@ -1921,6 +1988,9 @@ connection_threadmain(void *arg)
 
     done:
         if (doshutdown) {
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
             pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
             connection_make_readable_nolock(conn);
@@ -2129,6 +2199,36 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
     destroy_work_q(&tmp);
 
     return (wqitem);
+}
+
+/* Work queue metric getters - lock-free reads using atomics */
+
+int32_t
+get_work_q_size(void)
+{
+    int32_t val = slapi_atomic_load_32((int32_t *)&work_q_size, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_work_q_size_max(void)
+{
+    int32_t val = slapi_atomic_load_32((int32_t *)&work_q_size_max, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_busy_worker_count(void)
+{
+    int32_t val = slapi_atomic_load_32(&current_busy_workers, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_max_busy_worker_count(void)
+{
+    int32_t val = slapi_atomic_load_32(&max_busy_workers, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
 }
 
 /* Helper functions common to both varieties of connection code: */

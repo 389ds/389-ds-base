@@ -23,7 +23,8 @@ from lib389.lint import (
     DSPERMLE0002,
     DSSKEWLE0001,
     DSSKEWLE0002,
-    DSSKEWLE0003
+    DSSKEWLE0003,
+    DSSKEWLE0004
 )
 
 
@@ -66,26 +67,49 @@ class DSEldif(DSLint):
         return 'dseldif'
 
     def _lint_nsstate(self):
+        """
+        Check the nsState attribute, which contains the CSN generator time
+        diffs, for excessive replication time skew
+        """
+        ignoring_skew = False
+        skew_high = 86400  # 1 day
+        skew_medium = 43200  # 12 hours
+        skew_low = 21600  # 6 hours
+
+        ignore_skew = self.get("cn=config", "nsslapd-ignore-time-skew")
+        if ignore_skew is not None and ignore_skew[0].lower() == "on":
+            # If we are ignoring time skew only report a warning if the skew
+            # is significant
+            ignoring_skew = True
+            skew_high = 86400 * 365  # Report a warning for skew over a year
+            skew_medium = 99999999999
+            skew_low = 99999999999
+
         suffixes = self.readNsState()
         for suffix in suffixes:
             # Check the local offset first
             report = None
-            skew = int(suffix['time_skew'])
-            if skew >= 86400:
-                # 24 hours - replication will break
-                report = copy.deepcopy(DSSKEWLE0003)
-            elif skew >= 43200:
+            skew = abs(int(suffix['time_skew']))
+            if skew >= skew_high:
+                if ignoring_skew:
+                    # Ignoring skew, but it's too excessive not to report it
+                    report = copy.deepcopy(DSSKEWLE0004)
+                else:
+                    # 24 hours of skew - replication will break
+                    report = copy.deepcopy(DSSKEWLE0003)
+            elif skew >= skew_medium:
                 # 12 hours
                 report = copy.deepcopy(DSSKEWLE0002)
-            elif skew >= 21600:
+            elif skew >= skew_low:
                 # 6 hours
                 report = copy.deepcopy(DSSKEWLE0001)
             if report is not None:
                 report['items'].append(suffix['suffix'])
                 report['items'].append('Time Skew')
                 report['items'].append('Skew: ' + suffix['time_skew_str'])
-                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                report['check'] = f'dseldif:nsstate'
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE',
+                                                      self._instance.serverid)
+                report['check'] = 'dseldif:nsstate'
                 yield report
 
     def _update(self):
@@ -94,11 +118,19 @@ class DSEldif(DSLint):
         with open(self.path, "w") as file_dse:
             file_dse.write("".join(self._contents))
 
-    def _find_attr(self, entry_dn, attr):
+    def globalSubstitute(self, strfrom, strto):
+        for i in range(0, len(self._contents)-1):
+            self._contents[i] = self._contents[i].replace(strfrom, strto)
+        self._update()
+
+    def _find_attr(self, entry_dn, attr, lower=False):
         """Find all attribute values and indexes under a given entry
 
         Returns entry dn index and attribute data dict:
         relative attribute indexes and the attribute value
+
+        :param lower: Use case-insensitive matching for attribute name
+        :type lower: boolean
         """
 
         entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
@@ -115,7 +147,11 @@ class DSEldif(DSLint):
 
         # Find the attribute
         for line in entry_slice:
-            if line.startswith("{}:".format(attr)):
+            if lower:
+                match = line.lower().startswith("{}:".format(attr.lower()))
+            else:
+                match = line.startswith("{}:".format(attr))
+            if match:
                 attr_value = line.split(" ", 1)[1][:-1]
                 attr_data.update({entry_slice.index(line): attr_value})
 
@@ -124,7 +160,7 @@ class DSEldif(DSLint):
 
         return entry_dn_i, attr_data
 
-    def get(self, entry_dn, attr, single=False):
+    def get(self, entry_dn, attr, single=False, lower=False):
         """Return attribute values under a given entry
 
         :param entry_dn: a DN of entry we want to get attribute from
@@ -132,11 +168,13 @@ class DSEldif(DSLint):
         :param attr: an attribute name
         :type attr: str
         :param single: Return a single value instead of a list
-        :type sigle: boolean
+        :type single: boolean
+        :param lower: Use case-insensitive matching for attribute name
+        :type lower: boolean
         """
 
         try:
-            _, attr_data = self._find_attr(entry_dn, attr)
+            _, attr_data = self._find_attr(entry_dn, attr, lower=lower)
         except ValueError:
             return None
 
@@ -159,6 +197,38 @@ class DSEldif(DSLint):
 
         return indexes
 
+    def get_backends(self):
+        """Return a list of backend names from DSE.
+
+        Returns backend names preserving their original case, as the
+        database directory names on disk use the original case.
+
+        Note: DSEldif lowercases DN lines, so we read the 'cn' attribute
+        from each entry to get the original case.
+
+        :returns: List of backend names
+        """
+        backends = []
+        excluded = ("config", "monitor", "index", "encrypted attributes")
+
+        for entry in self._contents:
+            if (entry.startswith("dn: cn=") and
+                    ",cn=ldbm database,cn=plugins,cn=config" in entry):
+                parts = entry.split(",")
+                if len(parts) > 1:
+                    cn_lower = parts[0].replace("dn: cn=", "")
+                    if cn_lower not in excluded:
+                        dn = entry.strip()[4:].strip()
+                        try:
+                            suffix = self.get(dn, "nsslapd-suffix")
+                            if suffix:
+                                cn_values = self.get(dn, "cn")
+                                if cn_values:
+                                    backends.append(cn_values[0])
+                        except (ValueError, IndexError):
+                            pass
+
+        return list(set(backends))
 
     def add_entry(self, entry):
         """Add a new entry

@@ -13,7 +13,7 @@ from lib389.schema import Schema
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Group, Groups
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.topologies import log, topology_st as topo
 
 pytestmark = pytest.mark.tier0
@@ -238,6 +238,56 @@ def test_boolean_case(topo):
     # Test some invalid syntax
     with pytest.raises(ldap.INVALID_SYNTAX):
         user.replace('pamsecure', 'blah')
+
+def test_escaped_space(topo, request):
+    """Test that we can bind with DN containing escaped space
+
+       :id: 480adf31-f6c0-48a1-ba5b-29e0324c5702
+       :customerscenario: True
+       :setup: Standalone Instance
+       :steps:
+           1. Create test user with RDN containing space
+           2. Authenticate with that user escaping the space
+           3. Do few searches
+       :expectedresults:
+           1. Success
+           2. Success
+           3. Success
+    """
+    inst = topo.standalone
+    users  = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_properties = {
+        'uid': 'my uid',
+        'cn': 'my uid',
+        'sn': 'user',
+        'userpassword': PW_DM,
+        'uidNumber': '111',
+        'gidNumber': '111',
+        'homeDirectory': '/home/testuser111'
+    }
+    # Step 1 the user RDN contains space
+    user = users.create(properties=user_properties)
+
+    # Step 2 authenticate escaping the space
+    escaped_dn = 'uid=my\\20uid,%s' % ','.join(user.dn.split(',')[1:])
+    ldc = ldap.initialize(f'ldap://{inst.host}:{inst.port}')
+    ldc.bind_s(escaped_dn, PW_DM)
+
+    # Step 3 few searches
+    assert len(ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=my\\20uid")) == 1
+    assert len(ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=my uid")) == 1
+
+    def fin():
+        try:
+            user.delete()
+        except ldap.LDAPError:
+            pass
+        try:
+            ldc.unbind()
+        except:
+            pass
+
+    request.addfinalizer(fin)
 
 
 if __name__ == '__main__':

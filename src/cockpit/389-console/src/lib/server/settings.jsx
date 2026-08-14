@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, isValidIpAddress } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress, isValidIpAddressOrCIDR } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -351,7 +351,7 @@ export class ServerSettings extends React.Component {
             }
             if (attr === 'nsslapd-haproxy-trusted-ip') {
                 for (const ip of value) {
-                    if (value && !isValidIpAddress(ip)) {
+                    if (value && !isValidIpAddressOrCIDR(ip)) {
                         invalidIP = true;
                         disableSaveBtn = true;
                         break;
@@ -1624,16 +1624,16 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs"
+                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs or subnets in CIDR notation (e.g., 192.168.1.0/24)"
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Trusted HAProxy Server IPs
+                                            Trusted HAProxy Server IPs/Subnets
                                         </GridItem>
                                         <GridItem span={9}>
                                             <Select
                                                 variant={SelectVariant.typeaheadMulti}
                                                 id="nsslpad-haproxy-trusted-ip"
-                                                typeAheadAriaLabel="Type trusted HAProxy server IP address"
+                                                typeAheadAriaLabel="Type trusted HAProxy server IP or subnet (e.g., 192.168.1.0/24)"
                                                 onToggle={this.handleOnHaproxyIPsToggle}
                                                 onSelect={(e, selection) => {
                                                     this.handleOnHaproxyIPsSelect(e, selection, "adv");
@@ -1644,7 +1644,7 @@ export class ServerSettings extends React.Component {
                                                 selections={this.state.haproxyIPs}
                                                 isOpen={this.state.isHaproxyIPsOpen}
                                                 aria-labelledby="typeAhead-haproxy-ips"
-                                                placeholderText="Type trusted HAProxy server IP address"
+                                                placeholderText="Type trusted HAProxy server IP address or CIDR subnet"
                                                 isCreatable
                                                 onCreateOption={this.handleOnCreateHaproxyIP}
                                                 validated={this.state.invalidIP ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1658,7 +1658,7 @@ export class ServerSettings extends React.Component {
                                             </Select>
                                             {(this.state.invalidIP) &&
                                                 <HelperText className="ds-left-margin">
-                                                    <HelperTextItem variant="error">Invalid format for IP address</HelperTextItem>
+                                                    <HelperTextItem variant="error">Invalid format for IP address or CIDR subnet</HelperTextItem>
                                                 </HelperText>}
                                         </GridItem>
                                     </Grid>

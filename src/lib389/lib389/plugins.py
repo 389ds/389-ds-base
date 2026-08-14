@@ -175,6 +175,16 @@ class AttributeUniquenessPlugin(Plugin):
 
         self.set('uniqueness-across-all-subtrees', 'off')
 
+    def add_exclude_subtree(self, basedn):
+        """Add a uniqueness-exclude-subtrees attribute"""
+
+        self.add('uniqueness-exclude-subtrees', basedn)
+
+    def remove_exclude_subtree(self, basedn):
+        """Remove a uniqueness-exclude-subtrees attribute"""
+
+        self.remove('uniqueness-exclude-subtrees', basedn)
+
 
 class AttributeUniquenessPlugins(DSLdapObjects):
     """A DSLdapObjects entity which represents Attribute Uniqueness plugin instances
@@ -961,6 +971,36 @@ class MemberOfPlugin(Plugin):
         """Remove all memberofdeferredupdate attributes"""
 
         self.remove_all('memberofdeferredupdate')
+
+    def get_memberofneedfixup(self):
+        """Get memberofneedfixup attribute"""
+
+        return self.get_attr_val_utf8_l('memberofneedfixup')
+
+    def get_memberofneedfixup_formatted(self):
+        """Display memberofneedfixup attribute"""
+
+        return self.display_attr('memberofneedfixup')
+
+    def get_memberoflaunchfixup(self):
+        """Get memberoflaunchfixup attribute"""
+
+        return self.get_attr_val_utf8_l('memberoflaunchfixup')
+
+    def get_memberoflaunchfixup_formatted(self):
+        """Display memberoflaunchfixup attribute"""
+
+        return self.display_attr('memberoflaunchfixup')
+
+    def set_memberoflaunchfixup(self, value):
+        """Set memberoflaunchfixup attribute"""
+
+        self.set('memberoflaunchfixup', value)
+
+    def remove_memberoflaunchfixup(self):
+        """Remove all memberoflaunchfixup attributes"""
+
+        self.remove_all('memberoflaunchfixup')
 
     def get_autoaddoc(self):
         """Get memberofautoaddoc attribute"""

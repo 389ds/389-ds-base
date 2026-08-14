@@ -1113,6 +1113,7 @@ out:
 static void
 task_export_thread(void *arg)
 {
+    slapi_set_thread_name("export");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     // I think someone is mis-using this point to store multiple names ...
     char **instance_names = NULL;
@@ -1484,6 +1485,7 @@ out:
 static void
 task_backup_thread(void *arg)
 {
+    slapi_set_thread_name("backup");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     Slapi_Task *task = NULL;
     struct slapdplugin *pb_plugin;
@@ -1635,6 +1637,7 @@ out:
 static void
 task_restore_thread(void *arg)
 {
+    slapi_set_thread_name("restore");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     Slapi_Task *task = NULL;
     struct slapdplugin *pb_plugin;
@@ -1789,6 +1792,7 @@ out:
 static void
 task_index_thread(void *arg)
 {
+    slapi_set_thread_name("index");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     char *instance_name = NULL;
     char **db2index_attrs = NULL;
@@ -2346,6 +2350,7 @@ struct task_tombstone_data
 static void
 task_fixup_tombstone_thread(void *arg)
 {
+    slapi_set_thread_name("tombfix");
     struct task_tombstone_data *task_data = arg;
     Slapi_Entry **entries = NULL;
     Slapi_Task *task = task_data->task;
@@ -2956,6 +2961,7 @@ compact_db_task_destructor(Slapi_Task *task)
 static void
 task_compact_thread(void *arg)
 {
+    slapi_set_thread_name("compact");
     struct task_compact_data *task_data = arg;
     Slapi_Task *task = task_data->task;
     Slapi_Backend *be = NULL;

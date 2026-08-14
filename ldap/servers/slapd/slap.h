@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -83,6 +83,10 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <time.h> /* For timespec definitions */
+
+/* Macros for paged results lock parameter */
+#define PR_LOCKED true
+#define PR_NOT_LOCKED false
 
 /* Provides our int types and platform specific requirements. */
 #include <slapi_pal.h>
@@ -191,6 +195,16 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #include "pw.h"
 
 /*
+ * SERVER UPGRADE INTERNALS
+ */
+typedef enum _upgrade_status {
+    UPGRADE_SUCCESS = 0,
+    UPGRADE_FAILURE = 1,
+} upgrade_status;
+
+upgrade_status upgrade_server(void);
+
+/*
  * call the appropriate signal() function.
  */
 #if defined(hpux)
@@ -287,6 +301,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
 /* We'd like this number to be prime for the hash into the Connection table */
 #define SLAPD_DEFAULT_CONNTABLESIZE 64000 /* connection table size */
+#define SLAPD_DEFAULT_MAXCONTROLS_PER_OP 10
+#define SLAPD_DEFAULT_MAXCONTROLS_PER_OP_STR "10"
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
 
@@ -1006,6 +1022,7 @@ struct slapdplugin
     char *plg_libpath;                      /* library path for dll/so */
     char *plg_initfunc;                     /* init symbol */
     IFP plg_close;                          /* close function */
+    IFP plg_pre_close;                      /* pre close function */
     Slapi_PluginDesc plg_desc;              /* vendor's info */
     char *plg_name;                         /* used for plugin rdn in cn=config */
     struct slapdplugin *plg_next;           /* for plugin lists */
@@ -1631,7 +1648,6 @@ typedef struct _paged_results
     struct timespec pr_timelimit_hr;        /* expiry time of this request rel to clock monotonic */
     int pr_flags;
     ber_int_t pr_msgid; /* msgid of the request; to abandon */
-    PRLock *pr_mutex;   /* protect each conn structure    */
 } PagedResults;
 
 /* array of simple paged structure stashed in connection */
@@ -1727,6 +1743,7 @@ typedef struct conn
     int32_t c_anon_access;
     int32_t c_max_threads_per_conn;
     int32_t c_bind_auth_token;
+    bool c_flagblocked;            /* Flag the next read operation as blocked */
 } Connection;
 #define CONN_FLAG_SSL 1     /* Is this connection an SSL connection or not ?         \
                            * Used to direct I/O code when SSL is handled differently \
@@ -1893,6 +1910,13 @@ void slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx);
 
 void *slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb);
 void slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem);
+
+/*
+ * Wait until deferred memberOf work for this operation completes (or shutdown).
+ * No-op unless memberof armed deferred work on this pblock (lazy sync).
+ * Notify is performed by memberof via SLAPI_DEFERRED_MEMBEROF set to 0.
+ */
+void slapi_pblock_wait_deferred_memberof(Slapi_PBlock *pb);
 
 /* index if substrlens */
 #define INDEX_SUBSTRBEGIN  0
@@ -2314,6 +2338,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
 #define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
+#define CONFIG_MAXCONTROLS_PER_OP_ATTRIBUTE "nsslapd-maxcontrolsperop"
 #define CONFIG_LOGGING_BACKEND "nsslapd-logging-backend"
 
 #define CONFIG_EXTRACT_PEM "nsslapd-extract-pemfiles"
@@ -2425,7 +2450,9 @@ typedef struct _slapdFrontendConfig
     char *encryptionalias;
     char *errorlog;
     char *listenhost;
-    struct berval **haproxy_trusted_ip;
+    struct berval **haproxy_trusted_ip;                 /* LDAP config format (for dse.ldif/queries) */
+    haproxy_trusted_entry_t *haproxy_trusted_ip_parsed; /* Parsed binary format (for connection matching) */
+    size_t haproxy_trusted_ip_parsed_count;             /* Number of parsed entries */
     int snmp_index;
     char *localuser;
     char *localhost;
@@ -2610,6 +2637,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
     slapi_onoff_t global_backend_lock;
     slapi_int_t maxsimplepaged_per_conn; /* max simple paged results reqs handled per connection */
+    slapi_int_t maxcontrols_per_op;      /* max LDAP controls allowed per operation */
     slapi_onoff_t enable_nunc_stans; /* Despite the removal of NS, we have to leave the value in
                                       * case someone was setting it.
                                       */

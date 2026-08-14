@@ -93,7 +93,7 @@ export class CertificateManagement extends React.Component {
                 uploadFile: file.name
             });
         };
-        this.onTextOrDataChange = (value) => {
+        this.onTextOrDataChange = (e, value) => {
             this.setState({
                 uploadValue: value.trim()
             }, () => this.validateCertText());

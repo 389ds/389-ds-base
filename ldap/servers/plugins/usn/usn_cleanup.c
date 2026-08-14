@@ -45,6 +45,7 @@ usn_cleanup_close(void)
 static void
 usn_cleanup_thread(void *arg)
 {
+    slapi_set_thread_name("usn-cleanup");
     Slapi_Task *task = (Slapi_Task *)arg;
     int rv = 0;
     int total_work = 2;

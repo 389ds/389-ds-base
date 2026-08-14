@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <time.h>
 
 #ifdef PBLOCK_ANALYTICS
 
@@ -149,6 +151,73 @@ pblock_analytics_query(Slapi_PBlock *pb, int access_type)
 
 #endif
 
+/*
+ * Per-pblock deferred memberOf completion sync.
+ *
+ * Sync objects are created lazily only when memberof arms deferred work
+ * (SLAPI_DEFERRED_MEMBEROF = 1). Most operations never touch them.
+ *
+ * Ordering: memberof BE_TXN_POSTOP arms; deferred thread clears+signals;
+ * backend wait returns; then pblock destroy. Do not nest with
+ * MemberofDeferredList locks.
+ */
+static void
+pblock_deferred_memberof_sync_init(Slapi_PBlock *pb)
+{
+    pthread_condattr_t condAttr;
+    int rc;
+
+    if (pb == NULL || pb->pb_deferred_memberof_sync_inited) {
+        return;
+    }
+
+    if ((rc = pthread_mutex_init(&pb->pb_deferred_memberof_mutex, NULL)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "pblock_deferred_memberof_sync_init",
+                      "Cannot create deferred memberof mutex. error %d (%s)\n",
+                      rc, strerror(rc));
+        return;
+    }
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "pblock_deferred_memberof_sync_init",
+                      "Cannot create condition attribute. error %d (%s)\n",
+                      rc, strerror(rc));
+        pthread_mutex_destroy(&pb->pb_deferred_memberof_mutex);
+        return;
+    }
+    if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "pblock_deferred_memberof_sync_init",
+                      "Cannot set condition clock. error %d (%s)\n",
+                      rc, strerror(rc));
+        pthread_condattr_destroy(&condAttr);
+        pthread_mutex_destroy(&pb->pb_deferred_memberof_mutex);
+        return;
+    }
+    if ((rc = pthread_cond_init(&pb->pb_deferred_memberof_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "pblock_deferred_memberof_sync_init",
+                      "Cannot create deferred memberof condvar. error %d (%s)\n",
+                      rc, strerror(rc));
+        pthread_condattr_destroy(&condAttr);
+        pthread_mutex_destroy(&pb->pb_deferred_memberof_mutex);
+        return;
+    }
+    pthread_condattr_destroy(&condAttr);
+    pb->pb_deferred_memberof = 0;
+    pb->pb_deferred_memberof_sync_inited = 1;
+}
+
+static void
+pblock_deferred_memberof_sync_destroy(Slapi_PBlock *pb)
+{
+    if (pb == NULL || !pb->pb_deferred_memberof_sync_inited) {
+        return;
+    }
+    /* Caller must ensure no thread is waiting on this CV (op waiter returned). */
+    pthread_cond_destroy(&pb->pb_deferred_memberof_cv);
+    pthread_mutex_destroy(&pb->pb_deferred_memberof_mutex);
+    pb->pb_deferred_memberof_sync_inited = 0;
+    pb->pb_deferred_memberof = 0;
+}
+
 void
 pblock_init(Slapi_PBlock *pb)
 {
@@ -206,6 +275,8 @@ pblock_done(Slapi_PBlock *pb)
     pblock_analytics_report(pb);
     pblock_analytics_destroy(pb);
 #endif
+    /* Destroy sync before other teardown; waiter must already have returned. */
+    pblock_deferred_memberof_sync_destroy(pb);
     if (pb->pb_op != NULL) {
         operation_free(&pb->pb_op, pb->pb_conn);
         pb->pb_op = NULL;
@@ -2524,6 +2595,14 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         break;
 
+    case SLAPI_PLUGIN_PRE_CLOSE_FN:
+        if (pblock->pb_plugin != NULL) {
+            (*(IFP *)value) = pblock->pb_plugin->plg_pre_close;
+        } else {
+            (*(IFP *)value) = NULL;
+        }
+        break;
+
     default:
         slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get", "Unknown parameter block argument %d\n", arg);
         PR_ASSERT(0);
@@ -4218,6 +4297,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         pblock->pb_misc->pb_aci_target_check = *((int *)value);
         break;
 
+    case SLAPI_PLUGIN_PRE_CLOSE_FN:
+        pblock->pb_plugin->plg_pre_close = (IFP)value;
+        break;
+
     default:
         slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_set",
                       "Unknown parameter block argument %d\n", arg);
@@ -4570,3 +4653,33 @@ bind_credentials_set_nolock(Connection *conn, char *authtype, char *normdn, char
         conn->c_idletimeout = 0;
     }
 }
+
+/*
+ * Block until deferred memberOf work for this op completes, or shutdown.
+ *
+ * Fast path: if memberof never armed deferred work on this pblock, sync was
+ * never created — return immediately (no init, no lock). That covers disabled
+ * memberof and ops that do not defer membership updates.
+ *
+ * Timedwait is only for periodically re-checking g_get_shutdown() — no DS_Sleep.
+ * Notify comes from memberof via slapi_pblock_set(SLAPI_DEFERRED_MEMBEROF, 0).
+ */
+ void
+ slapi_pblock_wait_deferred_memberof(Slapi_PBlock *pb)
+ {
+     struct timespec wait_until = {0};
+
+     if (pb == NULL || !pb->pb_deferred_memberof_sync_inited) {
+         return;
+     }
+
+     pthread_mutex_lock(&pb->pb_deferred_memberof_mutex);
+     while (pb->pb_deferred_memberof && !g_get_shutdown()) {
+         clock_gettime(CLOCK_MONOTONIC, &wait_until);
+         wait_until.tv_sec += 1;
+         pthread_cond_timedwait(&pb->pb_deferred_memberof_cv,
+                                &pb->pb_deferred_memberof_mutex,
+                                &wait_until);
+     }
+     pthread_mutex_unlock(&pb->pb_deferred_memberof_mutex);
+ }

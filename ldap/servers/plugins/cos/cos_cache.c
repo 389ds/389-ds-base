@@ -373,6 +373,7 @@ out:
 static void
 cos_cache_wait_on_change(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("cos-cache");
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_wait_on_change thread\n");
 
     slapi_lock_mutex(stop_lock);
@@ -1006,6 +1007,14 @@ cos_dn_defs_cb(Slapi_Entry *e, void *callback_data)
             cos_cache_del_attrval_list(&pCosSpecifier);
         if (pCosAttribute)
             cos_cache_del_attrval_list(&pCosAttribute);
+        if (pCosOverrides)
+            cos_cache_del_attrval_list(&pCosOverrides);
+        if (pCosOperational)
+            cos_cache_del_attrval_list(&pCosOperational);
+        if (pCosMerge)
+            cos_cache_del_attrval_list(&pCosMerge);
+        if (pCosOpDefault)
+            cos_cache_del_attrval_list(&pCosOpDefault);
         if (pDn)
             cos_cache_del_attrval_list(&pDn);
     }
@@ -1429,6 +1438,14 @@ out:
             cos_cache_del_attrval_list(spec);
         if (pAttrs)
             cos_cache_del_attrval_list(pAttrs);
+        if (pOverrides)
+            cos_cache_del_attrval_list(pOverrides);
+        if (pOperational)
+            cos_cache_del_attrval_list(pOperational);
+        if (pCosMerge)
+            cos_cache_del_attrval_list(pCosMerge);
+        if (pCosOpDefault)
+            cos_cache_del_attrval_list(pCosOpDefault);
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_defn\n");

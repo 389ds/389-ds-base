@@ -6,15 +6,24 @@ on:
   schedule:
     - cron:  '0 0 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   npm-audit-ci:
     name: npm-audit-ci
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el8test
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run NPM Audit CI
         run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx --yes audit-ci --config audit-ci.json

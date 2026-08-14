@@ -107,6 +107,7 @@ linked_attrs_fixup_task_destructor(Slapi_Task *task)
 static void
 linked_attrs_fixup_task_thread(void *arg)
 {
+    slapi_set_thread_name("linked-fix");
     Slapi_Task *task = (Slapi_Task *)arg;
     task_data *td = NULL;
     PRCList *main_config = NULL;

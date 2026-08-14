@@ -237,6 +237,7 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char *ldap_e
 static void
 repl5_inc_result_threadmain(void *param)
 {
+    slapi_set_thread_name("repl-inc-res");
     result_data *rd = (result_data *)param;
     ConnResult conres = 0;
     Repl_Connection *conn = rd->prp->conn;
@@ -370,6 +371,10 @@ repl5_inc_result_threadmain(void *param)
         PR_Unlock(rd->lock);
         if (op) {
             repl5_inc_op_free(op);
+        }
+        if (returned_controls) {
+            ldap_controls_free(returned_controls);
+            returned_controls = NULL;
         }
     }
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain exiting\n");

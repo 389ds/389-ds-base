@@ -915,7 +915,16 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     if (n == 0) { /* don't change \00 */
                         *d++ = *++s;
                         *d++ = *++s;
-                    } else if (n == 32) { /* leave \20 (space) intact */
+                    } else if ((state == INVALUE1ST) &&
+                               ((n == 32) || (n ==35))) {
+                        /*
+                         * RFC 4514
+                         * ; The following characters are to be escaped when they appear
+                         * ; in the value to be encoded: ESC, one of <escaped>, leading
+                         * ; SHARP or SPACE, trailing SPACE, and NULL.
+                         *
+                         * Leave intact the heading SPACE and SHARP
+                         */
                         *d++ = *s;
                         *d++ = *++s;
                         *d++ = *++s;

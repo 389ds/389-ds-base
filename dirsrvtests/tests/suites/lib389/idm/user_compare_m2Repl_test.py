@@ -15,6 +15,35 @@ from lib389.topologies import topology_m2
 
 pytestmark = pytest.mark.tier1
 
+
+def _attr_values_repr(values):
+    return sorted(repr(value) for value in values)
+
+
+def _format_compare_mismatch(obj1, obj2):
+    obj1_attrs = obj1.get_compare_attrs()
+    obj2_attrs = obj2.get_compare_attrs()
+    obj1_attr_names = set(obj1_attrs)
+    obj2_attr_names = set(obj2_attrs)
+    lines = []
+
+    for attr in sorted(obj1_attr_names - obj2_attr_names):
+        lines.append(f"Only in supplier1: {attr}={_attr_values_repr(obj1_attrs[attr])}")
+
+    for attr in sorted(obj2_attr_names - obj1_attr_names):
+        lines.append(f"Only in supplier2: {attr}={_attr_values_repr(obj2_attrs[attr])}")
+
+    for attr in sorted(obj1_attr_names & obj2_attr_names):
+        if set(obj1_attrs[attr]) != set(obj2_attrs[attr]):
+            lines.append(
+                f"Different {attr}: "
+                f"supplier1={_attr_values_repr(obj1_attrs[attr])}, "
+                f"supplier2={_attr_values_repr(obj2_attrs[attr])}"
+            )
+
+    return "\n".join(lines) or "No compare attribute mismatch found"
+
+
 def test_user_compare_m2Repl(topology_m2):
     """
     User compare test between users of supplier to supplier replicaton topology.
@@ -55,7 +84,14 @@ def test_user_compare_m2Repl(topology_m2):
 
     m2_testuser = m2_users.get('testuser')
 
-    assert UserAccount.compare(m1_testuser, m2_testuser)
+    assert 'parentid' not in m1_testuser.get_compare_attrs()
+    assert 'parentid' not in m2_testuser.get_compare_attrs()
+
+    if not UserAccount.compare(m1_testuser, m2_testuser):
+        pytest.fail(
+            "Replicated user compare mismatch:\n"
+            f"{_format_compare_mismatch(m1_testuser, m2_testuser)}"
+        )
 
 
 if __name__ == '__main__':

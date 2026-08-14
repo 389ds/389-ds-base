@@ -23,7 +23,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el8test
     steps:
       - name: Get the version
         id: get_version

@@ -663,6 +663,14 @@ op_shared_add(Slapi_PBlock *pb)
         }
         /* expand objectClass values to reflect the inheritance hierarchy */
         slapi_schema_expand_objectclasses(e);
+
+        /* Validate password policy attrs */
+        if (!internal_op) {
+            if ((err = check_pw_policy_attrs(e, NULL, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
+                send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
+                goto done;
+            }
+        }
     }
 
     /*
@@ -745,6 +753,7 @@ done:
     if (be)
         slapi_be_Unlock(be);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     slapi_entry_free(pse);
     slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
     slapi_entry_free(e);

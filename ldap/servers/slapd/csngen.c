@@ -315,15 +315,15 @@ csngen_adjust_time(CSNGen *gen, const CSN *csn)
         /* To avoid beat phenomena between suppliers let put 1 second in local_offset
          * it will be eaten at next clock tick rather than increasing remote offset
          * If we do not do that we will have a time skew drift of 1 second per 2 seconds
-         * if suppliers are desynchronized by 0.5 second 
+         * if suppliers are desynchronized by 0.5 second
          */
         if (gen->state.local_offset == 0) {
             gen->state.local_offset++;
             gen->state.remote_offset--;
         }
     }
-    /* Time to compute seqnum so that 
-     *   new csn >= remote csn and new csn >= old local csn 
+    /* Time to compute seqnum so that
+     *   new csn >= remote csn and new csn >= old local csn
      */
     new_time = CSN_CALC_TSTAMP(gen);
     PR_ASSERT(new_time >= old_time);
@@ -570,7 +570,7 @@ _csngen_adjust_local_time(CSNGen *gen)
     time_t cur_time;
     int rc;
 
-    
+
     if ((rc = gen->gettime(&now)) != 0) {
         /* Failed to get system time, we must abort */
         slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn",
@@ -617,7 +617,7 @@ _csngen_adjust_local_time(CSNGen *gen)
     gen->state.sampled_time = cur_time;
     gen->state.local_offset = MAX_VAL(0, gen->state.local_offset - time_diff);
     /* new local_offset = MAX_VAL(0, old sample_time + old local_offset - cur_time)
-     * ==> new local_offset >= 0 and 
+     * ==> new local_offset >= 0 and
      *     new local_offset + cur_time >= old sample_time + old local_offset
      * ==> new local_offset + cur_time + remote_offset >=
      *            sample_time + old local_offset + remote_offset
@@ -731,6 +731,7 @@ _csngen_stop_test_threads(void)
 static void
 _csngen_gen_tester_main(void *data)
 {
+    slapi_set_thread_name("csn-gen-test");
     CSNGen *gen = (CSNGen *)data;
     CSN *csn = NULL;
     char buff[CSN_STRSIZE];
@@ -761,6 +762,7 @@ _csngen_gen_tester_main(void *data)
 static void
 _csngen_remote_tester_main(void *data)
 {
+    slapi_set_thread_name("csn-rmt-test");
     CSNGen *gen = (CSNGen *)data;
     CSN *csn;
     time_t csn_time;
@@ -798,6 +800,7 @@ _csngen_remote_tester_main(void *data)
 static void
 _csngen_local_tester_main(void *data)
 {
+    slapi_set_thread_name("csn-lcl-test");
     CSNGen *gen = (CSNGen *)data;
 
     PR_ASSERT(gen);

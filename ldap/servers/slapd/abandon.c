@@ -141,7 +141,7 @@ do_abandon(Slapi_PBlock *pb)
     }
 
     pthread_mutex_unlock(&(pb_conn->c_mutex));
-    if (0 == pagedresults_free_one_msgid(pb_conn, id, pageresult_lock_get_addr(pb_conn))) {
+    if (0 == pagedresults_free_one_msgid(pb_conn, id, PR_NOT_LOCKED)) {
         slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64
                                            " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
                          pb_conn->c_connid, pb_op->o_opid, id);

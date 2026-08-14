@@ -140,6 +140,7 @@ vattr_cleanup()
 static void
 vattr_check_thread(void *arg)
 {
+    slapi_set_thread_name("vattr-chk");
     Slapi_Backend *be = NULL;
     char *cookie = NULL;
     Slapi_DN *base_sdn = NULL;
