@@ -1675,8 +1675,21 @@ index_range_read_ext(
     dblayer_value_init(be, &lowerkey);   /* Clear lowerkey to avoid double free */
     *err = 0;
     if (coreop == SLAPI_OP_GREATER) {
-        *err = index_range_next_key(be, db, &cur_key, db_txn);
-        if (*err) {
+        /* MOVE_NEAR_KEY landed at or after the bound key; step off it
+         * only when it is the bound itself: a landed key beyond the
+         * bound already satisfies the strict '>' */
+        dbi_val_t bound = {0};
+        set_range_limit(be, val, prefix, plen, &bound);
+        if (KEY_EQ(&cur_key, &bound)) {
+            *err = index_range_next_key(be, db, &cur_key, db_txn);
+        }
+        dblayer_value_free(be, &bound);
+        if (DBI_RC_NOTFOUND == *err) {
+            /* the bound key is the last key: the range is empty */
+            *err = 0;
+            idl = idl_alloc(0);
+            goto error;
+        } else if (*err) {
             slapi_log_err(SLAPI_LOG_ERR, "index_range_read_ext",
                           "(%s,%s) op==GREATER, no next key: %i)\n",
                           type, prefix, *err);
