@@ -499,6 +499,28 @@ dbmdb_ctx_t_db_import_stats_set(void *arg, void *value, char *errorbuf __attribu
     return retval;
 }
 
+static void *
+dbmdb_ctx_t_db_online_import_nosync_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(MDB_CONFIG(li)->dsecfg.online_import_nosync));
+}
+
+static int
+dbmdb_ctx_t_db_online_import_nosync_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        MDB_CONFIG(li)->dsecfg.online_import_nosync = val;
+    }
+
+    return retval;
+}
+
 static int
 dbmdb_ctx_t_set_bypass_filter_test(void *arg,
                                    void *value,
@@ -612,6 +634,7 @@ static config_info dbmdb_ctx_t_param[] = {
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &dbmdb_ctx_t_maxpassbeforemerge_get, &dbmdb_ctx_t_maxpassbeforemerge_set, 0},
     {CONFIG_DB_DURABLE_TRANSACTIONS, CONFIG_TYPE_ONOFF, "on", &dbmdb_ctx_t_db_durable_transactions_get, &dbmdb_ctx_t_db_durable_transactions_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_MDB_IMPORT_STATS, CONFIG_TYPE_ONOFF, "off", &dbmdb_ctx_t_db_import_stats_get, &dbmdb_ctx_t_db_import_stats_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_MDB_ONLINE_IMPORT_NOSYNC, CONFIG_TYPE_ONOFF, "off", &dbmdb_ctx_t_db_online_import_nosync_get, &dbmdb_ctx_t_db_online_import_nosync_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &dbmdb_ctx_t_get_bypass_filter_test, &dbmdb_ctx_t_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &dbmdb_ctx_t_serial_lock_get, &dbmdb_ctx_t_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "25", &mdb_config_cache_autosize_get, &mdb_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
