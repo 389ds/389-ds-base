@@ -140,6 +140,7 @@ typedef struct _ImportJob
     int numsubordinates;
     int all_vlv_init;        /* Tells if can bypass vlv initialization */
     void *writer_ctx;        /* Context used to push data in worker thread */
+    int nosync_set;          /* Track whether we set MDB_NOSYNC during online import */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS 0x01         /* should we index the attributes? */
