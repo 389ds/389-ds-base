@@ -717,6 +717,12 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
     if (readOnly) {
         flags = MDB_RDONLY;
     }
+    if (ctx->dsecfg.dseloaded && !ctx->dsecfg.durable_transactions) {
+        flags |= MDB_NOSYNC;
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_make_env",
+                      "nsslapd-db-durable-transactions is off, "
+                      "MDB_NOSYNC enabled.\n");
+    }
 
     rc = mdb_env_create(&env);
     ctx->env = env;
