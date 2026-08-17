@@ -760,6 +760,19 @@ multisupplier_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
     slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
 
+    /* Check that connection is a replication session */
+    if (!check_replica_acquired(pb)) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "multisupplier_extop_NSDS50ReplicationEntry - "
+                      "Attempt to send entries outside of a replication session conn=%" PRIu64 " op=%d\n",
+                      connid, opid);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+        if (conn) {
+            slapi_disconnect_server(conn);
+        }
+        return LDAP_INSUFFICIENT_ACCESS;
+    }
+
     /* Decode the extended operation */
     rc = decode_total_update_extop(pb, &e);
 
