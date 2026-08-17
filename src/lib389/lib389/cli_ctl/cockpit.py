@@ -27,8 +27,6 @@ def open_firewall(inst, log, args):
     """
     Open the firewall for Cockpit service
     """
-    if not cockpit_present():
-        raise ValueError("The 'cockpit' package is not installed on this system")
 
     OPEN_CMD = ['sudo', 'firewall-cmd', '--add-service=cockpit', '--permanent']
     if args.zone is not None:
@@ -43,8 +41,6 @@ def disable_cockpit(inst, log, args):
     """
     Disable Cockpit socket
     """
-    if not cockpit_present():
-        raise ValueError("The 'cockpit' package is not installed on this system")
 
     DISABLE_CMD = ['sudo', 'systemctl', 'disable', '--now', 'cockpit.socket']
     try:
@@ -57,8 +53,6 @@ def close_firewall(inst, log, args):
     """
     Close firewall for Cockpit service
     """
-    if not cockpit_present():
-        raise ValueError("The 'cockpit' package is not installed on this system")
 
     CLOSE_CMD = ['sudo', 'firewall-cmd', '--remove-service=cockpit', '--permanent']
     try:
