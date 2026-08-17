@@ -49,17 +49,18 @@ jobs:
     fedora-all:
         without_opts:
             - bundle_libdb
-    epel-10:
+    epel-10-all:
         with_opts:
             - bundle_libdb
 
 - job: copr_build
   trigger: commit
   branch: main
+  preserve_project: true
   targets:
     fedora-all:
         without_opts:
             - bundle_libdb
-    epel-10:
+    epel-10-all:
         with_opts:
             - bundle_libdb
