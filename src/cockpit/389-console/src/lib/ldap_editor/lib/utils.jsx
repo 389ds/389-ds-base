@@ -366,50 +366,26 @@ export function getSearchEntries (params, resultCallback) {
 }
 
 export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCallback) {
-    /* const cmd = [
-    'ldapsearch',
-    '-LLL',
-    '-o',
-    'ldif-wrap=no',
-    '-Y',
-    'EXTERNAL',
-    '-b',
-    baseDn,
-    '-H',
-    'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
-    '-s',
-    'base',
-    '(|(objectClass=*)(objectClass=ldapSubEntry))',
-    '*'
-  ]; */
-
-    // This is a base scope search. No need for a size limit.
     const timeLimit = getTimeLimit();
-    const optionTimeLimit = timeLimit > 0 ? `-l ${timeLimit}` : '';
-
     const cmd = [
-        '/usr/bin/sh',
-        '-c',
-        `ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "${baseDn}"` +
-    ` -H ldapi://%2fvar%2frun%2fslapd-${serverId}.socket` +
-    ` ${optionTimeLimit}` +
-    ' -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" nsRoleDN nsAccountLock \\*' // +
-    // ' | /usr/bin/head -c 150001' // Taking 1 additional character to check if the
-    // the entry was indeed bigger than 150K.
+        'ldapsearch',
+        '-LLL',
+        '-o',
+        'ldif-wrap=no',
+        '-Y',
+        'EXTERNAL',
+        '-b',
+        baseDn,
+        '-H',
+        'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
+        ...(timeLimit > 0 ? ['-l', String(timeLimit)] : []),
+        '-s',
+        'base',
+        '(|(objectClass=*)(objectClass=ldapSubEntry))',
+        'nsRoleDN',
+        'nsAccountLock',
+        '*'
     ];
-
-    // TODO: The return code will always be 0 because of the ' | /usr/bin/head -c 150001' part.
-    // Need to find a way to retrieve the LDAP return code...
-    /*
-    [root@cette ~]# ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "o=empty" -H ldapi://%2fvar%2frun%2fslapd-ALPS_Grenoble.socket -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" \* | /usr/bin/head -c 150001 2>/dev/null
-    SASL/EXTERNAL authentication started
-    SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
-    SASL SSF: 0
-    No such object (32)
-    [root@cette ~]# echo $?
-    0
-    [root@cette ~]#
-  */
 
     log_cmd("getBaseLevelEntryAttributes", "", cmd);
     const entryArray = [];
@@ -583,31 +559,24 @@ export function getOneLevelEntries (params, oneLevelCallback) {
 // Generic search that returns an array of LDAP entries.
 // Returns an empty array in case of failure.
 export function runGenericSearch (params, searchCallback) {
-    /* const cmd = [
-    'ldapsearch',
-    '-LLL',
-    '-o',
-    'ldif-wrap=no',
-    '-Y',
-    'EXTERNAL',
-    '-b',
-    params.baseDn,
-    '-H',
-    'ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket',
-    '-s',
-    params.scope,
-    params.filter,
-    params.attributes
-  ]; */
-
+    const attributes = typeof params.attributes === 'string'
+        ? params.attributes.trim().split(/\s+/).filter(Boolean)
+        : [];
     const cmd = [
-        '/usr/bin/sh',
-        '-c',
-        'ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "' + params.baseDn +
-        '" -H ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket' +
-        ' -s ' + params.scope +
-        ' "' + params.filter + '" ' +
-        params.attributes
+        'ldapsearch',
+        '-LLL',
+        '-o',
+        'ldif-wrap=no',
+        '-Y',
+        'EXTERNAL',
+        '-b',
+        params.baseDn,
+        '-H',
+        'ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket',
+        '-s',
+        params.scope,
+        params.filter,
+        ...attributes
     ];
 
     log_cmd("runGenericSearch", "", cmd);
