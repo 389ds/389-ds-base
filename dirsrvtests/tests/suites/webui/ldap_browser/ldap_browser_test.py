@@ -16,6 +16,7 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
+from lib389.idm.nscontainer import nsContainers
 from .. import setup_page, check_frame_assignment, setup_login, create_entry, delete_entry, load_ldap_browser_tab
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
@@ -435,6 +436,71 @@ def test_group_member_management(topology_st, page, browser_name):
     
     frame.get_by_role('button', name='Close', exact=False).click()
     time.sleep(1)
+
+
+def test_entry_with_shell_metacharacters_in_dn(topology_st, page, browser_name):
+    """Browsing an entry whose DN contains shell metacharacters must not
+    trigger command injection (CVE-2026-19843)
+
+    :id: 0a1eaec1-f988-464e-a215-7be3f4f03ffc
+    :setup: Standalone instance
+    :steps:
+         1. Create an entry whose cn embeds a shell command that would
+            create a canary file (cn=test$(touch /tmp/cve_canary)).
+         2. Remove the canary file if it exists from a previous run.
+         3. Navigate to LDAP Browser Tree View.
+         4. Click on the entry in the tree so the UI fetches its
+            attributes via ldapsearch.
+         5. Wait for the attribute table to render.
+         6. Assert the canary file was NOT created on the host.
+         7. Assert the entry attributes are displayed correctly.
+    :expectedresults:
+         1. Entry is created successfully
+         2. Success
+         3. Success
+         4. Success
+         5. Attribute column header is visible
+         6. Canary file does not exist - no command injection
+         7. The literal cn value appears in the attribute table
+    """
+
+    inst = topology_st.standalone
+    CANARY = '/tmp/cve_2026_19843_canary'
+    MALICIOUS_CN = f'test$(touch {CANARY})'
+
+    log.info('Create an entry whose cn embeds a shell command.')
+    containers = nsContainers(inst, 'dc=example,dc=com')
+    container = containers.ensure_state(properties={'cn': MALICIOUS_CN})
+
+    log.info('Remove canary file if left over from a previous run.')
+    if os.path.exists(CANARY):
+        os.unlink(CANARY)
+
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+
+    load_ldap_browser_tab(frame)
+
+    log.info('Click on the entry with shell metacharacters in its DN.')
+    entry_button = frame.get_by_role('button').filter(has_text=MALICIOUS_CN)
+    entry_button.wait_for()
+    entry_button.click()
+
+    log.info('Verify entry attributes are displayed.')
+    frame.get_by_role('columnheader', name='Attribute').wait_for()
+    assert frame.get_by_role('columnheader', name='Attribute').is_visible()
+    time.sleep(2)  # give any injected command time to execute
+
+    log.info('Assert the canary file was NOT created (no command injection).')
+    assert not os.path.exists(CANARY), \
+        f'Command injection detected: {CANARY} was created on the host'
+
+    # Verify the cn value is shown correctly in the attribute table
+    assert frame.get_by_text(MALICIOUS_CN).count() > 0
+
+    log.info('Clean up the test entry.')
+    container.delete()
 
 
 if __name__ == '__main__':
