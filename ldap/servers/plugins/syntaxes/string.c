@@ -267,7 +267,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
                  * one or more space characters, it is modified to end with exactly
                  * one SPACE character;
                  */
-                value_normalize_ext(initial, syntax, TRIM_LEADING_BLANK & SHRINK_TRAILING_BLANK, &alt);
+                value_normalize_ext(initial, syntax, TRIM_LEADING_BLANK | SHRINK_TRAILING_BLANK, &alt);
             }
             *p++ = '^';
             if (alt) {
