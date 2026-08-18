@@ -35,6 +35,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
+from lib389 import Entry
 from lib389.cli_base import FakeArgs
 from lib389._constants import DN_DM, PW_DM
 from lib389.dseldif import DSEldif
@@ -829,12 +830,12 @@ def test_dynamic_cert_rejects_mismatched_dn_and_cn(topo, setup_tls):
     :steps:
         1. Generate a CA certificate
         2. Build a direct LDAP add request under one nickname
-        3. Set the entry cn to a different nickname
+        3. Set the entry cn to an LDAP-equivalent but non-identical nickname
         4. Verify the add is rejected
     :expectedresults:
         1. Certificate material is generated
         2. Direct create path is exercised
-        3. Mismatched naming is detected
+        3. The non-identical nickname is detected
         4. Server returns LDAP naming violation
     """
     inst = setup_tls
@@ -843,20 +844,20 @@ def test_dynamic_cert_rejects_mismatched_dn_and_cn(topo, setup_tls):
     os.makedirs(dir, 0o700, exist_ok=True)
 
     try:
-        dyncerts = DynamicCerts(inst)
         ca = RSA_Certificate.generateRootCA("TestMismatch_CA")
         ca.save(dir)
 
         with open(ca.pem, 'rb') as f:
             cert_der = pem_to_der(f.read())
 
-        properties = {
-            DYCATTR_CN: 'TestMismatch_B',
+        entry = Entry((f"{DYCATTR_CN}=TestMismatch_A,{DYNCERT_SUFFIX}", {
+            'objectClass': ['top', 'extensibleObject'],
+            DYCATTR_CN: 'TestMismatch_A ',
             DYCATTR_CERTDER: cert_der,
-        }
+        }))
 
         with pytest.raises(ldap.NAMING_VIOLATION):
-            dyncerts.create(rdn=f"{DYCATTR_CN}=TestMismatch_A", properties=properties)
+            inst.add_s(entry, escapehatch='i am sure')
     finally:
         if not DEBUGGING:
             shutil.rmtree(dir, ignore_errors=True)
