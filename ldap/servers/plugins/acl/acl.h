@@ -407,6 +407,17 @@ struct aci_container
 };
 typedef struct aci_container AciContainer;
 
+/* This structure is stored in the aclpb.
+ * It is a linked list containing the result of
+ * the filter matching against a specific entry.
+ *
+ * This list is free for each new entry in the aclpb*/
+struct targetfilter_cached_result {
+    char *filter;                            /* strdup of string representation of aci->targetFilter */
+    int matching_result;                     /* 0 does not match / 1 does match */
+    struct targetfilter_cached_result *next; /* next targetfilter already evaluated */
+};
+
 struct acl_pblock
 {
     int aclpb_state;
@@ -476,6 +487,8 @@ struct acl_pblock
 
     /* Current entry/dn/attr evaluation info */
     Slapi_Entry *aclpb_curr_entry; /* current Entry being processed */
+    int32_t targetfilter_cache_enabled;
+    struct targetfilter_cached_result *aclpb_curr_entry_targetfilters;
     int aclpb_num_entries;
     Slapi_DN *aclpb_curr_entry_sdn;    /* Entry's SDN */
     Slapi_DN *aclpb_authorization_sdn; /* dn used for authorization */
@@ -723,6 +736,7 @@ void acl_modified(Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change);
 
 int acl_access_allowed_disjoint_resource(Slapi_PBlock *pb, Slapi_Entry *e, char *attr, struct berval *val, int access);
 int acl_access_allowed_main(Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, struct berval *val, int access, int flags, char **errbuf);
+void targetfilter_cache_free(struct acl_pblock *aclpb);
 int acl_access_allowed(Slapi_PBlock *pb, Slapi_Entry *e, char *attr, struct berval *val, int access);
 aclUserGroup *acl_get_usersGroup(struct acl_pblock *aclpb, char *n_dn);
 void acl_print_acllib_err(NSErr_t *errp, char *str);

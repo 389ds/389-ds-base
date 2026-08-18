@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -17,7 +17,7 @@ from lib389.config import Encryption
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
@@ -31,16 +31,6 @@ libfaketime.reexec_if_needed()
 log = logging.getLogger(__name__)
 
 
-def is_fips():
-    if os.path.exists('/proc/sys/crypto/fips_enabled'):
-        with open('/proc/sys/crypto/fips_enabled', 'r') as f:
-            state = f.readline().strip()
-            if state == '1':
-                return True
-            else:
-                return False
-
-
 def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None):
     args = FakeArgs()
     args.instance = instance.serverid
@@ -49,6 +39,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.list_checks = False
     args.check = ['config', 'encryption', 'tls', 'fschecks']
     args.dry_run = False
+    args.exclude_check = []
 
     if json:
         log.info('Use healthcheck with --json option')
@@ -75,8 +66,6 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     topology.logcap.flush()
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     """Check if HealthCheck returns DSCLE0002 code
@@ -88,7 +77,7 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
         2. Configure an insecure passwordStorageScheme (as SHA) for the instance
         3. Use HealthCheck without --json option
         4. Use HealthCheck with --json option
-        5. Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2_SHA256
+        5. Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2_SHA512
         6. Use HealthCheck without --json option
         7. Use HealthCheck with --json option
     :expectedresults:
@@ -108,24 +97,32 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     log.info('Configure an insecure passwordStorageScheme (SHA)')
     standalone.config.set('passwordStorageScheme', 'SHA')
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
-    if is_fips():
-        log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to SSHA512 in FIPS mode')
-        standalone.config.set('passwordStorageScheme', 'SSHA512')
-        standalone.config.set('nsslapd-rootpwstoragescheme', 'SSHA512')
-    else:
-        log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2_SHA256')
-        standalone.config.set('passwordStorageScheme', 'PBKDF2_SHA256')
-        standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2_SHA256')
 
+    log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2-SHA512')
+    standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
+    standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2-SHA512')
+
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     """Check if HealthCheck returns DSELE0001 code
@@ -168,6 +165,13 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     enc.replace('sslVersionMin', SMALL_VS)
     standalone.restart()
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
@@ -175,6 +179,13 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     enc.replace('sslVersionMin', HIGHER_VS)
     standalone.restart()
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
@@ -183,8 +194,6 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
         assert subprocess.check_call(['update-crypto-policies', '--set', 'DEFAULT']) == 0
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_resolvconf_bad_file_perm(topology_st):
     """Check if HealthCheck returns DSPERMLE0001 code
@@ -216,18 +225,30 @@ def test_healthcheck_resolvconf_bad_file_perm(topology_st):
     log.info('Change the /etc/resolv.conf file permissions to 444')
     os.chmod('/etc/resolv.conf', 0o444)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     log.info('Change the /etc/resolv.conf file permissions to 644')
     os.chmod('/etc/resolv.conf', 0o644)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_pwdfile_bad_file_perm(topology_st):
     """Check if HealthCheck returns DSPERMLE0002 code
@@ -260,23 +281,35 @@ def test_healthcheck_pwdfile_bad_file_perm(topology_st):
     log.info('Change the /etc/dirsrv/slapd-{}/pwdfile.txt permissions to 000'.format(standalone.serverid))
     os.chmod('{}/pwdfile.txt'.format(cert_dir), 0o000)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     log.info('Change the /etc/dirsrv/slapd-{}/pwdfile.txt permissions to 400'.format(standalone.serverid))
     os.chmod('{}/pwdfile.txt'.format(cert_dir), 0o400)
 
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_certif_expiring_within_30d(topology_st):
     """Check if HealthCheck returns DSCERTLE0001 code
 
-    :id: c2165032-88ba-4978-a4ca-2fecfd8c35d8
+    :id: f30b8115-0fd3-4c1d-9f5a-383bea7ea869
     :setup: Standalone instance
     :steps:
         1. Create DS instance
@@ -301,16 +334,28 @@ def test_healthcheck_certif_expiring_within_30d(topology_st):
 
     with libfaketime.fake_time(date_future):
         time.sleep(1)
+        standalone.stop()
+        try:
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+        finally:
+            if not standalone.status():
+                standalone.start()
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     # Try again with real time just to make sure no issues were found
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_certif_expired(topology_st):
     """Check if HealthCheck returns DSCERTLE0002 code
@@ -340,10 +385,24 @@ def test_healthcheck_certif_expired(topology_st):
 
     with libfaketime.fake_time(date_future):
         time.sleep(1)
+        standalone.stop()
+        try:
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+            run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+        finally:
+            if not standalone.status():
+                standalone.start()
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
     # Try again with real time just to make sure no issues were found
+    standalone.stop()
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 

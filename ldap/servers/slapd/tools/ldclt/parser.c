@@ -154,7 +154,7 @@ parseVariant(
      * We need a variable !
      */
         if (obj->var[field->var] == NULL)
-            obj->var[field->var] = (char *)malloc(MAX_FILTER);
+            obj->var[field->var] = (char *)safe_malloc(MAX_FILTER);
     }
 
     /*
@@ -331,11 +331,11 @@ parseAttribValue(
      * Allocate a new field
      */
         if (field == NULL) {
-            field = (vers_field *)malloc(sizeof(vers_field));
+            field = (vers_field *)safe_malloc(sizeof(vers_field));
             field->next = NULL;
             attrib->field = field;
         } else {
-            field->next = (vers_field *)malloc(sizeof(vers_field));
+            field->next = (vers_field *)safe_malloc(sizeof(vers_field));
             field = field->next;
             field->next = NULL;
         }
@@ -364,7 +364,7 @@ parseAttribValue(
        * We need to allocate a buffer in this attribute !
        */
             if (attrib->buf == NULL) {
-                attrib->buf = (char *)malloc(MAX_FILTER);
+                attrib->buf = (char *)safe_malloc(MAX_FILTER);
                 if (mctx.mode & VERY_VERBOSE)
                     printf("parseAttribValue: buffer allocated\n");
             }
@@ -375,7 +375,7 @@ parseAttribValue(
             for (start = end; (line[end] != '\0') && (line[end] != '['); end++)
                 ;
             field->how = HOW_CONSTANT;
-            field->cst = (char *)malloc(1 + end - start);
+            field->cst = (char *)safe_malloc(1 + end - start);
             strncpy(field->cst, line + start, end - start);
             field->cst[end - start] = '\0';
         }
@@ -437,7 +437,7 @@ parseLine(
    */
     obj->attribs[obj->attribsNb].buf = NULL;
     obj->attribs[obj->attribsNb].src = strdup(line);
-    obj->attribs[obj->attribsNb].name = (char *)malloc(1 + end);
+    obj->attribs[obj->attribsNb].name = (char *)safe_malloc(1 + end);
     strncpy(obj->attribs[obj->attribsNb].name, line, end);
     obj->attribs[obj->attribsNb].name[end] = '\0';
     for (end++; line[end] == ' '; end++)

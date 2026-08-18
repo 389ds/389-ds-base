@@ -61,7 +61,7 @@ consumer_connection_extension_destructor(void *ext, void *object __attribute__((
          * a replica. If so, release it here.
          */
         consumer_connection_extension *connext = (consumer_connection_extension *)ext;
-        if (NULL != connext->replica_acquired) {
+        if (replica_check_validity(connext->replica_acquired)) {
             Replica *r = connext->replica_acquired;
             /* If a total update was in progress, abort it */
             if (REPL_PROTOCOL_50_TOTALUPDATE == connext->repl_protocol_version) {

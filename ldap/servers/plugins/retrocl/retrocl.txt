@@ -95,9 +95,10 @@ access control policy of the change log database.
 6. Caveats
 
 The change log does not currently record changes which are internally 
-constructed to resolve conflicts during multi-master replication.  As a 
-result, the change log should not be used in deployments which use multi-master
-replication with more than two masters or suppliers for a database.
+constructed to resolve conflicts during multi-supplier replication.  As a 
+result, the change log should not be used in deployments which use 
+multi-supplier replication with more than two providers or suppliers for a 
+database.
 
 ==
 

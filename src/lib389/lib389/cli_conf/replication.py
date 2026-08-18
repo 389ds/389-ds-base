@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,19 +7,35 @@
 # --- END COPYRIGHT BLOCK ---
 
 import re
-import logging
 import os
 import json
 import ldap
 import stat
+from datetime import datetime
 from shutil import copyfile
 from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
-from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog
+from lib389.cli_base import _get_arg, CustomHelpFormatter
+from lib389.utils import (
+    is_a_dn, copy_with_permissions, ds_supports_new_changelog,
+    get_passwd_from_file, validate_max_age)
+from lib389.repltools import ReplicationLogAnalyzer
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
+
+try:
+    import plotly
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+
+try:
+    import matplotlib
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 arg_to_attr = {
         # replica config
@@ -33,6 +49,7 @@ arg_to_attr = {
         'repl_backoff_min': 'nsds5replicabackoffmin',
         'repl_backoff_max': 'nsds5replicabackoffmax',
         'repl_release_timeout': 'nsds5replicareleasetimeout',
+        'repl_keepalive_update_interval': 'nsds5replicakeepaliveupdateinterval',
         # Changelog
         'cl_dir': 'nsslapd-changelogdir',
         'max_entries': 'nsslapd-changelogmaxentries',
@@ -85,7 +102,7 @@ def get_agmt(inst, args, winsync=False):
     try:
         agmt = agmts.get(agmt_name)
     except ldap.NO_SUCH_OBJECT:
-        raise ValueError("Could not find the agreement \"{}\" for suffix \"{}\"".format(agmt_name, args.suffix))
+        raise ValueError(f"Could not find the agreement \"{agmt_name}\" for suffix \"{args.suffix}\"")
     return agmt
 
 
@@ -111,10 +128,15 @@ def _args_to_attrs(args):
 #
 def get_ruv(inst, basedn, log, args):
     replicas = Replicas(inst)
-    replica = replicas.get(args.suffix)
+    try:
+        replica = replicas.get(args.suffix)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f"Suffix '{args.suffix}' is not configured for replication.")
     ruv = replica.get_ruv()
     ruv_dict = ruv.format_ruv()
     ruvs = ruv_dict['ruvs']
+    if len(ruvs) == 0:
+        raise ValueError(f"There is no RUV for suffix {args.suffix}.  Replica is not initialized.")
     if args and args.json:
         log.info(json.dumps({"type": "list", "items": ruvs}, indent=4))
     else:
@@ -135,7 +157,7 @@ def enable_replication(inst, basedn, log, args):
     role = args.role.lower()
     rid = args.replica_id
 
-    if role == "master":
+    if role == "supplier":
         repl_type = '3'
         repl_flag = '1'
     elif role == "hub":
@@ -146,7 +168,18 @@ def enable_replication(inst, basedn, log, args):
         repl_flag = '0'
     else:
         # error - unknown type
-        raise ValueError("Unknown replication role ({}), you must use \"master\", \"hub\", or \"consumer\"".format(role))
+        raise ValueError(f"Unknown replication role ({role}), you must use \"supplier\", \"hub\", or \"consumer\"")
+
+    if args.replica_id is not None:
+        # is it a number?
+        try:
+            rid_num = int(rid)
+        except ValueError:
+            raise ValueError("--replica-id expects a number between 1 and 65535")
+
+        # Is it in range?
+        if rid_num < 1 or rid_num > 65535:
+            raise ValueError("--replica-id expects a number between 1 and 65535")
 
     # Start the propeties and update them as needed
     repl_properties = {
@@ -157,25 +190,26 @@ def enable_replication(inst, basedn, log, args):
         'nsDS5ReplicaId': '65535'
         }
 
-    # Validate master settings
-    if role == "master":
+    # Validate supplier settings
+    if role == "supplier":
         # Do we have a rid?
         if not args.replica_id or args.replica_id is None:
-            # Error, master needs a rid TODO
-            raise ValueError('You must specify the replica ID (--replica-id) when enabling a \"master\" replica')
-
-        # is it a number?
-        try:
-            rid_num = int(rid)
-        except ValueError:
-            raise ValueError("--replica-id expects a number between 1 and 65534")
+            # Error, supplier needs a rid TODO
+            raise ValueError('You must specify the replica ID (--replica-id) when enabling a \"supplier\" replica')
 
         # Is it in range?
         if rid_num < 1 or rid_num > 65534:
-            raise ValueError("--replica-id expects a number between 1 and 65534")
+            raise ValueError("--replica-id expects a number between 1 and 65534 for supplier role")
 
         # rid is good add it to the props
         repl_properties['nsDS5ReplicaId'] = args.replica_id
+
+    # Validate consumer and hub settings
+    elif role == "consumer" or role == "hub":
+        # Check Replica ID
+        if args.replica_id is not None and rid_num != 65535:
+            # Error, Replica ID cannot be specified for consumer and hub roles
+            raise ValueError('Replica ID other than 65535 cannot be specified for consumer and hub roles')
 
     # Bind DN or Bind DN Group?
     if args.bind_group_dn:
@@ -202,15 +236,21 @@ def enable_replication(inst, basedn, log, args):
         raise ValueError("Replication is already enabled for this suffix")
 
     # Create replication manager if password was provided
-    if args.bind_dn and args.bind_passwd:
+    if args.bind_dn and (args.bind_passwd or args.bind_passwd_file or args.bind_passwd_prompt):
         rdn = args.bind_dn.split(",", 1)[0]
         rdn_attr, rdn_val = rdn.split("=", 1)
         manager = BootstrapReplicationManager(inst, dn=args.bind_dn, rdn_attr=rdn_attr)
+        if args.bind_passwd_file is not None:
+            passwd = get_passwd_from_file(args.bind_passwd_file)
+        elif args.bind_passwd_prompt:
+            passwd = _get_arg(None, msg="Enter Replication Manager password", hidden=True, confirm=True)
+        else:
+            passwd = args.bind_passwd
         try:
             manager.create(properties={
                 'cn': rdn_val,
                 'uid': rdn_val,
-                'userPassword': args.bind_passwd
+                'userPassword': passwd
             })
         except ldap.ALREADY_EXISTS:
             # Already there, but could have different password.  Delete and recreate
@@ -218,7 +258,7 @@ def enable_replication(inst, basedn, log, args):
             manager.create(properties={
                 'cn': rdn_val,
                 'uid': rdn_val,
-                'userPassword': args.bind_passwd
+                'userPassword': passwd
             })
         except ldap.NO_SUCH_OBJECT:
             # Invalid Entry
@@ -227,7 +267,7 @@ def enable_replication(inst, basedn, log, args):
             # Some other bad error
             raise ValueError("Failed to create replication manager entry: " + str(e))
 
-    log.info("Replication successfully enabled for \"{}\"".format(repl_root))
+    log.info(f"Replication successfully enabled for \"{repl_root}\"")
 
 
 def disable_replication(inst, basedn, log, args):
@@ -236,8 +276,8 @@ def disable_replication(inst, basedn, log, args):
         replica = replicas.get(args.suffix)
         replica.delete()
     except ldap.NO_SUCH_OBJECT:
-        raise ValueError("Backend \"{}\" is not enabled for replication".format(args.suffix))
-    log.info("Replication disabled for \"{}\"".format(args.suffix))
+        raise ValueError(f"Backend \"{args.suffix}\" is not enabled for replication")
+    log.info(f"Replication disabled for \"{args.suffix}\"")
 
 
 def promote_replica(inst, basedn, log, args):
@@ -245,17 +285,17 @@ def promote_replica(inst, basedn, log, args):
     replica = replicas.get(args.suffix)
     role = args.newrole.lower()
 
-    if role == 'master':
-        newrole = ReplicaRole.MASTER
+    if role == 'supplier':
+        newrole = ReplicaRole.SUPPLIER
         if args.replica_id is None:
-            raise ValueError("You need to provide a replica ID (--replica-id) to promote replica to a master")
+            raise ValueError("You need to provide a replica ID (--replica-id) to promote replica to a supplier")
     elif role == 'hub':
         newrole = ReplicaRole.HUB
     else:
-        raise ValueError("Invalid role ({}), you must use either \"master\" or \"hub\"".format(role))
+        raise ValueError(f"Invalid role ({role}), you must use either \"supplier\" or \"hub\"")
 
     replica.promote(newrole, binddn=args.bind_dn, binddn_group=args.bind_group_dn, rid=args.replica_id)
-    log.info("Successfully promoted replica to \"{}\"".format(role))
+    log.info(f"Successfully promoted replica to \"{role}\"")
 
 
 def demote_replica(inst, basedn, log, args):
@@ -268,10 +308,10 @@ def demote_replica(inst, basedn, log, args):
     elif role == 'consumer':
         newrole = ReplicaRole.CONSUMER
     else:
-        raise ValueError("Invalid role ({}), you must use either \"hub\" or \"consumer\"".format(role))
+        raise ValueError(f"Invalid role ({role}), you must use either \"hub\" or \"consumer\"")
 
     replica.demote(newrole)
-    log.info("Successfully demoted replica to \"{}\"".format(role))
+    log.info(f"Successfully demoted replica to \"{role}\"")
 
 
 def list_suffixes(inst, basedn, log, args):
@@ -293,7 +333,9 @@ def list_suffixes(inst, basedn, log, args):
 def get_repl_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
-    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd)
+    if args.bind_passwd_file is not None:
+        args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=args.bind_passwd_prompt)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -304,7 +346,9 @@ def get_repl_status(inst, basedn, log, args):
 def get_repl_winsync_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
-    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True)
+    if args.bind_passwd_file is not None:
+        args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True, pwprompt=args.bind_passwd_prompt)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -369,9 +413,16 @@ def set_repl_config(inst, basedn, log, args):
 
 def get_repl_monitor_info(inst, basedn, log, args):
     connection_data = dsrc_to_repl_monitor(DSRC_HOME, log)
+    credentials_cache = {}
 
     # Additional details for the connections to the topology
     def get_credentials(host, port):
+        # credentials_cache is nonlocal to refer to the instance
+        # from enclosing function (get_repl_monitor_info)`
+        nonlocal credentials_cache
+        key = f'{host}:{port}'
+        if key in credentials_cache:
+            return credentials_cache[key]
         found = False
         if args.connections:
             connections = args.connections
@@ -383,7 +434,7 @@ def get_repl_monitor_info(inst, basedn, log, args):
         if connections:
             for connection_str in connections:
                 connection = connection_str.split(":")
-                if (len(connection) != 4 or not all([len(str) > 0 for str in connection])):
+                if len(connection) != 4 or not all([len(str) > 0 for str in connection]):
                     raise ValueError(f"Please, fill in all Credential details. It should be host:port:binddn:bindpw")
                 host_regex = connection[0]
                 port_regex = connection[1]
@@ -406,8 +457,10 @@ def get_repl_monitor_info(inst, basedn, log, args):
             binddn = input(f'\nEnter a bind DN for {host}:{port}: ').rstrip()
             bindpw = getpass(f"Enter a password for {binddn} on {host}:{port}: ").rstrip()
 
-        return {"binddn": binddn,
-                "bindpw": bindpw}
+        credentials = {"binddn": binddn,
+                       "bindpw": bindpw}
+        credentials_cache[key] = credentials
+        return credentials
 
     repl_monitor = ReplicationMonitor(inst)
     report_dict = repl_monitor.generate_report(get_credentials, args.json)
@@ -438,15 +491,16 @@ def get_repl_monitor_info(inst, basedn, log, args):
             log.info(supplier_header)
 
         # Draw a line with the same length as the header
-        status = ""
         if not args.json:
             log.info("-".join(["" for _ in range(0, len(supplier_header)+1)]))
-        if report_data[0]["replica_status"].startswith("Unavailable"):
-            status = report_data[0]["replica_status"]
-            if not args.json:
-                log.info(f"Replica Status: {status}\n")
-        else:
-            for replica in report_data:
+
+        for replica in report_data:
+            if replica["replica_status"].startswith("Unreachable") or \
+                    replica["replica_status"].startswith("Unavailable"):
+                status = replica["replica_status"]
+                if not args.json:
+                    log.info(f"Replica Status: {status}\n")
+            else:
                 replica_root = replica["replica_root"]
                 replica_id = replica["replica_id"]
                 replica_status = replica["replica_status"]
@@ -466,6 +520,130 @@ def get_repl_monitor_info(inst, basedn, log, args):
 
     if args.json:
         log.info(json.dumps({"type": "list", "items": report_items}, indent=4))
+
+
+def generate_lag_report(inst, basedn, log, args):
+    """Generate detailed replication lag analysis report from server logs."""
+
+    # Validate input parameters
+    if not args.log_dirs:
+        raise ValueError("No log directories specified")
+
+    # Validate log directories
+    for log_dir in args.log_dirs:
+        if not os.path.isdir(log_dir):
+            raise ValueError(f"Log directory not found or not accessible: {log_dir}")
+
+    # Validate output directory
+    if not os.path.exists(args.output_dir):
+        try:
+            os.makedirs(args.output_dir)
+        except OSError as e:
+            raise ValueError(f"Cannot create output directory: {e}")
+    elif not os.access(args.output_dir, os.W_OK):
+        raise ValueError(f"Output directory not writable: {args.output_dir}")
+
+    # Determine output formats
+    formats = []
+    if args.output_format:
+        for fmt in args.output_format:
+            fmt = fmt.lower()
+            if fmt == 'json':
+                formats.append('json')
+            elif fmt == 'html':
+                formats.append('html')
+            elif fmt == 'png':
+                formats.append('png')
+            elif fmt == 'csv':
+                formats.append('csv')
+            else:
+                log.warning(f"Ignoring unknown format: {fmt}")
+
+    if not formats:  # Prefer JSON/CSV when no valid formats specified
+        formats.extend(['json', 'csv'])
+
+    # Deduplicate while preserving order
+    seen = set()
+    formats = [fmt for fmt in formats if not (fmt in seen or seen.add(fmt))]
+
+    # Parse time range if specified
+    time_range = {}
+    try:
+        if args.start_time:
+            time_range['start'] = datetime.strptime(args.start_time, '%Y-%m-%d %H:%M:%S')
+        if args.end_time:
+            time_range['end'] = datetime.strptime(args.end_time, '%Y-%m-%d %H:%M:%S')
+    except ValueError as e:
+        raise ValueError(f"Invalid time format. Use YYYY-MM-DD HH:MM:SS: {e}")
+
+    # Track if we're in json-only mode (for command output format)
+    json_output_only = args.json
+
+    try:
+        # Initialize ReplicationLogAnalyzer with enhanced options
+        if not json_output_only:
+            log.info("Initializing replication log analysis...")
+
+        repl_analyzer = ReplicationLogAnalyzer(
+            log_dirs=args.log_dirs,
+            suffixes=args.suffixes,
+            anonymous=args.anonymous,
+            only_fully_replicated=args.only_fully_replicated,
+            only_not_replicated=args.only_not_replicated,
+            lag_time_lowest=args.lag_time_lowest,
+            etime_lowest=args.etime_lowest,
+            utc_offset=args.utc_offset,
+            time_range=time_range,
+            sampling_mode=("none" if getattr(args, "precision", "balanced") == "full" else "auto"),
+            max_chart_points=getattr(args, "max_chart_points", None),
+            analysis_precision=getattr(args, "precision", "balanced")
+        )
+
+        # Parse logs
+        if not json_output_only:
+            log.info("Analyzing replication logs...")
+
+        repl_analyzer.parse_logs()
+
+        # Check if we have any data after parsing and filtering
+        if not repl_analyzer.csns:
+            error_msg = "No replication data found matching the specified criteria."
+            if args.lag_time_lowest is not None or args.etime_lowest is not None:
+                error_msg += "\n  - The threshold filters (lag time or etime) may be too restrictive."
+            if args.only_fully_replicated or args.only_not_replicated:
+                error_msg += "\n  - The replication status filter may have excluded all entries."
+            if time_range:
+                error_msg += "\n  - The time range may not contain any replication events."
+            error_msg += "\nTry adjusting the filters or expanding the time range."
+            raise ValueError(error_msg)
+
+        # Generate reports
+        if not json_output_only:
+            log.info("Generating analysis reports...")
+            log.info(f"Creating reports in formats: {formats}")  # Debug message
+
+        generated_files = repl_analyzer.generate_report(
+            output_dir=args.output_dir,
+            formats=formats,
+            report_name="replication_analysis"
+        )
+
+        # Report output locations - always as JSON if json flag is set
+        if json_output_only:
+            # Only output pure JSON, no additional messages
+            print(json.dumps({"type": "list", "items": generated_files}, indent=4))
+        else:
+            # Regular output mode with log messages
+            if args.json:
+                log.info(json.dumps({"type": "list", "items": generated_files}, indent=4))
+            else:
+                log.info("Generated report files:")
+                for fmt, path in generated_files.items():
+                    log.info(f"  {fmt}: {path}")
+
+    except Exception as e:
+        raise ValueError(f"Failed to generate replication lag report: {e}")
+
 
 # This subcommand is available when 'not ds_supports_new_changelog'
 def create_cl(inst, basedn, log, args):
@@ -518,6 +696,7 @@ def get_cl(inst, basedn, log, args):
     else:
         log.info(cl.display())
 
+
 # This subcommand is available when 'ds_supports_new_changelog'
 # that means there is a changelog config entry per backend (aka suffix)
 def set_per_backend_cl(inst, basedn, log, args):
@@ -526,6 +705,9 @@ def set_per_backend_cl(inst, basedn, log, args):
     attrs = _args_to_attrs(args)
     replace_list = []
     did_something = False
+
+    if (is_replica_role_consumer(inst, suffix)):
+        log.error("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
 
     if args.encrypt:
         cl.replace('nsslapd-encryptionalgorithm', 'AES')
@@ -537,6 +719,9 @@ def set_per_backend_cl(inst, basedn, log, args):
         del args.disable_encrypt
         did_something = True
         log.info("You must restart the server for this to take effect")
+
+    if args.max_age:
+        validate_max_age(args.max_age, ignore_value="-1")
 
     for attr, value in attrs.items():
         if value == "":
@@ -551,10 +736,15 @@ def set_per_backend_cl(inst, basedn, log, args):
 
     log.info("Successfully updated replication changelog")
 
+
 # This subcommand is available when 'ds_supports_new_changelog'
 # that means there is a changelog config entry per backend (aka suffix)
 def get_per_backend_cl(inst, basedn, log, args):
     suffix = args.suffix
+
+    if (is_replica_role_consumer(inst, suffix)):
+        log.error("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
+
     cl = Changelog(inst, suffix)
     if args and args.json:
         log.info(cl.get_all_attrs_json())
@@ -565,7 +755,6 @@ def get_per_backend_cl(inst, basedn, log, args):
 def create_repl_manager(inst, basedn, log, args):
     manager_name = "replication manager"
     repl_manager_password = ""
-    repl_manager_password_confirm = ""
 
     if args.name:
         manager_name = args.name
@@ -578,24 +767,18 @@ def create_repl_manager(inst, basedn, log, args):
         if manager_attr.lower() not in ['cn', 'uid']:
             raise ValueError(f'The RDN attribute "{manager_attr}" is not allowed, you must use "cn" or "uid"')
     else:
-        manager_dn = "cn={},cn=config".format(manager_name)
+        manager_dn = f"cn={manager_name},cn=config"
         manager_attr = "cn"
 
-    if args.passwd:
+    if args.passwd is not None:
         repl_manager_password = args.passwd
-    else:
-        # Prompt for password
-        while 1:
-            while repl_manager_password == "":
-                repl_manager_password = getpass("Enter replication manager password: ")
-            while repl_manager_password_confirm == "":
-                repl_manager_password_confirm = getpass("Confirm replication manager password: ")
-            if repl_manager_password_confirm == repl_manager_password:
-                break
-            else:
-                log.info("Passwords do not match!\n")
-                repl_manager_password = ""
-                repl_manager_password_confirm = ""
+    elif args.passwd_file is not None:
+        repl_manager_password = get_passwd_from_file(args.passwd_file)
+    elif args.bind_passwd_file is not None:
+        repl_manager_password = get_passwd_from_file(args.bind_passwd_file)
+    elif repl_manager_password == "":
+        repl_manager_password = _get_arg(None, msg=f"Enter replication manager password for \"{manager_dn}\"",
+                                         hidden=True, confirm=True)
 
     manager = BootstrapReplicationManager(inst, dn=manager_dn, rdn_attr=manager_attr)
     try:
@@ -614,7 +797,7 @@ def create_repl_manager(inst, basedn, log, args):
                 pass
         log.info("Successfully created replication manager: " + manager_dn)
     except ldap.ALREADY_EXISTS:
-        log.info("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
+        log.info(f"Replication Manager ({manager_dn}) already exists, recreating it...")
         # Already there, but could have different password.  Delete and recreate
         manager.delete()
         manager.create(properties={
@@ -642,7 +825,7 @@ def del_repl_manager(inst, basedn, log, args):
     if is_a_dn(args.name):
         manager_dn = args.name
     else:
-        manager_dn = "cn={},cn=config".format(args.name)
+        manager_dn = f"cn={args.name},cn=config"
     manager = BootstrapReplicationManager(inst, dn=manager_dn)
 
     try:
@@ -669,6 +852,22 @@ def del_repl_manager(inst, basedn, log, args):
 
     log.info("Successfully deleted replication manager: " + manager_dn)
 
+def is_replica_role_consumer(inst, suffix):
+    """Helper function for get_per_backend_cl and set_per_backend_cl.
+    Makes sure the instance in question is not a consumer, which is a role that
+    does not support changelogs.
+    """
+    replicas = Replicas(inst)
+    try:
+        replica = replicas.get(suffix)
+        role = replica.get_role()
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f"Backend \"{suffix}\" is not enabled for replication")
+
+    if role == ReplicaRole.CONSUMER:
+        return True
+    else:
+        return False
 
 #
 # Agreements
@@ -727,7 +926,13 @@ def add_agmt(inst, basedn, log, args):
         if not is_a_dn(args.bind_dn):
             raise ValueError("The replica bind DN is not a valid DN")
         properties['nsDS5ReplicaBindDN'] = args.bind_dn
-    if args.bind_passwd is not None:
+    if args.bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bind_passwd_file)
+        properties['nsDS5ReplicaCredentials'] = passwd
+    elif args.bind_passwd_prompt:
+        passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
+        properties['nsDS5ReplicaCredentials'] = passwd
+    elif args.bind_passwd is not None:
         properties['nsDS5ReplicaCredentials'] = args.bind_passwd
     if args.schedule is not None:
         properties['nsds5replicaupdateschedule'] = args.schedule
@@ -737,13 +942,34 @@ def add_agmt(inst, basedn, log, args):
         properties['nsds5replicatedattributelisttotal'] = frac_total_list
     if args.strip_list is not None:
         properties['nsds5replicastripattrs'] = args.strip_list
+    if args.conn_timeout is not None:
+        properties['nsds5replicatimeout'] = args.conn_timeout
+    if args.protocol_timeout is not None:
+        properties['nsds5replicaprotocoltimeout'] = args.protocol_timeout
+    if args.wait_async_results is not None:
+        properties['nsds5replicawaitforasyncresults'] = args.wait_async_results
+    if args.busy_wait_time is not None:
+        properties['nsds5replicabusywaittime'] = args.busy_wait_time
+    if args.session_pause_time is not None:
+        properties['nsds5replicaSessionPauseTime'] = args.session_pause_time
+    if args.flow_control_window is not None:
+        properties['nsds5replicaflowcontrolwindow'] = args.flow_control_window
+    if args.flow_control_pause is not None:
+        properties['nsds5replicaflowcontrolpause'] = args.flow_control_pause
 
     # Handle the optional bootstrap settings
     if args.bootstrap_bind_dn is not None:
         if not is_a_dn(args.bootstrap_bind_dn):
             raise ValueError("The replica bootstrap bind DN is not a valid DN")
         properties['nsDS5ReplicaBootstrapBindDN'] = args.bootstrap_bind_dn
-    if args.bootstrap_bind_passwd is not None:
+
+    if args.bootstrap_bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bootstrap_bind_passwd_file)
+        properties['nsDS5ReplicaBootstrapCredentials'] = passwd
+    elif args.bootstrap_bind_passwd_prompt:
+        passwd = _get_arg(None, msg="Enter bootstrap password", hidden=True, confirm=True)
+        properties['nsDS5ReplicaBootstrapCredentials'] = passwd
+    elif args.bootstrap_bind_passwd is not None:
         properties['nsDS5ReplicaBootstrapCredentials'] = args.bootstrap_bind_passwd
     if args.bootstrap_bind_method is not None:
         bs_bind_method = args.bootstrap_bind_method.lower()
@@ -756,9 +982,16 @@ def add_agmt(inst, basedn, log, args):
             raise ValueError('Bootstrap connection protocol can only be "LDAP", "LDAPS", or "STARTTLS"')
         properties['nsDS5ReplicaBootstrapTransportInfo'] = args.bootstrap_conn_protocol
 
-    # We do need the bind dn and credentials for none-sasl bind methods
-    if (bind_method in ('simple', 'sslclientauth')) and (args.bind_dn is None or args.bind_passwd is None):
-        raise ValueError("You need to set the bind dn (--bind-dn) and the password (--bind-passwd) for bind method ({})".format(bind_method))
+    # We do need the bind dn and credentials for 'simple' bind method
+    if (bind_method == 'simple') and (args.bind_dn is None or
+                                      (args.bind_passwd is None and
+                                       args.bind_passwd_file is None and
+                                       args.bind_passwd_prompt is False)):
+        raise ValueError(f"You need to set the bind dn (--bind-dn) and the password (--bind-passwd or -"
+                         f"-bind-passwd-file or --bind-passwd-prompt) for bind method ({bind_method})")
+
+    if args.init:
+        properties['nsds5BeginReplicaRefresh'] = 'start'
 
     # Create the agmt
     try:
@@ -766,9 +999,7 @@ def add_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    log.info("Successfully created replication agreement \"{}\"".format(get_agmt_name(args)))
-    if args.init:
-        init_agmt(inst, basedn, log, args)
+    log.info(f"Successfully created replication agreement \"{get_agmt_name(args)}\"")
 
 
 def delete_agmt(inst, basedn, log, args):
@@ -813,6 +1044,10 @@ def check_init_agmt(inst, basedn, log, args):
 
 def set_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
+    if args.bind_passwd_prompt:
+        args.bind_passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
+    if args.bootstrap_bind_passwd_prompt:
+        args.bootstrap_bind_passwd = _get_arg(None, msg="Enter bootstrap password", hidden=True, confirm=True)
     attrs = _args_to_attrs(args)
     modlist = []
     did_something = False
@@ -863,11 +1098,9 @@ def poke_agmt(inst, basedn, log, args):
 
 def get_agmt_status(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
-    if args.bind_dn is not None and args.bind_passwd is None:
-        args.bind_passwd = ""
-        while args.bind_passwd == "":
-            args.bind_passwd = getpass("Enter password for \"{}\": ".format(args.bind_dn))
-    status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd)
+    if args.bind_passwd_file is not None:
+        args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
+    status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=args.bind_passwd_prompt)
     log.info(status)
 
 
@@ -907,6 +1140,13 @@ def add_winsync_agmt(inst, basedn, log, args):
     if not is_a_dn(args.bind_dn):
         raise ValueError("The replica bind DN is not a valid DN")
 
+    if args.bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bind_passwd_file)
+    if args.bind_passwd_prompt:
+        passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
+    else:
+        passwd = args.bind_passwd
+
     # Required properties
     properties = {
             'cn': get_agmt_name(args),
@@ -916,7 +1156,7 @@ def add_winsync_agmt(inst, basedn, log, args):
             'nsDS5ReplicaPort': args.port,
             'nsDS5ReplicaTransportInfo': args.conn_protocol,
             'nsDS5ReplicaBindDN': args.bind_dn,
-            'nsDS5ReplicaCredentials': args.bind_passwd,
+            'nsDS5ReplicaCredentials': passwd,
             'nsds7windowsreplicasubtree': args.win_subtree,
             'nsds7directoryreplicasubtree': args.ds_subtree,
             'nsds7windowsDomain': args.win_domain,
@@ -929,7 +1169,7 @@ def add_winsync_agmt(inst, basedn, log, args):
         properties['nsds7newwingroupsyncenabled'] = args.sync_groups
     if args.sync_interval is not None:
         properties['winsyncinterval'] = args.sync_interval
-    if args.one_way_sync is not None:
+    if args.one_way_sync is not None and args.one_way_sync != "both":
         properties['onewaysync'] = args.one_way_sync
     if args.move_action is not None:
         properties['winsyncmoveAction'] = args.move_action
@@ -941,6 +1181,15 @@ def add_winsync_agmt(inst, basedn, log, args):
         properties['nsds5replicaupdateschedule'] = args.schedule
     if frac_list is not None:
         properties['nsds5replicatedattributelist'] = frac_list
+    if args.flatten_tree is True:
+        properties['winsyncflattentree'] = "on"
+
+    # We do need the bind dn and credentials for 'simple' bind method
+    if passwd is None:
+        raise ValueError("You need to provide a password (--bind-passwd, --bind-passwd-file, or --bind-passwd-prompt)")
+
+    if args.init:
+        properties['nsds5BeginReplicaRefresh'] = 'start'
 
     # Create the agmt
     try:
@@ -948,9 +1197,7 @@ def add_winsync_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    log.info("Successfully created winsync replication agreement \"{}\"".format(get_agmt_name(args)))
-    if args.init:
-        init_winsync_agmt(inst, basedn, log, args)
+    log.info(f"Successfully created winsync replication agreement \"{get_agmt_name(args)}\"")
 
 
 def delete_winsync_agmt(inst, basedn, log, args):
@@ -961,11 +1208,15 @@ def delete_winsync_agmt(inst, basedn, log, args):
 
 def set_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
-
+    if args.bind_passwd_prompt:
+        args.bind_passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
     attrs = _args_to_attrs(args)
     modlist = []
     did_something = False
     for attr, value in list(attrs.items()):
+        if attr == "onewaysync" and value == "both":
+            value == ""
+
         if value == "":
             # Delete value
             agmt.remove_all(attr)
@@ -1210,429 +1461,560 @@ def create_parser(subparsers):
     # Replication Configuration
     ############################################
 
-    repl_parser = subparsers.add_parser('replication', help='Configure replication for a suffix')
+    repl_parser = subparsers.add_parser('replication', aliases=['repl'], help='Manage replication for a suffix', formatter_class=CustomHelpFormatter)
     repl_subcommands = repl_parser.add_subparsers(help='Replication Configuration')
 
-    repl_enable_parser = repl_subcommands.add_parser('enable', help='Enable replication for a suffix')
+    repl_enable_parser = repl_subcommands.add_parser('enable', help='Enable replication for a suffix', formatter_class=CustomHelpFormatter)
     repl_enable_parser.set_defaults(func=enable_replication)
-    repl_enable_parser.add_argument('--suffix', required=True, help='The DN of the suffix to be enabled for replication')
-    repl_enable_parser.add_argument('--role', required=True, help="The Replication role: \"master\", \"hub\", or \"consumer\"")
-    repl_enable_parser.add_argument('--replica-id', help="The replication identifier for a \"master\".  Values range from 1 - 65534")
-    repl_enable_parser.add_argument('--bind-group-dn', help="A group entry DN containing members that are \"bind/supplier\" DNs")
-    repl_enable_parser.add_argument('--bind-dn', help="The Bind or Supplier DN that can make replication updates")
-    repl_enable_parser.add_argument('--bind-passwd', help="Password for replication manager(--bind-dn).  This will create the manager entry if a value is set")
+    repl_enable_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to be enabled for replication')
+    repl_enable_parser.add_argument('--role', required=True, help="Sets the replication role: \"supplier\", \"hub\", or \"consumer\"")
+    repl_enable_parser.add_argument('--replica-id', help="Sets the replication identifier for a \"supplier\".  Values range from 1 - 65534")
+    repl_enable_parser.add_argument('--bind-group-dn', help="Sets a group entry DN containing members that are \"bind/supplier\" DNs")
+    repl_enable_parser.add_argument('--bind-dn', help="Sets the bind or supplier DN that can make replication updates")
+    repl_enable_parser.add_argument('--bind-passwd',
+                                    help="Sets the password for replication manager (--bind-dn). This will create the "
+                                         "manager entry if a value is set")
+    repl_enable_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    repl_enable_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
 
-    repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix')
+    repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix', formatter_class=CustomHelpFormatter)
     repl_disable_parser.set_defaults(func=disable_replication)
-    repl_disable_parser.add_argument('--suffix', required=True, help='The DN of the suffix to have replication disabled')
+    repl_disable_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to have replication disabled')
 
-    repl_ruv_parser = repl_subcommands.add_parser('get-ruv', help='Get the database RUV entry for his suffix')
+    repl_ruv_parser = repl_subcommands.add_parser('get-ruv', help='Display the database RUV entry for a suffix', formatter_class=CustomHelpFormatter)
     repl_ruv_parser.set_defaults(func=get_ruv)
-    repl_ruv_parser.add_argument('--suffix', required=True, help='The DN of the replicated suffix')
+    repl_ruv_parser.add_argument('--suffix', required=True, help='Sets the DN of the replicated suffix')
 
-    repl_list_parser = repl_subcommands.add_parser('list', help='List all the replicated suffixes')
+    repl_list_parser = repl_subcommands.add_parser('list', help='Lists all the replicated suffixes', formatter_class=CustomHelpFormatter)
     repl_list_parser.set_defaults(func=list_suffixes)
 
-    repl_status_parser = repl_subcommands.add_parser('status', help='Get the current status of all the replication agreements')
+    repl_status_parser = repl_subcommands.add_parser('status', help='Display the current status of all the replication agreements', formatter_class=CustomHelpFormatter)
     repl_status_parser.set_defaults(func=get_repl_status)
-    repl_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
-    repl_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
-    repl_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
+    repl_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
+    repl_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. If not set, current instance's root DN will be used. It will be used for all agreements")
+    repl_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN. It will be used for all agreements")
+    repl_status_parser.add_argument('--bind-passwd-file', help="File containing the password. It will be used for all agreements")
+    repl_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for passwords for each agreement's instance separately")
 
-    repl_winsync_status_parser = repl_subcommands.add_parser('winsync-status', help='Get the current status of all the replication agreements')
+    repl_winsync_status_parser = repl_subcommands.add_parser('winsync-status', help='Display the current status of all '
+                                                                                    'the replication agreements')
     repl_winsync_status_parser.set_defaults(func=get_repl_winsync_status)
-    repl_winsync_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
-    repl_winsync_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
-    repl_winsync_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
+    repl_winsync_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
+    repl_winsync_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. Currectly not used")
+    repl_winsync_status_parser.add_argument('--bind-passwd', help="Sets the password of the bind DN. Currectly not used")
+    repl_winsync_status_parser.add_argument('--bind-passwd-file', help="File containing the password. Currectly not used")
+    repl_winsync_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password. Currectly not used")
 
-    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote replica to a Hub or Master')
+    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote a replica to a hub or supplier', formatter_class=CustomHelpFormatter)
     repl_promote_parser.set_defaults(func=promote_replica)
-    repl_promote_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix to promote")
-    repl_promote_parser.add_argument('--newrole', required=True, help='Promote this replica to a \"hub\" or \"master\"')
-    repl_promote_parser.add_argument('--replica-id', help="The replication identifier for a \"master\".  Values range from 1 - 65534")
-    repl_promote_parser.add_argument('--bind-group-dn', help="A group entry DN containing members that are \"bind/supplier\" DNs")
-    repl_promote_parser.add_argument('--bind-dn', help="The Bind or Supplier DN that can make replication updates")
+    repl_promote_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix to promote")
+    repl_promote_parser.add_argument('--newrole', required=True, help='Sets the new replica role to \"hub\" or \"supplier\"')
+    repl_promote_parser.add_argument('--replica-id', help="Sets the replication identifier for a \"supplier\".  Values range from 1 - 65534")
+    repl_promote_parser.add_argument('--bind-group-dn', help="Sets a group entry DN containing members that are \"bind/supplier\" DNs")
+    repl_promote_parser.add_argument('--bind-dn', help="Sets the bind or supplier DN that can make replication updates")
 
-    repl_add_manager_parser = repl_subcommands.add_parser('create-manager', help='Create a replication manager entry')
+    repl_add_manager_parser = repl_subcommands.add_parser('create-manager', help='Create a replication manager entry', formatter_class=CustomHelpFormatter)
     repl_add_manager_parser.set_defaults(func=create_repl_manager)
-    repl_add_manager_parser.add_argument('--name', help="The NAME of the new replication manager entry.  For example, " +
-                                                        "if the NAME is \"replication manager\" then the new manager " +
+    repl_add_manager_parser.add_argument('--name', help="Sets the name of the new replication manager entry.For example, " +
+                                                        "if the name is \"replication manager\" then the new manager " +
                                                         "entry's DN would be \"cn=replication manager,cn=config\".")
-    repl_add_manager_parser.add_argument('--passwd', help="Password for replication manager.  If not provided, you will be prompted for the password")
+    repl_add_manager_parser.add_argument('--passwd', help="Sets the password for replication manager. If not provided, "
+                                                          "you will be prompted for the password")
+    repl_add_manager_parser.add_argument('--passwd-file', help="File containing the password for back compatibility")
+    repl_add_manager_parser.add_argument('--bind-passwd-file', help="File containing the password")
     repl_add_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
                                                           'configuration you want to add this new manager to (OPTIONAL)')
 
-    repl_del_manager_parser = repl_subcommands.add_parser('delete-manager', help='Delete a replication manager entry')
+    repl_del_manager_parser = repl_subcommands.add_parser('delete-manager', help='Delete a replication manager entry', formatter_class=CustomHelpFormatter)
     repl_del_manager_parser.set_defaults(func=del_repl_manager)
-    repl_del_manager_parser.add_argument('--name', help="The NAME of the replication manager entry under cn=config:  \"cn=NAME,cn=config\"")
-    repl_del_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
+    repl_del_manager_parser.add_argument('--name', help="Sets the name of the replication manager entry under cn=config: \"cn=NAME,cn=config\"")
+    repl_del_manager_parser.add_argument('--suffix', help='Sets the DN of the replication suffix whose replication ' +
                                                           'configuration you want to remove this manager from (OPTIONAL)')
 
-    repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a Hub or Consumer')
+    repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a hub or consumer', formatter_class=CustomHelpFormatter)
     repl_demote_parser.set_defaults(func=demote_replica)
-    repl_demote_parser.add_argument('--suffix', required=True, help="Promote this replica to a \"hub\" or \"consumer\"")
-    repl_demote_parser.add_argument('--newrole', required=True, help="The Replication role: \"hub\", or \"consumer\"")
+    repl_demote_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
+    repl_demote_parser.add_argument('--newrole', required=True, help="Sets the new replication role to \"hub\", or \"consumer\"")
 
-    repl_get_parser = repl_subcommands.add_parser('get', help='Get replication configuration')
+    repl_get_parser = repl_subcommands.add_parser('get', help='Display the replication configuration', formatter_class=CustomHelpFormatter)
     repl_get_parser.set_defaults(func=get_repl_config)
-    repl_get_parser.add_argument('--suffix', required=True, help='Get the replication configuration for this suffix DN')
+    repl_get_parser.add_argument('--suffix', required=True, help='Sets the suffix DN for the replication configuration to display')
 
-    repl_set_per_backend_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes.')
+    repl_set_per_backend_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes', formatter_class=CustomHelpFormatter)
     repl_set_per_backend_cl.set_defaults(func=set_per_backend_cl)
-    repl_set_per_backend_cl.add_argument('--suffix', required=True, help='The suffix that uses the changelog')
-    repl_set_per_backend_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
-    repl_set_per_backend_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
-    repl_set_per_backend_cl.add_argument('--trim-interval', help="The interval to check if the replication changelog can be trimmed")
-    repl_set_per_backend_cl.add_argument('--encrypt', action='store_true', help="Set the replication changelog to use encryption.  You must export & import the changelog after setting this.")
-    repl_set_per_backend_cl.add_argument('--disable-encrypt', action='store_true', help="Set the replication changelog to not use encryption.  You must export & import the changelog after setting this.")
+    repl_set_per_backend_cl.add_argument('--suffix', required=True, help='Sets the suffix that uses the changelog')
+    repl_set_per_backend_cl.add_argument('--max-entries', help="Sets the maximum number of entries to get in the replication changelog")
+    repl_set_per_backend_cl.add_argument('--max-age',
+                                         help='Specifies the maximum age of any entry in the changelog. '
+                                              'The value must be a number followed by a duration unit [sSmMhHdDwW].')
+    repl_set_per_backend_cl.add_argument('--trim-interval', help="Sets the interval to check if the replication changelog can be trimmed")
+    repl_set_per_backend_cl.add_argument('--encrypt', action='store_true',
+                                         help="Sets the replication changelog to use encryption. You must export and "
+                                              "import the changelog after setting this.")
+    repl_set_per_backend_cl.add_argument('--disable-encrypt', action='store_true',
+                                         help="Sets the replication changelog to not use encryption. You must export "
+                                              "and import the changelog after setting this.")
 
-    repl_get_per_backend_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
+    repl_get_per_backend_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes', formatter_class=CustomHelpFormatter)
     repl_get_per_backend_cl.set_defaults(func=get_per_backend_cl)
-    repl_get_per_backend_cl.add_argument('--suffix', required=True, help='The suffix that uses the changelog')
+    repl_get_per_backend_cl.add_argument('--suffix', required=True, help='Sets the suffix that uses the changelog')
 
-    repl_export_cl = repl_subcommands.add_parser('export-changelog', help='Export the Directory Server replication changelog to an LDIF')
-    export_subcommands = repl_export_cl.add_subparsers(help='Export Replication Changelog')
-    repl_export_cl = export_subcommands.add_parser('to-ldif', help='Export the specific single LDIF file.  '
+    repl_export_cl = repl_subcommands.add_parser('export-changelog', help='Export the Directory Server replication changelog to an LDIF file', formatter_class=CustomHelpFormatter)
+    export_subcommands = repl_export_cl.add_subparsers(help='Export replication changelog')
+    repl_export_cl = export_subcommands.add_parser('to-ldif', help='Sets the LDIF file name. '
                                                                    'This is typically used for setting up changelog encryption')
     repl_export_cl.set_defaults(func=dump_cl)
     repl_export_cl.add_argument('-c', '--csn-only', action='store_true',
-                                help="Export and interpret CSN only. This option can be used with or without -i option.  "
-                                     "The LDIF file that is generated can not be imported and is only used debugging purposes")
+                                help="Enables to export and interpret CSN only. This option can be used with or without -i option. "
+                                     "The LDIF file that is generated can not be imported and is only used for debugging purposes.")
     repl_export_cl.add_argument('-d', '--decode', action='store_true',
-                                help="Decode the base64 values in each changelog entry.  "
-                                     "The LDIF file that is generated can not be imported and is only used debugging purposes")
+                                help="Decodes the base64 values in each changelog entry. "
+                                     "The LDIF file that is generated can not be imported and is only used for debugging purposes.")
     repl_export_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
-                              help="Preserve generated ldif.done files in changelog dirextory.")
+                              help="Preserves generated LDIF \"files.done\" files in changelog directory.")
     repl_export_cl.add_argument('-i', '--changelog-ldif',
-                                help="If you already have a changelog LDIF file, but the changes in that file are encoded,"
-                                     " you may use this option to decode the changes in that LDIF file.")
-    repl_export_cl.add_argument('-o', '--output-file', required=True, help="Path name for the final result.")
+                                help="Decodes changes in an LDIF file. Use this option if you already have a changelog LDIF file, "
+                                     "but the changes in that file are encoded.")
+    repl_export_cl.add_argument('-o', '--output-file', required=True, help="Sets the path name for the final result")
     repl_export_cl.add_argument('-r', '--replica-root', required=True,
-                                help="Specify replica root whose changelog you want to export.")
+                                help="Specifies the replica root whose changelog you want to export")
 
-    repl_def_export_cl = export_subcommands.add_parser('default', help='Export the replication changelog to the server\'s default LDIF directory.')
+    repl_def_export_cl = export_subcommands.add_parser('default', help='Export the replication changelog to the server\'s default LDIF directory', formatter_class=CustomHelpFormatter)
     repl_def_export_cl.set_defaults(func=dump_def_cl)
     repl_def_export_cl.add_argument('-r', '--replica-root', required=True,
-                                    help="Specify replica root whose changelog you want to export.")
+                                    help="Specifies the replica root whose changelog you want to export")
 
     repl_import_cl = repl_subcommands.add_parser('import-changelog',
-        help='Restore/Import Directory Server replication change log from an LDIF file.  This is typically used when managing changelog encryption')
-    import_subcommands = repl_import_cl.add_subparsers(help='Restore/Import Replication Changelog')
-    import_ldif = import_subcommands.add_parser('from-ldif', help='Restore/Import a specific single LDIF file.')
+        help='Restore/import Directory Server replication change log from an LDIF file. This is typically used when managing changelog encryption')
+    import_subcommands = repl_import_cl.add_subparsers(help='Restore/import replication changelog')
+    import_ldif = import_subcommands.add_parser('from-ldif', help='Restore/import a specific single LDIF file', formatter_class=CustomHelpFormatter)
     import_ldif.set_defaults(func=restore_cl_ldif)
-    import_ldif.add_argument('LDIF_PATH', nargs=1, help='The path of the changelog LDIF file.')
+    import_ldif.add_argument('LDIF_PATH', nargs=1, help='The path of the changelog LDIF file')
     import_ldif.add_argument('-r', '--replica-root', required=True,
-                             help="Specify the replica root whose changelog you want to import.")
+                             help="Specifies the replica root whose changelog you want to import")
 
     import_def_ldif = import_subcommands.add_parser('default',
-        help='Import the default changelog LDIF file created by the server.')
+        help='Import the default changelog LDIF file created by the server')
     import_def_ldif.set_defaults(func=restore_cl_def_ldif)
     import_def_ldif.add_argument('-r', '--replica-root', required=True,
-                                 help="Specify the replica root whose changelog you want to import.")
+                                 help="Specifies the replica root whose changelog you want to import")
 
-    repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
+    repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration', formatter_class=CustomHelpFormatter)
     repl_set_parser.set_defaults(func=set_repl_config)
-    repl_set_parser.add_argument('--suffix', required=True, help='The DN of the replication suffix')
-    repl_set_parser.add_argument('--repl-add-bind-dn', help="Add a bind (supplier) DN")
-    repl_set_parser.add_argument('--repl-del-bind-dn', help="Remove a bind (supplier) DN")
-    repl_set_parser.add_argument('--repl-add-ref', help="Add a replication referral (for consumers only)")
-    repl_set_parser.add_argument('--repl-del-ref', help="Remove a replication referral (for conusmers only)")
-    repl_set_parser.add_argument('--repl-purge-delay', help="The replication purge delay")
-    repl_set_parser.add_argument('--repl-tombstone-purge-interval', help="The interval in seconds to check for tombstones that can be purged")
-    repl_set_parser.add_argument('--repl-fast-tombstone-purging', help="Set to \"on\" to improve tombstone purging performance")
-    repl_set_parser.add_argument('--repl-bind-group', help="A group entry DN containing members that are \"bind/supplier\" DNs")
-    repl_set_parser.add_argument('--repl-bind-group-interval', help="An interval in seconds to check if the bind group has been updated")
-    repl_set_parser.add_argument('--repl-protocol-timeout', help="A timeout in seconds on how long to wait before stopping "
+    repl_set_parser.add_argument('--suffix', required=True, help='Sets the DN of the replication suffix')
+    repl_set_parser.add_argument('--repl-add-bind-dn', help="Adds a bind (supplier) DN")
+    repl_set_parser.add_argument('--repl-del-bind-dn', help="Removes a bind (supplier) DN")
+    repl_set_parser.add_argument('--repl-add-ref', help="Adds a replication referral (for consumers only)")
+    repl_set_parser.add_argument('--repl-del-ref', help="Removes a replication referral (for conusmers only)")
+    repl_set_parser.add_argument('--repl-purge-delay', help="Sets the replication purge delay")
+    repl_set_parser.add_argument('--repl-tombstone-purge-interval', help="Sets the interval in seconds to check for tombstones that can be purged")
+    repl_set_parser.add_argument('--repl-fast-tombstone-purging', help="Enables or disables improving the tombstone purging performance")
+    repl_set_parser.add_argument('--repl-bind-group', help="Sets a group entry DN containing members that are \"bind/supplier\" DNs")
+    repl_set_parser.add_argument('--repl-bind-group-interval', help="Sets an interval in seconds to check if the bind group has been updated")
+    repl_set_parser.add_argument('--repl-protocol-timeout', help="Sets a timeout in seconds on how long to wait before stopping "
                                                                  "replication when the server is under load")
     repl_set_parser.add_argument('--repl-backoff-max', help="The maximum time in seconds a replication agreement should stay in a backoff state "
-                                                            "while waiting to acquire the consumer.  Default is 300 seconds")
+                                                            "while waiting to acquire the consumer. Default is 300 seconds")
     repl_set_parser.add_argument('--repl-backoff-min', help="The starting time in seconds a replication agreement should stay in a backoff state "
-                                                            "while waiting to acquire the consumer.  Default is 3 seconds")
-    repl_set_parser.add_argument('--repl-release-timeout', help="A timeout in seconds a replication master should send "
+                                                            "while waiting to acquire the consumer. Default is 3 seconds")
+    repl_set_parser.add_argument('--repl-release-timeout', help="A timeout in seconds a replication supplier should send "
                                                                 "updates before it yields its replication session")
+    repl_set_parser.add_argument('--repl-keepalive-update-interval', help="Interval in seconds for how often the server will apply "
+                                                                          "an internal update to keep the RUV from getting stale. "
+                                                                          "The default is 1 hour (3600 seconds)")
 
-    repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Get the full replication topology report')
+    repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Display the full replication topology report', formatter_class=CustomHelpFormatter)
     repl_monitor_parser.set_defaults(func=get_repl_monitor_info)
     repl_monitor_parser.add_argument('-c', '--connections', nargs="*",
-                                     help="The connection values for monitoring other not connected topologies. "
+                                     help="Sets the connection values for monitoring other not connected topologies. "
                                           "The format: 'host:port:binddn:bindpwd'. You can use regex for host and port. "
                                           "You can set bindpwd to * and it will be requested at the runtime or "
                                           "you can include the path to the password file in square brackets - [~/pwd.txt]")
     repl_monitor_parser.add_argument('-a', '--aliases', nargs="*",
-                                     help="If a host:port is assigned an alias, then the alias instead of "
-                                          "host:port will be displayed in the output. The format: alias=host:port")
-#
+                                     help="Enables displaying an alias instead of host:port, if an alias is "
+                                          "assigned to a host:port combination. The format: alias=host:port")
+
+    repl_lag_report_parser = repl_subcommands.add_parser('lag-report',
+        help='Generate detailed replication lag monitoring report',
+        formatter_class=CustomHelpFormatter)
+    repl_lag_report_parser.set_defaults(func=generate_lag_report)
+
+    # Input options group
+    input_group = repl_lag_report_parser.add_argument_group('Input options')
+    input_group.add_argument('--log-dirs', nargs='+', required=True,
+        help='List of log directories to analyze')
+    input_group.add_argument('--suffixes', nargs='+', required=True,
+        help='List of suffixes to analyze')
+
+    # Output options group
+    output_group = repl_lag_report_parser.add_argument_group('Output options')
+    output_group.add_argument('--output-dir', required=True,
+        help='Directory to write analysis reports to')
+    output_group.add_argument('--output-format', nargs='+', default=['html'],
+                         help='One or more output formats: html, json, png, csv. Default: html')
+    output_group.add_argument('--json', action='store_true',
+                          help='Output the result as JSON (for UI integration/programmatic use)')
+
+    # Filtering options group
+    filter_group = repl_lag_report_parser.add_argument_group('Filtering options')
+
+    # Create mutually exclusive group for replication filters
+    repl_filter_group = filter_group.add_mutually_exclusive_group()
+    repl_filter_group.add_argument('--only-fully-replicated', action='store_true',
+        help='Show only fully replicated entries')
+    repl_filter_group.add_argument('--only-not-replicated', action='store_true',
+        help='Show only entries that failed to replicate')
+
+    # Other filtering options
+    filter_group.add_argument('--lag-time-lowest', type=float,
+        help='Filter entries with lag time above this threshold (seconds)')
+    filter_group.add_argument('--etime-lowest', type=float,
+        help='Filter entries with etime above this threshold (seconds)')
+
+    # Time range options subgroup
+    time_group = repl_lag_report_parser.add_argument_group('Time range options')
+    time_group.add_argument('--start-time',
+        default='1970-01-01 00:00:00',
+        help='Start time for analysis (YYYY-MM-DD HH:MM:SS)')
+    time_group.add_argument('--end-time',
+        default='9999-12-31 23:59:59',
+        help='End time for analysis (YYYY-MM-DD HH:MM:SS)')
+
+    # Additional options group
+    additional_group = repl_lag_report_parser.add_argument_group('Additional options')
+    additional_group.add_argument('--utc-offset',
+        help='UTC offset in ±HHMM format (e.g., -0400, +0530)')
+    additional_group.add_argument('--anonymous', action='store_true',
+        help='Anonymize server names in the report')
+
+    # Performance options
+    perf_group = repl_lag_report_parser.add_argument_group('Performance options')
+    perf_group.add_argument('--precision', choices=['fast', 'balanced', 'full'], default='balanced',
+        help='Analysis precision vs speed: fast (more sampling), balanced (default), full (no sampling)')
+    perf_group.add_argument('--max-chart-points', type=int,
+        help='Maximum total data points to include across all chart series (sampling applied if exceeded). Default depends on --precision')
+
     ############################################
     # Replication Agmts
     ############################################
 
-    agmt_parser = subparsers.add_parser('repl-agmt', help='Manage replication agreements')
+    agmt_parser = subparsers.add_parser('repl-agmt', help='Manage replication agreements', formatter_class=CustomHelpFormatter)
     agmt_subcommands = agmt_parser.add_subparsers(help='Replication Agreement Configuration')
 
     # List
-    agmt_list_parser = agmt_subcommands.add_parser('list', help='List all the replication agreements')
+    agmt_list_parser = agmt_subcommands.add_parser('list', help='List all replication agreements', formatter_class=CustomHelpFormatter)
     agmt_list_parser.set_defaults(func=list_agmts)
-    agmt_list_parser.add_argument('--suffix', required=True, help='The DN of the suffix to look up replication agreements')
-    agmt_list_parser.add_argument('--entry', help='Return the entire entry for each agreement')
+    agmt_list_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to look up replication agreements for')
+    agmt_list_parser.add_argument('--entry', help='Returns the entire entry for each agreement')
 
     # Enable
-    agmt_enable_parser = agmt_subcommands.add_parser('enable', help='Enable replication agreement')
+    agmt_enable_parser = agmt_subcommands.add_parser('enable', help='Enable replication agreement', formatter_class=CustomHelpFormatter)
     agmt_enable_parser.set_defaults(func=enable_agmt)
     agmt_enable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_enable_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_enable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Disable
-    agmt_disable_parser = agmt_subcommands.add_parser('disable', help='Disable replication agreement')
+    agmt_disable_parser = agmt_subcommands.add_parser('disable', help='Disable replication agreement', formatter_class=CustomHelpFormatter)
     agmt_disable_parser.set_defaults(func=disable_agmt)
     agmt_disable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_disable_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_disable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Initialize
-    agmt_init_parser = agmt_subcommands.add_parser('init', help='Initialize replication agreement')
+    agmt_init_parser = agmt_subcommands.add_parser('init', help='Initialize replication agreement', formatter_class=CustomHelpFormatter)
     agmt_init_parser.set_defaults(func=init_agmt)
     agmt_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_init_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Check Initialization progress
-    agmt_check_init_parser = agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status')
+    agmt_check_init_parser = agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status', formatter_class=CustomHelpFormatter)
     agmt_check_init_parser.set_defaults(func=check_init_agmt)
     agmt_check_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_check_init_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_check_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Send Updates Now
-    agmt_poke_parser = agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now')
+    agmt_poke_parser = agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now', formatter_class=CustomHelpFormatter)
     agmt_poke_parser.set_defaults(func=poke_agmt)
     agmt_poke_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_poke_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_poke_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Status
-    agmt_status_parser = agmt_subcommands.add_parser('status', help='Get the current status of the replication agreement')
+    agmt_status_parser = agmt_subcommands.add_parser('status', help='Displays the current status of the replication agreement', formatter_class=CustomHelpFormatter)
     agmt_status_parser.set_defaults(func=get_agmt_status)
     agmt_status_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
-    agmt_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
-    agmt_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
+    agmt_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
+    agmt_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. If not set, current instance's root DN will be used. It will be used for all agreements")
+    agmt_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN. It will be used for all agreements")
+    agmt_status_parser.add_argument('--bind-passwd-file', help="File containing the password. It will be used for all agreements")
+    agmt_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for passwords for each agreement's instance separately")
 
     # Delete
-    agmt_del_parser = agmt_subcommands.add_parser('delete', help='Delete replication agreement')
+    agmt_del_parser = agmt_subcommands.add_parser('delete', help='Delete replication agreement', formatter_class=CustomHelpFormatter)
     agmt_del_parser.set_defaults(func=delete_agmt)
     agmt_del_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_del_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_del_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Create
-    agmt_add_parser = agmt_subcommands.add_parser('create', help='Initialize replication agreement')
+    agmt_add_parser = agmt_subcommands.add_parser('create', help='Initialize replication agreement', formatter_class=CustomHelpFormatter)
     agmt_add_parser.set_defaults(func=add_agmt)
     agmt_add_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_add_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
-    agmt_add_parser.add_argument('--host', required=True, help="The hostname of the remote replica")
-    agmt_add_parser.add_argument('--port', required=True, help="The port number of the remote replica")
-    agmt_add_parser.add_argument('--conn-protocol', required=True, help="The replication connection protocol: LDAP, LDAPS, or StartTLS")
-    agmt_add_parser.add_argument('--bind-dn', help="The Bind DN the agreement uses to authenticate to the replica")
-    agmt_add_parser.add_argument('--bind-passwd', help="The credentials for the Bind DN")
-    agmt_add_parser.add_argument('--bind-method', required=True, help="The bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
-    agmt_add_parser.add_argument('--frac-list', help="List of attributes to NOT replicate to the consumer during incremental updates")
-    agmt_add_parser.add_argument('--frac-list-total', help="List of attributes to NOT replicate during a total initialization")
-    agmt_add_parser.add_argument('--strip-list', help="A list of attributes that are removed from updates only if the event "
-                                                      "would otherwise be empty.  Typically this is set to \"modifiersname\" and \"modifytimestmap\"")
+    agmt_add_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
+    agmt_add_parser.add_argument('--host', required=True, help="Sets the hostname of the remote replica")
+    agmt_add_parser.add_argument('--port', required=True, help="Sets the port number of the remote replica")
+    agmt_add_parser.add_argument('--conn-protocol', required=True, help="Sets the replication connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_add_parser.add_argument('--bind-dn', help="Sets the bind DN the agreement uses to authenticate to the replica")
+    agmt_add_parser.add_argument('--bind-passwd', help="Sets the credentials for the bind DN")
+    agmt_add_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    agmt_add_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    agmt_add_parser.add_argument('--bind-method', required=True,
+                                 help="Sets the bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
+    agmt_add_parser.add_argument('--frac-list', help="Sets the list of attributes to NOT replicate to the consumer during incremental updates")
+    agmt_add_parser.add_argument('--frac-list-total', help="Sets the list of attributes to NOT replicate during a total initialization")
+    agmt_add_parser.add_argument('--strip-list', help="Sets a list of attributes that are removed from updates only if the event "
+                                                      "would otherwise be empty. Typically this is set to \"modifiersname\" and \"modifytimestmap\"")
     agmt_add_parser.add_argument('--schedule', help="Sets the replication update schedule: 'HHMM-HHMM DDDDDDD'  D = 0-6 (Sunday - Saturday).")
-    agmt_add_parser.add_argument('--conn-timeout', help="The timeout used for replication connections")
-    agmt_add_parser.add_argument('--protocol-timeout', help="A timeout in seconds on how long to wait before stopping "
+    agmt_add_parser.add_argument('--conn-timeout', help="Sets the timeout used for replication connections")
+    agmt_add_parser.add_argument('--protocol-timeout', help="Sets a timeout in seconds on how long to wait before stopping "
                                                             "replication when the server is under load")
-    agmt_add_parser.add_argument('--wait-async-results', help="The amount of time in milliseconds the server waits if "
+    agmt_add_parser.add_argument('--wait-async-results', help="Sets the amount of time in milliseconds the server waits if "
                                                               "the consumer is not ready before resending data")
-    agmt_add_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
+    agmt_add_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
                                                           "a consumer sends back a busy response before making another "
                                                           "attempt to acquire access.")
-    agmt_add_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
-    agmt_add_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
-    agmt_add_parser.add_argument('--flow-control-pause', help="The time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
-    agmt_add_parser.add_argument('--bootstrap-bind-dn', help="An optional Bind DN the agreement can use to bootstrap initialization when bind groups are being used")
-    agmt_add_parser.add_argument('--bootstrap-bind-passwd', help="The bootstrap credentials for the Bind DN")
-    agmt_add_parser.add_argument('--bootstrap-conn-protocol', help="The replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
-    agmt_add_parser.add_argument('--bootstrap-bind-method', help="The bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
-    agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initialize the agreement after creating it.")
+    agmt_add_parser.add_argument('--session-pause-time', help="Sets the amount of time in seconds a supplier should wait between update sessions.")
+    agmt_add_parser.add_argument('--flow-control-window',
+                                 help="Sets the maximum number of entries and updates sent by a supplier, which are not "
+                                      "acknowledged by the consumer.")
+    agmt_add_parser.add_argument('--flow-control-pause',
+                                 help="Sets the time in milliseconds to pause after reaching the number of entries and "
+                                      "updates set in \"--flow-control-window\"")
+    agmt_add_parser.add_argument('--bootstrap-bind-dn',
+                                 help="Sets an optional bind DN the agreement can use to bootstrap initialization when "
+                                      "bind groups are being used")
+    agmt_add_parser.add_argument('--bootstrap-bind-passwd', help="Sets the bootstrap credentials for the bind DN")
+    agmt_add_parser.add_argument('--bootstrap-bind-passwd-file', help="File containing the password")
+    agmt_add_parser.add_argument('--bootstrap-bind-passwd-prompt', action='store_true', help="File containing the password")
+    agmt_add_parser.add_argument('--bootstrap-conn-protocol',
+                                 help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_add_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
+    agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
     # Set - Note can not use add's parent args because for "set" there are no "required=True" args
-    agmt_set_parser = agmt_subcommands.add_parser('set', help='Set an attribute in the replication agreement')
+    agmt_set_parser = agmt_subcommands.add_parser('set', help='Set an attribute in the replication agreement', formatter_class=CustomHelpFormatter)
     agmt_set_parser.set_defaults(func=set_agmt)
     agmt_set_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    agmt_set_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
-    agmt_set_parser.add_argument('--host', help="The hostname of the remote replica")
-    agmt_set_parser.add_argument('--port', help="The port number of the remote replica")
-    agmt_set_parser.add_argument('--conn-protocol', help="The replication connection protocol: LDAP, LDAPS, or StartTLS")
-    agmt_set_parser.add_argument('--bind-dn', help="The Bind DN the agreement uses to authenticate to the replica")
-    agmt_set_parser.add_argument('--bind-passwd', help="The credentials for the Bind DN")
-    agmt_set_parser.add_argument('--bind-method', help="The bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
-    agmt_set_parser.add_argument('--frac-list', help="List of attributes to NOT replicate to the consumer during incremental updates")
-    agmt_set_parser.add_argument('--frac-list-total', help="List of attributes to NOT replicate during a total initialization")
-    agmt_set_parser.add_argument('--strip-list', help="A list of attributes that are removed from updates only if the event "
-                                                      "would otherwise be empty.  Typically this is set to \"modifiersname\" and \"modifytimestmap\"")
+    agmt_set_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
+    agmt_set_parser.add_argument('--host', help="Sets the hostname of the remote replica")
+    agmt_set_parser.add_argument('--port', help="Sets the port number of the remote replica")
+    agmt_set_parser.add_argument('--conn-protocol', help="Sets the replication connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_set_parser.add_argument('--bind-dn', help="Sets the Bind DN the agreement uses to authenticate to the replica")
+    agmt_set_parser.add_argument('--bind-passwd', help="Sets the credentials for the bind DN")
+    agmt_set_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    agmt_set_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    agmt_set_parser.add_argument('--bind-method', help="Sets the bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
+    agmt_set_parser.add_argument('--frac-list', help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
+    agmt_set_parser.add_argument('--frac-list-total', help="Sets a list of attributes to NOT replicate during a total initialization")
+    agmt_set_parser.add_argument('--strip-list', help="Sets a list of attributes that are removed from updates only if the event "
+                                                      "would otherwise be empty. Typically this is set to \"modifiersname\" and \"modifytimestmap\"")
     agmt_set_parser.add_argument('--schedule', help="Sets the replication update schedule: 'HHMM-HHMM DDDDDDD'  D = 0-6 (Sunday - Saturday).")
-    agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replication connections")
-    agmt_set_parser.add_argument('--protocol-timeout', help="A timeout in seconds on how long to wait before stopping "
+    agmt_set_parser.add_argument('--conn-timeout', help="Sets the timeout used for replication connections")
+    agmt_set_parser.add_argument('--protocol-timeout', help="Sets a timeout in seconds on how long to wait before stopping "
                                                             "replication when the server is under load")
-    agmt_set_parser.add_argument('--wait-async-results', help="The amount of time in milliseconds the server waits if "
+    agmt_set_parser.add_argument('--wait-async-results', help="Sets the amount of time in milliseconds the server waits if "
                                                               "the consumer is not ready before resending data")
-    agmt_set_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
+    agmt_set_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
                                  "a consumer sends back a busy response before making another attempt to acquire access.")
-    agmt_set_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
-    agmt_set_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
-    agmt_set_parser.add_argument('--flow-control-pause', help="The time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
-    agmt_set_parser.add_argument('--bootstrap-bind-dn', help="An optional Bind DN the agreement can use to bootstrap initialization when bind groups are being used")
-    agmt_set_parser.add_argument('--bootstrap-bind-passwd', help="The bootstrap credentials for the Bind DN")
-    agmt_set_parser.add_argument('--bootstrap-conn-protocol', help="The replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
-    agmt_set_parser.add_argument('--bootstrap-bind-method', help="The bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
+    agmt_set_parser.add_argument('--session-pause-time',
+                                 help="Sets the amount of time in seconds a supplier should wait between update sessions.")
+    agmt_set_parser.add_argument('--flow-control-window',
+                                 help="Sets the maximum number of entries and updates sent by a supplier, which are not "
+                                      "acknowledged by the consumer.")
+    agmt_set_parser.add_argument('--flow-control-pause',
+                                 help="Sets the time in milliseconds to pause after reaching the number of entries and "
+                                      "updates set in \"--flow-control-window\"")
+    agmt_set_parser.add_argument('--bootstrap-bind-dn',
+                                 help="Sets an optional bind DN the agreement can use to bootstrap initialization when "
+                                      "bind groups are being used")
+    agmt_set_parser.add_argument('--bootstrap-bind-passwd', help="sets the bootstrap credentials for the bind DN")
+    agmt_set_parser.add_argument('--bootstrap-bind-passwd-file', help="File containing the password")
+    agmt_set_parser.add_argument('--bootstrap-bind-passwd-prompt', action='store_true', help="Prompt for password")
+    agmt_set_parser.add_argument('--bootstrap-conn-protocol',
+                                 help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_set_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
 
     # Get
-    agmt_get_parser = agmt_subcommands.add_parser('get', help='Get replication configuration')
+    agmt_get_parser = agmt_subcommands.add_parser('get', help='Get replication configuration', formatter_class=CustomHelpFormatter)
     agmt_get_parser.set_defaults(func=get_repl_agmt)
-    agmt_get_parser.add_argument('AGMT_NAME', nargs=1, help='Get the replication configuration for this suffix DN')
-    agmt_get_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    agmt_get_parser.add_argument('AGMT_NAME', nargs=1, help='The suffix DN for which to display the replication configuration')
+    agmt_get_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     ############################################
     # Replication Winsync Agmts
     ############################################
 
-    winsync_parser = subparsers.add_parser('repl-winsync-agmt', help='Manage Winsync Agreements')
-    winsync_agmt_subcommands = winsync_parser.add_subparsers(help='Replication Winsync Agreement Configuration')
+    winsync_parser = subparsers.add_parser('repl-winsync-agmt', help='Manage Winsync agreements', formatter_class=CustomHelpFormatter)
+    winsync_agmt_subcommands = winsync_parser.add_subparsers(help='Replication Winsync Agreement configuration')
 
     # List
-    winsync_agmt_list_parser = winsync_agmt_subcommands.add_parser('list', help='List all the replication winsync agreements')
+    winsync_agmt_list_parser = winsync_agmt_subcommands.add_parser('list', help='List all the replication winsync agreements', formatter_class=CustomHelpFormatter)
     winsync_agmt_list_parser.set_defaults(func=list_winsync_agmts)
-    winsync_agmt_list_parser.add_argument('--suffix', required=True, help='The DN of the suffix to look up replication winsync agreements')
+    winsync_agmt_list_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to look up replication winsync agreements')
 
     # Enable
-    winsync_agmt_enable_parser = winsync_agmt_subcommands.add_parser('enable', help='Enable replication winsync agreement')
+    winsync_agmt_enable_parser = winsync_agmt_subcommands.add_parser('enable', help='Enable replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_enable_parser.set_defaults(func=enable_winsync_agmt)
     winsync_agmt_enable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_enable_parser.add_argument('--suffix', required=True, help="The DN of the replication winsync suffix")
+    winsync_agmt_enable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Disable
-    winsync_agmt_disable_parser = winsync_agmt_subcommands.add_parser('disable', help='Disable replication winsync agreement')
+    winsync_agmt_disable_parser = winsync_agmt_subcommands.add_parser('disable', help='Disable replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_disable_parser.set_defaults(func=disable_winsync_agmt)
     winsync_agmt_disable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_disable_parser.add_argument('--suffix', required=True, help="The DN of the replication winsync suffix")
+    winsync_agmt_disable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Initialize
-    winsync_agmt_init_parser = winsync_agmt_subcommands.add_parser('init', help='Initialize replication winsync agreement')
+    winsync_agmt_init_parser = winsync_agmt_subcommands.add_parser('init', help='Initialize replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_init_parser.set_defaults(func=init_winsync_agmt)
     winsync_agmt_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_init_parser.add_argument('--suffix', required=True, help="The DN of the replication winsync suffix")
+    winsync_agmt_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Check Initialization progress
-    winsync_agmt_check_init_parser = winsync_agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status')
+    winsync_agmt_check_init_parser = winsync_agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status', formatter_class=CustomHelpFormatter)
     winsync_agmt_check_init_parser.set_defaults(func=check_winsync_init_agmt)
     winsync_agmt_check_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    winsync_agmt_check_init_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    winsync_agmt_check_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Send Updates Now
-    winsync_agmt_poke_parser = winsync_agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now')
+    winsync_agmt_poke_parser = winsync_agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now', formatter_class=CustomHelpFormatter)
     winsync_agmt_poke_parser.set_defaults(func=poke_winsync_agmt)
     winsync_agmt_poke_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_poke_parser.add_argument('--suffix', required=True, help="The DN of the replication winsync suffix")
+    winsync_agmt_poke_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Status
-    winsync_agmt_status_parser = winsync_agmt_subcommands.add_parser('status', help='Get the current status of the replication agreement')
+    winsync_agmt_status_parser = winsync_agmt_subcommands.add_parser('status', help='Display the current status of the replication agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_status_parser.set_defaults(func=get_winsync_agmt_status)
     winsync_agmt_status_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
-    winsync_agmt_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    winsync_agmt_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Delete
-    winsync_agmt_del_parser = winsync_agmt_subcommands.add_parser('delete', help='Delete replication winsync agreement')
+    winsync_agmt_del_parser = winsync_agmt_subcommands.add_parser('delete', help='Delete replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_del_parser.set_defaults(func=delete_winsync_agmt)
     winsync_agmt_del_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_del_parser.add_argument('--suffix', required=True, help="The DN of the replication winsync suffix")
+    winsync_agmt_del_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Create
-    winsync_agmt_add_parser = winsync_agmt_subcommands.add_parser('create', help='Initialize replication winsync agreement')
+    winsync_agmt_add_parser = winsync_agmt_subcommands.add_parser('create', help='Initialize replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_add_parser.set_defaults(func=add_winsync_agmt)
     winsync_agmt_add_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_add_parser.add_argument('--suffix', required=True, help="The DN of the replication winsync suffix")
-    winsync_agmt_add_parser.add_argument('--host', required=True, help="The hostname of the AD server")
-    winsync_agmt_add_parser.add_argument('--port', required=True, help="The port number of the AD server")
-    winsync_agmt_add_parser.add_argument('--conn-protocol', required=True, help="The replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
-    winsync_agmt_add_parser.add_argument('--bind-dn', required=True, help="The Bind DN the agreement uses to authenticate to the AD Server")
-    winsync_agmt_add_parser.add_argument('--bind-passwd', required=True, help="The credentials for the Bind DN")
-    winsync_agmt_add_parser.add_argument('--frac-list', help="List of attributes to NOT replicate to the consumer during incremental updates")
+    winsync_agmt_add_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
+    winsync_agmt_add_parser.add_argument('--host', required=True, help="Sets the hostname of the AD server")
+    winsync_agmt_add_parser.add_argument('--port', required=True, help="Sets the port number of the AD server")
+    winsync_agmt_add_parser.add_argument('--conn-protocol', required=True,
+                                         help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
+    winsync_agmt_add_parser.add_argument('--bind-dn', required=True,
+                                         help="Sets the bind DN the agreement uses to authenticate to the AD Server")
+    winsync_agmt_add_parser.add_argument('--bind-passwd', help="Sets the credentials for the Bind DN")
+    winsync_agmt_add_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    winsync_agmt_add_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    winsync_agmt_add_parser.add_argument('--frac-list',
+                                         help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
     winsync_agmt_add_parser.add_argument('--schedule', help="Sets the replication update schedule")
-    winsync_agmt_add_parser.add_argument('--win-subtree', required=True, help="The suffix of the AD Server")
-    winsync_agmt_add_parser.add_argument('--ds-subtree', required=True, help="The Directory Server suffix")
-    winsync_agmt_add_parser.add_argument('--win-domain', required=True, help="The AD Domain")
-    winsync_agmt_add_parser.add_argument('--sync-users', help="Synchronize Users between AD and DS")
-    winsync_agmt_add_parser.add_argument('--sync-groups', help="Synchronize Groups between AD and DS")
-    winsync_agmt_add_parser.add_argument('--sync-interval', help="The interval that DS checks AD for changes in entries")
-    winsync_agmt_add_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", \"fromWindows\", \"both\"")
-    winsync_agmt_add_parser.add_argument('--move-action', help="Sets instructions on how to handle moved or deleted entries: \"none\", \"unsync\", or \"delete\"")
-    winsync_agmt_add_parser.add_argument('--win-filter', help="Custom filter for finding users in AD Server")
-    winsync_agmt_add_parser.add_argument('--ds-filter', help="Custom filter for finding AD users in DS Server")
-    winsync_agmt_add_parser.add_argument('--subtree-pair', help="Set the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
-    winsync_agmt_add_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
-    winsync_agmt_add_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
-                                         "a consumer sends back a busy response before making another attempt to acquire access.")
-    winsync_agmt_add_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
-    winsync_agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initialize the agreement after creating it.")
+    winsync_agmt_add_parser.add_argument('--win-subtree', required=True, help="Sets the suffix of the AD Server")
+    winsync_agmt_add_parser.add_argument('--ds-subtree', required=True, help="Sets the Directory Server suffix")
+    winsync_agmt_add_parser.add_argument('--win-domain', required=True, help="Sets the AD Domain")
+    winsync_agmt_add_parser.add_argument('--sync-users', help="Synchronizes users between AD and DS")
+    winsync_agmt_add_parser.add_argument('--sync-groups', help="Synchronizes groups between AD and DS")
+    winsync_agmt_add_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
+    winsync_agmt_add_parser.add_argument('--one-way-sync',
+                                         help="Sets which direction to perform synchronization: \"toWindows\", or "
+                                              "\"fromWindows\".  By default sync occurs in both directions.")
+    winsync_agmt_add_parser.add_argument('--move-action',
+                                         help="Sets instructions on how to handle moved or deleted entries: "
+                                              "\"none\", \"unsync\", or \"delete\"")
+    winsync_agmt_add_parser.add_argument('--win-filter', help="Sets a custom filter for finding users in AD Server")
+    winsync_agmt_add_parser.add_argument('--ds-filter', help="Sets a custom filter for finding AD users in DS")
+    winsync_agmt_add_parser.add_argument('--subtree-pair', help="Sets the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
+    winsync_agmt_add_parser.add_argument('--conn-timeout', help="Sets the timeout used for replicaton connections")
+    winsync_agmt_add_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
+                                         "a consumer sends back a busy response before making another attempt to acquire access")
+    winsync_agmt_add_parser.add_argument('--session-pause-time',
+                                         help="Sets the amount of time in seconds a supplier should wait between update sessions")
+    winsync_agmt_add_parser.add_argument('--flatten-tree', action='store_true', default=False,
+                                         help="By default, the tree structure of AD is preserved into 389. This MAY "
+                                              "cause replication to fail in some cases, as you may need to create "
+                                              "missing OU's to recreate the same treestructure. This setting when "
+                                              "enabled, removes the tree structure of AD and flattens all entries "
+                                              "into the ds-subtree. This does NOT affect or change the tree structure "
+                                              "of the AD directory.")
+    winsync_agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
     # Set - Note can not use add's parent args because for "set" there are no "required=True" args
-    winsync_agmt_set_parser = winsync_agmt_subcommands.add_parser('set', help='Set an attribute in the replication winsync agreement')
+    winsync_agmt_set_parser = winsync_agmt_subcommands.add_parser('set', help='Set an attribute in the replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_set_parser.set_defaults(func=set_winsync_agmt)
     winsync_agmt_set_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
-    winsync_agmt_set_parser.add_argument('--suffix', help="The DN of the replication winsync suffix")
-    winsync_agmt_set_parser.add_argument('--host', help="The hostname of the AD server")
-    winsync_agmt_set_parser.add_argument('--port', help="The port number of the AD server")
-    winsync_agmt_set_parser.add_argument('--conn-protocol', help="The replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
-    winsync_agmt_set_parser.add_argument('--bind-dn', help="The Bind DN the agreement uses to authenticate to the AD Server")
-    winsync_agmt_set_parser.add_argument('--bind-passwd', help="The credentials for the Bind DN")
-    winsync_agmt_set_parser.add_argument('--frac-list', help="List of attributes to NOT replicate to the consumer during incremental updates")
+    winsync_agmt_set_parser.add_argument('--suffix', help="Sets the DN of the replication winsync suffix")
+    winsync_agmt_set_parser.add_argument('--host', help="Sets the hostname of the AD server")
+    winsync_agmt_set_parser.add_argument('--port', help="Sets the port number of the AD server")
+    winsync_agmt_set_parser.add_argument('--conn-protocol', help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
+    winsync_agmt_set_parser.add_argument('--bind-dn', help="Sets the bind DN the agreement uses to authenticate to the AD Server")
+    winsync_agmt_set_parser.add_argument('--bind-passwd', help="Sets the credentials for the Bind DN")
+    winsync_agmt_set_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    winsync_agmt_set_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    winsync_agmt_set_parser.add_argument('--frac-list', help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
     winsync_agmt_set_parser.add_argument('--schedule', help="Sets the replication update schedule")
-    winsync_agmt_set_parser.add_argument('--win-subtree', help="The suffix of the AD Server")
-    winsync_agmt_set_parser.add_argument('--ds-subtree', help="The Directory Server suffix")
-    winsync_agmt_set_parser.add_argument('--win-domain', help="The AD Domain")
-    winsync_agmt_set_parser.add_argument('--sync-users', help="Synchronize Users between AD and DS")
-    winsync_agmt_set_parser.add_argument('--sync-groups', help="Synchronize Groups between AD and DS")
-    winsync_agmt_set_parser.add_argument('--sync-interval', help="The interval that DS checks AD for changes in entries")
-    winsync_agmt_set_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", \"fromWindows\", \"both\"")
-    winsync_agmt_set_parser.add_argument('--move-action', help="Sets instructions on how to handle moved or deleted entries: \"none\", \"unsync\", or \"delete\"")
-    winsync_agmt_set_parser.add_argument('--win-filter', help="Custom filter for finding users in AD Server")
-    winsync_agmt_set_parser.add_argument('--ds-filter', help="Custom filter for finding AD users in DS Server")
-    winsync_agmt_set_parser.add_argument('--subtree-pair', help="Set the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
-    winsync_agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
-    winsync_agmt_set_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
-                                         "a consumer sends back a busy response before making another attempt to acquire access.")
-    winsync_agmt_set_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
+    winsync_agmt_set_parser.add_argument('--win-subtree', help="Sets the suffix of the AD Server")
+    winsync_agmt_set_parser.add_argument('--ds-subtree', help="Sets the Directory Server suffix")
+    winsync_agmt_set_parser.add_argument('--win-domain', help="Sets the AD Domain")
+    winsync_agmt_set_parser.add_argument('--sync-users', help="Synchronizes users between AD and DS")
+    winsync_agmt_set_parser.add_argument('--sync-groups', help="Synchronizes groups between AD and DS")
+    winsync_agmt_set_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
+    winsync_agmt_set_parser.add_argument('--one-way-sync',
+                                         help="Sets which direction to perform synchronization: \"toWindows\", or "
+                                              "\"fromWindows\".  By default sync occurs in both directions.")
+    winsync_agmt_set_parser.add_argument('--move-action',
+                                         help="Sets instructions on how to handle moved or deleted entries: \"none\", "
+                                              "\"unsync\", or \"delete\"")
+    winsync_agmt_set_parser.add_argument('--win-filter', help="Sets a custom filter for finding users in AD Server")
+    winsync_agmt_set_parser.add_argument('--ds-filter', help="Sets a custom filter for finding AD users in DS")
+    winsync_agmt_set_parser.add_argument('--subtree-pair', help="Sets the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
+    winsync_agmt_set_parser.add_argument('--conn-timeout', help="Sets the timeout used for replicaton connections")
+    winsync_agmt_set_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
+                                         "a consumer sends back a busy response before making another attempt to acquire access")
+    winsync_agmt_set_parser.add_argument('--session-pause-time',
+                                         help="Sets the amount of time in seconds a supplier should wait between update sessions")
 
     # Get
-    winsync_agmt_get_parser = winsync_agmt_subcommands.add_parser('get', help='Get replication configuration')
+    winsync_agmt_get_parser = winsync_agmt_subcommands.add_parser('get', help='Display replication configuration', formatter_class=CustomHelpFormatter)
     winsync_agmt_get_parser.set_defaults(func=get_winsync_agmt)
-    winsync_agmt_get_parser.add_argument('AGMT_NAME', nargs=1, help='Get the replication configuration for this suffix DN')
-    winsync_agmt_get_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    winsync_agmt_get_parser.add_argument('AGMT_NAME', nargs=1, help='The suffix DN for the replication configuration to display')
+    winsync_agmt_get_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     ############################################
     # Replication Tasks (cleanalruv)
     ############################################
 
-    tasks_parser = subparsers.add_parser('repl-tasks', help='Manage replication tasks')
-    task_subcommands = tasks_parser.add_subparsers(help='Replication Tasks')
+    tasks_parser = subparsers.add_parser('repl-tasks', help='Manage replication tasks', formatter_class=CustomHelpFormatter)
+    task_subcommands = tasks_parser.add_subparsers(help='Replication tasks')
 
     # Cleanallruv
-    task_cleanallruv = task_subcommands.add_parser('cleanallruv', help='Cleanup old/removed replica IDs')
+    task_cleanallruv = task_subcommands.add_parser('cleanallruv', help='Cleanup old/removed replica IDs', formatter_class=CustomHelpFormatter)
     task_cleanallruv.set_defaults(func=run_cleanallruv)
-    task_cleanallruv.add_argument('--suffix', required=True, help="The Directory Server suffix")
-    task_cleanallruv.add_argument('--replica-id', required=True, help="The replica ID to remove/clean")
+    task_cleanallruv.add_argument('--suffix', required=True, help="Sets the Directory Server suffix")
+    task_cleanallruv.add_argument('--replica-id', required=True, help="Sets the replica ID to remove/clean")
     task_cleanallruv.add_argument('--force-cleaning', action='store_true', default=False,
-                                  help="Ignore errors and do a best attempt to clean all the replicas")
+                                  help="Ignores errors and make a best attempt to clean all replicas")
 
-    task_cleanallruv_list = task_subcommands.add_parser('list-cleanruv-tasks', help='List all the running CleanAllRUV tasks')
+    task_cleanallruv_list = task_subcommands.add_parser('list-cleanruv-tasks', help='List all the running CleanAllRUV tasks', formatter_class=CustomHelpFormatter)
     task_cleanallruv_list.set_defaults(func=list_cleanallruv)
-    task_cleanallruv_list.add_argument('--suffix', help="List only tasks from for suffix")
+    task_cleanallruv_list.add_argument('--suffix', help="Lists only tasks for the specified suffix")
 
     # Abort cleanallruv
-    task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Abort cleanallruv tasks')
+    task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Abort cleanallruv tasks', formatter_class=CustomHelpFormatter)
     task_abort_cleanallruv.set_defaults(func=abort_cleanallruv)
-    task_abort_cleanallruv.add_argument('--suffix', required=True, help="The Directory Server suffix")
-    task_abort_cleanallruv.add_argument('--replica-id', required=True, help="The replica ID of the cleaning task to abort")
+    task_abort_cleanallruv.add_argument('--suffix', required=True, help="Sets the Directory Server suffix")
+    task_abort_cleanallruv.add_argument('--replica-id', required=True, help="Sets the replica ID of the cleaning task to abort")
     task_abort_cleanallruv.add_argument('--certify', action='store_true', default=False,
-                                        help="Enforce that the abort task completed on all replicas")
+                                        help="Enforces that the abort task completed on all replicas")
 
-    task_abort_cleanallruv_list = task_subcommands.add_parser('list-abortruv-tasks', help='List all the running CleanAllRUV abort Tasks')
+    task_abort_cleanallruv_list = task_subcommands.add_parser('list-abortruv-tasks', help='List all the running CleanAllRUV abort tasks', formatter_class=CustomHelpFormatter)
     task_abort_cleanallruv_list.set_defaults(func=list_abort_cleanallruv)
-    task_abort_cleanallruv_list.add_argument('--suffix', help="List only tasks from for suffix")
+    task_abort_cleanallruv_list.add_argument('--suffix', help="Lists only tasks for the specified suffix")

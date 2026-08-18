@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -14,6 +14,7 @@
 
 /* modify.c - ldbm backend modify routine */
 
+#include <assert.h>
 #include "back-ldbm.h"
 
 extern char *numsubordinates;
@@ -149,8 +150,8 @@ modify_unswitch_entries(modify_context *mc, backend *be)
 
 /* This routine does that part of a modify operation which involves
    updating the on-disk data: updates idices, id2entry.
-   Copes properly with DB_LOCK_DEADLOCK. The caller must be able to cope with
-   DB_LOCK_DEADLOCK returned.
+   Copes properly with DBI_RC_RETRY. The caller must be able to cope with
+   DBI_RC_RETRY returned.
    The caller is presumed to proceed as follows:
     Find the entry you want to modify;
     Lock it for modify;
@@ -176,20 +177,26 @@ modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *t
         slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
         is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     }
+    if (NULL == mc->new_entry) {
+        /* test entry to avoid crashing in id2entry_add_ext */
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "modify_update_all",
+                      "No entry in modify_context ==> operation is aborted.\n");
+        return -1;
+    }
     /*
      * Update the ID to Entry index.
      * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
      */
     retval = id2entry_add_ext(be, mc->new_entry, txn, mc->attr_encrypt, NULL);
     if (0 != retval) {
-        if (DB_LOCK_DEADLOCK != retval) {
+        if (DBI_RC_RETRY != retval) {
             ldbm_nasty(function_name, "", 66, retval);
         }
         goto error;
     }
     retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(mc->smods), mc->old_entry, mc->new_entry, txn);
     if (0 != retval) {
-        if (DB_LOCK_DEADLOCK != retval) {
+        if (DBI_RC_RETRY != retval) {
             ldbm_nasty(function_name, "", 65, retval);
         }
         goto error;
@@ -203,7 +210,7 @@ modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *t
     if (NULL != pb && !is_ruv) {
         retval = vlv_update_all_indexes(txn, be, pb, mc->old_entry, mc->new_entry);
         if (0 != retval) {
-            if (DB_LOCK_DEADLOCK != retval) {
+            if (DBI_RC_RETRY != retval) {
                 ldbm_nasty(function_name, "", 64, retval);
             }
             goto error;
@@ -216,7 +223,7 @@ error:
 int32_t
 entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, Slapi_Mods **smods_ret)
 {
-    unsigned long op_type = SLAPI_OPERATION_NONE;
+    int op_type = SLAPI_OPERATION_NONE;
     char *new_rdn = NULL;
     char **dns = NULL;
     char **rdns = NULL;
@@ -394,10 +401,10 @@ modify_apply_check_expand(
                     switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) {
                     case LDAP_MOD_ADD:
                     case LDAP_MOD_REPLACE:
-                        ec->ep_entry->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+                        ec->ep_entry->e_flags |= SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
                         break;
                     case LDAP_MOD_DELETE:
-                        ec->ep_entry->e_flags &= ~SLAPI_ENTRY_LDAPSUBENTRY;
+                        ec->ep_entry->e_flags &= ~SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
                         break;
                     }
                     break;
@@ -419,8 +426,8 @@ modify_apply_check_expand(
         goto done;
     }
 
-    /* multimaster replication can result in a schema violation,
-     * although the individual operations on each master were valid
+    /* multisupplier replication can result in a schema violation,
+     * although the individual operations on each supplier were valid
      * It is too late to resolve this. But we can check schema and
      * add a replication conflict attribute.
      */
@@ -500,7 +507,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     modify_context ruv_c = {0};
     int ruv_c_init = 0;
     int retval = -1;
-    char *msg;
+    const char *msg;
     char *errbuf = NULL;
     int retry_count = 0;
     int disk_full = 0;
@@ -511,6 +518,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     entry_address *addr;
     int is_fixup_operation = 0;
     int is_ruv = 0; /* True if the current entry is RUV */
+    int is_internal = 0;
     CSN *opcsn = NULL;
     int repl_op;
     int opreturn = 0;
@@ -521,6 +529,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     int ec_locked = 0;
     int result_sent = 0;
     int32_t parent_op = 0;
+    int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
     struct timespec parent_time;
     Slapi_Mods *smods_add_rdn = NULL;
 
@@ -533,6 +542,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 
     fixup_tombstone = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_FIXUP);
+    is_internal = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     dblayer_txn_init(li, &txn); /* must do this before first goto error_return */
     /* the calls to perform searches require the parent txn if any
@@ -548,6 +558,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
         txn.back_txn_txn = parent_txn;
     } else {
         parent_txn = txn.back_txn_txn;
+        /* coverity[var_deref_model] */
         slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
     }
 
@@ -696,6 +707,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
                     goto error_return; /* error result sent by find_entry2modify() */
                 }
             }
+            assert(e);
 
             if (!is_fixup_operation && !fixup_tombstone) {
                 if (!repl_op && slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
@@ -814,6 +826,9 @@ ldbm_back_modify(Slapi_PBlock *pb)
                 slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
             }
             slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+            if (retval) {
+                betxn_callback_fails = 1;
+            }
             goto error_return;
         }
 
@@ -855,7 +870,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
          * stays the same.
          */
         retval = id2entry_add_ext(be, ec, &txn, 1, &cache_rc);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Abort and re-try */
             continue;
         }
@@ -869,7 +884,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
             goto error_return;
         }
         retval = index_add_mods(be, mods, e, ec, &txn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Abort and re-try */
             continue;
         }
@@ -885,7 +900,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
 
         if (smods_add_rdn && slapi_mods_get_num_mods(smods_add_rdn) > 0) {
             retval = index_add_mods(be, (LDAPMod **) slapi_mods_get_ldapmods_byref(smods_add_rdn), e, ec, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 slapi_mods_free(&smods_add_rdn);
                 continue;
@@ -906,7 +921,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
          */
         if (!is_ruv) {
             retval = vlv_update_all_indexes(&txn, be, pb, e, ec);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -935,7 +950,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
 
         if (ruv_c_init) {
             retval = modify_update_all(be, pb, &ruv_c, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -1014,10 +1029,12 @@ ldbm_back_modify(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+        betxn_callback_fails = 1;
         goto error_return;
     }
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
     if (retval) {
+        betxn_callback_fails = 1;
         ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
         goto error_return;
     }
@@ -1037,17 +1054,12 @@ ldbm_back_modify(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
-    /* Revert the caches if this is the parent operation */
-    if (parent_op) {
-        revert_cache(inst, &parent_time);
-    }
-
     if (postentry != NULL) {
         slapi_entry_free(postentry);
         postentry = NULL;
         slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     }
-    if (retval == DB_RUNRECOVERY) {
+    if (retval == DBI_RC_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_modify", "Modify", 81, retval);
         disk_full = 1;
@@ -1085,8 +1097,12 @@ error_return:
                 if (!opreturn) {
                     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
                 }
+                betxn_callback_fails = 1;
             }
             retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
+            if (retval) {
+                betxn_callback_fails = 1;
+            }
 
             /* It is safer not to abort when the transaction is not started. */
             /* Release SERIAL LOCK */
@@ -1096,6 +1112,10 @@ error_return:
         }
         if (!not_an_error) {
             rc = SLAPI_FAIL_GENERAL;
+        }
+        /* Revert the caches if this is the parent operation */
+        if (parent_op && betxn_callback_fails) {
+            revert_cache(inst, &parent_time);
         }
     }
 
@@ -1153,6 +1173,9 @@ common_return:
         }
         if (!result_sent) {
             /* result is already sent in find_entry. */
+            if (!is_internal) {
+                slapi_pblock_wait_deferred_memberof(pb);
+            }
             slapi_send_ldap_result(pb, ldap_result_code, NULL, ldap_result_message, 0, NULL);
         }
     }

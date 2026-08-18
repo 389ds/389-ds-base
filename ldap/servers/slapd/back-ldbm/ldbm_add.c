@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -63,7 +63,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     back_txn txn = {0};
     back_txnid parent_txn;
     int retval = -1;
-    char *msg;
+    const char *msg;
     int managedsait;
     int ldap_result_code = LDAP_SUCCESS;
     char *ldap_result_message = NULL;
@@ -77,7 +77,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     int rc = 0;
     int addingentry_id_assigned = 0;
     Slapi_DN *sdn = NULL;
-    Slapi_DN parentsdn;
+    Slapi_DN parentsdn = {0};
     Slapi_Operation *operation;
     int is_replicated_operation = 0;
     int is_resurect_operation = 0;
@@ -85,6 +85,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     int is_tombstone_operation = 0;
     int is_fixup_operation = 0;
     int is_remove_from_cache = 0;
+    int is_internal = 0;
     int op_plugin_call = 1;
     int is_ruv = 0; /* True if the current entry is RUV */
     CSN *opcsn = NULL;
@@ -98,6 +99,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     int op_id;
     int result_sent = 0;
     int32_t parent_op = 0;
+    int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
     struct timespec parent_time;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
@@ -124,6 +126,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     is_remove_from_cache = operation_is_flag_set(operation, OP_FLAG_NEVER_CACHE);
+    is_internal = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     if (operation_is_flag_set(operation,OP_FLAG_NOOP)) op_plugin_call = 0;
 
     inst = (ldbm_instance *)be->be_instance_info;
@@ -432,6 +435,8 @@ ldbm_back_add(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                                   "find_entry2modify_only returned NULL parententry pdn: %s, uniqueid: %s\n",
                                   slapi_sdn_get_dn(&parentsdn), addr.uniqueid ? addr.uniqueid : "none");
+                    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                    goto error_return;
                 }
                 modify_init(&parent_modify_c, parententry);
             }
@@ -629,13 +634,24 @@ ldbm_back_add(Slapi_PBlock *pb)
                  */
                 Slapi_DN nscpEntrySDN;
                 addingentry = backentry_init(e);
-                if ((addingentry->ep_id = next_id(be)) >= MAXID) {
-                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add ",
-                                  "Maximum ID reached, cannot add entry to "
-                                  "backend '%s'",
-                                  be->be_name);
-                    ldap_result_code = LDAP_OPERATIONS_ERROR;
-                    goto error_return;
+                if (is_ruv && next_id_get(be) == 1) {
+                    /* First entry in DB, but the RUV should not be ID 1 */
+                    inst->inst_ruv_inserted_first = true;
+                    addingentry->ep_id = 2;
+                } else {
+                    if ((addingentry->ep_id = next_id(be)) >= MAXID) {
+                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add ",
+                                      "Maximum ID reached, cannot add entry to "
+                                      "backend '%s'\n",
+                                      be->be_name);
+                        ldap_result_code = LDAP_OPERATIONS_ERROR;
+                        goto error_return;
+                    }
+                    if (addingentry->ep_id == 1 && inst->inst_ruv_inserted_first) {
+                        /* We need to bump the next id to advance past the RUV id*/
+                        inst->inst_ruv_inserted_first = false;
+                        next_id(be);
+                    }
                 }
                 addingentry_id_assigned = 1;
 
@@ -688,32 +704,31 @@ ldbm_back_add(Slapi_PBlock *pb)
                     slapi_sdn_init(&nscpEntrySDN);
                     slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(addingentry->ep_entry)));
 
-                    if (entryrdn_get_switch()) {
-                        if (is_ruv) {
-                            Slapi_RDN srdn = {0};
-                            rc = slapi_rdn_init_all_dn(&srdn, tombstoned_dn);
-                            if (rc) {
-                                slapi_log_err(SLAPI_LOG_TRACE,
-                                              "ldbm_back_add", "(tombstone_operation): failed to "
-                                              "decompose %s to Slapi_RDN\n", tombstoned_dn);
-                            } else {
-                                slapi_entry_set_srdn(e, &srdn);
-                                slapi_rdn_done(&srdn);
-                            }
+                    if (is_ruv) {
+                        Slapi_RDN srdn = {0};
+                        rc = slapi_rdn_init_all_dn(&srdn, tombstoned_dn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_TRACE,
+                                          "ldbm_back_add", "(tombstone_operation): failed to "
+                                          "decompose %s to Slapi_RDN\n", tombstoned_dn);
                         } else {
-                            /* immediate entry to tombstone */
-                            Slapi_RDN *srdn = slapi_entry_get_srdn(addingentry->ep_entry);
-                            slapi_rdn_init_all_sdn(srdn, slapi_entry_get_sdn_const(addingentry->ep_entry));
-                            char *tombstone_rdn = compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(addingentry->ep_entry),
-                                                                              entryuniqueid);
-                            slapi_log_err(SLAPI_LOG_DEBUG,
-                                          "ldbm_back_add", "(tombstone_operation for %s): calculated tombstone_rdn "
-                                          "is (%s) \n", entryuniqueid, tombstone_rdn);
-                            /* e_srdn has "uniaqueid=..., <ORIG RDN>" */
-                            slapi_rdn_replace_rdn(srdn, tombstone_rdn);
-                            slapi_ch_free_string(&tombstone_rdn);
+                            slapi_entry_set_srdn(e, &srdn);
+                            slapi_rdn_done(&srdn);
                         }
+                    } else {
+                        /* immediate entry to tombstone */
+                        Slapi_RDN *srdn = slapi_entry_get_srdn(addingentry->ep_entry);
+                        slapi_rdn_init_all_sdn(srdn, slapi_entry_get_sdn_const(addingentry->ep_entry));
+                        char *tombstone_rdn = compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(addingentry->ep_entry),
+                                                                          entryuniqueid);
+                        slapi_log_err(SLAPI_LOG_DEBUG,
+                                      "ldbm_back_add", "(tombstone_operation for %s): calculated tombstone_rdn "
+                                      "is (%s) \n", entryuniqueid, tombstone_rdn);
+                        /* e_srdn has "uniaqueid=..., <ORIG RDN>" */
+                        slapi_rdn_replace_rdn(srdn, tombstone_rdn);
+                        slapi_ch_free_string(&tombstone_rdn);
                     }
+
                     slapi_entry_set_dn(addingentry->ep_entry, tombstoned_dn);
                     /* Work around pb with slapi_entry_add_string (defect 522327)
                      * doesn't check duplicate values */
@@ -791,10 +806,10 @@ ldbm_back_add(Slapi_PBlock *pb)
                 pid = parententry->ep_id;
 
                 /* We may need to adjust the DN since parent could be a resurrected conflict entry... */
-                /* TBD better handle tombstone parents, 
+                /* TBD better handle tombstone parents,
                  * we have the entry dn as nsuniqueid=nnnn,<rdn>,parentdn
                  * so is parent will return false
-                 */ 
+                 */
                  if (!is_tombstone_operation && !slapi_sdn_isparent(slapi_entry_get_sdn_const(parententry->ep_entry),
                                                                     slapi_entry_get_sdn_const(addingentry->ep_entry))) {
                     Slapi_DN adjustedsdn = {0};
@@ -919,6 +934,9 @@ ldbm_back_add(Slapi_PBlock *pb)
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
                 slapi_log_err(SLAPI_LOG_DEBUG, "ldbm_back_add", "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin failed: %d\n",
                               ldap_result_code ? ldap_result_code : retval);
+                if (retval) {
+                    betxn_callback_fails = 1;
+                }
                 goto error_return;
             }
         }
@@ -931,7 +949,7 @@ ldbm_back_add(Slapi_PBlock *pb)
         }
 
         retval = id2entry_add_ext(be, addingentry, &txn, 1, &myrc);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 1 DEADLOCK\n");
             /* Retry txn */
             continue;
@@ -953,8 +971,8 @@ ldbm_back_add(Slapi_PBlock *pb)
 
             retval = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE,
                                            addingentry->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 2 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 2 DBI_RC_RETRY\n");
                 /* Retry txn */
                 continue;
             }
@@ -975,8 +993,8 @@ ldbm_back_add(Slapi_PBlock *pb)
                 csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
                 retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
                                                tombstoneentry->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
-                    slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 3 DB_LOCK_DEADLOCK\n");
+                if (DBI_RC_RETRY == retval) {
+                    slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 3 DBI_RC_RETRY\n");
                     /* Retry txn */
                     continue;
                 }
@@ -994,8 +1012,8 @@ ldbm_back_add(Slapi_PBlock *pb)
             }
 
             retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID, slapi_entry_get_uniqueid(addingentry->ep_entry), addingentry->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 4 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 4 DBI_RC_RETRY\n");
                 /* Retry txn */
                 continue;
             }
@@ -1015,8 +1033,8 @@ ldbm_back_add(Slapi_PBlock *pb)
                                            slapi_sdn_get_ndn(sdn),
                                            addingentry->ep_id,
                                            BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DBI_RC_RETRY\n");
                 /* Retry txn */
                 continue;
             }
@@ -1032,16 +1050,14 @@ ldbm_back_add(Slapi_PBlock *pb)
                 goto error_return;
             }
             /* Need to delete the entryrdn index of the resurrected tombstone... */
-            if (entryrdn_get_switch()) { /* subtree-rename: on */
-                if (tombstoneentry) {
-                    retval = entryrdn_index_entry(be, tombstoneentry, BE_INDEX_DEL, &txn);
-                    if (retval) {
-                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
-                                      "Resurrecting %s: failed to remove entryrdn index, err=%d %s\n",
-                                      slapi_entry_get_dn_const(tombstoneentry->ep_entry),
-                                      retval, (msg = dblayer_strerror(retval)) ? msg : "");
-                        goto error_return;
-                    }
+            if (tombstoneentry) {
+                retval = entryrdn_index_entry(be, tombstoneentry, BE_INDEX_DEL, &txn);
+                if (retval) {
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
+                                  "Resurrecting %s: failed to remove entryrdn index, err=%d %s\n",
+                                  slapi_entry_get_dn_const(tombstoneentry->ep_entry),
+                                  retval, (msg = dblayer_strerror(retval)) ? msg : "");
+                    goto error_return;
                 }
             }
         }
@@ -1050,7 +1066,7 @@ ldbm_back_add(Slapi_PBlock *pb)
         } else {
             retval = index_addordel_entry(be, addingentry, BE_INDEX_ADD, &txn);
         }
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DEADLOCK\n");
             /* retry txn */
             continue;
@@ -1072,7 +1088,7 @@ ldbm_back_add(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                           "conn=%" PRIu64 " op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                           conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 6 DEADLOCK\n");
                 /* Retry txn */
                 continue;
@@ -1094,7 +1110,7 @@ ldbm_back_add(Slapi_PBlock *pb)
          */
         if (!is_ruv) {
             retval = vlv_update_all_indexes(&txn, be, pb, NULL, addingentry);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add",
                               "add DEADLOCK vlv_update_index\n");
                 /* Retry txn */
@@ -1127,7 +1143,7 @@ ldbm_back_add(Slapi_PBlock *pb)
 
         if (ruv_c_init) {
             retval = modify_update_all(be, pb, &ruv_c, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -1180,14 +1196,12 @@ ldbm_back_add(Slapi_PBlock *pb)
          * get rid of the entry in the cache now.
          * We cannot expect tombstoneentry exists from now on.
          */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            /* since the op was successful, delete the tombstone dn from the dn cache */
-            struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
-                                                 tombstoneentry->ep_id);
-            if (bdn) { /* in the dncache, remove it. */
-                CACHE_REMOVE(&inst->inst_dncache, bdn);
-                CACHE_RETURN(&inst->inst_dncache, &bdn);
-            }
+        /* since the op was successful, delete the tombstone dn from the dn cache */
+        struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
+                                             tombstoneentry->ep_id);
+        if (bdn) { /* in the dncache, remove it. */
+            CACHE_REMOVE(&inst->inst_dncache, bdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
         }
     }
     if (parent_found) {
@@ -1229,11 +1243,15 @@ ldbm_back_add(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+        if (retval) {
+            betxn_callback_fails = 1;
+        }
         goto error_return;
     }
 
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_ADD_FN);
     if (retval) {
+        betxn_callback_fails = 1;
         ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
         goto error_return;
     }
@@ -1256,14 +1274,10 @@ ldbm_back_add(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
-    /* Revert the caches if this is the parent operation */
-    if (parent_op) {
-        revert_cache(inst, &parent_time);
-    }
     if (addingentry_id_assigned) {
         next_id_return(be, addingentry->ep_id);
     }
-    if (rc == DB_RUNRECOVERY) {
+    if (rc == DBI_RC_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_add", "Add", 80, rc);
         disk_full = 1;
@@ -1330,9 +1344,15 @@ diskfull_return:
                     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                if (retval) {
+                    betxn_callback_fails = 1;
+                }
             }
             /* the repl postop needs to be called for aborted operations */
             retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_ADD_FN);
+            if (retval) {
+                betxn_callback_fails = 1;
+            }
             if (addingentry) {
                 if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
                     CACHE_REMOVE(&inst->inst_cache, addingentry);
@@ -1368,6 +1388,11 @@ diskfull_return:
         if (!not_an_error) {
             rc = SLAPI_FAIL_GENERAL;
         }
+
+        /* Revert the caches if this is the parent operation */
+        if (parent_op && betxn_callback_fails) {
+            revert_cache(inst, &parent_time);
+        }
     }
 
 common_return:
@@ -1377,14 +1402,17 @@ common_return:
             CACHE_RETURN(&inst->inst_cache, &tombstoneentry);
         }
         if (addingentry) {
-            if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+            if (0 == retval) {
                 /* since adding the entry to the entry cache was successful,
                  * let's add the dn to dncache, if not yet done. */
                 struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
                                                      addingentry->ep_id);
                 if (bdn) { /* already in the dncache */
+                    if (is_remove_from_cache) {
+                        CACHE_REMOVE(&inst->inst_dncache, bdn);
+                    }
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
-                } else { /* not in the dncache yet */
+                } else if (!is_remove_from_cache) { /* not in the dncache yet */
                     Slapi_DN *addingsdn =
                         slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
                     if (addingsdn) {
@@ -1432,6 +1460,9 @@ common_return:
             ldap_result_code = LDAP_SUCCESS;
         }
         if (!result_sent) {
+            if (!is_internal) {
+                slapi_pblock_wait_deferred_memberof(pb);
+            }
             slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL);
         }
     }

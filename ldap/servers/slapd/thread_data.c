@@ -60,6 +60,14 @@ slapi_td_init(void)
  *  Wrapper Functions
  */
 
+/* Set OS-level thread name (visible in ps, top, perf, pstack, etc.)
+ * The name is silently truncated to 15 characters by the kernel. */
+void
+slapi_set_thread_name(const char *name)
+{
+    pthread_setname_np(pthread_self(), name);
+}
+
 /* plugin list locking */
 int32_t
 slapi_td_set_plugin_locked()
@@ -188,7 +196,7 @@ slapi_td_internal_op_finish(void)
 }
 
 void
-slapi_td_reset_internal_logging(uint64_t new_conn_id, int32_t new_op_id)
+slapi_td_reset_internal_logging(uint64_t new_conn_id, int32_t new_op_id, time_t start_time)
 {
     struct slapi_td_log_op_state_t *op_state = pthread_getspecific(td_op_state);
 
@@ -206,4 +214,5 @@ slapi_td_reset_internal_logging(uint64_t new_conn_id, int32_t new_op_id)
     op_state->op_int_id = 0;
     op_state->op_nest_count = 0;
     op_state->op_nest_state = OP_STATE_NOTNESTED;
+    op_state->conn_starttime = start_time;
 }

@@ -13,16 +13,30 @@ import ldif
 import pytest
 import time
 import subprocess
+import glob
+import re
 from lib389.properties import TASK_WAIT
-from lib389.replica import Replicas
+from lib389.replica import Changelog, Changelog5, Replicas
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_m2 as topo
-from lib389._constants import *
+from test389.topologies import topology_m2 as topo
+from lib389._constants import (
+    BDB_CL_FILENAME,
+    DEFAULT_BENAME,
+    DEFAULT_CHANGELOG_DB,
+    DEFAULT_SUFFIX,
+    DN_DM,
+    DN_USERROOT_LDBM,
+    HOST_SUPPLIER_1,
+    PASSWORD,
+    PORT_SUPPLIER_1,
+)
 from lib389.plugins import RetroChangelogPlugin
 from lib389.dseldif import DSEldif
-from lib389.tasks import *
-from lib389.utils import *
-from lib389.utils import ensure_bytes, ds_supports_new_changelog
+from lib389.utils import (
+    ds_is_older,
+    ds_supports_new_changelog,
+    ensure_bytes,
+)
 
 pytestmark = pytest.mark.tier1
 
@@ -46,11 +60,26 @@ else:
 log = logging.getLogger(__name__)
 
 
+def _check_repl_changelog_backup(instance, backup_dir):
+    # Note: there is no way to check dbi on lmdb backup
+    # That said dbscan may perhaps do it ...
+    if instance.get_db_lib() == 'bdb':
+        if ds_supports_new_changelog():
+            backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
+        else:
+            backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
+        if glob.glob(f'{backup_checkdir}*'):
+            log.info('Database backup is created successfully')
+        else:
+            log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
+            assert False
+
+
 def _perform_ldap_operations(topo):
     """Add a test user, modify description, modrdn user and delete it"""
 
     log.info('Adding user {}'.format(TEST_ENTRY_NAME))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     user_properties = {
         'uid': TEST_ENTRY_NAME,
         'cn': TEST_ENTRY_NAME,
@@ -64,7 +93,7 @@ def _perform_ldap_operations(topo):
     tuser.replace('description', 'newdesc')
     log.info('Modify RDN of user {}'.format(tuser.dn))
     try:
-        topo.ms['master1'].modrdn_s(tuser.dn, 'uid={}'.format(NEW_RDN_NAME), 0)
+        topo.ms['supplier1'].modrdn_s(tuser.dn, 'uid={}'.format(NEW_RDN_NAME), 0)
     except ldap.LDAPError as e:
         log.fatal('Failed to modrdn entry {}'.format(tuser.dn))
         raise e
@@ -78,12 +107,12 @@ def _create_changelog_dump(topo):
 
     log.info('Dump changelog using nss5task and check if ldap operations are logged')
     if ds_supports_new_changelog():
-        changelog_dir = topo.ms['master1'].get_ldif_dir()
+        changelog_dir = topo.ms['supplier1'].get_ldif_dir()
         changelog_end = '_cl.ldif'
     else:
-        changelog_dir = topo.ms['master1'].get_changelog_dir()
+        changelog_dir = topo.ms['supplier1'].get_changelog_dir()
         changelog_end = '.ldif'
-    replicas = Replicas(topo.ms["master1"])
+    replicas = Replicas(topo.ms["supplier1"])
     replica = replicas.get(DEFAULT_SUFFIX)
     log.info('Remove ldif files, if present in: {}'.format(changelog_dir))
     for files in os.listdir(changelog_dir):
@@ -144,26 +173,26 @@ def changelog_init(topo):
     log.info('Testing Ticket 47669 - Test duration syntax in the changelogs')
 
     # bind as directory manager
-    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
-    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+    topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
     if not ds_supports_new_changelog():
         try:
-            changelogdir = os.path.join(os.path.dirname(topo.ms["master1"].dbdir), 'changelog')
-            topo.ms["master1"].modify_s(CHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-changelogdir',
+            changelogdir = os.path.join(os.path.dirname(topo.ms["supplier1"].dbdir), 'changelog')
+            topo.ms["supplier1"].modify_s(CHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-changelogdir',
                                                                        ensure_bytes(changelogdir))])
         except ldap.LDAPError as e:
             log.error('Failed to modify ' + CHANGELOG + ': error {}'.format(get_ldap_error_msg(e,'desc')))
             assert False
 
     try:
-        topo.ms["master1"].modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', b'on')])
+        topo.ms["supplier1"].modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', b'on')])
     except ldap.LDAPError as e:
         log.error('Failed to enable ' + RETROCHANGELOG + ': error {}'.format(get_ldap_error_msg(e, 'desc')))
         assert False
 
     # restart the server
-    topo.ms["master1"].restart(timeout=10)
+    topo.ms["supplier1"].restart(timeout=10)
 
 
 def add_and_check(topo, plugin, attr, val, isvalid):
@@ -173,7 +202,7 @@ def add_and_check(topo, plugin, attr, val, isvalid):
     if isvalid:
         log.info('Test %s: %s -- valid' % (attr, val))
         try:
-            topo.ms["master1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+            topo.ms["supplier1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
         except ldap.LDAPError as e:
             log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
             assert False
@@ -181,31 +210,27 @@ def add_and_check(topo, plugin, attr, val, isvalid):
         log.info('Test %s: %s -- invalid' % (attr, val))
         if plugin == CHANGELOG:
             try:
-                topo.ms["master1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+                topo.ms["supplier1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
             except ldap.LDAPError as e:
                 log.error('Expectedly failed to add ' + attr + ': ' + val +
                           ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
         else:
             try:
-                topo.ms["master1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+                topo.ms["supplier1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
             except ldap.LDAPError as e:
                 log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
 
     try:
-        entries = topo.ms["master1"].search_s(plugin, ldap.SCOPE_BASE, FILTER, [attr])
+        entries = topo.ms["supplier1"].search_s(plugin, ldap.SCOPE_BASE, FILTER, [attr])
         if isvalid:
             if not entries[0].hasValue(attr, val):
                 log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
                 assert False
         else:
-            if plugin == CHANGELOG:
-                if entries[0].hasValue(attr, val):
-                    log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
-                    assert False
-            else:
-                if not entries[0].hasValue(attr, val):
-                    log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
-                    assert False
+            if entries[0].hasValue(attr, val):
+                log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
+                assert False
+
     except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (plugin, e.message['desc']))
         assert False
@@ -215,9 +240,9 @@ def remove_ldif_files_from_changelogdir(topo, extension):
     Remove existing ldif files from changelog dir
     """
     if ds_supports_new_changelog():
-        changelog_dir = topo.ms['master1'].get_ldif_dir()
+        changelog_dir = topo.ms['supplier1'].get_ldif_dir()
     else:
-        changelog_dir = topo.ms['master1'].get_changelog_dir()
+        changelog_dir = topo.ms['supplier1'].get_changelog_dir()
 
     log.info('Remove %s files, if present in: %s' % (extension, changelog_dir))
     for files in os.listdir(changelog_dir):
@@ -234,14 +259,11 @@ def remove_ldif_files_from_changelogdir(topo, extension):
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1', '1.4.3'), reason="bug bz1685059")
 @pytest.mark.skip(reason="does not work for prefix builds")
-@pytest.mark.bz1685059
-@pytest.mark.ds50498
-@pytest.mark.bz1769296
 def test_cldump_files_removed(topo):
     """Verify bz1685059 : cl-dump generated ldif files are removed at the end, -l option is the way to keep them
 
     :id: fbb2f2a3-167b-4bc6-b513-9e0318b09edc
-    :setup: Replication with two master, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-master1/changelog'
+    :setup: Replication with two supplier, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-supplier1/changelog'
             retrochangelog plugin disabled
     :steps:
         1. Clean the changelog directory, removing .ldif files present, if any
@@ -268,7 +290,7 @@ def test_cldump_files_removed(topo):
         10. .ldif.done generated files are present in the changelog dir
      """
 
-    changelog_dir = topo.ms['master1'].get_changelog_dir()
+    changelog_dir = topo.ms['supplier1'].get_changelog_dir()
 
     # Remove existing .ldif files in changelog dir
     remove_ldif_files_from_changelogdir(topo, '.ldif')
@@ -284,7 +306,7 @@ def test_cldump_files_removed(topo):
     # This piece of code will serve as reproducer and verification mean for bz1769296
 
     log.info("Use cl-dump perl script without -l option : no generated ldif files should remain in %s " % changelog_dir)
-    cmdline=['/usr/bin/cl-dump', '-h', HOST_MASTER_1, '-p', 'invalid port', '-D', DN_DM, '-w', PASSWORD]
+    cmdline=['/usr/bin/cl-dump', '-h', HOST_SUPPLIER_1, '-p', 'invalid port', '-D', DN_DM, '-w', PASSWORD]
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     msg = proc.communicate()
@@ -294,7 +316,7 @@ def test_cldump_files_removed(topo):
     # Now the core goal of the test case
     # Using cl-dump without -l option
     log.info("Use cl-dump perl script without -l option : no generated ldif files should remain in %s " % changelog_dir)
-    cmdline=['/usr/bin/cl-dump', '-h', HOST_MASTER_1, '-p', str(PORT_MASTER_1), '-D', DN_DM, '-w', PASSWORD]
+    cmdline=['/usr/bin/cl-dump', '-h', HOST_SUPPLIER_1, '-p', str(PORT_SUPPLIER_1), '-D', DN_DM, '-w', PASSWORD]
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     proc.communicate()
@@ -314,7 +336,7 @@ def test_cldump_files_removed(topo):
 
     # Using cl-dump with -l option
     log.info("Use cl-dump perl script with -l option : generated ldif files should be kept in %s " % changelog_dir)
-    cmdline=['/usr/bin/cl-dump', '-h', HOST_MASTER_1, '-p', str(PORT_MASTER_1), '-D', DN_DM, '-w', PASSWORD, '-l']
+    cmdline=['/usr/bin/cl-dump', '-h', HOST_SUPPLIER_1, '-p', str(PORT_SUPPLIER_1), '-D', DN_DM, '-w', PASSWORD, '-l']
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     msg = proc.communicate()
@@ -338,7 +360,7 @@ def test_dsconf_dump_changelog_files_removed(topo):
     """Verify that the python counterpart of cl-dump (using dsconf) has a correct management of generated files
 
     :id: e41dcf90-098a-4386-acb5-789384579bf7
-    :setup: Replication with two master, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-master1/changelog'
+    :setup: Replication with two supplier, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-supplier1/changelog'
             retrochangelog plugin disabled
     :steps:
         1. Clean the changelog directory, removing .ldif files present, if any
@@ -366,11 +388,11 @@ def test_dsconf_dump_changelog_files_removed(topo):
      """
 
     if ds_supports_new_changelog():
-        changelog_dir = topo.ms['master1'].get_ldif_dir()
+        changelog_dir = topo.ms['supplier1'].get_ldif_dir()
     else:
-        changelog_dir = topo.ms['master1'].get_changelog_dir()
-    instance = topo.ms['master1']
-    instance_url = 'ldap://%s:%s' % (HOST_MASTER_1, PORT_MASTER_1)
+        changelog_dir = topo.ms['supplier1'].get_changelog_dir()
+    instance = topo.ms['supplier1']
+    instance_url = 'ldap://%s:%s' % (HOST_SUPPLIER_1, PORT_SUPPLIER_1)
 
     # Remove existing .ldif files in changelog dir
     remove_ldif_files_from_changelogdir(topo, '.ldif')
@@ -439,7 +461,7 @@ def test_verify_changelog(topo):
     """Check if changelog dump file contains required ldap operations
 
     :id: 15ead076-8c18-410b-90eb-c2fe9eab966b
-    :setup: Replication with two masters.
+    :setup: Replication with two suppliers.
     :steps: 1. Add user to server.
             2. Perform ldap modify, modrdn and delete operations.
             3. Dump the changelog to a file using nsds5task.
@@ -461,7 +483,7 @@ def test_verify_changelog_online_backup(topo):
     """Check ldap operations in changelog dump file after online backup
 
     :id: 4001c34f-35b4-439e-8c2d-fa7e30375219
-    :setup: Replication with two masters.
+    :setup: Replication with two suppliers.
     :steps: 1. Add user to server.
             2. Take online backup using db2bak task.
             3. Restore the database using bak2db task.
@@ -477,27 +499,21 @@ def test_verify_changelog_online_backup(topo):
             6. Changelog dump file should contain ldap operations
     """
 
-    backup_dir = os.path.join(topo.ms['master1'].get_bak_dir(), 'online_backup')
+    backup_dir = os.path.join(topo.ms['supplier1'].get_bak_dir(), 'online_backup')
     log.info('Run db2bak script to take database backup')
     try:
-        topo.ms['master1'].tasks.db2bak(backup_dir=backup_dir, args={TASK_WAIT: True})
+        topo.ms['supplier1'].tasks.db2bak(backup_dir=backup_dir, args={TASK_WAIT: True})
     except ValueError:
         log.fatal('test_changelog5: Online backup failed')
         assert False
 
-    if ds_supports_new_changelog():
-        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
-    else:
-        backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
-    if os.path.exists(backup_checkdir):
-        log.info('Database backup is created successfully')
-    else:
-        log.fatal('test_changelog5: backup directory does not exist : {}'.format(backup_checkdir))
-        assert False
+    # Note: there is no way to check dbi on lmdb backup
+    # That said dbscan may perhaps do it ...
+    _check_repl_changelog_backup(topo.ms['supplier1'], backup_dir);
 
     log.info('Run bak2db to restore directory server')
     try:
-        topo.ms['master1'].tasks.bak2db(backup_dir=backup_dir, args={TASK_WAIT: True})
+        topo.ms['supplier1'].tasks.bak2db(backup_dir=backup_dir, args={TASK_WAIT: True})
     except ValueError:
         log.fatal('test_changelog5: Online restore failed')
         assert False
@@ -512,7 +528,7 @@ def test_verify_changelog_offline_backup(topo):
     """Check ldap operations in changelog dump file after offline backup
 
     :id: feed290d-57dd-46e4-9ab3-422c77589867
-    :setup: Replication with two masters.
+    :setup: Replication with two suppliers.
     :steps: 1. Add user to server.
             2. Stop server and take offline backup using db2bak.
             3. Restore the database using bak2db.
@@ -528,33 +544,25 @@ def test_verify_changelog_offline_backup(topo):
             6. Changelog dump file should contain ldap operations
     """
 
-    backup_dir = os.path.join(topo.ms['master1'].get_bak_dir(), 'offline_backup')
+    backup_dir = os.path.join(topo.ms['supplier1'].get_bak_dir(), 'offline_backup')
 
-    topo.ms['master1'].stop()
+    topo.ms['supplier1'].stop()
     log.info('Run db2bak to take database backup')
     try:
-        topo.ms['master1'].db2bak(backup_dir)
+        topo.ms['supplier1'].db2bak(backup_dir)
     except ValueError:
         log.fatal('test_changelog5: Offline backup failed')
         assert False
 
     log.info('Run bak2db to restore directory server')
     try:
-        topo.ms['master1'].bak2db(backup_dir)
+        topo.ms['supplier1'].bak2db(backup_dir)
     except ValueError:
         log.fatal('test_changelog5: Offline restore failed')
         assert False
-    topo.ms['master1'].start()
+    topo.ms['supplier1'].start()
 
-    if ds_supports_new_changelog():
-        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
-    else:
-        backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
-    if os.path.exists(backup_checkdir):
-        log.info('Database backup is created successfully')
-    else:
-        log.fatal('test_changelog5: backup directory does not exist : {}'.format(backup_checkdir))
-        assert False
+    _check_repl_changelog_backup(topo.ms['supplier1'], backup_dir);
 
     log.info('LDAP operations add, modify, modrdn and delete')
     _perform_ldap_operations(topo)
@@ -562,17 +570,18 @@ def test_verify_changelog_offline_backup(topo):
     _check_changelog_ldif(topo, changelog_ldif)
 
 
-@pytest.mark.ds47669
 def test_changelog_maxage(topo, changelog_init):
     """Check nsslapd-changelog max age values
 
     :id: d284ff27-03b2-412c-ac74-ac4f2d2fae3b
-    :setup: Replication with two master, change nsslapd-changelogdir to
-            '/var/lib/dirsrv/slapd-master1/changelog' and
+    :setup: Replication with two supplier, change nsslapd-changelogdir to
+            '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
-        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '12345','10s','30M','12h','2D','4w'
-        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '-123','xyz'
+        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values:
+           '100s','100S','30m','30M','12h','12H','2d','2D','4w','4W'
+        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values:
+           '12345', 'd', '-123', '-123d', '345345xyz', '0d', 'xyz'
 
     :expectedresults:
         1. Operation should be successful
@@ -581,26 +590,34 @@ def test_changelog_maxage(topo, changelog_init):
     log.info('1. Test nsslapd-changelogmaxage in cn=changelog5,cn=config')
 
     # bind as directory manager
-    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
-    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+    topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, CHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '100s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '100S', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '30m', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '30M', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12H', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '2d', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '2D', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '4W', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12345', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, 'd', False)
     add_and_check(topo, CHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '-123d', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '345345xyz', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '0d', False)
     add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
 
 
-@pytest.mark.ds47669
 def test_ticket47669_changelog_triminterval(topo, changelog_init):
     """Check nsslapd-changelog triminterval values
 
     :id: 8f850c37-7e7c-49dd-a4e0-9344638616d6
-    :setup: Replication with two master, change nsslapd-changelogdir to
-            '/var/lib/dirsrv/slapd-master1/changelog' and
+    :setup: Replication with two supplier, change nsslapd-changelogdir to
+            '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogtrim-interval in cn=changelog5,cn=config to values -
@@ -614,8 +631,8 @@ def test_ticket47669_changelog_triminterval(topo, changelog_init):
     log.info('2. Test nsslapd-changelogtrim-interval in cn=changelog5,cn=config')
 
     # bind as directory manager
-    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
-    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+    topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
     add_and_check(topo, CHANGELOG, TRIMINTERVAL, '12345', True)
     add_and_check(topo, CHANGELOG, TRIMINTERVAL, '10s', True)
@@ -627,14 +644,13 @@ def test_ticket47669_changelog_triminterval(topo, changelog_init):
     add_and_check(topo, CHANGELOG, TRIMINTERVAL, 'xyz', False)
 
 
-@pytest.mark.ds47669
 @pytest.mark.skipif(ds_supports_new_changelog(), reason="changelog compaction is done by the backend itself, with id2entry as well, nsslapd-changelogcompactdb-interval is no longer supported")
 def test_changelog_compactdbinterval(topo, changelog_init):
     """Check nsslapd-changelog compactdbinterval values
 
     :id: 0f4b3118-9dfa-4c2a-945c-72847b42a48c
-    :setup: Replication with two master, change nsslapd-changelogdir to
-            '/var/lib/dirsrv/slapd-master1/changelog' and
+    :setup: Replication with two supplier, change nsslapd-changelogdir to
+            '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config to values -
@@ -649,8 +665,8 @@ def test_changelog_compactdbinterval(topo, changelog_init):
     log.info('3. Test nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config')
 
     # bind as directory manager
-    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
-    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+    topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '12345', True)
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '10s', True)
@@ -662,19 +678,18 @@ def test_changelog_compactdbinterval(topo, changelog_init):
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, 'xyz', False)
 
 
-@pytest.mark.ds47669
 def test_retrochangelog_maxage(topo, changelog_init):
     """Check nsslapd-retrochangelog max age values
 
     :id: 0cb84d81-3e86-4dbf-84a2-66aefd8281db
-    :setup: Replication with two master, change nsslapd-changelogdir to
-            '/var/lib/dirsrv/slapd-master1/changelog' and
+    :setup: Replication with two supplier, change nsslapd-changelogdir to
+            '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
-           '12345','10s','30M','12h','2D','4w'
+           '100s','100S','30m','30M','12h','12H','2d','2D','4w','4W'
         2. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
-           '-123','xyz'
+           '12345', 'd', '-123', '-123d', '345345xyz', '0d', 'xyz'
 
     :expectedresults:
         1. Operation should be successful
@@ -683,28 +698,37 @@ def test_retrochangelog_maxage(topo, changelog_init):
     log.info('4. Test nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config')
 
     # bind as directory manager
-    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
-    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+    topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '100s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '100S', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '30m', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '30M', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12H', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '2d', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '2D', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '4W', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, 'd', False)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123d', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '345345xyz', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '0d', False)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, 'xyz', False)
 
-    topo.ms["master1"].log.info("ticket47669 was successfully verified.")
+    topo.ms["supplier1"].log.info("ticket47669 was successfully verified.")
 
-@pytest.mark.ds50736
 def test_retrochangelog_trimming_crash(topo, changelog_init):
     """Check that when retroCL nsslapd-retrocthangelog contains invalid
     value, then the instance does not crash at shutdown
 
     :id: 5d9bd7ca-e9bf-4be9-8fc8-902aa5513052
-    :setup: Replication with two master, change nsslapd-changelogdir to
-            '/var/lib/dirsrv/slapd-master1/changelog' and
+    :customerscenario: True
+    :setup: Replication with two supplier, change nsslapd-changelogdir to
+            '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to value '-1'
@@ -723,24 +747,99 @@ def test_retrochangelog_trimming_crash(topo, changelog_init):
 
     # set the nsslapd-changelogmaxage directly on dse.ldif
     # because the set value is invalid
-    topo.ms["master1"].log.info("ticket50736 start verification")
-    topo.ms["master1"].stop()
-    retroPlugin = RetroChangelogPlugin(topo.ms["master1"])
-    dse_ldif = DSEldif(topo.ms["master1"])
+    topo.ms["supplier1"].log.info("ticket50736 start verification")
+    topo.ms["supplier1"].stop()
+    retroPlugin = RetroChangelogPlugin(topo.ms["supplier1"])
+    dse_ldif = DSEldif(topo.ms["supplier1"])
     dse_ldif.replace(retroPlugin.dn, 'nsslapd-changelogmaxage', '-1')
-    topo.ms["master1"].start()
+    topo.ms["supplier1"].start()
 
     # The crash should be systematic, but just in case do several restart
     # with a delay to let all plugin init
     for i in range(5):
         time.sleep(1)
-        topo.ms["master1"].stop()
-        topo.ms["master1"].start()
+        topo.ms["supplier1"].stop()
+        topo.ms["supplier1"].start()
 
-    assert not topo.ms["master1"].detectDisorderlyShutdown()
+    assert not topo.ms["supplier1"].detectDisorderlyShutdown()
 
-    topo.ms["master1"].log.info("ticket 50736 was successfully verified.")
+    topo.ms["supplier1"].log.info("ticket 50736 was successfully verified.")
 
+
+@pytest.mark.skipif(not os.path.isfile("/usr/bin/db_stat"), reason="libdb-utils package is not installed")
+def test_changelog_pagesize(topo):
+    """Test that changelog page size is set properly
+
+    :id: 584a9a82-756d-11ed-8b38-482ae39447e5
+    :setup: Replication with two suppliers
+    :steps:
+         1. Check that file system preferred block size is 4K
+         2. Run db_stat -e -h db_home_dir
+         3. Check for 4K page size in db_stat output
+    :expectedresults:
+         1. Mark the test as skipped if block size is not 4K
+         2. Success
+         3. Should not have any 4K page size in db_stat output
+    """
+
+    s1 = topo.ms["supplier1"]
+    fs_pagesize = os.statvfs(s1.ds_paths.db_home_dir).f_bsize
+    if fs_pagesize != 4096:
+        pytest.skip("This test requires that database filesystem prefered block size is 4K.")
+        return
+    try:
+        cmd = ["/usr/bin/db_stat", "-h", s1.ds_paths.db_home_dir, "-e"]
+        log.debug(f"DEBUG: Running {cmd}")
+        output = subprocess.check_output(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        log.error(f'Failed to gather db statistics {cmd}: "{e.output.decode()}')
+        log.error(e)
+        raise e
+    assert not re.match("^4096 *Page size", output, flags=re.MULTILINE)
+
+
+def test_changelog_type_validation(topo):
+    """Verify that changelog configuration properly validates attribute values
+
+    :id: 4c7681ff-0511-4256-9589-bdcad84c13e6
+    :setup: Replication with two suppliers
+    :steps:
+        1. Get changelog configuration object
+        2. Set valid string values for maxage and trim interval attributes
+        3. Verify the values were set correctly
+    :expectedresults:
+        1. Changelog object retrieved successfully
+        2. Valid string values should be accepted
+        3. Configuration should be updated with correct values
+    """
+
+    supplier = topo.ms["supplier1"]
+
+    log.info('Getting changelog configuration object')
+    if ds_supports_new_changelog():
+        cl = Changelog(supplier, suffix=DEFAULT_SUFFIX)
+    else:
+        cl = Changelog5(supplier)
+
+    log.info('Reading current changelog max age configuration')
+    current_maxage = cl.get_attr_val_utf8(MAXAGE)
+    log.info(f'Current {MAXAGE}: {current_maxage}')
+
+    log.info('Setting changelog maxage to 60s')
+    cl.replace(MAXAGE, '60s')
+
+    log.info('Setting changelog trim interval to 10s')
+    cl.replace(TRIMINTERVAL, '10s')
+
+    log.info('Verifying changelog maxage was updated')
+    new_maxage = cl.get_attr_val_utf8(MAXAGE)
+    assert new_maxage == '60s', f'Expected maxage "60s", got "{new_maxage}"'
+
+    log.info('Verifying changelog trim interval was updated')
+    new_triminterval = cl.get_attr_val_utf8(TRIMINTERVAL)
+    assert new_triminterval == '10s', f'Expected triminterval "10s", got "{new_triminterval}"'
+
+    log.info('Changelog configuration validated successfully')
 
 
 if __name__ == '__main__':

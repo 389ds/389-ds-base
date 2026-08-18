@@ -42,15 +42,16 @@ changelog5_upgrade(void)
 
     if (config.dir == NULL) {
         /* we do not have a valid legacy config, nothing to upgrade */
-        return rc;
+        goto done;
     }
 
     replica_enumerate_replicas(_cl5_upgrade_replica, (void *)&config);
 
     rc = _cl5_upgrade_removedir(config.dir);
 
-    rc = _cl5_upgrade_removeconfig();
+    rc |= _cl5_upgrade_removeconfig();
 
+done:
     changelog5_config_done(&config);
 
     return rc;
@@ -122,7 +123,7 @@ _cl5_upgrade_replica_config(Replica *replica, changelog5Config *config)
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE, gen_duration(config->trimInterval));
     }
 
-    /* if changelog encryption is enabled then in the upgrade mode all backends will have 
+    /* if changelog encryption is enabled then in the upgrade mode all backends will have
      * an encrypted changelog, store the encryption attrs */
     if (config->encryptionAlgorithm) {
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM, config->encryptionAlgorithm);
@@ -211,7 +212,7 @@ _cl5_upgrade_removeconfig(void)
 
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_delete_internal_set_pb(pb, "cn=changelog5,cn=config", NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_delete_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -350,7 +350,7 @@ urp_modrdn_operation(Slapi_PBlock *pb)
              * We'll just borrow an obsolete pblock type here. ???
              */
             /* no. slapi_pblock_set (pb, SLAPI_URP_TOMBSTONE_UNIQUEID, slapi_ch_strdup(op_uniqueid)); */
-            rc = slapi_setbit_int(rc, SLAPI_RTN_BIT_FETCH_TARGET_ENTRY);
+            (void) slapi_setbit_int(rc, SLAPI_RTN_BIT_FETCH_TARGET_ENTRY);
             rc = 0;
         } else {
             slapi_log_err(slapi_log_urp, sessionid,
@@ -908,7 +908,7 @@ urp_fixup_add_cenotaph(Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
     slapi_add_entry_internal_set_pb(add_pb,
                                     cenotaph,
                                     NULL,
-                                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                     OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
     slapi_add_internal_pb(add_pb);
     slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -934,7 +934,7 @@ urp_fixup_add_cenotaph(Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
             slapi_mods_get_ldapmods_byref(&smods),
             NULL, /* Controls */
             NULL,
-            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+            repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
             OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
 
         slapi_modify_internal_pb(mod_pb);
@@ -973,7 +973,7 @@ urp_fixup_add_entry(Slapi_Entry *e, const char *target_uniqueid, const char *par
         newpb,
         e,    /* entry will be consumed */
         NULL, /*Controls*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
     if (target_uniqueid) {
         slapi_pblock_set(newpb, SLAPI_TARGET_UNIQUEID, (void *)target_uniqueid);
@@ -1014,7 +1014,7 @@ urp_fixup_modrdn_entry (const Slapi_DN *entrydn, const char *newrdn, const Slapi
                                      0,
                                      NULL,
                                      entryuniqueid,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn if provided */
@@ -1059,7 +1059,7 @@ urp_fixup_rename_entry(const Slapi_Entry *entry, const char *newrdn, const char 
         0,                               /* !Delete Old RDNS */
         NULL,                            /*Controls*/
         slapi_entry_get_uniqueid(entry), /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn to the entry's dncsn */
@@ -1097,7 +1097,7 @@ urp_fixup_move_entry (const Slapi_Entry *entry, const Slapi_DN *newsuperior, int
                                      0, /* !Delete Old RDNS */
                                      NULL, /*Controls*/
                                      slapi_entry_get_uniqueid (entry), /*uniqueid*/
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn to the entry's dncsn */
@@ -1133,7 +1133,7 @@ urp_fixup_delete_entry(const char *uniqueid, const char *dn, CSN *opcsn, int opf
         dn,
         NULL,     /*Controls*/
         uniqueid, /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
     slapi_pblock_get(newpb, SLAPI_OPERATION, &op);
     operation_set_csn(op, opcsn);
@@ -1160,7 +1160,7 @@ urp_fixup_modify_entry(const char *uniqueid, const Slapi_DN *sdn, CSN *opcsn, Sl
         slapi_mods_get_ldapmods_byref(smods),
         NULL, /* Controls */
         uniqueid,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn */
@@ -1369,7 +1369,7 @@ urp_add_new_entry_to_conflict (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *a
                 slapi_value_init_berval(new_v, &bv);
                 slapi_attr_add_value(attr, new_v);
                 slapi_value_free(&new_v);
-                slapi_entry_set_flag(addentry, SLAPI_ENTRY_LDAPSUBENTRY);
+                slapi_entry_set_flag(addentry, SLAPI_ENTRY_FLAG_LDAPSUBENTRY);
             }
         }
         /* add or replace the conflict csn */
@@ -1411,12 +1411,12 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *newpb;
     char *basedn = slapi_entry_get_ndn(entry);
-    char *escaped_basedn;
+    char *escaped_filter;
     const Slapi_DN *suffix = slapi_get_suffix_by_dn(slapi_entry_get_sdn (entry));
-    escaped_basedn = slapi_filter_escape_filter_value("nscpentrydn", basedn);
+    escaped_filter = slapi_filter_escape_filter_value("nscpentrydn", basedn);
 
-    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)(nscpentrydn=%s))", escaped_basedn);
-    slapi_ch_free((void **)&escaped_basedn);
+    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)%s)", escaped_filter);
+    slapi_ch_free((void **)&escaped_filter);
     newpb = slapi_pblock_new();
     slapi_search_internal_set_pb(newpb,
                                  slapi_sdn_get_dn(suffix), /* Base DN */
@@ -1426,7 +1426,7 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1464,8 +1464,8 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
             /* the tombstone is from an entry added later than the received one */
             Slapi_Value *tomb_value;
             const char *adduniqueid = slapi_entry_get_uniqueid (entries[i]);
-            const char *basedn = slapi_entry_get_dn_const (entry);
-            char *newrdn = get_rdn_plus_uniqueid ( sessionid, basedn, adduniqueid );
+            const char *base_dn = slapi_entry_get_dn_const (entry);
+            char *newrdn = get_rdn_plus_uniqueid ( sessionid, base_dn, adduniqueid );
             char *parentdn = slapi_dn_parent_ext(slapi_entry_get_dn_const(entries[i]),1);
             char *conflict_dn = slapi_ch_smprintf("%s,%s",newrdn, parentdn);
             slapi_log_err(SLAPI_LOG_REPL, sessionid,
@@ -1524,7 +1524,7 @@ urp_delete_check_conflict (char *sessionid, Slapi_Entry *tombstone_entry, CSN *o
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1573,7 +1573,7 @@ urp_find_valid_entry_to_delete(Slapi_PBlock *pb, const Slapi_Entry *deleteentry,
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1605,15 +1605,15 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *newpb;
     const char *basedn = slapi_sdn_get_dn(parentdn);
-    char *escaped_basedn;
-    escaped_basedn = slapi_filter_escape_filter_value("nscpentrydn", (char *)basedn);
+    char *escaped_filter;
+    escaped_filter = slapi_filter_escape_filter_value("nscpentrydn", (char *)basedn);
 
     char *conflict_csnstr = (char*)slapi_entry_attr_get_ref((Slapi_Entry *)entry, "conflictcsn");
     CSN *conflict_csn = csn_new_by_string(conflict_csnstr);
     CSN *tombstone_csn = NULL;
 
-    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)(nscpentrydn=%s))", escaped_basedn);
-    slapi_ch_free((void **)&escaped_basedn);
+    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)%s)", escaped_filter);
+    slapi_ch_free((void **)&escaped_filter);
     newpb = slapi_pblock_new();
     char *parent_dn = slapi_dn_parent (basedn);
     slapi_search_internal_set_pb(newpb,
@@ -1624,7 +1624,7 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1797,7 +1797,7 @@ urp_get_valid_parent_nsuniqueid (Slapi_DN *parentdn)
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1834,7 +1834,7 @@ urp_rename_conflict_children(const char *old_parent, const Slapi_DN *new_parent)
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1911,7 +1911,7 @@ urp_get_min_naming_conflict_entry(Slapi_PBlock *pb, const char *collisiondn, cha
                                  0, /* AttrOnly */
                                  server_ctrls, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);

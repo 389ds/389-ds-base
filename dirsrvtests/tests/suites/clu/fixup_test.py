@@ -12,7 +12,7 @@ import pytest
 
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.plugins import POSIXWinsyncPlugin
 from lib389.cli_conf.plugins.posix_winsync import do_fixup
@@ -47,8 +47,6 @@ def set_log_file_and_ldif(topology_st, request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1739718
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_posix_winsync_fixup(topology_st, set_log_file_and_ldif):
     """Test posix-winsync fixup that was ported from legacy tools
@@ -83,6 +81,7 @@ def test_posix_winsync_fixup(topology_st, set_log_file_and_ldif):
     args = FakeArgs()
     args.DN = DEFAULT_SUFFIX
     args.filter = None
+    args.timeout = 0
 
     log.info('Run Fixup task')
     do_fixup(standalone, DEFAULT_SUFFIX, log, args)

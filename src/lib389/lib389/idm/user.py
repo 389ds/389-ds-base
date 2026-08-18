@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,6 +11,8 @@ from lib389._mapped_object import DSLdapObjects
 # Account derives DSLdapObject - it gives us the lock / unlock functions.
 from lib389.idm.account import Account
 from lib389.utils import ds_is_older
+from lib389.cli_base.dsrc import dsrc_to_ldap
+from lib389._constants import DSRC_HOME
 
 MUST_ATTRIBUTES = [
     'uid',
@@ -20,6 +23,7 @@ MUST_ATTRIBUTES = [
     'homeDirectory',
 ]
 RDN = 'uid'
+DEFAULT_BASEDN_RDN = 'ou=People'
 
 TEST_USER_PROPERTIES = {
     'uid': 'testuser',
@@ -30,7 +34,8 @@ TEST_USER_PROPERTIES = {
     'homeDirectory' : '/home/testuser'
 }
 
-#### Modern userAccounts
+
+# Modern userAccounts
 
 class nsUserAccount(Account):
     _must_attributes = [
@@ -67,13 +72,14 @@ class nsUserAccount(Account):
             'posixAccount',
         ]
         user_compare_exclude = [
-            'nsUniqueId', 
-            'modifyTimestamp', 
-            'createTimestamp', 
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
             'entrydn'
         ]
         self._compare_exclude = self._compare_exclude + user_compare_exclude
         self._protected = False
+
 
 class nsUserAccounts(DSLdapObjects):
     """DSLdapObjects that represents all nsUserAccount entries in suffix.
@@ -85,7 +91,7 @@ class nsUserAccounts(DSLdapObjects):
     :type instance: lib389.DirSrv
     :param basedn: Suffix DN
     :type basedn: str
-    :param rdn: The DN that will be combined wit basedn
+    :param rdn: The DN that will be combined with basedn
     :type rdn: str
     """
 
@@ -99,10 +105,15 @@ class nsUserAccounts(DSLdapObjects):
         ]
         self._filterattrs = [RDN, 'displayName', 'cn']
         self._childobject = nsUserAccount
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
         if rdn is None:
             self._basedn = basedn
         else:
-            self._basedn = '{},{}'.format(rdn, basedn)
+            self._basedn = f'{rdn},{basedn}'
 
     def create_test_user(self, uid=1000, gid=2000):
         """Create a test user with uid=test_user_UID rdn
@@ -115,20 +126,20 @@ class nsUserAccounts(DSLdapObjects):
         :returns: DSLdapObject of the created entry
         """
 
-        rdn_value = "test_user_{}".format(uid)
-        rdn = "uid={}".format(rdn_value)
+        rdn_value = f"test_user_{uid}"
+        rdn = f"uid={rdn_value}"
         properties = {
             'uid': rdn_value,
             'cn': rdn_value,
             'displayName': rdn_value,
             'uidNumber': str(uid),
             'gidNumber': str(gid),
-            'homeDirectory': '/home/{}'.format(rdn_value),
+            'homeDirectory': f'/home/{rdn_value}',
         }
         return super(nsUserAccounts, self).create(rdn, properties)
 
 
-#### Traditional style userAccounts.
+# Traditional style userAccounts.
 
 class UserAccount(Account):
     """A single instance of User Account entry
@@ -161,9 +172,9 @@ class UserAccount(Account):
         if not ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.append('nsAccount')
         user_compare_exclude = [
-            'nsUniqueId', 
-            'modifyTimestamp', 
-            'createTimestamp', 
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
             'entrydn'
         ]
         self._compare_exclude = self._compare_exclude + user_compare_exclude
@@ -187,11 +198,11 @@ class UserAccounts(DSLdapObjects):
     :type instance: lib389.DirSrv
     :param basedn: Suffix DN
     :type basedn: str
-    :param rdn: The DN that will be combined wit basedn
+    :param rdn: The DN that will be combined with basedn
     :type rdn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=People'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(UserAccounts, self).__init__(instance)
         self._objectclasses = [
             'account',
@@ -201,10 +212,15 @@ class UserAccounts(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UserAccount
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
         if rdn is None:
             self._basedn = basedn
         else:
-            self._basedn = '{},{}'.format(rdn, basedn)
+            self._basedn = f'{rdn},{basedn}'
 
     def create_test_user(self, uid=1000, gid=2000):
         """Create a test user with uid=test_user_UID rdn
@@ -217,14 +233,189 @@ class UserAccounts(DSLdapObjects):
         :returns: DSLdapObject of the created entry
         """
 
-        rdn_value = "test_user_{}".format(uid)
-        rdn = "uid={}".format(rdn_value)
+        rdn_value = f"test_user_{uid}"
+        rdn = f"uid={rdn_value}"
         properties = {
             'uid': rdn_value,
             'cn': rdn_value,
             'sn': rdn_value,
             'uidNumber': str(uid),
             'gidNumber': str(gid),
-            'homeDirectory': '/home/{}'.format(rdn_value)
+            'homeDirectory': f'/home/{rdn_value}'
         }
         return super(UserAccounts, self).create(rdn, properties)
+
+
+# The following classes are used to manage user accounts created by the UI
+
+class TraditionalUserAccount(Account):
+    """A single instance of a TraditionalUser Account entry
+
+    This is the "Traditional" user account created by the UI
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    _must_attributes = ['cn', 'sn']
+
+    def __init__(self, instance, dn=None):
+        super(TraditionalUserAccount, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        # Can I generate these from schema?
+        self._must_attributes = ['cn', 'sn']
+        self._create_objectclasses = [
+            'top',
+            'person',
+            'inetOrgPerson',
+            'organizationalPerson',
+        ]
+        user_compare_exclude = [
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
+            'entrydn'
+        ]
+        self._compare_exclude = self._compare_exclude + user_compare_exclude
+        self._protected = False
+
+    def _validate(self, rdn, properties, basedn):
+        if 'ntUserDomainId' in properties and 'ntUser' not in self._create_objectclasses:
+            self._create_objectclasses.append('ntUser')
+
+        return super(TraditionalUserAccount, self)._validate(rdn, properties, basedn)
+
+
+class TraditionalUserAccounts(DSLdapObjects):
+    """DSLdapObjects that represents all TraditionalUser Account entries in
+    suffix. By default it uses 'ou=People' as rdn.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Suffix DN
+    :type basedn: str
+    :param rdn: The DN that will be combined with basedn
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
+        super(TraditionalUserAccounts, self).__init__(instance)
+        self._objectclasses = [
+            'person',
+            'inetOrgPerson',
+            'organizationalPerson',
+        ]
+        self._filterattrs = [RDN, 'cn']
+        self._childobject = TraditionalUserAccount
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
+        if rdn is None:
+            self._basedn = basedn
+        else:
+            self._basedn = f'{rdn},{basedn}'
+
+    def create_test_user(self):
+        """Create a test user with uid=test_user rdn
+
+        :returns: DSLdapObject of the created entry
+        """
+
+        rdn_value = "test_user"
+        rdn = f"cn={rdn_value}"
+        properties = {
+            'uid': rdn_value,
+            'cn': rdn_value,
+            'sn': rdn_value,
+        }
+        return super(TraditionalUserAccounts, self).create(rdn, properties)
+
+class BasicUserAccount(Account):
+    """A single instance of a Basic User Account entry
+
+    This is the "Basic" user account created by the UI
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    _must_attributes = ['uid', 'cn', 'displayName']
+
+    def __init__(self, instance, dn=None):
+        super(BasicUserAccount, self).__init__(instance, dn)
+        self._rdn_attribute = RDN
+        # Can I generate these from schema?
+        self._must_attributes = ['uid', 'cn', 'displayName']
+        self._create_objectclasses = [
+            'top',
+            'nsPerson',
+            'nsAccount',
+            'nsOrgPerson'
+        ]
+        user_compare_exclude = [
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
+            'entrydn'
+        ]
+        self._compare_exclude = self._compare_exclude + user_compare_exclude
+        self._protected = False
+
+    def _validate(self, rdn, properties, basedn):
+        if 'ntUserDomainId' in properties and 'ntUser' not in self._create_objectclasses:
+            self._create_objectclasses.append('ntUser')
+
+        return super(BasicUserAccount, self)._validate(rdn, properties, basedn)
+
+
+class BasicUserAccounts(DSLdapObjects):
+    """DSLdapObjects that represents all BasicUser Account entries in
+    suffix. By default it uses 'ou=People' as rdn.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Suffix DN
+    :type basedn: str
+    :param rdn: The DN that will be combined with basedn
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
+        super(BasicUserAccounts, self).__init__(instance)
+        self._objectclasses = [
+            'nsPerson',
+            'nsAccount',
+            'nsOrgPerson'
+        ]
+        self._filterattrs = [RDN]
+        self._childobject = BasicUserAccount
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
+        if rdn is None:
+            self._basedn = basedn
+        else:
+            self._basedn = f'{rdn},{basedn}'
+
+    def create_test_user(self):
+        """Create a test user with uid=test_user rdn
+
+        :returns: DSLdapObject of the created entry
+        """
+
+        rdn_value = "test_user"
+        rdn = f"uid={rdn_value}"
+        properties = {
+            'uid': rdn_value,
+            'cn': rdn_value,
+            'sn': rdn_value,
+        }
+        return super(BasicUserAccounts, self).create(rdn, properties)

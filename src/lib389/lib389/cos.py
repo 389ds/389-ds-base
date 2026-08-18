@@ -78,6 +78,7 @@ class CosIndirectDefinition(DSLdapObject):
         self._must_attributes = ['cn', 'cosIndirectSpecifier', 'cosattribute']
         self._create_objectclasses = [
             'top',
+            'ldapsubentry',
             'cosSuperDefinition',
             'cosIndirectDefinition',
         ]
@@ -98,6 +99,8 @@ class CosIndirectDefinitions(DSLdapObjects):
     def __init__(self, instance, basedn, rdn=None):
         super(CosIndirectDefinitions, self).__init__(instance)
         self._objectclasses = [
+            'top',
+            'ldapsubentry',
             'cosSuperDefinition',
             'cosIndirectDefinition',
         ]
@@ -145,6 +148,7 @@ class CosPointerDefinitions(DSLdapObjects):
     def __init__(self, instance, basedn, rdn=None):
         super(CosPointerDefinitions, self).__init__(instance)
         self._objectclasses = [
+            'top',
             'ldapsubentry',
             'cosSuperDefinition',
             'cosPointerDefinition',
@@ -171,6 +175,7 @@ class CosClassicDefinition(DSLdapObject):
         self._must_attributes = ['cn']
         self._create_objectclasses = [
             'top',
+            'ldapsubentry',
             'cossuperdefinition',
             'cosClassicDefinition',
         ]
@@ -191,6 +196,7 @@ class CosClassicDefinitions(DSLdapObjects):
         super(CosClassicDefinitions, self).__init__(instance)
         self._objectclasses = [
             'top',
+            'ldapsubentry',
             'cossuperdefinition',
             'cosClassicDefinition',
         ]

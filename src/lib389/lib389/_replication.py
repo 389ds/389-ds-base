@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,7 +19,7 @@ class CSN(object):
     """CSN is Change Sequence Number
         csn.ts is the timestamp (time_t - seconds)
         csn.seq is the sequence number (max 65535)
-        csn.rid is the replica ID of the originating master
+        csn.rid is the replica ID of the originating supplier
         csn.subseq is not currently used"""
 
     csnpat = r'(.{8})(.{4})(.{4})(.{4})'

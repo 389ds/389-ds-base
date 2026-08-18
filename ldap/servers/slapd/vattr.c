@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -64,6 +64,10 @@
 #define SOURCEFILE "vattr.c"
 static char *sourcefile = SOURCEFILE;
 
+/* stolen from roles_cache.h, must remain in sync */
+#define NSROLEATTR "nsRole"
+static Slapi_Eq_Context vattr_check_ctx = {0};
+
 /* Define only for module test code */
 /* #define VATTR_TEST_CODE */
 
@@ -110,7 +114,6 @@ struct _vattr_map
 typedef struct _vattr_map vattr_map;
 
 static vattr_map *the_map = NULL;
-static PRUintn thread_private_global_vattr_lock;
 
 /* Housekeeping Functions, called by server startup/shutdown code */
 
@@ -125,142 +128,123 @@ vattr_init()
     vattr_basic_sp_init();
 #endif
 }
-/*
- * https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR/Reference/PR_NewThreadPrivateIndex
- * It is called each time:
- *  - PR_SetThreadPrivate is call with a not NULL private value
- *  - on thread exit
- */
-static void
-vattr_global_lock_free(void *ptr)
-{
-    int *nb_acquired = ptr;
-    if (nb_acquired) {
-        slapi_ch_free((void **)&nb_acquired);
-    }
-}
-/* Create a private variable for each individual thread of the current process */
-void
-vattr_global_lock_create()
-{
-    if (PR_NewThreadPrivateIndex(&thread_private_global_vattr_lock, vattr_global_lock_free) != PR_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ALERT,
-              "vattr_global_lock_create", "Failure to create global lock for virtual attribute !\n");
-        PR_ASSERT(0);
-    }
-}
-static int
-global_vattr_lock_get_acquired_count()
-{
-    int *nb_acquired;
-    nb_acquired = (int *) PR_GetThreadPrivate(thread_private_global_vattr_lock);
-    if (nb_acquired == NULL) {
-        /* if it was not initialized set it to zero */
-        nb_acquired = (int *) slapi_ch_calloc(1, sizeof(int));
-        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) nb_acquired);
-    }
-    return *nb_acquired;
-}
-static void
-global_vattr_lock_set_acquired_count(int nb_acquired)
-{
-    int *val;
-    val = (int *) PR_GetThreadPrivate(thread_private_global_vattr_lock);
-    if (val == NULL) {
-        /* if it was not initialized set it to zero */
-        val = (int *) slapi_ch_calloc(1, sizeof(int));
-        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) val);
-    }
-    *val = nb_acquired;
-}
-/* The map lock can be acquired recursively. So only the first rdlock
- * will acquire the lock.
- * A optimization acquires it at high level (op_shared_search), so that
- * later calls during the operation processing will just increase/decrease a counter.
- */
-void
-vattr_rdlock()
-{
-    int nb_acquire = global_vattr_lock_get_acquired_count();
-
-    if (nb_acquire == 0) {
-        /* The lock was not held just acquire it */
-        slapi_rwlock_rdlock(the_map->lock);
-    }
-    nb_acquire++;
-    global_vattr_lock_set_acquired_count(nb_acquire);
-
-}
-/* The map lock can be acquired recursively. So only the last unlock
- * will release the lock.
- * A optimization acquires it at high level (op_shared_search), so that
- * later calls during the operation processing will just increase/decrease a counter.
- */
-void
-vattr_rd_unlock()
-{
-    int nb_acquire = global_vattr_lock_get_acquired_count();
-
-    if (nb_acquire >= 1) {
-        nb_acquire--;
-        if (nb_acquire == 0) {
-            slapi_rwlock_unlock(the_map->lock);
-        }
-        global_vattr_lock_set_acquired_count(nb_acquire);
-    } else {
-        /* this is likely the consequence of lock acquire in read during an internal search
-         * but the search callback updated the map and release the readlock and acquired
-         * it in write.
-         * So after the update the lock was no longer held but when completing the internal
-         * search we release the global read lock, that now has nothing to do
-         */
-        slapi_log_err(SLAPI_LOG_DEBUG,
-          "vattr_rd_unlock", "vattr lock no longer acquired in read.\n");
-    }
-}
-
-/* The map lock is acquired in write (updating the map)
- * It exists a possibility that lock is acquired in write while it is already
- * hold in read by this thread (internal search with updating callback)
- * In such situation, the we must abandon the read global lock and acquire in write
- */
-void
-vattr_wrlock()
-{
-    int nb_read_acquire = global_vattr_lock_get_acquired_count();
-
-    if (nb_read_acquire) {
-        /* The lock was acquired in read but we need it in write
-         * release it and set the global vattr_lock counter to 0
-         */
-        slapi_rwlock_unlock(the_map->lock);
-        global_vattr_lock_set_acquired_count(0);
-    }
-    slapi_rwlock_wrlock(the_map->lock);
-}
-/* The map lock is release from a write write (updating the map)
- */
-void
-vattr_wr_unlock()
-{
-    int nb_read_acquire = global_vattr_lock_get_acquired_count();
-
-    if (nb_read_acquire) {
-        /* The lock being acquired in write, the private thread counter
-         * (that count the number of time it was acquired in read) should be 0
-         */
-        slapi_log_err(SLAPI_LOG_INFO,
-          "vattr_unlock", "The lock was acquired in write. We should not be here\n");
-        PR_ASSERT(nb_read_acquire == 0);
-    }
-    slapi_rwlock_unlock(the_map->lock);
-}
 /* Called on server shutdown, free all structures, inform service providers that we're going down etc */
 void
 vattr_cleanup()
 {
     /* We need to free and remove anything that was inserted first */
     vattr_map_destroy();
+    slapi_eq_cancel_rel(vattr_check_ctx);
+}
+
+static void
+vattr_check_thread(void *arg)
+{
+    slapi_set_thread_name("vattr-chk");
+    Slapi_Backend *be = NULL;
+    char *cookie = NULL;
+    Slapi_DN *base_sdn = NULL;
+    Slapi_PBlock *search_pb = NULL;
+    Slapi_Entry **entries = NULL;
+    int32_t rc;
+    int32_t check_suffix; /* used to skip suffixes in ignored_backend */
+    PRBool exist_vattr_definition = PR_FALSE;
+    const char *ignored_backend[] = {  /* suffixes to ignore */ \
+        "cn=config", "cn=schema", "cn=monitor", "cn=changelog",
+        DYNCERTS_SUFFIX, NULL
+    };
+    char *suffix;
+    int ignore_vattrs;
+
+    ignore_vattrs = config_get_ignore_vattrs();
+
+    if (!ignore_vattrs) {
+        /* Nothing to do more, we are already evaluating virtual attribute */
+        return;
+    }
+
+    search_pb = slapi_pblock_new();
+    be = slapi_get_first_backend(&cookie);
+    while (be && !exist_vattr_definition && !slapi_is_shutting_down()) {
+        base_sdn = (Slapi_DN *) slapi_be_getsuffix(be, 0);
+        suffix = (char *) slapi_sdn_get_dn(base_sdn);
+
+        if (suffix) {
+            /* First check that we need to check that suffix */
+            check_suffix = 1;
+            for (size_t i = 0; ignored_backend[i]; i++) {
+                if (strcasecmp(suffix, ignored_backend[i]) == 0) {
+                    check_suffix = 0;
+                    break;
+                }
+            }
+
+            /* search for a role or cos definition */
+            if (check_suffix) {
+                slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
+                        LDAP_SCOPE_SUBTREE, "(&(objectclass=ldapsubentry)(|(objectclass=nsRoleDefinition)(objectclass=cosSuperDefinition)))",
+                        NULL, 0, NULL, NULL, (void *) plugin_get_default_component_id(), 0);
+                slapi_search_internal_pb(search_pb);
+                slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+                if (rc == LDAP_SUCCESS) {
+                    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+                    if (entries && entries[0]) {
+                        /* it exists at least a cos or role definition */
+                        exist_vattr_definition = PR_TRUE;
+                        slapi_log_err(SLAPI_LOG_INFO,
+                                "vattr_check_thread",
+                                "Found a role/cos definition in %s\n", slapi_entry_get_dn(entries[0]));
+                    } else {
+                        slapi_log_err(SLAPI_LOG_INFO,
+                                "vattr_check_thread",
+                                "No role/cos definition in %s\n", slapi_sdn_get_dn(base_sdn));
+                    }
+                }
+                slapi_free_search_results_internal(search_pb);
+                slapi_pblock_init(search_pb);
+            } /* check_suffix */
+        } /* suffix */
+        be = (backend *) slapi_get_next_backend(cookie);
+    }
+    slapi_pblock_destroy(search_pb);
+    slapi_ch_free_string(&cookie);
+
+    /* Now if a virtual attribute is defined, then CONFIG_IGNORE_VATTRS -> off */
+    if (exist_vattr_definition) {
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        errorbuf[0] = '\0';
+        config_set_ignore_vattrs(CONFIG_IGNORE_VATTRS, "off", errorbuf, 1);
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "vattr_check_thread",
+                      "Because of virtual attribute definition, %s was set to 'off'\n", CONFIG_IGNORE_VATTRS);
+    }
+}
+static void
+vattr_check_schedule_once(time_t when __attribute__((unused)), void *arg)
+{
+    if (PR_CreateThread(PR_USER_THREAD,
+                        vattr_check_thread,
+                        (void *) arg,
+                        PR_PRIORITY_NORMAL,
+                        PR_GLOBAL_THREAD,
+                        PR_UNJOINABLE_THREAD,
+                        SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "vattr_check_schedule_once",
+                      "Fails to check if %s needs to be toggled to FALSE\n", CONFIG_IGNORE_VATTRS);
+    }
+}
+#define VATTR_CHECK_DELAY 3
+void
+vattr_check()
+{
+    /* Schedule running a callback that will create a thread
+     * but make sure it is called a first thing when event loop is created */
+    time_t now;
+
+    now = slapi_current_rel_time_t();
+    vattr_check_ctx = slapi_eq_once_rel(vattr_check_schedule_once, NULL, now + VATTR_CHECK_DELAY);
 }
 
 /* The public interface functions start here */
@@ -675,6 +659,9 @@ vattr_test_filter(Slapi_PBlock *pb,
                                 rc = plugin_call_syntax_filter_ava(a,
                                                                    f->f_choice, &f->f_ava);
                             } else if (filter_type == FILTER_TYPE_SUBSTRING) {
+                                /* covscan false positive: plugin_call_syntax_filter_sub does not free pb->pb_op */
+                                /* coverity[deref_arg] */
+                                /* coverity[double_free] */
                                 rc = plugin_call_syntax_filter_sub(pb, a,
                                                                    &f->f_sub);
                             }
@@ -910,6 +897,8 @@ slapi_vattr_values_get_sp(vattr_context *c,
     } else {
         vattr_context_ungrok(&c);
     }
+    /* covscan false positive: ctx is stored in pblock */
+    /* coverity[leaked_storage] */
     return rc;
 }
 
@@ -1762,6 +1751,9 @@ slapi_vattrspi_regattr(vattr_sp_handle *h, char *type_name_to_register, char *DN
     char *type_to_add;
     int free_type_to_add = 0;
     Slapi_DN original_dn;
+    int ignore_vattrs;
+
+    ignore_vattrs = config_get_ignore_vattrs();
 
     slapi_sdn_init(&original_dn);
 
@@ -1806,6 +1798,20 @@ slapi_vattrspi_regattr(vattr_sp_handle *h, char *type_name_to_register, char *DN
     slapi_sdn_done(&original_dn);
     if (free_type_to_add) {
         slapi_ch_free((void **)&type_to_add);
+    }
+    if (ignore_vattrs && strcasecmp(type_name_to_register, NSROLEATTR)) {
+        /* A new virtual attribute is registered.
+         * This new vattr being *different* than the default roles vattr 'nsRole'
+         * It is time to allow vattr lookup
+         */
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        errorbuf[0] = '\0';
+        config_set_ignore_vattrs(CONFIG_IGNORE_VATTRS, "off", errorbuf, 1);
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "slapi_vattrspi_regattr",
+                      "Because %s is a new registered virtual attribute , %s was set to 'off'\n",
+                      type_name_to_register,
+                      CONFIG_IGNORE_VATTRS);
     }
 
     return ret;
@@ -2090,11 +2096,11 @@ vattr_map_lookup(const char *type_to_find, vattr_map_entry **result)
     }
 
     /* Get the reader lock */
-    vattr_rdlock();
+    slapi_rwlock_rdlock(the_map->lock);
     *result = (vattr_map_entry *)PL_HashTableLookupConst(the_map->hashtable,
                                                          (void *)basetype);
     /* Release ze lock */
-    vattr_rd_unlock();
+    slapi_rwlock_unlock(the_map->lock);
 
     if (tmp) {
         slapi_ch_free_string(&tmp);
@@ -2113,13 +2119,13 @@ vattr_map_insert(vattr_map_entry *vae)
 {
     PR_ASSERT(the_map);
     /* Get the writer lock */
-    vattr_wrlock();
+    slapi_rwlock_wrlock(the_map->lock);
     /* Insert the thing */
     /* It's illegal to call this function if the entry is already there */
     PR_ASSERT(NULL == PL_HashTableLookupConst(the_map->hashtable, (void *)vae->type_name));
     PL_HashTableAdd(the_map->hashtable, (void *)vae->type_name, (void *)vae);
     /* Unlock and we're done */
-    vattr_wr_unlock();
+    slapi_rwlock_unlock(the_map->lock);
     return 0;
 }
 
@@ -2238,13 +2244,13 @@ schema_changed_callback(Slapi_Entry *e __attribute__((unused)),
                         void *caller_data __attribute__((unused)))
 {
     /* Get the writer lock */
-    vattr_wrlock();
+    slapi_rwlock_wrlock(the_map->lock);
 
     /* go through the list */
     PL_HashTableEnumerateEntries(the_map->hashtable, vattr_map_entry_rebuild_schema, 0);
 
     /* Unlock and we're done */
-    vattr_wr_unlock();
+    slapi_rwlock_unlock(the_map->lock);
 }
 
 
@@ -2264,7 +2270,7 @@ slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
                 objAttrValue *obj;
 
                 if (0 == vattr_map_lookup(type, &map_entry)) {
-                    vattr_rdlock();
+                    slapi_rwlock_rdlock(the_map->lock);
 
                     obj = map_entry->objectclasses;
 
@@ -2281,7 +2287,7 @@ slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
                         obj = obj->pNext;
                     }
 
-                    vattr_rd_unlock();
+                    slapi_rwlock_unlock(the_map->lock);
                 }
 
                 slapi_valueset_free(vs);

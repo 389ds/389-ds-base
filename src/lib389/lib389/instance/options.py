@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,15 +8,15 @@
 
 import socket
 import sys
+import os
+import random
 from lib389.paths import Paths
 from lib389._constants import INSTALL_LATEST_CONFIG
+from lib389.utils import get_default_db_lib, get_default_mdb_max_size, socket_check_bind
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 
 format_keys = [
     'prefix',
@@ -32,7 +32,10 @@ format_keys = [
     'backup_dir',
     'db_dir',
     'db_home_dir',
+    'db_lib',
+    'ldapi',
     'ldif_dir',
+    'mdb_max_size',
     'lock_dir',
     'log_dir',
     'run_dir',
@@ -48,6 +51,48 @@ class Options2(object):
     # It provides a number of options for:
     # - dict overlay
     # - parsing the config parser types.
+
+    def get_default():
+        # Get option default values if these values are dynamic
+        # Concerned options are:
+        #   - selinux
+        #   - systemd
+        #   - port
+        #   - secure_port
+        if os.geteuid() == 0:
+            return { 'selinux': True,
+                     'systemd': True,
+                     'port': 389,
+                     'secure_port': 636 }
+        values = { 'selinux': False, 'systemd': False }
+        # Try first to select a couple of port like (n*1000+389, n*1000+636)
+        for delta in range(1000, 65000, 1000):
+            values['port'] = 389+delta
+            values['secure_port'] = 636+delta
+            if socket_check_bind(values['port']) and socket_check_bind(values['secure_port']):
+                return values;
+        # Nothing found, so lets use a couple of random values
+        for tryid in range(10000):
+            values['port'], values['secure_port'] = random.choices(range(1000,65535), k=2)
+            if socket_check_bind(values['port']) and socket_check_bind(values['secure_port']):
+                return values;
+        # Still nothing found.
+        # Cannot not raise an exception as this code is also triggered while building 389ds
+        # So lets silently choose a couple of ports (probably busy) and get a failure later
+        # on (when starting the instance if in dscreate case).
+        values['port'], values['secure_port'] = random.choices(range(1000,65535), k=2)
+        return values;
+
+    default_values = get_default()
+
+    def get_systemd_default():
+        # Cannot use ds_paths.with_systemd in get_default() because dse template
+        # is not available in build. So a function is used instead.
+        if Options2.default_values['systemd']:
+            return ds_paths.with_systemd
+        else:
+            return False
+
 
     def __init__(self, log):
         # 'key' : (default, helptext, valid_func )
@@ -123,19 +168,19 @@ class General2Base(Options2):
         self._type['strict_host_checking'] = bool
         self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\". Container installs imply \"false\"."
 
-        self._options['selinux'] = True
+        self._options['selinux'] = Options2.default_values['selinux']
         self._type['selinux'] = bool
         self._helptext['selinux'] = "Enables SELinux detection and integration during the installation of this instance. If set to \"True\", dscreate auto-detects whether SELinux is enabled. Set this parameter only to \"False\" in a development environment."
         self._advanced['selinux'] = True
 
-        self._options['systemd'] = ds_paths.with_systemd
+        self._options['systemd'] = Options2.get_systemd_default()
         self._type['systemd'] = bool
         self._helptext['systemd'] = "Enables systemd platform features. If set to \"True\", dscreate auto-detects whether systemd is installed. Set this only to \"False\" in a development environment."
         self._advanced['systemd'] = True
 
         self._options['start'] = True
         self._type['start'] = bool
-        self._helptext['start'] = "Starts the instance after the install completes. If false, the instance is created but started."
+        self._helptext['start'] = "Starts the instance after the install completes. If false, the instance is created but not started."
 
         self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str
@@ -185,11 +230,11 @@ class Slapd2Base(Options2):
         self._helptext['prefix'] = "Sets the file system prefix for all other directories. You can refer to this value in other fields using the {prefix} variable or the $PREFIX environment variable. Only set this parameter in a development environment."
         self._advanced['prefix'] = True
 
-        self._options['port'] = 389
+        self._options['port'] = Options2.default_values['port']
         self._type['port'] = int
         self._helptext['port'] = "Sets the TCP port the instance uses for LDAP connections."
 
-        self._options['secure_port'] = 636
+        self._options['secure_port'] = Options2.default_values['secure_port']
         self._type['secure_port'] = int
         self._helptext['secure_port'] = "Sets the TCP port the instance uses for TLS-secured LDAP connections (LDAPS)."
 
@@ -233,6 +278,10 @@ class Slapd2Base(Options2):
         self._helptext['local_state_dir'] = "Sets the location of Directory Server variable data. Only set this parameter in a development environment."
         self._advanced['local_state_dir'] = True
 
+        self._options['ldapi'] = ds_paths.ldapi
+        self._type['ldapi'] = str
+        self._helptext['ldapi'] = "Sets the location of socket interface of the Directory Server."
+
         self._options['lib_dir'] = ds_paths.lib_dir
         self._type['lib_dir'] = str
         self._helptext['lib_dir'] = "Sets the location of Directory Server shared libraries. Only set this parameter in a development environment."
@@ -267,6 +316,16 @@ class Slapd2Base(Options2):
         self._type['db_home_dir'] = str
         self._helptext['db_home_dir'] = "Sets the memory-mapped database files location of the instance."
         self._advanced['db_home_dir'] = True
+
+        self._options['db_lib'] = get_default_db_lib()
+        self._type['db_lib'] = str
+        self._helptext['db_lib'] = "Select the database implementation library (bdb or mdb)."
+        self._advanced['db_lib'] = False
+
+        self._options['mdb_max_size'] = get_default_mdb_max_size(ds_paths)
+        self._type['mdb_max_size'] = str
+        self._helptext['mdb_max_size'] = "Select the lmdb database maximum size."
+        self._advanced['mdb_max_size'] = False
 
         self._options['ldif_dir'] = ds_paths.ldif_dir
         self._type['ldif_dir'] = str
@@ -323,6 +382,7 @@ class Backend2Base(Options2):
         super(Backend2Base, self).__init__(log)
         self._section = section
 
+        # Suffix settings
         self._options['suffix'] = ''
         self._type['suffix'] = str
         self._helptext['suffix'] = ("Sets the root suffix stored in this database.  If you do not uncomment and set the suffix " +
@@ -345,4 +405,39 @@ class Backend2Base(Options2):
         self._type['require_index'] = bool
         self._helptext['require_index'] = "Set this parameter to \"True\" to refuse unindexed searches in this database."
 
-        # TODO - Add other backend settings
+        # Replication settings
+        self._options['enable_replication'] = False
+        self._type['enable_replication'] = bool
+        self._helptext['enable_replication'] = ("Enable replication for this backend.  By default it will setup the backend as " +
+                                                "a supplier, with replica ID 1, and \"cn=replication manager,cn=config\" as the " +
+                                                "replication binddn.")
+
+        self._options['replica_role'] = "supplier"
+        self._type['replica_role'] = str
+        self._helptext['replica_role'] = "Set the replication role.  Choose either 'supplier', 'hub', or 'consumer'"
+
+        self._options['replica_id'] = "1"
+        self._type['replica_id'] = int
+        self._helptext['replica_id'] = "Set the unique replication identifier for this replica's database (suppliers only)"
+
+        self._options['replica_binddn'] = "cn=replication manager,cn=config"
+        self._type['replica_binddn'] = str
+        self._helptext['replica_binddn'] = "Set the replication manager DN"
+
+        self._options['replica_bindpw'] = ""
+        self._type['replica_bindpw'] = str
+        self._helptext['replica_bindpw'] = ("Sets the password of the Replication Manager account (\"replica_binddn\" parameter)." +
+                                            "Note that setting a plain text password can be a security risk if unprivileged " +
+                                            "users can read this INF file!")
+
+        self._options['replica_bindgroup'] = ""
+        self._type['replica_bindgroup'] = str
+        self._helptext['replica_bindgroup'] = "Set the replication bind group DN"
+
+        self._options['changelog_max_age'] = "7d"
+        self._type['changelog_max_age'] = str
+        self._helptext['changelog_max_age'] = ("How long an entry should remain in the replication changelog.  The default is 7 days, or '7d'. (requires that replication is enabled).")
+
+        self._options['changelog_max_entries'] = "-1"
+        self._type['changelog_max_entries'] = str
+        self._helptext['changelog_max_entries'] = ("The maximum number of entries to keep in the replication changelog.  The default is '-1', which means unlimited. (requires that replication is enabled).")

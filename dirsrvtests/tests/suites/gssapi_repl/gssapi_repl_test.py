@@ -9,7 +9,8 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2
+from lib389.agreement import *
+from test389.topologies import topology_m2_gssapi, gssapi_ack
 
 pytestmark = pytest.mark.tier2
 
@@ -31,8 +32,8 @@ log = logging.getLogger(__name__)
 
 REALM = "EXAMPLE.COM"
 
-HOST_MASTER_1 = 'ldapkdc1.example.com'
-HOST_MASTER_2 = 'ldapkdc2.example.com'
+HOST_SUPPLIER_1 = 'ldapkdc1.example.com'
+HOST_SUPPLIER_2 = 'ldapkdc2.example.com'
 
 
 def _create_machine_ou(inst):
@@ -65,20 +66,20 @@ def _allow_machine_account(inst, name):
     # First we need to get the mapping tree dn
     mt = inst.mappingtree.list(suffix=DEFAULT_SUFFIX)[0]
     inst.modify_s('cn=replica,%s' % mt.dn, [
-        (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDN', "uid=%s,ou=Machines,%s" % (name, DEFAULT_SUFFIX))
+        (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDN', f"uid={name},ou=Machines,{DEFAULT_SUFFIX}".encode('utf-8'))
     ])
 
-
-def test_gssapi_repl(topology_m2):
-    """Test gssapi authenticated replication agreement of two masters using KDC
+@gssapi_ack
+def test_gssapi_repl(topology_m2_gssapi):
+    """Test gssapi authenticated replication agreement of two suppliers using KDC
 
     :id: 552850aa-afc3-473e-9c39-aae802b46f11
 
-    :setup: MMR with two masters
+    :setup: MMR with two suppliers
 
     :steps:
-         1. Create the locations on each master for the other master to bind to
-         2. Set on the cn=replica config to accept the other masters mapping under mapping tree
+         1. Create the locations on each supplier for the other supplier to bind to
+         2. Set on the cn=replica config to accept the other suppliers mapping under mapping tree
          3. Create the replication agreements from M1->M2 and vice versa (M2->M1)
          4. Set the replica bind method to sasl gssapi for both agreements
          5. Initialize all the agreements
@@ -94,48 +95,46 @@ def test_gssapi_repl(topology_m2):
          6. Test User should be created on M1 and M2 both
          7. Test User should be created on M1 and M2 both
     """
+    supplier1 = topology_m2_gssapi.ms["supplier1"]
+    supplier2 = topology_m2_gssapi.ms["supplier2"]
 
-    return
-    master1 = topology_m2.ms["master1"]
-    master2 = topology_m2.ms["master2"]
+    # Create the locations on each supplier for the other to bind to.
+    _create_machine_ou(supplier1)
+    _create_machine_ou(supplier2)
 
-    # Create the locations on each master for the other to bind to.
-    _create_machine_ou(master1)
-    _create_machine_ou(master2)
+    _create_machine_account(supplier1, 'ldap/%s' % HOST_SUPPLIER_1)
+    _create_machine_account(supplier1, 'ldap/%s' % HOST_SUPPLIER_2)
+    _create_machine_account(supplier2, 'ldap/%s' % HOST_SUPPLIER_1)
+    _create_machine_account(supplier2, 'ldap/%s' % HOST_SUPPLIER_2)
 
-    _create_machine_account(master1, 'ldap/%s' % HOST_MASTER_1)
-    _create_machine_account(master1, 'ldap/%s' % HOST_MASTER_2)
-    _create_machine_account(master2, 'ldap/%s' % HOST_MASTER_1)
-    _create_machine_account(master2, 'ldap/%s' % HOST_MASTER_2)
-
-    # Set on the cn=replica config to accept the other masters princ mapping under mapping tree
-    _allow_machine_account(master1, 'ldap/%s' % HOST_MASTER_2)
-    _allow_machine_account(master2, 'ldap/%s' % HOST_MASTER_1)
+    # Set on the cn=replica config to accept the other suppliers princ mapping under mapping tree
+    _allow_machine_account(supplier1, 'ldap/%s' % HOST_SUPPLIER_2)
+    _allow_machine_account(supplier2, 'ldap/%s' % HOST_SUPPLIER_1)
 
     #
     # Create all the agreements
     #
-    # Creating agreement from master 1 to master 2
+    # Creating agreement from supplier 1 to supplier 2
 
     # Set the replica bind method to sasl gssapi
-    properties = {RA_NAME: r'meTo_$host:$port',
+    properties = {RA_NAME: 'meTo_' + supplier2.host + ':' + str(supplier2.port),
                   RA_METHOD: 'SASL/GSSAPI',
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
+    m1_m2_agmt = supplier1.agreement.create(suffix=SUFFIX, host=supplier2.host, port=supplier2.port, properties=properties)
     if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m1_m2_agmt)
 
-    # Creating agreement from master 2 to master 1
+    # Creating agreement from supplier 2 to supplier 1
 
     # Set the replica bind method to sasl gssapi
-    properties = {RA_NAME: r'meTo_$host:$port',
+    properties = {RA_NAME: 'meTo_' + supplier1.host + ':' + str(supplier1.port),
                   RA_METHOD: 'SASL/GSSAPI',
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
+    m2_m1_agmt = supplier2.agreement.create(suffix=SUFFIX, host=supplier1.host, port=supplier1.port, properties=properties)
     if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m2_m1_agmt)
 
@@ -145,26 +144,33 @@ def test_gssapi_repl(topology_m2):
     #
     # Initialize all the agreements
     #
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
+    agmt = Agreement(supplier1, m1_m2_agmt)
+    agmt.begin_reinit()
+    agmt.wait_reinit()
 
     # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
+    if supplier1.testReplication(DEFAULT_SUFFIX, supplier2):
+        log.info('Replication is working: supplier1 -> supplier2')
     else:
-        log.fatal('Replication is not working.')
+        log.fatal('Replication is not working: supplier1 -> supplier2')
         assert False
 
-    # Add a user to master 1
-    _create_machine_account(master1, 'http/one.example.com')
+    if supplier2.testReplication(DEFAULT_SUFFIX, supplier1):
+        log.info('Replication is working: supplier2 -> supplier1')
+    else:
+        log.fatal('Replication is not working: supplier2 -> supplier1')
+        assert False
+
+    # Add a user to supplier 1
+    _create_machine_account(supplier1, 'http/one.example.com')
     # Check it's on 2
     time.sleep(5)
-    assert (_check_machine_account(master2, 'http/one.example.com'))
-    # Add a user to master 2
-    _create_machine_account(master2, 'http/two.example.com')
+    assert (_check_machine_account(supplier2, 'http/one.example.com'))
+    # Add a user to supplier 2
+    _create_machine_account(supplier2, 'http/two.example.com')
     # Check it's on 1
     time.sleep(5)
-    assert (_check_machine_account(master2, 'http/two.example.com'))
+    assert (_check_machine_account(supplier2, 'http/two.example.com'))
 
 
 if __name__ == '__main__':

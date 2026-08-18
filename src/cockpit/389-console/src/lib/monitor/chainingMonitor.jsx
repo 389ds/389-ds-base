@@ -1,12 +1,21 @@
+import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
-    Row,
-    Col,
-    ControlLabel,
-    Icon,
-    noop
-} from "patternfly-react";
+    Button,
+    Form,
+    Grid,
+    GridItem,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import {
+    SyncAltIcon,
+    LinkIcon
+} from '@patternfly/react-icons';
+
+const _ = cockpit.gettext;
 
 export class ChainingMonitor extends React.Component {
     componentDidMount() {
@@ -15,150 +24,114 @@ export class ChainingMonitor extends React.Component {
 
     render() {
         return (
-            <div id="monitor-server-page" className="container-fluid">
-                <Row>
-                    <Col sm={12} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header">
-                            <Icon type="fa" name="link" /> {this.props.suffix} (<i>{this.props.bename}</i>)
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh chaining monitor"
+            <div id="monitor-server-page">
+                <Form isHorizontal>
+                    <TextContent>
+                        <Text component={TextVariants.h2}>
+                            <LinkIcon />
+                            &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
+                            <Button 
+                                variant="plain"
+                                aria-label={_("Refresh chaining monitor")}
                                 onClick={() => this.props.reload(this.props.suffix)}
-                            />
-                        </ControlLabel>
-                    </Col>
-                </Row>
-                <div className="ds-margin-top-lg">
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Add Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsaddcount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Delete Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsdeletecount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Modify Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsmodifycount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                ModRDN Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsrenamecount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Base Searches
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nssearchbasecount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                One-Level Searches
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nssearchonelevelcount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Subtree Searches
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nssearchsubtreecount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Abandon Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsabandoncount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Bind Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsbindcount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Unbind Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsunbindcount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Compare Operations
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nscomparecount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Outgoing Connections
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsopenopconnectioncount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>
-                                Outgoing Bind Connections
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={3}>
-                            <input type="text" value={this.props.data.nsopenbindconnectioncount} size="35" readOnly />
-                        </Col>
-                    </Row>
-                </div>
+                            >
+                                <SyncAltIcon />
+                            </Button>
+                        </Text>
+                    </TextContent>
+                    <Grid className="ds-margin-top-lg">
+                        <GridItem span={3}>
+                            {_("Add Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsaddcount}</b>
+                        </GridItem>
+                        <GridItem span={3}>
+                            {_("Delete Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsdeletecount}</b>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={3}>
+                            {_("Modify Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsmodifycount}</b>
+                        </GridItem>
+                        <GridItem span={3}>
+                            {_("ModRDN Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsrenamecount}</b>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={3}>
+                            {_("Base Searches")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nssearchbasecount}</b>
+                        </GridItem>
+                        <GridItem span={3}>
+                            {_("One-Level Searches")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nssearchonelevelcount}</b>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={3}>
+                            {_("Subtree Searches")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nssearchsubtreecount}</b>
+                        </GridItem>
+                        <GridItem span={3}>
+                            {_("Abandon Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsabandoncount}</b>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={3}>
+                            {_("Bind Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsbindcount}</b>
+                        </GridItem>
+                        <GridItem span={3}>
+                            {_("Unbind Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsunbindcount}</b>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={3}>
+                            {_("Compare Operations")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nscomparecount}</b>
+                        </GridItem>
+                        <GridItem span={3}>
+                            {_("Outgoing Connections")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsopenopconnectioncount}</b>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem span={3}>
+                            {_("Outgoing Bind Connections")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <b>{this.props.data.nsopenbindconnectioncount}</b>
+                        </GridItem>
+                    </Grid>
+                </Form>
             </div>
         );
     }
@@ -175,7 +148,6 @@ ChainingMonitor.defaultProps = {
     suffix: "",
     bename: "",
     data: {},
-    enableTree: noop,
 };
 
 export default ChainingMonitor;

@@ -46,9 +46,11 @@ struct path_wrapper
     int order;
 };
 
-static int
-path_wrapper_cmp(struct path_wrapper *p1, struct path_wrapper *p2)
+static int32_t
+path_wrapper_cmp(caddr_t pwc1, caddr_t pwc2)
 {
+    struct path_wrapper *p1 = (struct path_wrapper *)pwc1;
+    struct path_wrapper *p2 = (struct path_wrapper *)pwc2;
     if (p1->order < p2->order) {
         /* p1 is "earlier" so put it first */
         return -1;
@@ -122,7 +124,7 @@ matches(const char *filename, const char *pattern)
 {
     Slapi_Regex *re = NULL;
     int match = 0;
-    const char *error = NULL;
+    char *error = NULL;
 
     if (!pattern)
         return 1; /* null pattern matches everything */
@@ -133,6 +135,8 @@ matches(const char *filename, const char *pattern)
         /* Matches the compiled pattern against the filename */
         match = slapi_re_exec_nt(re, filename);
         slapi_re_free(re);
+    } else {
+        slapi_ch_free_string(&error);
     }
 
     return match;
@@ -215,7 +219,7 @@ get_filelist(
                 pw_ptr->path = slapi_ch_smprintf("%s/%s", dirname, dirent->name);
                 pw_ptr->filename = slapi_ch_strdup(dirent->name);
                 pw_ptr->order = i;
-                avl_insert(&filetree, pw_ptr, path_wrapper_cmp, 0);
+                avl_insert(&filetree, (caddr_t)pw_ptr, path_wrapper_cmp, 0);
                 num++;
             }
         }

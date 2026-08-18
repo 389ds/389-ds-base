@@ -17,6 +17,7 @@
 #include "nspr.h"
 
 static PRMonitor *global_backend_mutex = NULL;
+static Slapi_Eq_Context referral_check_ctx = NULL;
 
 void
 be_init(Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit)
@@ -42,7 +43,7 @@ be_init(Slapi_Backend *be, const char *type, const char *name, int isprivate, in
     }
     be->be_monitordn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                               name, type);
-    if (NULL == be->be_configdn) {
+    if (NULL == be->be_monitordn) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "be_init", "Failed create instance monitor dn for "
                                  "plugin %s, instance %s\n",
@@ -173,7 +174,8 @@ void
 be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix)
 {
     if (be->be_state != BE_STATE_DELETED) {
-        be->be_suffix = slapi_sdn_dup(suffix);;
+        slapi_sdn_free(&be->be_suffix);
+        be->be_suffix = slapi_sdn_dup(suffix);
     }
 }
 
@@ -201,6 +203,117 @@ slapi_be_gettype(Slapi_Backend *be)
         r = be->be_type;
     }
     return r;
+}
+
+int
+slapi_exist_referral(Slapi_Backend *be)
+{
+    Slapi_PBlock *search_pb = NULL;
+    const char *suffix;
+    Slapi_Entry **entries = NULL;
+    char **referrals = NULL;
+    char *filter;
+    int rc = 0; /* assume there is no referral */
+    int exist_referral = 0;
+    LDAPControl **server_ctrls;
+
+    filter = "(objectclass=referral)";
+    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && (be->be_state == BE_STATE_STARTED)) {
+        suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
+
+        /* ignore special backends */
+        if ((suffix == NULL) ||
+            (strcmp(suffix, "cn=schema") == 0) ||
+            (strcmp(suffix, "cn=config") == 0)) {
+            return 0; /* it does not mean anything having a referral in those backends */
+        }
+
+        /* search for ("smart") referral entries */
+        search_pb = slapi_pblock_new();
+        server_ctrls = (LDAPControl **) slapi_ch_calloc(3, sizeof (LDAPControl *));
+        server_ctrls[0] = (LDAPControl *) slapi_ch_malloc(sizeof (LDAPControl));
+        server_ctrls[0]->ldctl_oid = slapi_ch_strdup(LDAP_CONTROL_MANAGEDSAIT);
+        server_ctrls[0]->ldctl_value.bv_val = NULL;
+        server_ctrls[0]->ldctl_value.bv_len = 0;
+        server_ctrls[0]->ldctl_iscritical = '\0';
+        server_ctrls[1] = (LDAPControl *) slapi_ch_malloc(sizeof (LDAPControl));
+        server_ctrls[1]->ldctl_oid = slapi_ch_strdup(MTN_CONTROL_USE_ONE_BACKEND_EXT_OID);
+        server_ctrls[1]->ldctl_value.bv_val = NULL;
+        server_ctrls[1]->ldctl_value.bv_len = 0;
+        server_ctrls[1]->ldctl_iscritical = '\0';
+        slapi_search_internal_set_pb(search_pb, suffix, LDAP_SCOPE_SUBTREE,
+                filter, NULL, 0, server_ctrls, NULL,
+                (void *) plugin_get_default_component_id(), 0);
+        slapi_search_internal_pb(search_pb);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (LDAP_SUCCESS != rc) { /* plugin is not available */
+            exist_referral = 1; /* be safe, assume there is a referral somewhere */
+        }
+
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS, &referrals);
+        if ((entries && entries[0]) || referrals) {
+            exist_referral = 1;
+        }
+        slapi_free_search_results_internal(search_pb);
+        slapi_pblock_destroy(search_pb);
+    }
+    if (exist_referral) {
+        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL)) {
+            /* it existed no referral on that backend but now it exists at least a new referral entry */
+            slapi_be_set_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+            slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
+                          "New referral entries are detected under %s (returned to SRCH req)\n",
+                          slapi_sdn_get_ndn(be->be_suffix));
+        }
+    } else if (slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL)) {
+        /* now there is no more referral */
+        slapi_be_unset_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
+                      "No more referral entry under %s\n",
+                      slapi_sdn_get_ndn(be->be_suffix));
+    }
+    return exist_referral;
+}
+
+/*
+ * This function periodically checks if it exists referrals entries
+ * in the server.
+ * This is used to accelerate SRCH request as the lookup for referrals
+ * has a negative impact on SRCH throughput
+ */
+static void
+referral_check(time_t start_time __attribute__((unused)), void *arg __attribute__((unused)))
+{
+    Slapi_Backend *be;
+    char *cookie;
+
+    /* loop over the backends to check if a it exists a "smart" referral */
+    be = slapi_get_first_backend(&cookie);
+    while (be) {
+        slapi_exist_referral(be);
+
+        /* next backend */
+        be = slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free((void **) &cookie);
+}
+
+/* schedule periodic call to referral_check */
+void
+slapi_referral_check_init(void)
+{
+    referral_check_ctx = slapi_eq_repeat_rel(referral_check,
+                                             NULL, (time_t)0,
+                                             config_get_referral_check_period() * 1000);
+}
+void
+slapi_referral_check_stop(void)
+{
+    if (referral_check_ctx) {
+        slapi_eq_cancel_rel(referral_check_ctx);
+        referral_check_ctx = NULL;
+    }
 }
 
 Slapi_DN *
@@ -389,6 +502,7 @@ slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slap
     return 0;
 }
 
+
 int
 slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi_PBlock *pb)
 {
@@ -404,61 +518,61 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
 
     switch (entrypoint) {
     case SLAPI_PLUGIN_DB_BIND_FN:
-        be->be_bind = (IFP)ret_fnptr;
+        be->be_bind = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_UNBIND_FN:
-        be->be_unbind = (IFP)ret_fnptr;
+        be->be_unbind = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_FN:
-        be->be_search = (IFP)ret_fnptr;
+        be->be_search = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_COMPARE_FN:
-        be->be_compare = (IFP)ret_fnptr;
+        be->be_compare = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_MODIFY_FN:
-        be->be_modify = (IFP)ret_fnptr;
+        be->be_modify = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_MODRDN_FN:
-        be->be_modrdn = (IFP)ret_fnptr;
+        be->be_modrdn = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_ADD_FN:
-        be->be_add = (IFP)ret_fnptr;
+        be->be_add = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DELETE_FN:
-        be->be_delete = (IFP)ret_fnptr;
+        be->be_delete = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_ABANDON_FN:
-        be->be_abandon = (IFP)ret_fnptr;
+        be->be_abandon = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_CONFIG_FN:
-        be->be_config = (IFP)ret_fnptr;
+        be->be_config = ret_fnptr;
         break;
     case SLAPI_PLUGIN_CLOSE_FN:
-        be->be_close = (IFP)ret_fnptr;
+        be->be_close = ret_fnptr;
         break;
     case SLAPI_PLUGIN_START_FN:
-        be->be_start = (IFP)ret_fnptr;
+        be->be_start = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_RESULT_FN:
-        be->be_result = (IFP)ret_fnptr;
+        be->be_result = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_LDIF2DB_FN:
-        be->be_ldif2db = (IFP)ret_fnptr;
+        be->be_ldif2db = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DB2LDIF_FN:
-        be->be_db2ldif = (IFP)ret_fnptr;
+        be->be_db2ldif = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_ARCHIVE2DB_FN:
-        be->be_archive2db = (IFP)ret_fnptr;
+        be->be_archive2db = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DB2ARCHIVE_FN:
-        be->be_db2archive = (IFP)ret_fnptr;
+        be->be_db2archive = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN:
-        be->be_next_search_entry = (IFP)ret_fnptr;
+        be->be_next_search_entry = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN:
-        be->be_next_search_entry_ext = (IFP)ret_fnptr;
+        be->be_next_search_entry_ext = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
         be->be_search_results_release = (VFPP)ret_fnptr;
@@ -467,19 +581,19 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
         be->be_prev_search_results = (VFP)ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_TEST_FN:
-        be->be_dbtest = (IFP)ret_fnptr;
+        be->be_dbtest = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_RMDB_FN:
-        be->be_rmdb = (IFP)ret_fnptr;
+        be->be_rmdb = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEQ_FN:
-        be->be_seq = (IFP)ret_fnptr;
+        be->be_seq = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DB2INDEX_FN:
-        be->be_db2index = (IFP)ret_fnptr;
+        be->be_db2index = ret_fnptr;
         break;
     case SLAPI_PLUGIN_CLEANUP_FN:
-        be->be_cleanup = (IFP)ret_fnptr;
+        be->be_cleanup = ret_fnptr;
         break;
     default:
         slapi_log_err(SLAPI_LOG_ERR, "slapi_be_setentrypoint",
@@ -569,7 +683,7 @@ slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
 int
 slapi_back_transaction_begin(Slapi_PBlock *pb)
 {
-    IFP txn_begin;
+    int32_t (*txn_begin)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_BEGIN_FN, (void *)&txn_begin) ||
         !txn_begin) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
@@ -582,7 +696,7 @@ slapi_back_transaction_begin(Slapi_PBlock *pb)
 int
 slapi_back_transaction_commit(Slapi_PBlock *pb)
 {
-    IFP txn_commit;
+    int32_t (*txn_commit)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_COMMIT_FN, (void *)&txn_commit) ||
         !txn_commit) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
@@ -595,7 +709,7 @@ slapi_back_transaction_commit(Slapi_PBlock *pb)
 int
 slapi_back_transaction_abort(Slapi_PBlock *pb)
 {
-    IFP txn_abort;
+    int32_t (*txn_abort)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ABORT_FN, (void *)&txn_abort) ||
         !txn_abort) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;

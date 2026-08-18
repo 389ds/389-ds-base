@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -149,7 +149,7 @@ void
 collation_read_config(char *fname)
 {
     FILE *fp;
-    char *line;
+    char *cfg_line;
     int cargc;
     char *cargv[MAXARGS];
     int lineno;
@@ -165,13 +165,13 @@ collation_read_config(char *fname)
     slapi_log_err(SLAPI_LOG_CONFIG, "collation_read_config", "Reading config file %s\n", fname);
 
     fp_getline_init(&lineno);
-    while ((line = fp_getline(fp, &lineno)) != NULL) {
+    while ((cfg_line = fp_getline(fp, &lineno)) != NULL) {
         /* skip comments and blank lines */
-        if (line[0] == '#' || line[0] == '\0') {
+        if (cfg_line[0] == '#' || cfg_line[0] == '\0') {
             continue;
         }
         slapi_log_err(SLAPI_LOG_CONFIG, COLLATE_PLUGIN_SUBSYSTEM,
-                      "collation_read_config - line %d: %s\n", lineno, line);
+                      "collation_read_config - line %d: %s\n", lineno, cfg_line);
         fp_parse_line(line, &cargc, cargv);
         if (cargc < 1) {
             slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM,

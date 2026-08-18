@@ -46,14 +46,17 @@ static const char *requires_restart[] = {
     "cn=config:nsslapd-changelogmaxage",
     "cn=config:nsslapd-db-locks",
     "cn=config:nsslapd-maxdescriptors",
+    "cn=config:nsslapd-numlisteners",
     "cn=config:" CONFIG_RETURN_EXACT_CASE_ATTRIBUTE,
     "cn=config:" CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
+    "cn=config:" CONFIG_THREAD_POOL_STATS_ATTRIBUTE,
     "cn=config,cn=ldbm:nsslapd-idlistscanlimit",
     "cn=config,cn=ldbm:nsslapd-parentcheck",
     "cn=config,cn=ldbm:nsslapd-dbcachesize",
     "cn=config,cn=ldbm:nsslapd-dbncache",
     "cn=config,cn=ldbm:nsslapd-cachesize",
     "cn=config,cn=ldbm:nsslapd-plugin",
+    "cn=config,cn=ldbm:nsslapd-backend-implement",
     "cn=encryption,cn=config:nssslsessiontimeout",
     "cn=encryption,cn=config:nssslclientauth",
     "cn=encryption,cn=config:nsssl2",
@@ -285,8 +288,7 @@ load_config_dse(Slapi_PBlock *pb __attribute__((unused)),
         if (attr_name) {
             retval = config_set(attr_name, values, returntext, 1 /* force apply */);
             if ((strcasecmp(attr_name, CONFIG_MAXDESCRIPTORS_ATTRIBUTE) == 0) ||
-                (strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0) ||
-                (strcasecmp(attr_name, CONFIG_CONNTABLESIZE_ATTRIBUTE) == 0)) {
+                (strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0)) {
                 /* We should not treat an LDAP_UNWILLING_TO_PERFORM as fatal for
                  * the these config attributes.  This error is returned when
                  * the value we are trying to set is higher than the current
@@ -505,7 +507,7 @@ postop_modify_config_dse(Slapi_PBlock *pb,
     static int num_requires_restart = sizeof(requires_restart) / sizeof(char *);
     LDAPMod **mods;
     int i, j;
-    char *p;
+    const char *p;
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     returntext[0] = '\0';
@@ -536,7 +538,7 @@ postop_modify_config_dse(Slapi_PBlock *pb,
     }
 
     *returncode = LDAP_SUCCESS;
-    return *returncode;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 static int

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -39,8 +39,13 @@ get_flock_path(void)
 {
     char *result = "";
     char *port = getenv("SERVER_PORT");
+    if (port == NULL) {
+        port = "";
+    }
     result = (char *)MALLOC(strlen("/tmp/lock.%%s.") + strlen(port) + 4);
-    sprintf(result, "/tmp/lock.%%s.%s", port);
+    if (result != NULL) {
+        sprintf(result, "/tmp/lock.%%s.%s", port);
+    }
     return result;
 }
 
@@ -50,11 +55,14 @@ alert_word_wrap(char *str, int width, char *linefeed)
     char *ans = NULL;
     int counter = 0;
     int lsc = 0, lsa = 0;
-    register int strc = 0, ansc = 0;
-    register int x = 0;
+    int strc = 0, ansc = 0;
+    int x = 0;
 
     /* assume worst case */
     ans = (char *)MALLOC((strlen(str) * strlen(linefeed)) + 32);
+    if (ans == NULL) {
+        return NULL;
+    }
 
     for (strc = 0, ansc = 0; str[strc]; /*none*/) {
         if (str[strc] == '\n') {
@@ -140,9 +148,22 @@ cookieValue(char *var, char *val)
             int foundVal = 0;
 
             cookie = STRDUP(cookie);
+            if (cookie == NULL) {
+                return NULL;
+            }
             numVars = 0;
             vars = (char **)MALLOC(sizeof(char *));
+            if (vars == NULL) {
+                FREE(cookie);
+                return NULL;
+            }
             vals = (char **)MALLOC(sizeof(char *));
+            if (vals == NULL) {
+                FREE(cookie);
+                FREE(vars);
+                return NULL;
+            }
+
             vars[0] = cookie;
             for (i = 0; i < len; ++i) {
                 if ((!foundVal) && (cookie[i] == '=')) {

@@ -176,7 +176,9 @@ aclanom_gen_anomProfile(acl_lock_flag_t lock_flag)
             /* see if this is a monitor acl */
             if ((strcasecmp(dn, "cn=monitor") == 0) ||
                 /* cn=monitor,cn=ldbm: No such object */
-                (strcasecmp(dn, "cn=monitor,cn=ldbm") == 0)) {
+                (strcasecmp(dn, "cn=monitor,cn=ldbm") == 0) ||
+                /* a 'deny' aci on supported feature should not delete anonymous profile everywhere */
+                (strcasestr(dn, "cn=features,cn=config"))) {
                 aci = acllist_get_next_aci(NULL, aci, &cookie);
                 continue;
             } else {

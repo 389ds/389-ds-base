@@ -16,7 +16,7 @@ import pytest
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 from lib389.idm.role import NestedRoles, ManagedRoles, FilteredRoles
 from lib389.idm.account import Anonymous
@@ -88,7 +88,7 @@ def _add_user(request, topo):
     nestedroles = NestedRoles(topo.standalone, OU_ROLE)
     for i in [('role2', [ROLE1, ROLE21]), ('role3', [ROLE2, ROLE31])]:
         nestedroles.create(properties={'cn': i[0],
-                                       'nsRoleDN': i[1]})
+                                       'nsroledn': i[1]})
 
     managedroles = ManagedRoles(topo.standalone, OU_ROLE)
     for i in ['ROLE1', 'ROLE21', 'ROLE31']:
@@ -111,7 +111,7 @@ def _add_user(request, topo):
             'gidNumber': '2000',
             'homeDirectory': '/home/' + i[0],
             'userPassword': PW_DM,
-            'nsRoleDN': i[1],
+            'nsroledn': i[1],
             'Description': i[2]
         })
 

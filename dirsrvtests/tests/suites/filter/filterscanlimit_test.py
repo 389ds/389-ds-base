@@ -15,7 +15,7 @@ import ldap
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.index import Index
@@ -176,7 +176,7 @@ def test_invalid_configuration(topo):
     :setup: Standalone instance
     :steps:
         1. Try change nsIndexIDListScanLimit
-    :expected results:
+    :expectedresults:
         1. This should pass
     """
     for i in ['4000',
@@ -214,7 +214,7 @@ def test_idlistscanlimit(topo):
          5. restart instance
          6. Search created entries
          7. indexing works after restart
-    :expected results:
+    :expectedresults:
          1. This should pass
          2. This should pass
          3. This should pass

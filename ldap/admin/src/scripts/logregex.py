@@ -1,3 +1,13 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2021 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import sys
 import re
 import __main__ # to use globals

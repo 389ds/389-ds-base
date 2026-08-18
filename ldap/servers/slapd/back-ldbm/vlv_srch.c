@@ -30,9 +30,6 @@ char *const type_vlvEnabled = "vlvEnabled";
 char *const type_vlvUses = "vlvUses";
 
 static const char *file_prefix = "vlv#"; /* '#' used to avoid collision with real attributes */
-static const char *file_suffix = LDBM_FILENAME_SUFFIX;
-
-static int vlvIndex_createfilename(struct vlvIndex *pIndex, char **ppc);
 
 static int vlvIndex_equal(const struct vlvIndex *p1, const sort_spec *sort_control);
 static void vlvIndex_checkforindex(struct vlvIndex *p, backend *be);
@@ -93,13 +90,8 @@ vlvSearch_reinit(struct vlvSearch *p, const struct backentry *base)
     p->vlv_slapifilter = slapi_str2filter(p->vlv_filter);
     filter_normalize(p->vlv_slapifilter);
     /* make (&(parentid=idofbase)(|(originalfilter)(objectclass=referral))) */
-    {
-        Slapi_Filter *fid2kids = NULL;
-        Slapi_Filter *focref = NULL;
-        Slapi_Filter *fand = NULL;
-        Slapi_Filter *forr = NULL;
-        p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, base, 0 /* managedsait */, &fid2kids, &focref, &fand, &forr);
-    }
+    p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, base, 0 /* managedsait */);
+    slapi_filter_optimise(p->vlv_slapifilter);
 }
 
 /*
@@ -167,30 +159,25 @@ vlvSearch_init(struct vlvSearch *p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
             }
 
             /* switch context back to the DSE backend */
+            /* coverity[var_deref_model] */
             slapi_pblock_set(pb, SLAPI_BACKEND, oldbe);
             if (oldbe) {
-                 slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
+                slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
             }
         }
 
         /* make (&(parentid=idofbase)(|(originalfilter)(objectclass=referral))) */
         {
-            Slapi_Filter *fid2kids = NULL;
-            Slapi_Filter *focref = NULL;
-            Slapi_Filter *fand = NULL;
-            Slapi_Filter *forr = NULL;
-            p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, e, 0 /* managedsait */, &fid2kids, &focref, &fand, &forr);
-            /* jcm: fid2kids, focref, fand, and forr get freed when we free p->vlv_slapifilter */
+            p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, e, 0 /* managedsait */);
+            slapi_filter_optimise(p->vlv_slapifilter);
             CACHE_RETURN(&inst->inst_cache, &e);
         }
     } break;
     case LDAP_SCOPE_SUBTREE: {
         /* make (|(originalfilter)(objectclass=referral))) */
         /* No need for scope-filter since we apply a scope test before the filter test */
-        Slapi_Filter *focref = NULL;
-        Slapi_Filter *forr = NULL;
-        p->vlv_slapifilter = create_subtree_filter(p->vlv_slapifilter, 0 /* managedsait */, &focref, &forr);
-        /* jcm: focref and forr get freed when we free p->vlv_slapifilter */
+        p->vlv_slapifilter = create_subtree_filter(p->vlv_slapifilter, 0 /* managedsait */);
+        slapi_filter_optimise(p->vlv_slapifilter);
     } break;
     }
 }
@@ -203,6 +190,9 @@ vlvSearch_delete(struct vlvSearch **ppvs)
 {
     if (ppvs != NULL && *ppvs != NULL) {
         struct vlvIndex *pi, *ni;
+        if ((*ppvs)->vlv_e) {
+            slapi_entry_free((struct slapi_entry *)((*ppvs)->vlv_e));
+        }
         slapi_sdn_free(&((*ppvs)->vlv_dn));
         slapi_ch_free((void **)&((*ppvs)->vlv_name));
         slapi_sdn_free(&((*ppvs)->vlv_base));
@@ -217,7 +207,6 @@ vlvSearch_delete(struct vlvSearch **ppvs)
             pi = ni;
         }
         slapi_ch_free((void **)ppvs);
-        *ppvs = NULL;
     }
 }
 
@@ -486,6 +475,7 @@ vlvIndex_delete(struct vlvIndex **ppvs)
 {
     if (ppvs != NULL && *ppvs != NULL) {
         slapi_ch_free((void **)&((*ppvs)->vlv_sortspec));
+        if ((*ppvs)->vlv_sortkey != NULL)
         {
             int n;
             for (n = 0; (*ppvs)->vlv_sortkey[n] != NULL; n++) {
@@ -514,6 +504,7 @@ void
 vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const Slapi_Entry *e)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    const char *file_suffix = dblayer_get_db_suffix(be);
     char *filename = NULL;
 
     if (NULL == p)
@@ -548,11 +539,12 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
     }
 
     /* Create an index filename for the search */
-    if (vlvIndex_createfilename(p, &filename)) {
-        p->vlv_filename = slapi_ch_smprintf("%s%s%s", file_prefix, filename, file_suffix);
+    filename = vlvIndex_build_filename(p->vlv_name);
+    if (filename) {
+        p->vlv_filename = slapi_ch_smprintf("%s%s", filename, file_suffix);
 
         /* Create an attrinfo structure */
-        p->vlv_attrinfo->ai_type = slapi_ch_smprintf("%s%s", file_prefix, filename);
+        p->vlv_attrinfo->ai_type = filename;
         p->vlv_attrinfo->ai_indexmask = INDEX_VLV;
 
         /* Check if the index file actually exists */
@@ -560,8 +552,12 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
             vlvIndex_checkforindex(p, be);
         }
         slapi_timespec_expire_at(60, &(p->vlv_nextcheck));
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "vlvIndex_init",
+                      "Couldn't generate valid filename from Virtual List View Index Name (%s)"
+                      " on backend %s. Need some alphabetical characters.\n",
+                      p->vlv_name, be->be_name);
     }
-    slapi_ch_free((void **)&filename);
 }
 
 /*
@@ -570,42 +566,24 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
  * it and maintain it.
  */
 PRUint32
-vlvIndex_get_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
+vlvIndex_get_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn)
 {
+    int nbentries = 0;
+    int err = 0;
+
     if (NULL == p)
         return 0;
 
     if (!p->vlv_indexlength_cached) {
-        DBC *dbc = NULL;
-        DB_TXN *db_txn = NULL;
-        int err = 0;
-        if (NULL != txn) {
-            db_txn = txn->back_txn_txn;
-        }
-        err = db->cursor(db, db_txn, &dbc, 0);
+        PR_Lock(p->vlv_indexlength_lock);
+        err = dblayer_get_entries_count(be, db, (txn ? txn->back_txn_txn : NULL), &nbentries);
         if (err == 0) {
-            DBT key = {0};
-            DBT data = {0};
-            key.flags = DB_DBT_MALLOC;
-            data.flags = DB_DBT_MALLOC;
-            err = dbc->c_get(dbc, &key, &data, DB_LAST);
-            if (err == 0) {
-                slapi_ch_free(&(key.data));
-                slapi_ch_free(&(data.data));
-                err = dbc->c_get(dbc, &key, &data, DB_GET_RECNO);
-                if (err == 0) {
-                    PR_Lock(p->vlv_indexlength_lock);
-                    p->vlv_indexlength_cached = 1;
-                    p->vlv_indexlength = *((db_recno_t *)data.data);
-                    PR_Unlock(p->vlv_indexlength_lock);
-                    slapi_ch_free(&(data.data));
-                }
-            }
-            dbc->c_close(dbc);
-        } else {
-            /* couldn't get cursor??? */
+            p->vlv_indexlength_cached = 1;
+            p->vlv_indexlength = nbentries;
         }
+        PR_Unlock(p->vlv_indexlength_lock);
     }
+
     return p->vlv_indexlength;
 }
 
@@ -614,7 +592,7 @@ vlvIndex_get_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
  * We keep track of the index length for efficiency.
  */
 void
-vlvIndex_increment_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
+vlvIndex_increment_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn)
 {
     if (NULL == p)
         return;
@@ -624,7 +602,7 @@ vlvIndex_increment_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
         p->vlv_indexlength++;
         PR_Unlock(p->vlv_indexlength_lock);
     } else {
-        p->vlv_indexlength = vlvIndex_get_indexlength(p, db, txn);
+        p->vlv_indexlength = vlvIndex_get_indexlength(be, p, db, txn);
     }
 }
 
@@ -633,7 +611,7 @@ vlvIndex_increment_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
  * We keep track of the index length for efficiency.
  */
 void
-vlvIndex_decrement_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
+vlvIndex_decrement_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn)
 {
     if (NULL == p)
         return;
@@ -644,7 +622,7 @@ vlvIndex_decrement_indexlength(struct vlvIndex *p, DB *db, back_txn *txn)
         p->vlv_indexlength--;
         PR_Unlock(p->vlv_indexlength_lock);
     } else {
-        p->vlv_indexlength = vlvIndex_get_indexlength(p, db, txn);
+        p->vlv_indexlength = vlvIndex_get_indexlength(be, p, db, txn);
     }
 }
 
@@ -791,11 +769,19 @@ vlvIndex_equal(const struct vlvIndex *p1, const sort_spec *sort_control)
 static void
 vlvIndex_checkforindex(struct vlvIndex *p, backend *be)
 {
-    DB *db = NULL;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dbi_db_t *db = NULL;
+
 
     /* if the vlv index is offline (being generated), don't even look */
-    if (!p->vlv_online)
+    if (!p->vlv_online) {
+        /* In lmdb case, always open the dbi */
+        if (li->li_flags & LI_LMDB_IMPL) {
+            (void) dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) ;
+            dblayer_release_index_file(be, p->vlv_attrinfo, db);
+        }
         return;
+    }
 
     if (dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) == 0) {
         p->vlv_enabled = 1;
@@ -812,32 +798,28 @@ vlvIndex_isVlvIndexEntry(Slapi_Entry *e)
 }
 
 /*
- * Create the filename for the index.
- * Extract all the alphanumeric characters from the descriptive name.
- * Convert to all lower case.
+ * Generate the vlv db file name from the vlv name.
+ * Return NULL if vlv name cannot be converted to db name
  */
-static int
-vlvIndex_createfilename(struct vlvIndex *pIndex, char **ppc)
+char *
+vlvIndex_build_filename(const char *vlvname)
 {
-    int filenameValid = 1;
-    unsigned int i;
-    char *p, *filename;
-    filename = slapi_ch_malloc(strlen(pIndex->vlv_name) + 1);
-    p = filename;
-    for (i = 0; i < strlen(pIndex->vlv_name); i++) {
-        if (isalnum(pIndex->vlv_name[i])) {
-            *p = TOLOWER(pIndex->vlv_name[i]);
-            p++;
+    size_t len = strlen(vlvname);
+    size_t len_prefix = strlen(file_prefix);
+    char *filename = slapi_ch_malloc(len_prefix + len + 1);
+    char *pt = filename;
+    strcpy(pt, file_prefix);
+    pt += len_prefix;
+    for (;*vlvname; vlvname++) {
+        if (isalnum(*vlvname)) {
+            *pt++ = TOLOWER(*vlvname);
         }
     }
-    *p = '\0';
-    if (strlen(filename) == 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "vlvIndex_createfilename - Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", pIndex->vlv_name, 0, 0);
-        filenameValid = 0;
+    *pt = '\0';
+    if (strcmp(pt, file_prefix) == 0) {
+        slapi_ch_free_string(&filename);
     }
-    /* JCM: Check if this file clashes with another VLV Index filename */
-    *ppc = filename;
-    return filenameValid;
+    return filename;
 }
 
 int

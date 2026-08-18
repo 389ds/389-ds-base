@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -41,6 +41,7 @@
 #include <sys/mman.h>                           /* mmap(), etc... */
 #include "port.h" /* Portability definitions */ /*JLS 28-11-00*/
 #include "ldclt.h"                              /* This tool's include file */
+#include "utils.h"                              /* Utilities functions */
 
 
 /* ****************************************************************************
@@ -192,6 +193,7 @@ loadImages(
                 fprintf(stderr, "Cannot close(%s)\n", name);
                 fflush(stderr);
                 rc = -1;
+                fd = -1;
                 goto exit;
             } else {
                 fd = -1;
@@ -231,14 +233,14 @@ exit:
  *****************************************************************************/
 int
 getImage(
-    LDAPMod *attribute)
+    LDAPMod *attr)
 {
     int imageNumber; /* The image we will select */
     int ret;         /* Return value */
 
     /*
-   * Select the next image
-   */
+     * Select the next image
+     */
     if ((ret = ldclt_mutex_lock(&(mctx.imagesLast_mutex))) != 0) /*JLS 29-11-00*/
     {
         fprintf(stderr,
@@ -260,34 +262,34 @@ getImage(
     }
 
     /*
-   * Create the data structure required
-   */
-    attribute->mod_bvalues = (struct berval **)
+     * Create the data structure required
+     */
+    attr->mod_bvalues = (struct berval **)
         malloc(2 * sizeof(struct berval *));
-    if (attribute->mod_bvalues == NULL) /*JLS 06-03-00*/
+    if (attr->mod_bvalues == NULL) /*JLS 06-03-00*/
     {                                   /*JLS 06-03-00*/
         printf("Error: cannot malloc(attribute->mod_bvalues), error=%d (%s)\n",
                errno, strerror(errno)); /*JLS 06-03-00*/
         return (-1);                    /*JLS 06-03-00*/
     }                                   /*JLS 06-03-00*/
-    attribute->mod_bvalues[0] = (struct berval *)malloc(sizeof(struct berval));
-    if (attribute->mod_bvalues[0] == NULL) /*JLS 06-03-00*/
+    attr->mod_bvalues[0] = (struct berval *)malloc(sizeof(struct berval));
+    if (attr->mod_bvalues[0] == NULL) /*JLS 06-03-00*/
     {                                      /*JLS 06-03-00*/
         printf("Error: cannot malloc(attribute->mod_bvalues[0]), error=%d (%s)\n",
                errno, strerror(errno)); /*JLS 06-03-00*/
         return (-1);                    /*JLS 06-03-00*/
     }                                   /*JLS 06-03-00*/
-    attribute->mod_bvalues[1] = NULL;
+    attr->mod_bvalues[1] = NULL;
 
     /*
-   * Fill the bvalue with the image data
-   */
-    attribute->mod_bvalues[0]->bv_len = mctx.images[imageNumber].length;
-    attribute->mod_bvalues[0]->bv_val = mctx.images[imageNumber].data;
+     * Fill the bvalue with the image data
+     */
+    attr->mod_bvalues[0]->bv_len = mctx.images[imageNumber].length;
+    attr->mod_bvalues[0]->bv_val = mctx.images[imageNumber].data;
 
     /*
-   * Normal end
-   */
+     * Normal end
+     */
     return (0);
 }
 
@@ -324,7 +326,7 @@ loadDataListFile(
    */
     for (dlf->strNb = 0; fgets(line, MAX_FILTER, ifile) != NULL; dlf->strNb++)
         ;
-    dlf->str = (char **)malloc(dlf->strNb * sizeof(char *));
+    dlf->str = (char **)safe_malloc(dlf->strNb * sizeof(char *));
     if (fseek(ifile, 0, SEEK_SET) != 0) {
         perror(dlf->fname);
         fprintf(stderr, "Error: cannot rewind file \"%s\"\n", dlf->fname);
@@ -365,31 +367,34 @@ loadDataListFile(
     DESCRIPTION :
  *****************************************************************************/
 data_list_file *
-dataListFile(
-    char *fname)
+dataListFile(char *fname)
 {
     data_list_file *dlf; /* To process the request */
 
     /*
-   * Maybe we already have loaded this file ?
-   */
-    for (dlf = mctx.dlf; dlf != NULL; dlf = dlf->next)
-        if (!strcmp(fname, dlf->fname))
+     * Maybe we already have loaded this file ?
+     */
+    for (dlf = mctx.dlf; dlf != NULL; dlf = dlf->next) {
+        if (!strcmp(fname, dlf->fname)) {
             return (dlf);
-
+        }
+    }
     /*
-   * Well, it looks like we should load a new file ;-)
-   * Allocate a new data structure, chain it in mctx and load the file.
-   */
+     * Well, it looks like we should load a new file ;-)
+     * Allocate a new data structure, chain it in mctx and load the file.
+     */
     dlf = (data_list_file *)malloc(sizeof(data_list_file));
+    if (dlf == NULL) {
+        return dlf;
+    }
     dlf->next = mctx.dlf;
     mctx.dlf = dlf;
     dlf->fname = strdup(fname);
-    if (loadDataListFile(dlf) < 0)
+    if (loadDataListFile(dlf) < 0) {
         return (NULL);
-
+    }
     /*
-   * Loaded...
-   */
+     * Loaded...
+     */
     return (dlf);
 }

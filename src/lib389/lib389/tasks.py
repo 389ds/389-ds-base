@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import time
-import os.path
+import os
 import ldap
 from datetime import datetime
 from lib389 import Entry
@@ -16,9 +16,9 @@ from lib389.utils import ensure_str
 from lib389.exceptions import Error
 from lib389._constants import *
 from lib389.properties import (
-        TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
-        TASK_TOMB_STRIP
-        )
+    TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
+    TASK_TOMB_STRIP, TASK_WATCH
+)
 
 
 class Task(DSLdapObject):
@@ -38,6 +38,7 @@ class Task(DSLdapObject):
         self._protected = False
         self._exit_code = None
         self._task_log = ""
+        self._task_warn = None
 
     def status(self):
         """Return the decoded status of the task
@@ -49,6 +50,7 @@ class Task(DSLdapObject):
 
         self._exit_code = self.get_attr_val_utf8("nsTaskExitCode")
         self._task_log = self.get_attr_val_utf8("nsTaskLog")
+        self._task_warn = self.get_attr_val_utf8("nsTaskWarning")
         if not self.exists():
             self._log.debug("complete: task has self cleaned ...")
             # The task cleaned it self up.
@@ -69,7 +71,7 @@ class Task(DSLdapObject):
         return None
 
     def get_task_log(self):
-        """Return task's exit code if task is complete, else None."""
+        """Return task's log, else None."""
         if self.is_complete():
             try:
                 return (self._task_log)
@@ -77,18 +79,70 @@ class Task(DSLdapObject):
                 return None
         return None
 
-    def wait(self, timeout=120):
+    def get_task_warn(self):
+        """Return task's warning code if task is complete, else None."""
+        if self.is_complete():
+            try:
+                return int(self._task_warn)
+            except TypeError:
+                return None
+        return None
+
+    def wait(self, timeout=120, sleep_interval=2):
         """Wait until task is complete."""
 
-        count = 0
-        if timeout is None:
+        time_passed = 0
+        if timeout is None or timeout == 0:
             self._log.debug("No timeout is set, this may take a long time ...")
 
-        while timeout is None or count < timeout:
+        while timeout is None or timeout == 0 or time_passed < timeout:
             if self.is_complete():
                 break
-            count = count + 1
-            time.sleep(2)
+            time_passed = time_passed + sleep_interval
+            time.sleep(sleep_interval)
+
+    def watch(self, timeout=None):
+        """
+        Watch the task status and display new log output until the task is
+        complete or timeout is reached.
+        """
+        time_passed = 0
+        if timeout is None or timeout == 0:
+            timeout = None
+            self._log.debug("No timeout is set, this may take a long time ...")
+
+        log = self.get_attr_val_utf8("nsTaskLog")
+        if log is None:
+            log = ""
+        if log:
+            self._log.info(log)
+        while not self.is_complete():
+            time.sleep(1)
+            next_log = self.get_attr_val_utf8("nsTaskLog")
+            if next_log is None:
+                next_log = ""
+
+            # We only want to display "new" output and not write the entire
+            # task log value. So we need to get a diff of the previous log
+            # value and the new one
+            split_log = log.splitlines()
+            split_next_log = next_log.splitlines()
+            log_diff = []
+            for line in split_next_log:
+                if line not in split_log:
+                    log_diff.append(line + "\n")
+            log_out = ''.join(log_diff)
+
+            # Advance the "log" to the latest output for the next pass
+            log = next_log
+
+            if log_out != "":
+                self._log.info(log_out[:-1])
+
+            time_passed = time_passed + 1
+            if timeout is not None and time_passed >= timeout:
+                self._log.warning("Timeout reached, stopping watch ...")
+                break
 
     def create(self, rdn=None, properties={}, basedn=None):
         """Create a Task entry
@@ -107,7 +161,7 @@ class Task(DSLdapObject):
         return super(Task, self).create(rdn, properties, basedn)
 
     @staticmethod
-    def _get_task_date():
+    def get_timestamp():
         """Return a timestamp to use in naming new task entries."""
 
         return datetime.now().isoformat()
@@ -121,11 +175,25 @@ class AutomemberRebuildMembershipTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'automember_rebuild_' + Task._get_task_date()
+        self.cn = 'automember_rebuild_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_AUTOMEMBER_REBUILD_TASK
 
         super(AutomemberRebuildMembershipTask, self).__init__(instance, dn)
         self._must_attributes.extend(['basedn', 'filter'])
+
+
+class AutomemberAbortRebuildTask(Task):
+    """A single instance of automember abort rebuild task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'automember_abort_' + Task.get_timestamp()
+        dn = "cn=" + self.cn + "," + DN_AUTOMEMBER_ABORT_REBUILD_TASK
+
+        super(AutomemberAbortRebuildTask, self).__init__(instance, dn)
 
 
 class FixupLinkedAttributesTask(Task):
@@ -136,21 +204,21 @@ class FixupLinkedAttributesTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'fixup_linked_attrs_' + Task._get_task_date()
+        self.cn = 'fixup_linked_attrs_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_FIXUP_LINKED_ATTIBUTES
 
         super(FixupLinkedAttributesTask, self).__init__(instance, dn)
 
 
 class MemberUidFixupTask(Task):
-    """A single instance of memberOf task entry
+    """A single instance of posix group fix task entry
 
     :param instance: An instance
     :type instance: lib389.DirSrv
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'memberUid_fixup_' + Task._get_task_date()
+        self.cn = 'memberUid_fixup_' + Task.get_timestamp()
         dn = f"cn={self.cn},cn=memberuid task,cn=tasks,cn=config"
 
         super(MemberUidFixupTask, self).__init__(instance, dn)
@@ -165,7 +233,7 @@ class MemberOfFixupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'memberOf_fixup_' + Task._get_task_date()
+        self.cn = 'memberOf_fixup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_MBO_TASK
 
         super(MemberOfFixupTask, self).__init__(instance, dn)
@@ -180,7 +248,7 @@ class USNTombstoneCleanupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'usn_cleanup_' + Task._get_task_date()
+        self.cn = 'usn_cleanup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=USN tombstone cleanup task," + DN_TASKS
 
         super(USNTombstoneCleanupTask, self).__init__(instance, dn)
@@ -200,7 +268,7 @@ class csngenTestTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'csngenTest_' + Task._get_task_date()
+        self.cn = 'csngenTest_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=csngen_test," + DN_TASKS
         super(csngenTestTask, self).__init__(instance, dn)
 
@@ -213,10 +281,23 @@ class EntryUUIDFixupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'entryuuid_fixup_' + Task._get_task_date()
+        self.cn = 'entryuuid_fixup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_EUUID_TASK
         super(EntryUUIDFixupTask, self).__init__(instance, dn)
         self._must_attributes.extend(['basedn'])
+
+
+class DBCompactTask(Task):
+    """A single instance of compactdb task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'compact_db_' + Task.get_timestamp()
+        dn = "cn=" + self.cn + "," + DN_COMPACTDB_TASK
+        super(DBCompactTask, self).__init__(instance, dn)
 
 
 class SchemaReloadTask(Task):
@@ -227,9 +308,8 @@ class SchemaReloadTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'schema_reload_' + Task._get_task_date()
+        self.cn = 'schema_reload_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
-
         super(SchemaReloadTask, self).__init__(instance, dn)
 
 
@@ -241,7 +321,7 @@ class SyntaxValidateTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'syntax_validate_' + Task._get_task_date()
+        self.cn = 'syntax_validate_' + Task.get_timestamp()
         dn = f"cn={self.cn},cn=syntax validate,cn=tasks,cn=config"
 
         super(SyntaxValidateTask, self).__init__(instance, dn)
@@ -249,7 +329,7 @@ class SyntaxValidateTask(Task):
 
 
 class AbortCleanAllRUVTask(Task):
-    """Abort the Clean All Ruv task on all masters. You should
+    """Abort the Clean All Ruv task on all suppliers. You should
     call this from "CleanAllRUVTask.abort()" instead to provide
     proper linking of the task information.
 
@@ -258,7 +338,7 @@ class AbortCleanAllRUVTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'abortcleanallruv_' + Task._get_task_date()
+        self.cn = 'abortcleanallruv_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=abort cleanallruv," + DN_TASKS
 
         super(AbortCleanAllRUVTask, self).__init__(instance, dn)
@@ -268,14 +348,14 @@ class CleanAllRUVTask(Task):
     """Create the clean all ruv task. This will be replicated through
     a topology to remove non-present ruvs. Note that if a ruv is NOT
     able to be removed, this indicates a dangling replication agreement
-    on *some* master in the topology.
+    on *some* supplier in the topology.
 
     :param instance: The instance
     :type instance: lib389.DirSrv
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'cleanallruv_' + Task._get_task_date()
+        self.cn = 'cleanallruv_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=cleanallruv," + DN_TASKS
         self._properties = None
 
@@ -299,7 +379,7 @@ class CleanAllRUVTask(Task):
     def abort(self, certify=False):
         """Abort the current cleanallruvtask.
 
-        :param certify: certify abort on all masters
+        :param certify: certify abort on all suppliers
         :type certify: bool
         :returns: AbortCleanAllRUVTask
         """
@@ -322,7 +402,7 @@ class ImportTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'import_' + Task._get_task_date()
+        self.cn = 'import_' + Task.get_timestamp()
         dn = "cn=%s,%s" % (self.cn, DN_IMPORT_TASK)
         self._properties = None
 
@@ -351,7 +431,7 @@ class ExportTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'export_' + Task._get_task_date()
+        self.cn = 'export_' + Task.get_timestamp()
         dn = "cn=%s,%s" % (self.cn, DN_EXPORT_TASK)
         self._properties = None
 
@@ -374,7 +454,7 @@ class BackupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'backup_' + Task._get_task_date()
+        self.cn = 'backup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=backup," + DN_TASKS
         self._properties = None
 
@@ -389,11 +469,32 @@ class RestoreTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'restore_' + Task._get_task_date()
+        self.cn = 'restore_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=restore," + DN_TASKS
         self._properties = None
 
         super(RestoreTask, self).__init__(instance, dn)
+
+
+class ShadowFixupTask(Task):
+    """A single instance of shadow fixup task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'shadow_fixup_' + Task.get_timestamp()
+        dn = "cn=" + self.cn + "," + DN_SHADOW_FIXUP_TASKS
+        super(ShadowFixupTask, self).__init__(instance, dn)
+
+    def create(self, suffix, force=False):
+        """Fixup shadow attributes for a given suffix"""
+        _properties = {
+            'suffix': suffix,
+            'force': 'on' if force else 'off',
+        }
+        return super(ShadowFixupTask, self).create(properties=_properties)
 
 
 class Tasks(object):
@@ -411,20 +512,32 @@ class Tasks(object):
         if name in Tasks.proxied_methods:
             return DirSrv.__getattr__(self.conn, name)
 
-    def checkTask(self, entry, dowait=False):
+    def checkTask(self, entry, dowait=False, watch=False):
         '''check task status - task is complete when the nsTaskExitCode attr
         is set return a 2 tuple (true/false,code) first is false if task is
         running, true if done - if true, second is the exit code - if dowait
-        is True, this function will block until the task is complete'''
+        is True, this function will block until the task is complete
+
+        If "watch" is True then we wait for the task to finish and write status
+        updates to stdout.
+        '''
         attrlist = ['nsTaskLog', 'nsTaskStatus', 'nsTaskExitCode',
-                    'nsTaskCurrentItem', 'nsTaskTotalItems']
+                    'nsTaskCurrentItem', 'nsTaskTotalItems', 'nsTaskWarning']
         done = False
         exitCode = 0
+        warningCode = 0
         dn = entry.dn
+
+        task = Task(self.conn, dn)
         while not done:
+            if watch:
+                task.watch()
+
             entry = self.conn.getEntry(dn, attrlist=attrlist)
             self.log.debug("task entry %r", entry)
 
+            if entry.nsTaskWarning:
+                warningCode = int(entry.nsTaskWarning)
             if entry.nsTaskExitCode:
                 exitCode = int(entry.nsTaskExitCode)
                 done = True
@@ -432,7 +545,7 @@ class Tasks(object):
                 time.sleep(1)
             else:
                 break
-        return (done, exitCode)
+        return (done, exitCode, warningCode)
 
     def importLDIF(self, suffix=None, benamebase=None, input_file=None,
                    args=None):
@@ -473,7 +586,7 @@ class Tasks(object):
             raise ValueError("Import file (%s) does not exist" % input_file)
 
         # Prepare the task entry
-        cn = "import_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "import_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_IMPORT_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -485,11 +598,12 @@ class Tasks(object):
             entry.setValues('nsIncludeSuffix', suffix)
 
         # start the task and possibly wait for task completion
-        self.conn.add_s(entry)
+        self.conn.add_s(entry, escapehatch='i am sure')
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: import task %s for file %s exited with %d",
@@ -497,6 +611,8 @@ class Tasks(object):
         else:
             self.log.info("Import task %s for file %s completed successfully",
                           cn, input_file)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
         self.dn = dn
         self.entry = entry
         return exitCode
@@ -538,7 +654,7 @@ class Tasks(object):
             raise ValueError("output_file is mandatory")
 
         # Prepare the task entry
-        cn = "export_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "export_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_EXPORT_TASK)
         entry = Entry(dn)
         entry.update({
@@ -555,10 +671,11 @@ class Tasks(object):
             entry.setValues('nsExportReplica', 'true')
 
         # start the task and possibly wait for task completion
-        self.conn.add_s(entry)
+        self.conn.add_s(entry, escapehatch='i am sure')
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: export task %s for file %s exited with %d",
@@ -566,6 +683,8 @@ class Tasks(object):
         else:
             self.log.info("Export task %s for file %s completed successfully",
                           cn, output_file)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -591,7 +710,7 @@ class Tasks(object):
             raise ValueError("You must specify a backup directory.")
 
         # build the task entry
-        cn = "backup_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "backup_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_BACKUP_TASK)
         entry = Entry(dn)
         entry.update({
@@ -603,20 +722,23 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the backup task (%s)", dn)
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: backup task %s exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Backup task %s completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -645,7 +767,7 @@ class Tasks(object):
             raise ValueError("Backup file (%s) does not exist" % backup_dir)
 
         # build the task entry
-        cn = "restore_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "restore_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_RESTORE_TASK)
         entry = Entry(dn)
         entry.update({
@@ -657,20 +779,23 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the backup task (%s)", dn)
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: restore task %s exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Restore task %s completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -737,7 +862,7 @@ class Tasks(object):
                     attrs.append(attr)
             else:
                 attrs.append(attrname)
-            cn = "index_vlv_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            cn = "index_vlv_%s" % (Task.get_timestamp())
             dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
             entry = Entry(dn)
             entry.update({
@@ -751,7 +876,7 @@ class Tasks(object):
                 #
                 # Reindex all attributes - gather them first...
                 #
-                cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+                cn = "index_all_%s" % (Task.get_timestamp())
                 dn = ('cn=%s,cn=ldbm database,cn=plugins,cn=config' % backend)
                 try:
                     indexes = self.conn.search_s(dn, ldap.SCOPE_SUBTREE, '(objectclass=nsIndex)')
@@ -763,7 +888,7 @@ class Tasks(object):
                 #
                 # Reindex specific attributes
                 #
-                cn = "index_attrs_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+                cn = "index_attrs_%s" % (Task.get_timestamp())
                 if isinstance(attrname, (tuple, list)):
                     # Need to guarantee this is a list (and not a tuple)
                     for attr in attrname:
@@ -782,20 +907,23 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the index task for %s", attrname)
             return -1
 
         exitCode = 0
-        if args is not None and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+        warningCode = 0
+        if args is not None and (args.get(TASK_WAIT, False) or args.get(TASK_WATCH, False)):
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True, args.get(TASK_WATCH, False))
 
         if exitCode:
             self.log.error("Error: index task %s exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Index task %s completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -848,8 +976,7 @@ class Tasks(object):
 
             suffix = ents[0].getValue(attr)
 
-        cn = "fixupmemberof_" + time.strftime("%m%d%Y_%H%M%S",
-                                              time.localtime())
+        cn = "fixupmemberof_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_MBO_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -860,14 +987,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the memberOf fixup task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -877,6 +1005,8 @@ class Tasks(object):
             self.log.info(
                 "fixupMemberOf task %s for basedn %s completed successfully",
                 cn, suffix)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -907,8 +1037,7 @@ class Tasks(object):
             if len(ents) != 1:
                 raise ValueError("invalid backend name: %s" % bename)
 
-        cn = "fixupTombstone_" + time.strftime("%m%d%Y_%H%M%S",
-                                               time.localtime())
+        cn = "fixupTombstone_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_TOMB_FIXUP_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -919,14 +1048,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the fixup tombstone task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -938,6 +1068,8 @@ class Tasks(object):
                 "tombstone fixup task %s for backend %s completed "
                 "successfully",
                 cn, bename)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -945,19 +1077,20 @@ class Tasks(object):
         return exitCode
 
     def automemberRebuild(self, suffix=DEFAULT_SUFFIX, scope='sub',
-                          filterstr='objectclass=top', args=None):
+                          filterstr='objectclass=top', cleanup=False, args=None):
         '''
-        @param suffix - The suffix the task should examine - defualt is
+        @param suffix - The suffix the task should examine - default is
                         "dc=example,dc=com"
         @param scope - The scope of the search to find entries
-        @param fitlerstr - THe search filter to find entries
+        @param fitlerstr - The search filter to find entries
+        @param cleanup - reset/clear the old group mmeberships prior to rebuilding
         @param args - is a dictionary that contains modifier of the task
                 wait: True/[False] - If True,  waits for the completion of
                                      the task before to return
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=automember rebuild membership,cn=tasks,cn=config' % cn)
 
         entry = Entry(dn)
@@ -966,17 +1099,20 @@ class Tasks(object):
         entry.setValues('basedn', suffix)
         entry.setValues('filter', filterstr)
         entry.setValues('scope', scope)
+        if cleanup:
+            entry.setValues('cleanup', 'yes')
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Automember Rebuild Membership task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -986,6 +1122,8 @@ class Tasks(object):
             self.log.info(
                 "Automember Rebuild Membership task(%s) completed"
                 "successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1010,7 +1148,7 @@ class Tasks(object):
         if not ldif_out:
             raise ValueError("Missing ldif_out")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=automember export updates,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1022,14 +1160,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Automember Export Updates task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1039,6 +1178,8 @@ class Tasks(object):
             self.log.info(
                 "Automember Export Updates task (%s) completed successfully",
                 cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1059,7 +1200,7 @@ class Tasks(object):
         if not ldif_out or not ldif_in:
             raise ValueError("Missing ldif_out and/or ldif_in")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=automember map updates,cn=tasks,cn=config' % cn)
 
         entry = Entry(dn)
@@ -1070,14 +1211,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Automember Map Updates task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1086,6 +1228,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "Automember Map Updates task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1102,7 +1246,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=fixup linked attributes,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1112,14 +1256,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Fixup Linked Attributes task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1128,6 +1273,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "Fixup Linked Attributes task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1143,7 +1290,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=schema reload task,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1153,20 +1300,23 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Schema Reload task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: Schema Reload task (%s) exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Schema Reload task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1185,7 +1335,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=memberuid task,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1195,14 +1345,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add fixupWinsyncMembers 'memberuid task'")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1211,6 +1362,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "'memberuid task' (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1229,7 +1382,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=syntax validate,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1239,14 +1392,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Syntax Validate task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: Syntax Validate (%s) exited with %d",
@@ -1254,6 +1408,8 @@ class Tasks(object):
         else:
             self.log.info("Syntax Validate task (%s) completed successfully",
                           cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1273,7 +1429,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=USN tombstone cleanup task,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1287,14 +1443,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add USN tombstone cleanup task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1303,6 +1460,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "USN tombstone cleanup task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1325,8 +1484,8 @@ class Tasks(object):
         if not configfile:
             raise ValueError("Missing required paramter: configfile")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
-        dn = ('cn=%s,cn=cn=sysconfig reload,cn=tasks,cn=config' % cn)
+        cn = 'task-' + Task.get_timestamp()
+        dn = ('cn=%s,cn=sysconfig reload,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
         entry.setValues('cn', cn)
@@ -1335,14 +1494,15 @@ class Tasks(object):
             entry.setValues('logchanges', logchanges)
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Sysconfig Reload task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: Sysconfig Reload task (%s) exited with %d",
@@ -1350,6 +1510,8 @@ class Tasks(object):
         else:
             self.log.info("Sysconfig Reload task (%s) completed successfully",
                           cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1373,7 +1535,7 @@ class Tasks(object):
         if not suffix:
             raise ValueError("Missing required paramter: suffix")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=cleanallruv,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1384,20 +1546,23 @@ class Tasks(object):
             entry.setValues('replica-force-cleaning', 'yes')
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add cleanAllRUV task")
             return (dn, -1)
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: cleanAllRUV task (%s) exited with %d",
                            cn, exitCode)
         else:
             self.log.info("cleanAllRUV task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1422,7 +1587,7 @@ class Tasks(object):
         if not suffix:
             raise ValueError("Missing required paramter: suffix")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=abort cleanallruv,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1436,14 +1601,15 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Abort cleanAllRUV task")
             return (dn, -1)
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1452,6 +1618,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "Abort cleanAllRUV task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1474,7 +1642,7 @@ class Tasks(object):
         if not nsArchiveDir:
             raise ValueError("Missing required paramter: nsArchiveDir")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=upgradedb,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1487,22 +1655,38 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add upgradedb task")
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: upgradedb task (%s) exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Upgradedb task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
 
         return exitCode
+
+
+class LDAPIMappingReloadTask(Task):
+    """LDAPI DN Mapping task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'reload-' + Task.get_timestamp()
+        dn = f'cn={self.cn},cn=reload ldapi mappings,cn=tasks,cn=config'
+        super(LDAPIMappingReloadTask, self).__init__(instance, dn)

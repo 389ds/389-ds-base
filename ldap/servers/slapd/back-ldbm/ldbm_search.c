@@ -31,10 +31,14 @@
 /* prototypes */
 static int build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const char *base, int scope, int *lookup_returned_allidsp, IDList **candidates);
 static IDList *base_candidates(Slapi_PBlock *pb, struct backentry *e);
-static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, struct backentry *e, Slapi_Filter *filter, int managedsait, int *lookup_returned_allidsp, int *err);
+static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *filter, int *lookup_returned_allidsp, int *err);
 static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int lookthroughlimit);
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
+static void stat_add_srch_lookup(Op_stat *op_stat,  struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt);
+static bool dynamic_lists_filter_matches(Slapi_Filter *filter, struct ldbminfo *li);
+static void dynamic_candidates(Slapi_PBlock *pb, struct ldbminfo *li, const char *base, IDList **candidates, int *err);
+static void dynamic_lists_buildup_entry(Slapi_PBlock *pb, struct backentry *entry, struct ldbminfo *li);
 
 /* This is for performance testing, allows us to disable ACL checking altogether */
 #if defined(DISABLE_ACL_CHECK)
@@ -44,6 +48,145 @@ static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int sc
 #endif
 
 #define ISLEGACY(be) (be ? (be->be_instance_info ? (((ldbm_instance *)be->be_instance_info)->inst_li ? (((ldbm_instance *)be->be_instance_info)->inst_li->li_legacy_errcode) : 0) : 0) : 0)
+
+/* Recursively walk the filter to see if it contains our dynamic attribute */
+static bool
+dynamic_lists_filter_matches(Slapi_Filter *filter, struct ldbminfo *li)
+{
+    switch (filter->f_choice) {
+    case LDAP_FILTER_EQUALITY:
+        if (strcasecmp(filter->f_avtype, li->li_dynamic_lists_attr) == 0) {
+            return true;
+        }
+        break;
+    case LDAP_FILTER_AND:
+    case LDAP_FILTER_OR:
+    case LDAP_FILTER_NOT:
+        for (Slapi_Filter *sub_filter = filter->f_list;
+             sub_filter;
+             sub_filter = sub_filter->f_next)
+        {
+            if (dynamic_lists_filter_matches(sub_filter, li)) {
+                return true;
+            }
+        }
+        break;
+    }
+    return false;
+}
+
+static void
+dynamic_lists_buildup_entry(Slapi_PBlock *pb, struct backentry *entry, struct ldbminfo *li)
+{
+    const Slapi_Value **urls = NULL;
+
+    if (slapi_entry_attr_hasvalue(entry->ep_entry, "objectclass",
+                                  li->li_dynamic_lists_oc) == 0)
+    {
+         /* Entry does not have the groupOfUrls objectclass */
+         return;
+    }
+
+    /* The entry could have multiple urls, so we need to loop here */
+    urls = slapi_entry_attr_get_valuearray(entry->ep_entry,
+                                           li->li_dynamic_lists_url_attr);
+    for (size_t i = 0; urls && urls[i]; i++) {
+        Slapi_PBlock *search_pb = NULL;
+        Slapi_ValueSet *list_set = NULL;
+        LDAPURLDesc *ludp = NULL;
+        const char *url = NULL;
+        char *list_attr = NULL;
+        int secure = 0;
+        int rc = 0;
+
+        url = slapi_value_get_string(urls[i]);
+        /*
+        * Parse the LDAP URL and validate it
+        */
+        if ((rc = slapi_ldap_url_parse(url, &ludp, 0, &secure)) != 0) {
+            /* Failed to parse the memberUrl attribute */
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - failed to parse the LDAP url: %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_filter == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Missing filter in LDAP URL %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_dn == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Missing base dn in LDAP URL %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_attrs != NULL && ludp->lud_attrs[0] != NULL) {
+            /* If an attribute is specified use it */
+            list_attr = ludp->lud_attrs[0];
+        }
+
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "dynamic_lists_buildup_entry",
+                      "%s (url: %s) - Performing internal search\n",
+                      slapi_entry_get_dn_const(entry->ep_entry), url);
+
+        /*
+        * Get our DN's groupOfUrls attribute
+        */
+        search_pb = slapi_pblock_new();
+        slapi_search_internal_set_pb(search_pb, ludp->lud_dn, ludp->lud_scope, ludp->lud_filter,
+                                     NULL, 0, NULL, NULL, li->li_identity, 0);
+        slapi_search_internal_pb(search_pb);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (LDAP_SUCCESS != rc) {
+            /* log an error and use the plugin entry for the config */
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Internal search based on LDAP url (%s) failed: err=%d\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url, rc);
+            goto cont;
+        } else {
+            Slapi_Entry **entries = NULL;
+
+            list_set = slapi_valueset_new();
+            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            for (size_t i = 0; entries && entries[i]; i++) {
+                if (list_attr == NULL) {
+                    /* No list attribute, so use the DN of the entry */
+                    const char *dn = slapi_entry_get_dn_const(entries[i]);
+                    slapi_valueset_add_value_ext(list_set, slapi_value_new_string(dn),
+                                                 SLAPI_VALUE_FLAG_PASSIN);
+                } else {
+                    /* Use an attribute/value from within the entry */
+                    const char *entry_list_attr = slapi_entry_attr_get_ref(entries[i],
+                                                                           list_attr);
+                    if (entry_list_attr) {
+                        slapi_valueset_add_value_ext(list_set,
+                                                     slapi_value_new_string(entry_list_attr),
+                                                     SLAPI_VALUE_FLAG_PASSIN);
+                    }
+                }
+            }
+        }
+        if (slapi_valueset_isempty(list_set) == 0) {
+            slapi_entry_add_valueset(entry->ep_entry,
+                                     list_attr ? list_attr : li->li_dynamic_lists_attr,
+                                     list_set);
+            entry->ep_is_dynamic = true;
+        }
+
+    cont:
+        slapi_valueset_free(list_set);
+        slapi_free_search_results_internal(search_pb);
+        slapi_pblock_destroy(search_pb);
+        if (ludp != NULL) {
+            ldap_free_urldesc(ludp);
+        }
+    } /* end of URL loop */
+}
 
 int
 compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li)
@@ -68,14 +211,14 @@ compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li)
                 if (li->li_pagedlookthroughlimit) {
                     limit = li->li_pagedlookthroughlimit;
                 } else {
-                    /* No paged search lookthroughlimit, so use DB lookthroughlimit.
+                    /* No paged search lookthroughlimit, so use dbi_db_t lookthroughlimit.
                      * First check if we have a "resource limit" that applies to this
-                     * connection, otherwise use the global DB lookthroughlimit
+                     * connection, otherwise use the global dbi_db_t lookthroughlimit
                      */
                     if (slapi_reslimit_get_integer_limit(conn,
                             li->li_reslimit_lookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
                     {
-                        /* Default to global DB lookthroughlimit */
+                        /* Default to global dbi_db_t lookthroughlimit */
                         limit = li->li_lookthroughlimit;
                     }
                 }
@@ -156,7 +299,10 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     ldbm_instance *inst;
     back_search_result_set *sr = NULL;
     int free_candidates = 1;
+    Slapi_Operation *op = NULL;
 
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     inst = (ldbm_instance *)be->be_instance_info;
     /*
@@ -164,7 +310,17 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
      * clean it up for the following sessions.
      */
     slapi_be_unset_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
-    CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
+    if (e != operation_get_target_entry(op)) {
+        /*
+         * Target entry is released later on
+         * (in cache_return_target_entry called by op_shared_search).
+         */
+        if (e && e->ep_is_dynamic) {
+            /* We always remove dynamic entries from the cache */
+            CACHE_REMOVE(&inst->inst_cache, e);
+        }
+        CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
+    }
     if (inst->inst_ref_count) {
         slapi_counter_decrement(inst->inst_ref_count);
     }
@@ -208,7 +364,7 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
         char *p, *end, *bigpat = NULL;
         size_t size = 0;
         Slapi_Regex *re = NULL;
-        const char *re_result = NULL;
+        char *re_result = NULL;
         int i = 0;
 
         PR_ASSERT(NULL == f->f_un.f_un_sub.sf_private);
@@ -262,6 +418,7 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
         if (NULL == re) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_search_compile_filter", "re_comp (%s) failed (%s): %s\n",
                           pat, p, re_result ? re_result : "unknown");
+            slapi_ch_free_string(&re_result);
             rc = SLAPI_FILTER_SCAN_ERROR;
         } else {
             char ebuf[BUFSIZ];
@@ -462,6 +619,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                         slapi_entry_free(feature);
                         if (rc != LDAP_SUCCESS) {
                             /* Client isn't allowed to do this. */
+                            vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                             return ldbm_back_search_cleanup(pb, li, sort_control,
                                                             rc, "VLV Control", SLAPI_FAIL_GENERAL,
                                                             &vlv_request_control, NULL, candidates);
@@ -475,6 +633,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                 }
             } else {
                 /* Can't have a VLV control without a SORT control */
+                vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 LDAP_SORT_CONTROL_MISSING, "VLV Control",
                                                 SLAPI_FAIL_GENERAL, &vlv_request_control, NULL, candidates);
@@ -512,6 +671,9 @@ ldbm_back_search(Slapi_PBlock *pb)
         if (0 != is_vlv_critical) {
             vlv_response.result = LDAP_UNWILLING_TO_PERFORM;
             vlv_make_response_control(pb, &vlv_response);
+            if (virtual_list_view) {
+                vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+            }
             if (sort) {
                 sort_make_sort_response_control(pb, LDAP_UNWILLING_TO_PERFORM, NULL);
             }
@@ -529,6 +691,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                 if (virtual_list_view) {
                     vlv_response.result = LDAP_UNWILLING_TO_PERFORM;
                     vlv_make_response_control(pb, &vlv_response);
+                    vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                 }
                 sort_make_sort_response_control(pb, LDAP_UNWILLING_TO_PERFORM, NULL);
                 return ldbm_back_search_cleanup(pb, li, sort_control,
@@ -539,6 +702,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                 if (virtual_list_view) {
                     vlv_response.result = LDAP_UNWILLING_TO_PERFORM;
                     vlv_make_response_control(pb, &vlv_response);
+                    vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                 }
                 if (sort) {
                     sort_make_sort_response_control(pb, LDAP_UNWILLING_TO_PERFORM, NULL);
@@ -559,6 +723,9 @@ ldbm_back_search(Slapi_PBlock *pb)
     } else {
         if ((e = find_entry(pb, be, addr, &txn, NULL)) == NULL) {
             /* error or referral sent by find_entry */
+            if (virtual_list_view) {
+                vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+            }
             return ldbm_back_search_cleanup(pb, li, sort_control,
                                             LDBM_SRCH_DEFAULT_RESULT, NULL, 1, &vlv_request_control, NULL, candidates);
         }
@@ -578,6 +745,10 @@ ldbm_back_search(Slapi_PBlock *pb)
      */
     if (operation_is_flag_set(operation, OP_FLAG_PS_CHANGESONLY)) {
         candidates = NULL;
+        /* But we still want to log the controls */
+        if (virtual_list_view) {
+            vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+        }
     } else {
         struct timespec expire_time = {0};
         int lookthrough_limit = 0;
@@ -595,11 +766,17 @@ ldbm_back_search(Slapi_PBlock *pb)
                                                     &vlv_request_control,
                                                     &candidates, &vlv_response_control)) {
             case VLV_ACCESS_DENIED:
+                if (virtual_list_view) {
+                    vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                }
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 vlv_rc, "VLV Control",
                                                 SLAPI_FAIL_GENERAL,
                                                 &vlv_request_control, e, candidates);
             case VLV_BLD_LIST_FAILED:
+                if (virtual_list_view) {
+                    vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                }
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 vlv_response_control.result,
                                                 NULL, SLAPI_FAIL_GENERAL,
@@ -609,7 +786,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                 /* Log to the access log the particulars of this sort request */
                 /* Log message looks like this: SORT <key list useful for input
                  * to ldapsearch> <#candidates> | <unsortable> */
-                sort_log_access(pb, sort_control, NULL);
+                sort_log_access(pb, sort_control, NULL, PR_FALSE);
                 /* Since a pre-computed index was found for the VLV Search then
                  * the candidate list now contains exactly what should be
                  * returned.
@@ -619,6 +796,9 @@ ldbm_back_search(Slapi_PBlock *pb)
                  */
                 if (LDAP_SUCCESS !=
                     sort_make_sort_response_control(pb, 0, NULL)) {
+                    if (virtual_list_view) {
+                        vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                    }
                     return ldbm_back_search_cleanup(pb, li, sort_control,
                                                     LDAP_OPERATIONS_ERROR,
                                                     "Sort Response Control",
@@ -632,6 +812,9 @@ ldbm_back_search(Slapi_PBlock *pb)
                                           &lookup_returned_allids, &candidates);
             if (rc) {
                 /* Error result sent by build_candidate_list */
+                if (virtual_list_view) {
+                    vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                }
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 LDBM_SRCH_DEFAULT_RESULT, NULL, rc,
                                                 &vlv_request_control, e, candidates);
@@ -673,6 +856,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                     break;
                 case LDAP_UNWILLING_TO_PERFORM: /* Too hard */
                 default:
+                    vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                     return ldbm_back_search_cleanup(pb, li, sort_control,
                                                     rc, NULL, -1,
                                                     &vlv_request_control, e, candidates);
@@ -691,9 +875,14 @@ ldbm_back_search(Slapi_PBlock *pb)
             if (sort) {
                 if (NULL == candidates) {
                     /* Even if candidates is NULL, we have to return a sort
-                 * response control with the LDAP_SUCCESS return code. */
+                     * response control with the LDAP_SUCCESS return code. */
                     if (LDAP_SUCCESS !=
                         sort_make_sort_response_control(pb, LDAP_SUCCESS, NULL)) {
+                        if (virtual_list_view) {
+                            vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                        } else {
+                            sort_log_access(pb, sort_control, NULL, PR_FALSE);
+                        }
                         return ldbm_back_search_cleanup(pb, li, sort_control,
                                                         LDAP_PROTOCOL_ERROR,
                                                         "Sort Response Control", -1,
@@ -701,14 +890,14 @@ ldbm_back_search(Slapi_PBlock *pb)
                     }
                 } else {
                     /* Before we haste off to sort the candidates, we need to
-                 * prepare some information for the purpose of imposing the
-                 * administrative limits.
-                 * We figure out the time when the time limit will be up.
-                 * We can't use the size limit because we might be sorting
-                 * a candidate list larger than the result set.
-                 * But, we can use the lookthrough limit---we count each
-                 * time we access an entry as one look and act accordingly.
-                 */
+                     * prepare some information for the purpose of imposing the
+                     * administrative limits.
+                     * We figure out the time when the time limit will be up.
+                     * We can't use the size limit because we might be sorting
+                     * a candidate list larger than the result set.
+                     * But, we can use the lookthrough limit---we count each
+                     * time we access an entry as one look and act accordingly.
+                     */
 
                     char *sort_error_type = NULL;
                     int sort_return_value = 0;
@@ -716,10 +905,10 @@ ldbm_back_search(Slapi_PBlock *pb)
                     /* Don't log internal operations */
                     if (!operation_is_flag_set(operation, OP_FLAG_INTERNAL)) {
                         /* Log to the access log the particulars of this
-                     * sort request */
+                         * sort request */
                         /* Log message looks like this: SORT <key list useful for
-                     * input to ldapsearch> <#candidates> | <unsortable> */
-                        sort_log_access(pb, sort_control, candidates);
+                         * input to ldapsearch> <#candidates> | <unsortable> */
+                        sort_log_access(pb, sort_control, candidates, PR_FALSE);
                     }
                     sort_return_value = sort_candidates(be, lookthrough_limit,
                                                         &expire_time, pb, candidates,
@@ -727,15 +916,18 @@ ldbm_back_search(Slapi_PBlock *pb)
                                                         &sort_error_type);
                     /* Fix for bugid # 394184, SD, 20 Jul 00 */
                     /* replace the hard coded return value by the appropriate
-                 * LDAP error code */
+                     * LDAP error code */
                     switch (sort_return_value) {
                     case LDAP_SUCCESS:
                         /*
-                     * we don't want to override an error from vlv
-                     * vlv_response_control.result= LDAP_SUCCESS;
-                     */
+                         * we don't want to override an error from vlv
+                         * vlv_response_control.result= LDAP_SUCCESS;
+                         */
                         break;
                     case LDAP_PROTOCOL_ERROR: /* A protocol error */
+                        if (virtual_list_view) {
+                            vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                        }
                         return ldbm_back_search_cleanup(pb, li, sort_control,
                                                         LDAP_PROTOCOL_ERROR,
                                                         "Sort Control", -1,
@@ -776,6 +968,9 @@ ldbm_back_search(Slapi_PBlock *pb)
                  * sort result */
                     if (LDAP_SUCCESS != sort_make_sort_response_control(pb,
                                                                         sort_return_value, sort_error_type)) {
+                        if (virtual_list_view) {
+                            vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
+                        }
                         return ldbm_back_search_cleanup(pb, li, sort_control,
                                                         (abandoned ? LDBM_SRCH_DEFAULT_RESULT : LDAP_PROTOCOL_ERROR),
                                                         "Sort Response Control", -1,
@@ -800,6 +995,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                         idl_free(&candidates);
                         candidates = idl;
                     } else {
+                        vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                         return ldbm_back_search_cleanup(pb, li, sort_control,
                                                         vlv_response_control.result,
                                                         NULL, -1,
@@ -816,13 +1012,14 @@ ldbm_back_search(Slapi_PBlock *pb)
         if (virtual_list_view) {
             if (LDAP_SUCCESS !=
                 vlv_make_response_control(pb, &vlv_response_control)) {
+                vlv_print_access_log(pb, &vlv_request_control, NULL, sort_control);
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 (abandoned ? LDBM_SRCH_DEFAULT_RESULT : LDAP_PROTOCOL_ERROR),
                                                 "VLV Response Control", -1,
                                                 &vlv_request_control, e, candidates);
             }
             /* Log the VLV operation */
-            vlv_print_access_log(pb, &vlv_request_control, &vlv_response_control);
+            vlv_print_access_log(pb, &vlv_request_control, &vlv_response_control, sort_control);
         }
     }
 
@@ -876,6 +1073,7 @@ ldbm_back_search(Slapi_PBlock *pb)
 
         if (internal_op) {
             /* Get the plugin that triggered this internal search */
+            time_t start_time;
             slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &cid);
             if (cid) {
                 plugin = (struct slapdplugin *)cid->sci_plugin;
@@ -883,7 +1081,7 @@ ldbm_back_search(Slapi_PBlock *pb)
                 slapi_pblock_get(pb, SLAPI_PLUGIN, &plugin);
             }
             plugin_dn = plugin_get_dn(plugin);
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_search",
                     "Internal unindexed search: source (%s) search base=\"%s\" scope=%d filter=\"%s\" conn=%" PRIu64 " op=%d (internal op=%d count=%d)\n",
                     plugin_dn, base_dn, scope, filter_str, connid, op_id, op_internal_id, op_nested_count);
@@ -922,19 +1120,23 @@ ldbm_back_search(Slapi_PBlock *pb)
             tmp_desc = "Filter is not set";
             goto bail;
         }
-        if (can_skip_filter_test(pb, filter, scope, candidates)) {
-            sr->sr_flags |= SR_FLAG_CAN_SKIP_FILTER_TEST;
+        if (can_skip_filter_test(pb, filter, scope, candidates) == 0) {
+            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
         }
     }
 
     /* if we need to perform the filter test, pre-digest the filter to
        speed up the filter test */
-    if (!(sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST) ||
+    if ((sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST) ||
         li->li_filter_bypass_check) {
         int rc = 0, filt_errs = 0;
         Slapi_Filter *filter = NULL;
+        Slapi_Filter *filter_intent = NULL;
+
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Applying Filter Test\n");
 
         slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
+        slapi_pblock_get(pb, SLAPI_SEARCH_FILTER_INTENDED, &filter_intent);
         if (NULL == filter) {
             tmp_err = LDAP_OPERATIONS_ERROR;
             tmp_desc = "Filter is not set";
@@ -942,11 +1144,21 @@ ldbm_back_search(Slapi_PBlock *pb)
         }
         slapi_filter_free(sr->sr_norm_filter, 1);
         sr->sr_norm_filter = slapi_filter_dup(filter);
+
         /* step 1 - normalize all of the values used in the search filter */
         slapi_filter_normalize(sr->sr_norm_filter, PR_TRUE /* normalize values too */);
         /* step 2 - pre-compile the substr regex and the equality flags */
         rc = slapi_filter_apply(sr->sr_norm_filter, ldbm_search_compile_filter,
                                 NULL, &filt_errs);
+
+        if (rc == SLAPI_FILTER_SCAN_NOMORE && filter_intent) {
+            slapi_filter_free(sr->sr_norm_filter_intent, 1);
+            sr->sr_norm_filter_intent = slapi_filter_dup(filter_intent);
+            slapi_filter_normalize(sr->sr_norm_filter_intent, PR_TRUE /* normalize values too */);
+            rc = slapi_filter_apply(sr->sr_norm_filter_intent, ldbm_search_compile_filter,
+                                    NULL, &filt_errs);
+        }
+
         if (rc != SLAPI_FILTER_SCAN_NOMORE) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm_back_search", "Could not pre-compile the search filter - error %d %d\n",
@@ -956,6 +1168,8 @@ ldbm_back_search(Slapi_PBlock *pb)
                 tmp_desc = "Could not compile regex for filter matching";
             }
         }
+    } else {
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Skipped Filter Test\n");
     }
 bail:
     /* Fix for bugid #394184, SD, 05 Jul 00 */
@@ -981,8 +1195,12 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int managedsait = 0;
     Slapi_Filter *filter = NULL;
+    Slapi_Filter *filter_exec = NULL;
     int err = 0;
     int r = 0;
+    char logbuf[1024] = {0};
+    Slapi_Operation *operation;
+    int32_t internal_op = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
     if (NULL == filter) {
@@ -992,6 +1210,9 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     }
 
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+
+    internal_op = operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     switch (scope) {
     case LDAP_SCOPE_BASE:
@@ -999,20 +1220,54 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         break;
 
     case LDAP_SCOPE_ONELEVEL:
-        *candidates = onelevel_candidates(pb, be, base, e, filter, managedsait,
-                                          lookup_returned_allidsp, &err);
+        /* Now optimise the filter for use */
+        slapi_filter_optimise(filter);
+        /* modify the filter to be: (&(|(originalfilter)(objectclass=referral))(parentid=idofbase)) */
+        filter_exec = create_onelevel_filter(filter, e, managedsait);
+        slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
+        slapi_filter_normalize(filter_exec, PR_TRUE /* normalize values too */);
+
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised ONE filter to - %s\n",
+             slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));
+
+        *candidates = onelevel_candidates(pb, be, base, filter_exec, lookup_returned_allidsp, &err);
+
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter_exec);
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER_INTENDED, filter);
+
         break;
 
     case LDAP_SCOPE_SUBTREE:
-        *candidates = subtree_candidates(pb, be, base, e, filter, managedsait,
-                                         lookup_returned_allidsp, &err);
+        /* Now optimise the filter for use */
+        slapi_filter_optimise(filter);
+        slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
+        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL) || (operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL))) {
+            /* For performance reason, skip adding (objectclass=referral) in case
+             *  - there is no referral on the server
+             *  - this is an internal SRCH
+             */
+            filter_exec = filter;
+        } else {
+            /* make (|(originalfilter)(objectclass=referral)) */
+            filter_exec = create_subtree_filter(filter, managedsait);
+            slapi_filter_normalize(filter_exec, PR_TRUE /* normalize values too */);
+        }
+
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised SUB filter to - %s\n",
+             slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));
+
+        *candidates = subtree_candidates(pb, be, base, e, filter_exec, lookup_returned_allidsp, &err);
+
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter_exec);
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER_INTENDED, filter);
+
         break;
 
     default:
         slapi_send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, "Bad scope", 0, NULL);
         r = SLAPI_FAIL_GENERAL;
     }
-    if (0 != err && DB_NOTFOUND != err) {
+    if (0 != err && DBI_RC_NOTFOUND != err) {
         slapi_log_err(SLAPI_LOG_ERR, "build_candidate_list", "Database error %d\n", err);
         slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL,
                                0, NULL);
@@ -1028,7 +1283,7 @@ bail:
      * above already for subtree searches.
      */
     if (NULL != lookup_returned_allidsp) {
-        if (0 == err || DB_NOTFOUND == err) {
+        if (0 == err || DBI_RC_NOTFOUND == err) {
             if (!(*lookup_returned_allidsp) && LDAP_SCOPE_SUBTREE != scope) {
                 *lookup_returned_allidsp =
                     (NULL != *candidates && ALLIDS(*candidates));
@@ -1038,10 +1293,52 @@ bail:
         }
     }
 
+    if (!internal_op && li->li_dynamic_lists_enabled &&
+        dynamic_lists_filter_matches(filter, li))
+    {
+        /* Filter includes the dynamic attribute, so we need to build up the
+         * candidates list */
+        dynamic_candidates(pb, li, base, candidates, &err);
+    }
+
     slapi_log_err(SLAPI_LOG_TRACE, "build_candidate_list", "Candidate list has %lu ids\n",
                   *candidates ? (*candidates)->b_nids : 0L);
 
     return r;
+}
+
+/*
+ * Build a candidate list for dynamic entries
+ */
+static void
+dynamic_candidates(
+    Slapi_PBlock *pb,
+    struct ldbminfo *li,
+    const char *base,
+    IDList **candidates,
+    int *err)
+{
+    int rc = 0;
+    Slapi_Entry **entries = NULL;
+    char *dynamic_filter = slapi_ch_smprintf("(&(objectclass=%s)(%s=*))",
+                                             li->li_dynamic_lists_oc,
+                                             li->li_dynamic_lists_url_attr);
+    Slapi_PBlock *search_pb = slapi_pblock_new();
+
+    slapi_search_internal_set_pb(search_pb, base, LDAP_SCOPE_SUBTREE, dynamic_filter,
+                                 NULL, 0, NULL, NULL, li->li_identity, 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        for (size_t i = 0; entries && entries[i]; i++) {
+            ID id = slapi_entry_attr_get_int(entries[i], "entryid");
+            idl_insert(candidates, id);
+        }
+    }
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+    slapi_ch_free_string(&dynamic_filter);
 }
 
 /*
@@ -1064,15 +1361,15 @@ base_candidates(Slapi_PBlock *pb __attribute__((unused)), struct backentry *e)
  * non-recursively when done with the returned filter.
  */
 static Slapi_Filter *
-create_referral_filter(Slapi_Filter *filter, Slapi_Filter **focref, Slapi_Filter **forr)
+create_referral_filter(Slapi_Filter *filter)
 {
     char *buf = slapi_ch_strdup("objectclass=referral");
 
-    *focref = slapi_str2filter(buf);
-    *forr = slapi_filter_join(LDAP_FILTER_OR, filter, *focref);
+    Slapi_Filter *focref = slapi_str2filter(buf);
+    Slapi_Filter *forr = slapi_filter_join(LDAP_FILTER_OR, filter, focref);
 
     slapi_ch_free((void **)&buf);
-    return *forr;
+    return forr;
 }
 
 /*
@@ -1086,20 +1383,20 @@ create_referral_filter(Slapi_Filter *filter, Slapi_Filter **focref, Slapi_Filter
  * This function is exported for the VLV code to use.
  */
 Slapi_Filter *
-create_onelevel_filter(Slapi_Filter *filter, const struct backentry *baseEntry, int managedsait, Slapi_Filter **fid2kids, Slapi_Filter **focref, Slapi_Filter **fand, Slapi_Filter **forr)
+create_onelevel_filter(Slapi_Filter *filter, const struct backentry *baseEntry, int managedsait)
 {
     Slapi_Filter *ftop = filter;
     char buf[40];
 
     if (!managedsait) {
-        ftop = create_referral_filter(filter, focref, forr);
+        ftop = create_referral_filter(filter);
     }
 
     sprintf(buf, "parentid=%lu", (u_long)(baseEntry != NULL ? baseEntry->ep_id : 0));
-    *fid2kids = slapi_str2filter(buf);
-    *fand = slapi_filter_join(LDAP_FILTER_AND, ftop, *fid2kids);
+    Slapi_Filter *fid2kids = slapi_str2filter(buf);
+    Slapi_Filter *fand = slapi_filter_join(LDAP_FILTER_AND, ftop, fid2kids);
 
-    return *fand;
+    return fand;
 }
 
 /*
@@ -1110,37 +1407,15 @@ onelevel_candidates(
     Slapi_PBlock *pb,
     backend *be,
     const char *base,
-    struct backentry *e,
     Slapi_Filter *filter,
-    int managedsait,
     int *lookup_returned_allidsp,
     int *err)
 {
-    Slapi_Filter *fid2kids = NULL;
-    Slapi_Filter *focref = NULL;
-    Slapi_Filter *fand = NULL;
-    Slapi_Filter *forr = NULL;
-    Slapi_Filter *ftop = NULL;
     IDList *candidates;
 
-    /*
-     * modify the filter to be something like this:
-     *
-     *    (&(parentid=idofbase)(|(originalfilter)(objectclass=referral)))
-     */
-
-    ftop = create_onelevel_filter(filter, e, managedsait, &fid2kids, &focref, &fand, &forr);
-
-    /* from here, it's just like subtree_candidates */
-    candidates = filter_candidates(pb, be, base, ftop, NULL, 0, err);
+    candidates = filter_candidates(pb, be, base, filter, NULL, 0, err);
 
     *lookup_returned_allidsp = slapi_be_is_flag_set(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
-
-    /* free up just the filter stuff we allocated above */
-    slapi_filter_free(fid2kids, 0);
-    slapi_filter_free(fand, 0);
-    slapi_filter_free(forr, 0);
-    slapi_filter_free(focref, 0);
 
     return (candidates);
 }
@@ -1156,17 +1431,51 @@ onelevel_candidates(
  * This function is exported for the VLV code to use.
  */
 Slapi_Filter *
-create_subtree_filter(Slapi_Filter *filter, int managedsait, Slapi_Filter **focref, Slapi_Filter **forr)
+create_subtree_filter(Slapi_Filter *filter, int managedsait)
 {
     Slapi_Filter *ftop = filter;
 
     if (!managedsait) {
-        ftop = create_referral_filter(filter, focref, forr);
+        ftop = create_referral_filter(filter);
     }
 
     return ftop;
 }
 
+static void
+stat_add_srch_lookup(Op_stat *op_stat, struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt)
+{
+    if ((op_stat == NULL) || (op_stat->search_stat == NULL) || (key_stat == NULL)) {
+        return;
+    }
+
+    /* indextype is "eq" */
+    if (index_type) {
+        key_stat->index_type = slapi_ch_strdup(index_type);
+    }
+
+    /* key value e.g. '1234' */
+    if (key_value) {
+        key_stat->key = (char *) slapi_ch_calloc(1, strlen(key_value) + 1);
+        memcpy(key_stat->key, key_value, strlen(key_value));
+    }
+
+    /* attribute name is e.g. 'uid' */
+    if (attribute_type) {
+        key_stat->attribute_type = slapi_ch_strdup(attribute_type);
+    }
+
+    /* Number of lookup IDs with the key */
+    key_stat->id_lookup_cnt = lookup_cnt;
+    if (op_stat->search_stat->keys_lookup) {
+        /* it already exist key stat. add key_stat at the head */
+        key_stat->next = op_stat->search_stat->keys_lookup;
+    } else {
+        /* this is the first key stat record */
+        key_stat->next = NULL;
+    }
+    op_stat->search_stat->keys_lookup = key_stat;
+}
 
 /*
  * Build a candidate list for a SUBTREE scope search.
@@ -1178,13 +1487,9 @@ subtree_candidates(
     const char *base,
     const struct backentry *e,
     Slapi_Filter *filter,
-    int managedsait,
     int *allids_before_scopingp,
     int *err)
 {
-    Slapi_Filter *focref = NULL;
-    Slapi_Filter *forr = NULL;
-    Slapi_Filter *ftop = NULL;
     IDList *candidates;
     PRBool has_tombstone_filter;
     int isroot = 0;
@@ -1193,13 +1498,8 @@ subtree_candidates(
     Operation *op = NULL;
     PRBool is_bulk_import = PR_FALSE;
 
-    /* make (|(originalfilter)(objectclass=referral)) */
-    ftop = create_subtree_filter(filter, managedsait, &focref, &forr);
-
     /* Fetch a candidate list for the original filter */
-    candidates = filter_candidates_ext(pb, be, base, ftop, NULL, 0, err, allidslimit);
-    slapi_filter_free(forr, 0);
-    slapi_filter_free(focref, 0);
+    candidates = filter_candidates_ext(pb, be, base, filter, NULL, 0, err, allidslimit);
 
     /* set 'allids before scoping' flag */
     if (NULL != allids_before_scopingp) {
@@ -1210,7 +1510,7 @@ subtree_candidates(
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (op && entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         is_bulk_import = PR_TRUE;
     }
@@ -1224,24 +1524,41 @@ subtree_candidates(
     if (candidates != NULL && (idl_length(candidates) > FILTER_TEST_THRESHOLD) && e) {
         IDList *tmp = candidates, *descendants = NULL;
         back_txn txn = {NULL};
+        Op_stat *op_stat = NULL;
+        char key_value[32] = {0};
+
+        /* statistics for index lookup is enabled */
+        if (LDAP_STAT_READ_INDEX & config_get_statlog_level()) {
+            op_stat = op_stat_get_operation_extension(pb);
+            if (op_stat) {
+                /* easier to just record the entry ID */
+                PR_snprintf(key_value, sizeof(key_value), "%lu", (u_long) e->ep_id);
+            }
+        }
 
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-        if (entryrdn_get_noancestorid()) {
-            /* subtree-rename: on && no ancestorid */
-            *err = entryrdn_get_subordinates(be,
-                                             slapi_entry_get_sdn_const(e->ep_entry),
-                                             e->ep_id, &descendants, &txn, 0);
-            idl_insert(&descendants, e->ep_id);
-            candidates = idl_intersection(be, candidates, descendants);
-            idl_free(&tmp);
-            idl_free(&descendants);
-        } else if (!has_tombstone_filter && !is_bulk_import) {
+
+        if (!has_tombstone_filter && !is_bulk_import) {
+            struct component_keys_lookup *key_stat;
+
+            if (op_stat) {
+                /* gather the index lookup statistics */
+                key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_start);
+            }
             *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
+            if (op_stat) {
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_end);
+                /* records ancestorid lookups */
+                stat_add_srch_lookup(op_stat, key_stat, LDBM_ANCESTORID_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
+            }
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(&tmp);
             idl_free(&descendants);
-        } /* else == has_tombstone_filter OR is_bulk_import: do nothing */
+        }
+    } else if (candidates != NULL) {
+        *err = LDAP_SUCCESS;
     }
 
     return (candidates);
@@ -1383,6 +1700,10 @@ static void
 non_target_cache_return(Slapi_Operation *op, struct cache *cache, struct backentry **e)
 {
     if (e && (*e != operation_get_target_entry(op))) {
+        if ((*e)->ep_is_dynamic) {
+            /* We always remove dynamic entries from the cache */
+            CACHE_REMOVE(cache, *e);
+        }
         CACHE_RETURN(cache, e);
     }
 }
@@ -1406,6 +1727,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     int managedsait;
     Slapi_Attr *attr;
     Slapi_Filter *filter;
+    Slapi_Filter *filter_intent;
     back_search_result_set *sr;
     ID id;
     struct backentry *e;
@@ -1423,6 +1745,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     Slapi_Connection *conn;
     Slapi_Operation *op;
     int reverse_list = 0;
+    int32_t internal_op = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &basesdn);
     if (NULL == basesdn) {
@@ -1439,6 +1762,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
+    slapi_pblock_get(pb, SLAPI_SEARCH_FILTER_INTENDED, &filter_intent);
     slapi_pblock_get(pb, SLAPI_NENTRIES, &nentries);
     slapi_pblock_get(pb, SLAPI_SEARCH_SIZELIMIT, &slimit);
     slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &tlimit);
@@ -1448,6 +1772,8 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+
+    internal_op = op && operation_is_flag_set(op, OP_FLAG_INTERNAL);
 
     if ((reverse_list = operation_is_flag_set(op, OP_FLAG_REVERSE_CANDIDATE_ORDER))) {
         /*
@@ -1467,9 +1793,13 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     }
 
     if (sr->sr_norm_filter) {
+        filter = sr->sr_norm_filter;
+    }
+
+    if (sr->sr_norm_filter_intent) {
         int val = 1;
         slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &val);
-        filter = sr->sr_norm_filter;
+        filter_intent = sr->sr_norm_filter_intent;
     }
 
     if (op_is_pagedresults(op)) {
@@ -1515,6 +1845,18 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
 
     /* Find the next candidate entry and return it. */
     while (1) {
+        if (li->li_dblock_monitoring &&
+            slapi_atomic_load_32((int32_t *)&(li->li_dblock_threshold_reached), __ATOMIC_RELAXED)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_next_search_entry",
+                          "DB locks threshold is reached (nsslapd-db-locks-monitoring-threshold "
+                          "under cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config). "
+                          "Please, increase nsslapd-db-locks according to your needs.\n");
+            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
+            delete_search_result_set(pb, &sr);
+            rc = SLAPI_FAIL_GENERAL;
+            slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "DB locks threshold is reached (nsslapd-db-locks-monitoring-threshold)", 0, NULL);
+            goto bail;
+        }
 
         /* check for abandon */
         if (slapi_op_abandoned(pb) || (NULL == sr)) {
@@ -1605,7 +1947,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             e = id2entry(be, id, &txn, &err);
         }
         if (e == NULL) {
-            if (err != 0 && err != DB_NOTFOUND) {
+            if (err != 0 && err != DBI_RC_NOTFOUND) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
                         "next_search_entry db err %d\n", err);
                 if (LDBM_OS_ERR_IS_DISKFULL(err)) {
@@ -1618,7 +1960,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
             slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_next_search_entry", "candidate %lu not found\n",
                           (u_long)id);
-            if (err == DB_NOTFOUND) {
+            if (err == DBI_RC_NOTFOUND) {
                 /* Since we didn't really look at this entry, we should
                  * decrement the lookthrough counter (it was just incremented).
                  * If we didn't do this, it would be possible to go over the
@@ -1629,6 +1971,12 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
             continue;
         }
+
+        if (li->li_dynamic_lists_enabled && !internal_op) {
+            /* Need to build up any dynamic content for the entry */
+            dynamic_lists_buildup_entry(pb, e, li);
+        }
+
         e->ep_vlventry = NULL;
         sr->sr_entry = e;
 
@@ -1661,54 +2009,103 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                 /* If it is from bulk import, no need to check. */
                 filter_test = 0;
                 slimit = -1; /* no sizelimit applied */
-            } else if ((slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_LDAPSUBENTRY) &&
-                        !filter_flag_is_set(filter, SLAPI_FILTER_LDAPSUBENTRY)) ||
-                       (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
-                        ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
-                         !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
-            {
-                /* If the entry is an LDAP subentry and filter don't filter subentries OR
-                 * the entry is a TombStone and filter don't filter Tombstone
-                 * don't return the entry.  We make a special case to allow a non-root user
-                 * to search for the RUV entry using a filter of:
-                 *
-                 *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
-                 *
-                 * For this RUV case, we let the ACL check apply.
-                 */
+            } else {
                 /* ugaston - we don't want to mistake this filter failure with the one below due to ACL,
                  * because whereas the former should be read as 'no entry must be returned', the latter
                  * might still lead to return an empty entry. */
-                filter_test = -1;
-            } else {
-                /* it's a regular entry, check if it matches the filter, and passes the ACL check */
-                if (0 != (sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST)) {
-                    /* Since we do access control checking in the filter test (?Why?) we need to check access now */
-                    slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
-                                  "Bypassing filter test\n");
-                    if (ACL_CHECK_FLAG) {
-                        filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+
+                if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_LDAPSUBENTRY)) {
+                    /* If the entry is an LDAP subentry and RFC 3672 Subentries control is present
+                     * and its value is set to false OR filter don't filter subentries
+                     */
+                    if (!operation_is_flag_set(op, OP_FLAG_SUBENTRIES_TRUE) &&
+                        (operation_is_flag_set(op, OP_FLAG_SUBENTRIES_FALSE) ||
+                        !filter_flag_is_set(filter, SLAPI_FILTER_LDAPSUBENTRY)))
+                    {
+                        filter_test = -1;
                     } else {
                         filter_test = 0;
                     }
-                    if (li->li_filter_bypass_check) {
-                        int ft_rc;
+                } else {
+                    /* If the entry is a normal LDAP entry and RFC 3672 Subentries control
+                     * is present and its value is set to true OR the entry is a TombStone and
+                     * filter don't filter Tombstone don't return the entry.
+                     * We make a special case to allow a non-root user
+                     * to search for the RUV entry using a filter of:
+                     *
+                     *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
+                     *
+                     * For this RUV case, we let the ACL check apply.
+                     */
+                    if (operation_is_flag_set(op, OP_FLAG_SUBENTRIES_TRUE) ||
+                        (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+                            ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
+                            !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
+                    {
+                        filter_test = -1;
+                    } else {
+                        filter_test = 0;
+                    }
+                }
 
-                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
-                        ft_rc = slapi_vattr_filter_test(pb, e->ep_entry, filter,
-                                                        ACL_CHECK_FLAG);
-                        if (filter_test != ft_rc) {
-                            /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
-                                          "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
-                            filter_test = ft_rc; /* Fix the error */
+                /* If any of the ... "logic" above failed, leave the failure in place. */
+                if (filter_test == 0) {
+                    filter_test = -1;
+                    if (0 == (sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
+                        /* BYPASS - it's a regular entry, check if it passes the ACL check */
+                        /*
+                         * Since we do access control checking in the filter test we need to check access now
+                         * This checks access to the filter as INTENDED by the user - not the query that
+                         * we have messed with internally - remember, our internal changes are secure!
+                         */
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                      "Bypassing filter test for %s\n", slapi_entry_get_dn_const(e->ep_entry));
+                        if (ACL_CHECK_FLAG) {
+                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG);
+                        } else {
+                            filter_test = 0;
+                        }
+
+                        /* If we don't check this, we could stomp the filter_test aci denied result. */
+                        if (filter_test == 0 && li->li_filter_bypass_check) {
+                            slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
+                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                            if (filter_test != 0) {
+                                /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
+                                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
+                                              "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
+                            }
+                        }
+                    } else {
+                        /* MUST APPLY - This occurs when we have a partial candidate set */
+                        /*
+                         * Remember, MUST_APPLY is set during a shortcut condition from the IDL backend,
+                         * which means we can NOT ignore it! When it's 0, we assume that IDL fully resolved
+                         * which means we then check the ACL only, we have a decision about if we do the
+                         * test based on the configuration.
+                         */
+                        /*
+                         * IMPORTANT - there is a large and important difference between "filter as intended"
+                         * and filter as executed. The filter as executed is what we optimised to, and this
+                         * can importantly include items like parentid in a one level search. The filter as
+                         * intended however is what the user ASKED for. We shouldn't penalise the user because
+                         * we mucked with their filter, so we check the ACI with the "filter as intended", but
+                         * we need to STILL apply the filter test with "as executed" in case of a test threshold
+                         * shortcut (lest we accidentally prevent the user seeing what they wanted ....)
+                         */
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                      "Applying filter test to %s\n", slapi_entry_get_dn_const(e->ep_entry));
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG);
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                      "Applying filter test intermediate value %d \n", filter_test);
+                        if (filter_test == 0) {
+                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
                         }
                     }
-                } else {
-                    /* Old-style case---we need to do a filter test */
-                    filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, ACL_CHECK_FLAG);
                 }
             }
+            slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                          "filter test value %d %s \n", filter_test, slapi_entry_get_dn_const(e->ep_entry));
             if ((filter_test == 0) || (sr->sr_virtuallistview && (filter_test != -1)))
             /* ugaston - if filter failed due to subentries or tombstones (filter_test=-1),
              * just forget about it, since we don't want to return anything at all. */
@@ -1772,13 +2169,6 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
         }
     }
-    /* check for the final abandon */
-    if (slapi_op_abandoned(pb)) {
-        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
-        delete_search_result_set(pb, &sr);
-        rc = SLAPI_FAIL_GENERAL;
-    }
 
 bail:
     if (rc && op) {
@@ -1819,10 +2209,15 @@ ldbm_back_prev_search_results(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_BACKLDBM,
                           "ldbm_back_prev_search_results", "returning: %s\n",
                           slapi_entry_get_dn_const(sr->sr_entry->ep_entry));
+            if (sr->sr_entry->ep_is_dynamic) {
+                /* We always remove dynamic entries from the cache */
+                CACHE_REMOVE(&inst->inst_cache, sr->sr_entry);
+            }
             CACHE_RETURN(&inst->inst_cache, &(sr->sr_entry));
             sr->sr_entry = NULL;
         }
         idl_iterator_decrement(&(sr->sr_current));
+        --sr->sr_lookthroughcount;
     }
     return;
 }
@@ -1862,11 +2257,20 @@ delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr)
     rc = slapi_filter_apply((*sr)->sr_norm_filter, ldbm_search_free_compiled_filter,
                             NULL, &filt_errs);
     if (rc != SLAPI_FILTER_SCAN_NOMORE) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "delete_search_result_set", "Could not free the pre-compiled regexes in the search filter - error %d %d\n",
+        slapi_log_err(SLAPI_LOG_ERR, "delete_search_result_set",
+                      "Could not free the pre-compiled regexes in the search filter - error %d %d\n",
                       rc, filt_errs);
     }
+
+    rc = slapi_filter_apply((*sr)->sr_norm_filter_intent, ldbm_search_free_compiled_filter, NULL, &filt_errs);
+    if (rc != SLAPI_FILTER_SCAN_NOMORE) {
+        slapi_log_err(SLAPI_LOG_ERR, "delete_search_result_set",
+                      "Could not free the pre-compiled regexes in the intent search filter - error %d %d\n",
+                      rc, filt_errs);
+    }
+
     slapi_filter_free((*sr)->sr_norm_filter, 1);
+    slapi_filter_free((*sr)->sr_norm_filter_intent, 1);
     memset(*sr, 0, sizeof(back_search_result_set));
     slapi_ch_free((void **)sr);
     return;
@@ -1902,6 +2306,11 @@ ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr)
         ((struct backentry *)backend_info_ptr)->ep_vlventry = NULL;
     }
 
+    if (((struct backentry *)backend_info_ptr)->ep_is_dynamic) {
+        /* Always remove the dynamic entry from the cache because it needs to
+         * be rebuilt every time it's looked at */
+        CACHE_REMOVE(&inst->inst_cache, (struct backentry *)backend_info_ptr);
+    }
     CACHE_RETURN(&inst->inst_cache, (struct backentry **)&backend_info_ptr);
 
     return 0;

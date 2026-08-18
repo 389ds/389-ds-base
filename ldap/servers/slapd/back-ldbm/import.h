@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -32,6 +32,8 @@
 #define IMPORT_MAX_INDEX_BUFFER_SIZE 100
 #define IMPORT_MIN_INDEX_BUFFER_SIZE 5
 #define IMPORT_INDEX_BUFFER_SIZE_CONSTANT (20 * 20 * 20 * sizeof(ID))
+
+#define WORKER_NAME_LEN 50
 
 static const int import_sleep_time = 200; /* in millisecs */
 
@@ -67,7 +69,7 @@ typedef struct
 typedef struct
 {
     FifoItem *item;
-    size_t size;    /* Queue size in entries (computed in import_fifo_init). */
+    size_t size;    /* Queue size in entries (computed in bdb_import_fifo_init). */
     size_t bsize;   /* Queue limitation in max bytes */
     size_t c_bsize; /* Current queue size in bytes */
 } Fifo;
@@ -88,17 +90,17 @@ typedef struct
 
 /* Structure holding stuff about the whole import job */
 #define IMPORT_JOB_PROG_HISTORY_SIZE 3
-typedef struct
+typedef struct _ImportJob
 {
     ldbm_instance *inst;           /* db instance we're importing to */
     Slapi_Task *task;              /* cn=tasks entry ptr */
     int flags;                     /* (see below) */
     char **input_filenames;        /* NULL-terminated list of charz pointers */
     IndexInfo *index_list;         /* A list of indexing jobs to do */
-    ImportWorkerInfo *worker_list; /* A list of threads to work on the
-                     * indexes */
+    ImportWorkerInfo *worker_list; /* A list of threads context for
+                                    * producer,foreman,worker and writer threads */
     size_t number_indexers;        /* count of the indexer threads (not including
-                 * the primary) */
+                                    * the primary) */
     ID starting_ID;                /* Import starts work at this ID */
     ID first_ID;                   /* Import pass starts at this ID */
     ID lead_ID;                    /* Highest ID available in the cache */
@@ -109,13 +111,12 @@ typedef struct
     int total_pass;                /* total pass number in a multi-pass import */
     int skipped;                   /* # entries skipped because they were bad */
     int not_here_skipped;          /* # entries skipped because they belong
-                                * to another backend */
+                                    * to another backend */
     size_t merge_chunk_size;       /* Allows us to manually override the magic
-                 * voodoo logic for deciding when to begin
-                 * another pass */
+                                    * voodoo logic for deciding when to begin
+                                    * another pass */
     int uuid_gen_type;             /* kind of uuid to generate */
     char *uuid_namespace;          /* namespace for name-generated uuid */
-    import_subcount_stuff *mothers;
     double average_progress_rate;
     double recent_progress_rate;
     double cache_hit_ratio;
@@ -130,13 +131,16 @@ typedef struct
     char **exclude_subtrees;            /* list of subtrees to NOT import */
     Fifo fifo;                          /* entry fifo for indexing */
     char *task_status;                  /* transient state info for the end-user */
-    PRLock *wire_lock;                  /* lock for serializing wire imports */
-    PRCondVar *wire_cv;                 /* ... and ordering the startup */
-    PRThread *main_thread;              /* for FRI: import_main() thread id */
+    pthread_mutex_t wire_lock;          /* lock for serializing wire imports */
+    pthread_cond_t wire_cv;             /* ... and ordering the startup */
+    PRThread *main_thread;              /* for FRI: bdb_import_main() thread id */
     int encrypt;
     Slapi_Value *usn_value; /* entryusn for import */
     FILE *upgradefd;        /* used for the upgrade */
     int numsubordinates;
+    int all_vlv_init;        /* Tells if can bypass vlv initialization */
+    void *writer_ctx;        /* Context used to push data in worker thread */
+    int nosync_set;          /* Track whether we set MDB_NOSYNC during online import */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS 0x01         /* should we index the attributes? */
@@ -167,12 +171,14 @@ struct _import_worker_info
     ImportJob *job;
     ImportWorkerInfo *next;
     size_t index_buffer_size; /* Size of index buffering for this index */
+    char name[WORKER_NAME_LEN]; /* For debug */
 };
 
 /* Values for work_type */
 #define WORKER 1
 #define FOREMAN 2
 #define PRODUCER 3
+#define WRITER 4    /* For MDB */
 
 /* Values for command */
 #define RUN 1
@@ -201,27 +207,13 @@ struct _import_worker_info
 
 
 /* import.c */
-int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
-void import_free_job(ImportJob *job);
-void import_abort_all(ImportJob *job, int wait_for_them);
-int import_entry_belongs_here(Slapi_Entry *e, backend *be);
-int import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
-void import_main(void *arg);
 int import_main_offline(void *arg);
+int import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t t_sub_count, int isencrypted, back_txn *txn);
+bool db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst);
 
-/* import-merge.c */
-int import_mega_merge(ImportJob *job);
 
 /* ldif2ldbm.c */
 void reset_progress(void);
 void report_progress(int count, int done);
-
-/* import-threads.c */
-void import_producer(void *param);
-void index_producer(void *param);
-void upgradedn_producer(void *param);
-void import_foreman(void *param);
-void import_worker(void *param);
 

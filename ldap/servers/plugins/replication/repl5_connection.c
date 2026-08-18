@@ -57,7 +57,8 @@ typedef struct repl_connection
     PRLock *lock;
     struct timeval timeout;
     int flag_agmt_changed;
-    char *plain;
+    char *plain;            /* Clear password */
+    char *creds;            /* Encrypted password */
     void *tot_init_callback; /* Used during total update to do flow control */
 } repl_connection;
 
@@ -205,6 +206,7 @@ conn_new(Repl_Agmt *agmt)
     rpc->timeout.tv_usec = 0;
     rpc->flag_agmt_changed = 0;
     rpc->plain = NULL;
+    rpc->creds = NULL;
     return rpc;
 loser:
     conn_delete_internal(rpc);
@@ -244,8 +246,10 @@ conn_delete_internal(Repl_Connection *conn)
     PR_ASSERT(NULL != conn);
     close_connection_internal(conn);
     /* slapi_ch_free accepts NULL pointer */
+    slapi_ch_free_string(&conn->last_ldap_errmsg);
     slapi_ch_free((void **)&conn->hostname);
     slapi_ch_free((void **)&conn->binddn);
+    slapi_ch_free((void **)&conn->creds);
     slapi_ch_free((void **)&conn->plain);
 }
 
@@ -272,7 +276,7 @@ conn_delete(Repl_Connection *conn)
     PR_ASSERT(NULL != conn);
     PR_Lock(conn->lock);
     if (conn->linger_active) {
-        if (slapi_eq_cancel(conn->linger_event) == 1) {
+        if (slapi_eq_cancel_rel(conn->linger_event) == 1) {
             /* Event was found and cancelled. Destroy the connection object. */
             destroy_it = PR_TRUE;
         } else {
@@ -402,7 +406,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         }
         if (block) {
             /* Did the connection's timeout expire ? */
-            time_now = slapi_current_utc_time();
+            time_now = slapi_current_rel_time_t();
             if (conn->timeout.tv_sec <= (time_now - start_time)) {
                 /* We timed out */
                 rc = 0;
@@ -450,6 +454,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         char *s = NULL;
 
         rc = slapi_ldap_get_lderrno(conn->ld, NULL, &s);
+        slapi_ch_free_string(&conn->last_ldap_errmsg);
         conn->last_ldap_errmsg = s;
         conn->last_ldap_error = rc;
         /* some errors will require a disconnect and retry the connection
@@ -499,6 +504,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         {
             if (NULL != returned_controls) {
                 *returned_controls = loc_returned_controls;
+                loc_returned_controls = NULL; /* ownership transferred */
             }
             if (LDAP_SUCCESS != rc) {
                 conn->last_ldap_error = rc;
@@ -512,6 +518,9 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         slapi_ch_free_string(&errmsg);
         slapi_ch_free_string(&matched);
         charray_free(referrals);
+        if (loc_returned_controls) {
+            ldap_controls_free(loc_returned_controls);
+        }
     }
     if (res)
         ldap_msgfree(res);
@@ -631,7 +640,7 @@ check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop
                      * Log it at least once to inform administrator there is
                      * a potential configuration issue here
                      */
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                    slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
                                   "check_flow_control_tot_init - %s -  Total update flow control gives time (%d msec) to the consumer before sending more entries [ msgid sent: %d, rcv: %d])\n"
                                   "If total update fails you can try to increase %s and/or decrease %s in the replica agreement configuration\n",
                                   agmt_get_long_name(conn->agmt),
@@ -674,9 +683,9 @@ check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop
 static ConnResult
 conn_is_available(Repl_Connection *conn)
 {
-    time_t poll_timeout_sec = 1;   /* Polling for 1sec */
-    time_t yield_delay_msec = 100; /* Delay to wait */
-    time_t start_time = slapi_current_utc_time();
+    int32_t poll_timeout_sec = 1;   /* Polling for 1sec */
+    int32_t yield_delay_msec = 100; /* Delay to wait */
+    time_t start_time = slapi_current_rel_time_t();
     time_t time_now;
     ConnResult return_value = CONN_OPERATION_SUCCESS;
 
@@ -686,7 +695,7 @@ conn_is_available(Repl_Connection *conn)
             /* in case of timeout we return CONN_TIMEOUT only
              * if the RA.timeout is exceeded
              */
-            time_now = slapi_current_utc_time();
+            time_now = slapi_current_rel_time_t();
             if (conn->timeout.tv_sec <= (time_now - start_time)) {
                 break;
             } else {
@@ -727,14 +736,26 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn, LDAPMod **a
 {
     int rc = -1;
     ConnResult return_value = CONN_OPERATION_FAILED;
-    LDAPControl *server_controls[3];
+    LDAPControl *session_tracking_control = NULL;
+    LDAPControl *server_controls[4];
     /* LDAPControl **loc_returned_controls; */
     const char *op_string = NULL;
     int msgid = 0;
+    int control_idx = 0;
 
-    server_controls[0] = &manageDSAITControl;
-    server_controls[1] = update_control;
-    server_controls[2] = NULL;
+    server_controls[control_idx] = &manageDSAITControl;
+    control_idx++;
+    if (update_control) {
+        server_controls[control_idx] = update_control;
+        control_idx++;
+    }
+    if (create_sessiontracking_ctrl((const char *) agmt_get_session_id((Repl_Agmt *) conn->agmt), &session_tracking_control) == 0) {
+        server_controls[control_idx] = session_tracking_control;
+        control_idx++;
+        server_controls[control_idx] = NULL;
+    } else {
+        server_controls[control_idx] = NULL;
+    }
 
     /*
      * Lock the conn to prevent the result reader thread
@@ -753,6 +774,9 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn, LDAPMod **a
                           "perform_operation - %s - Connection is not available (%d)\n",
                           agmt_get_long_name(conn->agmt),
                           return_value);
+            if (session_tracking_control) {
+                ldap_control_free(session_tracking_control);
+            }
             return return_value;
         }
         conn->last_operation = optype;
@@ -821,6 +845,9 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn, LDAPMod **a
     PR_Unlock(conn->lock); /* release the lock */
     if (message_id) {
         *message_id = msgid;
+    }
+    if (session_tracking_control) {
+        ldap_control_free(session_tracking_control);
     }
     return return_value;
 }
@@ -961,7 +988,7 @@ conn_cancel_linger(Repl_Connection *conn)
                       "conn_cancel_linger - %s - Canceling linger on the connection\n",
                       agmt_get_long_name(conn->agmt));
         conn->linger_active = PR_FALSE;
-        if (slapi_eq_cancel(conn->linger_event) == 1) {
+        if (slapi_eq_cancel_rel(conn->linger_event) == 1) {
             conn->refcnt--;
         }
         conn->linger_event = NULL;
@@ -1010,7 +1037,7 @@ linger_timeout(time_t event_time __attribute__((unused)), void *arg)
 void
 conn_start_linger(Repl_Connection *conn)
 {
-    time_t now;
+    time_t now = slapi_current_rel_time_t();
 
     PR_ASSERT(NULL != conn);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1022,7 +1049,7 @@ conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
         return;
     }
-    now = slapi_current_utc_time();
+
     PR_Lock(conn->lock);
     if (conn->linger_active) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1030,7 +1057,7 @@ conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
     } else {
         conn->linger_active = PR_TRUE;
-        conn->linger_event = slapi_eq_once(linger_timeout, conn, now + conn->linger_time);
+        conn->linger_event = slapi_eq_once_rel(linger_timeout, conn, now + conn->linger_time);
         conn->status = STATUS_LINGERING;
     }
     PR_Unlock(conn->lock);
@@ -1115,7 +1142,11 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
         conn->timeout.tv_sec = agmt_get_timeout(conn->agmt);
         conn->flag_agmt_changed = 0;
         conn->port = agmt_get_port(conn->agmt); /* port could be updated */
+    }
 
+    if (conn->plain && conn->creds && strcmp(creds->bv_val, conn->creds)) {
+        /* Password has changed. */
+        slapi_ch_free_string(&conn->plain);
     }
 
     if (conn->plain == NULL) {
@@ -1140,6 +1171,8 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
             goto done;
         } /* Else, does not mean that the plain is correct, only means the we had no internal
            decoding pb */
+        slapi_ch_free_string(&conn->creds);
+        conn->creds = slapi_ch_strdup(creds->bv_val);
         conn->plain = slapi_ch_strdup(plain);
         if (!pw_ret) {
             slapi_ch_free_string(&plain);
@@ -1193,6 +1226,7 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
                           (secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? "startTLS " : "");
             goto done;
         }
+        agmt_set_session_id((Repl_Agmt *) conn->agmt);
 
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "conn_connect - %s - binddn = %s,  passwd = %s\n",
@@ -1826,6 +1860,15 @@ conn_get_ldap(Repl_Connection *conn)
     }
 }
 
+const Repl_Agmt *
+conn_get_agmt(Repl_Connection *conn)
+{
+    if (conn) {
+        return conn->agmt;
+    } else {
+        return NULL;
+    }
+}
 void
 conn_set_agmt_changed(Repl_Connection *conn)
 {
@@ -1937,6 +1980,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         } else {
             char *errmsg = NULL;
             /* errmsg is a pointer directly into the ld structure - do not free */
@@ -1946,6 +1990,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         }
 
         return (CONN_OPERATION_FAILED);
@@ -1989,8 +2034,8 @@ repl5_start_debug_timeout(int *setlevel)
 {
     Slapi_Eq_Context eqctx = 0;
     if (s_debug_timeout && s_debug_level) {
-        time_t now = slapi_current_utc_time();
-        eqctx = slapi_eq_once(repl5_debug_timeout_callback, setlevel,
+        time_t now = slapi_current_rel_time_t();
+        eqctx = slapi_eq_once_rel(repl5_debug_timeout_callback, setlevel,
                               s_debug_timeout + now);
     }
     return eqctx;
@@ -2002,7 +2047,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
     char buf[20];
 
     if (eqctx && !*setlevel) {
-        (void)slapi_eq_cancel(eqctx);
+        (void)slapi_eq_cancel_rel(eqctx);
     }
 
     if (s_debug_timeout && s_debug_level && *setlevel) {

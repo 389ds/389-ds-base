@@ -15,7 +15,7 @@ import os
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 from lib389.idm.account import Accounts
 from lib389.cos import CosTemplates
@@ -106,7 +106,7 @@ def test_positive(topo, _create_entries, real_value):
     :setup: Standalone
     :steps:
         1. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Pass
     """
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(real_value)
@@ -120,7 +120,7 @@ def test_indexing_schema(topo, _create_entries):
     :steps:
         1. Add attribute types to Schema.
         2. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -142,7 +142,7 @@ def test_indexing(topo, _create_entries, real_value):
     :setup: Standalone
     :steps:
         1. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Pass
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')
@@ -158,7 +158,7 @@ def test_indexing_negative(topo, _create_entries, real_value):
     :setup: Standalone
     :steps:
         1. Try to pass negative filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Fail
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')

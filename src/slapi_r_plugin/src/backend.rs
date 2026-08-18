@@ -38,7 +38,7 @@ impl BackendRef {
         } else {
             Ok(BackendRefTxn {
                 pb,
-                be: self,
+                _be: self,
                 committed: false,
             })
         }
@@ -47,7 +47,8 @@ impl BackendRef {
 
 pub struct BackendRefTxn {
     pb: Pblock,
-    be: BackendRef,
+    // Used to keep lifetimes in check.
+    _be: BackendRef,
     committed: bool,
 }
 

@@ -6,11 +6,6 @@ pub const LDAP_SUCCESS: i32 = 0;
 pub const PLUGIN_DEFAULT_PRECEDENCE: i32 = 50;
 
 #[repr(i32)]
-pub enum OpFlags {
-    ByassReferrals = 0x0040_0000,
-}
-
-#[repr(i32)]
 /// The set of possible function handles we can register via the pblock. These
 /// values correspond to slapi-plugin.h.
 pub enum PluginFnType {
@@ -104,6 +99,11 @@ pub enum PluginFnType {
     SyntaxValidate = 710,
     /// SLAPI_PLUGIN_SYNTAX_NORMALIZE
     SyntaxNormalize = 711,
+
+    /// SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN
+    PwdStorageEncrypt = 800,
+    /// SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN
+    PwdStorageCompare = 802,
 }
 
 static SV01: [u8; 3] = [b'0', b'1', b'\0'];
@@ -164,12 +164,16 @@ pub(crate) enum PblockType {
     AddEntry = 60,
     /// SLAPI_BACKEND
     Backend = 130,
+    /// SLAPI_IS_REPLICATED_OPERATION
+    IsReplicationOperation = 142,
     /// SLAPI_PLUGIN_MR_NAMES
     MRNames = 624,
     /// SLAPI_PLUGIN_SYNTAX_NAMES
     SyntaxNames = 705,
     /// SLAPI_PLUGIN_SYNTAX_OID
     SyntaxOid = 706,
+    /// SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME
+    PwdStorageSchemeName = 810,
 }
 
 /// See ./ldap/include/ldaprot.h

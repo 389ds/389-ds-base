@@ -124,6 +124,9 @@ int
 detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *ports_info)
 {
     int i, sd;
+#ifdef DEBUG
+    char buf[50];
+#endif
 
     if (should_detach) {
         for (i = 0; i < 5; i++) {
@@ -144,10 +147,6 @@ detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *
             }
             break;
         }
-        /* The thread private counter needs to be allocated after the fork
-         * it is not inherited from parent process
-         */
-        vattr_global_lock_create();
 
         /* call this right after the fork, but before closing stdin */
         if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt, s_port, ports_info)) {
@@ -163,9 +162,23 @@ detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *
             return 1;
         }
         (void)dup2(sd, 0);
+        /* Lets ignore libaccess printf */
         (void)dup2(sd, 1);
         (void)dup2(sd, 2);
         close(sd);
+#ifdef DEBUG
+        /* But lets try to preserve other errors like loader undefined symbols */
+        sprintf(buf, "/var/log/dirsrv/ns-slapd-%d-XXXXXX.stderr", getpid());
+        if ((sd = mkstemps(buf, 7)) < 0) {
+            /* Lets try /tmp (so that non root users may keep the stderr */
+            sprintf(buf, "/tmp/ns-slapd-%d-XXXXXX.stderr", getpid());
+            sd = mkstemps(buf, 7);
+        }
+        if (sd >= 0) {
+            (void)dup2(sd, 2);
+            close(sd);
+        }
+#endif
 
 #ifdef USE_SETSID
         setsid();
@@ -178,10 +191,6 @@ detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *
 
         g_set_detached(1);
     } else { /* not detaching - call nss/ssl init */
-        /* The thread private counter needs to be allocated after the fork
-         * it is not inherited from parent process
-         */
-        vattr_global_lock_create();
 
         if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt, s_port, ports_info)) {
             return 1;

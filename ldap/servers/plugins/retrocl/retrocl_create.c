@@ -133,7 +133,7 @@ retrocl_create_be(const char *bedir)
     val.bv_len = strlen(val.bv_val);
     slapi_entry_add_values(e, "cn", vals);
 
-    val.bv_val = "false";
+    val.bv_val = "true"; /* enables the index */
     val.bv_len = strlen(val.bv_val);
     slapi_entry_add_values(e, "nssystemindex", vals);
 

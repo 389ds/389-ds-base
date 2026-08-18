@@ -1,10 +1,8 @@
 pyasn1
 pyasn1-modules
-pytest
-python-dateutil
-six
 argcomplete
 argparse-manpage
 python-ldap
-setuptools
 distro
+cryptography
+psutil

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -18,7 +18,10 @@
 
 #if defined(HPUX11) || defined(OS_solaris) || defined(linux)
 /* built-in 64-bit file I/O support */
+#if ! defined(__LP64__)
+/* But not on 64-bit arch: It is needless and build fails since gcc 13.2.1-4 */
 #define DB_USE_64LFS
+#endif
 #endif
 
 /* needed by at least HPUX and Solaris, to define off64_t */
@@ -59,24 +62,11 @@ typedef unsigned char u_int8_t;
 typedef unsigned int u_int32_t;
 typedef unsigned short u_int16_t;
 #endif
-#include "db.h"
-
-#ifndef DB_BUFFER_SMALL
-#define DB_BUFFER_SMALL ENOMEM
-#endif
 
 #define dptr  data
 #define dsize size
 
 #define ID2ENTRY "id2entry" /* main db file name: ID2ENTRY+LDBM_SUFFIX */
-
-#if 1000 * DB_VERSION_MAJOR + 100 * DB_VERSION_MINOR >= 5000
-#define LDBM_SUFFIX_OLD ".db4"
-#define LDBM_SUFFIX     ".db"
-#else
-#define LDBM_SUFFIX_OLD ".db3"
-#define LDBM_SUFFIX     ".db4"
-#endif
 
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
@@ -88,6 +78,7 @@ typedef unsigned short u_int16_t;
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
+#include "dbimpl.h"
 #include "avl.h"
 #include "portable.h"
 #include "proto-slap.h"
@@ -113,6 +104,8 @@ typedef unsigned short u_int16_t;
  */
 #define BE_CHANGELOG_FILE     "replication_changelog"
 
+#define INDEX_KEY_LENGTH(lenval,lenprefix)  (lenval+lenprefix+2)
+
 #define BDB_IMPL              "bdb"
 #define BDB_BACKEND           "libback-ldbm" /* This backend plugin */
 #define BDB_NEWIDL            "newidl"       /* new idl format */
@@ -122,7 +115,7 @@ typedef unsigned short u_int16_t;
 #define BDB_DNFORMAT_VERSION  "1"            /* DN format version */
 #define BDB_CL_FILENAME       "replication_changelog.db"
 
-#define LMDB_IMPL             "lmdb"
+#define LMDB_IMPL             "mdb"
 
 #define DBVERSION_NEWIDL 0x1
 #define DBVERSION_RDNFORMAT 0x2
@@ -147,7 +140,6 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION_40   "Netscape-ldbm/4.0"
 #define LDBM_VERSION_30   "Netscape-ldbm/3.0"
 #define LDBM_VERSION_31   "Netscape-ldbm/3.1"
-#define LDBM_FILENAME_SUFFIX LDBM_SUFFIX
 #define DBVERSION_FILENAME "DBVERSION"
 /* 0 here means to let the autotuning reset the value on first run */
 /* cache can't get any smaller than this (in bytes) */
@@ -155,20 +147,23 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_CACHE_SIZE       (uint64_t)0
 #define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1 /* no limit */
+#define DEFAULT_CACHE_PINNED_ENTRIES_STR "0"
 #define DEFAULT_DNCACHE_SIZE     (uint64_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1 /* no limit */
 #define DEFAULT_DBCACHE_SIZE     33554432
 #define DEFAULT_DBCACHE_SIZE_STR "33554432"
+#define DEFAULT_DBLOCK_PAUSE     500
+#define DEFAULT_DBLOCK_PAUSE_STR "500"
 #define DEFAULT_MODE             0600
-#define DEFAULT_ALLIDSTHRESHOLD  4000
+#define DEFAULT_ALLIDSTHRESHOLD  2147483646
 #define DEFAULT_IDL_TUNE         1
 #define DEFAULT_SEARCH_TUNE      0
 #define DEFAULT_IMPORT_INDEX_BUFFER_SIZE 0
 #define SUBLEN 3
 #define LDBM_CACHE_RETRY_COUNT 1000        /* Number of times we re-try a cache operation */
 #define RETRY_CACHE_LOCK       2           /* error code to signal a retry of the cache lock */
-#define IDL_FETCH_RETRY_COUNT  5           /* Number of times we re-try idl_fetch if it returns deadlock */
+#define IDL_FETCH_RETRY_COUNT  10          /* Number of times we re-try idl_fetch if it returns deadlock */
 #define IMPORT_SUBCOUNT_HASHTABLE_SIZE 500 /* Number of buckets in hash used to accumulate subcount for broody parents */
 
 /* minimum max ids that a single index entry can map to in ldbm */
@@ -187,6 +182,7 @@ extern int ldbm_warn_if_no_db;
 #define CONT_PREFIX   '\\' /* prefix for continuation keys */
 #define RULE_PREFIX   ':'  /* prefix for matchingRule keys */
 #define PRES_PREFIX   '+'
+#define HASH_PREFIX   '#'
 
 /* Values for "disposition" value in idl_insert_key() */
 #define IDL_INSERT_NORMAL     1
@@ -288,6 +284,18 @@ typedef struct _idlist_set
 #define INDIRECT_BLOCK(idl) ((idl)->b_nids == INDBLOCK)
 #define IDL_NIDS(idl)       (idl ? (idl)->b_nids : (NIDS)0)
 
+/*
+ * used by the supplier during online total init
+ * it stores the ranges of ID that are already present
+ * in the candidate list ('parentid>=1')
+ */
+typedef struct IdRange {
+    ID first;
+    ID last;
+    struct IdRange *next;
+} IdRange_t;
+
+
 typedef size_t idl_iterator;
 
 /* small hashtable implementation used in the entry cache -- the table
@@ -312,8 +320,9 @@ typedef struct
 #define HASHLOC(mem, node) (u_long) & (((mem *)0L)->node)
 
 /* type to set ep_type */
-#define CACHE_TYPE_ENTRY 0
-#define CACHE_TYPE_DN    1
+#define CACHE_TYPE_ENTRY     0
+#define CACHE_TYPE_DN        1
+#define CACHE_TYPE_UNKNOWN   2
 
 struct backcommon
 {
@@ -326,6 +335,9 @@ struct backcommon
 #define ENTRY_STATE_CREATING   0x2  /* entry is being created; don't touch it */
 #define ENTRY_STATE_NOTINCACHE 0x4  /* cache_add failed; not in the cache */
 #define ENTRY_STATE_INVALID    0x8  /* cache entry is invalid and needs to be removed */
+#define ENTRY_STATE_UNAVAILABLE 0xf /* entry is not fully created or is deleted */
+#define ENTRY_STATE_PINNED     0x10 /* cache entry is pinned (never removed by the lru) */
+#define ENTRY_STATE_LRU        0x20 /* cache entry is queued in the lru */
     int32_t ep_refcnt;              /* entry reference cnt */
     size_t ep_size;                 /* for cache tracking */
     struct timespec ep_create_time; /* the time the entry was added to the cache */
@@ -348,6 +360,12 @@ struct backentry
     void *ep_id_link;               /*     tables used for */
     void *ep_uuid_link;             /*     looking up entries */
     PRMonitor *ep_mutexp;           /* protection for mods; make it reentrant */
+    uint64_t ep_weight;             /* for cache eviction */
+    bool ep_is_dynamic;             /* is the entry a dynamic entry and must be
+                                     * removed from cache asap */
+    char *ep_dn_hash_ndn;           /* saved NDN from tentative add, used to
+                                     * remove stale hash entry if the DN was
+                                     * changed in-place */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
@@ -365,24 +383,40 @@ struct backdn
     void *dn_id_link;               /* for hash table */
 };
 
+/* Entry Cache statistics */
+struct cache_stats
+{
+    uint64_t hits;            /* for analysis of hits/misses */
+    uint64_t tries;
+    uint64_t nentries;        /* current # entries in cache */
+    int64_t  maxentries;      /* max entries allowed (-1: no limit) */
+    uint64_t size;            /* current size in bytes */
+    uint64_t maxsize;         /* max size in bytes */
+    uint64_t weight;          /* total weight of all entries */
+    uint64_t nehw;            /* current # entries having weight in cache */
+                              /* weight/nehw is the average time in
+                               * microseconds needed to load an entry
+                               * in the cache
+                               */
+};
+
 /* for the in-core cache of entries */
 struct cache
 {
-    uint64_t c_maxsize;       /* max size in bytes */
-    Slapi_Counter *c_cursize; /* size in bytes */
-    int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
-    uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON
     Hashtable *c_uuidtable;
 #endif
-    Slapi_Counter *c_hits; /* for analysis of hits/misses */
-    Slapi_Counter *c_tries;
     struct backcommon *c_lruhead; /* add entries here */
     struct backcommon *c_lrutail; /* remove entries here */
     PRMonitor *c_mutex;           /* lock for cache operations */
+    uint64_t c_config_maxsize;    /* manually configured value */
+    int64_t c_config_maxentries;  /* manually configured value */
     PRLock *c_emutexalloc_mutex;
+    struct cache_stats c_stats;
+    struct ldbm_instance *c_inst;
+    struct pinned_ctx  *c_pinned_ctx; /* Pinned entries handler context */
 };
 
 #define CACHE_ADD(cache, p, a) cache_add((cache), (void *)(p), (void **)(a))
@@ -390,6 +424,9 @@ struct cache
 #define CACHE_REMOVE(cache, p) cache_remove((cache), (void *)(p))
 #define CACHE_LOCK(cache)      cache_lock((cache))
 #define CACHE_UNLOCK(cache)    cache_unlock((cache))
+
+/* For backentry_compute_weight implementation */
+typedef struct timespec BackEntryWeightData;
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private     dblayer_private;
@@ -436,11 +473,6 @@ typedef struct attrcrypt_private   attrcrypt_private;
 #define INDEX_SUBSTRMIDDLE 1
 #define INDEX_SUBSTREND    2
 
-typedef int (*dup_compare_fn_type)(
-    DB *db,
-    const DBT *,
-    const DBT *);
-
 struct index_idlistsizeinfo
 {
     int ai_idlistsizelimit; /* max id list size */
@@ -486,13 +518,17 @@ struct attrinfo
                                             specify an ORDERING matching rule, or the index
                                             configuration must define an ORDERING matching rule.
                                          */
-    dup_compare_fn_type ai_dup_cmp_fn;   /* function used to compare dups -
+    void *ai_dup_cmp_fn;     /* function used to compare dups -
                                           used to order duplicates belonging
                                           to the same index key.  By default,
                                           idl_new_compare_dups is set.
                                           If some special ordering is needed,
                                           special compare fn is set here.
-                                          (e.g., for entryrdn) */
+                                          (e.g., for entryrdn)
+                                          Note: this callback is set and used by
+                                          the db implenentation plugins so its
+                                          prototype may vary
+                             */
     int *ai_substr_lens;                 /* if the attribute nsSubStrXxx is specivied in
                              * an index instance (dse.ldif), the substr key
                              * len value(s) are stored here.  If not specified,
@@ -501,8 +537,6 @@ struct attrinfo
     Slapi_Attr ai_sattr;                 /* interface to syntax and matching rule plugins */
     DataList *ai_idlistinfo;             /* fine grained id list */
 };
-
-#define MAXDBCACHE 20
 
 struct id_array
 {
@@ -546,7 +580,6 @@ typedef struct _db_upgrade_info db_upgrade_info;
                                              */
 #define DBVERSION_UPGRADE_4_5       0x4000  /* bdb 4.X -> 5.X */
 #define DBVERSION_NEED_DN2RDN       0x1000  /* DN to RDN (subtree-rename) format */
-#define DBVERSION_NEED_RDN2DN       0x2000  /* RDN to DN (original) format */
 #define DBVERSION_NOT_SUPPORTED 0x10000000
 
 #define DBVERSION_TYPE   0x1
@@ -580,12 +613,21 @@ struct ldbminfo
     char *li_backend_implement;          /* low layer backend implementation */
     int li_noparentcheck;                /* check if parent exists on add */
 
-    /* the next 3 fields are for the params that don't get changed until
+    /* db lock monitoring */
+    /* if we decide to move the values to bdb_config, we can use slapi_back_get_info function to retrieve the values */
+    int32_t li_dblock_monitoring;          /* enables db locks monitoring thread - requires restart  */
+    uint32_t li_dblock_monitoring_pause;   /* an interval for db locks monitoring thread */
+    uint32_t li_dblock_threshold;          /* when the percentage is reached, abort the search in ldbm_back_next_search_entry - requires restart*/
+    uint32_t li_dblock_threshold_reached;
+
+    /* the next 4 fields are for the params that don't get changed until
      * the server is restarted (used by the admin console)
      */
     char *li_new_directory;
     uint64_t li_new_dbcachesize;
     int li_new_dblock;
+    int32_t li_new_dblock_monitoring;
+    uint64_t li_new_dblock_threshold;
 
     int li_new_dbncache;
 
@@ -631,11 +673,18 @@ struct ldbminfo
     int li_reslimit_rangelookthrough_handle;
     int li_idl_update;
     int li_old_idl_maxids;
-    int li_online_import_encrypt; /* toggle attribute encryption during ldbm_back_wire_import */
+    int li_online_import_encrypt; /* toggle attribute encryption during bdb_ldbm_back_wire_import */
 #define BACKEND_OPT_NO_RUV_UPDATE              0x01
 #define BACKEND_OPT_DBLOCK_INSIDE_TXN          0x02
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
     int li_backend_opt_level;
+    size_t li_max_key_len;
+
+    /* dynamic lists */
+    bool li_dynamic_lists_enabled;
+    char *li_dynamic_lists_attr;
+    char *li_dynamic_lists_oc;
+    char *li_dynamic_lists_url_attr;
 };
 
 
@@ -655,14 +704,33 @@ struct ldbminfo
 
 #define LI_DEFAULT_IMPL_FLAG  LI_BDB_IMPL /* the default is BDB for now */
 
+typedef enum {
+    BTXNACT_INDEX_ADD,            /* data is a index_update_t */
+    BTXNACT_INDEX_DEL,            /* data is a index_update_t */
+    BTXNACT_VLV_ADD,              /* data is an entry ID */
+    BTXNACT_VLV_DEL,              /* data is an entry ID */
+    BTXNACT_ID2ENTRY_ADD,         /* data is the entry */
+    BTXNACT_ENTRYRDN_ADD,         /* key is a srdn, data is an id */
+    BTXNACT_ENTRYRDN_DEL          /* key is a srdn, data is an id */
+} back_txn_action;
+
 /* Structure used to hold stuff for the lifetime of an LDAP transaction */
 /* If we do clever stuff like LDAP transactions, we'll need a stack of TXN ID's */
 typedef struct back_txn back_txn;
 struct back_txn
 {
-    DB_TXN *back_txn_txn; /* Transaction ID for the database */
+    dbi_txn_t *back_txn_txn; /* Transaction ID for the database */
+                             /* Special handling - (used by mdb import to push updates in writing thread queue) */
+    int (*back_special_handling_fn)(backend *be, back_txn_action action, dbi_db_t *db, dbi_val_t *key, dbi_val_t *data, back_txn *txn);
 };
 typedef void *back_txnid;
+
+/* helper struct to pass index parameters towards db-mdb plugin */
+typedef struct {
+    ID id;
+    struct attrinfo *a;
+    int *disposition;
+} index_update_t;
 
 #define RETRY_TIMES 50
 
@@ -692,7 +760,7 @@ typedef struct _modify_context modify_context;
  * structure uses the dblayer_handle structure.  */
 struct tag_dblayer_handle
 {
-    DB *dblayer_dbp;
+    dbi_db_t *dblayer_dbp;
     PRLock *dblayer_lock; /* used when anyone wants exclusive access to a file */
     struct tag_dblayer_handle *dblayer_handle_next;
     void **dblayer_handle_ai_backpointer; /* Voodo magic pointer to the place where we store a
@@ -742,8 +810,8 @@ typedef struct ldbm_instance
     dblayer_handle *inst_handle_tail; /* of open db handles for this instance */
     PRLock *inst_handle_list_mutex;
 
-    DB *inst_id2entry; /* id2entry for this instance. */
-    DB *inst_changelog; /* changelog for this instance. */
+    dbi_db_t *inst_id2entry; /* id2entry for this instance. */
+    dbi_db_t *inst_changelog; /* changelog for this instance. */
 
     perfctrs_private inst_perf_private; /* Private data for the performance counters specific to this instance */
     attrcrypt_state_private *inst_attrcrypt_state_private;
@@ -755,6 +823,7 @@ typedef struct ldbm_instance
 
     PRLock *inst_nextid_mutex;
     ID inst_nextid;
+    bool inst_ruv_inserted_first;
 
     PRCondVar *inst_indexer_cv; /* indexer thread cond var */
     PRThread *inst_indexer_tid; /* for the indexer thread */
@@ -767,6 +836,12 @@ typedef struct ldbm_instance
     int require_index;               /* set to 1 to require an index be used in search */
     int require_internalop_index;    /* set to 1 to require an index be used in an internal search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
+    uint32_t inst_page_count;        /* page count used for cache autotuning */
+    int cache_pinned_entries;        /* Number of entries to preserve during cache eviction */
+    char *cache_debug_pattern;       /* Entries whose dn matche this pattern are logged as INFO
+                                      * when they get added/removed from entry cache
+                                      */
+    Slapi_Regex *cache_debug_re;     /* Compiled version of cache_debug_pattern */
 } ldbm_instance;
 
 /*
@@ -786,8 +861,9 @@ typedef struct _back_search_result_set
     int sr_flags;                 /* Magic flags, defined below */
     int sr_current_sizelimit;     /* Current sizelimit */
     Slapi_Filter *sr_norm_filter; /* search filter pre-normalized */
+    Slapi_Filter *sr_norm_filter_intent; /* intended search filter pre-normalized */
 } back_search_result_set;
-#define SR_FLAG_CAN_SKIP_FILTER_TEST 1 /* If set in sr_flags, means that we can safely skip the filter test */
+#define SR_FLAG_MUST_APPLY_FILTER_TEST 1 /* If set in sr_flags, means that we MUST apply the filter test */
 
 #include "proto-back-ldbm.h"
 #include "ldbm_config.h"
@@ -814,10 +890,12 @@ typedef struct _back_search_result_set
 
 #define LDBM_ANCESTORID_STR                "ancestorid"
 #define LDBM_ENTRYDN_STR                   SLAPI_ATTR_ENTRYDN
+#define LDBM_LONG_ENTRYRDN_STR             "@long-entryrdn"
 #define LDBM_ENTRYRDN_STR                  "entryrdn"
 #define LDBM_NUMSUBORDINATES_STR           "numsubordinates"
 #define LDBM_TOMBSTONE_NUMSUBORDINATES_STR "tombstonenumsubordinates"
 #define LDBM_PARENTID_STR                  SLAPI_ATTR_PARENTID
+#define LDBM_ENTRYID_STR                   "entryid"
 
 /* Name of psuedo attribute used to track default indexes */
 #define LDBM_PSEUDO_ATTR_DEFAULT ".default"
@@ -826,8 +904,9 @@ typedef struct _back_search_result_set
 #define LDBM_OS_ERR_IS_DISKFULL(err) ((err) == ENOSPC || (err) == EFBIG)
 
 /* flag: open_flag for dblayer_get_index_file -> dblayer_open_file */
-#define DBOPEN_CREATE   0x1 /* oprinary mode: create a db file if needed */
-#define DBOPEN_TRUNCATE 0x2 /* oprinary mode: truncate a db file if needed */
+#define DBOPEN_CREATE      0x1 /* oprinary mode: create a db file if needed */
+#define DBOPEN_TRUNCATE    0x2 /* oprinary mode: truncate a db file if needed */
+#define DBOPEN_ALLOW_DIRTY 0x4 /* oprinary mode: accept to open a dirty (i.e import/reindex is running) db file */
 
 /* whether we call fat lock or not [608146] */
 #define SERIALLOCK(li) (li->li_fat_lock)
@@ -865,13 +944,14 @@ typedef struct _back_search_result_set
 #define TOMBSTONE_INCLUDED 0x1 /* used by find_entry2modify_only_ext and \
                                   entryrdn_index_read */
 
-#define DBT_FREE_PAYLOAD(d) slapi_ch_free(&((d).data))
 /*
  * This only works with normalized keys, which should be ok because
  * at this point both L and R should have already been normalized.
  */
-#define DBT_EQ(L, R) \
-    ((L)->dsize == (R)->dsize && !memcmp((L)->dptr, (R)->dptr, (L)->dsize))
+#define KEY_EQ(L, R) \
+    ((L)->size == (R)->size && !memcmp((L)->data, (R)->data, (L)->size))
 
 typedef int backend_implement_init_fn(struct ldbminfo *li, config_info *config_array);
+
+pthread_mutex_t *get_import_ctx_mutex(void);
 #endif /* _back_ldbm_h_ */

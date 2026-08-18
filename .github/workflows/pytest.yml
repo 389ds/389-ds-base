@@ -1,0 +1,172 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+      - "389-ds-base-*"
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      pytest_tests:
+        description: 'Run only specified suites or test modules delimited by space, for example "basic/basic_test.py replication"'
+        required: false
+        default: false
+      debug_enabled:
+        description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  actions: read
+  packages: read
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: quay.io/389ds/ci-images:test
+    outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Add GITHUB_WORKSPACE as a safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Get a list of all test suites
+        id: set-matrix
+        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})" >>$GITHUB_OUTPUT
+
+      - name: Build RPMs
+        run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+
+      - name: Tar build artifacts
+        run: tar -cvf dist.tar dist/
+
+      - name: Upload RPMs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: rpms
+          path: dist.tar
+
+  test:
+    name: BDB Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    needs: build
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
+      with:
+        limit-access-to-actor: true
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt update -y
+        sudo apt install -y docker.io containerd runc
+        sudo cp .github/daemon.json /etc/docker/daemon.json
+        sudo systemctl unmask docker
+        sudo systemctl start docker
+        sudo apparmor_parser -R /etc/apparmor.d/unix-chkpwd 2>/dev/null || true
+
+    - name: Free disk space
+      run: |
+        echo "Disk space before cleanup:"
+        df -h
+        sudo rm -rf /usr/local/.ghcup
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /usr/local/lib/android/sdk/ndk
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo docker image prune --all --force
+        sudo apt-get clean
+        echo "Disk space after cleanup:"
+        df -h
+
+    - name: Download RPMs
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      with:
+        name: rpms
+
+    - name: Extract RPMs
+      run: tar xvf dist.tar
+
+    - name: Run pytest in a container
+      run: |
+        set -x
+        # quay.io pulls transiently time out (issue 7528); an implicit pull
+        # by 'docker run' has no retry, so pull explicitly with backoff
+        for i in 1 2 3 4 5; do
+          sudo docker pull quay.io/389ds/ci-images:test && break
+          if [ "$i" -eq 5 ]; then
+            echo "Image pull failed after $i attempts"
+            exit 1
+          fi
+          echo "Pull failed, retrying in $((i * 15))s..."
+          sleep $((i * 15))
+        done
+        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb --sysctl net.ipv4.ip_local_reserved_ports=38900-39399 -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        until sudo docker exec $CID sh -c "systemctl is-system-running"
+        do
+          echo "Waiting for container to be ready..."
+        done
+        sudo docker exec $CID sh -c "dnf install -y dist/rpms/*rpm"
+        export PASSWD=$(openssl rand -base64 32)
+        sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
+        sudo docker exec $CID sh -c "systemctl start dbus.service"
+        sudo docker exec $CID sh -c "systemctl enable --now cockpit.socket"
+        sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
+        sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
+        if sudo docker exec $CID sh -c "test -f /usr/lib64/dirsrv/librobdb.so"
+        then
+            echo "Tests skipped because read-only Berkeley Database is installed." > pytest.html
+            echo "<?xml version="1.0" encoding="utf-8"?>'Tests skipped because read-only Berkeley Database is installed.'" > pytest.xml
+        else
+            sudo docker exec -e WEBUI=1 -e NSSLAPD_DB_LIB=bdb -e DEBUG=pw:api -e PASSWD="${PASSWD}" -e GSSAPI_ACK=1 $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        fi
+
+    - name: Make the results file readable by all
+      if: always()
+      run: |
+        sudo chmod -f -v -R a+r pytest.*ml assets || true
+        sudo chmod -f -v a+x assets || true
+        if [ -d .playwright-screenshots ]; then
+          sudo chmod -f -v -R a+r .playwright-screenshots
+          sudo chmod -f -v a+x .playwright-screenshots
+        fi
+    - name: Sanitize filename
+      if: always()
+      run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
+
+    - name: Upload pytest test results
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: pytest-${{ env.PYTEST_SUITE }}
+        include-hidden-files: true
+        path: |
+          pytest.xml
+          pytest.html
+          assets
+          .playwright-screenshots

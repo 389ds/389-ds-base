@@ -25,6 +25,7 @@ from lib389.extended_operations import LdapSSOTokenRequest, LdapSSOTokenResponse
 class AccountState(Enum):
     ACTIVATED = "activated"
     DIRECTLY_LOCKED = "directly locked through nsAccountLock"
+    # TODO: Indirectly locked - revise the UI check
     INDIRECTLY_LOCKED = "indirectly locked through a Role"
     INACTIVITY_LIMIT_EXCEEDED = "inactivity limit exceeded"
 
@@ -51,8 +52,10 @@ class Account(DSLdapObject):
     def _format_status_message(self, message, create_time, modify_time, last_login_time, limit, role_dn=None):
         params = {}
         now = time.mktime(time.gmtime())
-        params["Creation Date"] = gentime_to_datetime(create_time)
-        params["Modification Date"] = gentime_to_datetime(modify_time)
+        if create_time:
+            params["Creation Date"] = gentime_to_datetime(create_time)
+        if modify_time:
+            params["Modification Date"] = gentime_to_datetime(modify_time)
         params["Last Login Date"] = None
         params["Time Until Inactive"] = None
         params["Time Since Inactive"] = None
@@ -88,19 +91,29 @@ class Account(DSLdapObject):
 
         # Fetch Account Policy data if its enabled
         plugin = AccountPolicyPlugin(inst)
+        try:
+            config_dn = plugin.get_attr_val_utf8("nsslapd-pluginarg0")
+        except IndexError:
+            self._log.debug("The bound user doesn't have rights to access Account Policy settings. Not checking.")
         state_attr = ""
         alt_state_attr = ""
         limit = ""
         spec_attr = ""
         limit_attr = ""
         process_account_policy = False
+        mapping_trees = MappingTrees(inst)
+        try:
+            root_suffix = mapping_trees.get_root_suffix_by_entry(self.dn)
+            if str.lower(root_suffix) == str.lower(self.dn):
+                raise ValueError("Root suffix can't be locked or unlocked via dsidm functionality.")
+        except ldap.NO_SUCH_OBJECT:
+            self._log.debug("Can't acquire root suffix from user DN. Probably - insufficient rights. Skipping this step.")
         try:
             process_account_policy = plugin.status()
         except IndexError:
-            self._log.debug("The bound user doesn't have rights to access Account Policy settings. Not checking.")
+            pass
 
-        if process_account_policy:
-            config_dn = plugin.get_attr_val_utf8("nsslapd-pluginarg0")
+        if process_account_policy and config_dn is not None:
             config = AccountPolicyConfig(inst, config_dn)
             config_settings = config.get_attrs_vals_utf8(["stateattrname", "altstateattrname",
                                                           "specattrname", "limitattrname"])
@@ -127,7 +140,8 @@ class Account(DSLdapObject):
                                                  "nsAccountLock", state_attr])
 
         last_login_time = self._dict_get_with_ignore_indexerror(account_data, state_attr)
-        if not last_login_time:
+        # if last_login_time not exist then check alt_state_attr only if its not disabled and exist
+        if not last_login_time and alt_state_attr in account_data:
             last_login_time = self._dict_get_with_ignore_indexerror(account_data, alt_state_attr)
 
         create_time = self._dict_get_with_ignore_indexerror(account_data, "createTimestamp")
@@ -186,16 +200,37 @@ class Account(DSLdapObject):
 
         current_status = self.status()
         if current_status["state"] == AccountState.DIRECTLY_LOCKED:
-            raise ValueError("Account is already active")
+            raise ValueError("Account is already locked")
         self.replace('nsAccountLock', 'true')
 
     def unlock(self):
-        """Unset nsAccountLock"""
+        """Unset nsAccountLock if it's set and reset lastLoginTime if account is locked due to inactivity"""
 
         current_status = self.status()
+
         if current_status["state"] == AccountState.ACTIVATED:
             raise ValueError("Account is already active")
-        self.remove('nsAccountLock', None)
+
+        if current_status["state"] == AccountState.DIRECTLY_LOCKED:
+            # Account is directly locked with nsAccountLock attribute
+            self.remove('nsAccountLock', None)
+        elif current_status["state"] == AccountState.INACTIVITY_LIMIT_EXCEEDED:
+            # Account is locked due to inactivity - reset lastLoginTime to current time
+            # The lastLoginTime attribute stores its value in GMT/UTC time (Zulu time zone)
+            current_time = time.strftime('%Y%m%d%H%M%SZ', time.gmtime())
+            self.replace('lastLoginTime', current_time)
+        elif current_status["state"] == AccountState.INDIRECTLY_LOCKED:
+            # Account is locked through a role
+            role_dn = current_status.get("role_dn")
+            if role_dn:
+                raise ValueError(f"Account is locked through role {role_dn}. "
+                                 f"Please modify the role to unlock this account.")
+            else:
+                raise ValueError("Account is locked through an unknown role. "
+                                 "Please check the roles configuration to unlock this account.")
+        else:
+            # Should not happen, but just in case
+            raise ValueError(f"Unknown lock state: {current_status['state'].value}")
 
     # If the account can be bound to, this will attempt to do so. We don't check
     # for exceptions, just pass them back!

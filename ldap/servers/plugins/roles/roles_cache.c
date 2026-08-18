@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -156,8 +156,8 @@ static int roles_is_inscope(Slapi_Entry *entry_to_check, role_object *this_role)
 static void berval_set_string(struct berval *bv, const char *string);
 static void roles_cache_role_def_delete(roles_cache_def *role_def);
 static void roles_cache_role_def_free(roles_cache_def *role_def);
-static void roles_cache_role_object_free(role_object *this_role);
-static int roles_cache_role_object_nested_free(role_object_nested *this_role);
+static int roles_cache_role_object_free(caddr_t this_role);
+static int roles_cache_role_object_nested_free(caddr_t this_role);
 static int roles_cache_dump(caddr_t data, caddr_t arg);
 static int roles_cache_add_entry_cb(Slapi_Entry *e, void *callback_data);
 static void roles_cache_result_cb(int rc, void *callback_data);
@@ -343,7 +343,7 @@ roles_cache_create_suffix(Slapi_DN *sdn)
 
     slapi_lock_mutex(new_suffix->create_lock);
     if (new_suffix->is_ready != 1) {
-        slapi_wait_condvar(new_suffix->suffix_created, NULL);
+        slapi_wait_condvar_pt(new_suffix->suffix_created, new_suffix->create_lock, NULL);
     }
     slapi_unlock_mutex(new_suffix->create_lock);
 
@@ -359,6 +359,7 @@ roles_cache_create_suffix(Slapi_DN *sdn)
 static void
 roles_cache_wait_on_change(void *arg)
 {
+    slapi_set_thread_name("roles-cache");
     roles_cache_def *roles_def = (roles_cache_def *)arg;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_wait_on_change\n");
@@ -384,7 +385,7 @@ roles_cache_wait_on_change(void *arg)
             test roles_def->keeprunning before
             going to sleep.
         */
-        slapi_wait_condvar(roles_def->something_changed, NULL);
+        slapi_wait_condvar_pt(roles_def->something_changed, roles_def->change_lock, NULL);
 
         slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "roles_cache_wait_on_change - notified\n");
 
@@ -413,29 +414,29 @@ roles_cache_trigger_update_suffix(void *handle __attribute__((unused)), char *be
     roles_cache_def *current_role = roles_list;
     const Slapi_DN *be_suffix_dn = NULL;
     Slapi_DN *top_suffix_dn = NULL;
-    Slapi_Backend *backend = NULL;
+    Slapi_Backend *be = NULL;
     int found = 0;
 
     slapi_rwlock_wrlock(global_lock);
 
     if ((new_be_state == SLAPI_BE_STATE_DELETE) || (new_be_state == SLAPI_BE_STATE_OFFLINE)) {
         /* Invalidate and rebuild the whole cache */
-        roles_cache_def *current_role = NULL;
+        roles_cache_def *curr_role = NULL;
         roles_cache_def *next_role = NULL;
         Slapi_DN *sdn = NULL;
         void *node = NULL;
         roles_cache_def *new_suffix = NULL;
 
         /* Go through all the roles list and trigger the associated structure */
-        current_role = roles_list;
-        while (current_role) {
-            slapi_lock_mutex(current_role->change_lock);
-            current_role->keeprunning = 0;
-            next_role = current_role->next;
-            slapi_notify_condvar(current_role->something_changed, 1);
-            slapi_unlock_mutex(current_role->change_lock);
+        curr_role = roles_list;
+        while (curr_role) {
+            slapi_lock_mutex(curr_role->change_lock);
+            curr_role->keeprunning = 0;
+            next_role = curr_role->next;
+            slapi_notify_condvar(curr_role->something_changed, 1);
+            slapi_unlock_mutex(curr_role->change_lock);
 
-            current_role = next_role;
+            curr_role = next_role;
         }
 
         /* rebuild a new one */
@@ -457,9 +458,9 @@ roles_cache_trigger_update_suffix(void *handle __attribute__((unused)), char *be
     }
 
     /* Backend back on line or new one created*/
-    backend = slapi_be_select_by_instance_name(be_name);
-    if (backend != NULL) {
-        be_suffix_dn = slapi_be_getsuffix(backend, 0);
+    be = slapi_be_select_by_instance_name(be_name);
+    if (be != NULL) {
+        be_suffix_dn = slapi_be_getsuffix(be, 0);
         top_suffix_dn = roles_cache_get_top_suffix((Slapi_DN *)be_suffix_dn);
     }
 
@@ -530,6 +531,15 @@ roles_cache_trigger_update_role(char *dn, Slapi_Entry *roles_entry, Slapi_DN *be
     }
 
     slapi_rwlock_unlock(global_lock);
+    {
+        /* A role definition has been updated, enable vattr handling */
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        errorbuf[0] = '\0';
+        config_set_ignore_vattrs(CONFIG_IGNORE_VATTRS, "off", errorbuf, 1);
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "roles_cache_trigger_update_role",
+                      "Because of virtual attribute definition (role), %s was set to 'off'\n", CONFIG_IGNORE_VATTRS);
+    }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_trigger_update_role: %p \n", roles_list);
 }
@@ -569,11 +579,11 @@ roles_cache_update(roles_cache_def *suffix_to_update)
         if ((operation == SLAPI_OPERATION_MODIFY) ||
             (operation == SLAPI_OPERATION_DELETE)) {
 
-            to_delete = (role_object *)avl_delete(&(suffix_to_update->avl_tree), dn, roles_cache_find_node);
-            roles_cache_role_object_free(to_delete);
+            to_delete = (role_object *)avl_delete(&(suffix_to_update->avl_tree), (caddr_t)dn, roles_cache_find_node);
+            roles_cache_role_object_free((caddr_t)to_delete);
             to_delete = NULL;
             if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
-                avl_apply(suffix_to_update->avl_tree, (IFP)roles_cache_dump, &rc, -1, AVL_INORDER);
+                avl_apply(suffix_to_update->avl_tree, roles_cache_dump, &rc, -1, AVL_INORDER);
             }
         }
         if ((operation == SLAPI_OPERATION_MODIFY) ||
@@ -622,8 +632,8 @@ roles_cache_stop()
 
         current_role = next_role;
     }
-    slapi_rwlock_unlock(global_lock);
     roles_list = NULL;
+    slapi_rwlock_unlock(global_lock);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_stop\n");
 }
@@ -1089,7 +1099,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
     /* We determine the role type by reading the objectclass */
     if (roles_cache_is_role_entry(role_entry) == 0) {
         /* Bad type */
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
         return SLAPI_ROLE_DEFINITION_ERROR;
     }
 
@@ -1099,7 +1109,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         this_role->type = type;
     } else {
         /* Bad type */
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
         return SLAPI_ROLE_DEFINITION_ERROR;
     }
 
@@ -1108,16 +1118,17 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
 
     rolescopeDN = slapi_entry_attr_get_charptr(role_entry, ROLE_SCOPE_DN);
     if (rolescopeDN) {
-        Slapi_DN *rolescopeSDN;
-        Slapi_DN *top_rolescopeSDN, *top_this_roleSDN;
+        Slapi_DN *rolescopeSDN = NULL;
+        Slapi_DN *top_rolescopeSDN = NULL;
+        Slapi_DN *top_this_roleSDN = NULL;
 
         /* Before accepting to use this scope, first check if it belongs to the same suffix */
         rolescopeSDN = slapi_sdn_new_dn_byref(rolescopeDN);
-        if ((strlen((char *)slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
+        if (rolescopeSDN && (strlen((char *)slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
             (slapi_dn_syntax_check(NULL, (char *)slapi_sdn_get_ndn(rolescopeSDN), 1) == 0)) {
             top_rolescopeSDN = roles_cache_get_top_suffix(rolescopeSDN);
             top_this_roleSDN = roles_cache_get_top_suffix(this_role->dn);
-            if (slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
+            if (top_rolescopeSDN && top_this_roleSDN && slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
                 /* rolescopeDN belongs to the same suffix as the role, we can use this scope */
                 this_role->rolescopedn = rolescopeSDN;
             } else {
@@ -1139,6 +1150,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           rolescopeDN);
             slapi_sdn_free(&rolescopeSDN);
         }
+        slapi_ch_free_string(&rolescopeDN);
     }
 
     /* Depending upon role type, pull out the remaining information we need */
@@ -1157,7 +1169,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         filter_attr_value = (char *)slapi_entry_attr_get_charptr(role_entry, ROLE_FILTER_ATTR_NAME);
         if (filter_attr_value == NULL) {
             /* Means probably no attribute or no value there */
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
             return SLAPI_ROLE_ERROR_NO_FILTER_SPECIFIED;
         }
 
@@ -1196,7 +1208,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                               (char *)slapi_sdn_get_ndn(this_role->dn),
                               ROLE_FILTER_ATTR_NAME, filter_attr_value,
                               ROLE_FILTER_ATTR_NAME);
-                slapi_ch_free((void **)&this_role);
+                roles_cache_role_object_free((caddr_t)this_role);
                 slapi_ch_free_string(&filter_attr_value);
                 return SLAPI_ROLE_ERROR_FILTER_BAD;
             }
@@ -1208,7 +1220,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         filter = slapi_str2filter(filter_attr_value);
         if (filter == NULL) {
             /* An error has occured */
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
             slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
@@ -1219,7 +1231,8 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           (char *)slapi_sdn_get_ndn(this_role->dn),
                           filter_attr_value,
                           ROLE_FILTER_ATTR_NAME);
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
+            slapi_filter_free(filter, 1);
             slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
@@ -1276,7 +1289,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
     if (rc == 0) {
         *result = this_role;
     } else {
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
@@ -1465,13 +1478,13 @@ roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_value
     roles_cache_def *roles_cache = NULL;
     int rc = 0;
     roles_cache_build_result arg;
-    Slapi_Backend *backend = NULL;
+    Slapi_Backend *be = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_listroles\n");
 
-    backend = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(entry));
-    if ((backend != NULL) && slapi_be_is_flag_set(backend, SLAPI_BE_FLAG_REMOTE_DATA)) {
+    be = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(entry));
+    if ((be != NULL) && slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
         /* the entry is not local, so don't return anything */
         return (-1);
     }
@@ -1501,7 +1514,7 @@ roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_value
             /* XXX really need a mutex for this read operation ? */
             slapi_rwlock_rdlock(roles_cache->cache_lock);
 
-            avl_apply(roles_cache->avl_tree, (IFP)roles_cache_build_nsrole, &arg, -1, AVL_INORDER);
+            avl_apply(roles_cache->avl_tree, roles_cache_build_nsrole, &arg, -1, AVL_INORDER);
 
             slapi_rwlock_unlock(roles_cache->cache_lock);
 
@@ -1618,7 +1631,7 @@ roles_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present)
     }
     slapi_rwlock_unlock(global_lock);
 
-    this_role = (role_object *)avl_find(roles_cache->avl_tree, role_dn, (IFP)roles_cache_find_node);
+    this_role = (role_object *)avl_find(roles_cache->avl_tree, (caddr_t)role_dn, roles_cache_find_node);
 
     /* MAB: For some reason the assumption made by this function (the role exists and is in scope)
      * does not seem to be true... this_role might be NULL after the avl_find call (is the avl_tree
@@ -1671,15 +1684,15 @@ static int
 roles_cache_find_roles_in_suffix(Slapi_DN *target_entry_dn, roles_cache_def **list_of_roles)
 {
     int rc = -1;
-    Slapi_Backend *backend = NULL;
+    Slapi_Backend *be = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_find_roles_in_suffix\n");
 
     *list_of_roles = NULL;
-    backend = slapi_mapping_tree_find_backend_for_sdn(target_entry_dn);
-    if ((backend != NULL) && !slapi_be_is_flag_set(backend, SLAPI_BE_FLAG_REMOTE_DATA)) {
-        Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(backend, 0));
+    be = slapi_mapping_tree_find_backend_for_sdn(target_entry_dn);
+    if ((be != NULL) && !slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+        Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(be, 0));
         roles_cache_def *current_role = roles_list;
 
         /* Go through all the roles list and trigger the associated structure */
@@ -1756,7 +1769,7 @@ roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, caddr_t argu
         case ROLE_TYPE_NESTED: {
             /* Go through the tree of the nested DNs */
             get_nsrole->hint++;
-            avl_apply(this_role->avl_tree, (IFP)roles_check_nested, get_nsrole, 0, AVL_INORDER);
+            avl_apply(this_role->avl_tree, roles_check_nested, get_nsrole, 0, AVL_INORDER);
             get_nsrole->hint--;
 
             /* kexcoff?? */
@@ -1892,12 +1905,12 @@ roles_check_nested(caddr_t data, caddr_t arg)
         }
 
         if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
-            avl_apply(roles_cache->avl_tree, (IFP)roles_cache_dump, &rc, -1, AVL_INORDER);
+            avl_apply(roles_cache->avl_tree, roles_cache_dump, &rc, -1, AVL_INORDER);
         }
 
         this_role = (role_object *)avl_find(roles_cache->avl_tree,
-                                            current_nested_role->dn,
-                                            (IFP)roles_cache_find_node);
+                                            (caddr_t)current_nested_role->dn,
+                                            roles_cache_find_node);
 
         if (this_role == NULL) {
             /* the nested role doesn't exist */
@@ -2017,7 +2030,7 @@ roles_cache_role_def_free(roles_cache_def *role_def)
 
     slapi_lock_mutex(role_def->stop_lock);
 
-    avl_free(role_def->avl_tree, (IFP)roles_cache_role_object_free);
+    avl_free(role_def->avl_tree, roles_cache_role_object_free);
     slapi_sdn_free(&(role_def->suffix_dn));
     slapi_destroy_rwlock(role_def->cache_lock);
     role_def->cache_lock = NULL;
@@ -2048,14 +2061,16 @@ roles_cache_role_def_free(roles_cache_def *role_def)
 /* roles_cache_role_object_free
    ----------------------------
 */
-static void
-roles_cache_role_object_free(role_object *this_role)
+static int
+roles_cache_role_object_free(caddr_t tr)
 {
+    role_object *this_role = (role_object *)tr;
+
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_role_object_free\n");
 
     if (this_role == NULL) {
-        return;
+        return 0;
     }
 
     switch (this_role->type) {
@@ -2085,14 +2100,17 @@ roles_cache_role_object_free(role_object *this_role)
 
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_role_object_free\n");
+    return 0;
 }
 
 /* roles_cache_role_object_nested_free
    ------------------------------------
 */
 static int
-roles_cache_role_object_nested_free(role_object_nested *this_role)
+roles_cache_role_object_nested_free(caddr_t tr)
 {
+    role_object_nested *this_role = (role_object_nested *)tr;
+
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_role_object_nested_free\n");
 
@@ -2121,4 +2139,208 @@ roles_cache_dump(caddr_t data, caddr_t arg __attribute__((unused)))
                   this_role, (char *)slapi_sdn_get_ndn(this_role->dn), this_role->avl_tree);
 
     return 0;
+}
+
+
+/* This is an example callback to substitute
+ * attribute type 'from' with 'to' in all
+ * the filter components
+ * example_substitute_type is a callback (FILTER_APPLY_FN) used by slapi_filter_apply
+ * typedef int (FILTER_APPLY_FN)(Slapi_Filter f, void *arg)
+ * To stick to the definition, the callback is defined using 'int' rather 'int32_t'
+ */
+typedef struct {
+    char *attrtype_from;
+    char *attrtype_to;
+} role_substitute_type_arg_t;
+
+
+static void
+_rewrite_nsrole_component(Slapi_Filter *f, role_substitute_type_arg_t *substitute_arg)
+{
+    char *type;
+    struct berval *bval;
+    char *attrs[3] = {SLAPI_ATTR_OBJECTCLASS, ROLE_FILTER_ATTR_NAME, NULL};
+    Slapi_Entry *nsrole_entry = NULL;
+    Slapi_DN *sdn = NULL;
+    char *rolefilter = NULL;
+    int rc;
+    char **oc_values = NULL;
+
+    /* Substitution is only valid if original attribute is NSROLEATTR */
+    if ((substitute_arg == NULL) ||
+        (substitute_arg->attrtype_from == NULL) ||
+        (substitute_arg->attrtype_to == NULL)) {
+        return;
+    }
+    if (strcasecmp(substitute_arg->attrtype_from, NSROLEATTR)) {
+        return;
+    }
+    if (slapi_filter_get_choice(f) != LDAP_FILTER_EQUALITY) {
+        /* only equality filter are handled
+         * else it is not possible to retrieve the role
+         * via its DN.
+         * Safety checking, at this point filter component has
+         * already been tested as equality match.
+         */
+        return;
+    }
+
+    /* Check that assertion does not refer to a filter/nested role */
+    if (slapi_filter_get_ava(f, &type, &bval)) {
+        return;
+    }
+    sdn = slapi_sdn_new_dn_byref(bval->bv_val);
+    rc = slapi_search_internal_get_entry(sdn, attrs, &nsrole_entry, roles_get_plugin_identity());
+    if (rc != LDAP_SUCCESS) {
+        if (rc == LDAP_NO_SUCH_OBJECT) {
+            /* the role does not exist (nsrole=<unknown role>)
+             * that means no entry match this component. To speed up
+             * the built of candidate list we may replace this component
+             * with an indexed component that return empty IDL.
+             * nsuniqueid is indexed and -1 is an invalid value.
+             */
+            char *empty_IDL_filter;
+            empty_IDL_filter = slapi_ch_smprintf("(%s=-1)", SLAPI_ATTR_UNIQUEID);
+            slapi_filter_replace_strfilter(f, empty_IDL_filter);
+            slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "_rewrite_nsrole_component: replace (%s=%s) by %s\n",
+                          substitute_arg->attrtype_from, (char *)slapi_sdn_get_ndn(sdn), empty_IDL_filter);
+            slapi_ch_free_string(&empty_IDL_filter);
+
+        }
+        goto bail;
+    }
+    oc_values = slapi_entry_attr_get_charray(nsrole_entry, SLAPI_ATTR_OBJECTCLASS);
+    rolefilter = slapi_entry_attr_get_charptr(nsrole_entry, ROLE_FILTER_ATTR_NAME);
+    for (size_t i = 0; oc_values && oc_values[i]; ++i) {
+        if (!strcasecmp(oc_values[i], (char *)"nsSimpleRoleDefinition") ||
+            !strcasecmp(oc_values[i], (char *)"nsManagedRoleDefinition")) {
+            /* This is a managed role, okay to rewrite the attribute type */
+            slapi_filter_changetype(f, substitute_arg->attrtype_to);
+            goto bail;
+        } else if (!strcasecmp(oc_values[i], (char *)"nsFilteredRoleDefinition") && rolefilter) {
+            /* filtered role, okay to rewrite the filter with
+             * the value of the nsRoleFilter
+             */
+            slapi_filter_replace_strfilter(f, rolefilter);
+            goto bail;
+        } else if (!strcasecmp(oc_values[i], (char *)"nsNestedRoleDefinition")) {
+            /* nested roles can not be rewritten */
+            goto bail;
+        }
+    }
+
+bail:
+    slapi_ch_free_string(&rolefilter);
+    slapi_ch_array_free(oc_values);
+    slapi_entry_free(nsrole_entry);
+    slapi_sdn_free(&sdn);
+    return;
+}
+
+/* It calls _rewrite_nsrole_component for each filter component with
+ *  - filter choice LDAP_FILTER_EQUALITY
+ *  - filter attribute type nsRole
+ */
+static int
+role_substitute_type(Slapi_Filter *f, void *arg)
+{
+    role_substitute_type_arg_t *substitute_arg = (role_substitute_type_arg_t *) arg;
+    char *filter_type;
+
+    if ((substitute_arg == NULL) ||
+        (substitute_arg->attrtype_from == NULL) ||
+        (substitute_arg->attrtype_to == NULL)) {
+        return SLAPI_FILTER_SCAN_STOP;
+    }
+
+    if (slapi_filter_get_choice(f) != LDAP_FILTER_EQUALITY) {
+        /* only equality filter are handled
+         * else it is not possible to retrieve the role
+         * via its DN
+         */
+        return SLAPI_FILTER_SCAN_CONTINUE;
+    }
+
+    /* In case this is expected attribute type and assertion
+     * Substitute 'from' by 'to' attribute type in the filter
+     */
+    if (slapi_filter_get_attribute_type(f, &filter_type) == 0) {
+            if ((strcasecmp(filter_type, substitute_arg->attrtype_from) == 0)) {
+                _rewrite_nsrole_component(f, substitute_arg);
+            }
+    }
+
+    /* Return continue because we should
+     * substitute 'from' in all filter components
+     */
+    return SLAPI_FILTER_SCAN_CONTINUE;
+}
+
+
+/*
+ * During PRE_SEARCH, rewriters (a.k.a computed attributes) are called
+ * to rewrite some search filter components.
+ * Rewriters callbacks are registered by main and are retrieved from
+ * config entries under cn=rewriters,cn=config.
+ *
+ * In order to register the role rewriter, the following record
+ * is added to the config.
+ *
+ * dn: cn=role,cn=rewriters,cn=config
+ * objectClass: top
+ * objectClass: extensibleObject
+ * cn: role
+ * nsslapd-libpath: /lib/dirsrv/libslapd.so
+ * nsslapd-filterrewriter: role_nsRole_filter_rewriter
+ *
+ * The role rewriter supports:
+ *   - 'nsrole' attribute type
+ *   - LDAP_FILTER_EQUALITY filter choice
+ *   - assertion being a managed/filtered role DN
+ *
+ *   - Input  '(nsrole=cn=admin1,dc=example,dc=com)'
+ *     Output '(nsroleDN=cn=admin1,dc=example,dc=com)'
+ *   - Input  '(nsrole=cn=SalesManagerFilter,ou=people,dc=example,dc=com)'
+ *     Output '(manager=user008762)'
+ *
+ * dn: cn=admin1,dc=example,dc=com
+ * ...
+ * objectClass: nsRoleDefinition
+ * objectClass: nsManagedRoleDefinition
+ * ...
+ *
+ * dn: cn=SalesManagerFilter,ou=people,dc=example,dc=com
+ * ...
+ * objectclass: nsRoleDefinition
+ * objectclass: nsFilteredRoleDefinition
+ * ...
+ * nsRoleFilter: manager=user008762
+ *
+ * return code (from computed.c:compute_rewrite_search_filter):
+ *   -1 : keep looking
+ *    0 : rewrote OK
+ *    1 : refuse to do this search
+ *    2 : operations error
+ */
+int32_t
+role_nsRole_filter_rewriter(Slapi_PBlock *pb)
+{
+    Slapi_Filter *clientFilter = NULL;
+    int error_code = 0;
+    int rc;
+    role_substitute_type_arg_t arg;
+    arg.attrtype_from = NSROLEATTR;
+    arg.attrtype_to = ROLE_MANAGED_ATTR_NAME;
+
+    slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &clientFilter);
+    rc = slapi_filter_apply(clientFilter, role_substitute_type, &arg, &error_code);
+    if (rc == SLAPI_FILTER_SCAN_NOMORE) {
+        return SEARCH_REWRITE_CALLBACK_CONTINUE; /* Let's others rewriter play */
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR,
+                          "example_foo2cn_filter_rewriter", "Could not update the search filter - error %d (%d)\n",
+                          rc, error_code);
+        return SEARCH_REWRITE_CALLBACK_ERROR; /* operation error */
+    }
 }

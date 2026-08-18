@@ -8,55 +8,57 @@
  * END COPYRIGHT BLOCK **/
 
 /*
-    Abstraction layer which sits between db2.0 and
-    higher layers in the directory server---typically
-    the back-end.
-    This module's purposes are 1) to hide messy stuff which
-    db2.0 needs, and with which we don't want to pollute the back-end
-    code. 2) Provide some degree of portability to other databases
-    if that becomes a requirement. Note that it is NOT POSSIBLE
-    to revert to db1.85 because the backend is now using features
-    from db2.0 which db1.85 does not have.
-    Also provides an emulation of the ldbm_ functions, for anyone
-    who is still calling those. The use of these functions is
-    deprecated. Only for backwards-compatibility.
-    Blame: dboreham
-*/
+ *  Abstraction layer which sits between db2.0 and
+ *  higher layers in the directory server---typically
+ *  the back-end.
+ *  This module's purposes are 1) to hide messy stuff which
+ *  db2.0 needs, and with which we don't want to pollute the back-end
+ *  code. 2) Provide some degree of portability to other databases
+ *  if that becomes a requirement. Note that it is NOT POSSIBLE
+ *  to revert to db1.85 because the backend is now using features
+ *  from db2.0 which db1.85 does not have.
+ *  Also provides an emulation of the ldbm_ functions, for anyone
+ *  who is still calling those. The use of these functions is
+ *  deprecated. Only for backwards-compatibility.
+ *  Blame: dboreham
+ */
 
 /* Return code conventions:
-    Unless otherwise advertised, all the functions in this module
-    return an int which is zero if the operation was successful
-    and non-zero if it wasn't. If the return'ed value was > 0,
-    it can be interpreted as a system errno value. If it was < 0,
-    its meaning is defined in dblayer.h
-*/
+ *  Unless otherwise advertised, all the functions in this module
+ *  return an int which is zero if the operation was successful
+ *  and non-zero if it wasn't. If the return'ed value was > 0,
+ *  it can be interpreted as a system errno value. If it was < 0,
+ *  its meaning is defined in dblayer.h
+ */
 
 /*
-    Some information about how this stuff is to be used:
+ *  Some information about how this stuff is to be used:
+ *
+ *  Call dblayer_init() near the beginning of the application's life.
+ *  This allocates some resources and allows the config line processing
+ *  stuff to work.
+ *  Call dblayer_start() when you're sure all config stuff has been seen.
+ *  This needs to be called before you can do anything else.
+ *  Call dblayer_close() when you're finished using the db and want to exit.
+ *  This closes and flushes all files opened by your application since calling
+ *  dblayer_start. If you do NOT call dblayer_close(), we assume that the
+ *  application crashed, and initiate recover next time you call dblayer_start().
+ *  Call dblayer_terminate() after close. This releases resources.
+ *
+ *  dbi_db_t * handles are retrieved from dblayer via these functions:
+ *
+ *  dblayer_get_id2entry()
+ *  dblayer_get_index_file()
+ *
+ *  the caller must honour the protocol that these handles are released back
+ *  to dblayer when you're done using them, use thse functions to do this:
+ *
+ *  dblayer_release_id2entry()
+ *  dblayer_release_index_file()
+ */
 
-    Call dblayer_init() near the beginning of the application's life.
-    This allocates some resources and allows the config line processing
-    stuff to work.
-    Call dblayer_start() when you're sure all config stuff has been seen.
-    This needs to be called before you can do anything else.
-    Call dblayer_close() when you're finished using the db and want to exit.
-    This closes and flushes all files opened by your application since calling
-    dblayer_start. If you do NOT call dblayer_close(), we assume that the
-    application crashed, and initiate recover next time you call dblayer_start().
-    Call dblayer_terminate() after close. This releases resources.
-
-    DB* handles are retrieved from dblayer via these functions:
-
-    dblayer_get_id2entry()
-    dblayer_get_index_file()
-
-    the caller must honour the protocol that these handles are released back
-    to dblayer when you're done using them, use thse functions to do this:
-
-    dblayer_release_id2entry()
-    dblayer_release_index_file()
-*/
-
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -64,35 +66,13 @@
 #include "dblayer.h"
 #include <prthread.h>
 #include <prclist.h>
-#include <sys/types.h>
-#include <sys/statvfs.h>
-
-#define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)                                     \
-    {                                                                                                           \
-        if (((oflags)&DB_INIT_TXN) && ((oflags)&DB_INIT_LOG)) {                                                 \
-            (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags) | DB_AUTO_COMMIT, (mode)); \
-        } else {                                                                                                \
-            (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags), (mode));                  \
-        }                                                                                                       \
-    }
-
-#define TXN_BEGIN(env, parent_txn, tid, flags) \
-    (env)->txn_begin((env), (parent_txn), (tid), (flags))
-#define TXN_COMMIT(txn, flags) (txn)->commit((txn), (flags))
-#define TXN_ABORT(txn) (txn)->abort(txn)
-#define TXN_CHECKPOINT(env, kbyte, min, flags) \
-    (env)->txn_checkpoint((env), (kbyte), (min), (flags))
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) \
-    (env)->memp_stat((env), (gsp), (fsp), (flags))
-#define MEMP_TRICKLE(env, pct, nwrotep) \
-    (env)->memp_trickle((env), (pct), (nwrotep))
-#define LOG_ARCHIVE(env, listp, flags, malloc) \
-    (env)->log_archive((env), (listp), (flags))
-#define LOG_FLUSH(env, lsn) (env)->log_flush((env), (lsn))
 
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
+#define PLUGIN_PATH_WITH_PREFIX "%s/lib/dirsrv/plugins/%s"
+#define PLUGIN_PATH_WITHOUT_PREFIX PLUGINDIR "/%s"
+#define PREFIX_ENV "PREFIX"
 
 static int dblayer_post_restore = 0;
 
@@ -108,57 +88,6 @@ static int dblayer_post_restore = 0;
 #define TXN_TEST_INDEXES "TXN_TEST_INDEXES"     /* list of indexes to use - comma delimited - id2entry,entryrdn,etc. */
 #define TXN_TEST_VERBOSE "TXN_TEST_VERBOSE"     /* be wordy */
 
-/* This function compares two index keys.  It is assumed
-   that the values are already normalized, since they should have
-   been when the index was created (by int_values2keys).
-
-   richm - actually, the current syntax compare functions
-   always normalize both arguments.  We need to add an additional
-   syntax compare function that does not normalize or takes
-   an argument like value_cmp to specify to normalize or not.
-
-   More fun - this function is used to compare both raw database
-   keys (e.g. with the prefix '=' or '+' or '*' etc.) and without
-   (in the case of two equality keys, we want to strip off the
-   leading '=' to compare the actual values).  We only use the
-   value_compare function if both keys are equality keys with
-   some data after the equality prefix.  In every other case,
-   we will just use a standard berval cmp function.
-
-   see also DBTcmp
-*/
-
-static int
-db_uses_feature(DB_ENV *db_env, u_int32_t flags)
-{
-    u_int32_t openflags = 0;
-    PR_ASSERT(db_env);
-    (*db_env->get_open_flags)(db_env, &openflags);
-
-    return (flags & openflags);
-}
-int
-dblayer_db_uses_locking(DB_ENV *db_env)
-{
-    return db_uses_feature(db_env, DB_INIT_LOCK);
-}
-int
-dblayer_db_uses_transactions(DB_ENV *db_env)
-{
-    return db_uses_feature(db_env, DB_INIT_TXN);
-}
-
-int
-dblayer_db_uses_mpool(DB_ENV *db_env)
-{
-    return db_uses_feature(db_env, DB_INIT_MPOOL);
-}
-
-int
-dblayer_db_uses_logging(DB_ENV *db_env)
-{
-    return db_uses_feature(db_env, DB_INIT_LOG);
-}
 
 /* this flag is used if user remotely turned batching off */
 #define FLUSH_REMOTEOFF 0
@@ -187,14 +116,6 @@ dblayer_db_uses_logging(DB_ENV *db_env)
  * IMHO this should be in inside libdb, but keith won't have it.
  * Stop press---libdb now does delete these files on recovery, so we don't call this any more.
  */
-
-/* Callback function for libdb to spit error info into our log */
-void
-dblayer_log_print(const DB_ENV *dbenv __attribute__((unused)), const char *prefix __attribute__((unused)), const char *buffer)
-{
-    /* We ignore the prefix since we know who we are anyway */
-    slapi_log_err(SLAPI_LOG_ERR, "libdb", "%s\n", (char *)buffer);
-}
 
 void
 dblayer_remember_disk_filled(struct ldbminfo *li)
@@ -243,13 +164,73 @@ dblayer_init(struct ldbminfo *li)
     return ret;
 }
 
+/* Check that export locking file is not set */
+static bool
+not_exporting(void)
+{
+    pid_t pid = getpid();
+    struct stat astat;
+    bool res = true;
+    char *export_lock = slapi_ch_smprintf("%s/exports/%d",  getFrontendConfig()->lockdir, pid);
+    if (stat(export_lock, &astat) == 0) {
+        res = false;
+    }
+    slapi_ch_free_string(&export_lock);
+    return res;
+}
+
+/* Get the db implementation plugin path (either libback-ldbm.so or libback-bdb.so) */
+char *
+backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
+{
+    PRLibrary *lib = NULL;
+    char *libpath = NULL;
+    const char *prefix = getenv(PREFIX_ENV);
+    if (strcmp(plgname, BDB_IMPL)) {
+        /* mdb ==> lets use default (libback-ldbm.so) */
+        return li->li_plugin->plg_libpath;
+    }
+    if (PR_FindSymbolAndLibrary("bdbreader_bdb_open", &lib)) {
+        /* read-only bdb is used ==> should be using dbscan or ns-slapd db2ldif
+         * bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so)
+         */
+        if (((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) == 0) && not_exporting()) {
+            slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup",
+                            "bdb implementation is no longer supported."
+                            " Directory server cannot be started without migrating to lmdb first."
+                            " To migrate, please run: dsctl instanceName dblib bdb2mdb\n");
+            exit(1);
+        }
+        return li->li_plugin->plg_libpath;
+    }
+    if (PR_FindSymbolAndLibrary("bdb_init", &lib)) {
+        /* bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so) */
+        return li->li_plugin->plg_libpath;
+    }
+    /* Lets check if libback-bdb.so exists */
+    if (prefix) {
+        libpath = slapi_ch_smprintf(PLUGIN_PATH_WITH_PREFIX, prefix, "libback-bdb.so");
+    } else {
+        libpath = slapi_ch_smprintf(PLUGIN_PATH_WITHOUT_PREFIX, "libback-bdb.so");
+    }
+    if (PR_SUCCESS != PR_Access(libpath, PR_ACCESS_READ_OK)) {
+        slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup", "Unable to find shared library %s . "
+                        "Either use 'mdb' backend or install the Berkeley Database package "
+                        "with 'dnf install 389-ds-base-bdb'. Exiting.", libpath);
+        slapi_ch_free_string(&libpath);
+        exit(1);
+    }
+    return libpath;
+}
+
 int
-dblayer_setup(struct ldbminfo *li)
+dbimpl_setup(struct ldbminfo *li, const char *plgname)
 {
     int rc = 0;
     dblayer_private *priv = NULL;
     char *backend_implement_init = NULL;
     backend_implement_init_fn *backend_implement_init_x = NULL;
+    char *libpath = NULL;
 
     /* initialize dblayer  */
     if (dblayer_init(li)) {
@@ -261,9 +242,17 @@ dblayer_setup(struct ldbminfo *li)
      * structures with some default values */
     ldbm_config_setup_default(li);
 
-    backend_implement_init = slapi_ch_smprintf("%s_init", li->li_backend_implement);
-    backend_implement_init_x = sym_load(li->li_plugin->plg_libpath, backend_implement_init, "dblayer_implement", 1);
+    if (!plgname) {
+        ldbm_config_load_dse_info_phase0(li);
+        plgname = li->li_backend_implement;
+    }
+    libpath = backend_implement_get_libpath(li, plgname);
+    backend_implement_init = slapi_ch_smprintf("%s_init", plgname);
+    backend_implement_init_x = sym_load(libpath, backend_implement_init, "dblayer_implement", 1);
     slapi_ch_free_string(&backend_implement_init);
+    if (libpath != li->li_plugin->plg_libpath) {
+        slapi_ch_free_string(&libpath);
+    }
 
     if (backend_implement_init_x) {
         backend_implement_init_x(li, NULL);
@@ -272,11 +261,18 @@ dblayer_setup(struct ldbminfo *li)
         return -1;
     }
 
-    ldbm_config_load_dse_info(li);
-    priv = (dblayer_private *)li->li_dblayer_private;
-    rc = priv->dblayer_load_dse_fn(li);
+    if (plgname == li->li_backend_implement) {
+        ldbm_config_load_dse_info_phase1(li);
+        priv = (dblayer_private *)li->li_dblayer_private;
+        rc = priv->dblayer_load_dse_fn(li);
+    }
 
     return rc;
+}
+
+int dblayer_setup(struct ldbminfo *li)
+{
+    return dbimpl_setup(li, NULL);
 }
 
 /* Check a given filesystem directory for access we need */
@@ -368,7 +364,7 @@ dblayer_instance_start(backend *be, int mode)
 }
 
 
-/* This returns a DB* for the primary index.
+/* This returns a dbi_db_t * for the primary index.
  * If the database library is non-reentrant, we lock it.
  * the caller MUST call to unlock the db library once they're
  * finished with the handle. Luckily, the back-end already has
@@ -377,7 +373,7 @@ dblayer_instance_start(backend *be, int mode)
 /* Things have changed since the above comment was
  * written.  The database library is reentrant. */
 int
-dblayer_get_id2entry(backend *be, DB **ppDB)
+dblayer_get_id2entry(backend *be, dbi_db_t **ppDB)
 {
     ldbm_instance *inst;
 
@@ -390,7 +386,7 @@ dblayer_get_id2entry(backend *be, DB **ppDB)
 }
 
 int
-dblayer_release_id2entry(backend *be __attribute__((unused)), DB *pDB __attribute__((unused)))
+dblayer_release_id2entry(backend *be __attribute__((unused)), dbi_db_t *pDB __attribute__((unused)))
 {
     return 0;
 }
@@ -399,7 +395,7 @@ int
 dblayer_close_changelog(backend *be)
 {
     ldbm_instance *inst;
-    DB *pDB = NULL;
+    dbi_db_t *pDB = NULL;
     int return_value = 0;
 
     PR_ASSERT(NULL != be);
@@ -408,7 +404,7 @@ dblayer_close_changelog(backend *be)
 
     pDB = inst->inst_changelog;
     if (pDB) {
-        return_value = pDB->close(pDB,0);
+        return_value = dblayer_db_op(be, pDB,  NULL, DBI_OP_CLOSE, NULL, NULL);
         inst->inst_changelog = NULL;
     }
     return return_value;
@@ -428,7 +424,7 @@ int
 dblayer_close_indexes(backend *be)
 {
     ldbm_instance *inst;
-    DB *pDB = NULL;
+    dbi_db_t *pDB = NULL;
     dblayer_handle *handle = NULL;
     dblayer_handle *next = NULL;
     int return_value = 0;
@@ -440,7 +436,7 @@ dblayer_close_indexes(backend *be)
     for (handle = inst->inst_handle_head; handle != NULL; handle = next) {
         /* Close it, and remove from the list */
         pDB = handle->dblayer_dbp;
-        return_value |= pDB->close(pDB, 0);
+        return_value = dblayer_db_op(be, pDB,  NULL, DBI_OP_CLOSE, NULL, NULL);
         next = handle->dblayer_handle_next;
         /* If the backpointer is still valid, NULL the attrinfos ref to us
          * This is important as there is no ordering guarantee between if the
@@ -462,7 +458,7 @@ dblayer_close_indexes(backend *be)
 int
 dblayer_instance_close(backend *be)
 {
-    DB *pDB = NULL;
+    dbi_db_t *pDB = NULL;
     int return_value = 0;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
 
@@ -498,7 +494,7 @@ dblayer_instance_close(backend *be)
     /* Now close id2entry if it's open */
     pDB = inst->inst_id2entry;
     if (NULL != pDB) {
-        return_value |= pDB->close(pDB, 0);
+        return_value |= dblayer_db_op(be, pDB,  NULL, DBI_OP_CLOSE, NULL, NULL);
     }
     inst->inst_id2entry = NULL;
 
@@ -524,11 +520,15 @@ int
 dblayer_close(struct ldbminfo *li, int dbmode)
 {
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-
-    return priv->dblayer_close_fn(li, dbmode);
+    int rc = priv->dblayer_close_fn(li, dbmode);
+    if (rc == 0) {
+        /* Clean thread specific data */
+        dblayer_destroy_txn_stack();
+    }
+    return rc;
 }
 
-/* Routines for opening and closing random files in the DB_ENV.
+/* Routines for opening and closing random files in the dbi_env_t.
    Used by ldif2db merging code currently.
 
    Return value:
@@ -536,7 +536,7 @@ dblayer_close(struct ldbminfo *li, int dbmode)
     Failure: -1
  */
 int
-dblayer_open_file(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB **ppDB)
+dblayer_open_file(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     PR_ASSERT(NULL != li);
@@ -547,22 +547,22 @@ dblayer_open_file(backend *be, char *indexname, int open_flag, struct attrinfo *
 }
 
 int
-dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flags)
+dblayer_get_index_file(backend *be, struct attrinfo *a, dbi_db_t **ppDB, int open_flags)
 {
     /*
-     * We either already have a DB* handle in the attrinfo structure.
+     * We either already have a dbi_db_t * handle in the attrinfo structure.
      * in which case we simply return it to the caller, OR:
      * we need to make one. We do this as follows:
      * 1a) acquire the mutex that protects the handle list.
-     * 1b) check that the DB* is still null.
+     * 1b) check that the dbi_db_t * is still null.
      * 2) get the filename, and call libdb to open it
      * 3) if successful, store the result in the attrinfo stucture
-     * 4) store the DB* in our own list so we can close it later.
+     * 4) store the dbi_db_t * in our own list so we can close it later.
      * 5) release the mutex.
      */
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int return_value = -1;
-    DB *pDB = NULL;
+    dbi_db_t *pDB = NULL;
     char *attribute_name = a->ai_type;
 
     *ppDB = NULL;
@@ -598,7 +598,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
         dblayer_handle *prev_handle = inst->inst_handle_tail;
 
         PR_ASSERT(NULL != pDB);
-        /* Store the returned DB* in our own private list of
+        /* Store the returned dbi_db_t * in our own private list of
          * open files */
         if (NULL == prev_handle) {
             /* List was empty */
@@ -620,7 +620,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
     } else {
         /* Did not open it OK ! */
         /* Do nothing, because return value and fact that we didn't
-         * store a DB* in the attrinfo is enough */
+         * store a dbi_db_t * in the attrinfo is enough */
     }
     PR_Unlock(inst->inst_handle_list_mutex);
 
@@ -634,11 +634,11 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
     return return_value;
 }
 
-int dblayer_get_changelog(backend *be, DB** ppDB, int open_flags)
+int dblayer_get_changelog(backend *be, dbi_db_t ** ppDB, int open_flags)
 {
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     int return_value = -1;
-    DB *pDB = NULL;
+    dbi_db_t *pDB = NULL;
 
     *ppDB = NULL;
 
@@ -672,7 +672,7 @@ int dblayer_get_changelog(backend *be, DB** ppDB, int open_flags)
     } else {
         /* Did not open it OK ! */
         /* Do nothing, because return value and fact that we didn't
-         * store a DB* in the attrinfo is enough
+         * store a dbi_db_t * in the attrinfo is enough
          */
     }
     PR_Unlock(inst->inst_handle_list_mutex);
@@ -684,7 +684,7 @@ int dblayer_get_changelog(backend *be, DB** ppDB, int open_flags)
  * Unlock the db lib mutex here if we need to.
  */
 int
-dblayer_release_index_file(backend *be __attribute__((unused)), struct attrinfo *a, DB *pDB __attribute__((unused)))
+dblayer_release_index_file(backend *be __attribute__((unused)), struct attrinfo *a, dbi_db_t *pDB __attribute__((unused)))
 {
     slapi_atomic_decr_64(&(a->ai_dblayer_count), __ATOMIC_RELEASE);
     return 0;
@@ -697,6 +697,9 @@ dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, int n
         return 0;
     }
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    if (NULL == li) {
+        return 0;
+    }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
     return priv->dblayer_rm_db_file_fn(be, a, use_lock, no_force_chkpt);
@@ -706,12 +709,12 @@ dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, int n
 /*
  * Transaction stuff. The idea is that the caller doesn't need to
  * know the transaction mechanism underneath (because the caller is
- * typically a few calls up the stack from any DB stuff).
+ * typically a few calls up the stack from any dbi_db_t stuff).
  * Sadly, in slapd there was no handy structure associated with
  * an LDAP operation, and passed around everywhere, so we had
  * to invent the back_txn structure.
  * The lower levels of the back-end look into this structure, and
- * take out the DB_TXN they need.
+ * take out the dbi_txn_t they need.
  */
 int
 dblayer_txn_init(struct ldbminfo *li __attribute__((unused)), back_txn *txn)
@@ -721,8 +724,10 @@ dblayer_txn_init(struct ldbminfo *li __attribute__((unused)), back_txn *txn)
 
     if (cur_txn && txn) {
         txn->back_txn_txn = cur_txn->back_txn_txn;
+        txn->back_special_handling_fn = NULL;
     } else if (txn) {
         txn->back_txn_txn = NULL;
+        txn->back_special_handling_fn = NULL;
     }
     return 0;
 }
@@ -992,12 +997,18 @@ db_strtoul(const char *str, int *err)
     char *p;
     errno = 0;
 
+    if (!str) {
+        if (err) {
+            *err = EINVAL;
+        }
+        return val;
+    }
     /*
      * manpage of strtoul: Negative  values  are considered valid input and
      * are silently converted to the equivalent unsigned long int value.
      */
     /* We don't want to make it happen. */
-    for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++)
+    for (p = (char *)str; *p && (*p == ' ' || *p == '\t'); p++)
         ;
     if ('-' == *p) {
         if (err) {
@@ -1014,6 +1025,10 @@ db_strtoul(const char *str, int *err)
     }
 
     switch (*p) {
+    case 't':
+    case 'T':
+        multiplier *= 1024 * 1024 * 1024;
+        break;
     case 'g':
     case 'G':
         multiplier *= 1024 * 1024 * 1024;
@@ -1058,12 +1073,18 @@ db_strtoull(const char *str, int *err)
     char *p;
     errno = 0;
 
+    if (!str) {
+        if (err) {
+            *err = EINVAL;
+        }
+        return -1L;
+    }
     /*
      * manpage of strtoull: Negative  values  are considered valid input and
      * are silently converted to the equivalent unsigned long int value.
      */
     /* We don't want to make it happen. */
-    for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++)
+    for (p = (char *)str; *p && (*p == ' ' || *p == '\t'); p++)
         ;
     if ('-' == *p) {
         if (err) {
@@ -1080,6 +1101,10 @@ db_strtoull(const char *str, int *err)
     }
 
     switch (*p) {
+    case 't':
+    case 'T':
+        multiplier *= 1024LL * 1024LL * 1024LL * 1024LL;
+        break;
     case 'g':
     case 'G':
         multiplier *= 1024 * 1024 * 1024;
@@ -1233,7 +1258,6 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     PR_ASSERT(NULL != priv);
 
     return priv->dblayer_restore_fn(li, src_dir, task);
-
 }
 
 void
@@ -1294,50 +1318,14 @@ dblayer_get_instance_data_dir(backend *be)
     return ret;
 }
 
-char *
-dblayer_strerror(int error)
-{
-    return db_strerror(error);
-}
-
-/* [605974] check a db region file's existence to know whether import is executed by other process or not */
+/* check whether import is executed by other process or not */
 int
 dblayer_in_import(ldbm_instance *inst)
 {
-    PRDir *dirhandle = NULL;
-    PRDirEntry *direntry = NULL;
-    char inst_dir[MAXPATHLEN];
-    char *inst_dirp = NULL;
-    int rval = 0;
-
-    inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                          inst_dir, MAXPATHLEN);
-    if (!inst_dirp || !*inst_dirp) {
-        rval = -1;
-        goto done;
-    }
-    dirhandle = PR_OpenDir(inst_dirp);
-
-    if (NULL == dirhandle)
-        goto done;
-
-    while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-        if (NULL == direntry->name) {
-            break;
-        }
-        if (0 == strncmp(direntry->name, DB_REGION_PREFIX, 5)) {
-            rval = 1;
-            break;
-        }
-    }
-    PR_CloseDir(dirhandle);
-done:
-    if (inst_dirp != inst_dir) {
-        slapi_ch_free_string(&inst_dirp);
-    }
-    return rval;
+    struct ldbminfo *li = (struct ldbminfo *)inst->inst_li;
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+    return  prv->dblayer_in_import_fn(inst);
 }
-
 
 int
 ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
@@ -1457,4 +1445,66 @@ dblayer_pop_pvt_txn(void)
         slapi_ch_free((void **)&elem);
     }
     return;
+}
+
+void
+dblayer_destroy_txn_stack(void)
+{
+    /*
+     * Cleanup for the main thread to avoid false/positive leaks from libasan
+     * Note: data is freed because PR_SetThreadPrivate calls the
+     * dblayer_cleanup_txn_stack callback
+     */
+    PR_SetThreadPrivate(thread_private_txn_stack, NULL);
+}
+
+const char *
+dblayer_get_db_suffix(Slapi_Backend *be)
+{
+    struct ldbminfo *li = be ? (struct ldbminfo *)be->be_database->plg_private : NULL;
+    dblayer_private *prv = li ? (dblayer_private *)li->li_dblayer_private : NULL;
+
+    return  prv ? prv->dblayer_get_db_suffix_fn() : NULL;
+}
+
+int
+ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    int rc = -1;
+    if (!li) {
+        return rc;
+    }
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+
+    return  prv->dblayer_compact_fn(be, just_changelog);
+}
+
+int
+dblayer_is_lmdb(Slapi_Backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    return (li->li_flags & LI_LMDB_IMPL);
+}
+
+/*
+ * Iterate on the provided curor starting at startingkey (or first key if
+ *  startingkey is NULL) and call action_cb for each records
+ *
+ * action_cb callback returns:
+ *     DBI_RC_SUCCESS to iterate on next entry
+ *     DBI_RC_NOTFOUND to stop iteration with DBI_RC_SUCCESS code
+ *     other DBI_RC_ code to stop iteration with that error code.
+ */
+int dblayer_cursor_iterate(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
+                           const dbi_val_t *startingkey, void *ctx)
+{
+    struct ldbminfo *li = (struct ldbminfo *)cursor->be->be_database->plg_private;
+    int rc = -1;
+    if (!li) {
+        return rc;
+    }
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+
+    return prv->dblayer_cursor_iterate_fn(cursor, action_cb, startingkey, ctx);
 }

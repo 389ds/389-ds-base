@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -21,9 +21,8 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include <plhash.h>
+#include <rust-slapi-private.h>
 
-/* For the ndn cache - this gives up siphash13 */
-#include <sds.h>
 
 #undef SDN_DEBUG
 
@@ -46,16 +45,6 @@ struct ndn_cache_stats {
     uint64_t slots;
 };
 
-struct ndn_cache_value {
-    uint64_t size;
-    uint64_t slot;
-    char *dn;
-    char *ndn;
-    struct ndn_cache_value *next;
-    struct ndn_cache_value *prev;
-    struct ndn_cache_value *child;
-};
-
 /*
  * This uses a similar alloc trick to IDList to keep
  * The amount of derefs small.
@@ -64,33 +53,12 @@ struct ndn_cache {
     /*
      * We keep per thread stats and flush them occasionally
      */
-    uint64_t max_size;
-    /* Need to track this because we need to provide diffs to counter */
-    uint64_t last_count;
-    uint64_t count;
-    /* Number of ops */
-    uint64_t tries;
-    /* hit vs miss. in theroy miss == tries - hits.*/
-    uint64_t hits;
-    /* How many values we kicked out */
-    uint64_t evicts;
-    /* Need to track this because we need to provide diffs to counter */
-    uint64_t last_size;
-    uint64_t size;
-    uint64_t slots;
-    /*
-     * This is used by siphash to prevent hash bucket attacks
-     */
-    char key[16];
-
-    struct ndn_cache_value *head;
-    struct ndn_cache_value *tail;
-    struct ndn_cache_value *table[1];
+    ARCacheChar *cache;
 };
 
 /*
  * This means we need 1 MB minimum per thread
- * 
+ *
  */
 #define NDN_CACHE_MINIMUM_CAPACITY 1048576
 /*
@@ -480,6 +448,8 @@ substr_dn_normalize_orig(char *dn, char *end)
         sort_rdn_avs(rdn_avs, rdn_av_count, 0);
     }
     if (rdn_av_count > 0) {
+        /* Code is ok because rdn_avs is freed only if it has grown */
+        /* coverity[incorrect_free] */
         reset_rdn_avs(&rdn_avs, &rdn_av_count);
     }
     /* Trim trailing spaces */
@@ -894,8 +864,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             s++;
                         }
                     }
-                } else if (s + 2 < ends &&
-                           isxdigit(*(s + 1)) && isxdigit(*(s + 2))) {
+                } else if (s + 2 < ends && isxdigit(*(s + 1)) && isxdigit(*(s + 2))) {
                     /* esc hexpair ==> real character */
                     int n = slapi_hexchar2int(*(s + 1));
                     int n2 = slapi_hexchar2int(*(s + 2));
@@ -903,6 +872,20 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     if (n == 0) { /* don't change \00 */
                         *d++ = *++s;
                         *d++ = *++s;
+                    } else if ((state == INVALUE1ST) &&
+                               ((n == 32) || (n ==35))) {
+                        /*
+                         * RFC 4514
+                         * ; The following characters are to be escaped when they appear
+                         * ; in the value to be encoded: ESC, one of <escaped>, leading
+                         * ; SHARP or SPACE, trailing SPACE, and NULL.
+                         *
+                         * Leave intact the heading SPACE and SHARP
+                         */
+                        *d++ = *s;
+                        *d++ = *++s;
+                        *d++ = *++s;
+                        s++;
                     } else {
                         *d++ = n;
                         s += 3;
@@ -1138,6 +1121,8 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
         sort_rdn_avs(rdn_avs, rdn_av_count, 0);
     }
     if (rdn_av_count > 0) {
+        /* Code is ok because rdn_avs is freed only if it has grown */
+        /* coverity[incorrect_free] */
         reset_rdn_avs(&rdn_avs, &rdn_av_count);
     }
     /* Trim trailing spaces */
@@ -1604,7 +1589,7 @@ slapi_dn_find_parent_ext(const char *dn, int is_tombstone)
                                  sizeof(RUV_STORAGE_ENTRY_UNIQUEID) - 1)) {
                 head = (char *)dn;
             } else {
-                head = strchr(dn, ',');
+                head = (char *)strchr(dn, ',');
                 if (head) {
                     head++;
                 } else {
@@ -1634,6 +1619,8 @@ slapi_dn_find_parent_ext(const char *dn, int is_tombstone)
                     }
                     if (*s) {
                         return (s);
+                    } else {
+                        return (NULL);
                     }
                 }
             }
@@ -2876,9 +2863,6 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
  *
  */
 
-static pthread_key_t ndn_cache_key;
-static pthread_once_t ndn_cache_key_once = PTHREAD_ONCE_INIT;
-static struct ndn_cache_stats t_cache_stats = {0};
 /*
  * WARNING: For some reason we try to use the NDN cache *before*
  * we have a chance to configure it. As a result, we need to rely
@@ -2890,118 +2874,8 @@ static struct ndn_cache_stats t_cache_stats = {0};
  * not bother until we improve libglobs to be COW.
  */
 static int32_t ndn_enabled = 0;
-
-static struct ndn_cache *
-ndn_thread_cache_create(size_t thread_max_size, size_t slots) {
-    size_t t_cache_size = sizeof(struct ndn_cache) + (slots * sizeof(struct ndn_cache_value *));
-    struct ndn_cache *t_cache = (struct ndn_cache *)slapi_ch_calloc(1, t_cache_size);
-
-    t_cache->max_size = thread_max_size;
-    t_cache->slots = slots;
-
-    return t_cache;
-}
-
-static void
-ndn_thread_cache_commit_status(struct ndn_cache *t_cache) {
-    /*
-     * Every so often we commit these atomically. We do this infrequently
-     * to avoid the costly atomics.
-     */
-    if (t_cache->tries % NDN_STAT_COMMIT_FREQUENCY == 0) {
-        /* We can just add tries and hits. */
-        slapi_counter_add(t_cache_stats.cache_evicts, t_cache->evicts);
-        slapi_counter_add(t_cache_stats.cache_tries, t_cache->tries);
-        slapi_counter_add(t_cache_stats.cache_hits, t_cache->hits);
-        t_cache->hits = 0;
-        t_cache->tries = 0;
-        t_cache->evicts = 0;
-        /* Count and size need diff */
-        int64_t diff = (t_cache->size - t_cache->last_size);
-        if (diff > 0) {
-            // We have more ....
-            slapi_counter_add(t_cache_stats.cache_size, (uint64_t)diff);
-        } else if (diff < 0) {
-            slapi_counter_subtract(t_cache_stats.cache_size, (uint64_t)llabs(diff));
-        }
-        t_cache->last_size = t_cache->size;
-
-        diff = (t_cache->count - t_cache->last_count);
-        if (diff > 0) {
-            // We have more ....
-            slapi_counter_add(t_cache_stats.cache_count, (uint64_t)diff);
-        } else if (diff < 0) {
-            slapi_counter_subtract(t_cache_stats.cache_count, (uint64_t)llabs(diff));
-        }
-        t_cache->last_count = t_cache->count;
-
-    }
-}
-
-static void
-ndn_thread_cache_value_destroy(struct ndn_cache *t_cache, struct ndn_cache_value *v) {
-    /* Update stats */
-    t_cache->size = t_cache->size - v->size;
-    t_cache->count--;
-    t_cache->evicts++;
-
-    if (v == t_cache->head) {
-        t_cache->head = v->prev;
-    }
-    if (v == t_cache->tail) {
-        t_cache->tail = v->next;
-    }
-
-    /* Cut the node out. */
-    if (v->next != NULL) {
-        v->next->prev = v->prev;
-    }
-    if (v->prev != NULL) {
-        v->prev->next = v->next;
-    }
-    /* Set the pointer in the table to NULL */
-    /* Now see if we were in a list */
-    struct ndn_cache_value *slot_node = t_cache->table[v->slot];
-    if (slot_node == v) {
-        t_cache->table[v->slot] = v->child;
-    } else {
-        struct ndn_cache_value *former_slot_node = NULL;
-        do {
-            former_slot_node = slot_node;
-            slot_node = slot_node->child;
-        } while(slot_node != v);
-        /* Okay, now slot_node is us, and former is our parent */
-        former_slot_node->child = v->child;
-    }
-
-    slapi_ch_free((void **)&(v->dn));
-    slapi_ch_free((void **)&(v->ndn));
-    slapi_ch_free((void **)&v);
-}
-
-static void
-ndn_thread_cache_destroy(void *v_cache) {
-    struct ndn_cache *t_cache = (struct ndn_cache *)v_cache;
-    /*
-     * FREE ALL THE NODES!!!
-     */
-    struct ndn_cache_value *node = t_cache->tail;
-    struct ndn_cache_value *next_node = NULL;
-    while (node) {
-        next_node = node->next;
-        ndn_thread_cache_value_destroy(t_cache, node);
-        node = next_node;
-    }
-    slapi_ch_free((void **)&t_cache);
-}
-
-static void
-ndn_cache_key_init() {
-    if (pthread_key_create(&ndn_cache_key, ndn_thread_cache_destroy) != 0) {
-        /* Log a scary warning? */
-        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create pthread key, aborting.\n");
-    }
-}
+static int32_t ndn_import_task_count = 0;
+static ARCacheChar *cache = NULL;
 
 int32_t
 ndn_cache_init()
@@ -3016,45 +2890,32 @@ ndn_cache_init()
         return 0;
     }
 
-    /* Create the pthread key */
-    (void)pthread_once(&ndn_cache_key_once, ndn_cache_key_init);
-
-    /* Create the global stats. */
-    t_cache_stats.max_size = config_get_ndn_cache_size();
-    t_cache_stats.cache_evicts = slapi_counter_new();
-    t_cache_stats.cache_tries = slapi_counter_new();
-    t_cache_stats.cache_hits = slapi_counter_new();
-    t_cache_stats.cache_count = slapi_counter_new();
-    t_cache_stats.cache_size = slapi_counter_new();
-    /* Get thread numbers and calc the per thread size */
-    int32_t maxthreads = (int32_t)config_get_threadnumber();
-    size_t tentative_size = t_cache_stats.max_size / maxthreads;
-    if (tentative_size < NDN_CACHE_MINIMUM_CAPACITY) {
-        tentative_size = NDN_CACHE_MINIMUM_CAPACITY;
-        t_cache_stats.max_size = NDN_CACHE_MINIMUM_CAPACITY * maxthreads;
+    uint64_t max_size = config_get_ndn_cache_size();
+    if (max_size < NDN_CACHE_MINIMUM_CAPACITY) {
+        max_size = NDN_CACHE_MINIMUM_CAPACITY;
     }
-    t_cache_stats.thread_max_size = tentative_size;
+    uintptr_t max_estimate = max_size / NDN_ENTRY_AVG_SIZE;
+    /*
+     * Since we currently only do one op per read, we set 0 because there
+     * is no value in having the read thread cache.
+     */
+    uintptr_t max_thread_read = 0;
+    /* Setup the main cache which all other caches will inherit. */
+    cache = cache_char_create(max_estimate, max_thread_read);
 
-    /*
-     * Slots *must* be a power of two, even if the number of entries
-     * we store will be *less* than this.
-     */
-    size_t possible_elements = tentative_size / NDN_ENTRY_AVG_SIZE;
-    /*
-     * So this is like 1048576 / 168, so we get 6241. Now we need to
-     * shift this to get the number of bits.
-     */
-    size_t shifts = 0;
-    while (possible_elements > 0) {
-        shifts++;
-        possible_elements = possible_elements >> 1;
-    }
-    /*
-     * So now we can use this to make the slot count.
-     */
-    t_cache_stats.slots = 1 << shifts;
-    /* Done? */
     return 0;
+}
+
+void
+ndn_cache_inc_import_task()
+{
+    slapi_atomic_incr_32(&ndn_import_task_count, __ATOMIC_RELEASE);
+}
+
+void
+ndn_cache_dec_import_task()
+{
+    slapi_atomic_decr_32(&ndn_import_task_count, __ATOMIC_RELEASE);
 }
 
 void
@@ -3063,11 +2924,7 @@ ndn_cache_destroy()
     if (ndn_enabled == 0) {
         return;
     }
-    slapi_counter_destroy(&(t_cache_stats.cache_tries));
-    slapi_counter_destroy(&(t_cache_stats.cache_hits));
-    slapi_counter_destroy(&(t_cache_stats.cache_count));
-    slapi_counter_destroy(&(t_cache_stats.cache_size));
-    slapi_counter_destroy(&(t_cache_stats.cache_evicts));
+    cache_char_free(cache);
 }
 
 int
@@ -3079,10 +2936,10 @@ ndn_cache_started()
 /*
  *  Look up this dn in the ndn cache
  */
-static int
-ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int *rc)
+static int32_t
+ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int32_t *rc)
 {
-    if (ndn_enabled == 0 || NULL == udn) {
+    if (ndn_enabled == 0 || ndn_import_task_count != 0 || NULL == udn) {
         return 0;
     }
     *udn = NULL;
@@ -3093,91 +2950,33 @@ ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int *rc)
         return 1;
     }
 
-    struct ndn_cache *t_cache = pthread_getspecific(ndn_cache_key);
-    if (t_cache == NULL) {
-        t_cache = ndn_thread_cache_create(t_cache_stats.thread_max_size, t_cache_stats.slots);
-        pthread_setspecific(ndn_cache_key, t_cache);
-        /* If we have no cache, we can't look up ... */
+    /* Look for it */
+    ARCacheCharRead *read_txn = cache_char_read_begin(cache);
+    PR_ASSERT(read_txn);
+
+    const char *cache_ndn = cache_char_read_get(read_txn, dn);
+    if (cache_ndn != NULL) {
+        *ndn = slapi_ch_strdup(cache_ndn);
+        /*
+         * We have to complete the read after the strdup else it's
+         * not safe to access the pointer.
+         */
+        cache_char_read_complete(read_txn);
+        *rc = 1;
+        return 1;
+    } else {
+        cache_char_read_complete(read_txn);
+        /* If we miss, we need to duplicate dn to udn here. */
+        *udn = slapi_ch_strdup(dn);
+        *rc = 0;
         return 0;
     }
-
-    t_cache->tries++;
-
-    /*
-     * Hash our DN ...
-     */
-    uint64_t dn_hash = sds_siphash13(dn, dn_len, t_cache->key);
-    /* Where should it be? */
-    size_t expect_slot = dn_hash % t_cache->slots;
-
-    /*
-     * Is it there?
-     */
-    if (t_cache->table[expect_slot] != NULL) {
-        /*
-         * Check it really matches, could be collision.
-         */
-        struct ndn_cache_value *node = t_cache->table[expect_slot];
-        while (node != NULL) {
-            if (strcmp(dn, node->dn) == 0) {
-                /*
-                 * Update LRU
-                 * Are we already the tail? If so, we can just skip.
-                 * remember, this means in a set of 1, we will always be tail
-                 */
-                if (t_cache->tail != node) {
-                    /*
-                     * Okay, we are *not* the tail. We could be anywhere between
-                     * tail -> ... -> x -> head
-                     * or even, we are the head ourself.
-                     */
-                    if (t_cache->head == node) {
-                        /* We are the head, update head to our predecessor */
-                        t_cache->head = node->prev;
-                        /* Remember, the head has no next. */
-                        t_cache->head->next = NULL;
-                    } else {
-                        /* Right, we aren't the head, so we have a next node. */
-                        node->next->prev = node->prev;
-                    }
-                    /* Because we must be in the middle somewhere, we can assume next and prev exist. */
-                    node->prev->next = node->next;
-                    /*
-                     * Tail can't be NULL if we have a value in the cache, so we can
-                     * just deref this.
-                     */
-                    node->next = t_cache->tail;
-                    t_cache->tail->prev = node;
-                    t_cache->tail = node;
-                    node->prev = NULL;
-                }
-
-                /* Update that we have a hit.*/
-                t_cache->hits++;
-                /* Cope the NDN to the caller. */
-                *ndn = slapi_ch_strdup(node->ndn);
-                /* Indicate to the caller to free this. */
-                *rc = 1;
-                ndn_thread_cache_commit_status(t_cache);
-                return 1;
-            }
-            node = node->child;
-        }
-    }
-    /* If we miss, we need to duplicate dn to udn here. */
-    *udn = slapi_ch_strdup(dn);
-    *rc = 0;
-    ndn_thread_cache_commit_status(t_cache);
-    return 0;
 }
 
-/*
- *  Add a ndn to the cache.  Try and do as much as possible before taking the write lock.
- */
 static void
 ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
 {
-    if (ndn_enabled == 0) {
+    if (ndn_enabled == 0 || ndn_import_task_count != 0) {
         return;
     }
     if (dn_len == 0) {
@@ -3187,92 +2986,60 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
         /* we need to null terminate the ndn */
         *(ndn + ndn_len) = '\0';
     }
-    /*
-     *  Calculate the approximate memory footprint of the hash entry, key, and lru entry.
-     */
-    struct ndn_cache_value *new_value = (struct ndn_cache_value *)slapi_ch_calloc(1, sizeof(struct ndn_cache_value));
-    new_value->size = sizeof(struct ndn_cache_value) + dn_len + ndn_len;
-    /* DN is alloc for us */
-    new_value->dn = dn;
-    /* But we need to copy ndn */
-    new_value->ndn = slapi_ch_strdup(ndn);
 
+    ARCacheCharRead *read_txn = cache_char_read_begin(cache);
+    PR_ASSERT(read_txn);
+    cache_char_read_include(read_txn, dn, ndn);
+    cache_char_read_complete(read_txn);
     /*
-     * Get our local cache out.
+     * We need to free dn - in the original ndn cache, the dn is added to the
+     * hashmap, but in the rust one, it's cloned to a cstring, so we no longer
+     * need it now.
      */
-    struct ndn_cache *t_cache = pthread_getspecific(ndn_cache_key);
-    if (t_cache == NULL) {
-        t_cache = ndn_thread_cache_create(t_cache_stats.thread_max_size, t_cache_stats.slots);
-        pthread_setspecific(ndn_cache_key, t_cache);
-    }
-    /*
-     * Hash the DN
-     */
-    uint64_t dn_hash = sds_siphash13(new_value->dn, dn_len, t_cache->key);
-    /*
-     * Get the insert slot: This works because the number spaces of dn_hash is
-     * a 64bit int, and slots is a power of two. As a result, we end up with
-     * even distribution of the values.
-     */
-    size_t insert_slot = dn_hash % t_cache->slots;
-    /* Track this for free */
-    new_value->slot = insert_slot;
-
-    /*
-     * Okay, check if we have space, else we need to trim nodes from
-     * the LRU
-     */
-    while (t_cache->head && (t_cache->size + new_value->size) > t_cache->max_size) {
-        struct ndn_cache_value *trim_node = t_cache->head;
-        ndn_thread_cache_value_destroy(t_cache, trim_node);
-    }
-
-    /*
-     * Add it!
-     */
-    if (t_cache->table[insert_slot] == NULL) {
-        t_cache->table[insert_slot] = new_value;
-    } else {
-        /*
-         * Hash collision! We need to replace the bucket then ....
-         * insert at the head of the slot to make this simpler.
-         */
-        new_value->child = t_cache->table[insert_slot];
-        t_cache->table[insert_slot] = new_value;
-    }
-
-    /*
-     * Finally, stick this onto the tail because it's the newest.
-     */
-    if (t_cache->head == NULL) {
-        t_cache->head = new_value;
-    }
-    if (t_cache->tail != NULL) {
-        new_value->next = t_cache->tail;
-        t_cache->tail->prev = new_value;
-    }
-    t_cache->tail = new_value;
-
-    /*
-     * And update the stats.
-     */
-    t_cache->size = t_cache->size + new_value->size;
-    t_cache->count++;
-
+    slapi_ch_free_string(&dn);
 }
 
 /* stats for monitor */
 void
 ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *max_size, uint64_t *thread_size, uint64_t *evicts, uint64_t *slots, uint64_t *count)
 {
-    *max_size = t_cache_stats.max_size;
-    *thread_size = t_cache_stats.thread_max_size;
-    *slots = t_cache_stats.slots;
-    *evicts = slapi_counter_get_value(t_cache_stats.cache_evicts);
-    *hits = slapi_counter_get_value(t_cache_stats.cache_hits);
-    *tries = slapi_counter_get_value(t_cache_stats.cache_tries);
-    *size = slapi_counter_get_value(t_cache_stats.cache_size);
-    *count = slapi_counter_get_value(t_cache_stats.cache_count);
+    /*
+     * A pretty big note here - the ARCache stores things by slot, not size, because
+     * getting the real byte size is expensive in some cases (that are beyond this
+     * project). Additionally, due to the concurrent nature of this, the size is
+     * not really accurate to begin with anyway, but you know, this is a best
+     * effort for stats for the user to see.
+     */
+    uint64_t reader_hits;
+    uint64_t reader_includes;
+    uint64_t write_hits;
+    uint64_t write_inc_or_mod;
+    uint64_t freq;
+    uint64_t recent;
+    uint64_t freq_evicts;
+    uint64_t recent_evicts;
+    uint64_t p_weight;
+    cache_char_stats(cache,
+        &reader_hits,
+        &reader_includes,
+        &write_hits,
+        &write_inc_or_mod,
+        max_size,
+        &freq,
+        &recent,
+        &freq_evicts,
+        &recent_evicts,
+        &p_weight,
+        slots
+    );
+    /* ARCache stores by key count not size, so we recombine with the avg entry size */
+    *max_size = *max_size * NDN_ENTRY_AVG_SIZE;
+    *thread_size = 0;
+    *evicts = freq_evicts + recent_evicts;
+    *hits = write_hits + reader_hits;
+    *tries = *hits + reader_includes + write_inc_or_mod;
+    *size = (freq + recent) * NDN_ENTRY_AVG_SIZE;
+    *count = (freq + recent);
 }
 
 /* Common ancestor sdn is allocated.
@@ -3295,6 +3062,9 @@ slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2)
     }
     dn1str = slapi_sdn_get_ndn(dn1);
     dn2str = slapi_sdn_get_ndn(dn2);
+    if ((NULL == dn1str) || (NULL == dn2str)) {
+        return NULL;
+    }
     if (0 == strcmp(dn1str, dn2str)) {
         /* identical */
         return slapi_sdn_dup(dn1);

@@ -1,25 +1,32 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
-    Row,
-    Col,
-    Form,
-    Switch,
-    noop,
-    FormGroup,
-    FormControl,
-    Checkbox,
-    ControlLabel
-} from "patternfly-react";
-import { Typeahead } from "react-bootstrap-typeahead";
+    Bullseye,
+	Button,
+	Checkbox,
+	Form,
+    FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+    HelperText,
+    HelperTextItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+    Spinner,
+	Switch,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
+
+const _ = cockpit.gettext;
 
 class AttributeUniqueness extends React.Component {
     componentDidMount() {
@@ -34,35 +41,53 @@ class AttributeUniqueness extends React.Component {
         super(props);
         this.state = {
             firstLoad: true,
+            saving: false,
+            loading: true,
             configRows: [],
-            attributes: [],
-            objectClasses: [],
             modalChecked: false,
             modalSpinning: false,
+            tableKey: 0,
+            saveBtnDisabled: true,
+            error: {},
 
             configName: "",
             configEnabled: false,
             attrNames: [],
             subtrees: [],
+            subtreesOptions: [],
+            excludeSubtrees: [],
+            excludeSubtreesOptions: [],
             acrossAllSubtrees: false,
-            topEntryOc: [],
-            subtreeEnriesOc: [],
+            topEntryOc: "",
+            subtreeEnriesOc: "",
+            _configName: "",
+            _configEnabled: false,
+            _attrNames: [],
+            _subtrees: [],
+            _subtreesOptions: [],
+            _excludeSubtrees: [],
+            _excludeSubtreesOptions: [],
+            _acrossAllSubtrees: false,
+            _topEntryOc: "",
+            _subtreeEnriesOc: "",
 
             newEntry: false,
             showConfigModal: false,
-            showConfirmDelete: false
+            showConfirmDelete: false,
+
+            isAttributeNameOpen: false,
+            isSubtreesOpen: false,
+            isExcludeSubtreesOpen: false,
         };
 
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
-        this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
-        this.showAddConfigModal = this.showAddConfigModal.bind(this);
-        this.getAttributes = this.getAttributes.bind(this);
-        this.getObjectClasses = this.getObjectClasses.bind(this);
-        this.closeModal = this.closeModal.bind(this);
+        this.handleShowAddConfigModal = this.handleShowAddConfigModal.bind(this);
+        this.handleCloseModal = this.handleCloseModal.bind(this);
         this.openModal = this.openModal.bind(this);
         this.cmdOperation = this.cmdOperation.bind(this);
         this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
@@ -70,32 +95,181 @@ class AttributeUniqueness extends React.Component {
         this.deleteConfig = this.deleteConfig.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
+        this.validateConfig = this.validateConfig.bind(this);
+
+        // Attribute Name
+        this.handleAttributeNameSelect = (event, selection) => {
+            this.setState({
+                attrNames: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
+        };
+        this.handleAttributeNameToggle = (_event, isAttributeNameOpen) => {
+            this.setState({
+                isAttributeNameOpen
+            }, () => { this.validateConfig() });
+        };
+        this.handleAttributeNameClear = () => {
+            this.setState({
+                attrNames: [],
+                isAttributeNameOpen: false
+            }, () => { this.validateConfig() });
+        };
+
+        // Subtrees
+        this.handleSubtreesSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isSubtreesOpen: false});
+                return;
+            }
+            this.setState({
+                subtrees: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
+        };
+        this.handleSubtreesToggle = (_event, isSubtreesOpen) => {
+            this.setState({
+                isSubtreesOpen
+            }, () => { this.validateConfig() });
+        };
+        this.handleSubtreesClear = () => {
+            this.setState({
+                subtrees: [],
+                isSubtreesOpen: false,
+            }, () => { this.validateConfig() });
+        };
+        this.handleSubtreesCreateOption = newValue => {
+            if (newValue && !this.state.subtreesOptions.includes(newValue)) {
+                this.setState({
+                    subtreesOptions: [...this.state.subtreesOptions, newValue],
+                    isSubtreesOpen: false,
+                }, () => { this.validateConfig() });
+            }
+        };
+        // Exclude Subtrees
+        this.handleExcludeSubtreesSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isExcludeSubtreesOpen: false});
+                return;
+            }
+            this.setState({
+                excludeSubtrees: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
+        };
+        this.handleExcludeSubtreesToggle = (_event, isExcludeSubtreesOpen) => {
+            this.setState({
+                isExcludeSubtreesOpen
+            }, () => { this.validateConfig() });
+        };
+        this.handleExcludeSubtreesClear = () => {
+            this.setState({
+                excludeSubtrees: [],
+                isExcludeSubtreesOpen: false
+            }, () => { this.validateConfig() });
+        };
+        this.handleExcludeSubtreesCreateOption = newValue => {
+            if (newValue && !this.state.excludeSubtreesOptions.includes(newValue)) {
+                this.setState({
+                    excludeSubtreesOptions: [...this.state.excludeSubtreesOptions, newValue],
+                    isExcludeSubtreesOpen: false,
+                }, () => { this.validateConfig() });
+            }
+        };
+    }
+
+    validateConfig() {
+        const errObj = {};
+        let all_good = true;
+
+        // Must have a attribute set and (subtrees or entry oc)
+        for (const attrList of ['attrNames']) {
+            if (this.state[attrList].length === 0) {
+                errObj[attrList] = true;
+                all_good = false;
+            }
+        }
+
+        if (this.state['subtrees'].length === 0 && this.state['subtreeEnriesOc'] === "") {
+            // Ok we need one or the other
+            errObj['subtrees'] = true;
+            errObj['subtreeEnriesOc'] = true;
+            all_good = false;
+        }
+
+        // Validate the subtree dn's
+        for (const dn of this.state.subtrees) {
+            if (!valid_dn(dn)) {
+                errObj.subtrees = true;
+                all_good = false;
+                break;
+            }
+        }
+        for (const dn of this.state.excludeSubtrees) {
+            if (!valid_dn(dn)) {
+                errObj.excludeSubtrees = true;
+                all_good = false;
+                break;
+            }
+        }
+
+        if (this.state.configName === "") {
+            errObj.configName = true;
+            all_good = false;
+        }
+
+        if (all_good) {
+            // Check for value differences to see if the save btn should be enabled
+            all_good = false;
+            const attrLists = [
+                'subtrees', 'excludeSubtrees', 'attrNames'
+            ];
+            for (const check_attr of attrLists) {
+                if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
+                    all_good = true;
+                    break;
+                }
+            }
+            const configAttrs = [
+                'acrossAllSubtrees', 'topEntryOc', 'subtreeEnriesOc',
+                'configEnabled'
+            ];
+            for (const check_attr of configAttrs) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
+                    all_good = true;
+                    break;
+                }
+            }
+        }
+        this.setState({
+            saveBtnDisabled: !all_good,
+            error: errObj
+        });
     }
 
     handleSwitchChange(value) {
         this.setState({
-            configEnabled: !value
-        });
+            configEnabled: value
+        }, () => { this.validateConfig() });
     }
 
-    handleCheckboxChange(e) {
+    onChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: value
         });
     }
 
     handleFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
-        });
+            [e.target.id]: value
+        }, () => { this.validateConfig() });
     }
 
     handleTypeaheadChange(values) {
         // When typaheads allow new values, an object is returned
         // instead of string.  Grab the "label" in this case
-        let new_values = [];
+        const new_values = [];
         for (let val of values) {
-            if (val != "") {
+            if (val !== "") {
                 if (typeof val === 'object') {
                     val = val.label;
                 }
@@ -111,6 +285,7 @@ class AttributeUniqueness extends React.Component {
         this.setState({
             firstLoad: false
         });
+        this.props.pluginListHandler();
         // Get all the attributes and matching rules now
         const cmd = [
             "dsconf",
@@ -122,47 +297,52 @@ class AttributeUniqueness extends React.Component {
         ];
         log_cmd("loadConfigs", "Get Attribute Uniqueness Plugin configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
-                        configRows: myObject.items.map(item => item.attrs)
+                        configRows: myObject.items.map(item => item.attrs),
+                        tableKey,
+                        loading: false
                     });
                 })
                 .fail(err => {
-                    if (err != 0) {
-                        let errMsg = JSON.parse(err);
-                        console.log("loadConfigs failed", errMsg.desc);
+                    if (err !== 0) {
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("loadConfigs failed", errMsg);
                     }
                 });
     }
 
-    showEditConfigModal(rowData) {
-        this.openModal(rowData.cn[0]);
+    showEditConfigModal(name) {
+        this.openModal(name);
     }
 
-    showAddConfigModal(rowData) {
+    handleShowAddConfigModal(rowData) {
         this.openModal();
     }
 
     openModal(name) {
-        this.getAttributes();
-        this.getObjectClasses();
         if (!name) {
             this.setState({
                 configEntryModalShow: true,
                 newEntry: true,
+                configEnabled: false,
                 configName: "",
                 attrNames: [],
                 subtrees: [],
+                excludeSubtrees: [],
                 acrossAllSubtrees: false,
-                topEntryOc: [],
-                subtreeEnriesOc: []
+                topEntryOc: "",
+                subtreeEnriesOc: "",
+                error: {},
             });
         } else {
             let configAttrNamesList = [];
             let configSubtreesList = [];
-            let cmd = [
+            let configExcludeSubtreesList = [];
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -175,48 +355,75 @@ class AttributeUniqueness extends React.Component {
             log_cmd("openModal", "Fetch the Attribute Uniqueness Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
+                            saveBtnDisabled: true,
+                            error: {},
                             newEntry: false,
-                            configName: configEntry["cn"] === undefined ? "" : configEntry["cn"][0],
+                            configName: configEntry.cn === undefined ? "" : configEntry.cn[0],
                             configEnabled: !(
                                 configEntry["nsslapd-pluginenabled"] === undefined ||
-                            configEntry["nsslapd-pluginenabled"][0] == "off"
+                            configEntry["nsslapd-pluginenabled"][0] === "off"
                             ),
                             acrossAllSubtrees: !(
                                 configEntry["uniqueness-across-all-subtrees"] === undefined ||
-                            configEntry["uniqueness-across-all-subtrees"][0] == "off"
+                            configEntry["uniqueness-across-all-subtrees"][0] === "off"
                             ),
                             topEntryOc:
                             configEntry["uniqueness-top-entry-oc"] === undefined
-                                ? []
-                                : [configEntry["uniqueness-top-entry-oc"][0]],
+                                ? ""
+                                : configEntry["uniqueness-top-entry-oc"][0],
                             subtreeEnriesOc:
                             configEntry["uniqueness-subtree-entries-oc"] === undefined
-                                ? []
-                                : [configEntry["uniqueness-subtree-entries-oc"][0]]
+                                ? ""
+                                : configEntry["uniqueness-subtree-entries-oc"][0],
+
+                            _configEnabled: !(
+                                configEntry["nsslapd-pluginenabled"] === undefined ||
+                            configEntry["nsslapd-pluginenabled"][0] === "off"
+                            ),
+                            _acrossAllSubtrees: !(
+                                configEntry["uniqueness-across-all-subtrees"] === undefined ||
+                            configEntry["uniqueness-across-all-subtrees"][0] === "off"
+                            ),
+                            _topEntryOc:
+                            configEntry["uniqueness-top-entry-oc"] === undefined
+                                ? ""
+                                : configEntry["uniqueness-top-entry-oc"][0],
+                            _subtreeEnriesOc:
+                            configEntry["uniqueness-subtree-entries-oc"] === undefined
+                                ? ""
+                                : configEntry["uniqueness-subtree-entries-oc"][0]
                         });
 
                         if (configEntry["uniqueness-attribute-name"] === undefined) {
-                            this.setState({ attrNames: [] });
+                            this.setState({ attrNames: [], _attrNames: [] });
                         } else {
-                            for (let value of configEntry["uniqueness-attribute-name"]) {
+                            for (const value of configEntry["uniqueness-attribute-name"]) {
                                 configAttrNamesList = [...configAttrNamesList, value];
                             }
-                            this.setState({ attrNames: configAttrNamesList });
+                            this.setState({ attrNames: configAttrNamesList, _attrNames: [...configAttrNamesList] });
                         }
                         if (configEntry["uniqueness-subtrees"] === undefined) {
-                            this.setState({ subtrees: [] });
+                            this.setState({ subtrees: [], _subtrees: [] });
                         } else {
-                            for (let value of configEntry["uniqueness-subtrees"]) {
+                            for (const value of configEntry["uniqueness-subtrees"]) {
                                 configSubtreesList = [...configSubtreesList, value];
                             }
-                            this.setState({ subtrees: configSubtreesList });
+                            this.setState({ subtrees: configSubtreesList, _subtrees: [...configSubtreesList] });
+                        }
+                        if (configEntry["uniqueness-exclude-subtrees"] === undefined) {
+                            this.setState({ excludeSubtrees: [], _excludeSubtrees: [] });
+                        } else {
+                            for (const value of configEntry["uniqueness-exclude-subtrees"]) {
+                                configExcludeSubtreesList = [...configExcludeSubtreesList, value];
+                            }
+                            this.setState({ excludeSubtrees: configExcludeSubtreesList, _excludeSubtrees: [...configExcludeSubtreesList] });
                         }
                     })
                     .fail(_ => {
@@ -226,15 +433,17 @@ class AttributeUniqueness extends React.Component {
                             configName: "",
                             attrNames: [],
                             subtrees: [],
+                            excludeSubtrees: [],
                             acrossAllSubtrees: false,
-                            topEntryOc: [],
-                            subtreeEnriesOc: []
+                            topEntryOc: "",
+                            subtreeEnriesOc: "",
+                            configEnabled: false,
                         });
                     });
         }
     }
 
-    closeModal() {
+    handleCloseModal() {
         this.setState({ configEntryModalShow: false });
     }
 
@@ -244,6 +453,7 @@ class AttributeUniqueness extends React.Component {
             configEnabled,
             attrNames,
             subtrees,
+            excludeSubtrees,
             acrossAllSubtrees,
             topEntryOc,
             subtreeEnriesOc
@@ -255,7 +465,7 @@ class AttributeUniqueness extends React.Component {
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "plugin",
             "attr-uniq",
-            action,
+            action, // "add" or "set"
             configName,
             "--enabled",
             configEnabled ? "on" : "off",
@@ -263,61 +473,90 @@ class AttributeUniqueness extends React.Component {
             acrossAllSubtrees ? "on" : "off"
         ];
 
-        if (subtrees.length == 0 && subtreeEnriesOc.length == 0) {
-            // There me a subtree or entry OC sets
+        if (subtrees.length === 0 && subtreeEnriesOc.length === 0) {
+            // There must be a subtree or entry OC sets
             this.props.addNotification(
                 "error",
-                `There must be at least one Subtree or Subtree Entries OC set`
+                _("There must be at least one Subtree or Subtree Entries OC set")
             );
             return;
         }
 
-        // Delete attributes if the user set an empty value to the field
-        if (!(action == "add" && attrNames.length == 0)) {
+        this.setState({
+            saving: true
+        });
+
+        if (action === "add") {
             cmd = [...cmd, "--attr-name"];
-            if (attrNames.length != 0) {
-                for (let value of attrNames) {
+            if (attrNames.length !== 0) {
+                for (const value of attrNames) {
                     cmd = [...cmd, value];
                 }
-            } else if (action == "add") {
-                cmd = [...cmd, ""];
-            } else {
-                cmd = [...cmd, "delete"];
+            }
+            if (subtrees.length !== 0) {
+                cmd = [...cmd, "--subtree"];
+                for (const value of subtrees) {
+                    cmd = [...cmd, value];
+                }
+            }
+            if (excludeSubtrees.length !== 0) {
+                cmd = [...cmd, "--exclude-subtree"];
+                for (const value of excludeSubtrees) {
+                    cmd = [...cmd, value];
+                }
+            }
+            if (topEntryOc.length !== 0) {
+                cmd = [...cmd, "--top-entry-oc", topEntryOc];
+            }
+            if (subtreeEnriesOc.length !== 0) {
+                cmd = [...cmd, "--subtree-entries-oc", subtreeEnriesOc];
+            }
+        } else {
+            // Set/edit
+            if (!listsEqual(this.state['attrNames'], this.state['_attrNames'])) {
+                cmd = [...cmd, "--attr-name"];
+                for (const value of attrNames) {
+                    cmd = [...cmd, value];
+                }
+            }
+            if (!listsEqual(this.state['subtrees'], this.state['_subtrees'])) {
+                cmd = [...cmd, "--subtree"];
+                if (subtrees.length === 0) {
+                    // Remove all values
+                    cmd = [...cmd, "delete"];
+                } else {
+                    for (const value of subtrees) {
+                        cmd = [...cmd, value];
+                    }
+                }
+            }
+            if (!listsEqual(this.state['excludeSubtrees'], this.state['_excludeSubtrees'])) {
+                cmd = [...cmd, "--exclude-subtree"];
+                if (excludeSubtrees.length === 0) {
+                    // Remove all values
+                    cmd = [...cmd, "delete"];
+                } else {
+                    for (const value of excludeSubtrees) {
+                        cmd = [...cmd, value];
+                    }
+                }
+            }
+            if (this.state['topEntryOc'] !== this.state['_topEntryOc']) {
+                if (topEntryOc.length !== 0) {
+                    cmd = [...cmd, "--top-entry-oc", topEntryOc];
+                } else {
+                    cmd = [...cmd, "--top-entry-oc", "delete"];
+                }
+            }
+            if (this.state['subtreeEnriesOc'] !== this.state['_subtreeEnriesOc']) {
+                if (subtreeEnriesOc.length !== 0) {
+                    cmd = [...cmd, "--subtree-entries-oc", subtreeEnriesOc];
+                } else {
+                    cmd = [...cmd, "--subtree-entries-oc", "delete"];
+                }
             }
         }
 
-        if (!(action == "add" && subtrees.length == 0)) {
-            cmd = [...cmd, "--subtree"];
-            if (subtrees.length != 0) {
-                for (let value of subtrees) {
-                    cmd = [...cmd, value];
-                }
-            } else if (action == "add") {
-                cmd = [...cmd, ""];
-            } else {
-                cmd = [...cmd, "delete"];
-            }
-        }
-
-        cmd = [...cmd, "--top-entry-oc"];
-        if (topEntryOc.length != 0) {
-            cmd = [...cmd, topEntryOc[0]];
-        } else if (action == "add") {
-            cmd = [...cmd, ""];
-        } else {
-            cmd = [...cmd, "delete"];
-        }
-
-        cmd = [...cmd, "--subtree-entries-oc"];
-        if (subtreeEnriesOc.length != 0) {
-            cmd = [...cmd, subtreeEnriesOc[0]];
-        } else if (action == "add") {
-            cmd = [...cmd, ""];
-        } else {
-            cmd = [...cmd, "delete"];
-        }
-
-        this.props.toggleLoadingHandler();
         log_cmd(
             "attrUniqOperation",
             `Do the ${action} operation on the Attribute Uniqueness Plugin`,
@@ -325,27 +564,33 @@ class AttributeUniqueness extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
                     console.info("attrUniqOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${configName}" entry`
+                        cockpit.format("The $0 operation was successfully done on \"$1\" entry, please restart the instance for these changes to take effect.",
+                                       action, configName)
                     );
                     this.loadConfigs();
-                    this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    this.handleCloseModal();
+                    this.setState({
+                        saving: false
+                    });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadConfigs();
-                    this.props.toggleLoadingHandler();
+                    this.handleCloseModal();
+                    this.setState({
+                        saving: false
+                    });
                 });
     }
 
@@ -368,7 +613,7 @@ class AttributeUniqueness extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -385,28 +630,28 @@ class AttributeUniqueness extends React.Component {
         log_cmd("deleteConfig", "Delete the Attribute Uniqueness Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.deleteName} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.deleteName)
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.loadConfigs();
                     this.closeConfirmDelete();
-                    this.closeModal();
+                    this.handleCloseModal();
                 });
     }
 
@@ -418,288 +663,233 @@ class AttributeUniqueness extends React.Component {
         this.cmdOperation("set");
     }
 
-    getAttributes() {
-        const attr_cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
-        ];
-        log_cmd("getAttributes", "Get attrs", attr_cmd);
-        cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
-                        attrs.push(content.name[0]);
-                    }
-                    this.setState({
-                        attributes: attrs
-                    });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
-                });
-    }
-
-    getObjectClasses() {
-        const oc_cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "objectclasses",
-            "list"
-        ];
-        log_cmd("getObjectClasses", "Get objectClasses", oc_cmd);
-        cockpit
-                .spawn(oc_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const ocContent = JSON.parse(content);
-                    let ocs = [];
-                    for (let content of ocContent["items"]) {
-                        ocs.push(content.name[0]);
-                    }
-                    this.setState({
-                        objectClasses: ocs
-                    });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
-                });
-    }
-
     render() {
         const {
             configEntryModalShow,
             configName,
             attrNames,
             subtrees,
+            excludeSubtrees,
             acrossAllSubtrees,
             configEnabled,
             topEntryOc,
             subtreeEnriesOc,
             newEntry,
-            attributes,
-            objectClasses
         } = this.state;
 
+        const title = cockpit.format(_("$0 Attribute Uniqueness Plugin Config Entry"), (newEntry ? _("Add") : _("Edit")));
+        let saveBtnName = (newEntry ? _("Add") : _("Save")) + _(" Config");
+        const extraPrimaryProps = {};
+        if (this.state.saving) {
+            if (newEntry) {
+                saveBtnName = _("Adding Config ...");
+            } else {
+                saveBtnName = _("Saving Config ...");
+            }
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
+        }
         return (
-            <div>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newEntry ? "Add" : "Edit"} Attribute Uniqueness Plugin Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configName">
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'
-                                            >
-                                                Config Name
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configName}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="attrNames"
-                                            controlId="attrNames"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)"
-                                            >
-                                                Attribute Names
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.setState({
-                                                            attrNames: values
-                                                        });
-                                                    }}
-                                                    selected={attrNames}
-                                                    newSelectionPrefix="Add an attribute: "
-                                                    options={attributes}
-                                                    placeholder="Type an attribute name..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="subtrees"
-                                            controlId="subtrees"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)"
-                                            >
-                                                Subtrees
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.handleTypeaheadChange(values);
-                                                    }}
-                                                    selected={subtrees}
-                                                    options={[""]}
-                                                    newSelectionPrefix="Add a subtree: "
-                                                    placeholder="Type a subtree DN..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="topEntryOc"
-                                            controlId="topEntryOc"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)"
-                                            >
-                                                Top Entry OC
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            topEntryOc: value
-                                                        });
-                                                    }}
-                                                    selected={topEntryOc}
-                                                    options={objectClasses}
-                                                    newSelectionPrefix="Add a top entry objectClass: "
-                                                    placeholder="Type an objectClass..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="subtreeEnriesOc"
-                                            controlId="subtreeEnriesOc"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Verifies if an attribute is unique, if the entry contains the object class set in this parameter (uniqueness-subtree-entries-oc)"
-                                            >
-                                                Subtree Entries OC
-                                            </Col>
-                                            <Col sm={5}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            subtreeEnriesOc: value
-                                                        });
-                                                    }}
-                                                    selected={subtreeEnriesOc}
-                                                    options={objectClasses}
-                                                    newSelectionPrefix="Add a subtree entries objectClass: "
-                                                    placeholder="Type an objectClass..."
-                                                />
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Checkbox
-                                                    id="acrossAllSubtrees"
-                                                    checked={acrossAllSubtrees}
-                                                    title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
-                                                    onChange={this.handleCheckboxChange}
-                                                >
-                                                    Across All Subtrees
-                                                </Checkbox>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configEnabled"
-                                            controlId="configEnabled"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Identifies whether or not the config is enabled."
-                                            >
-                                                Enable config
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Switch
-                                                    bsSize="normal"
-                                                    title="normal"
-                                                    id="configEnabled"
-                                                    value={configEnabled}
-                                                    onChange={() =>
-                                                        this.handleSwitchChange(configEnabled)
-                                                    }
-                                                    animate={false}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newEntry ? this.addConfig : this.editConfig}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+            <div className={this.state.saving || this.state.modalSpinning ? "ds-disabled" : ""}>
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={title}
+                    aria-labelledby="ds-modal"
+                    isOpen={configEntryModalShow}
+                    onClose={this.handleCloseModal}
+                    actions={[
+                        <Button
+                            className="ds-margin-top"
+                            key="confirm"
+                            variant="primary"
+                            onClick={newEntry ? this.addConfig : this.editConfig}
+                            isDisabled={this.state.saveBtnDisabled || this.state.saving}
+                            isLoading={this.state.saving}
+                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnName}
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
+                            {_("Cancel")}
+                        </Button>
+                    ]}
+                >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid
+                            className="ds-margin-top"
+                            title={_("Sets the name of the plug-in configuration record. (cn) You can use any string, but \"attribute_name Attribute Uniqueness\" is recommended.")}
+                        >
+                            <GridItem span={3} className="ds-label">
+                                {_("Config Name")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={configName}
+                                    type="text"
+                                    id="configName"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="configName"
+                                    isDisabled={!newEntry}
+                                    onChange={(e, str) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={this.state.error.configName || this.state.configName === "" ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)")}>
+                            <GridItem span={3} className="ds-label">
+                                {_("Attribute Names")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={attrNames}
+                                    onSelect={this.handleAttributeNameSelect}
+                                    onClear={this.handleAttributeNameClear}
+                                    options={this.props.attributes}
+                                    isOpen={this.state.isAttributeNameOpen}
+                                    onToggle={this.handleAttributeNameToggle}
+                                    placeholder={_("Type an attribute name...")}
+                                    noResultsText={_("There are no matching attributes")}
+                                    ariaLabel="Type an attribute"
+                                    validated={this.state.error.attrNames ? "error" : "default"}
+                                    isMulti={true}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)")}>
+                            <GridItem span={3} className="ds-label">
+                                {_("Subtrees")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={subtrees}
+                                    onSelect={this.handleSubtreesSelect}
+                                    onClear={this.handleSubtreesClear}
+                                    options={[""]}
+                                    isOpen={this.state.isSubtreesOpen}
+                                    onToggle={this.handleSubtreesToggle}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a subtree DN"
+                                    validated={this.state.error.subtrees ? "error" : "default"}
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleSubtreesCreateOption}
+                                />
+                                {this.state.error.subtrees &&
+                                    <FormHelperText >
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                You must specify at least one Subtree, or a Subtree Entry Objectclass
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText >
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets subtrees that should be excluded from attribute uniqueness. This attribute is multi-valued (uniqueness-exclude-subtrees">
+                            <GridItem span={3} className="ds-label">
+                                Excluded Subtrees
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={excludeSubtrees}
+                                    onSelect={this.handleExcludeSubtreesSelect}
+                                    onClear={this.handleExcludeSubtreesClear}
+                                    options={[""]}
+                                    isOpen={this.state.isExcludeSubtreesOpen}
+                                    onToggle={this.handleExcludeSubtreesToggle}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an exclude subtree DN"
+                                    validated={this.state.error.excludeSubtrees ? "error" : "default"}
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleExcludeSubtreesCreateOption}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)")}>
+                            <GridItem span={3} className="ds-label">
+                                {_("Top Entry OC")}
+                            </GridItem>
+                            <GridItem span={6}>
+                                <FormSelect
+                                    id="topEntryOc"
+                                    value={topEntryOc}
+                                    onChange={(event, value) => {
+                                        this.handleFieldChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="no-setting" value="" label="-" />
+                                    {this.props.objectClasses.map((attr, index) => (
+                                        <FormSelectOption key={attr} value={attr} label={attr} />
+                                    ))}
+                                </FormSelect>
+                            </GridItem>
+                            <GridItem sm={3}>
+                                <Checkbox
+                                    id="acrossAllSubtrees"
+                                    className="ds-left-margin"
+                                    isChecked={acrossAllSubtrees}
+                                    title={_("If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)")}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
+                                    label={_("Across All Subtrees")}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Verifies if an attribute is unique, if the entry contains the objectclass set in this parameter (uniqueness-subtree-entries-oc)")}>
+                            <GridItem span={3} className="ds-label">
+                                {_("Subtree Entry's OC")}
+                            </GridItem>
+                            <GridItem span={6}>
+                                <FormSelect
+                                    id="subtreeEnriesOc"
+                                    value={subtreeEnriesOc}
+                                    onChange={(event, value) => {
+                                        this.handleFieldChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="no_setting" value="" label="-" />
+                                    {this.props.objectClasses.map((attr, index) => (
+                                        <FormSelectOption key={index} value={attr} label={attr} />
+                                    ))}
+                                </FormSelect>
+                                {this.state.error.subtreeEnriesOc &&
+                                    <FormHelperText >
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                You must specify at least one Subtree, or a Subtree Entry Objectclass
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText >
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-bottom" title={_("Identifies whether or not the config is enabled.")}>
+                            <GridItem span={3} className="ds-label">
+                                {_("Enable config")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Switch
+                                    id="configEnabled"
+                                    label={_("Configuration is enabled")}
+                                    labelOff={_("Configuration is disabled")}
+                                    isChecked={configEnabled}
+                                    onChange={(_event, value) => this.handleSwitchChange(value)}
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
+
                 <PluginBasicConfig
                     removeSwitch
                     rows={this.props.rows}
+                    key={this.state.configRows}
                     serverId={this.props.serverId}
                     cn="attribute uniqueness"
                     pluginName="Attribute Uniqueness"
@@ -709,35 +899,46 @@ class AttributeUniqueness extends React.Component {
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <AttrUniqConfigTable
-                                rows={this.state.configRows}
-                                editConfig={this.showEditConfigModal}
-                                deleteConfig={this.showConfirmDelete}
-                            />
+                    <Grid>
+                        <GridItem span={12}>
+                            {this.state.loading
+                                ?
+                                    <Bullseye>
+                                        <Spinner />
+                                    </Bullseye>
+                                :
+                                    <AttrUniqConfigTable
+                                        key={this.state.tableKey}
+                                        rows={this.state.configRows}
+                                        editConfig={this.showEditConfigModal}
+                                        deleteConfig={this.showConfirmDelete}
+                                    />
+                            }
+                        </GridItem>
+                        <GridItem>
                             <Button
+                                key="add-config"
+                                variant="primary"
+                                onClick={this.handleShowAddConfigModal}
                                 className="ds-margin-top"
-                                bsStyle="primary"
-                                onClick={this.showAddConfigModal}
                             >
-                                Add Config
+                                {_("Add Config")}
                             </Button>
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                 </PluginBasicConfig>
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleCheckboxChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Attribute Uniqueness Configuration"
-                    mMsg="Are you sure you want to delete this configuration?"
-                    mSpinningMsg="Deleting attribute uniqueness configuration..."
-                    mBtnName="Delete Configuration"
+                    mTitle={_("Delete Attribute Uniqueness Configuration")}
+                    mMsg={_("Are you sure you want to delete this configuration?")}
+                    mSpinningMsg={_("Deleting attribute uniqueness configuration...")}
+                    mBtnName={_("Delete Configuration")}
                 />
             </div>
         );
@@ -750,16 +951,14 @@ AttributeUniqueness.propTypes = {
     savePluginHandler: PropTypes.func,
     pluginListHandler: PropTypes.func,
     addNotification: PropTypes.func,
-    toggleLoadingHandler: PropTypes.func
+    toggleLoadingHandler: PropTypes.func,
+    objectClasses: PropTypes.array,
 };
 
 AttributeUniqueness.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
+    objectClasses: [],
 };
 
 export default AttributeUniqueness;

@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
 
@@ -30,7 +30,8 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
-                'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
+                'supportedSASLMechanisms', 'availableSASLMechanisms',
+                'vendorName', 'vendorVersion'
                ]),
                (DN_ROOT, True, [
                 'createTimestamp', 'creatorsName',
@@ -38,26 +39,28 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
-                'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
+                'supportedSASLMechanisms', 'availableSASLMechanisms',
+                'vendorName', 'vendorVersion'
                ]),
                (DN_PEOPLE, False, [
                 'aci', 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifiersName', 'modifyTimestamp',
-                'nsUniqueId', 'numSubordinates', 'parentid'
+                'nsUniqueId', 'numSubordinates', 'parentid', 'dsEntryDN'
                ]),
                (DN_PEOPLE, True, [
                 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifyTimestamp', 'nsUniqueId',
-                'numSubordinates', 'parentid'
+                'numSubordinates', 'parentid', 'dsEntryDN'
                ]),
                (TEST_USER_DN, False, [
                 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifiersName', 'modifyTimestamp',
-                'nsUniqueId', 'parentid'
+                'nsUniqueId', 'parentid', 'entryUUID', 'dsEntryDN'
                ]),
                (TEST_USER_DN, True, [
                 'createTimestamp', 'creatorsName', 'entrydn',
-                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid'
+                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid',
+                'entryUUID', 'dsEntryDN'
                ]),
                (DN_CONFIG, False, [
                 'numSubordinates', 'passwordHistory',  'modifyTimestamp',

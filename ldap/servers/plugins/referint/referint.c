@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -71,9 +71,11 @@ void referint_get_config(int *delay, char **logfile);
 /* global thread control stuff */
 static PRLock *referint_mutex = NULL;
 static PRThread *referint_tid = NULL;
-static PRLock *keeprunning_mutex = NULL;
-static PRCondVar *keeprunning_cv = NULL;
+static pthread_mutex_t keeprunning_mutex;
+static pthread_cond_t keeprunning_cv;
+
 static int keeprunning = 0;
+static uint64_t batch_thread_running = 0;
 static referint_config *config = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
 static Slapi_DN *_pluginDN = NULL;
@@ -706,23 +708,78 @@ isFatalSearchError(int search_result)
     return 1;
 }
 
+/*
+ * Check whether mods[i] and mods[i+1] form a consecutive DEL+ADD pair
+ * on the same attribute.  Such pairs must be submitted as a single
+ * atomic modify so that schema_check sees the final state (value
+ * replaced) rather than the intermediate state (required attribute
+ * removed).  This avoids OBJECT_CLASS_VIOLATION on MUST / SINGLE-VALUE
+ * attributes during MODRDN.
+ */
+static int
+_is_del_add_pair(LDAPMod **mods, size_t i)
+{
+    if (mods == NULL || mods[i] == NULL || mods[i + 1] == NULL) {
+        return 0;
+    }
+    return ((mods[i]->mod_op & LDAP_MOD_OP) == LDAP_MOD_DELETE &&
+            (mods[i + 1]->mod_op & LDAP_MOD_OP) == LDAP_MOD_ADD &&
+            strcasecmp(mods[i]->mod_type, mods[i + 1]->mod_type) == 0);
+}
+
 static int
 _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 {
     int rc = 0;
+    int op_flags = allow_repl ? OP_FLAG_REPLICATED : 0;
 
-    slapi_pblock_init(mod_pb);
+    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
+        /*
+         * Standalone mods go through slapi_single_modify_internal_override
+         * which tolerates TYPE_OR_VALUE_EXISTS and NO_SUCH_ATTRIBUTE,
+         * preserving the idempotency behaviour for replicated operations.
+         */
+        if (_is_del_add_pair(mods, i)) {
+            LDAPMod *pair[3];
 
-    if (allow_repl) {
-        /* Must set as a replicated operation */
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, OP_FLAG_REPLICATED);
-    } else {
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, 0);
+            pair[0] = mods[i];
+            pair[1] = mods[i + 1];
+            pair[2] = NULL;
+
+            slapi_pblock_init(mod_pb);
+            slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, pair,
+                                             NULL, NULL,
+                                             referint_plugin_identity,
+                                             op_flags);
+            slapi_modify_internal_pb(mod_pb);
+            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+            if (rc == LDAP_TYPE_OR_VALUE_EXISTS || rc == LDAP_NO_SUCH_ATTRIBUTE) {
+                rc = LDAP_SUCCESS;
+            }
+
+            i++; /* skip the ADD, handled atomically */
+        } else {
+            LDAPMod *single[2];
+
+            single[0] = mods[i];
+            single[1] = NULL;
+
+            slapi_pblock_init(mod_pb);
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN,
+                                                        single,
+                                                        referint_plugin_identity,
+                                                        op_flags);
+        }
+
+        if (rc != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                          "_do_modify - Failed to modify attr \"%s\" on \"%s\" "
+                          "(%d)\n",
+                          mods[i]->mod_type, slapi_sdn_get_dn(entrySDN), rc);
+            return rc;
+        }
     }
-    slapi_modify_internal_pb(mod_pb);
-    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     return rc;
 }
@@ -928,9 +985,6 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
     char *p = NULL;
     size_t dnlen = 0;
     int rc = 0;
-    int nval = 0;
-
-    slapi_attr_get_numvalues(attr, &nval);
 
     if (NULL == newRDN && NULL == newsuperior) {
         /* in delete mode */
@@ -1032,7 +1086,6 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
                 /* (case 1) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
                 slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
-
             } else if (p) {
                 /* (case 2) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
@@ -1302,12 +1355,38 @@ referint_postop_start(Slapi_PBlock *pb)
      *     -1 = integrity off
      */
     if (referint_get_delay() > 0) {
+        pthread_condattr_t condAttr;
+
         /* initialize the cv and lock */
         if (!use_txn && (NULL == referint_mutex)) {
             referint_mutex = PR_NewLock();
         }
-        keeprunning_mutex = PR_NewLock();
-        keeprunning_cv = PR_NewCondVar(keeprunning_mutex);
+        if ((rc = pthread_mutex_init(&keeprunning_mutex, NULL)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "referint_postop_start",
+                          "cannot create new lock.  error %d (%s)\n",
+                          rc, strerror(rc));
+            exit(1);
+        }
+        if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "referint_postop_start",
+                          "cannot create new condition attribute variable.  error %d (%s)\n",
+                          rc, strerror(rc));
+            exit(1);
+        }
+        if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "referint_postop_start",
+                          "cannot set condition attr clock.  error %d (%s)\n",
+                          rc, strerror(rc));
+            exit(1);
+        }
+        if ((rc = pthread_cond_init(&keeprunning_cv, &condAttr)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "referint_postop_start",
+                          "cannot create new condition variable.  error %d (%s)\n",
+                          rc, strerror(rc));
+            exit(1);
+        }
+        pthread_condattr_destroy(&condAttr); /* no longer needed */
+
         keeprunning = 1;
 
         referint_tid = PR_CreateThread(PR_USER_THREAD,
@@ -1336,15 +1415,25 @@ bail:
 int
 referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 {
-    /* signal the thread to exit */
-    if (NULL != keeprunning_mutex) {
-        PR_Lock(keeprunning_mutex);
+    /* signal the batch thread to exit */
+    if (keeprunning) {
+        pthread_mutex_lock(&keeprunning_mutex);
         keeprunning = 0;
-        if (NULL != keeprunning_cv) {
-            PR_NotifyCondVar(keeprunning_cv);
-        }
-        PR_Unlock(keeprunning_mutex);
+        pthread_cond_signal(&keeprunning_cv);
+        pthread_mutex_unlock(&keeprunning_mutex);
     }
+
+    /* waiting for the batch thread to exit */
+    while (1) {
+        if (slapi_atomic_load_64(&batch_thread_running, __ATOMIC_ACQUIRE) == 0) {
+            /* batch thread exited */
+            break;
+        }
+
+        DS_Sleep(PR_MillisecondsToInterval(1000));
+    }
+
+
 
     slapi_destroy_rwlock(config_rwlock);
     config_rwlock = NULL;
@@ -1360,6 +1449,7 @@ referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 void
 referint_thread_func(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("referint");
     PRFileDesc *prfd = NULL;
     char *logfilename = NULL;
     char thisline[MAX_LINE];
@@ -1369,13 +1459,27 @@ referint_thread_func(void *arg __attribute__((unused)))
     char *iter = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_DN *tmpsuperior = NULL;
+    struct timespec current_time = {0};
     int delay;
     int no_changes;
+
+    slapi_atomic_store_64(&batch_thread_running, 1, __ATOMIC_RELEASE);
 
     /*
      * keep running this thread until plugin is signaled to close
      */
     while (1) {
+        /*
+         * In case of shutdown, plugin close function (referint_postop_close)
+         * is waiting for the end of that thread to do the cleanup
+         */
+        pthread_mutex_lock(&keeprunning_mutex);
+        if (keeprunning == 0) {
+            pthread_mutex_unlock(&keeprunning_mutex);
+            break;
+        }
+        pthread_mutex_unlock(&keeprunning_mutex);
+
         /* refresh the config */
         slapi_ch_free_string(&logfilename);
         referint_get_config(&delay, &logfilename);
@@ -1383,20 +1487,22 @@ referint_thread_func(void *arg __attribute__((unused)))
         no_changes = 1;
         while (no_changes) {
 
-            PR_Lock(keeprunning_mutex);
+            pthread_mutex_lock(&keeprunning_mutex);
             if (keeprunning == 0) {
-                PR_Unlock(keeprunning_mutex);
+                pthread_mutex_unlock(&keeprunning_mutex);
                 break;
             }
-            PR_Unlock(keeprunning_mutex);
+            pthread_mutex_unlock(&keeprunning_mutex);
 
             referint_lock();
             if ((prfd = PR_Open(logfilename, PR_RDONLY, REFERINT_DEFAULT_FILE_MODE)) == NULL) {
                 referint_unlock();
                 /* go back to sleep and wait for this file */
-                PR_Lock(keeprunning_mutex);
-                PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
-                PR_Unlock(keeprunning_mutex);
+                pthread_mutex_lock(&keeprunning_mutex);
+                clock_gettime(CLOCK_MONOTONIC, &current_time);
+                current_time.tv_sec += delay;
+                pthread_cond_timedwait(&keeprunning_cv, &keeprunning_mutex, &current_time);
+                pthread_mutex_unlock(&keeprunning_mutex);
             } else {
                 no_changes = 0;
             }
@@ -1407,18 +1513,25 @@ referint_thread_func(void *arg __attribute__((unused)))
          *  loop before trying to do the changes. The server
          *  will pick them up on next startup as file still exists
          */
-        PR_Lock(keeprunning_mutex);
+        pthread_mutex_lock(&keeprunning_mutex);
         if (keeprunning == 0) {
-            PR_Unlock(keeprunning_mutex);
+            pthread_mutex_unlock(&keeprunning_mutex);
             break;
         }
-        PR_Unlock(keeprunning_mutex);
+        pthread_mutex_unlock(&keeprunning_mutex);
 
         while (GetNextLine(thisline, MAX_LINE, prfd)) {
             ptoken = ldap_utf8strtok_r(thisline, delimiter, &iter);
             sdn = slapi_sdn_new_normdn_byref(ptoken);
             ptoken = ldap_utf8strtok_r(NULL, delimiter, &iter);
 
+            if (ptoken == NULL) {
+                /* Invalid line in referint log, skip it */
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        "Skipping invalid referint log line: (%s)\n", thisline);
+                slapi_sdn_free(&sdn);
+                continue;
+            }
             if (!strcasecmp(ptoken, "NULL")) {
                 tmprdn = NULL;
             } else {
@@ -1426,12 +1539,29 @@ referint_thread_func(void *arg __attribute__((unused)))
             }
 
             ptoken = ldap_utf8strtok_r(NULL, delimiter, &iter);
+            if (ptoken == NULL) {
+                /* Invalid line in referint log, skip it */
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        "Skipping invalid referint log line: (%s)\n", thisline);
+                slapi_sdn_free(&sdn);
+                continue;
+            }
+
+            slapi_sdn_free(&tmpsuperior);
             if (!strcasecmp(ptoken, "NULL")) {
                 tmpsuperior = NULL;
             } else {
                 tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
             }
+
             ptoken = ldap_utf8strtok_r(NULL, delimiter, &iter);
+            if (ptoken == NULL) {
+                /* Invalid line in referint log, skip it */
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        "Skipping invalid referint log line: (%s)\n", thisline);
+                slapi_sdn_free(&sdn);
+                continue;
+            }
             if (strcasecmp(ptoken, "NULL") != 0) {
                 /* Set the bind DN in the thread data */
                 if (slapi_td_set_dn(slapi_ch_strdup(ptoken))) {
@@ -1459,21 +1589,18 @@ referint_thread_func(void *arg __attribute__((unused)))
         referint_unlock();
 
         /* wait on condition here */
-        PR_Lock(keeprunning_mutex);
-        PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
-        PR_Unlock(keeprunning_mutex);
+        pthread_mutex_lock(&keeprunning_mutex);
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        current_time.tv_sec += delay;
+        pthread_cond_timedwait(&keeprunning_cv, &keeprunning_mutex, &current_time);
+        pthread_mutex_unlock(&keeprunning_mutex);
     }
 
+    slapi_atomic_store_64(&batch_thread_running, 0, __ATOMIC_RELEASE);
+
     /* cleanup resources allocated in start  */
-    if (NULL != keeprunning_mutex) {
-        PR_DestroyLock(keeprunning_mutex);
-    }
-    if (NULL != referint_mutex) {
-        PR_DestroyLock(referint_mutex);
-    }
-    if (NULL != keeprunning_cv) {
-        PR_DestroyCondVar(keeprunning_cv);
-    }
+    pthread_mutex_destroy(&keeprunning_mutex);
+    pthread_cond_destroy(&keeprunning_cv);
     slapi_ch_free_string(&logfilename);
 }
 
@@ -1572,7 +1699,6 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newr
                       "writeintegritylog - Could not write integrity log \"%s\" " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       logfilename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
 
-        PR_Unlock(referint_mutex);
         referint_unlock();
         return;
     }

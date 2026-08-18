@@ -54,7 +54,7 @@ attrinfo_delete(struct attrinfo **pp)
         idl_release_private(*pp);
         (*pp)->ai_key_cmp_fn = NULL;
         slapi_ch_free((void **)&((*pp)->ai_type));
-        slapi_ch_free((void **)(*pp)->ai_index_rules);
+        charray_free((*pp)->ai_index_rules);
         slapi_ch_free((void **)&((*pp)->ai_attrcrypt));
         attr_done(&((*pp)->ai_sattr));
         attrinfo_delete_idlistinfo(&(*pp)->ai_idlistinfo);
@@ -68,7 +68,7 @@ attrinfo_delete(struct attrinfo **pp)
 }
 
 static int
-attrinfo_internal_delete(caddr_t data, caddr_t arg __attribute__((unused)))
+attrinfo_internal_delete(caddr_t data)
 {
     struct attrinfo *n = (struct attrinfo *)data;
     attrinfo_delete(&n);
@@ -85,16 +85,19 @@ attrinfo_deletetree(ldbm_instance *inst)
 static int
 ainfo_type_cmp(
     char *type,
-    struct attrinfo *a)
+    caddr_t val)
 {
+    struct attrinfo *a = (struct attrinfo *)val;
     return (strcasecmp(type, a->ai_type));
 }
 
 static int
 ainfo_cmp(
-    struct attrinfo *a,
-    struct attrinfo *b)
+    caddr_t val1,
+    caddr_t val2)
 {
+    struct attrinfo *a = (struct attrinfo *)val1;
+    struct attrinfo *b = (struct attrinfo *)val2;
     return (strcasecmp(a->ai_type, b->ai_type));
 }
 
@@ -102,7 +105,7 @@ void
 attrinfo_delete_from_tree(backend *be, struct attrinfo *ai)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    avl_delete(&inst->inst_attrs, ai, ainfo_cmp);
+    avl_delete(&inst->inst_attrs, (caddr_t)ai, ainfo_cmp);
 }
 
 /*
@@ -117,9 +120,12 @@ attrinfo_delete_from_tree(backend *be, struct attrinfo *ai)
 
 static int
 ainfo_dup(
-    struct attrinfo *a,
-    struct attrinfo *b)
+    caddr_t val1,
+    caddr_t val2)
 {
+    struct attrinfo *a = (struct attrinfo *)val1;
+    struct attrinfo *b = (struct attrinfo *)val2;
+
     /* merge duplicate indexing information */
     if (b->ai_indexmask == 0 || b->ai_indexmask == INDEX_OFFLINE) {
         a->ai_indexmask = INDEX_OFFLINE; /* turns off all indexes */
@@ -173,6 +179,20 @@ _set_attr_substrlen(int index, char *str, int **substrlens)
     if (NULL != p) {
         long sublen = strtol(++p, (char **)NULL, 10);
         if (sublen > 0) { /* 0 is not acceptable */
+            /*
+             * For begin and end keys, the configured value includes the
+             * anchor character ('^' for begin, '$' for end). So the
+             * actual number of value characters in the key is (N - 1).
+             * A value of 1 means 0 value characters, which produces a
+             * key that matches everything. Adjust to 2.
+             */
+            if ((index == INDEX_SUBSTRBEGIN || index == INDEX_SUBSTREND) && sublen < 2) {
+                slapi_log_err(SLAPI_LOG_WARNING, "attr_index_config",
+                              "nsMatchingRule %s value %ld is too small (minimum is 2, "
+                              "because the value includes the anchor character). "
+                              "Adjusting to 2.\n", str, sublen);
+                sublen = 2;
+            }
             if (NULL == *substrlens) {
                 *substrlens = (int *)slapi_ch_calloc(1,
                                                      sizeof(int) * INDEX_SUBSTRLEN);
@@ -203,7 +223,7 @@ attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo
     char *lasts = NULL;
     char *val;
     int syntaxcheck = config_get_syntaxcheck();
-    IFP syntax_validate_fn = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
+    int32_t (*syntax_validate_fn)(struct berval *) = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
     char staticfiltstrbuf[1024];                     /* for small filter strings */
     char *filtstrbuf = staticfiltstrbuf;             /* default if not malloc'd */
     size_t filtstrbuflen = sizeof(staticfiltstrbuf); /* default if not malloc'd */
@@ -715,7 +735,7 @@ attr_index_config(
             } else if (strcasecmp(attrValue->bv_val, "subtree") == 0) {
                 /* subtree should be located before "sub" */
                 a->ai_indexmask |= INDEX_SUBTREE;
-                a->ai_dup_cmp_fn = entryrdn_compare_dups;
+                dblayer_set_dup_cmp_fn(be, a, DBI_DUP_CMP_ENTRYRDN);
             } else if (strcasecmp(attrValue->bv_val, "sub") == 0) {
                 a->ai_indexmask |= INDEX_SUB;
             } else if (strcasecmp(attrValue->bv_val, "none") == 0) {
@@ -771,9 +791,26 @@ attr_index_config(
      * nsSubStrBegin: 2
      * nsSubStrMiddle: 2
      * nsSubStrEnd: 2
+     *
+     * NOTE: For begin and end, the configured value includes the anchor
+     * character ('^' for begin, '$' for end). The actual number of value
+     * characters stored in the index key is (configured_value - 1).
+     * Therefore the minimum useful value for begin and end is 2 (which
+     * gives 1 value character). A value of 1 leaves 0 value
+     * characters (key matches everything) and is adjusted to 2.
+     * For middle, there is no anchor, so the value directly equals
+     * the number of characters in the key.
      */
     substrval = slapi_entry_attr_get_int(e, INDEX_ATTR_SUBSTRBEGIN);
     if (substrval) {
+        if (substrval < 2) {
+            slapi_log_err(SLAPI_LOG_WARNING, "attr_index_config",
+                          "%s: %d is too small (minimum is 2, because the "
+                          "value includes the '^' anchor character). "
+                          "Adjusting to 2.\n",
+                          INDEX_ATTR_SUBSTRBEGIN, substrval);
+            substrval = 2;
+        }
         substrlens = (int *)slapi_ch_calloc(1, sizeof(int) * INDEX_SUBSTRLEN);
         substrlens[INDEX_SUBSTRBEGIN] = substrval;
     }
@@ -786,6 +823,14 @@ attr_index_config(
     }
     substrval = slapi_entry_attr_get_int(e, INDEX_ATTR_SUBSTREND);
     if (substrval) {
+        if (substrval < 2) {
+            slapi_log_err(SLAPI_LOG_WARNING, "attr_index_config",
+                          "%s: %d is too small (minimum is 2, because the "
+                          "value includes the '$' anchor character). "
+                          "Adjusting to 2.\n",
+                          INDEX_ATTR_SUBSTREND, substrval);
+            substrval = 2;
+        }
         if (!substrlens) {
             substrlens = (int *)slapi_ch_calloc(1, sizeof(int) * INDEX_SUBSTRLEN);
         }
@@ -880,7 +925,7 @@ attr_index_config(
                 *  It would improve speed to save the indexer, for future use.
                 * But, for simplicity, we destroy it now:
                 */
-                IFP mrDESTROY = NULL;
+                int32_t (*mrDESTROY)(Slapi_PBlock *) = NULL;
                 if (!slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
                     mrDESTROY != NULL) {
                     mrDESTROY(pb);
@@ -941,7 +986,7 @@ attr_index_config(
         }
     }
 
-    if (avl_insert(&inst->inst_attrs, a, ainfo_cmp, ainfo_dup) != 0) {
+    if (avl_insert(&inst->inst_attrs, (caddr_t)a, ainfo_cmp, ainfo_dup) != 0) {
         /* duplicate - existing version updated */
         attrinfo_delete(&a);
     }
@@ -964,7 +1009,7 @@ attr_create_empty(backend *be, char *type, struct attrinfo **ai)
     struct attrinfo *a = attrinfo_new();
     slapi_attr_init(&a->ai_sattr, type);
     a->ai_type = slapi_ch_strdup(type);
-    if (avl_insert(&inst->inst_attrs, a, ainfo_cmp, ainfo_dup) != 0) {
+    if (avl_insert(&inst->inst_attrs, (caddr_t)a, ainfo_cmp, ainfo_dup) != 0) {
         /* duplicate - existing version updated */
         attrinfo_delete(&a);
         ainfo_get(be, type, &a);
@@ -1039,63 +1084,12 @@ ldbm_compute_evaluator(computed_attr_context *c, char *type, Slapi_Entry *e, sla
 
 */
 
-/* Before calling this function, you must free all the parts
-   which will be overwritten, this function dosn't know
-   how to do that */
-static int
-replace_filter(Slapi_Filter *f, char *s)
-{
-    Slapi_Filter *newf = NULL;
-    Slapi_Filter *temp = NULL;
-    char *buf = slapi_ch_strdup(s);
-
-    newf = slapi_str2filter(buf);
-    slapi_ch_free((void **)&buf);
-
-    if (NULL == newf) {
-        return -1;
-    }
-
-    /* Now take the parts of newf and put them in f */
-    /* An easy way to do this is to preserve the "next" ptr */
-    temp = f->f_next;
-    *f = *newf;
-    f->f_next = temp;
-    /* Free the new filter husk */
-    slapi_ch_free((void **)&newf);
-    return 0;
-}
-
 static void
 find_our_friends(char *s, int *has, int *num)
 {
     *has = (0 == strcasecmp(s, "hassubordinates"));
     if (!(*has)) {
         *num = (0 == strcasecmp(s, LDBM_NUMSUBORDINATES_STR));
-    }
-}
-
-/* Free the parts of a filter we're about to overwrite */
-void
-free_the_filter_bits(Slapi_Filter *f)
-{
-    /* We need to free: */
-    switch (f->f_choice) {
-    case LDAP_FILTER_EQUALITY:
-    case LDAP_FILTER_GE:
-    case LDAP_FILTER_LE:
-    case LDAP_FILTER_APPROX:
-        ava_done(&f->f_ava);
-        break;
-
-    case LDAP_FILTER_PRESENT:
-        if (f->f_type != NULL) {
-            slapi_ch_free((void **)&(f->f_type));
-        }
-        break;
-
-    default:
-        break;
     }
 }
 
@@ -1116,11 +1110,9 @@ grok_and_rewrite_filter(Slapi_Filter *f)
             rhs = f->f_ava.ava_value.bv_val;
             if (has) {
                 if (0 == strcasecmp(rhs, "TRUE")) {
-                    free_the_filter_bits(f);
-                    replace_filter(f, "(&(numsubordinates=*)(numsubordinates>=1))");
+                    slapi_filter_replace_strfilter(f, "(&(numsubordinates=*)(numsubordinates>=1))");
                 } else if (0 == strcasecmp(rhs, "FALSE")) {
-                    free_the_filter_bits(f);
-                    replace_filter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
+                    slapi_filter_replace_strfilter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
                 } else {
                     return 1; /* Filter we can't rewrite */
                 }
@@ -1133,7 +1125,7 @@ grok_and_rewrite_filter(Slapi_Filter *f)
 
                     char *theType = f->f_ava.ava_type;
                     rhs_berval = f->f_ava.ava_value;
-                    replace_filter(f, "(&(numsubordinates=*)(numsubordinates=x))");
+                    slapi_filter_replace_ex(f, "(&(numsubordinates=*)(numsubordinates=x))");
                     /* Now fixup the resulting filter so that x = rhs */
                     slapi_ch_free((void **)&(f->f_and->f_next->f_ava.ava_value.bv_val));
                     /*free type also */
@@ -1143,8 +1135,7 @@ grok_and_rewrite_filter(Slapi_Filter *f)
                 } else {
                     if (rhs_number == 0) {
                         /* This is the same as hassubordinates=FALSE */
-                        free_the_filter_bits(f);
-                        replace_filter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
+                        slapi_filter_replace_strfilter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
                     } else {
                         return 1;
                     }
@@ -1166,14 +1157,13 @@ grok_and_rewrite_filter(Slapi_Filter *f)
             rhs_num = atoi(rhs);
             if (0 == rhs_num) {
                 /* If so, rewrite to same as numsubordinates=* */
-                free_the_filter_bits(f);
-                replace_filter(f, "(objectclass=*)");
+                slapi_filter_replace_strfilter(f, "(objectclass=*)");
             } else {
                 /* Rewrite to present and GE the rhs */
                 char *theType = f->f_ava.ava_type;
                 rhs_berval = f->f_ava.ava_value;
 
-                replace_filter(f, "(&(numsubordinates=*)(numsubordinates>=x))");
+                slapi_filter_replace_ex(f, "(&(numsubordinates=*)(numsubordinates>=x))");
                 /* Now fixup the resulting filter so that x = rhs */
                 slapi_ch_free((void **)&(f->f_and->f_next->f_ava.ava_value.bv_val));
                 /*free type also */

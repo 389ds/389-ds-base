@@ -17,13 +17,13 @@
 typedef struct _trim_status
 {
     time_t ts_c_max_age;     /* Constraint  - max age of a changelog entry */
+    int ts_c_trim_interval;  /* Constraint  - interval to evaluate the need to trim */
     time_t ts_s_last_trim;   /* Status - last time we trimmed */
     int ts_s_initialized;    /* Status - non-zero if initialized */
     int ts_s_trimming;       /* non-zero if trimming in progress */
     PRLock *ts_s_trim_mutex; /* protects ts_s_trimming */
 } trim_status;
-static trim_status ts = {0L, 0L, 0, 0, NULL};
-static int trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL; /* in second */
+static trim_status ts = {0};
 
 /*
  * All standard changeLogEntry attributes (initialized in get_cleattrs)
@@ -235,29 +235,31 @@ static int
 trim_changelog(void)
 {
     int rc = 0, ldrc, done;
-    time_t now;
+    time_t now_interval; /* used for checking the trim interval */
+    time_t now_maxage; /* used for checking if the changelog entry can be trimmed */
     changeNumber first_in_log = 0, last_in_log = 0;
     int num_deleted = 0;
-    int me, lt;
+    time_t max_age, last_trim, trim_interval;
 
+    now_interval = slapi_current_rel_time_t(); /* monotonic time for interval */
 
-    now = slapi_current_utc_time();
+    g_incr_active_threadcnt();
 
     PR_Lock(ts.ts_s_trim_mutex);
-    me = ts.ts_c_max_age;
-    lt = ts.ts_s_last_trim;
+    max_age = ts.ts_c_max_age;
+    trim_interval = ts.ts_c_trim_interval;
+    last_trim = ts.ts_s_last_trim;
     PR_Unlock(ts.ts_s_trim_mutex);
 
-    if (now - lt >= trim_interval) {
-
+    if (now_interval - last_trim >= trim_interval) {
         /*
-     * Trim the changelog.  Read sequentially through all the
-     * entries, deleting any which do not meet the criteria
-     * described in the ts structure.
-     */
+         * Trim the changelog.  Read sequentially through all the
+         * entries, deleting any which do not meet the criteria
+         * described in the ts structure.
+         */
         done = 0;
-
-        while (!done && retrocl_trimming == 1) {
+        now_maxage = slapi_current_utc_time(); /* real time for trim candidates */
+        while (!done && retrocl_trimming == 1 && !slapi_is_shutting_down()) {
             int did_delete;
 
             did_delete = 0;
@@ -275,10 +277,10 @@ trim_changelog(void)
                 /* Always leave at least one entry in the change log */
                 break;
             }
-            if (me > 0L) {
+            if (max_age > 0L) {
                 time_t change_time = get_changetime(first_in_log, &ldrc);
                 if (change_time) {
-                    if ((change_time + me) < now) {
+                    if ((change_time + max_age) < now_maxage) {
                         retrocl_set_first_changenumber(first_in_log + 1);
                         ldrc = delete_changerecord(first_in_log);
                         num_deleted++;
@@ -297,18 +299,21 @@ trim_changelog(void)
             }
         }
     } else {
-        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Not yet time to trim: %ld < (%d+%d)\n",
-                      now, lt, trim_interval);
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Not yet time to trim: %ld < (%ld+%ld)\n",
+                      now_interval, last_trim, trim_interval);
     }
     PR_Lock(ts.ts_s_trim_mutex);
     ts.ts_s_trimming = 0;
-    ts.ts_s_last_trim = now;
+    ts.ts_s_last_trim = now_interval;
     PR_Unlock(ts.ts_s_trim_mutex);
     if (num_deleted > 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
                       "trim_changelog: removed %d change records\n",
                       num_deleted);
     }
+
+    g_decr_active_threadcnt();
+
     return rc;
 }
 
@@ -329,6 +334,7 @@ static int retrocl_active_threads;
 static void
 changelog_trim_thread_fn(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("retrocl-trim");
     PR_AtomicIncrement(&retrocl_active_threads);
     trim_changelog();
     PR_AtomicDecrement(&retrocl_active_threads);
@@ -351,13 +357,14 @@ retrocl_housekeeping(time_t cur_time, void *noarg __attribute__((unused)))
     int ldrc;
 
     if (retrocl_be_changelog == NULL) {
-        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - not housekeeping if no cl be\n");
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME,
+                      "retrocl_housekeeping - not housekeeping if no cl be\n");
         return;
     }
 
     if (!ts.ts_s_initialized) {
-        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - called before "
-                                                          "trimming constraints set\n");
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_housekeeping - called before trimming constraints set\n");
         return;
     }
 
@@ -366,33 +373,36 @@ retrocl_housekeeping(time_t cur_time, void *noarg __attribute__((unused)))
         int must_trim = 0;
         /* See if we need to trim */
         /* Has enough time elapsed since our last check? */
-        if (cur_time - ts.ts_s_last_trim >= (ts.ts_c_max_age)) {
+        if (cur_time - ts.ts_s_last_trim >= (ts.ts_c_trim_interval)) {
             /* Is the first entry too old? */
             time_t first_time;
+            time_t now_maxage = slapi_current_utc_time(); /* real time for trimming candidates */
             /*
-         * good we could avoid going to the database to retrieve
-         * this time information if we cached the last value we'd read.
-         * But a client might have deleted it over protocol.
-         */
+             * good we could avoid going to the database to retrieve
+             * this time information if we cached the last value we'd read.
+             * But a client might have deleted it over protocol.
+             */
             first_time = retrocl_getchangetime(SLAPI_SEQ_FIRST, &ldrc);
             slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
                           "cltrim: ldrc=%d, first_time=%ld, cur_time=%ld\n",
                           ldrc, first_time, cur_time);
             if (LDAP_SUCCESS == ldrc && first_time > (time_t)0L &&
-                first_time + ts.ts_c_max_age < cur_time) {
+                first_time + ts.ts_c_max_age < now_maxage)
+            {
                 must_trim = 1;
             }
         }
         if (must_trim) {
-            slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - changelog about to create thread\n");
+            slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME,
+                          "retrocl_housekeeping - changelog about to create thread\n");
             /* Start a thread to trim the changelog */
             ts.ts_s_trimming = 1;
             if (PR_CreateThread(PR_USER_THREAD,
                                 changelog_trim_thread_fn, NULL,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
                                 RETROCL_DLL_DEFAULT_THREAD_STACKSIZE) == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - "
-                                                                  "Unable to create changelog trimming thread\n");
+                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                              "retrocl_housekeeping - Unable to create changelog trimming thread\n");
             }
         } else {
             slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
@@ -419,26 +429,36 @@ retrocl_init_trimming(void)
     const char *cl_maxage;
     time_t ageval = 0; /* Don't trim, by default */
     const char *cl_trim_interval;
+    int trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL;
 
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
-    if (cl_maxage) {
-        if (slapi_is_duration_valid(cl_maxage)) {
+    if (cl_maxage && strcmp(cl_maxage, "0") != 0) {
+        if (slapi_is_duration_valid_strict(cl_maxage)) {
             ageval = slapi_parse_duration(cl_maxage);
             slapi_ch_free_string((char **)&cl_maxage);
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                          "retrocl_init_trimming: ignoring invalid %s value %s; "
-                          "not trimming retro changelog.\n",
-                          CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
-            slapi_ch_free_string((char **)&cl_maxage);
-            return;
+            if (slapi_is_duration_valid(cl_maxage)) {
+                slapi_log_err(SLAPI_LOG_NOTICE, RETROCL_PLUGIN_NAME,
+                    "retrocl_init_trimming - %s: missing duration unit - assuming seconds (%ss)\n",
+                    CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
+                ageval = slapi_parse_duration(cl_maxage);
+                slapi_ch_free_string((char **)&cl_maxage);
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                    "retrocl_init_trimming: ignoring invalid %s value %s; "
+                    "not trimming retro changelog.\n",
+                    CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
+                slapi_ch_free_string((char **)&cl_maxage);
+                return;
+            }
+
         }
     }
 
     cl_trim_interval = retrocl_get_config_str(CONFIG_CHANGELOG_TRIM_INTERVAL);
     if (cl_trim_interval) {
         trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);
-        if (0 == trim_interval) {
+        if (0 >= trim_interval) {
             slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                           "retrocl_init_trimming: ignoring invalid %s value %s; "
                           "resetting the default %d\n",
@@ -450,6 +470,7 @@ retrocl_init_trimming(void)
     }
 
     ts.ts_c_max_age = ageval;
+    ts.ts_c_trim_interval = trim_interval;
     ts.ts_s_last_trim = (time_t)0L;
     ts.ts_s_trimming = 0;
     if ((ts.ts_s_trim_mutex = PR_NewLock()) == NULL) {
@@ -460,10 +481,10 @@ retrocl_init_trimming(void)
     ts.ts_s_initialized = 1;
     retrocl_trimming = 1;
 
-    retrocl_trim_ctx = slapi_eq_repeat(retrocl_housekeeping,
-                                       NULL, (time_t)0,
-                                       /* in milliseconds */
-                                       trim_interval * 1000);
+    retrocl_trim_ctx = slapi_eq_repeat_rel(retrocl_housekeeping,
+                                           NULL, (time_t)0,
+                                           /* in milliseconds */
+                                           ts.ts_c_trim_interval * 1000);
 }
 
 /*
@@ -487,7 +508,7 @@ retrocl_stop_trimming(void)
          */
         retrocl_trimming = 0;
         if (retrocl_trim_ctx) {
-            slapi_eq_cancel(retrocl_trim_ctx);
+            slapi_eq_cancel_rel(retrocl_trim_ctx);
             retrocl_trim_ctx = NULL;
         }
         PR_DestroyLock(ts.ts_s_trim_mutex);

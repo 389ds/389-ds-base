@@ -1,4 +1,3 @@
-use crate::constants::OpFlags;
 use crate::dn::SdnRef;
 use crate::error::{LDAPError, PluginError};
 use crate::pblock::Pblock;
@@ -6,7 +5,7 @@ use crate::plugin::PluginIdRef;
 use crate::value::{slapi_value, ValueArray};
 
 use std::ffi::CString;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::os::raw::c_char;
 
 extern "C" {
@@ -78,7 +77,7 @@ pub struct Modify {
 }
 
 pub struct ModifyResult {
-    pb: Pblock,
+    _pb: Pblock,
 }
 
 impl Modify {
@@ -95,7 +94,7 @@ impl Modify {
                 std::ptr::null(),
                 std::ptr::null(),
                 plugin_id.raw_pid,
-                OpFlags::ByassReferrals as i32,
+                0 as i32,
             )
         };
 
@@ -111,7 +110,7 @@ impl Modify {
         let result = pb.get_op_result();
 
         match result {
-            0 => Ok(ModifyResult { pb }),
+            0 => Ok(ModifyResult { _pb: pb }),
             _e => Err(LDAPError::from(result)),
         }
     }

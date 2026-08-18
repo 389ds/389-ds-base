@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m1
+from test389.topologies import topology_m1
 from lib389.tombstone import Tombstones
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
@@ -32,7 +32,7 @@ def test_purge_success(topology_m1):
         3. The entry should be successfully deleted
         4. Tombstone entry should exist
     """
-    m1 = topology_m1.ms['master1']
+    m1 = topology_m1.ms['supplier1']
 
     users = UserAccounts(m1, DEFAULT_SUFFIX)
     user = users.create(properties=TEST_USER_PROPERTIES)

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,7 +15,7 @@
 /* repl5_tot_protocol.c */
 /*
 
- The tot_protocol object implements the DS 5.0 multi-master total update
+ The tot_protocol object implements the DS 5.0 multi-supplier total update
  replication protocol, used to (re)populate a replica.
 
 */
@@ -43,9 +43,10 @@ typedef struct callback_data
     Private_Repl_Protocol *prp;
     int rc;
     unsigned long num_entries;
-    time_t sleep_on_busy;
+    uint32_t sleep_on_busy;
     time_t last_busy;
-    PRLock *lock;                            /* Lock to protect access to this structure, the message id list and to force memory barriers */
+    uint32_t nb_busy_retries;
+    pthread_mutex_t lock;                    /* Lock to protect access to this structure, the message id list and to force memory barriers */
     PRThread *result_tid;                    /* The async result thread */
     operation_id_list_item *message_id_list; /* List of IDs for outstanding operations */
     int abort;                               /* Flag used to tell the sending thread asyncronously that it should abort (because an error came up in a result) */
@@ -60,6 +61,8 @@ typedef struct callback_data
  * that the replica has got out of BUSY state
  */
 #define SLEEP_ON_BUSY_WINDOW (10)
+
+#define MAXRETRIES_UPON_BUSY_CONSUMER 5
 
 /* Helper functions */
 static void get_result(int rc, void *cb_data);
@@ -102,6 +105,7 @@ repl5_tot_log_operation_failure(int ldap_error, char *ldap_error_string, const c
 static void
 repl5_tot_result_threadmain(void *param)
 {
+    slapi_set_thread_name("repl-tot-res");
     callback_data *cb = (callback_data *)param;
     ConnResult conres = 0;
     Repl_Connection *conn = cb->prp->conn;
@@ -113,7 +117,7 @@ repl5_tot_result_threadmain(void *param)
     while (!finished) {
         int message_id = 0;
         time_t time_now = 0;
-        time_t start_time = slapi_current_utc_time();
+        time_t start_time = slapi_current_rel_time_t();
         int backoff_time = 1;
 
         /* Read the next result */
@@ -130,7 +134,7 @@ repl5_tot_result_threadmain(void *param)
                 /* We need to a) check that the 'real' timeout hasn't expired and
                  * b) implement a backoff sleep to avoid spinning */
                 /* Did the connection's timeout expire ? */
-                time_now = slapi_current_utc_time();
+                time_now = slapi_current_rel_time_t();
                 if (conn_get_timeout(conn) <= (time_now - start_time)) {
                     /* We timed out */
                     conres = CONN_TIMEOUT;
@@ -142,11 +146,11 @@ repl5_tot_result_threadmain(void *param)
                     backoff_time <<= 1;
                 }
                 /* Should we stop ? */
-                PR_Lock(cb->lock);
+                pthread_mutex_lock(&(cb->lock));
                 if (cb->stop_result_thread) {
                     finished = 1;
                 }
-                PR_Unlock(cb->lock);
+                pthread_mutex_unlock(&(cb->lock));
             } else {
                 /* Something other than a timeout, so we exit the loop */
                 break;
@@ -164,21 +168,21 @@ repl5_tot_result_threadmain(void *param)
         /* Was the result itself an error ? */
         if (0 != conres) {
             /* If so then we need to take steps to abort the update process */
-            PR_Lock(cb->lock);
+            pthread_mutex_lock(&(cb->lock));
             cb->abort = 1;
             if (conres == CONN_NOT_CONNECTED) {
                 cb->rc = LDAP_CONNECT_ERROR;
             }
-            PR_Unlock(cb->lock);
+            pthread_mutex_unlock(&(cb->lock));
         }
         /* Should we stop ? */
-        PR_Lock(cb->lock);
+        pthread_mutex_lock(&(cb->lock));
         /* if the connection is not connected, then we cannot read any more
            results - we are finished */
         if (cb->stop_result_thread || (conres == CONN_NOT_CONNECTED)) {
             finished = 1;
         }
-        PR_Unlock(cb->lock);
+        pthread_mutex_unlock(&(cb->lock));
     }
 }
 
@@ -209,9 +213,9 @@ repl5_tot_destroy_async_result_thread(callback_data *cb_data)
     int retval = 0;
     PRThread *tid = cb_data->result_tid;
     if (tid) {
-        PR_Lock(cb_data->lock);
+        pthread_mutex_lock(&(cb_data->lock));
         cb_data->stop_result_thread = 1;
-        PR_Unlock(cb_data->lock);
+        pthread_mutex_unlock(&(cb_data->lock));
         (void)PR_JoinThread(tid);
     }
     return retval;
@@ -248,7 +252,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
     /* Keep pulling results off the LDAP connection until we catch up to the last message id stored in the rd */
     while (!done) {
         /* Lock the structure to force memory barrier */
-        PR_Lock(cb_data->lock);
+        pthread_mutex_lock(&(cb_data->lock));
         /* Are we caught up ? */
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "repl5_tot_waitfor_async_results - %d %d\n",
@@ -260,7 +264,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
         if (cb_data->abort && LOST_CONN_ERR(cb_data->rc)) {
             done = 1; /* no connection == no more results */
         }
-        PR_Unlock(cb_data->lock);
+        pthread_mutex_unlock(&(cb_data->lock));
         /* If not then sleep a bit */
         DS_Sleep(PR_SecondsToInterval(1));
         loops++;
@@ -354,7 +358,6 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     ReplicaId rid = 0; /* Used to create the replica keep alive subentry */
     char **instances = NULL;
     Slapi_Backend *be = NULL;
-    int is_entryrdn = 0;
 
     PR_ASSERT(NULL != prp);
 
@@ -433,18 +436,14 @@ retry:
 
     agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update in progress");
 
-    slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "repl5_tot_run - Beginning total update of replica "
-                                                    "\"%s\".\n",
+    slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
+                  "repl5_tot_run - Beginning total update of replica \"%s\".\n",
                   agmt_get_long_name(prp->agmt));
 
     /* RMREPL - need to send schema here */
 
     pb = slapi_pblock_new();
 
-    /*
-     * Get the info about the entryrdn vs. entrydn from the backend.
-     * If NOT is_entryrdn, its ancestor entries are always found prior to an entry.
-     */
     rc = slapi_lookup_instance_name_by_suffix((char *)slapi_sdn_get_dn(area_sdn), NULL, &instances, 1);
     if (rc || !instances) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run - Unable to "
@@ -461,95 +460,65 @@ retry:
                       slapi_sdn_get_dn(area_sdn));
         goto done;
     }
-    rc = slapi_back_get_info(be, BACK_INFO_IS_ENTRYRDN, (void **)&is_entryrdn);
-    if (is_entryrdn) {
-        /*
-         * Supporting entries out of order -- parent could have a larger id than its children.
-         * Entires are retireved sorted by parentid without the allid threshold.
-         */
-        /* Get suffix */
-        Slapi_Entry *suffix = NULL;
-        Slapi_PBlock *suffix_pb = NULL;
-        rc = slapi_search_get_entry(&suffix_pb, area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run -  Unable to "
-                                                           "get the suffix entry \"%s\".\n",
-                          slapi_sdn_get_dn(area_sdn));
-            goto done;
-        }
 
-        cb_data.prp = prp;
-        cb_data.rc = 0;
-        cb_data.num_entries = 1UL;
-        cb_data.sleep_on_busy = 0UL;
-        cb_data.last_busy = slapi_current_utc_time();
-        cb_data.flowcontrol_detection = 0;
-        cb_data.lock = PR_NewLock();
-
-        /* This allows during perform_operation to check the callback data
-         * especially to do flow contol on delta send msgid / recv msgid
-         */
-        conn_set_tot_update_cb(prp->conn, (void *)&cb_data);
-
-        /* Send suffix first. */
-        rc = send_entry(suffix, (void *)&cb_data);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run - Unable to "
-                                                           "send the suffix entry \"%s\" to the consumer.\n",
-                          slapi_sdn_get_dn(area_sdn));
-            goto done;
-        }
-
-        /* we need to provide managedsait control so that referral entries can
-           be replicated */
-        ctrls = (LDAPControl **)slapi_ch_calloc(3, sizeof(LDAPControl *));
-        ctrls[0] = create_managedsait_control();
-        ctrls[1] = create_backend_control(area_sdn);
-
-        /* Time to make sure it exists a keep alive subentry for that replica */
-        if (prp->replica) {
-            rid = replica_get_rid(prp->replica);
-        }
-        replica_subentry_check(area_sdn, rid);
-
-        /* Send the subtree of the suffix in the order of parentid index plus ldapsubentry and nstombstone. */
-        check_suffix_entryID(be, suffix);
-        slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
-                                     LDAP_SCOPE_SUBTREE, "(parentid>=1)", NULL, 0, ctrls, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), OP_FLAG_BULK_IMPORT);
-        cb_data.num_entries = 0UL;
-        slapi_search_get_entry_done(&suffix_pb);
-    } else {
-        /* Original total update */
-        /* we need to provide managedsait control so that referral entries can
-           be replicated */
-        ctrls = (LDAPControl **)slapi_ch_calloc(3, sizeof(LDAPControl *));
-        ctrls[0] = create_managedsait_control();
-        ctrls[1] = create_backend_control(area_sdn);
-
-        /* Time to make sure it exists a keep alive subentry for that replica */
-        if (prp->replica) {
-            rid = replica_get_rid(prp->replica);
-        }
-        replica_subentry_check(area_sdn, rid);
-
-        slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
-                                     LDAP_SCOPE_SUBTREE, "(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))", NULL, 0, ctrls, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
-
-        cb_data.prp = prp;
-        cb_data.rc = 0;
-        cb_data.num_entries = 0UL;
-        cb_data.sleep_on_busy = 0UL;
-        cb_data.last_busy = slapi_current_utc_time();
-        cb_data.flowcontrol_detection = 0;
-        cb_data.lock = PR_NewLock();
-
-        /* This allows during perform_operation to check the callback data
-         * especially to do flow contol on delta send msgid / recv msgid
-         */
-        conn_set_tot_update_cb(prp->conn, (void *)&cb_data);
+    /*
+     * Supporting entries out of order -- parent could have a larger id than its children.
+     * Entires are retireved sorted by parentid without the allid threshold.
+     */
+    /* Get suffix */
+    Slapi_Entry *suffix = NULL;
+    Slapi_PBlock *suffix_pb = NULL;
+    rc = slapi_search_get_entry(&suffix_pb, area_sdn, NULL, &suffix,
+                                repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION));
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "repl5_tot_run - Unable to get the suffix entry \"%s\".\n",
+                      slapi_sdn_get_dn(area_sdn));
+        goto done;
     }
+
+    cb_data.prp = prp;
+    cb_data.rc = 0;
+    cb_data.num_entries = 1UL;
+    cb_data.sleep_on_busy = 0;
+    cb_data.nb_busy_retries = 0;
+    cb_data.last_busy = slapi_current_rel_time_t();
+    cb_data.flowcontrol_detection = 0;
+    pthread_mutex_init(&(cb_data.lock), NULL);
+
+    /* This allows during perform_operation to check the callback data
+     * especially to do flow contol on delta send msgid / recv msgid
+     */
+    conn_set_tot_update_cb(prp->conn, (void *)&cb_data);
+
+    /* Send suffix first. */
+    rc = send_entry(suffix, (void *)&cb_data);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "repl5_tot_run - Unable to send the suffix entry \"%s\" to the consumer.\n",
+                      slapi_sdn_get_dn(area_sdn));
+        goto done;
+    }
+
+    /* we need to provide managedsait control so that referral entries can
+     * be replicated */
+    ctrls = (LDAPControl **)slapi_ch_calloc(3, sizeof(LDAPControl *));
+    ctrls[0] = create_managedsait_control();
+    ctrls[1] = create_backend_control(area_sdn);
+
+    /* Time to make sure it exists a keep alive subentry for that replica */
+    if (prp->replica) {
+        rid = replica_get_rid(prp->replica);
+    }
+    replica_subentry_check(slapi_sdn_get_dn(area_sdn), rid);
+
+    /* Send the subtree of the suffix in the order of parentid index plus ldapsubentry and nstombstone. */
+    check_suffix_entryID(be, suffix);
+    slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
+                                 LDAP_SCOPE_SUBTREE, "(parentid>=1)", NULL, 0, ctrls, NULL,
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), OP_FLAG_BULK_IMPORT);
+    cb_data.num_entries = 0UL;
+    slapi_search_get_entry_done(&suffix_pb);
 
     /* Before we get started on sending entries to the replica, we need to
      * setup things for async propagation:
@@ -560,7 +529,7 @@ retry:
         rc = repl5_tot_create_async_result_thread(&cb_data);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run - %s"
-                                                           "repl5_tot_create_async_result_thread failed; error - %d\n",
+                          "repl5_tot_create_async_result_thread failed; error - %d\n",
                           agmt_get_long_name(prp->agmt), rc);
             goto done;
         }
@@ -589,7 +558,7 @@ retry:
         rc = repl5_tot_destroy_async_result_thread(&cb_data);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run - %s - "
-                                                           "repl5_tot_destroy_async_result_thread failed; error - %d\n",
+                          "repl5_tot_destroy_async_result_thread failed; error - %d\n",
                           agmt_get_long_name(prp->agmt), rc);
         }
     }
@@ -607,13 +576,13 @@ retry:
     release_replica(prp);
 
     if (rc != CONN_OPERATION_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run - Total update failed for replica \"%s\", "
-                                                       "error (%d)\n",
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "repl5_tot_run - Total update failed for replica \"%s\", error (%d)\n",
                       agmt_get_long_name(prp->agmt), rc);
         agmt_set_last_init_status(prp->agmt, 0, 0, rc, "Total update aborted");
     } else {
-        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "repl5_tot_run - Finished total update of replica "
-                                                        "\"%s\". Sent %lu entries.\n",
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
+                      "repl5_tot_run - Finished total update of replica \"%s\". Sent %lu entries.\n",
                       agmt_get_long_name(prp->agmt), cb_data.num_entries);
         agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
         agmt_set_last_update_status(prp->agmt, 0, 0, NULL);
@@ -633,9 +602,7 @@ done:
                       type_nsds5ReplicaFlowControlWindow);
     }
     conn_set_tot_update_cb(prp->conn, NULL);
-    if (cb_data.lock) {
-        PR_DestroyLock(cb_data.lock);
-    }
+    pthread_mutex_destroy(&(cb_data.lock));
     prp->stopped = 1;
 }
 
@@ -700,7 +667,9 @@ Private_Repl_Protocol *
 Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
 {
     repl5_tot_private *rip = NULL;
-    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
+    pthread_condattr_t cattr;
+    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
+
     prp->delete = repl5_tot_delete;
     prp->run = repl5_tot_run;
     prp->stop = repl5_tot_stop;
@@ -710,12 +679,19 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_opened = repl5_tot_noop;
     prp->notify_window_closed = repl5_tot_noop;
     prp->update_now = repl5_tot_noop;
-    if ((prp->lock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(prp->lock), NULL) != 0) {
         goto loser;
     }
-    if ((prp->cvar = PR_NewCondVar(prp->lock)) == NULL) {
+    if (pthread_condattr_init(&cattr) != 0) {
         goto loser;
     }
+    if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0) {
+        goto loser;
+    }
+    if (pthread_cond_init(&(prp->cvar), &cattr) != 0) {
+        goto loser;
+    }
+    pthread_condattr_destroy(&cattr);
     prp->stopped = 1;
     prp->terminate = 0;
     prp->eventbits = 0;
@@ -743,15 +719,9 @@ repl5_tot_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stopped = 1;
         (*prpp)->stop(*prpp);
     }
-    /* Then, delete all resources used by the protocol */
-    if ((*prpp)->lock) {
-        PR_DestroyLock((*prpp)->lock);
-        (*prpp)->lock = NULL;
-    }
-    if ((*prpp)->cvar) {
-        PR_DestroyCondVar((*prpp)->cvar);
-        (*prpp)->cvar = NULL;
-    }
+    /* Then, release all resources used by the protocol */
+    pthread_mutex_destroy(&((*prpp)->lock));
+    pthread_cond_destroy(&(*prpp)->cvar);
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
 }
@@ -802,7 +772,8 @@ send_entry(Slapi_Entry *e, void *cb_data)
     BerElement *bere;
     struct berval *bv;
     unsigned long *num_entriesp;
-    time_t *sleep_on_busyp;
+    uint32_t *sleep_on_busyp;
+    uint32_t *nb_busy_retriesp;
     time_t *last_busyp;
     int message_id = 0;
     int retval = 0;
@@ -812,6 +783,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
 
     prp = ((callback_data *)cb_data)->prp;
     num_entriesp = &((callback_data *)cb_data)->num_entries;
+    nb_busy_retriesp = &((callback_data *)cb_data)->nb_busy_retries;
     sleep_on_busyp = &((callback_data *)cb_data)->sleep_on_busy;
     last_busyp = &((callback_data *)cb_data)->last_busy;
     PR_ASSERT(prp);
@@ -824,9 +796,9 @@ send_entry(Slapi_Entry *e, void *cb_data)
 
     /* see if the result reader thread encountered
        a fatal error */
-    PR_Lock(((callback_data *)cb_data)->lock);
+    pthread_mutex_lock((&((callback_data *)cb_data)->lock));
     rc = ((callback_data *)cb_data)->abort;
-    PR_Unlock(((callback_data *)cb_data)->lock);
+    pthread_mutex_unlock((&((callback_data *)cb_data)->lock));
     if (rc) {
         conn_disconnect(prp->conn);
         ((callback_data *)cb_data)->rc = -1;
@@ -874,7 +846,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
         rc = conn_send_extended_operation(prp->conn, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID,
                                           bv /* payload */, NULL /* update_control */, &message_id);
 
-        if (message_id) {
+        if (message_id > 0) {
             ((callback_data *)cb_data)->last_message_id_sent = message_id;
         }
 
@@ -882,14 +854,21 @@ send_entry(Slapi_Entry *e, void *cb_data)
          * response. Reason is that it can return LDAP_BUSY, indicating that its queue has
          * filled up. This completely breaks pipelineing, and so we need to fall back to
          * sync transmission for those consumers, in case they pull the LDAP_BUSY stunt on us :( */
-
-        if (prp->repl50consumer) {
+        if (rc == CONN_OPERATION_FAILED) {
+            int optype, ldaprc;
+            conn_get_error(prp->conn, &optype, &ldaprc);
+            if (ldaprc == LDAP_BUSY) {
+                /* we receive a busy while sending extop */
+                rc = CONN_BUSY;
+            }
+        }
+        if ((rc != CONN_BUSY) && (prp->repl50consumer)) {
             /* Get the response here */
             rc = repl5_tot_get_next_result((callback_data *)cb_data);
         }
 
         if (rc == CONN_BUSY) {
-            time_t now = slapi_current_utc_time();
+            time_t now = slapi_current_rel_time_t();
             if ((now - *last_busyp) < (*sleep_on_busyp + 10)) {
                 *sleep_on_busyp += 5;
             } else {
@@ -898,15 +877,25 @@ send_entry(Slapi_Entry *e, void *cb_data)
             *last_busyp = now;
 
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                          "send_entry - Replica \"%s\" is busy. Waiting %lds while"
+                          "send_entry - Replica \"%s\" is busy. Waiting %ds while"
                           " it finishes processing its current import queue\n",
                           agmt_get_long_name(prp->agmt), *sleep_on_busyp);
             DS_Sleep(PR_SecondsToInterval(*sleep_on_busyp));
+            *nb_busy_retriesp += 1;
+        } else {
+            /* The max retries is related to consecutive CONN_BUSY */
+            *nb_busy_retriesp = 0;
         }
-    } while (rc == CONN_BUSY);
+    } while ((rc == CONN_BUSY) && (*nb_busy_retriesp < MAXRETRIES_UPON_BUSY_CONSUMER));
 
     ber_bvfree(bv);
-    (*num_entriesp)++;
+    if (*nb_busy_retriesp >= MAXRETRIES_UPON_BUSY_CONSUMER) {
+        slapi_log_error(SLAPI_LOG_WARNING, "repl5_tot_protocol",
+                        "Maximum busy retries (%d) on send_entry for agreement %s\n",
+                        MAXRETRIES_UPON_BUSY_CONSUMER, agmt_get_long_name(prp->agmt));
+    } else {
+        (*num_entriesp)++;
+    }
 
     /* if the connection has been closed, we need to stop
        sending entries and set a special rc value to let

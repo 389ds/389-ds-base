@@ -11,16 +11,28 @@
 Importing necessary Modules.
 """
 
+import logging
+import time
+import ldap
 import os
 import pytest
 
-from lib389._constants import PW_DM, DEFAULT_SUFFIX
+from lib389._constants import ErrorLog, PW_DM, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles, NestedRoles
 from lib389.idm.domain import Domain
+from lib389.dbgen import dbgen_users
+from lib389.tasks import ImportTask
+from lib389.utils import get_default_db_lib
+from lib389.rewriters import *
+from lib389._mapped_object import DSLdapObject
+from lib389.backend import Backends
+
+logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.tier1
 
@@ -35,7 +47,7 @@ FILTERROLESALESROLE = "cn=FILTERROLESALESROLE,{}".format(DNBASE)
 FILTERROLEENGROLE = "cn=FILTERROLEENGROLE,{}".format(DNBASE)
 
 
-def test_filterrole(topo):
+def test_filterrole(topo, request):
     """Test Filter Role
 
     :id: 8ada4064-786b-11e8-8634-8c16451d917b
@@ -136,8 +148,20 @@ def test_filterrole(topo):
                   SALES_OU, DNBASE]:
         UserAccount(topo.standalone, dn_dn).delete()
 
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
 
-def test_managedrole(topo):
+    request.addfinalizer(fin)
+
+
+def test_managedrole(topo, request):
     """Test Managed Role
 
     :id: d52a9c00-3bf6-11e9-9b7b-8c16451d917b
@@ -209,6 +233,16 @@ def test_managedrole(topo):
     for i in roles.list():
         i.delete()
 
+    def fin():
+        topo.standalone.restart()
+        try:
+            role = ManagedRoles(topo.standalone, DEFAULT_SUFFIX).get('ROLE1')
+            role.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
 
 @pytest.fixture(scope="function")
 def _final(request, topo):
@@ -220,6 +254,7 @@ def _final(request, topo):
     def finofaci():
         """
         Removes and Restores ACIs and other users after the test.
+        And restore nsslapd-ignore-virtual-attrs to default
         """
         domain = Domain(topo.standalone, DEFAULT_SUFFIX)
         domain.remove_all('aci')
@@ -233,6 +268,8 @@ def _final(request, topo):
 
         for i in aci_list:
             domain.add("aci", i)
+
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
 
     request.addfinalizer(finofaci)
 
@@ -259,17 +296,17 @@ def test_nestedrole(topo, _final):
     # Create nested role entry
     nested_roles = NestedRoles(topo.standalone, DEFAULT_SUFFIX)
     nested_role = nested_roles.create(properties={"cn": 'nested_role',
-                                                  "nsRoleDN": [managed_role1.dn, managed_role2.dn]})
+                                                  "nsroledn": [managed_role1.dn, managed_role2.dn]})
 
     # Create user and assign managed role to it
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     user1 = users.create_test_user(uid=1, gid=1)
-    user1.set('nsRoleDN', managed_role1.dn)
+    user1.set('nsroledn', managed_role1.dn)
     user1.set('userPassword', PW_DM)
 
     # Create another user and assign managed role to it
     user2 = users.create_test_user(uid=2, gid=2)
-    user2.set('nsRoleDN', managed_role2.dn)
+    user2.set('nsroledn', managed_role2.dn)
     user2.set('userPassword', PW_DM)
 
     # Create another user and do not assign any role to it
@@ -295,6 +332,499 @@ def test_nestedrole(topo, _final):
     # search while bound as the user
     conn = users.get('test_user_3').bind(PW_DM)
     assert UserAccounts(conn, DEFAULT_SUFFIX).list()
+
+def test_vattr_on_filtered_role(topo, request):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+       The attribute is ON by default. If a filtered role is
+       added it is moved to OFF
+
+    :id: 88b3ad3c-f39a-4eb7-a8c9-07c685f11908
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Create a filtered role
+         4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+         5. Check a message "roles_cache_trigger_update_role - Because of virtual attribute.." in error logs
+         6. Check after deleting role definition value of attribute nsslapd-ignore-virtual-attrs is set back to ON
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+         6. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Create a filtered role")
+    try:
+        Organization(topo.standalone).create(properties={"o": "acivattr"}, basedn=DEFAULT_SUFFIX)
+    except:
+        pass
+    roles = FilteredRoles(topo.standalone, DNBASE)
+    roles.create(properties={'cn': 'FILTERROLEENGROLE', 'nsRoleFilter': 'cn=eng*'})
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    topo.standalone.stop()
+    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs is back to ON")
+        topo.standalone.restart()
+        assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    request.addfinalizer(fin)
+
+def test_vattr_on_filtered_role_restart(topo, request):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    If it exists a filtered role definition at restart then
+    nsslapd-ignore-virtual-attrs should be set to 'off'
+
+    :id: 972183f7-d18f-40e0-94ab-580e7b7d78d0
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Create a filtered role
+         4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+         5. restart the instance
+         6. Check the presence of virtual attribute is detected
+         7. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+         6. This should be successful
+         7. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Create a filtered role")
+    try:
+        Organization(topo.standalone).create(properties={"o": "acivattr"}, basedn=DEFAULT_SUFFIX)
+    except:
+        pass
+    roles = FilteredRoles(topo.standalone, DNBASE)
+    roles.create(properties={'cn': 'FILTERROLEENGROLE', 'nsRoleFilter': 'cn=eng*'})
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    log.info("Check the virtual attribute definition is found (after a required delay)")
+    topo.standalone.restart()
+    time.sleep(5)
+    assert topo.standalone.searchErrorsLog("Found a role/cos definition in")
+    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
+
+
+def test_vattr_on_managed_role(topo, request):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+       The attribute is ON by default. If a managed role is
+       added it is moved to OFF
+
+    :id: 664b722d-c1ea-41e4-8f6c-f9c87a212346
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Create a managed role
+         4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+         5. Check a message "roles_cache_trigger_update_role - Because of virtual attribute.." in error logs
+         6. Check after deleting role definition value of attribute nsslapd-ignore-virtual-attrs is set back to ON
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+         6. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Create a managed role")
+    roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = roles.create(properties={"cn": 'ROLE1'})
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    topo.standalone.stop()
+    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs is back to ON")
+        topo.standalone.restart()
+        assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    request.addfinalizer(fin)
+
+def test_rewriter_with_invalid_filter(topo, request):
+    """Test that server does not crash when having
+       invalid filter in filtered role
+
+    :id: 5013b0b2-0af6-11f0-8684-482ae39447e5
+    :setup: standalone server
+    :steps:
+        1. Setup filtered role with good filter
+        2. Setup nsrole rewriter
+        3. Restart the server
+        4. Search for entries
+        5. Setup filtered role with bad filter
+        6. Search for entries
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+    """
+    inst = topo.standalone
+    entries = []
+
+    def fin():
+        inst.start()
+        for entry in entries:
+            entry.delete()
+    request.addfinalizer(fin)
+
+    # Setup filtered role
+    roles = FilteredRoles(inst, f'ou=people,{DEFAULT_SUFFIX}')
+    filter_ko = '(&((objectClass=top)(objectClass=nsPerson))'
+    filter_ok = '(&(objectClass=top)(objectClass=nsPerson))'
+    role_properties = {
+        'cn': 'TestFilteredRole',
+        'nsRoleFilter': filter_ok,
+        'description': 'Test good filter',
+    }
+    role = roles.create(properties=role_properties)
+    entries.append(role)
+
+    # Setup nsrole rewriter
+    rewriters = Rewriters(inst)
+    rewriter_properties = {
+        "cn": "nsrole",
+        "nsslapd-libpath": 'libroles-plugin',
+        "nsslapd-filterrewriter": 'role_nsRole_filter_rewriter',
+    }
+    rewriter = rewriters.ensure_state(properties=rewriter_properties)
+    entries.append(rewriter)
+
+    # Restart thge instance
+    inst.restart()
+
+    # Search for entries
+    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+
+    # Set bad filter
+    role_properties = {
+        'cn': 'TestFilteredRole',
+        'nsRoleFilter': filter_ko,
+        'description': 'Test bad filter',
+    }
+    role.ensure_state(properties=role_properties)
+
+    # Search for entries
+    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+
+
+def test_managed_and_filtered_role_rewrite(topo, request):
+    """Test that filter components containing 'nsrole=xxx'
+    are reworked if xxx is either a filtered role or a managed
+    role.
+
+    :id: e30ff5ed-4f8b-48db-bb88-66f150fca31f
+    :setup: server
+    :steps:
+        1. Setup nsrole rewriter
+        2. Add a 'nsroleDN' indexes for managed roles
+        3. Create an 90K ldif files
+           This is large so that unindex search will last long
+        4. import/restart the instance
+        5. Create a managed role and add 4 entries in that role
+        6. Check that a search 'nsrole=managed_role' is fast
+        7. Create a filtered role that use an indexed attribute (givenName)
+        8. Check that a search 'nsrole=filtered_role' is fast
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+        7. Operation should  succeed
+        8. Operation should  succeed
+    """
+    # Setup nsrole rewriter
+    rewriters = Rewriters(topo.standalone)
+    rewriter = rewriters.ensure_state(properties={"cn": "nsrole", "nsslapd-libpath": 'libroles-plugin'})
+    try:
+        rewriter.add('nsslapd-filterrewriter', "role_nsRole_filter_rewriter")
+    except:
+        pass
+
+    # Create an index for nsRoleDN that is used by managed role
+    attrname = 'nsRoleDN'
+    backends = Backends(topo.standalone)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    try:
+        index = indexes.create(properties={
+            'cn': attrname,
+            'nsSystemIndex': 'false',
+            'nsIndexType': ['eq', 'pres']
+            })
+    except:
+        pass
+
+    # Build LDIF file
+    bdb_values = {
+      'wait30': 30
+    }
+
+    # Note: I still sometime get failure with a 60s timeout so lets use 90s
+    mdb_values = {
+      'wait30': 90
+    }
+
+    if get_default_db_lib() == 'bdb':
+        values = bdb_values
+    else:
+        values = mdb_values
+
+    ldif_dir = topo.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/perf_import.ldif'
+
+    RDN="userNew"
+    PARENT="ou=people,%s" % DEFAULT_SUFFIX
+    dbgen_users(topo.standalone, 90000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
+
+    # Online import
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait(timeout=400)
+    assert import_task.get_exit_code() == 0
+    # Restart server
+    topo.standalone.restart()
+
+    # Create Managed role entry
+    managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = managed_roles.create(properties={"cn": 'MANAGED_ROLE'})
+
+    # Assign managed role to 4 entries out of the 90K
+    for i in range(1, 5):
+        dn = "uid=%s0000%d,%s" % (RDN, i, PARENT)
+        topo.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsRoleDN', [role.dn.encode()])])
+
+    # Now check that search is fast, evaluating only 4 entries
+    search_start = time.time()
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+    assert(len(entries) == 4)
+    assert (duration < 1)
+
+    # Restart server to refresh entrycache
+    topo.standalone.restart()
+
+    # Create Filtered Role entry
+    # it uses 'givenName' attribute that is indexed (eq) by default
+    filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = filtered_roles.create(properties={'cn': 'FILTERED_ROLE', 'nsRoleFilter': 'givenName=Technical'})
+
+    # Now check that search is fast
+    search_start = time.time()
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+    assert (duration < 1)
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in managed_roles.list():
+                i.delete()
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        os.remove(import_ldif)
+
+    request.addfinalizer(fin)
+
+def test_not_such_entry_role_rewrite(topo, request):
+    """Test that filter components containing 'nsrole=xxx'
+       ,where xxx does not refer to any role definition,
+       replace the component by 'nsuniqueid=-1'
+
+    :id: b098dda5-fc77-46c4-84a7-5d0c7035bb77
+    :setup: server
+    :steps:
+        1. Setup nsrole rewriter
+        2. Add a 'nsroleDN' indexes for managed roles
+        3. Create an 90K ldif files
+           This is large so that unindex search will last long
+        4. import/restart the instance
+        5. Create a managed role and add 4 entries in that role
+        6. Enable plugin log level to capture role plugin message
+        7. Check that a search is fast "(OR(nsrole=managed_role)(nsrole=not_existing_role))"
+        8. Stop the instance
+        9. Check that a message like this was logged: replace (nsrole=not_existing_role) by (nsuniqueid=-1)
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+        7. Operation should  succeed
+        8. Operation should  succeed
+        9. Operation should  succeed
+    """
+    # Setup nsrole rewriter
+    rewriters = Rewriters(topo.standalone)
+    rewriter = rewriters.ensure_state(properties={"cn": "nsrole", "nsslapd-libpath": 'libroles-plugin'})
+    try:
+        rewriter.add('nsslapd-filterrewriter', "role_nsRole_filter_rewriter")
+    except:
+        pass
+
+    # Create an index for nsRoleDN that is used by managed role
+    attrname = 'nsRoleDN'
+    backends = Backends(topo.standalone)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    try:
+        index = indexes.create(properties={
+            'cn': attrname,
+            'nsSystemIndex': 'false',
+            'nsIndexType': ['eq', 'pres']
+            })
+    except:
+        pass
+
+    # Build LDIF file
+    bdb_values = {
+      'wait60': 60
+    }
+
+    # Note: I still sometime get failure with a 60s timeout so lets use 90s
+    mdb_values = {
+      'wait60': 90
+    }
+
+    if get_default_db_lib() == 'bdb':
+        values = bdb_values
+    else:
+        values = mdb_values
+
+    ldif_dir = topo.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/perf_import.ldif'
+
+    RDN="userNew"
+    PARENT="ou=people,%s" % DEFAULT_SUFFIX
+    dbgen_users(topo.standalone, 91000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
+
+    # Online import
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait(timeout=400)
+    assert import_task.get_exit_code() == 0
+    # Restart server
+    topo.standalone.restart()
+
+    # Create Managed role entry
+    managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = managed_roles.create(properties={"cn": 'MANAGED_ROLE'})
+
+    # Assign managed role to 4 entries out of the 90K
+    for i in range(1, 5):
+        dn = "uid=%s0000%d,%s" % (RDN, i, PARENT)
+        topo.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsRoleDN', [role.dn.encode()])])
+
+    # Enable plugin level to check message
+    topo.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
+
+    # Now check that search is fast, evaluating only 4 entries
+    search_start = time.time()
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(|(nsrole=%s)(nsrole=cn=not_such_entry_role,%s))" % (role.dn, DEFAULT_SUFFIX))
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+    assert(len(entries) == 4)
+    assert (duration < 1)
+
+    # Restart server to refresh entrycache
+    topo.standalone.stop()
+
+    # Check that when the role does not exist it is translated into 'nsuniqueid=-1'
+    pattern = ".*replace \(nsRole=cn=not_such_entry_role,dc=example,dc=com\) by \(nsuniqueid=-1\).*"
+    assert topo.standalone.ds_error_log.match(pattern)
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in managed_roles.list():
+                i.delete()
+        except:
+            pass
+        os.remove(import_ldif)
+
+    request.addfinalizer(fin)
 
 
 if __name__ == "__main__":

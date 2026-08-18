@@ -9,11 +9,14 @@
 """
 
 import os
+import subprocess
 import pytest
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, UserAccount
-from lib389._constants import DEFAULT_SUFFIX
+from lib389.idm.directorymanager import DirectoryManager
+from lib389._constants import DEFAULT_SUFFIX, PASSWORD
 from lib389.config import Config
+from lib389.pwpolicy import PwPolicyManager
 from lib389.idm.group import Group
 from lib389.utils import ds_is_older
 import ldap
@@ -24,7 +27,8 @@ pytestmark = pytest.mark.tier1
 if ds_is_older('1.4'):
     DEFAULT_PASSWORD_STORAGE_SCHEME = 'SSHA512'
 else:
-    DEFAULT_PASSWORD_STORAGE_SCHEME = 'PBKDF2_SHA256'
+    DEFAULT_PASSWORD_STORAGE_SCHEME = 'PBKDF2-SHA512'
+
 
 def _create_user(topo, uid, cn, uidNumber, userpassword):
     """
@@ -83,7 +87,7 @@ def test_passwordchange_to_no(topo, _fix_password):
         5. Set Password change to May Change Password
         6. Try to change password fo a user even password
         7. Try to change password with invalid credentials.  Should see error message.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -133,7 +137,7 @@ def test_password_check_syntax(topo, _fix_password):
         15. Setting policy to Check Password Syntax again
         16. Try to change to a password that violates length
         17. Reset Password
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -205,7 +209,7 @@ def test_too_big_password(topo, _fix_password):
         4. Checking that the passwordhistory attribute has been added
         5. Add a password test for long long password
         6. Changing number of password in history to 6 and passwordhistory off
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -249,7 +253,7 @@ def test_pwminage(topo, _fix_password):
         3. Change current password
         4. Try to change password again
         5. Try now after 3 secs is up,  should work.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -289,7 +293,7 @@ def test_invalid_credentials(topo, _fix_password):
         8. Now bind again with valid password: We should be locked
         9. Delete dby3rs before exiting
         10. Reset server
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -366,7 +370,7 @@ def test_expiration_date(topo, _fix_password):
         10. Set password history ON
         11. Modify password Once
         12. Try to change the password with same one
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -439,7 +443,7 @@ def test_passwordlockout(topo, _fix_password):
         17. Reset password using admin login
         18. Try to login as the user to check the unlocking of account. Will also change the
             password back to original
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -509,6 +513,84 @@ def test_passwordlockout(topo, _fix_password):
     # Try to login as the user to check the unlocking of account. Will also change the
     # password back to original
     _change_password_with_own(topo, user.dn, 'dby3rs2', 'secreter')
+
+
+def test_password_must_change_ignores_min_age(topo):
+    """Test that passwordMinAge does not block password update when the password was reset.
+
+    :id: a1b2c3d4-e5f6-4903-9abc-def012345678
+    :setup: Standalone instance
+    :steps:
+        1. Enable TLS (for ldappasswd StartTLS)
+        2. Set global policy via PwPolicyManager: passwordMustChange, passwordExp,
+           passwordMaxAge, passwordMinAge (high), passwordChange
+        3. Bind as Directory Manager
+        4. Create user
+        5. Reset user password as Directory Manager
+        6. User binds and changes own password (must succeed; min age must not block)
+        7. Rebind as Directory Manager, reset user password again
+        8. Run ldappasswd as user (StartTLS) to change password to password2
+        9. Bind as user with password2 to verify
+        10. Cleanup: delete user
+    :expectedresults:
+        1. TLS enabled
+        2. Policy set successfully
+        3. Bind succeeds
+        4. User created
+        5. Reset succeeds
+        6. User password change succeeds (min age does not block after reset)
+        7. Reset succeeds
+        8. ldappasswd succeeds
+        9. Bind succeeds
+        10. User deleted
+    """
+
+    topo.standalone.enable_tls()
+
+    policy = PwPolicyManager(topo.standalone)
+    policy.set_global_policy(properties={'nsslapd-pwpolicy-local': 'on',
+                                         'passwordMustChange': 'on',
+                                         'passwordExp': 'on',
+                                         'passwordMaxAge': '86400000',
+                                         'passwordMinAge': '8640000',
+                                         'passwordChange': 'on'})
+    dm = DirectoryManager(topo.standalone)
+    dm.bind()
+
+    user = _create_user(topo, 'user', 'Test User', '1002', PASSWORD)
+    try:
+        # Reset password as Directory Manager
+        user.replace('userpassword', PASSWORD)
+        time.sleep(1)
+
+        # Reset password as user (must succeed; min age must not block after reset)
+        user.rebind(PASSWORD)
+        user.replace('userpassword', PASSWORD)
+        time.sleep(1)
+
+        # Reset again as Directory Manager
+        dm.rebind(PASSWORD)
+        user.replace('userpassword', PASSWORD)
+        time.sleep(1)
+
+        # Change password through ldappasswd as user to ensure functionality
+        env = os.environ.copy()
+        env['LDAPTLS_CACERTDIR'] = topo.standalone.get_cert_dir()
+        cmd = [
+            'ldappasswd',
+            '-ZZ','-H', f"ldap://{topo.standalone.host}:{topo.standalone.port}",
+            '-D', user.dn, '-w', PASSWORD,
+            '-a', PASSWORD, '-s', 'password2',
+            user.dn,
+        ]
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        assert result.returncode == 0, f'ldappasswd failed: {result.stderr}'
+
+        # Bind as user with new password
+        user.bind('password2')
+    finally:
+        dm.rebind(PASSWORD)
+        user.delete()
 
 
 if __name__ == "__main__":

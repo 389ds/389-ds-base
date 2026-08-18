@@ -98,8 +98,8 @@ repl_con_init_ext()
     repl_con_ext_list[REPL_CON_EXT_MTNODE].object_name = SLAPI_EXT_MTNODE;
     rc = slapi_register_object_extension(repl_plugin_name,
                                          SLAPI_EXT_MTNODE,
-                                         multimaster_mtnode_extension_constructor,
-                                         multimaster_mtnode_extension_destructor,
+                                         multisupplier_mtnode_extension_constructor,
+                                         multisupplier_mtnode_extension_destructor,
                                          &repl_con_ext_list[REPL_CON_EXT_MTNODE].object_type,
                                          &repl_con_ext_list[REPL_CON_EXT_MTNODE].handle);
     if (rc != 0) {

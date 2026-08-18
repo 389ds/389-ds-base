@@ -240,6 +240,36 @@ slapi_filter_test_ext(
 }
 
 
+static const char *
+filter_type_as_string(int filter_type)
+{
+    switch (filter_type) {
+    case LDAP_FILTER_AND:
+        return "&";
+    case LDAP_FILTER_OR:
+        return "|";
+    case LDAP_FILTER_NOT:
+        return "!";
+    case LDAP_FILTER_EQUALITY:
+        return "=";
+    case LDAP_FILTER_SUBSTRINGS:
+        return "*";
+    case LDAP_FILTER_GE:
+        return ">=";
+    case LDAP_FILTER_LE:
+        return "<=";
+    case LDAP_FILTER_PRESENT:
+        return "=*";
+    case LDAP_FILTER_APPROX:
+        return "~";
+    case LDAP_FILTER_EXT:
+        return "EXT";
+    default:
+        return "?";
+    }
+}
+
+
 int
 test_ava_filter(
     Slapi_PBlock *pb,
@@ -253,7 +283,13 @@ test_ava_filter(
 {
     int rc;
 
-    slapi_log_err(SLAPI_LOG_FILTER, "test_ava_filter", "=>\n");
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+        char *val = slapi_berval_get_string_copy(&ava->ava_value);
+        char buf[BUFSIZ];
+        slapi_log_err(SLAPI_LOG_FILTER, "test_ava_filter", "=> AVA: %s%s%s\n",
+                      ava->ava_type, filter_type_as_string(ftype), escape_string(val, buf));
+        slapi_ch_free_string(&val);
+    }
 
     *access_check_done = 0;
 
@@ -296,7 +332,27 @@ test_ava_filter(
         rc = -1;
         for (; a != NULL; a = a->a_next) {
             if (slapi_attr_type_cmp(ava->ava_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
-                rc = plugin_call_syntax_filter_ava(a, ftype, ava);
+                if ((ftype == LDAP_FILTER_EQUALITY) &&
+                    (slapi_attr_is_dn_syntax_type(a->a_type))) {
+                    /* This path is for a performance improvement */
+
+                    /* In case of equality filter we can get benefit of the
+                     * sorted valuearray (from valueset).
+                     * This improvement is limited to DN syntax attributes for
+                     * which the sorted valueset was designed.
+                     */
+                    Slapi_Value *sval = NULL;
+                    sval = slapi_value_new_berval(&ava->ava_value);
+                    if (slapi_valueset_find((const Slapi_Attr *)a, &a->a_present_values, sval)) {
+                        rc = 0;
+                    }
+                    slapi_value_free(&sval);
+                } else {
+                    /* When sorted valuearray optimization cannot be used
+                     * lets filter the value according to its syntax
+                     */
+                    rc = plugin_call_syntax_filter_ava(a, ftype, ava);
+                }
                 if (rc == 0) {
                     break;
                 }
@@ -642,6 +698,9 @@ test_substring_filter(
             rc = -1;
             for (a = e->e_attrs; a != NULL; a = a->a_next) {
                 if (slapi_attr_type_cmp(f->f_sub_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
+                    /* covscan false positive: "plugin_call_syntax_filter_sub" frees "pb->pb_op". */
+                    /* coverity[deref_arg] */
+                    /* coverity[double_free] */
                     rc = plugin_call_syntax_filter_sub(pb, a, &f->f_sub);
                     if (rc == 0) {
                         break;
@@ -673,6 +732,9 @@ test_substring_filter(
         rc = -1;
         for (a = e->e_attrs; a != NULL; a = a->a_next) {
             if (slapi_attr_type_cmp(f->f_sub_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
+                /* covscan false positive: "plugin_call_syntax_filter_sub" frees "pb->pb_op". */
+                /* coverity[deref_arg] */
+                /* coverity[double_free] */
                 rc = plugin_call_syntax_filter_sub(pb, a, &f->f_sub);
                 if (rc == 0 || rc == LDAP_TIMELIMIT_EXCEEDED) {
                     break;
@@ -764,6 +826,12 @@ slapi_vattr_filter_test_ext(
     int rc = 0; /* a no op request succeeds */
     int access_check_done = 0;
 
+    if (only_check_access != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_vattr_filter_test_ext",
+            "⚠️  DANGER ⚠️  - only_check_access mode is BROKEN!!! YOU MUST CHECK ACCESS WITH FILTER MATCHING\n");
+    }
+    PR_ASSERT(only_check_access == 0);
+
     /* Fix for ticket 48275
      * If we want to handle or components which can contain nonmatching components without access propoerly
      * always filter verification and access check have to be done together for each component
@@ -784,8 +852,6 @@ slapi_vattr_filter_test_ext_internal(
 {
     int rc = LDAP_SUCCESS;
 
-    slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "=>\n");
-
     /*
      * RJP: Not sure if this is semantically right, but we have to
      * return something if f is NULL. If there is no filter,
@@ -795,11 +861,8 @@ slapi_vattr_filter_test_ext_internal(
         return (0);
     }
 
-    slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "<=\n");
-
     switch (f->f_choice) {
     case LDAP_FILTER_EQUALITY:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "EQUALITY\n");
         if (verify_access) {
             rc = test_filter_access(pb, e, f->f_ava.ava_type,
                                     &f->f_ava.ava_value);
@@ -812,7 +875,6 @@ slapi_vattr_filter_test_ext_internal(
         break;
 
     case LDAP_FILTER_SUBSTRINGS:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "SUBSTRINGS\n");
         if (verify_access) {
             rc = test_filter_access(pb, e, f->f_sub_type, NULL);
             *access_check_done = 1;
@@ -824,7 +886,6 @@ slapi_vattr_filter_test_ext_internal(
         break;
 
     case LDAP_FILTER_GE:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "GE\n");
         if (verify_access) {
             rc = test_filter_access(pb, e, f->f_ava.ava_type,
                                     &f->f_ava.ava_value);
@@ -837,7 +898,6 @@ slapi_vattr_filter_test_ext_internal(
         break;
 
     case LDAP_FILTER_LE:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "LE\n");
         if (verify_access) {
             rc = test_filter_access(pb, e, f->f_ava.ava_type,
                                     &f->f_ava.ava_value);
@@ -850,7 +910,6 @@ slapi_vattr_filter_test_ext_internal(
         break;
 
     case LDAP_FILTER_PRESENT:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "PRESENT\n");
         if (verify_access) {
             rc = test_filter_access(pb, e, f->f_type, NULL);
             *access_check_done = 1;
@@ -862,7 +921,6 @@ slapi_vattr_filter_test_ext_internal(
         break;
 
     case LDAP_FILTER_APPROX:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "APPROX\n");
         if (verify_access) {
             rc = test_filter_access(pb, e, f->f_ava.ava_type,
                                     &f->f_ava.ava_value);
@@ -875,33 +933,32 @@ slapi_vattr_filter_test_ext_internal(
         break;
 
     case LDAP_FILTER_EXTENDED:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "EXTENDED\n");
         rc = test_extensible_filter(pb, e, &f->f_mr, verify_access,
                                     only_check_access, access_check_done);
         break;
 
     case LDAP_FILTER_AND:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "AND\n");
         rc = vattr_test_filter_list_and(pb, e, f->f_and,
                                         LDAP_FILTER_AND, verify_access, only_check_access, access_check_done);
         break;
 
     case LDAP_FILTER_OR:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "OR\n");
         rc = vattr_test_filter_list_or(pb, e, f->f_or,
                                        LDAP_FILTER_OR, verify_access, only_check_access, access_check_done);
         break;
 
     case LDAP_FILTER_NOT:
-        slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "NOT\n");
+        slapi_log_err(SLAPI_LOG_FILTER, "vattr_test_filter_list_NOT", "=>\n");
         rc = slapi_vattr_filter_test_ext_internal(pb, e, f->f_not, verify_access, only_check_access, access_check_done);
         if (verify_access && only_check_access) {
             /* dont play with access control return codes
              * do not negate return code */
+            slapi_log_err(SLAPI_LOG_FILTER, "vattr_test_filter_list_NOT only check access", "<= %d\n", rc);
             break;
         }
         if (rc > 0) {
             /* an error occurred or access denied, don't negate */
+            slapi_log_err(SLAPI_LOG_FILTER, "vattr_test_filter_list_NOT slapi_vattr_filter_test_ext_internal fails", "<= %d\n", rc);
             break;
         }
         if (verify_access) {
@@ -926,6 +983,7 @@ slapi_vattr_filter_test_ext_internal(
             /* filter verification only, no error */
             rc = (rc == 0) ? -1 : 0;
         }
+        slapi_log_err(SLAPI_LOG_FILTER, "vattr_test_filter_list_NOT", "<= %d\n", rc);
         break;
 
     default:
@@ -934,8 +992,6 @@ slapi_vattr_filter_test_ext_internal(
         rc = -1;
     }
 
-
-    slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal", "<= %d\n", rc);
     return (rc);
 }
 
@@ -955,6 +1011,9 @@ test_filter_access(Slapi_PBlock *pb,
 
     rc = plugin_call_acl_plugin(pb, e, attrs, attr_val,
                                 SLAPI_ACL_SEARCH, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+
+    slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal",
+                  "acl result for %s %s = %d\n", slapi_entry_get_dn_const(e), attr_type, rc);
 
     return (rc);
 }
@@ -985,13 +1044,18 @@ vattr_test_filter_list_and(
             nomatch = -1;
             break;
         } else {
+            /* We have a match, but we need to check access */
             if (!verify_access || (*access_check_done)) {
                 nomatch = 0;
             } else {
                 /* check access */
                 rc = slapi_vattr_filter_test_ext_internal(pb, e, f, verify_access, 1, access_check_done);
-                if (rc)
+                if (rc) {
                     undefined = rc;
+                } else {
+                    /* Access is good so mark this as a match */
+                    nomatch = 0;
+                }
             }
         }
     }
@@ -1029,14 +1093,24 @@ vattr_test_filter_list_or(
                 continue;
             }
         }
-        if (only_check_access)
+        /* we are not evaluating if the entry matches
+         * but only that we have access to ALL components
+         * so check the next one
+         */
+        if (only_check_access) {
             continue;
+        }
         /* now check if filter matches */
+        /*
+         * We can NOT skip this because we need to know if the item we matched on
+         * is the item with access denied.
+         */
         undefined = 0;
         rc = slapi_vattr_filter_test_ext_internal(pb, e, f, 0, 0, access_check_done);
         if (rc == 0) {
             undefined = 0;
             nomatch = 0;
+            /* We matched, and have access. we can now return */
             break;
         } else if (rc > 0) {
             undefined = rc;

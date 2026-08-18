@@ -1,23 +1,28 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
     Button,
-    Row,
-    Col,
     Form,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    Modal,
+    ModalVariant,
     Switch,
-    noop,
-    FormGroup,
-    FormControl,
-    ControlLabel
-} from "patternfly-react";
+    NumberInput,
+    Tooltip,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
+import {
+    WrenchIcon,
+} from '@patternfly/react-icons';
 
-class USN extends React.Component {
+const _ = cockpit.gettext;
+
+class USNPlugin extends React.Component {
     componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
             if (this.state.firstLoad) {
@@ -30,8 +35,8 @@ class USN extends React.Component {
     constructor(props) {
         super(props);
 
-        this.runCleanup = this.runCleanup.bind(this);
-        this.toggleCleanupModal = this.toggleCleanupModal.bind(this);
+        this.handleRunCleanup = this.handleRunCleanup.bind(this);
+        this.handleToggleCleanupModal = this.handleToggleCleanupModal.bind(this);
         this.updateSwitch = this.updateSwitch.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -43,8 +48,28 @@ class USN extends React.Component {
             disableSwitch: false,
             cleanupModalShow: false,
             cleanupSuffix: "",
-            cleanupMaxUSN: "",
+            cleanupMaxUSN: 0,
             suffixList: [],
+            pluginEnabled: false,
+        };
+
+        this.minValue = 0;
+        this.maxValue = 20000000;
+        this.handleMinusConfig = () => {
+            this.setState({
+                cleanupMaxUSN: Number(this.state.cleanupMaxUSN) - 1
+            });
+        };
+        this.handleConfigChange = (event) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                cleanupMaxUSN: newValue > this.maxValue ? this.maxValue : newValue < this.minValue ? this.minValue : newValue
+            });
+        };
+        this.handlePlusConfig = (id) => {
+            this.setState({
+                cleanupMaxUSN: Number(this.state.cleanupMaxUSN) + 1
+            });
         };
     }
 
@@ -55,7 +80,7 @@ class USN extends React.Component {
         ];
         log_cmd("loadSuffixList", "Get a list of all the suffixes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const suffixList = JSON.parse(content);
                     this.setState({
@@ -88,22 +113,22 @@ class USN extends React.Component {
         this.setState({ disableSwitch: true });
         log_cmd("handleSwitchChange", "Switch global USN mode from the USN plugin tab", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     this.updateSwitch();
                     addNotification(
                         "success",
-                        `Global USN mode was successfully set to ${new_status}.`
+                        cockpit.format(_("Global USN mode was successfully set to $0."), new_status)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     addNotification(
                         "error",
-                        `Error during global USN mode modification - ${errMsg.desc}`
+                        cockpit.format(_("Error during global USN mode modification - $0"), errMsg)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
@@ -115,6 +140,12 @@ class USN extends React.Component {
             firstLoad: false,
             disableSwitch: true
         });
+
+        const pluginRow = this.props.rows.find(row => row.cn[0] === "USN");
+        let pluginEnabled = false;
+        if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
+            pluginEnabled = true;
+        }
         const cmd = [
             "dsconf",
             "-j",
@@ -126,22 +157,21 @@ class USN extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("updateSwitch", "Get global USN status", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
+                    const myObject = JSON.parse(content);
+                    const usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
                     this.setState({
-                        globalMode: !(usnGlobalAttr == "off")
-                    });
-                    this.setState({
+                        globalMode: !(usnGlobalAttr === "off"),
+                        pluginEnabled,
                         disableSwitch: false
                     });
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    if (err != 0) {
-                        let errMsg = JSON.parse(err);
-                        console.log("Get global USN failed", errMsg.desc);
+                    if (err !== 0) {
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("Get global USN failed", errMsg);
                     }
                     this.setState({
                         disableSwitch: false
@@ -150,17 +180,17 @@ class USN extends React.Component {
                 });
     }
 
-    toggleCleanupModal() {
+    handleToggleCleanupModal() {
         this.setState(prevState => ({
             cleanupModalShow: !prevState.cleanupModalShow,
             cleanupSuffix: prevState.suffixList[0],
-            cleanupMaxUSN: ""
+            cleanupMaxUSN: 0
         }));
     }
 
-    runCleanup() {
+    handleRunCleanup() {
         if (!this.state.cleanupSuffix) {
-            this.props.addNotification("warning", "Suffix is required.");
+            this.props.addNotification("warning", _("Suffix is required."));
         } else {
             let cmd = [
                 "dsconf",
@@ -172,23 +202,23 @@ class USN extends React.Component {
             ];
 
             if (this.state.cleanupSuffix) {
-                cmd = [...cmd, "--suffix", this.state.cleanupSuffix];
+                cmd = [...cmd, "--suffix=" + this.state.cleanupSuffix];
             }
-            if (this.state.cleanupMaxUSN) {
-                cmd = [...cmd, "--max-usn", this.state.cleanupMaxUSN];
+            if (this.state.cleanupMaxUSN > 0) {
+                cmd = [...cmd, "--max-usn=" + this.state.cleanupMaxUSN];
             }
 
             this.props.toggleLoadingHandler();
-            log_cmd("runCleanup", "Run cleanup USN tombstones", cmd);
+            log_cmd("handleRunCleanup", "Run cleanup USN tombstones", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
                         this.props.addNotification(
                             "success",
-                            `Cleanup USN Tombstones task was successfull`
+                            _("Cleanup USN Tombstones task was successful")
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -196,10 +226,10 @@ class USN extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            `Cleanup USN Tombstones task has failed ${errMsg.desc}`
+                            cockpit.format(_("Cleanup USN Tombstones task has failed $0"), errMsg)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -219,73 +249,64 @@ class USN extends React.Component {
             suffixList
         } = this.state;
 
-        let suffixes = suffixList.map((name) =>
-            <option key={name} value={name}>{name}</option>
-        );
-
         return (
             <div>
-                <Modal show={cleanupModalShow} onHide={this.toggleCleanupModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.toggleCleanupModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Fixup MemberOf Task</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="cleanupSuffix" key="cleanupSuffix">
-                                            <Col sm={4}>
-                                                <ControlLabel title="Gives the suffix in the Directory Server to run the cleanup operation against">
-                                                    Cleanup Suffix
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <select id="cleanupSuffix" onChange={this.handleFieldChange} defaultValue={cleanupSuffix}>
-                                                    {suffixes}
-                                                </select>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="cleanupMaxUSN" key="cleanupMaxUSN">
-                                            <Col sm={4}>
-                                                <ControlLabel title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
-                                                    Cleanup Max USN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="number"
-                                                    min="1"
-                                                    value={cleanupMaxUSN}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.toggleCleanupModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.runCleanup}>
-                                Run
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.small}
+                    title={_("USN Tombstone Cleanup Task")}
+                    aria-labelledby="ds-modal"
+                    isOpen={cleanupModalShow}
+                    onClose={this.handleToggleCleanupModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.handleRunCleanup}>
+                            {_("Run")}
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.handleToggleCleanupModal}>
+                            {_("Cancel")}
+                        </Button>
+                    ]}
+                >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title={_("Gives the suffix in the Directory Server to run the cleanup operation against")}>
+                            <GridItem span={4}>
+                                {_("Cleanup Suffix")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <FormSelect
+                                    id="configAutoAddOC"
+                                    value={cleanupSuffix}
+                                    onChange={(event, value) => {
+                                        this.handleFieldChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    {suffixList.map((attr) => (
+                                        <FormSelectOption key={attr} value={attr} label={attr} />
+                                    ))}
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted")}>
+                            <GridItem span={4}>
+                                {_("Cleanup Max USN")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <NumberInput
+                                    value={cleanupMaxUSN}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={this.handleMinusConfig}
+                                    onChange={this.handleConfigChange}
+                                    onPlus={this.handlePlusConfig}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={10}
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
                 <PluginBasicConfig
                     rows={this.props.rows}
@@ -298,48 +319,52 @@ class USN extends React.Component {
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <Col sm={9}>
-                            <FormGroup key="globalMode" controlId="globalMode">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={3}
-                                    title="Defines if the USN plug-in assigns unique update sequence numbers (USN) across all back end databases or to each database individually"
-                                >
-                                    USN Global
-                                </Col>
-                                <Col sm={3}>
-                                    <Switch
-                                        bsSize="normal"
-                                        title="normal"
-                                        id="bsSize-example"
-                                        value={globalMode}
-                                        onChange={() => this.handleSwitchChange(globalMode)}
-                                        animate={false}
-                                        disabled={disableSwitch}
-                                    />
-                                </Col>
-                            </FormGroup>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={9}>
-                            <Button
-                                className="ds-margin-top"
-                                bsStyle="primary"
-                                onClick={this.toggleCleanupModal}
-                            >
-                                Run Fixup Task
-                            </Button>
-                        </Col>
-                    </Row>
+                    <Tooltip
+                        maxWidth={500}
+                        content={
+                            <div>
+                                {_("The USN Plug-in enables LDAP clients and servers to identify if entries have been changed. When the USN Plug-in is enabled, update sequence numbers (USNs) are sequential numbers that are assigned to an entry whenever a write operation is performed against the entry. (Write operations include add, modify, modrdn, and delete operations. Internal database operations, like export operations, are not counted in the update sequence.) A USN counter keeps track of the most recently assigned USN.")}
+                                <br /><br />
+                                {_("The USN plug-in also moves entries to tombstone entries when the entry is deleted. If replication is enabled, then separate tombstone entries are kept by both the USN and Replication plug-in. Note that both tombstone entries are deleted by the replication process.")}
+                            </div>
+                        }
+                    >
+                        <a className="ds-font-size-sm">{_("What is the USN Plugin?")}</a>
+                    </Tooltip>
+                    <Form>
+                        <Grid className="ds-margin-top-xlg" title={_("Enable entryUSN assignment across all backends, instead of per backend.")}>
+                            <GridItem span={3} className="ds-label">
+                                {_("USN Global")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Switch
+                                    id="globalMode"
+                                    label={_("Configuration is enabled")}
+                                    labelOff={_("Configuration is disabled")}
+                                    isChecked={globalMode}
+                                    onChange={() => this.handleSwitchChange(globalMode)}
+                                    isDisabled={disableSwitch}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("This task deletes the tombstone entries maintained by the USN plugin.  This task should not run against a suffix that is being replicated")}>
+                            <GridItem className="ds-label ds-margin-top" span={3}>
+                                {_("Tombstone Cleanup Task")}<WrenchIcon className="ds-left-margin" />
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Button className="ds-margin-top" variant="primary" isDisabled={!this.state.pluginEnabled} onClick={this.handleToggleCleanupModal}>
+                                    {_("Run Task")}
+                                </Button>
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </PluginBasicConfig>
             </div>
         );
     }
 }
 
-USN.propTypes = {
+USNPlugin.propTypes = {
     rows: PropTypes.array,
     serverId: PropTypes.string,
     savePluginHandler: PropTypes.func,
@@ -348,13 +373,9 @@ USN.propTypes = {
     toggleLoadingHandler: PropTypes.func
 };
 
-USN.defaultProps = {
+USNPlugin.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
-export default USN;
+export default USNPlugin;

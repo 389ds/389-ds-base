@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,12 +9,16 @@
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.utils import ds_is_older, ensure_str
+from lib389.cli_base.dsrc import dsrc_to_ldap
+from lib389._constants import DSRC_HOME
 
 MUST_ATTRIBUTES = [
     'cn',
     'gidNumber',
 ]
 RDN = 'cn'
+DEFAULT_BASEDN_RDN = 'ou=Groups'
+
 
 class PosixGroup(DSLdapObject):
     """A single instance of PosixGroup entry
@@ -34,7 +39,7 @@ class PosixGroup(DSLdapObject):
             'groupOfNames',
             'posixGroup',
         ]
-        if not ds_is_older('1.3.7'):
+        if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
@@ -68,7 +73,7 @@ class PosixGroups(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=Groups'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(PosixGroups, self).__init__(instance)
         self._objectclasses = [
             'groupOfNames',
@@ -76,6 +81,11 @@ class PosixGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = PosixGroup
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'groups_rdn' in dsrc_inst and dsrc_inst['groups_rdn'] is not None:
+            rdn = dsrc_inst['groups_rdn']
+
         if rdn is None:
             self._basedn = ensure_str(basedn)
         else:

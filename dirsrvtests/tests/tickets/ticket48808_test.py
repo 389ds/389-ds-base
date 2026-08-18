@@ -1,10 +1,18 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 from random import sample
 
 import pytest
 from ldap.controls import SimplePagedResultsControl
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
 

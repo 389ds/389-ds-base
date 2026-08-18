@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,7 +15,7 @@ from lib389.properties import *
 mod = sys.modules[__name__]
 
 (
-    MASTER_TYPE,
+    SUPPLIER_TYPE,
     HUB_TYPE,
     LEAF_TYPE
 ) = list(range(3))
@@ -27,12 +27,12 @@ REPLICA_FLAGS_CON = 0
 TTL_DEFAULT_VAL = '86400'
 
 # The structure is convenient for replica promote/demote methods
-ReplicaRole = Enum("Replica role", "CONSUMER HUB MASTER STANDALONE")
+ReplicaRole = Enum("Replica role", "CONSUMER HUB SUPPLIER STANDALONE")
 
 CONSUMER_REPLICAID = 65535
 
 REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
-REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
+REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI SUPPLIER
 REPLICA_RDWR_TYPE = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
 
 REPLICA_FLAGS_RDONLY = 0
@@ -48,7 +48,7 @@ REPLICATION_TRANSPORT = RA_TRANSPORT_PROT
 REPLICATION_TIMEOUT = RA_TIMEOUT
 
 BDB_CL_FILENAME = "replication_changelog.db"
-LMDB_CL_FILENAME = "replication_changelog.mdb"
+LMDB_CL_FILENAME = "replication_changelog.db"
 
 # Attributes that should be masked from logging output
 SENSITIVE_ATTRS = ['userpassword',
@@ -83,10 +83,12 @@ DN_CONFIG = "cn=config"
 DN_LDBM = "cn=ldbm database,cn=plugins,cn=config"
 DN_CONFIG_LDBM = "cn=config,cn=ldbm database,cn=plugins,cn=config"
 DN_CONFIG_LDBM_BDB = "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
+DN_CONFIG_LDBM_LMDB = "cn=mdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
 DN_USERROOT_LDBM = "cn=userRoot,cn=ldbm database,cn=plugins,cn=config"
 DN_SCHEMA = "cn=schema"
 DN_MONITOR = "cn=monitor"
 DN_MONITOR_SNMP = "cn=snmp,cn=monitor"
+DN_MONITOR_MEMBEROF = "cn=MemberOf Plugin,cn=monitor"
 DN_MONITOR_LDBM = "cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_MONITOR_DATABASE = "cn=database,cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_PWDSTORAGE_SCHEMES = "cn=Password Storage Schemes,cn=plugins,cn=config"
@@ -119,6 +121,7 @@ DEFAULT_INST_HEAD = 'slapd-'
 DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
 DEFAULT_CHANGELOG_DB = 'changelogdb'
+DEFAULT_DB_LIB = 'mdb'
 
 # CONF_DIR = 'etc/dirsrv'
 # ENV_SYSCONFIG_DIR = '/etc/sysconfig'
@@ -157,6 +160,9 @@ DN_EUUID_TASK = "cn=entryuuid task,%s" % DN_TASKS
 DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 DN_FIXUP_LINKED_ATTIBUTES = "cn=fixup linked attributes,%s" % DN_TASKS
 DN_AUTOMEMBER_REBUILD_TASK = "cn=automember rebuild membership,%s" % DN_TASKS
+DN_AUTOMEMBER_ABORT_REBUILD_TASK = "cn=automember abort rebuild,%s" % DN_TASKS
+DN_COMPACTDB_TASK = "cn=compact db,%s" % DN_TASKS
+DN_SHADOW_FIXUP_TASKS = "cn=fixup shadow attributes,%s" % DN_TASKS
 
 # Script Constants
 LDIF2DB = 'ldif2db'
@@ -165,6 +171,13 @@ BAK2DB = 'bak2db'
 DB2BAK = 'db2bak'
 DB2INDEX = 'db2index'
 DBSCAN = 'dbscan'
+
+# Task warnings
+class TaskWarning(IntEnum):
+    WARN_UPGARDE_DN_FORMAT_ALL      = (1 << 0)
+    WARN_UPGRADE_DN_FORMAT          = (1 << 1)
+    WARN_UPGRADE_DN_FORMAT_SPACE    = (1 << 2)
+    WARN_SKIPPED_IMPORT_ENTRY       = (1 << 3)
 
 RDN_REPLICA = "cn=replica"
 
@@ -205,7 +218,7 @@ PLUGIN_POSIX_WINSYNC = 'Posix Winsync API'
 PLUGIN_REFER_INTEGRITY = 'referential integrity postoperation'
 PLUGIN_REPL_SYNC = 'Content Synchronization'
 PLUGIN_REPLICATION_LEGACY = 'Legacy Replication Plugin'
-PLUGIN_REPLICATION = 'Multimaster Replication Plugin'
+PLUGIN_REPLICATION = 'Multisupplier Replication Plugin'
 PLUGIN_RETRO_CHANGELOG = 'Retro Changelog Plugin'
 PLUGIN_ROLES = 'Roles Plugin'
 PLUGIN_ROOTDN_ACCESS = 'RootDN Access Control'
@@ -230,6 +243,7 @@ VALGRIND_LEAK_STR = " blocks are definitely lost in loss record "
 VALGRIND_INVALID_STR = " Invalid (free|read|write)"
 DISORDERLY_SHUTDOWN = ('Detected Disorderly Shutdown last time Directory '
                        'Server was running, recovering database')
+DEFAULT_LMDB_SIZE = '20Gb'
 
 #
 # LOG: see https://access.redhat.com/documentation/en-US/Red_Hat_Directory
@@ -307,16 +321,16 @@ PORT_STANDALONE = PORT_STANDALONE1
 SECUREPORT_STANDALONE = SECUREPORT_STANDALONE1
 SERVERID_STANDALONE = SERVERID_STANDALONE1
 
-# Replication topology - masters
+# Replication topology - suppliers
 N=0
 port_start+=100
 for i in range(port_start, port_start + number_of_instances):
     N+=1
-    setattr(mod, "HOST_MASTER_{0}".format(N), "LOCALHOST")
-    setattr(mod, "PORT_MASTER_{0}".format(N), i)
-    setattr(mod, "SECUREPORT_MASTER_{0}".format(N), i + 24700)
-    setattr(mod, "SERVERID_MASTER_{0}".format(N), "master{0}".format(N))
-    setattr(mod, "REPLICAID_MASTER_{0}".format(N), N)
+    setattr(mod, "HOST_SUPPLIER_{0}".format(N), "LOCALHOST")
+    setattr(mod, "PORT_SUPPLIER_{0}".format(N), i)
+    setattr(mod, "SECUREPORT_SUPPLIER_{0}".format(N), i + 24700)
+    setattr(mod, "SERVERID_SUPPLIER_{0}".format(N), "supplier{0}".format(N))
+    setattr(mod, "REPLICAID_SUPPLIER_{0}".format(N), N)
 
 # Replication topology - hubs
 N=0
@@ -363,3 +377,15 @@ CONTAINER_TLS_SERVER_KEY = '/data/tls/server.key'
 CONTAINER_TLS_SERVER_CERT = '/data/tls/server.crt'
 CONTAINER_TLS_SERVER_CADIR = '/data/tls/ca'
 CONTAINER_TLS_PWDFILE = '/data/config/pwdfile.txt'
+
+# Describe what kind of Berkeley Database library is available
+BDB_IMPL_STATUS = Enum('BDB_IMPL_STATUS', [
+                       'UNKNOWN',   # Unable to discover
+                       'STANDARD',  # os libdb rpm is installed
+                       'BUNDLED',   # lib389 bundled rpm is installed
+                       'READ_ONLY', # Read-only version is available
+                       'NONE' ])    # bdb is not usasable
+
+# DB implementation
+DB_IMPL_BDB = "bdb"
+DB_IMPL_MDB = "mdb"

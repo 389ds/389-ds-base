@@ -116,40 +116,80 @@ class Schema(DSLdapObject):
             result = ATTR_SYNTAXES
         return result
 
-    def _get_schema_objects(self, object_model, json=False):
-        """Get all the schema objects for a specific model: Attribute, Objectclass,
-        or Matchingreule.
+    def gather_oc_sup_attrs(self, oc, sup_oc, ocs, processed_ocs=None):
+        """
+        Recursively build up all the objectclass superiors' may/must
+        attributes
+
+        @param oc - original objectclass we are building up
+        @param sup_oc - superior objectclass that we are gathering must/may
+                        attributes from, and for following its superior
+                        objectclass
+        @param ocs - all objectclasses
+        @param processed_ocs - list of all the superior objectclasees we have
+                               already processed. Used for checking if we
+                               somehow get into an infinite loop
+        """
+        if processed_ocs is None:
+            # First pass, init our values
+            sup_oc = oc
+            processed_ocs = [sup_oc['names'][0]]
+        elif sup_oc['names'][0] in processed_ocs:
+            # We're looping, need to abort. This should never happen because
+            # of how the schema is structured, but perhaps a bug was
+            # introduced in the server schema handling?
+            return
+
+        # update processed list to prevent loops
+        processed_ocs.append(sup_oc['names'][0])
+
+        for soc in sup_oc['sup']:
+            if soc.lower() == "top":
+                continue
+            # Get sup_oc
+            for obj in ocs:
+                oc_dict = vars(ObjectClass(obj))
+                name = oc_dict['names'][0]
+                if name.lower() == soc.lower():
+                    # Found the superior, get it's attributes
+                    for attr in oc_dict['may']:
+                        if attr not in oc['may']:
+                            oc['may'] = oc['may'] + (attr,)
+                    for attr in oc_dict['must']:
+                        if attr not in oc['must']:
+                            oc['must'] = oc['must'] + (attr,)
+
+                    # Sort the tuples
+                    oc['may'] = tuple(sorted(oc['may']))
+                    oc['must'] = tuple(sorted(oc['must']))
+
+                    # Now recurse and check this objectclass
+                    self.gather_oc_sup_attrs(oc, oc_dict, ocs, processed_ocs)
+
+    def _get_schema_objects(self, object_model, include_sup=False, json=False):
+        """Get all the schema objects for a specific model:
+
+            Attribute, ObjectClass, or MatchingRule.
         """
         attr_name = self._get_attr_name_by_model(object_model)
         results = self.get_attr_vals_utf8(attr_name)
+        object_insts = []
 
         if json:
-            object_insts = []
             for obj in results:
                 obj_i = vars(object_model(obj))
                 if len(obj_i["names"]) == 1:
-                    obj_i['name'] = obj_i['names'][0].lower()
+                    obj_i['name'] = obj_i['names'][0]
                     obj_i['aliases'] = None
                 elif len(obj_i["names"]) > 1:
-                    obj_i['name'] = obj_i['names'][0].lower()
+                    obj_i['name'] = obj_i['names'][0]
                     obj_i['aliases'] = obj_i['names'][1:]
                 else:
                     obj_i['name'] = ""
 
-                # Temporary workaround for X-ORIGIN in ObjectClass objects.
-                # It should be removed after https://github.com/python-ldap/python-ldap/pull/247 is merged
-                if " X-ORIGIN " in obj and obj_i['names'] == vars(object_model(obj))['names']:
-                    remainder = obj.split(" X-ORIGIN ")[1]
-                    if remainder[:1] == "(":
-                        # Have multiple values
-                        end = remainder.find(')')
-                        vals = remainder[1:end]
-                        vals = re.findall(X_ORIGIN_REGEX, vals)
-                        # For now use the first value, but this should be a set (another bug in python-ldap)
-                        obj_i['x_origin'] = vals[0]
-                    else:
-                        # Single X-ORIGIN value
-                        obj_i['x_origin'] = obj.split(" X-ORIGIN ")[1].split("'")[1]
+                if object_model is ObjectClass and include_sup:
+                    self.gather_oc_sup_attrs(obj_i, None, results)
+
                 object_insts.append(obj_i)
 
             object_insts = sorted(object_insts, key=itemgetter('name'))
@@ -161,11 +201,20 @@ class Schema(DSLdapObject):
 
             return {'type': 'list', 'items': object_insts}
         else:
-            object_insts = [object_model(obj_i) for obj_i in results]
+            for obj_i in results:
+                obj_i = object_model(obj_i)
+                if object_model is ObjectClass and include_sup:
+                    obj_ii = vars(obj_i)
+                    self.gather_oc_sup_attrs(obj_ii, None, results)
+                    obj_i.may = obj_ii['may']
+                    obj_i.must = obj_ii['must']
+                object_insts.append(obj_i)
             return sorted(object_insts, key=lambda x: x.names, reverse=False)
 
-    def _get_schema_object(self, name, object_model, json=False):
-        objects = self._get_schema_objects(object_model, json=json)
+    def _get_schema_object(self, name, object_model, include_sup=False, json=False):
+        objects = self._get_schema_objects(object_model,
+                                           include_sup=include_sup,
+                                           json=json)
         if json:
             schema_object = [obj_i for obj_i in objects["items"] if name.lower() in
                              list(map(str.lower, obj_i["names"]))]
@@ -199,9 +248,17 @@ class Schema(DSLdapObject):
         # Default structure. We modify it later with the specified arguments
         schema_object = object_model()
 
+        # x-origin requires special handling to make sure it is a Tuple
+        empty = ()
+        setattr(schema_object, "x_origin", empty)
+
         for oc_param, value in parameters.items():
             if oc_param.lower() not in OBJECT_MODEL_PARAMS[object_model].keys():
                 raise ValueError('Wrong parameter name was specified: %s' % oc_param)
+            if oc_param == "x_origin" and value is not None and \
+                (type(value) != list and type(value) != tuple):
+                # x-origin is expected to be a tuple in python-ldap
+                value = (value,)
             if value is not None:
                 value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param.lower(), value)
@@ -211,22 +268,29 @@ class Schema(DSLdapObject):
         # It is automatically assigned to 'SUP top'
         parameters_none = {k.lower(): v for k, v in parameters.items() if v is None}
         for k, v in parameters_none.items():
+            if k == "x_origin" and v is None:
+                continue
             setattr(schema_object, k, OBJECT_MODEL_PARAMS[object_model][k])
         return self.add(attr_name, str(schema_object))
 
     def _remove_schema_object(self, name, object_model):
         attr_name = self._get_attr_name_by_model(object_model)
         schema_object = self._get_schema_object(name, object_model)
-
         return self.remove(attr_name, str(schema_object))
 
     def _edit_schema_object(self, name, parameters, object_model):
         attr_name = self._get_attr_name_by_model(object_model)
         schema_object = self._get_schema_object(name, object_model)
         schema_object_str_old = str(schema_object)
-
+        superior_is_set = False
         if len(parameters) == 0:
             raise ValueError('Parameters should be specified')
+
+        if schema_object is None:
+            raise ValueError(f'Schema ({name}) not found')
+
+        if len(schema_object.sup) > 0:
+            superior_is_set = True
 
         for oc_param, value in parameters.items():
             if oc_param.lower() not in OBJECT_MODEL_PARAMS[object_model].keys():
@@ -235,7 +299,7 @@ class Schema(DSLdapObject):
                 value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param, value)
             else:
-                if getattr(schema_object, oc_param, False):
+                if not getattr(schema_object, oc_param, False) or not value:
                     # Need to set the correct "type" for the empty value
                     if oc_param in ['may', 'must',  'x-origin', 'sup']:
                         # Expects tuple
@@ -247,12 +311,23 @@ class Schema(DSLdapObject):
                         # Expects numberic
                         setattr(schema_object, oc_param, 0)
 
+        if len(schema_object.sup) == 0 and superior_is_set:
+            # removing a superior mean we need to remove
+            # matching rules since they were inherited from sup
+            setattr(schema_object, 'equality', None)
+            setattr(schema_object, 'ordering', None)
+            setattr(schema_object, 'substr', None)
+
         schema_object_str = str(schema_object)
         if schema_object_str == schema_object_str_old:
-            raise ValueError('ObjectClass is already in the required state. Nothing to change')
+            raise ValueError('Schema is already in the required state. Nothing to change')
 
         self.remove(attr_name, schema_object_str_old)
-        return self.add(attr_name, schema_object_str)
+        try:
+            return self.add(attr_name, schema_object_str)
+        except ldap.LDAPError:
+            self.add(attr_name, schema_object_str_old)
+            raise
 
     def reload(self, schema_dir=None):
         """Reload the schema"""
@@ -272,7 +347,7 @@ class Schema(DSLdapObject):
 
         file_list = []
         file_list += glob.glob(os.path.join(self.conn.schemadir, "*.ldif"))
-        if ds_is_newer('1.3.6.0'):
+        if ds_is_newer('1.3.6.0', instance=self._instance):
             file_list += glob.glob(os.path.join(self.conn.ds_paths.system_schema_dir, "*.ldif"))
         return file_list
 
@@ -344,7 +419,6 @@ class Schema(DSLdapObject):
         :param name: the name of the objectClass you want to remove.
         :type name: str
         """
-
         return self._remove_schema_object(name, ObjectClass)
 
     def edit_attributetype(self, name, parameters):
@@ -369,7 +443,7 @@ class Schema(DSLdapObject):
 
         return self._edit_schema_object(name, parameters, ObjectClass)
 
-    def get_objectclasses(self, json=False):
+    def get_objectclasses(self, include_sup=False, json=False):
         """Returns a list of ldap.schema.models.ObjectClass objects for all
         objectClasses supported by this instance.
 
@@ -377,7 +451,8 @@ class Schema(DSLdapObject):
         :type json: bool
         """
 
-        return self._get_schema_objects(ObjectClass, json=json)
+        return self._get_schema_objects(ObjectClass, include_sup=include_sup,
+                                        json=json)
 
     def get_attributetypes(self, json=False):
         """Returns a list of ldap.schema.models.AttributeType objects for all
@@ -420,7 +495,8 @@ class Schema(DSLdapObject):
         else:
             return matching_rule
 
-    def query_objectclass(self, objectclassname, json=False):
+    def query_objectclass(self, objectclassname, include_sup=False,
+                          json=False):
         """Returns a single ObjectClass instance that matches objectclassname.
         Returns None if the objectClass doesn't exist.
 
@@ -435,7 +511,9 @@ class Schema(DSLdapObject):
         <ldap.schema.models.ObjectClass instance>
         """
 
-        objectclass = self._get_schema_object(objectclassname, ObjectClass, json=json)
+        objectclass = self._get_schema_object(objectclassname, ObjectClass,
+                                              include_sup=include_sup,
+                                              json=json)
 
         if json:
             result = {'type': 'schema', 'oc': objectclass}
@@ -544,7 +622,7 @@ class SchemaLegacy(object):
         """return a list of the schema files in the instance schemadir"""
         file_list = []
         file_list += glob.glob(self.conn.schemadir + "/*.ldif")
-        if ds_is_newer('1.3.6.0'):
+        if ds_is_newer('1.3.6.0', instance=self.conn):
             file_list += glob.glob(self.conn.ds_paths.system_schema_dir + "/*.ldif")
         return file_list
 
@@ -618,7 +696,7 @@ class SchemaLegacy(object):
                 results.getValues('objectClasses')]
             for oc in objectclasses:
                 # Add normalized name for sorting
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             objectclasses = sorted(objectclasses, key=itemgetter('name'))
             result = {'type': 'list', 'items': objectclasses}
             return dump_json(result)
@@ -640,7 +718,7 @@ class SchemaLegacy(object):
                 results.getValues('attributeTypes')]
             for attr in attributetypes:
                 # Add normalized name for sorting
-                attr['name'] = attr['names'][0].lower()
+                attr['name'] = attr['names'][0]
             attributetypes = sorted(attributetypes, key=itemgetter('name'))
             result = {'type': 'list', 'items': attributetypes}
             return dump_json(result)
@@ -660,7 +738,7 @@ class SchemaLegacy(object):
             for mr in matchingRules:
                 # Add normalized name for sorting
                 if mr['names']:
-                    mr['name'] = mr['names'][0].lower()
+                    mr['name'] = mr['names'][0]
                 else:
                     mr['name'] = ""
             matchingRules = sorted(matchingRules, key=itemgetter('name'))
@@ -687,7 +765,7 @@ class SchemaLegacy(object):
         if len(matchingRule) != 1:
             # This is an error.
             if json:
-                raise ValueError('Could not find matchingrule: ' + objectclassname)
+                raise ValueError('Could not find matchingrule: ' + mr_name)
             else:
                 return None
         matchingRule = matchingRule[0]
@@ -745,7 +823,6 @@ class SchemaLegacy(object):
         # filter our set of all attribute types.
         objectclasses = self.get_objectclasses()
         attributetypes = self.get_attributetypes()
-        attributetypename = attributetypename.lower()
 
         attributetype = [at for at in attributetypes
                          if attributetypename.lower() in
@@ -772,9 +849,9 @@ class SchemaLegacy(object):
             must = [vars(oc) for oc in must]
             # Add normalized 'name' for sorting
             for oc in may:
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             for oc in must:
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             may = sorted(may, key=itemgetter('name'))
             must = sorted(must, key=itemgetter('name'))
             result = {'type': 'schema',

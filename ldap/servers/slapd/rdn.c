@@ -981,7 +981,6 @@ slapi_rdn_replace_rdn(Slapi_RDN *srdn, char *new_rdn)
     if (NULL == srdn) {
         return -1;
     }
-
     slapi_ch_free_string(&(srdn->rdn));
     slapi_ch_free_string(&(srdn->nrdn));
     srdn->rdn = slapi_ch_strdup(new_rdn);

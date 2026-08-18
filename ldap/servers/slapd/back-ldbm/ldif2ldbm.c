@@ -54,49 +54,6 @@ typedef struct _export_args
 /* static functions */
 
 
-/**********  common routines for classic/deluxe import code **********/
-
-static PRIntn
-import_subcount_hash_compare_keys(const void *v1, const void *v2)
-{
-    return (((ID)((uintptr_t)v1) == (ID)((uintptr_t)v2)) ? 1 : 0);
-}
-
-static PRIntn
-import_subcount_hash_compare_values(const void *v1, const void *v2)
-{
-    return (((size_t)v1 == (size_t)v2) ? 1 : 0);
-}
-
-static PLHashNumber
-import_subcount_hash_fn(const void *id)
-{
-    return (PLHashNumber)((uintptr_t)id);
-}
-
-void
-import_subcount_stuff_init(import_subcount_stuff *stuff)
-{
-    stuff->hashtable = PL_NewHashTable(IMPORT_SUBCOUNT_HASHTABLE_SIZE,
-                                       import_subcount_hash_fn, import_subcount_hash_compare_keys,
-                                       import_subcount_hash_compare_values, NULL, NULL);
-}
-
-void
-import_subcount_stuff_term(import_subcount_stuff *stuff)
-{
-    if (stuff != NULL && stuff->hashtable != NULL) {
-        PL_HashTableDestroy(stuff->hashtable);
-    }
-}
-
-
-
-/**********  functions for maintaining the subordinate count **********/
-
-
-
-
 /**********  ldif2db entry point  **********/
 
 /*
@@ -119,9 +76,20 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
     int rc, task_flags;
+    const char *action = "On-line import";
+    char *bename = NULL;
+    char *ldif = "";
+    char **ldifs = NULL;
+
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &bename);
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_FILE, &ldifs);
+    if (ldifs && ldifs[0]) {
+        ldif = ldifs[0];
+    }
+
     if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* initialize UniqueID generator - must be done once backends are started
            and event queue is initialized but before plugins are started */
@@ -141,10 +109,24 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 
         dblayer_setup(li);
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+        action = "Off-line import";
     }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    return priv->dblayer_ldif2db_fn(pb);;
+    slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm",
+        "Starting %s of ldif file %s over backend %s.\n",
+        action, ldif, bename);
+    rc =  priv->dblayer_ldif2db_fn(pb);;
+    /*
+     * On line import task is still running in another thread
+     * so we can only log the off-line completion
+     */
+    if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm",
+            "Ending %s of ldif file %s over backend %s (rc=%d).\n",
+            action, ldif, bename, rc);
+    }
+    return rc;
 }
 
 
@@ -360,7 +342,17 @@ int
 ldbm_back_upgradednformat(Slapi_PBlock *pb)
 {
     struct ldbminfo *li = NULL;
+    int task_flags;
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
+
+    if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+        if (dblayer_setup(li)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_upgradednformat", "dblayer_setup failed\n");
+            return -1;
+        }
+        li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
     return priv->dblayer_upgradedn_fn(pb);

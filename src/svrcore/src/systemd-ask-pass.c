@@ -44,7 +44,14 @@ struct SVRCORESystemdPinObj
     SVRCOREPinObj base;
     uint64_t timeout;
 };
-static const struct SVRCOREPinMethods vtable;
+
+#ifdef WITH_SYSTEMD
+static void destroyObject(SVRCOREPinObj *obj);
+static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry);
+
+static const SVRCOREPinMethods vtable = { 0, 0, destroyObject, getPin };
+#endif // WITH_SYSTEMD
+
 
 SVRCOREError
 SVRCORE_CreateSystemdPinObj(SVRCORESystemdPinObj **out, uint64_t timeout)
@@ -157,12 +164,10 @@ _until(uint64_t timeout, uint64_t *until)
 out:
     return err;
 }
-#endif // Systemd
 
 static char *
 getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
 {
-#ifdef WITH_SYSTEMD
     SVRCORESystemdPinObj *sobj = (SVRCORESystemdPinObj *)obj;
     SVRCOREError err = SVRCORE_Success;
     char *tbuf = malloc(PASS_MAX);
@@ -441,11 +446,8 @@ out:
     }
 
     return token;
-
-#else // systemd
-    return NULL;
-#endif // Systemd
 }
+#endif // Systemd
 
 void
 SVRCORE_DestroySystemdPinObj(SVRCORESystemdPinObj *obj)
@@ -457,12 +459,10 @@ SVRCORE_DestroySystemdPinObj(SVRCORESystemdPinObj *obj)
 #endif // Systemd
 }
 
+#ifdef WITH_SYSTEMD
 static void
 destroyObject(SVRCOREPinObj *obj)
 {
     SVRCORE_DestroySystemdPinObj((SVRCORESystemdPinObj*)obj);
 }
-
-static const SVRCOREPinMethods vtable =
-{ 0, 0, destroyObject, getPin };
-
+#endif // Systemd

@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import os
 import sys
 import time
@@ -13,7 +21,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 pytestmark = pytest.mark.tier3
 

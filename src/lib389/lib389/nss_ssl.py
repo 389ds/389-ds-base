@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,22 +16,15 @@ import socket
 import time
 import shutil
 import logging
-# from nss import nss
 import subprocess
+import uuid
+from typing import Optional
 from datetime import datetime, timedelta
 from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
-from lib389.utils import ensure_str, format_cmd_list
-import uuid
-
-# Setuptools ships with 'packaging' module, let's use it from there
-try:
-    from pkg_resources.extern.packaging.version import LegacyVersion
-# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
-except:
-    from packaging.version import LegacyVersion
+from lib389.utils import ensure_str, format_cmd_list, DSVersion, cert_is_ca
 
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
@@ -51,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 class NssSsl(DSLint):
-    def __init__(self, dirsrv=None, dbpassword=None, dbpath=None):
+    def __init__(self, dirsrv=None, dbpassword=None, dbpath=None, uid=None, gid=None):
         self.dirsrv = dirsrv
         self._certdb = dbpath
         if self._certdb is None:
@@ -73,6 +66,17 @@ class NssSsl(DSLint):
     def lint_uid(cls):
         return 'tls'
 
+    def _assert_not_chain(self, pemfile):
+        # To work this out, we open the file and count how many
+        # begin key and begin cert lines there are. Any more than 1 is bad.
+        count = 0
+        with open(pemfile, 'r') as f:
+            for line in f:
+                if line.startswith('-----BEGIN PRIVATE KEY-----') or line.startswith('-----BEGIN CERTIFICATE-----'):
+                    count = count + 1
+        if count > 1:
+            raise ValueError(f"The file {pemfile} may be a chain file. This is not supported. Break out each certificate and key into unique files, and import them individually.")
+
     def _lint_certificate_expiration(self):
         """Check all the certificates in the db if they will expire within 30 days
         or have already expired.
@@ -81,20 +85,19 @@ class NssSsl(DSLint):
         all_certs = self._rsa_cert_list()
         for cert in all_certs:
             cert_list.append(self.get_cert_details(cert[0]))
-
         for cert in cert_list:
-            cert_date = cert[3].split()[0]
+            cert_date = cert['expires'].split()[0]
             diff_date = datetime.strptime(cert_date, '%Y-%m-%d').date() - datetime.today().date()
             if diff_date < timedelta(days=0):
                 # Expired
                 report = copy.deepcopy(DSCERTLE0002)
-                report['detail'] = report['detail'].replace('CERT', cert[0])
+                report['detail'] = report['detail'].replace('CERT', cert['cn'])
                 report['check'] = f'tls:certificate_expiration'
                 yield report
             elif diff_date < timedelta(days=30):
                 # Expiring within 30 days
                 report = copy.deepcopy(DSCERTLE0001)
-                report['detail'] = report['detail'].replace('CERT', cert[0])
+                report['detail'] = report['detail'].replace('CERT', cert['cn'])
                 report['check'] = f'tls:certificate_expiration'
                 yield report
 
@@ -121,7 +124,6 @@ class NssSsl(DSLint):
         :type alt_names: [str, ]
         :returns: String of the subject DN.
         """
-
         if self.dirsrv and len(alt_names) > 0:
             return SELF_ISSUER.format(GIVENNAME=self.dirsrv.get_uuid(), HOSTNAME=alt_names[0])
         elif len(alt_names) > 0:
@@ -147,7 +149,7 @@ class NssSsl(DSLint):
         finally:
             prv_mask = os.umask(prv_mask)
 
-    def reinit(self):
+    def reinit(self, uid=None, gid=None):
         """
         Re-init (create) the nss db.
         """
@@ -187,17 +189,30 @@ only.
             if not os.path.exists(pwd_text_file):
                 with open(pwd_text_file, 'w') as f:
                     f.write('%s' % self.dbpassword)
+
+            if uid is not None and gid is not None:
+                os.chown(pin_file, uid, gid)
+                os.chown(pwd_text_file, uid, gid)
         finally:
             prv_mask = os.umask(prv_mask)
 
         # Init the db.
         # 48886; This needs to be sql format ...
-        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
+        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT),  '-@', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         self.log.debug("nss output: %s", result)
+
+        if uid is not None and gid is not None:
+            for file in self.db_files["sql_backend"]:
+                os.chown(file, uid, gid)
+
         return True
+
 
     def _db_exists(self, even_partial=False):
         """Check that a nss db exists at the certpath"""
@@ -232,15 +247,32 @@ only.
         code. Instead, we parse the output of `openssl version` and try to
         figure out if we have a new enough version to unconditionally run rehash.
         """
-        openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
-        rehash_available = LegacyVersion(openssl_version.split(' ')[1]) >= LegacyVersion('1.1.0')
+
+        def only_warning(text):
+            for line in text.split('\n'):
+                if line and not 'warning' in line.lower():
+                    return False
+            return True
+
+        try:
+            openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+        rehash_available = DSVersion(openssl_version.split(' ')[1]) >= DSVersion('1.1.0')
 
         if rehash_available:
             cmd = ['/usr/bin/openssl', 'rehash', certdir]
         else:
             cmd = ['/usr/bin/c_rehash', certdir]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            res = run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.log.debug("nss cmd: %s returned %d STDOUT=%s",
+                           format_cmd_list(cmd), res.returncode, res.stdout)
+            if res.returncode != 1 or not only_warning(res.stdout):
+                res.check_returncode()
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.rstrip())
 
     def create_rsa_ca(self, months=VALID):
         """
@@ -292,7 +324,10 @@ only.
             '-a',
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        certdetails = check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            certdetails = check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
         self.openssl_rehash(self._certdb)
@@ -312,7 +347,10 @@ only.
             self._certdb,
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        try:
+            certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
         date_format = '%a %b %d %H:%M:%S %Y'
         end_date = datetime.strptime(end_date_str, date_format)
@@ -351,7 +389,10 @@ only.
             '-o', csr_path,
             ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         # Sign the CSR with our old CA
         cmd = [
@@ -373,7 +414,10 @@ only.
             '%s' % months,
             ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         self.openssl_rehash(self._certdb)
 
@@ -389,7 +433,10 @@ only.
             '-f', '%s/%s' % (self._certdb, PWD_TXT),
             ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return crt_path
 
@@ -402,7 +449,10 @@ only.
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         # We can skip the first few lines. They are junk
         # IE ['',
@@ -420,8 +470,128 @@ only.
             if line == 'Database needs user init':
                 # There are no certs, abort...
                 return []
-            cert_values.append(re.match(r'^(.+[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
+            cert_values.append(re.match(r'^(.*[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
         return cert_values
+
+    def _openssl_get_csr_subject(self, csr_dir, csr_name):
+        cmd = [
+            '/usr/bin/openssl',
+            'req',
+            '-subject',
+            '-noout',
+            '-in',
+            '%s/%s'% (csr_dir, csr_name),
+        ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        # Parse the subject string from openssl output
+        result = result.replace("subject=", "")
+        result = result.replace(" ", "").strip()
+        result = result.split(',')
+        result = result[slice(None, None, -1)]
+        result = ','.join([str(elem) for elem in result])
+        return result
+
+    def _openssl_get_csr_sub_alt_names(self, csr_dir, csr_name):
+        cmd = [
+            '/usr/bin/openssl',
+            'req',
+            '-noout',
+            '-text',
+            '-in',
+            '%s/%s'% (csr_dir, csr_name),
+        ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        subaltnames = []
+        lines = result.split('\n')
+        for line in lines:
+            if 'DNS:' in line:
+                names = line.split(',')
+                for altname in names:
+                    altname = altname.replace("DNS:", "")
+                    subaltnames.append(altname.replace(",:", "").strip())
+
+        return subaltnames
+
+    def _csr_show(self, name):
+        csr_dir = self.dirsrv.get_cert_dir()
+        result = ""
+        # Display PEM contents of a CSR file
+        if name and csr_dir:
+            if os.path.exists(csr_dir + "/" + name + ".csr"):
+                cmd = [
+                    "/usr/bin/sed",
+                    "-n",
+                    '/BEGIN NEW/,/END NEW/p',
+                    csr_dir + "/" + name + ".csr"
+                ]
+                self.log.debug("cmd: %s", format_cmd_list(cmd))
+                try:
+                    result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+                except subprocess.CalledProcessError as e:
+                    raise ValueError(e.output.decode('utf-8').rstrip())
+
+        return result
+
+    def _csr_list(self, csr_dir=None):
+        csr_list = []
+        csr_dir = self.dirsrv.get_cert_dir()
+        # Search for .csr file extensions in instance config dir
+        cmd = [
+            '/usr/bin/find',
+            csr_dir,
+            '-type',
+            'f',
+            '-name',
+            '*.csr',
+            '-printf',
+            '%f\\n',
+        ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        # Bail out if we cant find any .csr files
+        if len(result) == 0:
+            return []
+
+        # For each .csr file, get last modified time and subject DN
+        for csr_file in result.splitlines():
+            csr = []
+            # Get last modified time stamp
+            cmd = [
+                '/usr/bin/date',
+                '-r',
+                '%s/%s'% (csr_dir, csr_file),
+                '+%Y-%m-%d %H:%M:%S',
+            ]
+            try:
+                result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
+
+            # Add csr modified timestamp
+            csr.append(result.strip())
+            # Use openssl to get the csr subject DN
+            csr.append(self._openssl_get_csr_subject(csr_dir, csr_file))
+            # Use openssl to get the csr subject alt host names
+            csr.append(self._openssl_get_csr_sub_alt_names(csr_dir, csr_file))
+            # Add csr name, without extension
+            csr.append(csr_file.rsplit('.', 1)[0])
+            csr_list.append(csr)
+
+        return csr_list
 
     def _rsa_cert_key_exists(self, cert_tuple):
         name = cert_tuple[0]
@@ -434,11 +604,13 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
-
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         lines = result.split('\n')[1:-1]
         for line in lines:
-            m = re.match('\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
+            m = re.match(r'\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
             if name == m.group('name'):
                 return True
         return False
@@ -500,7 +672,7 @@ only.
                     have_user = True
         return have_user
 
-    def create_rsa_key_and_cert(self, alt_names=[], months=VALID):
+    def create_rsa_key_and_cert(self, alt_names=[], months=VALID, name=CERT_NAME):
         """
         Create a key and a cert that is signed by the self signed ca
 
@@ -519,7 +691,7 @@ only.
             '/usr/bin/certutil',
             '-S',
             '-n',
-            CERT_NAME,
+            name,
             '-s',
             subject,
             # We MUST issue with SANs else ldap wont verify the name.
@@ -540,22 +712,26 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         self.log.debug("nss output: %s", result)
         return True
 
-    def create_rsa_key_and_csr(self, alt_names=[], subject=None):
+    def create_rsa_key_and_csr(self, alt_names=[], subject=None, name=CERT_NAME):
         """Create a new RSA key and the certificate signing request. This
-        request can be submitted to a CA for signing. The returned certifcate
+        request can be submitted to a CA for signing. The returned certificate
         can be added with import_rsa_crt.
         """
-        csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
+        csr_path = os.path.join(self._certdb, '%s.csr' % name)
 
         if len(alt_names) == 0:
             alt_names = self.detect_alt_names(alt_names)
         if subject is None:
             subject = self.generate_cert_subject(alt_names)
 
+        self.log.debug(f"CSR name -> {name}")
         self.log.debug(f"CSR subject -> {subject}")
         self.log.debug(f"CSR alt_names -> {alt_names}")
 
@@ -590,7 +766,10 @@ only.
             '-o', csr_path,
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return csr_path
 
@@ -616,11 +795,14 @@ only.
             '-c', CA_NAME,
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return (ca_path, crt_path)
 
-    def import_rsa_crt(self, ca=None, crt=None):
+    def import_rsa_crt(self, ca=None, crt=None, name=CERT_NAME):
         """Given a signed certificate from a ca, import the CA and certificate
         to our database.
 
@@ -630,6 +812,10 @@ only.
         assert ca is not None or crt is not None, "At least one parameter should be specified (ca or crt)"
 
         if ca is not None:
+            if not os.path.exists(ca):
+                raise ValueError("The certificate file ({}) does not exist".format(ca))
+            self._assert_not_chain(ca)
+
             shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
             self.openssl_rehash(self._certdb)
             cmd = [
@@ -644,13 +830,19 @@ only.
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
 
         if crt is not None:
+            if not os.path.exists(crt):
+                raise ValueError("The certificate file ({}) does not exist".format(crt))
+            self._assert_not_chain(crt)
             cmd = [
                 '/usr/bin/certutil',
                 '-A',
-                '-n', CERT_NAME,
+                '-n', name,
                 '-t', ",,",
                 '-a',
                 '-i', crt,
@@ -659,16 +851,22 @@ only.
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
             cmd = [
                 '/usr/bin/certutil',
                 '-V',
                 '-d', self._certdb,
-                '-n', CERT_NAME,
+                '-n', name,
                 '-u', 'YCV'
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
 
     def create_rsa_user(self, name, months=VALID):
         """
@@ -711,8 +909,11 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s", result)
         # Now extract this into PEM files that we can use.
         # pk12util -o user-william.p12 -d . -k pwdfile.txt -n user-william -W ''
@@ -725,7 +926,10 @@ only.
             '-W', '""'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # openssl pkcs12 -in user-william.p12 -passin pass:'' -out file.pem -nocerts -nodes
         # Extract the key
         cmd = [
@@ -738,7 +942,10 @@ only.
             '-nodes'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # Extract the cert
         cmd = [
             'openssl',
@@ -751,7 +958,10 @@ only.
             '-nodes'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # Convert the cert for userCertificate attr
         cmd = [
             'openssl',
@@ -762,7 +972,10 @@ only.
             '-out', '%s/%s%s.der' % (self._certdb, USER_PREFIX, name),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return subject
 
@@ -775,6 +988,52 @@ only.
         crt_path = '%s/%s%s.crt' % (self._certdb, USER_PREFIX, name)
         crt_der_path = '%s/%s%s.der' % (self._certdb, USER_PREFIX, name)
         return {'ca': ca_path, 'key': key_path, 'crt': crt_path, 'crt_der_path': crt_der_path}
+
+    def list_keys(self, orphan=None):
+        key_list = []
+        cmd = [
+            '/usr/bin/certutil',
+            '-K',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        # Ignore the first line of certutil output
+        for line in result.splitlines()[1:]:
+            # Normalise the output of certutil
+            line = re.sub(r"\<[^>]*\>","", line)
+            key = re.split(r'\s{2,}', line)
+            if orphan:
+                if 'orphan' in line:
+                    key_list.append(key)
+            else:
+                key_list.append(key)
+
+        return key_list
+
+    def del_key(self, keyid):
+        cmd = [
+            '/usr/bin/certutil',
+            '-F',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+            '-k',
+            keyid,
+        ]
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        return result
 
     # Certificate helper functions
     def del_cert(self,  nickname):
@@ -789,7 +1048,10 @@ only.
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
         self.log.debug("del_cert cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def edit_cert_trust(self, nickname,  trust_flags):
         """Edit trust flags
@@ -819,8 +1081,10 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("edit_cert_trust cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
-
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def display_cert_details(self, nickname):
         cmd = [
@@ -832,18 +1096,22 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("display_cert_details cmd: %s", format_cmd_list(cmd))
-        return check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        try:
+            result = check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
+        return ensure_str(result)
 
     def get_cert_details(self, nickname):
         """Get the trust flags, subject DN, issuer, and expiration date
 
-        return a list:
-            0 - nickname
-            1 - subject
-            2 - issuer
-            3 - expire date
-            4 - trust_flags
+        :return: dict containing certificate details with keys:
+            - "cn"          : Certificate nickname (str)
+            - "subject"     : Subject DN (str)
+            - "issuer"      : Issuer DN (str)
+            - "expires"     : Expiration date/time as a string (YYYY-MM-DD HH:MM:SS)
+            - "trust_flags" : Trust flags from NSS (str)
         """
         all_certs = self._rsa_cert_list()
         for cert in all_certs:
@@ -881,26 +1149,33 @@ only.
                             issuer = issuer[1:-1]
                             break
 
-                return ([nickname,  subject, issuer, str(end_date), trust_flags])
+                return {
+                    "cn": nickname,
+                    "subject": subject,
+                    "issuer": issuer,
+                    "expires": str(end_date),
+                    "trust_flags": trust_flags,
+                }
 
-        # Did not find cert with that name
-        raise ValueError("Certificate '{}' not found in NSS database".format(nickname))
+        return None
 
     def list_certs(self, ca=False):
         all_certs = self._rsa_cert_list()
         certs = []
-        for cert in all_certs:
-            trust_flags = cert[1]
+        for nickname, trust_flags in all_certs:
             if (ca and "CT" in trust_flags) or (not ca and "CT" not in trust_flags):
-                certs.append(self.get_cert_details(cert[0]))
+                cert_details = self.get_cert_details(nickname)
+                certs.append(cert_details)
         return certs
 
     def list_ca_certs(self):
-        return [
-            cert
-            for cert in self._rsa_cert_list()
-            if self._rsa_cert_is_catrust(cert)
-        ]
+        ca_certs = []
+        for cert in self._rsa_cert_list():
+            if self._rsa_cert_is_catrust(cert):
+                # cert[0] is the nickname
+                cert_details = self.get_cert_details(cert[0])
+                ca_certs.append(cert_details)
+        return ca_certs
 
     def list_client_ca_certs(self):
         return [
@@ -909,19 +1184,94 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-
-    def add_cert(self, nickname, input_file, ca=False):
+    def add_cert(self,
+                 nickname: str,
+                 cert_file: str,
+                 pkcs12_password: Optional[str] = None,
+                 ca: bool = False,
+                 force: bool = False):
         """Add server or CA cert
+
+        :param nickname: Certificate nickname
+        :param cert_file: Path to certificate file (PEM, DER, or PKCS#12)
+        :param ca: Whether this is a CA certificate
+        :param pkcs12_password: Password for PKCS#12, if any
+        :param force: Force the addition of a certificate that cannot be verified
         """
+        if not nickname:
+            raise ValueError("Certificate nickname must not be empty")
 
         # Verify input_file exists
-        if not os.path.exists(input_file):
-            raise ValueError("The certificate file ({}) does not exist".format(input_file))
+        if not os.path.isfile(cert_file):
+            raise ValueError("The certificate file ({}) does not exist".format(cert_file))
+
+        pem_file = True
+        if not cert_file.lower().endswith(".pem"):
+            pem_file = False
+        else:
+            self._assert_not_chain(cert_file)
 
         if ca:
+            # Verify this is a CA cert
+            if not cert_is_ca(cert_file):
+                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
             trust_flags = "CT,,"
         else:
+            # Verify this is a server cert
+            if cert_is_ca(cert_file, pkcs12_password=pkcs12_password):
+                raise ValueError(f"Certificate ({nickname}) is not a server certificate")
             trust_flags = ",,"
+
+        pkcs12_file = None
+        if cert_file.lower().endswith((".p12", ".pfx")):
+            pkcs12_file = True
+
+        if pkcs12_file:
+            self.log.info("Importing PKCS#12 into NSS: %s", cert_file)
+
+            if pkcs12_password is None:
+                pkcs12_password = ""
+
+            cmd = [
+                "pk12util",
+                "-v",
+                "-n", nickname,
+                "-i", cert_file,
+                "-d", self._certdb,
+                "-k", f"{self._certdb}/{PWD_TXT}",
+                "-W", pkcs12_password,
+            ]
+
+            # Mask the password in logs
+            masked_cmd = [arg if arg != pkcs12_password else "****" for arg in cmd]
+            self.log.info(f"nss import p12 cmd: {format_cmd_list(masked_cmd)}", )
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(f"Failed to import PKCS#12 {cert_file} {e}")
+
+            if ca:
+                cmd = [
+                    "certutil",
+                    "-M",
+                    "-n", nickname,
+                    "-t", "CT,,",
+                    "-d", self._certdb,
+                    "-f", f"{self._certdb}/{PWD_TXT}",
+                ]
+                self.log.debug(f"set CA trust cmd: {format_cmd_list(cmd)}")
+                try:
+                    check_output(cmd, stderr=subprocess.STDOUT)
+                except subprocess.CalledProcessError as e:
+                    raise ValueError(f"Failed to set CA trust for {nickname} {e}")
+
+            return
+
+        pem_file = cert_file.lower().endswith(".pem")
+        if pem_file:
+            self._assert_not_chain(cert_file)
+
+        trust_flags = "CT,," if ca else ",,"
 
         cmd = [
             '/usr/bin/certutil',
@@ -929,15 +1279,22 @@ only.
             '-d', self._certdb,
             '-n', nickname,
             '-t', trust_flags,
-            '-i', input_file,
-            '-a',
+            '-i', cert_file,
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
-        ]
-        self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
 
-    def add_server_key_and_cert(self, input_key, input_cert):
+        ]
+
+        if pem_file:
+            cmd.append('-a')
+
+        self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+    def add_server_key_and_cert(self, input_key, input_cert, name=CERT_NAME):
         if not os.path.exists(input_key):
             raise ValueError("The key file ({}) does not exist".format(input_key))
         if not os.path.exists(input_cert):
@@ -959,15 +1316,18 @@ only.
             '-in', input_cert,
             '-inkey', input_key,
             '-out', p12_bundle,
-            '-name', CERT_NAME,
+            '-name', name,
             '-passout', 'pass:',
             '-aes128'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # Remove the server-cert if it exists, because else the import name fails.
         try:
-            self.del_cert(CERT_NAME)
+            self.del_cert(name)
         except:
             pass
         try:
@@ -981,8 +1341,203 @@ only.
                 '-W', "",
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
         finally:
             # Remove the p12
             if os.path.exists(p12_bundle):
                 os.remove(p12_bundle)
+
+    def add_ca_cert(self, cert_file: str, nickname: str, force: bool = False):
+        """
+        Add a CA certificate from a PEM bundle or single PEM/DER file.
+
+        Adapter function to match abstraction layer interface.
+
+        :param cert_file: path to the certificate file
+        :param nickname: nickname to assign
+        :param force: Force the addition of a certificate that cannot be verified
+        """
+        # Verify input_file exists
+        if not os.path.exists(cert_file):
+            raise ValueError(f"The certificate file ({cert_file}) does not exist")
+
+        # Normalise nickname(s)
+        if isinstance(nickname, list):
+            nicknames = nickname
+        elif isinstance(nickname, str):
+            nicknames = [nickname]
+        else:
+            raise TypeError(f"nickname must be str or list[str], got: {type(nickname)}")
+
+        # Allow overwrite only for single cert
+        if len(nicknames) == 1:
+            single_nick = nicknames[0]
+            try:
+                if self.get_cert_details(single_nick):
+                    if not force:
+                        raise ValueError(
+                            f"Certificate already exists with the same name ({single_nick})"
+                        )
+                    else:
+                        log.info(f"Overwriting existing certificate ({single_nick})")
+                        self.del_cert(single_nick)
+            except ValueError:
+                pass
+
+        # Offload to PEM bundle handler
+        if cert_file.lower().endswith(".pem"):
+            return self.add_ca_cert_bundle(
+                cert_file=cert_file,
+                nicknames=nicknames
+            )
+
+        if len(nicknames) != 1:
+            raise ValueError(
+                "Binary CA cert requires exactly one nickname"
+            )
+
+        if not cert_is_ca(cert_file):
+            raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
+
+        self.add_cert(nicknames[0], cert_file, ca=True)
+
+        log.info(f"Successfully added CA certificate ({nickname})")
+
+    def add_ca_cert_bundle(self, cert_file, nicknames):
+        """
+        Add a PEM file that could be a bundle of CA certs
+
+        :param nicknames: list of names of each CA certificate
+        :param cert_file: path to certificate PEM file
+        :raises:
+        """
+
+        # Verify input_file exists
+        if not os.path.exists(cert_file):
+            raise ValueError("The certificate file ({}) does not exist".format(cert_file))
+
+        if not cert_file.lower().endswith(".pem"):
+            # Binary cert, this can not be a bundle
+            self.add_cert(nicknames[0], cert_file, ca=True)
+            log.info(f"Successfully added CA certificate ({nicknames[0]})")
+            return
+
+        try:
+            with open(cert_file, 'r') as f:
+                ca_count = 0
+                ca_files_to_cleanup = []
+                writing_ca = False
+                try:
+                    for line in f:
+                        if line.startswith('-----BEGIN CERTIFICATE-----'):
+                            # create tmp cert file
+                            writing_ca = True
+                            ca_file_name = cert_file + "-" + str(ca_count)
+                            ca_file = open(ca_file_name, 'w')
+                            ca_files_to_cleanup.append(ca_file_name)
+                            ca_file.write(line)
+                        elif writing_ca:
+                            ca_file.write(line)
+                            if line.startswith('-----END CERTIFICATE-----'):
+                                writing_ca = False
+                                ca_file.close()
+
+                                # Generate CA certificate nickname
+                                names_len = len(nicknames)
+                                if names_len > ca_count:
+                                    if nicknames[ca_count].lower() == CERT_NAME.lower() or nicknames[ca_count].lower() == CA_NAME.lower():
+                                        # cleanup
+                                        try:
+                                            for tmp_file in ca_files_to_cleanup:
+                                                os.remove(tmp_file)
+                                        except IOError as e:
+                                            # failed to remove tmp cert
+                                            log.debug("Failed to remove tmp cert file: " + str(e))
+                                        raise ValueError(f"You may not import a CA with the nickname {CERT_NAME} or {CA_NAME}")
+                                    ca_cert_name = nicknames[ca_count]
+                                else:
+                                    # A name was not provided for this cert, create one
+                                    ca_cert_name = nicknames[names_len - 1] + str(ca_count)
+
+                                # Check if certificate nickname exists
+                                cert = self.get_cert_details(ca_cert_name)
+                                if cert:
+                                    # Not good, cleanup and raise error
+                                    try:
+                                        for tmp_file in ca_files_to_cleanup:
+                                            os.remove(tmp_file)
+                                    except IOError as e:
+                                        # failed to remove tmp cert
+                                        log.debug("Failed to remove tmp cert file: " + str(e))
+                                    raise ValueError(f"Certificate already exists with the same name ({ca_cert_name})")
+
+                                # Verify this is a CA cert
+                                if not cert_is_ca(ca_file_name):
+                                    raise ValueError(f"Certificate ({ca_cert_name}) is not a CA certificate")
+
+                                # Add this CA certificate
+                                self.add_cert(ca_cert_name, ca_file_name, ca=True)
+                                ca_count += 1
+                                log.info(f"Successfully added CA certificate ({ca_cert_name})")
+
+                    # All done, cleanup
+                    try:
+                        for tmp_file in ca_files_to_cleanup:
+                            os.remove(tmp_file)
+                    except IOError as e:
+                        # failed to remove tmp cert
+                        log.debug("Failed to remove tmp cert file: " + str(e))
+                except IOError as e:
+                    # Some failure, remove all the tmp files
+                    ca_file.close()
+                    try:
+                        for tmp_file in ca_files_to_cleanup:
+                            os.remove(tmp_file)
+                    except IOError as e:
+                        # failed to remove tmp cert
+                        log.debug("Failed to remove tmp cert file: " + str(e))
+                    raise e
+        except EnvironmentError as e:
+            raise e
+
+    def export_cert(self, nickname, output_file=None, der_format=False):
+        """
+        :param nickname: name of certificate
+        :param output_file: name for exported certificate
+        :param der_format: export certificate in DER/binary format
+        :raise ValueError: error
+        """
+        cmd = [
+            '/usr/bin/certutil',
+            '-L',
+            '-d', self._certdb,
+            '-n', nickname,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+
+        # Handle args for PEM vs DER options
+        if der_format:
+            cmd.append('-r')
+            if output_file is None:
+                output_file = nickname + ".crt"
+        else:
+            cmd.append('-a')
+            if output_file is None:
+                output_file = nickname + ".pem"
+
+        # Set output file name
+        if not output_file.startswith("/"):
+            # Must be full path, otherwise but it in the cert dir
+            output_file = f"{self._certdb}/{output_file}"
+        cmd.append('-o')
+        cmd.append(output_file)
+
+        self.log.debug("export_cert cmd: %s", format_cmd_list(cmd))
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())

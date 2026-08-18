@@ -32,8 +32,13 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
     struct berval **url = NULL;
 
     /* if the entry is a referral send the referral */
+    if (!slapi_entry_flag_is_set(entry, SLAPI_ENTRY_FLAG_REFERRAL)) {
+        return 0;
+    }
+
     if (slapi_entry_attr_find(entry, "ref", &attr)) {
-        // ref attribute not found
+        // ref attribute not found (should not happen)
+        PR_ASSERT(0);
         goto out;
     }
 
@@ -93,7 +98,8 @@ find_entry_internal_dn(
     size_t tries = 0;
     int isroot = 0;
     int op_type;
-    char *errbuf = NULL;
+    int reverted_entry = 0;
+    int return_err = LDAP_SUCCESS;
 
     /* get the managedsait ldap message control */
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
@@ -116,6 +122,7 @@ find_entry_internal_dn(
                 if (rc) { /* if check_entry_for_referral returns non-zero, result is sent. */
                     *rc = FE_RC_SENT_RESULT;
                 }
+                slapi_set_ldap_result(pb, LDAP_REFERRAL, NULL, NULL, 0, NULL);
                 return (NULL);
             }
         }
@@ -137,11 +144,24 @@ find_entry_internal_dn(
          */
         slapi_log_err(SLAPI_LOG_ARGS, "find_entry_internal_dn",
                       "   Retrying (%s)\n", slapi_sdn_get_dn(sdn));
+        if (cache_is_reverted_entry(&inst->inst_cache, e)) {
+            reverted_entry = 1;
+            break;
+        }
         CACHE_RETURN(&inst->inst_cache, &e);
         tries++;
     }
     if (tries >= LDBM_CACHE_RETRY_COUNT) {
         slapi_log_err(SLAPI_LOG_ERR, "find_entry_internal_dn", "Retry count exceeded (%s)\n", slapi_sdn_get_dn(sdn));
+    }
+    if (reverted_entry) {
+        CACHE_RETURN(&inst->inst_cache, &e);
+        slapi_set_ldap_result(pb, LDAP_BUSY, NULL, NULL, 0, NULL);
+        slapi_send_ldap_result(pb, LDAP_BUSY, NULL, "target entry busy because of a canceled operation", 0, NULL);
+        if (rc) {
+            *rc = FE_RC_SENT_RESULT;  /* Result is sent */
+        }
+        return (NULL);
     }
     /*
      * there is no such entry in this server. see how far we
@@ -166,17 +186,18 @@ find_entry_internal_dn(
                 if (rc) { /* if check_entry_for_referral returns non-zero, result is sent. */
                     *rc = FE_RC_SENT_RESULT;
                 }
+                slapi_set_ldap_result(pb, LDAP_REFERRAL, NULL, NULL, 0, NULL);
                 return (NULL);
             }
             /* else fall through to no such object */
         }
 
         /* entry not found */
-        if ((0 == err) || (DB_NOTFOUND == err)) {
+        if ((0 == err) || (DBI_RC_NOTFOUND == err)) {
             if (me && !isroot) {
                 /* If not root, you may not want to reveal it. */
                 int acl_type = -1;
-                int return_err = LDAP_NO_SUCH_OBJECT;
+                return_err = LDAP_NO_SUCH_OBJECT;
                 err = LDAP_SUCCESS;
                 switch (op_type) {
                 case SLAPI_OPERATION_ADD:
@@ -207,8 +228,8 @@ find_entry_internal_dn(
                     break;
                 }
                 if (acl_type > 0) {
-                    err = plugin_call_acl_plugin(pb, me->ep_entry, NULL, NULL, acl_type,
-                                                 ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
+                    char *dummy_attr = "1.1";
+                    err = slapi_access_allowed(pb, me->ep_entry, dummy_attr, NULL, acl_type);
                 }
                 if (((acl_type > 0) && err) || (op_type == SLAPI_OPERATION_BIND)) {
                     /*
@@ -217,18 +238,22 @@ find_entry_internal_dn(
                      * do not return the "matched" DN.
                      * Plus, the bind case returns LDAP_INAPPROPRIATE_AUTH.
                      */
+                    slapi_set_ldap_result(pb, return_err, NULL, NULL, 0, NULL);
                     slapi_send_ldap_result(pb, return_err, NULL, NULL, 0, NULL);
                 } else {
+                slapi_set_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL);
                     slapi_send_ldap_result(pb, LDAP_NO_SUCH_OBJECT,
                                            (char *)slapi_sdn_get_dn(&ancestorsdn), NULL, 0, NULL);
                 }
             } else {
+                slapi_set_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL);
                 slapi_send_ldap_result(pb, LDAP_NO_SUCH_OBJECT,
                                        (char *)slapi_sdn_get_dn(&ancestorsdn), NULL, 0, NULL);
             }
         } else {
-            slapi_send_ldap_result(pb, (LDAP_INVALID_DN_SYNTAX == err) ? LDAP_INVALID_DN_SYNTAX : LDAP_OPERATIONS_ERROR,
-                                   (char *)slapi_sdn_get_dn(&ancestorsdn), NULL, 0, NULL);
+            return_err = (LDAP_INVALID_DN_SYNTAX == err) ? LDAP_INVALID_DN_SYNTAX : LDAP_OPERATIONS_ERROR;
+            slapi_set_ldap_result(pb, return_err, NULL, NULL, 0, NULL);
+            slapi_send_ldap_result(pb, return_err, (char *)slapi_sdn_get_dn(&ancestorsdn), NULL, 0, NULL);
         }
         if (rc) {
             *rc = FE_RC_SENT_RESULT;
@@ -237,7 +262,6 @@ find_entry_internal_dn(
         CACHE_RETURN(&inst->inst_cache, &me);
     }
 
-    slapi_ch_free_string(&errbuf);
     slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal_dn", "<= Not found (%s)\n",
                   slapi_sdn_get_dn(sdn));
     return (NULL);
@@ -253,12 +277,15 @@ find_entry_internal_uniqueid(
     backend *be,
     const char *uniqueid,
     int lock,
-    back_txn *txn)
+    back_txn *txn,
+    int *rc)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     struct backentry *e;
     int err;
     size_t tries = 0;
+    int reverted_entry = 0;
+    int return_err = 0;
 
     while ((tries < LDBM_CACHE_RETRY_COUNT) &&
            (e = uniqueid2entry(be, uniqueid, txn, &err)) != NULL) {
@@ -280,6 +307,10 @@ find_entry_internal_uniqueid(
          */
         slapi_log_err(SLAPI_LOG_ARGS,
                       "   find_entry_internal_uniqueid", "Retrying; uniqueid = (%s)\n", uniqueid);
+        if (cache_is_reverted_entry(&inst->inst_cache, e)) {
+            reverted_entry = 1;
+            break;
+        }
         CACHE_RETURN(&inst->inst_cache, &e);
         tries++;
     }
@@ -289,9 +320,22 @@ find_entry_internal_uniqueid(
                       uniqueid);
     }
 
-    /* entry not found */
-    slapi_send_ldap_result(pb, (0 == err || DB_NOTFOUND == err) ? LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
-                           0, NULL);
+    if (reverted_entry) {
+        slapi_set_ldap_result(pb, LDAP_BUSY, NULL, NULL, 0, NULL);
+        slapi_send_ldap_result(pb, LDAP_BUSY, NULL, "target entry busy because of a canceled operation", 0, NULL);
+        if (rc) {
+            *rc = FE_RC_SENT_RESULT;  /* Result is sent */
+        }
+        return (NULL);
+    } else {
+        /* entry not found */
+        return_err = (0 == err || DBI_RC_NOTFOUND == err) ? LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR;
+        slapi_set_ldap_result(pb, return_err, NULL, NULL, 0, NULL);
+        slapi_send_ldap_result(pb, return_err, NULL /* matched */, NULL, 0, NULL);
+        if (rc) {
+            *rc = FE_RC_SENT_RESULT;  /* Result is sent */
+        }
+    }
     slapi_log_err(SLAPI_LOG_TRACE,
                   "find_entry_internal_uniqueid", "<= not found; uniqueid = (%s)\n",
                   uniqueid);
@@ -312,7 +356,7 @@ find_entry_internal(
     if (addr->uniqueid != NULL) {
         slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal", "=> (uniqueid=%s) lock %d\n",
                       addr->uniqueid, lock);
-        return (find_entry_internal_uniqueid(pb, be, addr->uniqueid, lock, txn));
+        return (find_entry_internal_uniqueid(pb, be, addr->uniqueid, lock, txn, rc));
     } else {
         struct backentry *entry = NULL;
 

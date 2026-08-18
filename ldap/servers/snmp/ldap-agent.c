@@ -1,5 +1,5 @@
 /* --- BEGIN COPYRIGHT BLOCK ---
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -57,6 +57,8 @@ init_ldap_agent(void)
         /* Check if this row already exists. */
         if (stats_table_find_row(serv_p->port) == NULL) {
             /* Create a new row */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-malloc-leak"
             if ((new_row = stats_table_create_row(serv_p->port)) != NULL) {
                 /* Set pointer for entity table */
                 new_row->entity_tbl = serv_p;
@@ -67,6 +69,8 @@ init_ldap_agent(void)
                 /* Insert new row into the table */
                 snmp_log(LOG_DEBUG, "Inserting row for server: %d\n", serv_p->port);
                 CONTAINER_INSERT(ops_cb.container, new_row);
+                new_row = NULL;
+#pragma GCC diagnostic pop
             } else {
                 /* error during malloc of row */
                 snmp_log(LOG_ERR, "Error creating row for server: %d\n",
@@ -162,7 +166,7 @@ initialize_stats_table(void)
     entity_cb.get_value = dsEntityTable_get_value;
     entity_cb.container = ops_cb.container;
 
-    /* registering the tables with the master agent */
+    /* registering the tables with the snmp main agent */
     netsnmp_table_container_register(ops_handler, ops_table_info, &ops_cb,
                                      ops_cb.container, 1);
     netsnmp_table_container_register(entries_handler, entries_table_info, &entries_cb,
@@ -538,8 +542,8 @@ dsEntriesTable_get_value(netsnmp_request_info *request,
 
     switch (table_info->colnum) {
 
-    case COLUMN_DSMASTERENTRIES:
-        the_stat = &context->entries_tbl.dsMasterEntries;
+    case COLUMN_DSSUPPLIERENTRIES:
+        the_stat = &context->entries_tbl.dsSupplierEntries;
         break;
 
     case COLUMN_DSCOPYENTRIES:
@@ -554,8 +558,8 @@ dsEntriesTable_get_value(netsnmp_request_info *request,
         the_stat = &context->entries_tbl.dsCacheHits;
         break;
 
-    case COLUMN_DSSLAVEHITS:
-        the_stat = &context->entries_tbl.dsSlaveHits;
+    case COLUMN_DSCONSUMERHITS:
+        the_stat = &context->entries_tbl.dsConsumerHits;
         break;
 
     default: /* We shouldn't get here */

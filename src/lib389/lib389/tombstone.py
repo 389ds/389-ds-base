@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,7 +8,6 @@
 #
 
 import ldap
-
 from lib389._entry import Entry
 from lib389._constants import DIRSRV_STATE_ONLINE
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_and, _gen_filter, _term_gen
@@ -186,8 +185,8 @@ class Tombstone(DSLdapObject):
 class Tombstones(DSLdapObjects):
     """Represents the set of tombstone objects that may exist on
     this replica. Tombstones are locally generated, so they are
-    unique to individual masters, and may or may not correlate
-    to tombstones on other masters.
+    unique to individual suppliers, and may or may not correlate
+    to tombstones on other suppliers.
 
     :param instance: An instance
     :type instance: lib389.DirSrv

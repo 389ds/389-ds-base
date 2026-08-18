@@ -12,6 +12,7 @@ nsslapd-bakdir: %bak_dir%
 nsslapd-rundir: %run_dir%
 nsslapd-instancedir: %inst_dir%
 nsslapd-accesslog: %log_dir%/access
+nsslapd-securitylog: %log_dir%/security
 nsslapd-localhost: %fqdn%
 nsslapd-port: %ds_port%
 nsslapd-localuser: %ds_user%
@@ -23,7 +24,6 @@ nsslapd-rootpw: %ds_passwd%
 nsslapd-ldapilisten: %ldapi_enabled%
 nsslapd-ldapifilepath: %ldapi%
 nsslapd-ldapiautobind: %ldapi_autobind%
-nsslapd-ldapimaprootdn: %rootdn%
 
 dn: cn=encryption,cn=config
 objectClass: top
@@ -40,10 +40,23 @@ nsSSLPersonalitySSL: Server-Cert
 nsSSLActivation: on
 nsSSLToken: internal (software)
 
+dn: cn=auto_bind,cn=config
+objectclass: top
+objectclass: nsContainer
+cn: auto_bind
+
 dn: cn=features,cn=config
 objectclass: top
 objectclass: nsContainer
 cn: features
+
+dn: oid=1.2.840.113556.1.4.1941,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.2.840.113556.1.4.1941
+cn: InChain Matching Rule
+aci: (targetattr != "aci")(version 3.0; acl "InChain Matching Rule"; deny( all )
+ userdn = "ldap:///anyone";)
 
 dn: oid=1.3.6.1.4.1.42.2.27.9.5.8,cn=features,cn=config
 objectClass: top
@@ -182,6 +195,15 @@ nsslapd-plugininitfunc: crypt_sha512_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
 
+dn: cn=CRYPT-YESCRYPT,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CRYPT-YESCRYPT
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: crypt_yescrypt_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
 dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -221,11 +243,68 @@ nsslapd-pluginenabled: on
 dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
+objectClass: pwdPBKDF2PluginConfig
 cn: PBKDF2_SHA256
 nsslapd-pluginpath: libpwdstorage-plugin
 nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
+
+dn: cn=PBKDF2,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectClass: pwdPBKDF2PluginConfig
+cn: PBKDF2
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2
+
+dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectClass: pwdPBKDF2PluginConfig
+cn: PBKDF2-SHA1
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_sha1_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2-SHA1
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2-SHA1\
+
+dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectClass: pwdPBKDF2PluginConfig
+cn: PBKDF2-SHA256
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_sha256_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2-SHA256
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2-SHA256\
+
+dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectClass: pwdPBKDF2PluginConfig
+cn: PBKDF2-SHA512
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_sha512_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2-SHA512
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2-SHA512
 
 dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -242,18 +321,14 @@ nsslapd-pluginarg2: nsds5ReplicaBootstrapCredentials
 nsslapd-pluginid: aes-storage-scheme
 nsslapd-pluginprecedence: 1
 
-dn: cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config
+dn: cn=GOST_YESCRYPT,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
-objectclass: extensibleObject
-cn: DES
-nsslapd-pluginpath: libpbe-plugin
-nsslapd-plugininitfunc: des_init
-nsslapd-plugintype: reverpwdstoragescheme
+cn: GOST_YESCRYPT
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: gost_yescrypt_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
-nsslapd-pluginarg0: nsmultiplexorcredentials
-nsslapd-pluginarg1: nsds5ReplicaCredentials
-nsslapd-pluginid: des-storage-scheme
 
 dn: cn=Syntax Validation Task,cn=plugins,cn=config
 objectclass: top
@@ -442,6 +517,16 @@ objectclass: extensibleObject
 cn: Integer Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: int_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=In Chain,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: In Chain
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: inchain_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 
@@ -761,17 +846,6 @@ nsslapd-plugintype: matchingRule
 nsslapd-pluginenabled: on
 nsslapd-pluginarg0: %config_dir%/slapd-collations.conf
 
-dn: cn=HTTP Client,cn=plugins,cn=config
-objectclass: top
-objectclass: nsSlapdPlugin
-objectclass: extensibleObject
-cn: HTTP Client
-nsslapd-pluginpath: libhttp-client-plugin
-nsslapd-plugininitfunc: http_client_init
-nsslapd-plugintype: preoperation
-nsslapd-pluginenabled: on
-nsslapd-plugin-depends-on-type: database
-
 dn: cn=Linked Attributes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -796,13 +870,13 @@ nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
-dn: cn=Multimaster Replication Plugin,cn=plugins,cn=config
+dn: cn=Multisupplier Replication Plugin,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
 objectclass: extensibleObject
-cn: Multimaster Replication Plugin
+cn: Multisupplier Replication Plugin
 nsslapd-pluginpath: libreplication-plugin
-nsslapd-plugininitfunc: replication_multimaster_plugin_init
+nsslapd-plugininitfunc: replication_multisupplier_plugin_init
 nsslapd-plugintype: object
 nsslapd-pluginbetxn: on
 nsslapd-pluginenabled: on
@@ -911,7 +985,7 @@ cn: config
 nsslapd-mode: 600
 nsslapd-directory: %db_dir%
 nsslapd-db-home-directory: %db_home_dir%
-nsslapd-subtree-rename-switch: on
+nsslapd-backend-implement: %db_lib%
 
 dn: cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
@@ -951,6 +1025,13 @@ nsindextype: pres
 nsindextype: eq
 nsindextype: sub
 
+dn: cn=gidnumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: gidnumber
+nssystemindex: false
+nsindextype: eq
+
 dn: cn=mail,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
@@ -987,6 +1068,14 @@ objectclass: nsIndex
 cn: memberOf
 nssystemindex: false
 nsindextype: eq
+
+dn: cn=memberUid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: memberuid
+nssystemindex: false
+nsindextype: eq
+nsindextype: pres
 
 dn: cn=nsUniqueId,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
@@ -1047,6 +1136,14 @@ nsindextype: pres
 nsindextype: eq
 nsindextype: sub
 
+dn: cn=sudoHost,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: sudoHost
+nssystemindex: false
+nsindextype: eq
+nsindextype: pres
+
 dn: cn=telephoneNumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
@@ -1060,6 +1157,13 @@ dn: cn=uid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
 cn: uid
+nssystemindex: false
+nsindextype: eq
+
+dn: cn=uidnumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: uidnumber
 nssystemindex: false
 nsindextype: eq
 
@@ -1157,6 +1261,7 @@ nsslapd-pluginType: object
 nsslapd-pluginEnabled: off
 nsslapd-plugin-depends-on-type: database
 nsslapd-pluginId: acct-policy
+nsslapd-pluginarg0: cn=config,cn=Account Policy Plugin,cn=plugins,cn=config
 
 dn: cn=config,cn=Account Policy Plugin,cn=plugins,cn=config
 objectClass: top
@@ -1190,3 +1295,16 @@ nsSaslMapRegexString: ^dn:\(.*\)
 nsSaslMapBaseDNTemplate: \1
 nsSaslMapFilterTemplate: (objectclass=*)
 
+dn: cn=Alias Entries,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Alias Entries
+nsslapd-pluginpath: libalias-entries-plugin
+nsslapd-plugininitfunc: alias_entry_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: off
+nsslapd-pluginDescription: alias entries plugin [base search only]
+nsslapd-pluginVendor: anilech
+nsslapd-pluginVersion: 0.1
+nsslapd-pluginId: alias-entries

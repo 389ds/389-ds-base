@@ -34,8 +34,7 @@ import subprocess
 import argparse, argcomplete
 from argparse import RawTextHelpFormatter
 
-
-from lib389 import DirSrv
+from lib389 import DirSrv, pid_exists, pid_from_file
 from lib389.cli_base import setup_script_logger
 from lib389.instance.setup import SetupDs
 from lib389.instance.options import General2Base, Slapd2Base
@@ -43,6 +42,7 @@ from lib389.passwd import password_generate
 from lib389.nss_ssl import NssSsl, CERT_NAME
 from lib389.paths import Paths
 from lib389.config import LDBMConfig
+from lib389.utils import get_default_db_lib
 from lib389._constants import (
     DSRC_CONTAINER,
     CONTAINER_TLS_SERVER_KEY,
@@ -57,6 +57,10 @@ from lib389.idm.directorymanager import DirectoryManager
 # is always available!
 log = setup_script_logger("container-init", True)
 
+# PID FILE
+PID_FILE = "/data/run/slapd-localhost.pid"
+
+
 # Handle any dead child process signals we receive. Wait for them to terminate, or
 # if they are not found, move on.
 #
@@ -66,15 +70,18 @@ def _sigchild_handler(*args, **kwargs):
     # log.debug("Received SIGCHLD ...")
     os.waitpid(-1, os.WNOHANG)
 
+
 # Start the exit process.
 def _sigterm_handler(*args, **kwargs):
     exit()
+
 
 def _gen_instance():
     inst = DirSrv(verbose=True)
     inst.local_simple_allocate("localhost")
     inst.setup_ldapi()
     return inst
+
 
 def _begin_environment_config():
     inst = _gen_instance()
@@ -89,16 +96,24 @@ def _begin_environment_config():
     # TODO: Should we set replication agreements from env?
     autotune_pct = os.getenv("DS_MEMORY_PERCENTAGE", None)
     if autotune_pct is not None:
-        try:
-            autotune_pct = int(autotune_pct)
-        except:
-            log.error("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
-            autotune_pct = 0
-        log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
-        ldbmconfig = LDBMConfig(inst)
-        ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
+        if get_default_db_lib() == "mdb":
+            log.warning("DS_MEMORY_PERCENTAGE is present, but setting entry cache is not supported for MDB")
+        else:
+            try:
+                autotune_pct = int(autotune_pct)
+            except:
+                log.warning("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
+                autotune_pct = 0
+            log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
+            ldbmconfig = LDBMConfig(inst)
+            ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
+
+    # If the user imported TLS certs, ensure that the TLS listener is enabled.
+    if os.path.exists(CONTAINER_TLS_SERVER_KEY):
+        inst.config.set('nsslapd-security', 'on')
 
     inst.close()
+
 
 def _begin_setup_pem_tls():
     # If we have the needed files, we can use them.
@@ -134,18 +149,20 @@ def _begin_setup_pem_tls():
     # Import the ca's
     for ca_path in [os.path.join(CONTAINER_TLS_SERVER_CADIR, ca) for ca in cas]:
         log.info("Enrolling -> %s" % ca_path)
-        tls.add_cert(nickname=ca_path, input_file=ca_path)
+        tls.add_cert(nickname=ca_path, cert_file=ca_path, ca=True)
         tls.edit_cert_trust(ca_path, "C,,")
     # Import the new server-cert
     tls.add_server_key_and_cert(CONTAINER_TLS_SERVER_KEY, CONTAINER_TLS_SERVER_CERT)
     # Done!
     log.info("TLS PEM configuration complete.")
 
+
 def _begin_check_reindex():
     if os.getenv('DS_REINDEX', None) is not None:
         log.info("Reindexing database. This may take a while ...")
         inst = _gen_instance()
         inst.db2index()
+
 
 def begin_magic():
     log.info("The 389 Directory Server Container Bootstrap")
@@ -205,6 +222,17 @@ def begin_magic():
             # privs we'll need this to support future writes.
             os.makedirs(d, mode=0o777)
 
+    basedn = '# basedn = dc=example,dc=com'
+    suffix = os.getenv("SUFFIX_NAME")
+    if suffix is not None:
+        log.warning("SUFFIX_NAME is deprecated, please use DS_SUFFIX_NAME instead")
+    else:
+        suffix = os.getenv("DS_SUFFIX_NAME")
+    if suffix is not None:
+        basedn = f'basedn = {suffix}'
+
+    have_server_key = os.path.exists(CONTAINER_TLS_SERVER_KEY)
+
     # Do we have correct permissions to our volumes? With the power of thoughts and
     # prayers, we continue blindy and ... well hope.
 
@@ -253,17 +281,31 @@ def begin_magic():
         s2b.set('ldif_dir', '/data/ldif')
         s2b.set('run_dir', '/data/run')
         s2b.set('lock_dir', '/data/run/lock')
-        s2b.set('ldapi', '/data/run/slapd.socket')
+        s2b.set('ldapi', '/data/run/slapd-localhost.socket')
 
         s2b.set('log_dir', '/data/logs')
         s2b.set('access_log', '/data/logs/access')
         s2b.set('error_log', '/data/logs/error')
         s2b.set('audit_log', '/data/logs/audit')
 
+        # User intends to import a TLS KEY/Cert, don't setup self-signed.
+        if have_server_key:
+            s2b.set('self_sign_cert', False)
+
+        backends = []
+        if suffix is not None:
+            backends = [
+                {
+                    'name': 'userroot',
+                    'suffix': suffix,
+                    'create_suffix_entry': True,
+                }
+            ]
+
         # Now collect and submit for creation.
         sds = SetupDs(verbose=True, dryrun=False, log=log, containerised=True)
 
-        if not sds.create_from_args(g2b.collect(), s2b.collect()):
+        if not sds.create_from_args(g2b.collect(), s2b.collect(), backends):
             log.error("Failed to create instance")
             sys.exit(1)
 
@@ -271,16 +313,17 @@ def begin_magic():
 
         # Create the marker to say we exist. This is also a good writable permissions
         # test for the volume.
-        with open(DSRC_CONTAINER, 'w') as f:
-            f.write("""
+        config_file = """
 [localhost]
 # Note that '/' is replaced to '%%2f' for ldapi url format.
 # So this is pointing to /data/run/slapd-localhost.socket
 uri = ldapi://%%2fdata%%2frun%%2fslapd-localhost.socket
 binddn = cn=Directory Manager
 # Set your basedn here
-# basedn = dc=example,dc=com
-            """)
+{0}
+""".format(basedn)
+        with open(DSRC_CONTAINER, 'w') as f:
+            f.write(config_file)
         os.chmod(DSRC_CONTAINER, 0o755)
 
     # Setup TLS from PEM files as required.
@@ -288,6 +331,23 @@ binddn = cn=Directory Manager
 
     # If we have been requested to re-index, do so now ...
     _begin_check_reindex()
+
+    loglevel = os.getenv("ERRORLOG_LEVEL")
+    if loglevel is not None:
+        log.warning("ERRORLOG_LEVEL is deprecated, please use DS_ERRORLOG_LEVEL instead")
+    else:
+        loglevel = os.getenv("DS_ERRORLOG_LEVEL")
+    if loglevel is not None:
+        try:
+            n_loglevel = str(int(loglevel) | 266354688)
+            log.info(f"Set log level to {loglevel} | DEFAULT")
+            loglevel = n_loglevel
+        except:
+            log.error("Invalid ERRORLOG_LEVEL value, setting default ...")
+            loglevel = "266354688"
+    else:
+        # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
+        loglevel = "266354688"
 
     # Yep! Run it ...
     # Now unlike a normal lib389 start, we use subprocess and don't fork!
@@ -300,12 +360,9 @@ binddn = cn=Directory Manager
     ds_proc = subprocess.Popen([
         "%s/ns-slapd" % paths.sbin_dir,
         "-D", paths.config_dir,
-        # This container version doesn't actually use or need the pidfile to track
-        # the process.
-        # "-i", "/data/run/slapd-localhost.pid",
-        # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
-        "-d", "266354688",
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ.copy())
+        "-i", PID_FILE,
+        "-d", loglevel,
+        ], stdout=None, stderr=None, env=os.environ.copy())
 
     # Setup the process and shutdown handler in an init-esque fashion.
     def kill_ds():
@@ -328,17 +385,23 @@ binddn = cn=Directory Manager
 
     # Wait on the health check to show we are ready for ldapi.
     healthy = False
-    max_failure_count = 20
+    startup_timeout = os.getenv("DS_STARTUP_TIMEOUT", 60)
+    max_failure_count = int(int(startup_timeout) / 3)
     for i in range(0, max_failure_count):
         if ds_proc is None:
             log.warning("ns-slapd pid has disappeared ...")
             break
-        (check_again, healthy) = begin_healthcheck(ds_proc)
+        # Is this the final check before we reach the timeout?
+        # If yes, then we'll log the exception too
+        final_check = True if i == max_failure_count - 1  else False
+        (check_again, healthy) = begin_healthcheck(ds_proc, final_check)
         if check_again is False:
             break
         time.sleep(3)
         # Check again then ....
     if not healthy:
+        log.error(f"Timeout of {startup_timeout} seconds was reached")
+        log.error("Couldn't connect via LDAPI socket")
         log.error("389-ds-container failed to start")
         sys.exit(1)
 
@@ -357,7 +420,7 @@ binddn = cn=Directory Manager
     # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
 
 
-def begin_healthcheck(ds_proc):
+def begin_healthcheck(ds_proc, log_exception):
     # We skip the pid check if ds_proc is none because that means it's coming from the
     # container healthcheck.
     if ds_proc is not None and ds_proc.poll() is not None:
@@ -374,9 +437,25 @@ def begin_healthcheck(ds_proc):
             log.error("The instance may be misconfigured, unable to cn=Directory Manager autobind.")
             return (False, False)
     except:
-        log.debug("Instance LDAPI not functional (yet?)")
+        err_msg = "Instance LDAPI not functional (yet?)"
+        if log_exception:
+            log.exception(err_msg)
+        else:
+            log.debug(err_msg)
         pass
     return (True, False)
+
+
+def stop():
+    stop_timeout = os.getenv("DS_STOP_TIMEOUT", 60)
+    count = int(stop_timeout)
+    pid = pid_from_file(PID_FILE)
+    os.kill(pid, signal.SIGTERM)
+    while pid_exists(pid) and count > 0:
+        time.sleep(1)
+        count -= 1
+    if pid_exists(pid):
+        os.kill(pid, signal.SIGKILL)
 
 
 if __name__ == '__main__':
@@ -416,6 +495,9 @@ container host.
     parser.add_argument('-r', '--runit',
                         help="Actually run the instance! You understand what that means ...",
                         action='store_true', default=False, dest='runit')
+    parser.add_argument('-s', '--stop',
+                        help="Stop the instance",
+                        action='store_true', default=False, dest='stop')
     parser.add_argument('-H', '--healthcheck',
                         help="Start a healthcheck inside of the container for an instance. You should understand what this means ...",
                         action='store_true', default=False, dest='healthcheck')
@@ -426,8 +508,10 @@ container host.
 
     if args.runit:
         begin_magic()
+    elif args.stop:
+        stop()
     elif args.healthcheck:
-        if begin_healthcheck(None) is (False, True):
+        if begin_healthcheck(None, False) == (False, True):
             sys.exit(0)
         else:
             sys.exit(1)

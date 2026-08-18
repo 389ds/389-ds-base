@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -197,7 +197,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
     struct timespec expire_time = {0};
     Operation *op = NULL;
     Slapi_Regex *re = NULL;
-    const char *re_result = NULL;
+    char *re_result = NULL;
     char *alt = NULL;
     int filter_normalized = 0;
     int free_re = 1;
@@ -313,6 +313,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
             slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
                           "string_filter_sub - re_comp (%s) failed (%s): %s\n",
                           pat, p, re_result ? re_result : "unknown");
+            slapi_ch_free_string(&re_result);
             rc = LDAP_OPERATIONS_ERROR;
             goto bailout;
         } else if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
@@ -342,14 +343,17 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         len = bvp->bv_len;
         if (len < sizeof(buf)) {
             realval = buf;
-            strncpy(realval, bvp->bv_val, sizeof(buf));
+            memcpy(realval, bvp->bv_val, bvp->bv_len);
+            realval[bvp->bv_len] = 0;
         } else if (len < tmpbufsize) {
             realval = tmpbuf;
-            strncpy(realval, bvp->bv_val, tmpbufsize);
+            memcpy(realval, bvp->bv_val, bvp->bv_len);
+            realval[bvp->bv_len] = 0;
         } else {
             tmpbufsize = len + 1;
             realval = tmpbuf = (char *)slapi_ch_realloc(tmpbuf, tmpbufsize);
-            strncpy(realval, bvp->bv_val, tmpbufsize);
+            memcpy(realval, bvp->bv_val, bvp->bv_len);
+            realval[bvp->bv_len] = 0;
         }
         /* 3rd arg: 1 - trim leading blanks */
         if (!(slapi_value_get_flags(bvals[j]) & SLAPI_ATTR_FLAG_NORMALIZED)) {
@@ -547,9 +551,11 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
              * NULL terminated, the only downside is that we
              * allocate more space than we really need.
              */
-            nsubs += slapi_value_get_length(*bvlp) - substrlens[INDEX_SUBSTRMIDDLE] + 3;
+            nsubs += (int)slapi_value_get_length(*bvlp) - substrlens[INDEX_SUBSTRMIDDLE] + 3;
         }
-        nsubs += substrlens[INDEX_SUBSTRMIDDLE] * 2 - substrlens[INDEX_SUBSTRBEGIN] - substrlens[INDEX_SUBSTREND];
+        if (substrlens[INDEX_SUBSTRMIDDLE] * 2 > substrlens[INDEX_SUBSTRBEGIN] + substrlens[INDEX_SUBSTREND]) {
+            nsubs += substrlens[INDEX_SUBSTRMIDDLE] * 2 - substrlens[INDEX_SUBSTRBEGIN] - substrlens[INDEX_SUBSTREND];
+        }
         *ivals = (Slapi_Value **)slapi_ch_calloc((nsubs + 1), sizeof(Slapi_Value *));
 
         n = 0;
@@ -587,7 +593,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
             }
 
             /* leading */
-            if (bvp->bv_len > substrlens[INDEX_SUBSTRBEGIN] - 2) {
+            if ((int)bvp->bv_len > substrlens[INDEX_SUBSTRBEGIN] - 2) {
                 buf[0] = '^';
                 for (i = 0; i < substrlens[INDEX_SUBSTRBEGIN] - 1; i++) {
                     buf[i + 1] = bvp->bv_val[i];
@@ -600,7 +606,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
 
             /* any */
             for (p = bvp->bv_val;
-                 p < (bvp->bv_val + bvp->bv_len - substrlens[INDEX_SUBSTRMIDDLE] + 1);
+                 p < (bvp->bv_val + (int)bvp->bv_len - substrlens[INDEX_SUBSTRMIDDLE] + 1);
                  p++) {
                 for (i = 0; i < substrlens[INDEX_SUBSTRMIDDLE]; i++) {
                     buf[i] = p[i];
@@ -612,7 +618,7 @@ string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***ivals, 
             }
 
             /* trailing */
-            if (bvp->bv_len > substrlens[INDEX_SUBSTREND] - 2) {
+            if ((int)bvp->bv_len > substrlens[INDEX_SUBSTREND] - 2) {
                 p = bvp->bv_val + bvp->bv_len - substrlens[INDEX_SUBSTREND] + 1;
                 for (i = 0; i < substrlens[INDEX_SUBSTREND] - 1; i++) {
                     buf[i] = p[i];

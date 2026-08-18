@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,7 +15,7 @@
 /* repl5_inc_protocol.c */
 /*
 
- The Prot_Incremental object implements the DS 5.0 multi-master incremental
+ The Prot_Incremental object implements the DS 5.0 multi-supplier incremental
  replication protocol.
 
 
@@ -129,7 +129,7 @@ typedef struct result_data
  * don't see any updates for a period equal to this interval,
  * we go ahead and start a replication session, just to be safe
  */
-#define MAX_WAIT_BETWEEN_SESSIONS PR_SecondsToInterval(60 * 5) /* 5 minutes */
+#define MAX_WAIT_BETWEEN_SESSIONS 300 /* 5 minutes */
 
 /*
  * tests if the protocol has been shutdown and we need to quit
@@ -145,7 +145,7 @@ typedef struct result_data
 /* Forward declarations */
 static PRUint32 event_occurred(Private_Repl_Protocol *prp, PRUint32 event);
 static void reset_events(Private_Repl_Protocol *prp);
-static void protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration);
+static void protocol_sleep(Private_Repl_Protocol *prp, int32_t duration);
 static int send_updates(Private_Repl_Protocol *prp, RUV *ruv, PRUint32 *num_changes_sent);
 static void repl5_inc_backoff_expired(time_t timer_fire_time, void *arg);
 static int examine_update_vector(Private_Repl_Protocol *prp, RUV *ruv);
@@ -233,10 +233,11 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char *ldap_e
 }
 #endif
 
-/* Thread that collects results from async operations sent to the consumer */
+/* Thread that collects results from async operations sent to the receiver */
 static void
 repl5_inc_result_threadmain(void *param)
 {
+    slapi_set_thread_name("repl-inc-res");
     result_data *rd = (result_data *)param;
     ConnResult conres = 0;
     Repl_Connection *conn = rd->prp->conn;
@@ -253,7 +254,7 @@ repl5_inc_result_threadmain(void *param)
         char *uniqueid = NULL;
         char *ldap_error_string = NULL;
         time_t time_now = 0;
-        time_t start_time = slapi_current_utc_time();
+        time_t start_time = slapi_current_rel_time_t();
         int connection_error = 0;
         int operation_code = 0;
         int backoff_time = 1;
@@ -275,7 +276,7 @@ repl5_inc_result_threadmain(void *param)
                 /* We need to a) check that the 'real' timeout hasn't expired and
                  * b) implement a backoff sleep to avoid spinning */
                 /* Did the connection's timeout expire ? */
-                time_now = slapi_current_utc_time();
+                time_now = slapi_current_rel_time_t();
                 if (conn_get_timeout(conn) <= (time_now - start_time)) {
                     /* We timed out */
                     conres = CONN_TIMEOUT;
@@ -325,8 +326,8 @@ repl5_inc_result_threadmain(void *param)
 
             conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "repl5_inc_result_threadmain - Result %d, %d, %d, %d, %s\n",
-                          operation_code, connection_error, conres, message_id, ldap_error_string);
+                          "repl5_inc_result_threadmain - sid=\"%s\" - Result %d, %d, %d, %d, %s\n",
+                          agmt_get_session_id(rd->prp->agmt), operation_code, connection_error, conres, message_id, ldap_error_string);
             return_value = repl5_inc_update_from_op_result(rd->prp, conres, connection_error,
                                                            csn_str, uniqueid, replica_id, &should_finish,
                                                            &(rd->num_changes_sent));
@@ -358,7 +359,7 @@ repl5_inc_result_threadmain(void *param)
         /* Should we stop ? */
         PR_Lock(rd->lock);
         if (!finished && yield_session && rd->abort != SESSION_ABORTED && rd->abort_time == 0) {
-            rd->abort_time = slapi_current_utc_time();
+            rd->abort_time = slapi_current_rel_time_t();
             rd->abort = SESSION_ABORTED; /* only set the abort time once */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain - "
                                                             "Abort control detected, setting abort time...(%s)\n",
@@ -370,6 +371,10 @@ repl5_inc_result_threadmain(void *param)
         PR_Unlock(rd->lock);
         if (op) {
             repl5_inc_op_free(op);
+        }
+        if (returned_controls) {
+            ldap_controls_free(returned_controls);
+            returned_controls = NULL;
         }
     }
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain exiting\n");
@@ -384,8 +389,7 @@ repl5_inc_rd_new(Private_Repl_Protocol *prp)
         res->prp = prp;
         res->lock = PR_NewLock();
         if (NULL == res->lock) {
-            slapi_ch_free((void **)&res);
-            res = NULL;
+            slapi_ch_oom("PR_NewLock");
         }
     }
     return res;
@@ -449,7 +453,7 @@ repl5_inc_destroy_async_result_thread(result_data *rd)
     return retval;
 }
 
-/* The interest of this routine is to give time to the consumer
+/* The interest of this routine is to give time to the receiver
  * to apply the sent updates and return the acks.
  * So the caller should not hold the replication connection lock
  * to let the RA.reader receives the acks.
@@ -481,8 +485,8 @@ repl5_inc_waitfor_async_results(result_data *rd)
         PR_Lock(rd->lock);
         /* Are we caught up ? */
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "repl5_inc_waitfor_async_results - %d %d\n",
-                      rd->last_message_id_received, rd->last_message_id_sent);
+                      "repl5_inc_waitfor_async_results - sid=\"%s\" - %d %d\n",
+                      agmt_get_session_id((Repl_Agmt *) rd->prp->agmt), rd->last_message_id_received, rd->last_message_id_sent);
         if (rd->last_message_id_received >= rd->last_message_id_sent) {
             /* If so then we're done */
             done = 1;
@@ -531,15 +535,9 @@ repl5_inc_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stopped = 1;
         (*prpp)->stop(*prpp);
     }
-    /* Then, delete all resources used by the protocol */
-    if ((*prpp)->lock) {
-        PR_DestroyLock((*prpp)->lock);
-        (*prpp)->lock = NULL;
-    }
-    if ((*prpp)->cvar) {
-        PR_DestroyCondVar((*prpp)->cvar);
-        (*prpp)->cvar = NULL;
-    }
+    /* Then, release all resources used by the protocol */
+    pthread_mutex_destroy(&((*prpp)->lock));
+    pthread_cond_destroy(&(*prpp)->cvar);
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
 }
@@ -712,7 +710,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 conn_set_agmt_changed(prp->conn);
             } else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)) { /* change available */
                 /* just ignore it and go to sleep */
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             } else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
                        event_occurred(prp, EVENT_BACKOFF_EXPIRED)) {
                 /* this events - should not occur - log a warning and go to sleep */
@@ -720,13 +718,13 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                               "repl5_inc_run - %s: "
                               "Event %s should not occur in state %s; going to sleep\n",
                               agmt_get_long_name(prp->agmt), e1 ? event2name(EVENT_WINDOW_CLOSED) : event2name(EVENT_BACKOFF_EXPIRED), state2name(current_state));
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             } else {
                 /* wait until window opens or an event occurs */
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                               "repl5_inc_run - %s: Waiting for update window to open\n",
                               agmt_get_long_name(prp->agmt));
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             }
             break;
 
@@ -839,7 +837,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     backoff_delete(&prp_priv->backoff);
                 }
                 if (use_busy_backoff_timer) {
-                    /* we received a busy signal from the consumer, wait for a while */
+                    /* we received a busy signal from the receiver, wait for a while */
                     if (!busywaittime) {
                         busywaittime = repl5_get_backoff_min(prp);
                     }
@@ -850,7 +848,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 }
                 next_state = STATE_BACKOFF;
                 backoff_reset(prp_priv->backoff, repl5_inc_backoff_expired, (void *)prp);
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
                 use_busy_backoff_timer = PR_FALSE;
             }
             break;
@@ -899,13 +897,13 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                */
                 if (STATE_BACKOFF == next_state) {
                     /* Step the backoff timer */
-                    now = slapi_current_utc_time();
+                    now = slapi_current_rel_time_t();
                     next_fire_time = backoff_step(prp_priv->backoff);
                     /* And go back to sleep */
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "repl5_inc_run - %s: Replication session backing off for %ld seconds\n",
-                                  agmt_get_long_name(prp->agmt), next_fire_time - now);
-                    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                                  "repl5_inc_run - sid=\"%s\" - %s: Replication session backing off for %ld seconds\n",
+                                  agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), next_fire_time - now);
+                    protocol_sleep(prp, 0);
                 } else {
                     /* Destroy the backoff timer, since we won't need it anymore */
                     backoff_delete(&prp_priv->backoff);
@@ -923,7 +921,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     next_state = STATE_READY_TO_ACQUIRE;
                 } else {
                     /* ignore changes and go to sleep */
-                    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                    protocol_sleep(prp, 0);
                 }
             } else if (event_occurred(prp, EVENT_WINDOW_OPENED)) {
                 /* this should never happen - log an error and go to sleep */
@@ -931,7 +929,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                                                                "Event %s should not occur in state %s; going to sleep\n",
                               agmt_get_long_name(prp->agmt), event2name(EVENT_WINDOW_OPENED),
                               state2name(current_state));
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             }
             break;
 
@@ -965,7 +963,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             /* ONREPL - in this state we send changes no matter what other events occur.
            * This is because we can get because of the REPLICATE_NOW event which
            * has high priority. Is this ok? */
-            /* First, push new schema to the consumer if needed */
+            /* First, push new schema to the receiver if needed */
             /* ONREPL - should we push schema after we examine the RUV? */
             /*
            * GGOOREPL - I don't see why we should wait until we've
@@ -1022,7 +1020,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 next_state = STATE_BACKOFF_START;
                 break;
             case EXAMINE_RUV_OK:
-                /* update our csn generator state with the consumer's ruv data */
+                /* update our csn generator state with the receiver's ruv data */
                 dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector OK");
                 rc = replica_update_csngen_state(prp->replica, ruv);
                 if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */ {
@@ -1114,24 +1112,24 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             }
             if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0) {
                 if (pausetime > 0) {
-                    /* richm - 20020219 - If we have acquired the consumer, and another master has gone
+                    /* richm - 20020219 - If we have acquired the receiver, and another sender has gone
                    * into backoff waiting for us to release it, we may acquire the replica sooner
-                   * than the other master has a chance to, and the other master may not be able
-                   * to acquire the consumer for a long time (hours, days?) if this server is
+                   * than the other sender has a chance to, and the other sender may not be able
+                   * to acquire the receiver for a long time (hours, days?) if this server is
                    * under a heavy load (see reliab06 et. al. system tests)
-                   * So, this sleep gives the other master(s) a chance to acquire the consumer replica */
+                   * So, this sleep gives the other sender(s) a chance to acquire the receiver replica */
                     loops = pausetime;
                     /* the while loop is so that we don't just sleep and sleep if an
                    * event comes in that we should handle immediately (like shutdown) */
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "repl5_inc_run - %s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
-                                  agmt_get_long_name(prp->agmt), pausetime);
+                                  "repl5_inc_run - sid=\"%s\" - %s: Pausing updates for %ld seconds to allow other senders to update receiver\n",
+                                  agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), pausetime);
                     while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp))) {
                         DS_Sleep(PR_SecondsToInterval(1));
                     }
                 } else if (num_changes_sent > 10) {
-                    /* wait for consumer to write its ruv if the replication was busy */
-                    /* When asked, consumer sends its ruv in cache to the supplier. */
+                    /* wait for receiver to write its ruv if the replication was busy */
+                    /* When asked, receiver sends its ruv in cache to the sender. */
                     /* DS_Sleep ( PR_SecondsToInterval(1) ); */
                 }
             }
@@ -1178,7 +1176,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 reset_events(prp);
             }
 
-            protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+            protocol_sleep(prp, 0);
             break;
 
         case STATE_STOP_NORMAL_TERMINATION:
@@ -1191,8 +1189,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             break;
         }
 
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_run - %s: State: %s -> %s\n",
-                      agmt_get_long_name(prp->agmt), state2name(current_state), state2name(next_state));
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_run - sid=\"%s\" - %s: State: %s -> %s\n",
+                      agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), state2name(current_state), state2name(next_state));
 
         current_state = next_state;
     } while (!done);
@@ -1209,20 +1207,28 @@ repl5_inc_run(Private_Repl_Protocol *prp)
  * Go to sleep until awakened.
  */
 static void
-protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
+protocol_sleep(Private_Repl_Protocol *prp, int32_t duration)
 {
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     /* we should not go to sleep if there are events available to be processed.
        Otherwise, we can miss the event that suppose to wake us up */
-    if (prp->eventbits == 0)
-        PR_WaitCondVar(prp->cvar, duration);
-    else {
+    if (prp->eventbits == 0) {
+        if (duration > 0) {
+            struct timespec current_time = {0};
+            /* get the current monotonic time and add our interval */
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += duration;
+            pthread_cond_timedwait(&(prp->cvar), &(prp->lock), &current_time);
+        } else {
+            pthread_cond_wait(&(prp->cvar), &(prp->lock));
+        }
+    } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "protocol_sleep - %s: Can't go to sleep: event bits - %x\n",
                       agmt_get_long_name(prp->agmt), prp->eventbits);
     }
-    PR_Unlock(prp->lock);
+    pthread_mutex_unlock(&(prp->lock));
 }
 
 /*
@@ -1235,10 +1241,10 @@ static void
 event_notify(Private_Repl_Protocol *prp, PRUint32 event)
 {
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     prp->eventbits |= event;
-    PR_NotifyCondVar(prp->cvar);
-    PR_Unlock(prp->lock);
+    pthread_cond_signal(&(prp->cvar));
+    pthread_mutex_unlock(&(prp->lock));
 }
 
 /*
@@ -1250,10 +1256,10 @@ event_occurred(Private_Repl_Protocol *prp, PRUint32 event)
 {
     PRUint32 return_value;
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     return_value = (prp->eventbits & event);
     prp->eventbits &= ~event; /* Clear event */
-    PR_Unlock(prp->lock);
+    pthread_mutex_unlock(&(prp->lock));
     return return_value;
 }
 
@@ -1261,15 +1267,15 @@ static void
 reset_events(Private_Repl_Protocol *prp)
 {
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     prp->eventbits = 0;
-    PR_Unlock(prp->lock);
+    pthread_mutex_unlock(&(prp->lock));
 }
 
 /*
- * Replay the actual update to the consumer. Construct an appropriate LDAP
+ * Replay the actual update to the receiver. Construct an appropriate LDAP
  * operation, attach the baggage LDAPv3 control that contains the CSN, etc.,
- * and send the operation to the consumer.
+ * and send the operation to the receiver.
  */
 ConnResult
 replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *message_id)
@@ -1309,8 +1315,8 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
     } else {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Sending %s operation (dn=\"%s\" csn=%s)\n",
-                          agmt_get_long_name(prp->agmt),
+                          "replay_update - sid=\"%s\" - %s: Sending %s operation (dn=\"%s\" csn=%s)\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt),
                           op2string(op->operation_type), REPL_GET_DN(&op->target_address),
                           csn_as_string(op->csn, PR_FALSE, csn_str));
         }
@@ -1396,14 +1402,14 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
     if (CONN_OPERATION_SUCCESS == return_value) {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Consumer successfully sent operation with csn %s\n",
-                          agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
+                          "replay_update - sid=\"%s\" - %s: Receiver successfully sent operation with csn %s\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
         }
     } else {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Consumer could not replay operation with csn %s\n",
-                          agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
+                          "replay_update - sid=\"%s\" - %s: Receiver could not replay operation with csn %s\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
         }
     }
     return return_value;
@@ -1471,7 +1477,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
             }
             slapi_log_err(*finished ? SLAPI_LOG_WARNING : slapi_log_urp,
                           repl_plugin_name,
-                          "repl5_inc_update_from_op_result - %s: Consumer failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
+                          "repl5_inc_update_from_op_result - %s: Receiver failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
                           agmt_get_long_name(prp->agmt),
                           uniqueid, csn_str,
                           ldap_err2string(connection_error), connection_error,
@@ -1482,7 +1488,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
             return_value = UPDATE_CONNECTION_LOST;
             *finished = 1;
             slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                          "repl5_inc_update_from_op_result - %s: Consumer failed to replay change (uniqueid %s, CSN %s): "
+                          "repl5_inc_update_from_op_result - %s: Receiver failed to replay change (uniqueid %s, CSN %s): "
                           "%s(%d). Will retry later.\n",
                           agmt_get_long_name(prp->agmt),
                           uniqueid, csn_str,
@@ -1492,7 +1498,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
             return_value = UPDATE_TIMEOUT;
             *finished = 1;
             slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                          "repl5_inc_update_from_op_result - %s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
+                          "repl5_inc_update_from_op_result - %s: Receiver timed out to replay change (uniqueid %s, CSN %s): "
                           "%s.\n",
                           agmt_get_long_name(prp->agmt),
                           uniqueid, csn_str,
@@ -1512,9 +1518,9 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
         }
         if (*finished) {
             /*
-             * A serious error has occurred, the consumer might have closed
+             * A serious error has occurred, the receiver might have closed
              * the connection already, but we need to close the conn on the
-             * supplier side to properly set the conn structure as closed.
+             * sender side to properly set the conn structure as closed.
              */
             conn_disconnect(prp->conn);
         }
@@ -1528,7 +1534,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 
 /*
  * Send a set of updates to the replica.  Assumes that (1) the replica
- * has already been acquired, (2) that the consumer's update vector has
+ * has already been acquired, (2) that the receiver's update vector has
  * been checked and (3) that it's ok to send incremental updates.
  * Returns:
  * UPDATE_NO_MORE_UPDATES - all updates were sent successfully
@@ -1599,8 +1605,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             break;
         case CL5_NOTFOUND: /* we have no changes to send */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "send_updates - %s: No changes to send\n",
-                          agmt_get_long_name(prp->agmt));
+                          "send_updates - sid=\"%s\" - %s: No changes to send\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt));
             return_value = UPDATE_NO_MORE_UPDATES;
             break;
         case CL5_MEMORY_ERROR: /* memory allocation failed */
@@ -1671,13 +1677,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
     } else {
         ConnResult replay_crc;
         Replica *replica = prp->replica;
-        PRBool subentry_update_needed = PR_FALSE;
         PRUint64 release_timeout = replica_get_release_timeout(replica);
         char csn_str[CSN_STRSIZE];
-        int skipped_updates = 0;
-        int fractional_repl;
         int finished = 0;
-#define FRACTIONAL_SKIPPED_THRESHOLD 100
 
         /* Start the results reading thread */
         rd = repl5_inc_rd_new(prp);
@@ -1694,7 +1696,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 
         memset((void *)&op, 0, sizeof(op));
         entry.op = &op;
-        fractional_repl = agmt_is_fractional(prp->agmt);
         do {
             cl5_operation_parameters_done(entry.op);
             memset((void *)entry.op, 0, sizeof(op));
@@ -1727,8 +1728,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         } else {
                             agmt_inc_last_update_changecount(prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
                         }
-                        slapi_log_err(finished ? SLAPI_LOG_WARNING : slapi_log_urp,
-                                      "send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): %s. %s.\n",
+                        slapi_log_err(finished ? SLAPI_LOG_WARNING : slapi_log_urp, repl_plugin_name,
+                                      "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): %s. %s.\n",
                                       (char *)agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,
                                       ldap_err2string(error),
@@ -1739,7 +1740,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         return_value = UPDATE_CONNECTION_LOST;
                         finished = 1;
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                      "send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
+                                      "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): "
                                       "%s. Will retry later.\n",
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,
@@ -1748,7 +1749,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         return_value = UPDATE_TIMEOUT;
                         finished = 1;
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                      "send_updates - %s: Timed out sending update operation to consumer (uniqueid %s, CSN %s): "
+                                      "send_updates - %s: Timed out sending update operation to receiver (uniqueid %s, CSN %s): "
                                       "%s.\n",
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,
@@ -1761,7 +1762,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         return_value = UPDATE_TRANSIENT_ERROR;
                         finished = 1;
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                      "send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
+                                      "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): "
                                       "Local error. Will retry later.\n",
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str);
@@ -1774,14 +1775,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                     csn_as_string(entry.op->csn, PR_FALSE, csn_str);
                     replica_id = csn_get_replicaid(entry.op->csn);
                     uniqueid = entry.op->target_address.uniqueid;
-
-                    if (fractional_repl && message_id) {
-                        /* This update was sent no need to update the subentry
-                         * and restart counting the skipped updates
-                         */
-                        subentry_update_needed = PR_FALSE;
-                        skipped_updates = 0;
-                    }
 
                     if (prp->repl50consumer && message_id) {
                         int operation, error = 0;
@@ -1810,15 +1803,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str);
                         agmt_inc_last_update_changecount(prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
-                        if (fractional_repl) {
-                            skipped_updates++;
-                            if (skipped_updates > FRACTIONAL_SKIPPED_THRESHOLD) {
-                                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                              "send_updates - %s: skipped updates is too high (%d) if no other update is sent we will update the subentry\n",
-                                              agmt_get_long_name(prp->agmt), skipped_updates);
-                                subentry_update_needed = PR_TRUE;
-                            }
-                        }
                     }
                 }
                 break;
@@ -1833,8 +1817,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                 break;
             case CL5_NOTFOUND:
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                              "send_updates - %s: No more updates to send (cl5GetNextOperationToReplay)\n",
-                              agmt_get_long_name(prp->agmt));
+                              "send_updates - sid=\"%s\" - %s: No more updates to send (cl5GetNextOperationToReplay)\n",
+                              agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt));
                 return_value = UPDATE_NO_MORE_UPDATES;
                 finished = 1;
                 break;
@@ -1882,14 +1866,14 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             /* See if the result thread has hit a problem */
 
             if (!finished && rd->abort_time) {
-                time_t current_time = slapi_current_utc_time();
+                time_t current_time = slapi_current_rel_time_t();
                 if ((current_time - rd->abort_time) >= release_timeout) {
                     rd->result = UPDATE_YIELD;
                     return_value = UPDATE_YIELD;
                     finished = 1;
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "send_updates - Aborting send_updates...(%s)\n",
-                                  agmt_get_long_name(rd->prp->agmt));
+                                  "send_updates - sid=\"%s\" - Aborting send_updates...(%s)\n",
+                                  agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(rd->prp->agmt));
                 }
             }
 
@@ -1900,26 +1884,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             PR_Unlock(rd->lock);
         } while (!finished);
 
-        if (fractional_repl && subentry_update_needed) {
-            ReplicaId rid = -1; /* Used to create the replica keep alive subentry */
-            Slapi_DN *replarea_sdn = NULL;
-
-            if (replica) {
-                rid = replica_get_rid(replica);
-            }
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "send_updates - %s: skipped updates was definitely too high (%d) update the subentry now\n",
-                          agmt_get_long_name(prp->agmt), skipped_updates);
-            replarea_sdn = agmt_get_replarea(prp->agmt);
-            if (!replarea_sdn) {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                              "send_updates - Unknown replication area due to agreement not found.");
-                agmt_set_last_update_status(prp->agmt, 0, -1, "Agreement is corrupted: missing suffix");
-                return_value = UPDATE_FATAL_ERROR;
-            } else {
-                replica_subentry_update(replarea_sdn, rid);
-            }
-        }
         /* Terminate the results reading thread */
         if (!prp->repl50consumer) {
             /* We need to ensure that we wait until all the responses have been received from our operations */
@@ -1953,9 +1917,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
         PR_Lock(rd->lock);
         if (rd->flowcontrol_detection) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "send_updates - %s: Incremental update flow control triggered %d times\n"
+                          "send_updates - sid=\"%s\" - %s: Incremental update flow control triggered %d times\n"
                           "You may increase %s and/or decrease %s in the replica agreement configuration\n",
-                          agmt_get_long_name(prp->agmt),
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt),
                           rd->flowcontrol_detection,
                           type_nsds5ReplicaFlowControlPause,
                           type_nsds5ReplicaFlowControlWindow);
@@ -2088,7 +2052,9 @@ Private_Repl_Protocol *
 Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
 {
     repl5_inc_private *rip = NULL;
-    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
+    pthread_condattr_t cattr; /* the pthread condition attr */
+    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
+
     prp->delete = repl5_inc_delete;
     prp->run = repl5_inc_run;
     prp->stop = repl5_inc_stop;
@@ -2099,12 +2065,19 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_closed = repl5_inc_notify_window_closed;
     prp->update_now = repl5_inc_update_now;
     prp->replica = prot_get_replica(rp);
-    if ((prp->lock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(prp->lock), NULL) != 0) {
         goto loser;
     }
-    if ((prp->cvar = PR_NewCondVar(prp->lock)) == NULL) {
+    if (pthread_condattr_init(&cattr) != 0) {
         goto loser;
     }
+    if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0) {
+        goto loser;
+    }
+    if (pthread_cond_init(&(prp->cvar), &cattr) != 0) {
+        goto loser;
+    }
+    pthread_condattr_destroy(&cattr);
     prp->stopped = 0;
     prp->terminate = 0;
     prp->eventbits = 0;
@@ -2137,7 +2110,7 @@ repl5_inc_backoff_expired(time_t timer_fire_time __attribute__((unused)), void *
 /*
  * Examine the update vector and determine our course of action.
  * There are 3 different possibilities, plus a catch-all error:
- * 1 - no update vector (ruv is NULL). The consumer's replica is
+ * 1 - no update vector (ruv is NULL). The receiver's replica is
  *     pristine, so it needs to be initialized. Return
  *     EXAMINE_RUV_PRISTINE_REPLICA.
  * 2 - ruv is present, but its database generation ID doesn't
@@ -2161,26 +2134,12 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
     } else if (NULL == remote_ruv) {
         return_value = EXAMINE_RUV_PRISTINE_REPLICA;
     } else {
-        char *local_gen = NULL;
-        char *remote_gen = ruv_get_replica_generation(remote_ruv);
-        Object *local_ruv_obj;
-        RUV *local_ruv;
-
         PR_ASSERT(NULL != prp->replica);
-        local_ruv_obj = replica_get_ruv(prp->replica);
-        if (NULL != local_ruv_obj) {
-            local_ruv = (RUV *)object_get_data(local_ruv_obj);
-            PR_ASSERT(local_ruv);
-            local_gen = ruv_get_replica_generation(local_ruv);
-            object_release(local_ruv_obj);
-        }
-        if (NULL == remote_gen || NULL == local_gen || strcmp(remote_gen, local_gen) != 0) {
-            return_value = EXAMINE_RUV_GENERATION_MISMATCH;
-        } else {
+        if (replica_check_generation(prp->replica, remote_ruv)) {
             return_value = EXAMINE_RUV_OK;
+        } else {
+            return_value = EXAMINE_RUV_GENERATION_MISMATCH;
         }
-        slapi_ch_free((void **)&remote_gen);
-        slapi_ch_free((void **)&local_gen);
     }
     return return_value;
 }
@@ -2194,7 +2153,7 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
  * we should back off and try again later.
  *
  * In general, we keep going if the return code is consistent
- * with some sort of bug in URP that causes the consumer to
+ * with some sort of bug in URP that causes the receiver to
  * emit an error code that it shouldn't have, e.g. LDAP_ALREADY_EXISTS.
  *
  * We stop if there's some indication that the server just completely

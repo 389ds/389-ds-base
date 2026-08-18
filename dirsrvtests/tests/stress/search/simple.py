@@ -8,7 +8,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.dbgen import dbgen_users
 from lib389.ldclt import Ldclt
 from lib389.tasks import ImportTask

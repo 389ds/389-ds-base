@@ -238,6 +238,7 @@ llistInsertTail(LList *list, const char *key, void *data)
     if (list->head->next == NULL) /* empty list */
     {
         list->head->next = node;
+        /* coverity[copy_paste_error] */
         list->tail = node;
     } else {
         list->tail->next = node;

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -86,7 +86,7 @@ get_mr_normval(char *oid, char *type, struct berval **inval, struct berval ***ou
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     unsigned int sort_indicator = SLAPI_PLUGIN_MR_USAGE_SORT;
-    IFP mrIndex = NULL;
+    int32_t (*mrIndex)(Slapi_PBlock *) = NULL;
 
     if (!pb) {
         return NULL;
@@ -118,7 +118,7 @@ get_mr_normval(char *oid, char *type, struct berval **inval, struct berval ***ou
 static void
 done_mr_normval(Slapi_PBlock *pb)
 {
-    IFP mrDestroy = NULL;
+    int32_t (*mrDestroy)(Slapi_PBlock *) = NULL;
 
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &mrDestroy) == 0) {
         if (mrDestroy)
@@ -198,23 +198,24 @@ filter_compute_hash(struct slapi_filter *f)
         if (f->f_mr_oid)
             h = addhash_str(h, f->f_mr_oid);
         STIR(h);
-        if (f->f_mr_type)
+        if (f->f_mr_type) {
             h = addhash_str(h, f->f_mr_type);
-        inval[0] = &f->f_mr_value;
-        inval[1] = NULL;
-        /* get the normalized value (according to the matching rule) */
-        pb = get_mr_normval(f->f_mr_oid, f->f_mr_type, inval, &outval);
-        if (!pb) {
-            slapi_log_err(SLAPI_LOG_ERR, "filter_compute_hash", "Out of memory!\n");
-            return;
+            inval[0] = &f->f_mr_value;
+            inval[1] = NULL;
+            /* get the normalized value (according to the matching rule) */
+            pb = get_mr_normval(f->f_mr_oid, f->f_mr_type, inval, &outval);
+            if (!pb) {
+                slapi_log_err(SLAPI_LOG_ERR, "filter_compute_hash", "Out of memory!\n");
+                return;
+            }
+            if (outval && outval[0]) {
+                STIR(h);
+                h = addhash_bv(h, *(outval[0]));
+            }
+            done_mr_normval(pb);
+            if (f->f_mr_dnAttrs)
+                STIR(h);
         }
-        if (outval && outval[0]) {
-            STIR(h);
-            h = addhash_bv(h, *(outval[0]));
-        }
-        done_mr_normval(pb);
-        if (f->f_mr_dnAttrs)
-            STIR(h);
         break;
     default:
         slapi_log_err(SLAPI_LOG_ERR, "filter_compute_hash", "Can't handle filter type %lX !\n",
@@ -373,21 +374,26 @@ slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
         }
         slapi_attr_init(&sattr, f1->f_ava.ava_type);
         key1 = get_normalized_value(&sattr, &f1->f_ava);
+        key2 = get_normalized_value(&sattr, &f2->f_ava);
+        ret = 1;
+        if (key1 && key2) {
+            const struct berval bvkey1 = {
+                slapi_value_get_length(key1[0]),
+                (char *)slapi_value_get_string(key1[0])
+            };
+            const struct berval bvkey2 = {
+                slapi_value_get_length(key2[0]),
+                (char *)slapi_value_get_string(key2[0])
+            };
+            ret = slapi_berval_cmp(&bvkey1, &bvkey2);
+        }
         if (key1) {
-            key2 = get_normalized_value(&sattr, &f2->f_ava);
-            if (key2) {
-                ret = memcmp(slapi_value_get_string(key1[0]),
-                             slapi_value_get_string(key2[0]),
-                             slapi_value_get_length(key1[0]));
-                valuearray_free(&key1);
-                valuearray_free(&key2);
-                attr_done(&sattr);
-                break;
-            }
             valuearray_free(&key1);
         }
+        if (key2) {
+            valuearray_free(&key2);
+        }
         attr_done(&sattr);
-        ret = 1;
         break;
     case LDAP_FILTER_PRESENT:
         ret = (slapi_UTF8CASECMP(f1->f_type, f2->f_type));

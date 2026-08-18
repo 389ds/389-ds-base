@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,10 +12,19 @@ import copy
 import os.path
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.lint import DSRILE0001, DSRILE0002
+from lib389._mapped_object_lint import (
+    lint_get_attr_val_utf8,
+    lint_get_attr_val_utf8_l,
+    lint_get_attr_vals_utf8_l,
+    lint_get_attr_val_int,
+    lint_plugin_enabled,
+)
+from lib389.lint import DSRILE0001, DSRILE0002, DSMOLE0001, DSMOLE0002, DSMOLE0003
 from lib389.utils import ensure_str, ensure_list_bytes
 from lib389.schema import Schema
-from lib389._constants import DN_PLUGIN
+from lib389._constants import (
+        DN_PLUGIN, DN_MBO_TASK, DN_AUTOMEMBER_REBUILD_TASK, DN_FIXUP_LINKED_ATTIBUTES,
+        DN_EUUID_TASK)
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
         PLUGINS_ENABLE_ON_VALUE, PLUGINS_ENABLE_OFF_VALUE, PLUGIN_ENABLE
@@ -172,6 +181,16 @@ class AttributeUniquenessPlugin(Plugin):
         """Set uniqueness-across-all-subtrees to off"""
 
         self.set('uniqueness-across-all-subtrees', 'off')
+
+    def add_exclude_subtree(self, basedn):
+        """Add a uniqueness-exclude-subtrees attribute"""
+
+        self.add('uniqueness-exclude-subtrees', basedn)
+
+    def remove_exclude_subtree(self, basedn):
+        """Remove a uniqueness-exclude-subtrees attribute"""
+
+        self.remove('uniqueness-exclude-subtrees', basedn)
 
 
 class AttributeUniquenessPlugins(DSLdapObjects):
@@ -447,8 +466,8 @@ class ReferentialIntegrityPlugin(Plugin):
         return 'refint'
 
     def _lint_update_delay(self):
-        if self.status():
-            delay = self.get_attr_val_int("referint-update-delay")
+        if lint_plugin_enabled(self):
+            delay = lint_get_attr_val_int(self, "referint-update-delay")
             if delay is not None and delay != 0:
                 report = copy.deepcopy(DSRILE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -456,13 +475,16 @@ class ReferentialIntegrityPlugin(Plugin):
                 yield report
 
     def _lint_attr_indexes(self):
-        if self.status():
+        if lint_plugin_enabled(self):
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
-            attrs = self.get_attr_vals_utf8_l("referint-membership-attr")
-            container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
+            attrs = lint_get_attr_vals_utf8_l(self, "referint-membership-attr")
+            container = lint_get_attr_val_utf8_l(self, "nsslapd-plugincontainerscope")
+            server_running = self._instance.status()
+
             for backend in backends:
-                suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
+                suffix = lint_get_attr_val_utf8_l(backend, 'nsslapd-suffix')
+                bename = lint_get_attr_val_utf8_l(backend, 'cn')
                 if suffix == "cn=changelog":
                     # Always skip retro changelog
                     continue
@@ -471,12 +493,20 @@ class ReferentialIntegrityPlugin(Plugin):
                     if not container.endswith(suffix):
                         # skip this backend that is not in the scope
                         continue
+
                 indexes = backend.get_indexes()
+
                 for attr in attrs:
                     report = copy.deepcopy(DSRILE0002)
                     try:
-                        index = indexes.get(attr)
-                        types = index.get_attr_vals_utf8_l("nsIndexType")
+                        if server_running:
+                            index = indexes.get(attr)
+                            types = index.get_attr_vals_utf8_l("nsIndexType")
+                        else:
+                            index = DSLdapObject(self._instance,
+                                                 dn=f'cn={attr},cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+
                         valid = False
                         if "eq" in types:
                             valid = True
@@ -491,6 +521,7 @@ class ReferentialIntegrityPlugin(Plugin):
                             report['items'].append(attr)
                             report['check'] = f'refint:attr_indexes'
                             yield report
+
                     except:
                         # No index at all, bad
                         report['detail'] = report['detail'].replace('ATTR', attr)
@@ -517,6 +548,21 @@ class ReferentialIntegrityPlugin(Plugin):
         """Set referint-update-delay attribute"""
 
         self.set('referint-update-delay', str(value))
+
+    def get_log_file(self):
+        """Get referint log file"""
+
+        return self.get_attr_val_utf8('referint-logfile')
+
+    def get_log_file_formatted(self):
+        """Get referint log file"""
+
+        return self.display_attr('referint-logfile')
+
+    def set_log_file(self, value):
+        """Set referint log file"""
+
+        self.set('referint-logfile', value)
 
     def get_membership_attr(self, formatted=False):
         """Get referint-membership-attr attribute"""
@@ -758,6 +804,144 @@ class MemberOfPlugin(Plugin):
         self._create_objectclasses.extend(['extensibleObject'])
         self._must_attributes.extend(['memberOfGroupAttr', 'memberOfAttr'])
 
+    @classmethod
+    def lint_uid(cls):
+        return 'memberof'
+
+    def _lint_member_attr_indexes(self):
+        if lint_plugin_enabled(self):
+            from lib389.backend import Backends
+            backends = Backends(self._instance).list()
+            attrs = lint_get_attr_vals_utf8_l(self, "memberofgroupattr")
+            scopes = lint_get_attr_vals_utf8_l(self, "memberofentryscope")
+            server_running = self._instance.status()
+
+            for backend in backends:
+                suffix = lint_get_attr_val_utf8_l(backend, 'nsslapd-suffix')
+                bename = lint_get_attr_val_utf8_l(backend, 'cn')
+
+                if suffix == "cn=changelog":
+                    # Always skip retro changelog
+                    continue
+                if scopes:
+                    # Is this backend suffix in scope
+                    in_scope = False
+                    for scope in scopes:
+                        if scope.endswith(suffix) or suffix.endswith(scope):
+                            in_scope = True
+                            break
+
+                    if not in_scope:
+                        continue
+                indexes = backend.get_indexes()
+
+                for attr in attrs:
+                    report = copy.deepcopy(DSMOLE0001)
+                    try:
+                        if server_running:
+                            index = indexes.get(attr)
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+                        else:
+                            index = DSLdapObject(self._instance,
+                                                 dn=f'cn={attr},cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+
+                        valid = False
+                        if "eq" in types:
+                            valid = True
+
+                        if not valid:
+                            report['detail'] = report['detail'].replace('ATTR', attr)
+                            report['detail'] = report['detail'].replace('BACKEND', suffix)
+                            report['fix'] = report['fix'].replace('ATTR', attr)
+                            report['fix'] = report['fix'].replace('BACKEND', suffix)
+                            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                            report['items'].append(suffix)
+                            report['items'].append(attr)
+                            report['check'] = f'memberof:attr_indexes'
+                            yield report
+
+                    except:
+                        # No index at all, bad
+                        report['detail'] = report['detail'].replace('ATTR', attr)
+                        report['detail'] = report['detail'].replace('BACKEND', suffix)
+                        report['fix'] = report['fix'].replace('ATTR', attr)
+                        report['fix'] = report['fix'].replace('BACKEND', suffix)
+                        report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                        report['items'].append(suffix)
+                        report['items'].append(attr)
+                        report['check'] = f'memberof:attr_indexes'
+                        yield report
+
+    def _lint_member_substring_index(self):
+        if lint_plugin_enabled(self):
+            from lib389.backend import Backends
+            backends = Backends(self._instance).list()
+            membership_attrs = ['member', 'uniquemember']
+            scopes = lint_get_attr_vals_utf8_l(self, "memberofentryscope")
+            server_running = self._instance.status()
+
+            for backend in backends:
+                suffix = lint_get_attr_val_utf8_l(backend, 'nsslapd-suffix')
+                bename = lint_get_attr_val_utf8_l(backend, 'cn')
+                if suffix == "cn=changelog":
+                    # Always skip retro changelog
+                    continue
+                if scopes:
+                    # Is this backend suffix in scope
+                    in_scope = False
+                    for scope in scopes:
+                        if scope.endswith(suffix) or suffix.endswith(scope):
+                            in_scope = True
+                            break
+
+                    if not in_scope:
+                        continue
+                indexes = backend.get_indexes()
+                for attr in membership_attrs:
+                    report = copy.deepcopy(DSMOLE0002)
+                    try:
+                        if server_running:
+                            index = indexes.get(attr)
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+                        else:
+                            index = DSLdapObject(self._instance,
+                                                 dn=f'cn={attr},cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+                            types = lint_get_attr_vals_utf8_l(index, "nsIndexType")
+
+                        if "sub" in types:
+                            report['detail'] = report['detail'].replace('ATTR', attr)
+                            report['detail'] = report['detail'].replace('BACKEND', suffix)
+                            report['fix'] = report['fix'].replace('ATTR', attr)
+                            report['fix'] = report['fix'].replace('BACKEND', suffix)
+                            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                            report['items'].append(suffix)
+                            report['items'].append(attr)
+                            report['check'] = f'attr:substring_index'
+                            yield report
+                    except KeyError:
+                        continue
+
+    def _lint_member_globalbackend_lock(self):
+        """
+        Verify that when the memberOf plugin monitors all backends,
+        the global backend lock is enabled. Warn if disabled.
+        """
+        if lint_plugin_enabled(self):
+            from lib389.config import Config
+            allbackends = lint_get_attr_val_utf8_l(self, "memberofallbackends")
+            config = Config(self._instance)
+            if allbackends == "on":
+                GLOBAL_BE_LOCK = "nsslapd-global-backend-lock"
+                global_be_lock = lint_get_attr_val_utf8(config, GLOBAL_BE_LOCK)
+                if global_be_lock == "off":
+                    report = copy.deepcopy(DSMOLE0003)
+                    report['check'] = f'attr:{GLOBAL_BE_LOCK}'
+                    report['items'].append(config.dn)
+                    report['fix'] = report['fix'].replace(f'ATTR', GLOBAL_BE_LOCK)
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    yield report
+
     def get_attr(self):
         """Get memberofattr attribute"""
 
@@ -838,6 +1022,56 @@ class MemberOfPlugin(Plugin):
 
         self.set('memberofskipnested', 'off')
 
+    def get_memberofdeferredupdate(self):
+        """Get memberOfDeferredUpdate attribute"""
+
+        return self.get_attr_val_utf8_l('memberofdeferredupdate')
+
+    def get_memberofdeferredupdate_formatted(self):
+        """Display memberofdeferredupdate attribute"""
+
+        return self.display_attr('memberofdeferredupdate')
+
+    def set_memberofdeferredupdate(self, value):
+        """Set memberofdeferredupdate attribute"""
+
+        self.set('memberofdeferredupdate', value)
+
+    def remove_memberofdeferredupdate(self):
+        """Remove all memberofdeferredupdate attributes"""
+
+        self.remove_all('memberofdeferredupdate')
+
+    def get_memberofneedfixup(self):
+        """Get memberofneedfixup attribute"""
+
+        return self.get_attr_val_utf8_l('memberofneedfixup')
+
+    def get_memberofneedfixup_formatted(self):
+        """Display memberofneedfixup attribute"""
+
+        return self.display_attr('memberofneedfixup')
+
+    def get_memberoflaunchfixup(self):
+        """Get memberoflaunchfixup attribute"""
+
+        return self.get_attr_val_utf8_l('memberoflaunchfixup')
+
+    def get_memberoflaunchfixup_formatted(self):
+        """Display memberoflaunchfixup attribute"""
+
+        return self.display_attr('memberoflaunchfixup')
+
+    def set_memberoflaunchfixup(self, value):
+        """Set memberoflaunchfixup attribute"""
+
+        self.set('memberoflaunchfixup', value)
+
+    def remove_memberoflaunchfixup(self):
+        """Remove all memberoflaunchfixup attributes"""
+
+        self.remove_all('memberoflaunchfixup')
+
     def get_autoaddoc(self):
         """Get memberofautoaddoc attribute"""
 
@@ -908,6 +1142,54 @@ class MemberOfPlugin(Plugin):
 
         self.remove_all('memberofentryscopeexcludesubtree')
 
+    def get_exclude_specific_group_filters(self):
+        """Get memberofexcludespecificgroup attribute"""
+        return self.get_attr_vals_utf8_l('memberofexcludespecificgroupfilter')
+
+    def add_exclude_specific_group_filter(self, value):
+        """Add memberofexcludespecificgroups attribute"""
+        self.add('memberofexcludespecificgroupfilter', value)
+
+    def remove_exclude_specific_group_filter(self, value):
+        """Remove memberofexcludespecificgroups attribute"""
+        self.remove('memberofexcludespecificgroupfilter', value)
+
+    def remove_all_exclude_specific_group_filters(self):
+        """Remove all memberofexcludespecificgroups attributes"""
+        self.remove_all('memberofexcludespecificgroupfilter')
+
+    def get_specific_group_filters(self):
+        """Get memberofspecificgroup attribute"""
+        return self.get_attr_vals_utf8_l('memberofspecificgroupfilter')
+
+    def add_specific_group_filter(self, value):
+        """Add memberofspecificgroups attribute"""
+        self.add('memberofspecificgroupfilter', value)
+
+    def remove_specific_group_filter(self, value):
+        """Remove memberofspecificgroupfilter attribute"""
+        self.remove('memberofspecificgroupfilter', value)
+
+    def remove_all_specific_group_filters(self):
+        """Remove all memberofspecificgroupfilter attributes"""
+        self.remove_all('memberofspecificgroupfilter')
+
+    def get_specific_group_oc(self):
+        """Get memberofspecificgroupoc attribute"""
+        return self.get_attr_vals_utf8_l('memberofspecificgroupoc')
+
+    def add_specific_group_oc(self, value):
+        """Add memberofspecificgroupoc attribute"""
+        self.add('memberofspecificgroupoc', value)
+
+    def remove_specific_group_oc(self, value):
+        """Remove memberofspecificgroupoc attribute"""
+        self.remove('memberofspecificgroupoc', value)
+
+    def remove_all_specific_group_oc(self):
+        """Remove all memberofspecificgroupoc attributes"""
+        self.remove_all('memberofspecificgroupoc')
+
     def get_configarea(self):
         """Get nsslapd-pluginConfigArea attribute"""
 
@@ -938,7 +1220,10 @@ class MemberOfPlugin(Plugin):
         task_properties = {'basedn': basedn}
         if _filter is not None:
             task_properties['filter'] = _filter
-        task.create(properties=task_properties)
+        try:
+            task.create(properties=task_properties)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("The fixup task can not be run, the memberOf plugin is not fully enabled.")
 
         return task
 
@@ -1069,13 +1354,15 @@ class AutoMembershipPlugin(Plugin):
     def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
         super(AutoMembershipPlugin, self).__init__(instance, dn)
 
-    def fixup(self, basedn, _filter=None):
+    def fixup(self, basedn, _filter=None, cleanup=False):
         """Create an automember rebuild membership task
 
         :param basedn: Basedn to fix up
         :type basedn: str
         :param _filter: a filter for entries to fix up
         :type _filter: str
+        :param cleanup: cleanup old group memberships
+        :type cleanup: boolean
 
         :returns: an instance of Task(DSLdapObject)
         """
@@ -1084,7 +1371,21 @@ class AutoMembershipPlugin(Plugin):
         task_properties = {'basedn': basedn}
         if _filter is not None:
             task_properties['filter'] = _filter
+        if cleanup:
+            task_properties['cleanup'] = "yes"
+
         task.create(properties=task_properties)
+
+        return task
+
+    def abort_fixup(self):
+        """Create an automember abort rebuild task
+
+        :returns: an instance of Task(DSLdapObject)
+        """
+
+        task = tasks.AutomemberAbortRebuildTask(self._instance)
+        task.create()
 
         return task
 
@@ -1408,7 +1709,7 @@ class PAMPassThroughAuthPlugin(Plugin):
         super(PAMPassThroughAuthPlugin, self).__init__(instance, dn)
 
 
-class PAMPassThroughAuthConfig(Plugin):
+class PAMPassThroughAuthConfig(DSLdapObject):
     """A single instance of PAM Pass Through Auth config entry
 
     :param instance: An instance
@@ -1417,24 +1718,11 @@ class PAMPassThroughAuthConfig(Plugin):
     :type dn: str
     """
 
-    _plugin_properties = {
-        'cn' : 'USN',
-        'nsslapd-pluginEnabled': 'off',
-        'nsslapd-pluginPath': 'libpam-passthru-plugin',
-        'nsslapd-pluginInitfunc': 'pam_passthruauth_init',
-        'nsslapd-pluginType': 'betxnpreoperation',
-        'nsslapd-plugin-depends-on-type': 'database',
-        'nsslapd-pluginId': 'PAM',
-        'nsslapd-pluginVendor': '389 Project',
-        'nsslapd-pluginVersion': '1.3.7.0',
-        'nsslapd-pluginDescription': 'PAM Pass Through Auth plugin'
-    }
-
     def __init__(self, instance, dn=None):
         super(PAMPassThroughAuthConfig, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
-        self._create_objectclasses = ['top', 'extensibleObject', 'nsslapdplugin', 'pamConfig']
+        self._create_objectclasses = ['top', 'extensibleObject', 'pamConfig']
         self._protected = False
 
 
@@ -1449,7 +1737,7 @@ class PAMPassThroughAuthConfigs(DSLdapObjects):
 
     def __init__(self, instance, basedn="cn=PAM Pass Through Auth,cn=plugins,cn=config"):
         super(PAMPassThroughAuthConfigs, self).__init__(instance)
-        self._objectclasses = ['top', 'extensibleObject', 'nsslapdplugin', 'pamConfig']
+        self._objectclasses = ['top', 'extensibleObject', 'pamConfig']
         self._filterattrs = ['cn']
         self._scope = ldap.SCOPE_ONELEVEL
         self._childobject = PAMPassThroughAuthConfig
@@ -2056,6 +2344,78 @@ class DNAPluginSharedConfigs(DSLdapObjects):
         return co.create(properties, self._basedn)
 
 
+class MemberOfFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents memberOf fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(MemberOfFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_MBO_TASK
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
+class AutoMembershipFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents automember fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(AutoMembershipFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_AUTOMEMBER_REBUILD_TASK
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
+class LinkedAttributesFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents automember fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(LinkedAttributesFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_FIXUP_LINKED_ATTIBUTES
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
+class EntryUUIDFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents automember fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(EntryUUIDFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_EUUID_TASK
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
 class Plugins(DSLdapObjects):
     """A DSLdapObjects entity which represents plugin entry
 
@@ -2264,6 +2624,7 @@ class EntryUUIDPlugin(Plugin):
 
         return task
 
+
 class ContentSyncPlugin(Plugin):
     """A single instance of Content Sync (aka syncrepl) plugin entry
 
@@ -2276,3 +2637,15 @@ class ContentSyncPlugin(Plugin):
     def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config"):
         super(ContentSyncPlugin, self).__init__(instance, dn)
 
+
+class AliasEntriesPlugin(Plugin):
+    """A single instance of Alias Entries plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn="cn=Alias Entries,cn=plugins,cn=config"):
+        super(AliasEntriesPlugin, self).__init__(instance, dn)

@@ -221,37 +221,32 @@ ResHashCreate(char *name)
     ResHash *pResHash;
 
     /* Create hash table  */
-    pResHash = (ResHash *)malloc(sizeof(ResHash));
+    pResHash = (ResHash *)calloc(1, sizeof(ResHash));
     if (pResHash == NULL)
-        goto error;
-
-    memset(pResHash, 0, sizeof(ResHash));
+        return NULL;
 
     if (name)
         pResHash->name = strdup(name);
 
     /* Create initial tree item and it's valuelist to hash table */
-    pResHash->treelist = (TreeNode *)malloc(sizeof(TreeNode));
+    pResHash->treelist = (TreeNode *)calloc(1, sizeof(TreeNode));
     if (pResHash->treelist == NULL)
         goto error;
 
-    memset(pResHash->treelist, 0, sizeof(TreeNode));
-
-    pResHash->treelist->vlist = (ValueNode *)malloc(sizeof(ValueNode));
+    pResHash->treelist->vlist = (ValueNode *)calloc(1, sizeof(ValueNode));
     if (pResHash->treelist->vlist == NULL)
         goto error;
-
-    memset(pResHash->treelist->vlist, 0, sizeof(ValueNode));
 
     goto done;
 
 error:
-    if (pResHash && pResHash->treelist && pResHash->treelist->vlist)
+    if (pResHash->treelist) {
         free(pResHash->treelist->vlist);
-    if (pResHash && pResHash->treelist)
         free(pResHash->treelist);
-    if (pResHash)
-        free(pResHash);
+    }
+    free(pResHash->name);
+    free(pResHash);
+
     return NULL;
 
 done:

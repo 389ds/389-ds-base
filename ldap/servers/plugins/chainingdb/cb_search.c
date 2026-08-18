@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -236,7 +236,7 @@ chainingdb_build_candidate_list(Slapi_PBlock *pb)
 
     /* heart-beat management */
     if (cb->max_idle_time > 0) {
-        endtime = slapi_current_utc_time() + cb->max_idle_time;
+        endtime = slapi_current_rel_time_t() + cb->max_idle_time;
     }
 
     rc = ldap_search_ext(ld, target, scope, filter, attrs, attrsonly,
@@ -348,10 +348,9 @@ chainingdb_build_candidate_list(Slapi_PBlock *pb)
                     warned_rc = 1;
                 }
                 cb_send_ldap_result(pb, rc, NULL, ENDUSERMSG, 0, NULL);
-                /* BEWARE: matched_msg and error_msg points */
+                /* BEWARE: matched_msg points */
                 /* to ld fields.                */
                 matched_msg = NULL;
-                error_msg = NULL;
                 rc = -1;
             }
 
@@ -503,7 +502,7 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
 
     /* heart-beat management */
     if (cb->max_idle_time > 0) {
-        endtime = slapi_current_utc_time() + cb->max_idle_time;
+        endtime = slapi_current_rel_time_t() + cb->max_idle_time;
     }
 
     while (1) {
@@ -579,7 +578,7 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
 
             /* heart-beat management */
             if (cb->max_idle_time > 0) {
-                endtime = slapi_current_utc_time() + cb->max_idle_time;
+                endtime = slapi_current_rel_time_t() + cb->max_idle_time;
             }
 
             /* The server sent one of the entries found by the search */
@@ -611,7 +610,7 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
 
             /* heart-beat management */
             if (cb->max_idle_time > 0) {
-                endtime = slapi_current_utc_time() + cb->max_idle_time;
+                endtime = slapi_current_rel_time_t() + cb->max_idle_time;
             }
 
             parse_rc = ldap_parse_reference(ctx->ld, res, &referrals, NULL, 1);
@@ -631,7 +630,6 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
              */
             {
                 struct berval bv;
-                int i;
                 struct berval *bvals[2];
                 Slapi_Entry *anEntry = slapi_entry_alloc();
                 slapi_entry_set_sdn(anEntry, target_sdn);
@@ -643,8 +641,8 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
                 bv.bv_len = strlen(bv.bv_val);
                 slapi_entry_add_values(anEntry, "objectclass", bvals);
 
-                for (i = 0; referrals && referrals[i] != NULL; i++) {
-                    bv.bv_val = referrals[i];
+                for (size_t ii = 0; referrals && referrals[ii] != NULL; ii++) {
+                    bv.bv_val = referrals[ii];
                     bv.bv_len = strlen(bv.bv_val);
                     slapi_entry_add_values(anEntry, "ref", bvals);
                 }
@@ -695,10 +693,9 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
                 }
                 cb_send_ldap_result(pb, rc, matched_msg, ENDUSERMSG, 0, NULL);
 
-                /* BEWARE: Don't free matched_msg && error_msg */
+                /* BEWARE: Don't free matched_msg */
                 /* Points to the ld fields               */
                 matched_msg = NULL;
-                error_msg = NULL;
                 retcode = -1;
             } else {
                 /* Add control response sent by the farm server */
@@ -733,6 +730,12 @@ chaining_back_search_results_release(void **sr)
 
     slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                   "chaining_back_search_results_release\n");
+    if (ctx == NULL) {
+        /* The paged search is already complete, just return */
+        /* Could we have a ctx state flag instead? */
+        return;
+    }
+
     if (ctx->readahead != ctx->tobefreed) {
         slapi_entry_free(ctx->readahead);
     }

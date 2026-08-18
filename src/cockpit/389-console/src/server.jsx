@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
-import { TreeView, Spinner, noop } from "patternfly-react";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import PropTypes from "prop-types";
 import { ServerSettings } from "./lib/server/settings.jsx";
 import { ServerTuning } from "./lib/server/tuning.jsx";
@@ -11,11 +10,27 @@ import { ServerAccessLog } from "./lib/server/accessLog.jsx";
 import { ServerAuditLog } from "./lib/server/auditLog.jsx";
 import { ServerAuditFailLog } from "./lib/server/auditfailLog.jsx";
 import { ServerErrorLog } from "./lib/server/errorLog.jsx";
+import { ServerSecurityLog } from "./lib/server/securityLog.jsx";
 import { Security } from "./security.jsx";
+import {
+    Card,
+    Spinner,
+    TreeView,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import {
+    CatalogIcon,
+    CogIcon,
+    KeyIcon,
+    TachometerAltIcon,
+    LockIcon,
+    BookIcon,
+    RouteIcon
+} from '@patternfly/react-icons';
 
-const treeViewContainerStyles = {
-    width: "295px"
-};
+const _ = cockpit.gettext;
 
 export class Server extends React.Component {
     constructor(props) {
@@ -23,16 +38,26 @@ export class Server extends React.Component {
         this.state = {
             firstLoad: true,
             nodes: [],
-            node_name: "",
+            node_name: "settings-config",
             node_text: "",
             attrs: [],
+            displayAttrs: [],
             loaded: false,
-            disableTree: false
+            disableTree: false,
+            activeItems: [
+                {
+                    name: _("Server Settings"),
+                    id: "settings-config",
+                    icon: <CogIcon />,
+                }
+            ],
         };
 
         this.loadTree = this.loadTree.bind(this);
+        this.getAttributes = this.getAttributes.bind(this);
+        this.reloadConfig = this.reloadConfig.bind(this);
         this.enableTree = this.enableTree.bind(this);
-        this.selectNode = this.selectNode.bind(this);
+        this.handleTreeClick = this.handleTreeClick.bind(this);
     }
 
     componentDidUpdate() {
@@ -49,164 +74,177 @@ export class Server extends React.Component {
         });
     }
 
+    getAttributes() {
+        const attr_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
+        ];
+        log_cmd("getAttributes", "Get attributes for audit log display attributes", attr_cmd);
+        cockpit
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
+                        attrs.push(content.name[0]);
+                    }
+                    this.setState({
+                        displayAttrs: attrs,
+                    });
+                });
+    }
+
     loadConfig() {
         this.setState({
             loaded: false,
             firstLoad: false
         });
-        let cmd = ["dsconf", "-j", this.props.serverId, "config", "get"];
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
         log_cmd("loadConfig", "Load server configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     this.setState(
                         {
                             loaded: true,
-                            attrs: attrs
+                            attrs
                         },
                         this.loadTree()
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true
                     });
                     this.props.addNotification(
                         "error",
-                        `Error loading server configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg)
+                    );
+                });
+    }
+
+    reloadConfig() {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
+        log_cmd("reloadConfig", "Reload server configuration", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    this.setState({
+                        attrs
+                    });
+                })
+                .fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error reloading server configuration - $0"), errMsg)
                     );
                 });
     }
 
     loadTree() {
-        let basicData = [
+        const basicData = [
             {
-                text: "Server Settings",
-                selectable: true,
-                selected: true,
-                icon: "pficon-settings",
-                state: { expanded: true },
+                name: _("Server Settings"),
                 id: "settings-config",
-                nodes: []
+                icon: <CogIcon />,
+
             },
             {
-                text: "Tuning & Limits",
-                selectable: true,
-                icon: "fa fa-tachometer",
+                name: _("Tuning & Limits"),
+                icon: <TachometerAltIcon />,
                 id: "tuning-config",
-                nodes: []
             },
             {
-                text: "Security",
-                selectable: true,
-                icon: "pficon-locked",
+                name: _("Security"),
+                icon: <LockIcon />,
                 id: "security-config",
-                nodes: []
             },
             {
-                text: "SASL Settings & Mappings",
-                selectable: true,
-                icon: "glyphicon glyphicon-map-marker",
+                name: _("SASL Settings & Mappings"),
+                icon: <RouteIcon />,
                 id: "sasl-config",
-                nodes: []
             },
             {
-                text: "LDAPI & Autobind",
-                selectable: true,
-                icon: "glyphicon glyphicon-flash",
+                name: _("LDAPI & Autobind"),
+                icon: <KeyIcon />,
                 id: "ldapi-config",
-                nodes: []
             },
             {
-                text: "Logging",
-                icon: "pficon-catalog",
-                selectable: false,
+                name: _("Logging"),
+                icon: <CatalogIcon />,
                 id: "logging-config",
-                state: { expanded: true },
-                nodes: [
+                children: [
                     {
-                        text: "Access Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: _("Access Log"),
+                        icon: <BookIcon size="sm" />,
                         id: "access-log-config",
-                        type: "log"
                     },
                     {
-                        text: "Audit Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: _("Audit Log"),
+                        icon: <BookIcon size="sm" />,
                         id: "audit-log-config",
-                        type: "log"
                     },
                     {
-                        text: "Audit Failure Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: _("Audit Failure Log"),
+                        icon: <BookIcon size="sm" />,
                         id: "auditfail-log-config",
-                        type: "log"
                     },
                     {
-                        text: "Errors Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: _("Errors Log"),
+                        icon: <BookIcon size="sm" />,
                         id: "error-log-config",
-                        type: "log"
+                    },
+                    {
+                        name: _("Security Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "security-log-config",
                     }
-                ]
+                ],
+                defaultExpanded: true
             }
         ];
         this.setState({
             nodes: basicData,
             node_name: this.state.node_name
-        });
+        }, this.getAttributes());
     }
 
-    selectNode(selectedNode) {
-        if (selectedNode.selected) {
-            return;
+    handleTreeClick(evt, treeViewItem, parentItem) {
+        if (treeViewItem.id !== "logging-config" && treeViewItem.id !== this.state.node_name) {
+            this.setState({
+                activeItems: [treeViewItem, parentItem],
+                node_name: treeViewItem.id,
+                disableTree: true // Disable the tree to allow node to be fully loaded
+            });
         }
-        this.setState({
-            disableTree: true // Disable the tree to allow node to be fully loaded
-        });
-
-        this.setState(prevState => {
-            return {
-                nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                node_name: selectedNode.id,
-                node_text: selectedNode.text,
-                bename: ""
-            };
-        });
-    }
-
-    nodeSelector(nodes, targetNode) {
-        return nodes.map(node => {
-            if (node.nodes) {
-                return {
-                    ...node,
-                    nodes: this.nodeSelector(node.nodes, targetNode),
-                    selected: node.id === targetNode.id ? !node.selected : false
-                };
-            } else if (node.id === targetNode.id) {
-                return { ...node, selected: !node.selected };
-            } else if (node.id !== targetNode.id && node.selected) {
-                return { ...node, selected: false };
-            } else {
-                return node;
-            }
-        });
     }
 
     render() {
         const { nodes } = this.state;
         let serverPage = (
-            <div className="ds-loading-spinner ds-center">
-                <p />
-                <h4>Loading server configuration ...</h4>
-                <Spinner className="ds-margin-top-lg" loading size="md" />
+            <div className="ds-margin-top-xlg ds-center">
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        {_("Loading Server Configuration ...")}
+                    </Text>
+                </TextContent>
+                <Spinner className="ds-margin-top-lg" size="xl" />
             </div>
         );
 
@@ -217,7 +255,7 @@ export class Server extends React.Component {
         }
 
         if (this.state.loaded) {
-            if (this.state.node_name == "settings-config" || this.state.node_name == "") {
+            if (this.state.node_name === "settings-config" || this.state.node_name === "") {
                 server_element = (
                     <ServerSettings
                         serverId={this.props.serverId}
@@ -227,7 +265,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "tuning-config") {
+            } else if (this.state.node_name === "tuning-config") {
                 server_element = (
                     <ServerTuning
                         serverId={this.props.serverId}
@@ -236,7 +274,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "sasl-config") {
+            } else if (this.state.node_name === "sasl-config") {
                 server_element = (
                     <ServerSASL
                         serverId={this.props.serverId}
@@ -244,15 +282,16 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "security-config") {
+            } else if (this.state.node_name === "security-config") {
                 server_element = (
                     <Security
                         addNotification={this.props.addNotification}
                         serverId={this.props.serverId}
                         enableTree={this.enableTree}
+                        certDir={this.state.attrs['nsslapd-certdir']}
                     />
                 );
-            } else if (this.state.node_name == "ldapi-config") {
+            } else if (this.state.node_name === "ldapi-config") {
                 server_element = (
                     <ServerLDAPI
                         serverId={this.props.serverId}
@@ -261,40 +300,55 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "access-log-config") {
+            } else if (this.state.node_name === "access-log-config") {
                 server_element = (
                     <ServerAccessLog
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
-            } else if (this.state.node_name == "audit-log-config") {
+            } else if (this.state.node_name === "audit-log-config") {
                 server_element = (
                     <ServerAuditLog
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
+                        displayAttrs={this.state.displayAttrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
-            } else if (this.state.node_name == "auditfail-log-config") {
+            } else if (this.state.node_name === "auditfail-log-config") {
                 server_element = (
                     <ServerAuditFailLog
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
-            } else if (this.state.node_name == "error-log-config") {
+            } else if (this.state.node_name === "error-log-config") {
                 server_element = (
                     <ServerErrorLog
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
+                    />
+                );
+            } else if (this.state.node_name === "security-log-config") {
+                server_element = (
+                    <ServerSecurityLog
+                        serverId={this.props.serverId}
+                        attrs={this.state.attrs}
+                        enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
             }
@@ -302,24 +356,21 @@ export class Server extends React.Component {
             serverPage = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div>
-                            <div className="ds-tree">
-                                <div
-                                    className={disabled}
-                                    id="server-tree"
-                                    style={treeViewContainerStyles}
-                                >
-                                    <TreeView
-                                        nodes={nodes}
-                                        highlightOnHover
-                                        highlightOnSelect
-                                        selectNode={this.selectNode}
-                                        key={this.state.node_text}
-                                    />
-                                </div>
+                        <Card className="ds-tree">
+                            <div
+                                className={disabled}
+                                id="server-tree"
+                            >
+                                <TreeView
+                                    data={nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.handleTreeClick}
+                                />
                             </div>
+                        </Card>
+                        <div className="ds-tree-content">
+                            {server_element}
                         </div>
-                        <div className="ds-tree-content">{server_element}</div>
                     </div>
                 </div>
             );
@@ -337,6 +388,5 @@ Server.propTypes = {
 };
 
 Server.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };

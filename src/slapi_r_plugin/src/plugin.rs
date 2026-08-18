@@ -91,6 +91,10 @@ pub trait SlapiPlugin3 {
         None
     }
 
+    fn has_pwd_storage() -> bool {
+        false
+    }
+
     fn start(_pb: &mut PblockRef) -> Result<(), PluginError>;
 
     fn close(_pb: &mut PblockRef) -> Result<(), PluginError>;
@@ -112,6 +116,18 @@ pub trait SlapiPlugin3 {
     }
 
     fn task_handler(_task: &Task, _data: Self::TaskData) -> Result<Self::TaskData, PluginError> {
+        Err(PluginError::Unimplemented)
+    }
+
+    fn pwd_scheme_name() -> &'static str {
+        panic!("Unimplemented pwd_scheme_name for password storage plugin")
+    }
+
+    fn pwd_storage_encrypt(_cleartext: &str) -> Result<String, PluginError> {
+        Err(PluginError::Unimplemented)
+    }
+
+    fn pwd_storage_compare(_cleartext: &str, _encrypted: &str) -> Result<bool, PluginError> {
         Err(PluginError::Unimplemented)
     }
 }

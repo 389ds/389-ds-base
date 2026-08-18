@@ -1,211 +1,258 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
-    DropdownButton,
-    MenuItem,
-    actionHeaderCellFormatter,
-    sortableHeaderCellFormatter,
-    tableCellFormatter,
-    noop
-} from "patternfly-react";
-import { DSTable, DSShortTable } from "../dsTable.jsx";
+    Grid,
+    GridItem,
+    Pagination,
+    SearchInput,
+    Text,
+    TextContent,
+    TextVariants,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateIcon,
+    Title,
+} from '@patternfly/react-core';
+import {
+    SortByDirection,
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+    ExpandableRowContent,
+    ActionsColumn,
+    sortable
+} from '@patternfly/react-table';
+import {
+    CheckIcon,
+    MinusIcon,
+    SearchIcon,
+} from '@patternfly/react-icons';
+import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 import PropTypes from "prop-types";
-import { get_date_string, searchFilter } from "../tools.jsx";
+import { get_date_string, numToCommas } from "../tools.jsx";
+import { LagReportModal } from "./monitorModals.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
+
+const _ = cockpit.gettext;
 
 class AbortCleanALLRUVTable extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Task Name",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "created",
-                    header: {
-                        label: "Created",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "rid",
-                    header: {
-                        label: "Replica ID",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "status",
-                    header: {
-                        label: "Status",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "log",
-                    header: {
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={() => {
-                                                this.props.viewLog(this.props.viewLog(rowData.name));
-                                            }}
-                                        >
-                                            View Log
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
+                { title: _("Task"), sortable: true },
+                { title: _("Created"), sortable: true },
+                { title: _("Replica ID"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Actions")}
             ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage,
+                page: 1
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.getLog = this.getLog.bind(this);
+        this.createRows = this.createRows.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Abort CleanAllRUV Tasks",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getLog(log) {
+        return (
+            <TextContent>
+                <Text
+                    component={TextVariants.pre}
+                    style={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                    }}
+                >
+                    {log}
+                </Text>
+            </TextContent>
+        );
+    }
+
+    createRows(tasks) {
+        let rows = [];
+        let columns = [...this.state.columns];
+
+        for (const task of tasks) {
+            rows.push({
+                isOpen: false,
+                cells: [
+                    task.attrs.cn[0],
+                    get_date_string(task.attrs.nstaskcreated[0]),
+                    task.attrs['replica-id'][0],
+                    task.attrs.nstaskstatus[0],
+                ],
+                originalData: task
+            });
+        }
+
+        if (rows.length === 0) {
+            rows = [{ cells: [_("No Tasks")] }];
+            columns = [{ title: _("Abort CleanAllRUV Tasks") }];
+        }
+
+        return { rows, columns };
+    }
+
+    componentDidMount() {
+        const { rows, columns } = this.createRows(this.props.tasks);
+        this.setState({ rows, columns });
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.tasks !== this.props.tasks) {
+            const { rows, columns } = this.createRows(this.props.tasks);
+            this.setState({
+                rows,
+                columns,
+                page: 1
+            });
+        }
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_tasks = [];
+        const rows = [];
+
+        for (const task of this.props.tasks) {
+            sorted_tasks.push({
+                task,
+                1: task.attrs.cn[0],
+                2: get_date_string(task.attrs.nstaskcreated[0]),
+                3: task.attrs['replica-id'][0],
+                4: task.attrs.nstaskstatus[0]
+            });
+        }
+
+        sorted_tasks.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_tasks.reverse();
+        }
+        for (let task of sorted_tasks) {
+            task = task.task;
+            rows.push({
+                isOpen: false,
+                cells: [
+                    task.attrs.cn[0],
+                    get_date_string(task.attrs.nstaskcreated[0]),
+                    task.attrs['replica-id'][0],
+                    task.attrs.nstaskstatus[0],
+                ],
+                originalData: task
+            });
+        }
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
+            rows,
+            page: 1,
+        });
     }
 
     render() {
-        let rows = [];
-        for (let task of this.props.tasks) {
-            rows.push({
-                'name': task.cn,
-                'created': get_date_string(task.nstaskcreated),
-                'rid': task['replica-id'],
-                'status': task.nstaskstatus,
-            });
-        }
-        let taskTable;
-        if (rows.length < 1) {
-            taskTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No Tasks"}]}
-                />;
-        } else {
-            taskTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
-        }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoTasks = rows.length === 1 && rows[0].cells.length === 1;
 
         return (
             <div className="ds-margin-top-xlg">
-                {taskTable}
+                <Table
+                    aria-label="Expandable table"
+                    variant='compact'
+                >
+                    <Thead>
+                        <Tr>
+                            {!hasNoTasks && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoTasks && (
+                                        <Td
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {this.getLog(row.originalData.attrs.nstasklog[0])}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.tasks.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                />
             </div>
         );
     }
@@ -216,196 +263,215 @@ class CleanALLRUVTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Task Name",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "created",
-                    header: {
-                        label: "Created",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "rid",
-                    header: {
-                        label: "Replica ID",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "status",
-                    header: {
-                        label: "Status",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "log",
-                    header: {
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={() => {
-                                                this.props.viewLog(rowData.name);
-                                            }}
-                                        >
-                                            View Log
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
+                { title: _("Task"), sortable: true },
+                { title: _("Created"), sortable: true },
+                { title: _("Replica ID"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Actions")}
             ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage,
+                page: 1
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.getLog = this.getLog.bind(this);
+        this.createRows = this.createRows.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "CleanAllRUV Tasks",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
-            },
-        ];
+    getLog(log) {
+        return (
+            <TextContent>
+                <Text
+                    component={TextVariants.pre}
+                    style={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                    }}
+                >
+                    {log}
+                </Text>
+            </TextContent>
+        );
     }
 
-    render() {
+    createRows(tasks) {
         let rows = [];
-        for (let task of this.props.tasks) {
-            // task.attrs.nstaskcreated[0]
+        let columns = [...this.state.columns];
+
+        for (const task of tasks) {
             rows.push({
-                'name': task.attrs.cn[0],
-                'created': get_date_string(task.attrs.nstaskcreated[0]),
-                'rid': task.attrs['replica-id'][0],
-                'status': task.attrs.nstaskstatus[0],
+                isOpen: false,
+                cells: [
+                    task.attrs.cn[0],
+                    get_date_string(task.attrs.nstaskcreated[0]),
+                    task.attrs['replica-id'][0],
+                    task.attrs.nstaskstatus[0],
+                ],
+                originalData: task
             });
         }
 
-        let taskTable;
-        if (rows.length < 1) {
-            taskTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No Tasks"}]}
-                />;
-        } else {
-            taskTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
+        if (rows.length === 0) {
+            rows = [{ cells: [_("No Tasks")] }];
+            columns = [{ title: _("CleanAllRUV Tasks") }];
         }
+
+        return { rows, columns };
+    }
+
+    componentDidMount() {
+        const { rows, columns } = this.createRows(this.props.tasks);
+        this.setState({ rows, columns });
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.tasks !== this.props.tasks) {
+            const { rows, columns } = this.createRows(this.props.tasks);
+            this.setState({
+                rows,
+                columns,
+                page: 1 // Reset to first page when data changes
+            });
+        }
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_tasks = [];
+        const rows = [];
+
+        for (const task of this.props.tasks) {
+            sorted_tasks.push({
+                task,
+                1: task.attrs.cn[0],
+                2: get_date_string(task.attrs.nstaskcreated[0]),
+                3: task.attrs['replica-id'][0],
+                4: task.attrs.nstaskstatus[0]
+            });
+        }
+
+        sorted_tasks.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_tasks.reverse();
+        }
+        for (let task of sorted_tasks) {
+            task = task.task;
+            rows.push({
+                isOpen: false,
+                cells: [
+                    task.attrs.cn[0],
+                    get_date_string(task.attrs.nstaskcreated[0]),
+                    task.attrs['replica-id'][0],
+                    task.attrs.nstaskstatus[0],
+                ],
+                originalData: task
+            });
+        }
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows,
+            page: 1,
+        });
+    }
+
+    render() {
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoTasks = rows.length === 1 && rows[0].cells.length === 1;
+
         return (
             <div className="ds-margin-top-xlg">
-                {taskTable}
+                <Table
+                    aria-label="Expandable table"
+                    variant='compact'
+                >
+                    <Thead>
+                        <Tr>
+                            {!hasNoTasks && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoTasks && (
+                                        <Td
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {this.getLog(row.originalData.attrs.nstasklog[0])}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.tasks.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                />
             </div>
         );
     }
@@ -416,214 +482,226 @@ class WinsyncAgmtTable extends React.Component {
         super(props);
 
         this.state = {
-            fieldsToSearch: ["agmt-name", "replica", "replica-enabled"],
-            rowKey: "agmt-name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "agmt-name",
-                    header: {
-                        label: "Agreement",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica",
-                    header: {
-                        label: "Windows Replica",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica-enabled",
-                    header: {
-                        label: "Enabled",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "last-update-status",
-                    header: {
-                        label: "Update Status",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "number-changes-sent",
-                    header: {
-                        label: "Changes Sent",
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 5,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 5
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData['agmt-name'][0]}>
-                                        <DropdownButton id={rowData['agmt-name'][0]}
-                                            bsStyle="default" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.viewAgmt(rowData['agmt-name'][0]);
-                                            }}>
-                                                View Agreement Details
-                                            </MenuItem>
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.pokeAgmt(rowData['agmt-name'][0]);
-                                            }}>
-                                                Poke Agreement
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Agreement"), sortable: true },
+                { title: _("Replica"), sortable: true },
+                { title: _("Enabled"), sortable: true },
+                { title: _("Poke"), sortable: false },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
 
-    getColumns() {
-        return this.state.columns;
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage,
+                page: 1
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.getExpandedRow = this.getExpandedRow.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Replication Winsync Agreements",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getExpandedRow(agmt) {
+        return (
+            <ExpandableRowContent>
+                <Grid className="ds-indent">
+                    <GridItem span={3}>{_("Session In Progress:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
+                    <GridItem span={3}>{_("Changes Sent:")}</GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Init Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
+                </Grid>
+            </ExpandableRowContent>
+        );
+    }
+
+    getWakeupButton(name) {
+        return (
+            <Button
+                id={name}
+                variant="primary"
+                onClick={this.props.handlePokeAgmt}
+                title={_("Awaken the winsync replication agreement")}
+                size="sm"
+            >
+                {_("Poke")}
+            </Button>
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = [...this.state.columns];
+        let count = 0;
+
+        for (const agmt of this.props.agmts) {
+            rows.push({
+                isOpen: false,
+                cells: [
+                    agmt['agmt-name'][0],
+                    agmt.replica[0],
+                    agmt['replica-enabled'][0],
+                    { title: this.getWakeupButton(agmt['agmt-name'][0]) }
+                ],
+                originalData: agmt
+            });
+            count += 1;
+        }
+
+        if (rows.length === 0) {
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Winsync Agreements") }];
+        }
+
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_agmts = [];
+        const rows = [];
+
+        for (const agmt of this.props.agmts) {
+            sorted_agmts.push({
+                agmt,
+                1: agmt['agmt-name'][0],
+                2: agmt.replica[0],
+                3: agmt['replica-enabled'][0],
+            });
+        }
+
+        sorted_agmts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_agmts.reverse();
+        }
+
+        for (let agmt of sorted_agmts) {
+            agmt = agmt.agmt;
+            rows.push({
+                isOpen: false,
+                cells: [
+                    agmt['agmt-name'][0],
+                    agmt.replica[0],
+                    agmt['replica-enabled'][0],
+                    { title: this.getWakeupButton(agmt['agmt-name'][0]) }
+                ],
+                originalData: agmt
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
+            rows,
+            page: 1,
+        });
     }
 
     render() {
-        let agmtTable;
-        if (this.props.agmts.length < 1) {
-            agmtTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No agreements"}]}
-                />;
-        } else {
-            agmtTable =
-                <DSTable
-                    getColumns={this.getColumns}
-                    fieldsToSearch={this.state.fieldsToSearch}
-                    toolBarSearchField={this.state.searchField}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.agmts}
-                    disableLoadingSpinner
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
-        }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoAgreements = rows.length === 1 && rows[0].cells.length === 1;
 
         return (
             <div className="ds-margin-top-xlg">
-                {agmtTable}
+                <Table
+                    aria-label="Winsync agreements table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoAgreements && (
+                                        <Td
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell.title || cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            {this.getExpandedRow(row.originalData)}
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.agmts.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                />
             </div>
         );
     }
@@ -634,210 +712,231 @@ class AgmtTable extends React.Component {
         super(props);
 
         this.state = {
-            fieldsToSearch: ["agmt-name", "replica", "replica-enabled"],
-            rowKey: "agmt-name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "agmt-name",
-                    header: {
-                        label: "Agreement",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica",
-                    header: {
-                        label: "Replica",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica-enabled",
-                    header: {
-                        label: "Enabled",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "last-update-status",
-                    header: {
-                        label: "Update Status",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "number-changes-sent",
-                    header: {
-                        label: "Changes Sent",
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 5,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 5
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData['agmt-name'][0]}>
-                                        <DropdownButton id={rowData['agmt-name'][0]}
-                                            bsStyle="default" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.viewAgmt(rowData['agmt-name'][0]);
-                                            }}>
-                                                View Agreement Details
-                                            </MenuItem>
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.pokeAgmt(rowData['agmt-name'][0]);
-                                            }}>
-                                                Poke Agreement
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Agreement"), sortable: true },
+                { title: _("Replica"), sortable: true },
+                { title: _("Enabled"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Poke the agreement") },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
 
-    getColumns() {
-        return this.state.columns;
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage,
+                page: 1
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.getExpandedRow = this.getExpandedRow.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Replication Agreements",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getExpandedRow(agmt) {
+        return (
+            <ExpandableRowContent>
+                <Grid className="ds-indent">
+                    <GridItem span={3}>{_("Session In Progress:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
+                    <GridItem span={3}>{_("Changes Sent:")}</GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Reap Active:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Init Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
+                </Grid>
+            </ExpandableRowContent>
+        );
+    }
+
+    getWakeupButton(name) {
+        return (
+            <Button
+                id={name}
+                variant="primary"
+                onClick={this.props.handlePokeAgmt}
+                title={_("Awaken the replication agreement")}
+                size="sm"
+            >
+                {_("Poke")}
+            </Button>
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = [...this.state.columns];
+        let count = 0;
+
+        for (const agmt of this.props.agmts) {
+            rows.push({
+                isOpen: false,
+                cells: [
+                    agmt['agmt-name'][0],
+                    agmt.replica[0],
+                    agmt['replica-enabled'][0],
+                    { title: this.getWakeupButton(agmt['agmt-name'][0]) }
+                ],
+                originalData: agmt
+            });
+            count += 1;
+        }
+
+        if (rows.length === 0) {
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Replication Agreements") }];
+        }
+
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_agmts = [];
+        const rows = [];
+
+        for (const agmt of this.props.agmts) {
+            sorted_agmts.push({
+                agmt,
+                1: agmt['agmt-name'][0],
+                2: agmt.replica[0],
+                3: agmt['replica-enabled'][0],
+            });
+        }
+
+        sorted_agmts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_agmts.reverse();
+        }
+
+        for (let agmt of sorted_agmts) {
+            agmt = agmt.agmt;
+            rows.push({
+                isOpen: false,
+                cells: [
+                    agmt['agmt-name'][0],
+                    agmt.replica[0],
+                    agmt['replica-enabled'][0],
+                    { title: this.getWakeupButton(agmt['agmt-name'][0]) }
+                ],
+                originalData: agmt
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
+            rows,
+            page: 1,
+        });
     }
 
     render() {
-        let agmtTable = "";
-        if (this.props.agmts.length < 1) {
-            agmtTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No agreements"}]}
-                />;
-        } else {
-            agmtTable =
-                <DSTable
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.agmts}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
-        }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoAgreements = rows.length === 1 && rows[0].cells.length === 1;
+
         return (
             <div className="ds-margin-top-xlg">
-                {agmtTable}
+                <Table
+                    aria-label="Agreements table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoAgreements && (
+                                        <Td
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell.title || cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            {this.getExpandedRow(row.originalData)}
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.agmts.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                />
             </div>
         );
     }
@@ -848,167 +947,79 @@ class ConnectionTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "connid",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
                 {
-                    property: "date",
-                    header: {
-                        label: "Connection Opened",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
+                    title: _("Connection Opened"),
+                    sortable: true
                 },
+                { title: _("IP Address"), sortable: true },
+                { title: _("Conn ID"), sortable: true },
+                { title: _("Bind DN"), sortable: true },
                 {
-                    property: "ip",
-                    header: {
-                        label: "IP Address",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "connid",
-                    header: {
-                        label: "ID",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "opStarted",
-                    header: {
-                        label: "Ops Started",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "opCompleted",
-                    header: {
-                        label: "Ops Finished",
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "binddn",
-                    header: {
-                        label: "Bind DN",
-                        props: {
-                            index: 5,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 5
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "readwrite",
-                    header: {
-                        label: "Read/Write",
-                        props: {
-                            index: 6,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 6
-                        },
-                        formatters: [tableCellFormatter]
+                    title: _("Max Threads"),
+                    sortable: true,
+                    info: {
+                        tooltip: _("If connection is currently at \"Max Threads\" then it will block new operations")
                     }
                 },
             ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-    } // Constructor
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage,
+                page: 1
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
+        this.getExpandedRow = this.getExpandedRow.bind(this);
     }
 
-    render() {
-        // connection: %s:%s:%s:%s:%s:%s:%s:%s:%s:%s
+    getExpandedRow(ip, conn_date, parts) {
+        return (
+            <Grid className="ds-indent ds-margin-top ds-margin-bottom">
+                <GridItem span={3}>{_("IP Address:")}</GridItem>
+                <GridItem span={4}><b>{ip}</b></GridItem>
+                <GridItem span={3}>{_("File Descriptor:")}</GridItem>
+                <GridItem span={2}><b>{parts[0]}</b></GridItem>
+                <GridItem span={3}>{_("Connection Opened:")}</GridItem>
+                <GridItem span={4}><b>{conn_date}</b></GridItem>
+                <GridItem span={3}>{_("Operations Started:")}</GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[2])}</b></GridItem>
+                <GridItem span={3}>{_("Connection ID:")}</GridItem>
+                <GridItem span={4}><b>{parts[9]}</b></GridItem>
+                <GridItem span={3}>{_("Operations Finished:")}</GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[3])}</b></GridItem>
+                <GridItem span={3}>{_("Bind DN:")}</GridItem>
+                <GridItem span={4}><b>{parts[5]}</b></GridItem>
+                <GridItem span={3}>{_("Read/write Blocked:")}</GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[4])}</b></GridItem>
+                <GridItem className="ds-margin-top-lg" span={5}>{_("Connection Currently At Max Threads:")}</GridItem>
+                <GridItem className="ds-margin-top-lg" span={7}><b>{parts[6] === "1" ? _("Yes") : _("No")}</b></GridItem>
+                <GridItem span={5}>{_("Number Of Times Connection Hit Max Threads:")}</GridItem>
+                <GridItem span={7}><b>{numToCommas(parts[7])}</b></GridItem>
+                <GridItem span={5}>{_("Number Of Operations Blocked By Max Threads:")}</GridItem>
+                <GridItem span={7}><b>{numToCommas(parts[8])}</b></GridItem>
+            </Grid>
+        );
+    }
+
+    componentDidMount() {
+        // connection: %s:%s:%s:%s:%s:%s:%s:%s:%s:ip=%s
         //
         // parts:
         //   0 = file descriptor
@@ -1025,194 +1036,245 @@ class ConnectionTable extends React.Component {
         //
         // This is too many items to fit in the table, we have to pick and choose
         // what "we" think are the most useful stats...
-
-        let rows = [];
-        for (let conn of this.props.conns) {
-            let parts = conn.split(':');
-
+        const rows = [];
+        let count = 0;
+        for (const conn of this.props.conns) {
+            const ip_parts = conn.split(':ip=');
+            const parts = conn.split(':', 10);
             // Process the IP address
-            let ip = parts[10].replace("ip=", "");
-            if (ip == "local") {
+            let ip = ip_parts[1];
+            if (ip === "local") {
                 ip = "LDAPI";
             }
+            const conn_date = get_date_string(parts[1]);
             rows.push({
-                'date': [get_date_string(parts[1])],
-                'ip': [ip],
-                'connid': [parts[9]],
-                'opStarted': [parts[2]],
-                'opCompleted': [parts[3]],
-                'binddn': [parts[5]],
-                'readwrite': [parts[4]]
+                isOpen: false,
+                cells: [
+                    conn_date, ip, parts[9], parts[5], parts[6] === "1" ? "Yes" : "No"
+                ]
             });
+            rows.push({
+                parent: count,
+                fullWidth: true,
+                cells: [{ title: this.getExpandedRow(ip, conn_date, parts) }]
+            });
+            count += 2;
+        }
+        this.setState({
+            rows
+        });
+    }
+
+    handleCollapse(event, rowKey, isOpen) {
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey;
+        rows[index].isOpen = isOpen;
+        this.setState({
+            rows
+        });
+    }
+
+    handleSearchChange(event, value) {
+        const rows = [];
+        let count = 0;
+        for (const conn of this.props.conns) {
+            const ip_parts = conn.split(':ip=');
+            const parts = conn.split(':', 10);
+            // Process the IP address
+            let ip = ip_parts[1];
+            if (ip === "local") {
+                ip = "LDAPI";
+            }
+            const conn_date = get_date_string(parts[1]);
+            const val = value.toLowerCase();
+            const conn_raw = conn.toLowerCase();
+            // Check for matches of all the parts
+            if (val !== "" && conn_raw.indexOf(val) === -1 &&
+                ip.toLowerCase().indexOf(val) === -1 &&
+                conn_date.indexOf(value) === -1) {
+                // Not a match
+                continue;
+            }
+            rows.push({
+                isOpen: false,
+                cells: [
+                    conn_date, ip, parts[9], parts[5], parts[6] === "1" ? "Yes" : "No"
+                ]
+            });
+            rows.push({
+                parent: count,
+                fullWidth: true,
+                cells: [{ title: this.getExpandedRow(ip, conn_date, parts) }]
+            });
+            count += 2;
+        }
+        this.setState({
+            rows,
+            value,
+            page: 1,
+        });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_conns = [];
+        const rows = [];
+        let count = 0;
+
+        // Convert the conns into a sortable array based on the column indexes
+        for (const conn of this.props.conns) {
+            const ip_parts = conn.split(':ip=');
+            const parts = conn.split(':', 10);
+            let ip = ip_parts[1];
+            if (ip === "local") {
+                ip = "LDAPI";
+            }
+            const conn_date = get_date_string(parts[1]);
+
+            sorted_conns.push({
+                raw: conn,
+                1: conn_date,
+                2: ip,
+                3: parts[9],
+                4: parts[5],
+                5: parts[6]
+            });
+        }
+
+        // Sort the connections and build the new rows
+        sorted_conns.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_conns.reverse();
+        }
+        for (const conn of sorted_conns) {
+            const raw_conn = conn.raw;
+            const ip_parts = raw_conn.split(':ip=');
+            const parts = raw_conn.split(':', 10);
+            // Process the IP address
+            let ip = ip_parts[1];
+            if (ip === "local") {
+                ip = "LDAPI";
+            }
+            const conn_date = get_date_string(parts[1]);
+            rows.push({
+                isOpen: false,
+                cells: [
+                    conn_date, ip, parts[9], parts[5], parts[6] === "1" ? "Yes" : "No"
+                ]
+            });
+            rows.push({
+                parent: count,
+                fullWidth: true,
+                cells: [{ title: this.getExpandedRow(ip, conn_date, parts) }]
+            });
+            count += 2;
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows,
+            page: 1,
+        });
+    }
+
+    render() {
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
+        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
+            tableRows[idx].parent = count;
         }
 
         return (
             <div className="ds-margin-top-xlg">
-                <DSTable
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={12}
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        {_("Client Connections:")}<b className="ds-left-margin">{numToCommas(this.props.conns.length)}</b>
+                    </Text>
+                </TextContent>
+                <SearchInput
+                    className="ds-margin-top-xlg"
+                    placeholder={_("Search connections")}
+                    value={this.state.value}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-            </div>
-        );
-    }
-}
-
-class LagReportTable extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            rowKey: "agmt-name",
-            columns: [
-                {
-                    property: "agmt-name",
-                    header: {
-                        label: "Agreement",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica-enabled",
-                    header: {
-                        label: "Enabled",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replication-status",
-                    header: {
-                        label: "State",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true,
-                            style: {
-                                color: 'blue'
+                <Table
+                    aria-label="Expandable table"
+                    variant='compact'
+                >
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: columnIndex + 1
+                                    } : undefined}
+                                    info={column.info}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => {
+                            if (row.parent !== undefined) {
+                                // This is an expanded row
+                                return (
+                                    <Tr
+                                        key={rowIndex}
+                                        isExpanded={tableRows[row.parent].isOpen}
+                                    >
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {/* Render the expanded content directly */}
+                                                {row.cells[0].title}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                );
                             }
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2,
-                        },
-                        formatters: [tableCellFormatter],
-                    },
-                },
-                {
-                    property: "replication-lag-time",
-                    header: {
-                        label: "Lag Time",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true,
-                            style: {
-                                color: 'blue'
-                            },
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData['agmt-name'][0]}>
-                                        <DropdownButton id={rowData['agmt-name'][0]}
-                                            bsStyle="default" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.viewAgmt(rowData['agmt-name'][0]);
-                                            }}>
-                                                View Agreement Details
-                                            </MenuItem>
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.pokeAgmt(rowData['agmt-name'][0]);
-                                            }}>
-                                                Poke Agreement
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
-        };
-        this.getColumns = this.getColumns.bind(this);
-    } // Constructor
-
-    getColumns() {
-        return this.state.columns;
-    }
-
-    render() {
-        return (
-            <div>
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.agmts}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
+                            // This is a regular row
+                            return (
+                                <Tr key={rowIndex}>
+                                    <Td
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {/* Ensure we're rendering a string or valid React element */}
+                                            {typeof cell === 'object' ? cell.title : cell}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.conns.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -1224,182 +1286,146 @@ class GlueTable extends React.Component {
         super(props);
 
         this.state = {
-            fieldsToSearch: ["dn", "created"],
-            rowKey: "dn",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "dn",
-                    header: {
-                        label: "Glue Entry",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "desc",
-                    header: {
-                        label: "Conflict Description",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "created",
-                    header: {
-                        label: "Created",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.dn[0]}>
-                                        <DropdownButton id={rowData.dn[0]}
-                                            bsStyle="default" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.convertGlue(rowData.dn[0]);
-                                            }}>
-                                                Convert Glue Entry
-                                            </MenuItem>
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.deleteGlue(rowData.dn[0]);
-                                            }}>
-                                                Delete Glue Entry
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Glue Entry"), sortable: true },
+                { title: _("Description"), sortable: true },
+                { title: _("Created"), sortable: true },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
 
-    getColumns() {
-        return this.state.columns;
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage,
+                page: 1
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
     }
 
-    getSingleColumn () {
+    componentDidMount() {
+        const rows = [];
+        for (const glue of this.props.glues) {
+            rows.push([
+                glue.dn,
+                glue.attrs.nsds5replconflict[0],
+                get_date_string(glue.attrs.createtimestamp[0])
+            ]);
+        }
+        this.setState({ rows });
+    }
+
+    handleSort(_event, index, direction) {
+        const sortedGlues = [...this.state.rows];
+
+        sortedGlues.sort((a, b) => {
+            const aValue = a[index];
+            const bValue = b[index];
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        });
+
+        if (direction !== SortByDirection.asc) {
+            sortedGlues.reverse();
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: sortedGlues,
+            page: 1,
+        });
+    }
+
+    getActions(rowData) {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Replication Glue Entries",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: _("Convert Glue Entry"),
+                onClick: () => this.props.convertGlue(rowData[0])
             },
+            {
+                title: _("Delete Glue Entry"),
+                onClick: () => this.props.deleteGlue(rowData[0])
+            }
         ];
     }
 
     render() {
-        let glueTable;
-        if (this.props.glues.length < 1) {
-            glueTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No glue entries"}]}
-                />;
-        } else {
-            let rows = [];
-            for (let glue of this.props.glues) {
-                rows.push({
-                    dn: [glue.dn],
-                    desc: glue.attrs.nsds5replconflict,
-                    created: [get_date_string(glue.attrs.createtimestamp[0])],
-                });
-            }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const hasRows = this.props.glues.length > 0;
 
-            glueTable =
-                <DSTable
-                    getColumns={this.getColumns}
-                    fieldsToSearch={this.state.fieldsToSearch}
-                    toolBarSearchField={this.state.searchField}
-                    rowKey={this.state.rowKey}
-                    rows={rows}
-                    disableLoadingSpinner
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        let tableRows = [...rows].splice(startIdx, perPage);
+        let displayColumns = [...columns];
+
+        if (!hasRows) {
+            tableRows = [[_("No Glue Entries")]];
+            displayColumns = [{ title: _("Replication Conflict Glue Entries") }];
         }
 
         return (
-            <div className="ds-margin-top-xlg">
-                {glueTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="glue table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {displayColumns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.glues.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                />
             </div>
         );
     }
@@ -1410,177 +1436,149 @@ class ConflictTable extends React.Component {
         super(props);
 
         this.state = {
-            fieldsToSearch: ["dn", "desc"],
-            rowKey: "dn",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "dn",
-                    header: {
-                        label: "Conflict DN",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "desc",
-                    header: {
-                        label: "Conflict Description",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "created",
-                    header: {
-                        label: "Created",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.dn[0]}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={() => {
-                                                this.props.resolveConflict(rowData.dn[0]);
-                                            }}
-                                        >
-                                            Resolve
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Conflict DN"), sortable: true },
+                { title: _("Description"), sortable: true },
+                { title: _("Created"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Resolve the conflict") },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
 
-    getColumns() {
-        return this.state.columns;
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.getResolveButton = this.getResolveButton.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Replication Conflict Entries",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getResolveButton(name) {
+        return (
+            <Button
+                id={name}
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                    this.props.resolveConflict(name);
+                }}
+            >
+                {_("Resolve")}
+            </Button>
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (const conflict of this.props.conflicts) {
+            rows.push([
+                conflict.dn,
+                conflict.attrs.nsds5replconflict[0],
+                get_date_string(conflict.attrs.createtimestamp[0]),
+                this.getResolveButton(conflict.dn)
+            ]);
+        }
+        if (rows.length === 0) {
+            rows = [[_("No Conflict Entries")]];
+            columns = [{ title: _("Replication Conflict Entries") }];
+        }
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleSort(_event, index, direction) {
+        const sortedConflicts = [...this.state.rows];
+
+        sortedConflicts.sort((a, b) => {
+            const aValue = a[index];
+            const bValue = b[index];
+            if (typeof aValue === 'string') {
+                return aValue.localeCompare(bValue);
+            }
+            return 0;
+        });
+
+        if (direction !== SortByDirection.asc) {
+            sortedConflicts.reverse();
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
+            rows: sortedConflicts,
+            page: 1,
+        });
     }
 
     render() {
-        let conflictTable;
-        if (this.props.conflicts.length < 1) {
-            conflictTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No conflict entries"}]}
-                />;
-        } else {
-            let rows = [];
-            for (let conflict of this.props.conflicts) {
-                rows.push({
-                    dn: [conflict.dn],
-                    desc: conflict.attrs.nsds5replconflict,
-                    created: [get_date_string(conflict.attrs.createtimestamp[0])],
-                });
-            }
+        const { columns, rows, perPage, page, sortBy } = this.state;
 
-            conflictTable =
-                <DSTable
-                    getColumns={this.getColumns}
-                    fieldsToSearch={this.state.fieldsToSearch}
-                    toolBarSearchField={this.state.searchField}
-                    rowKey={this.state.rowKey}
-                    rows={rows}
-                    disableLoadingSpinner
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
-        }
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = [...rows].splice(startIdx, perPage);
 
         return (
-            <div className="ds-margin-top-xlg">
-                {conflictTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="conflict table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                />
             </div>
         );
     }
@@ -1591,111 +1589,63 @@ class DiskTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "mount",
+            sortBy: {},
             columns: [
-                {
-                    property: "mount",
-                    header: {
-                        label: "Disk Partition",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "size",
-                    header: {
-                        label: "Disk Size",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "used",
-                    header: {
-                        label: "Used Space",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "avail",
-                    header: {
-                        label: "Available Space",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-
-            ]
+                { title: _("Disk Partition"), sortable: true },
+                { title: _("Disk Size"), sortable: true },
+                { title: _("Used Space"), sortable: true },
+                { title: _("Available Space"), sortable: true },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
+        this.handleSort = this.handleSort.bind(this);
     }
 
-    getColumns() {
-        return this.state.columns;
+    handleSort(_event, columnIndex, direction) {
+        const sortedRows = [...this.props.rows].sort((a, b) => (
+            a[columnIndex] < b[columnIndex] ? -1 : a[columnIndex] > b[columnIndex] ? 1 : 0
+        ));
+
+        this.setState({
+            sortBy: {
+                index: columnIndex,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
     }
 
     render() {
+        const { columns, sortBy } = this.state;
+
         return (
             <div className="ds-margin-top-xlg">
-                <DSShortTable
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.disks}
-                    disableLoadingSpinner
-                />
+                <Table aria-label="Sortable Table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {this.props.rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
             </div>
         );
     }
@@ -1704,161 +1654,89 @@ class DiskTable extends React.Component {
 class ReportAliasesTable extends React.Component {
     constructor(props) {
         super(props);
-
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-
         this.state = {
-            searchField: "Aliases",
-            fieldsToSearch: ["alias", "connData"],
-
+            sortBy: {},
             columns: [
-                {
-                    property: "alias",
-                    header: {
-                        label: "Alias",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "connData",
-                    header: {
-                        label: "Connection Data",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.alias}>
-                                        <DropdownButton
-                                            id={rowData.alias}
-                                            bsStyle="default"
-                                            title="Actions"
-                                        >
-                                            <MenuItem
-                                                eventKey="1"
-                                                onClick={() => {
-                                                    this.props.editConfig(rowData);
-                                                }}
-                                            >
-                                                Edit Alias
-                                            </MenuItem>
-                                            <MenuItem divider />
-                                            <MenuItem
-                                                eventKey="2"
-                                                onClick={() => {
-                                                    this.props.deleteConfig(rowData);
-                                                }}
-                                            >
-                                                Delete Alias
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Alias"), sortable: true },
+                { title: _("Connection Data"), sortable: true },
+            ],
         };
     }
 
-    getColumns() {
-        return this.state.columns;
-    }
-
-    getSingleColumn () {
+    getActions(rowData) {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Instance Aliases",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: _("Edit Alias"),
+                onClick: () => this.props.editConfig(rowData[0], rowData[1])
             },
+            {
+                title: _("Delete Alias"),
+                onClick: () => this.props.deleteConfig(rowData[0])
+            }
         ];
     }
 
     render() {
-        let reportAliasTable;
-        if (this.props.rows.length < 1) {
-            reportAliasTable = (
-                <DSShortTable
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{ msg: "No alias entries" }]}
-                    disableLoadingSpinner
-                />
-            );
-        } else {
-            reportAliasTable = (
-                <DSShortTable
-                    getColumns={this.getColumns}
-                    rowKey="alias"
-                    rows={this.props.rows}
-                    disableLoadingSpinner
-                />
-            );
+        let columns = this.state.columns;
+        let rows = JSON.parse(JSON.stringify(this.props.rows)); // Deep copy
+        const hasRows = rows.length > 0;
+
+        if (!hasRows) {
+            rows = [[_("No Aliases")]];
+            columns = [{ title: _("Instance Aliases") }];
         }
 
-        return <div className="ds-margin-top-xlg">{reportAliasTable}</div>;
+        return (
+            <div className="ds-margin-top-xlg">
+                <TextContent>
+                    <Text className="ds-center ds-margin-bottom" component="h4">
+                        {_("Replica Naming Aliases")}
+                    </Text>
+                </TextContent>
+                <Table
+                    variant="compact"
+                    aria-label="Sortable Table"
+                >
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy: this.props.sortBy,
+                                        onSort: this.props.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ?
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                    :
+                                    <Td>{row.cells[0]}</Td>
+                                }
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+            </div>
+        );
     }
 }
 
@@ -1866,202 +1744,113 @@ class ReportCredentialsTable extends React.Component {
     constructor(props) {
         super(props);
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-
         this.state = {
             columns: [
-                {
-                    property: "connData",
-                    header: {
-                        label: "Connection Data",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "credsBinddn",
-                    header: {
-                        label: "Bind DN",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.connData}>
-                                        {value == "" ? <i>Edit To Add a Bind DN Data</i> : value }
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                },
-                {
-                    property: "credsBindpw",
-                    header: {
-                        label: "Password",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                let pwField = <i>Interractive Input is set</i>;
-                                if (!rowData.pwInputInterractive) {
-                                    if (value == "") {
-                                        pwField = <i>Both Password or Interractive Input flag are not set</i>;
-                                    } else {
-                                        pwField = "********";
-                                    }
-                                }
-                                return [
-                                    <td key={rowData.connData}>
-                                        {pwField}
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.connData}>
-                                        <DropdownButton
-                                            id={rowData.connData}
-                                            bsStyle="default"
-                                            title="Actions"
-                                        >
-                                            <MenuItem
-                                                eventKey="1"
-                                                onClick={() => {
-                                                    this.props.editConfig(rowData);
-                                                }}
-                                            >
-                                                Edit Connection
-                                            </MenuItem>
-                                            <MenuItem divider />
-                                            <MenuItem
-                                                eventKey="2"
-                                                onClick={() => {
-                                                    this.props.deleteConfig(rowData);
-                                                }}
-                                            >
-                                                Delete Connection
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Connection Data"), sortable: true },
+                { title: _("Bind DN"), sortable: true },
+                { title: _("Password"), sortable: true },
+            ],
         };
     }
 
-    getColumns() {
-        return this.state.columns;
-    }
-
-    getSingleColumn () {
+    getActions(rowData) {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Replica Credentials Table",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: _("Edit Connection"),
+                onClick: () => this.props.editConfig(rowData[0], rowData[1], rowData.credsBindpw, rowData.pwInteractive)
             },
+            {
+                title: _("Delete Connection"),
+                onClick: () => this.props.deleteConfig(rowData[0])
+            }
         ];
     }
 
     render() {
-        let reportConnTable;
-        if (this.props.rows.length < 1) {
-            reportConnTable = (
-                <DSShortTable
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{ msg: "No connection entries" }]}
-                    disableLoadingSpinner
-                />
-            );
+        const { columns } = this.state;
+        let tableRows = [];
+        let displayColumns = [...columns];
+        const hasRows = this.props.rows.length > 0;
+
+        if (!hasRows) {
+            tableRows = [[_("No Credentials")]];
+            displayColumns = [{ title: _("Credentials Table") }];
         } else {
-            reportConnTable = (
-                <DSShortTable
-                    getColumns={this.getColumns}
-                    rowKey="connData"
-                    rows={this.props.rows}
-                    disableLoadingSpinner
-                />
-            );
+            tableRows = this.props.rows.map(row => {
+                const rowCopy = JSON.parse(JSON.stringify(row)); // Deep copy
+                const pwInteractive = rowCopy.pwInputInteractive;
+                let pwField = <i>{_("Interactive Input is set")}</i>;
+
+                if (!pwInteractive) {
+                    if (rowCopy.credsBindpw === "") {
+                        pwField = <i>{_("Both Password or Interactive Input flag are not set")}</i>;
+                    } else {
+                        pwField = "********";
+                    }
+                }
+
+                const cells = [
+                    rowCopy.connData,
+                    rowCopy.credsBinddn,
+                    pwField
+                ];
+                cells.credsBindpw = rowCopy.credsBindpw;
+                cells.pwInteractive = pwInteractive;
+                return cells;
+            });
         }
 
-        return <div className="ds-margin-top-xlg">{reportConnTable}</div>;
+        return (
+            <div className="ds-margin-top">
+                <TextContent>
+                    <Text className="ds-center ds-margin-bottom" component={TextVariants.h4}>
+                        {_("Replication Report Credentials")}
+                    </Text>
+                </TextContent>
+                <Table
+                    aria-label="Cred Table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {displayColumns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy: this.props.sortBy,
+                                        onSort: this.props.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ?
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                    :
+                                    <Td>{row}</Td>
+                                }
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+            </div>
+        );
     }
 }
 
@@ -2069,512 +1858,1231 @@ class ReportSingleTable extends React.Component {
     constructor(props) {
         super(props);
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-
         this.state = {
-            searchField: "Replica",
-            fieldsToSearch: [
-                "supplierName",
-                "replicaName",
-                "replicaStatus",
-                "agmt-name",
-                "replica",
-                "replicaStatus",
-                "replica-enabled",
-                "replication-lag-time"
-            ],
-
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
                 {
-                    property: "supplierName",
-                    header: {
-                        label: "Supplier",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
+                    title: _("Supplier"),
+                    sortable: true
                 },
-                {
-                    property: "replicaName",
-                    header: {
-                        label: "Suffix:ReplicaID",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replicaStatus",
-                    header: {
-                        label: "Replica Status",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "agmt-name",
-                    header: {
-                        label: "Agreement",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.rowKey}>
-                                        {value || <i>No Agreements Were Found</i>}
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                },
-                {
-                    property: "replica",
-                    header: {
-                        label: "Consumer",
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica-enabled",
-                    header: {
-                        label: "Is Enabled",
-                        props: {
-                            index: 5,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 5
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replication-lag-time",
-                    header: {
-                        label: "Lag Time",
-                        props: {
-                            index: 6,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 6
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 7,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 7
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.rowKey}>
-                                        <Button
-                                            onClick={() => {
-                                                this.props.viewAgmt(rowData['supplierName'][0],
-                                                                    rowData['replicaName'][0],
-                                                                    rowData['agmt-name'][0]);
-                                            }}
-                                        >
-                                            View Data
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Agreement"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Lag"), sortable: true },
+            ],
         };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.getExpandedRow = this.getExpandedRow.bind(this);
     }
 
-    getColumns() {
-        return this.state.columns;
+    getExpandedRow(agmt) {
+        if (agmt['agmt-name'][0] === "-") {
+            return (
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        {_("No agreement information")}
+                    </Text>
+                </TextContent>
+            );
+        }
+        let replEnabled;
+        if (agmt['replica-enabled'] === "off") {
+            replEnabled = (
+                <div className="ds-warning-icon">
+                    {agmt['replica-enabled'][0]} <ExclamationTriangleIcon />
+                </div>
+            );
+        } else {
+            replEnabled = agmt['replica-enabled'][0];
+        }
+        return (
+            <Grid className="ds-indent">
+                <GridItem span={3}>{_("Suffix & Replica ID:")}</GridItem>
+                <GridItem span={9}><b>{ agmt.replicaName[0] }</b></GridItem>
+                <GridItem span={3}>{_("Replica Server Status:")}</GridItem>
+                <GridItem span={9}><b>{ agmt.replicaStatus[0] }</b></GridItem>
+                <GridItem span={3}>{_("Replication Enabled:")}</GridItem>
+                <GridItem span={9}><b>{ replEnabled }</b></GridItem>
+                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
+                <GridItem span={3}>{_("Consumer:")}</GridItem>
+                <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
+                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Reap Active:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
+                <hr />
+                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
+                <hr />
+                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
+            </Grid>
+        );
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "All In One Report",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
+    componentDidMount() {
+        let rows = [];
+        let columns = [...this.state.columns];
+        let agmtName;
+        let count = 0;
+        for (const replica of this.props.rows) {
+            if (!('agmt-name' in replica)) {
+                replica['agmt-name'] = ["-"];
+            }
+            if (!('replica' in replica)) {
+                replica.replica = ["-"];
+            }
+            if (!('replica-enabled' in replica)) {
+                replica['replica-enabled'] = ["-"];
+            }
+            if (!('replication-lag-time' in replica)) {
+                replica['replication-lag-time'] = ["-"];
+            }
+            if (!('replication-status' in replica)) {
+                replica['replication-status'] = ['-'];
+            }
+            if (replica['replica-enabled'][0] === "off") {
+                agmtName = (
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
+                        {replica['agmt-name'][0]} <ExclamationTriangleIcon />
+                    </div>
+                );
+            } else {
+                agmtName = replica['agmt-name'][0];
+            }
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [
+                        replica.supplierName[0],
+                        { title: agmtName },
+                        replica['replication-status'][0],
+                        replica['replication-lag-time'][0],
+                    ],
                 },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(replica) }]
                 }
+            );
+            count += 2;
+        }
+        if (rows.length === 0) {
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Replication Agreements") }];
+        }
+
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleCollapse(event, rowKey, isOpen) {
+        const { rows } = this.state;
+        rows[rowKey].isOpen = isOpen;
+        this.setState({
+            rows
+        });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_agmts = [];
+        const rows = [];
+        let count = 0;
+
+        // Convert the conns into a sortable array based on the column indexes
+        for (const agmt of this.props.rows) {
+            sorted_agmts.push({
+                agmt,
+                1: agmt.supplierName[0],
+                2: agmt['agmt-name'][0],
+                3: ['replication-status'][0],
+                4: agmt['replication-lag-time'][0],
+                enabled: agmt['replica-enabled'] !== "off",
+            });
+        }
+
+        // Sort the connections and build the new rows
+        sorted_agmts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_agmts.reverse();
+        }
+        for (let agmt of sorted_agmts) {
+            let agmtName;
+            if (agmt['replica-enabled'] === "off") {
+                agmtName = (
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
+                        {agmt['agmt-name'][0]} <ExclamationTriangleIcon />
+                    </div>
+                );
+            } else {
+                agmtName = agmt['agmt-name'][0];
+            }
+            agmt = agmt.agmt;
+            rows.push({
+                isOpen: false,
+                cells: [
+                    agmt.supplierName[0],
+                    { title: agmtName },
+                    agmt['replication-status'][0],
+                    agmt['replication-lag-time'][0],
+                ],
+                enabled: agmt.enabled
+            });
+            rows.push({
+                parent: count,
+                fullWidth: true,
+                cells: [{ title: this.getExpandedRow(agmt) }]
+            });
+            count += 2;
+        }
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
+            rows,
+        });
     }
 
     render() {
-        let reportSingleTable;
-        let filteredRows = this.props.rows;
-        if (!this.props.showDisabledAgreements) {
-            filteredRows = searchFilter("on", ["replica-enabled"], filteredRows);
-        }
-        if (filteredRows.length < 1) {
-            reportSingleTable = (
-                <DSShortTable
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{ msg: "No replica entries" }]}
-                    disableLoadingSpinner
-                    noSearchBar
-                />
-            );
-        } else {
-            reportSingleTable = (
-                <DSShortTable
-                    getColumns={this.getColumns}
-                    rowKey="rowKey"
-                    rows={filteredRows}
-                    disableLoadingSpinner
-                    noSearchBar
-                />
-            );
-        }
-
-        return <div>{reportSingleTable}</div>;
+        const { columns, rows, sortBy } = this.state;
+        return (
+            <div className="ds-margin-top-xlg">
+                <Table
+                    aria-label="Expandable table"
+                    variant='compact'
+                >
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: columnIndex + 1
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => {
+                            if (row.parent !== undefined) {
+                                // Expanded row
+                                return (
+                                    <Tr
+                                        key={rowIndex}
+                                        isExpanded={rows[row.parent].isOpen}
+                                    >
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {row.cells[0].title}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                );
+                            }
+                            // Regular row
+                            return (
+                                <Tr key={rowIndex}>
+                                    <Td
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {typeof cell === 'object' ? cell.title : cell}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
+                </Table>
+            </div>
+        );
     }
 }
 
 class ReportConsumersTable extends React.Component {
     constructor(props) {
         super(props);
-
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-
         this.state = {
-            searchField: "Agreements",
-            fieldsToSearch: [
-                "agmt-name",
-                "replica-enabled",
-                "replication-status",
-                "replication-lag-time"
-            ],
-
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "agmt-name",
-                    header: {
-                        label: "Agreement Name",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replica-enabled",
-                    header: {
-                        label: "Is Enabled",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replication-status",
-                    header: {
-                        label: "Replication Status",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "replication-lag-time",
-                    header: {
-                        label: "Replication Lag Time",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.rowKey}>
-                                        <Button
-                                            onClick={() => {
-                                                this.props.viewAgmt(rowData['supplierName'][0],
-                                                                    rowData['replicaName'][0],
-                                                                    rowData['agmt-name'][0]);
-                                            }}
-                                        >
-                                            View Data
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: _("Agreement Name"), sortable: true },
+                { title: _("Enabled"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Lag"), sortable: true },
+            ],
         };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.getExpandedRow = this.getExpandedRow.bind(this);
     }
 
-    getColumns() {
-        return this.state.columns;
+    getExpandedRow(agmt) {
+        let replEnabled;
+        if (agmt['agmt-name'][0] === "-") {
+            return (
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        {_("No agreement information")}
+                    </Text>
+                </TextContent>
+            );
+        }
+        if (agmt['replica-enabled'] === "off") {
+            replEnabled = (
+                <div className="ds-warning-icon">
+                    {agmt['replica-enabled'][0]} <ExclamationTriangleIcon />
+                </div>
+            );
+        } else {
+            replEnabled = agmt['replica-enabled'][0];
+        }
+        return (
+            <Grid className="ds-margin-left">
+                <GridItem span={3}>{_("Suffix & Replica ID:")}</GridItem>
+                <GridItem span={9}><b>{ agmt.replicaName[0] }</b></GridItem>
+                <GridItem span={3}>{_("Replica Server Status:")}</GridItem>
+                <GridItem span={9}><b>{ agmt.replicaStatus[0] }</b></GridItem>
+                <GridItem span={3}>{_("Replication Enabled:")}</GridItem>
+                <GridItem span={9}><b>{ replEnabled }</b></GridItem>
+                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
+                <GridItem span={3}>{_("Consumer:")}</GridItem>
+                <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
+                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Reap Active:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
+                <hr />
+                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
+                <hr />
+                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
+                <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
+                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
+                <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
+            </Grid>
+        );
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Report Consumers",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
+    componentDidMount() {
+        let rows = [];
+        let columns = [...this.state.columns];
+        let count = 0;
+
+        for (const replica of this.props.rows) {
+            let replEnabled;
+            if (!('agmt-name' in replica)) {
+                replica['agmt-name'] = ["-"];
+            }
+            if (!('replica-enabled' in replica)) {
+                replica['replica-enabled'] = ["-"];
+            }
+            if (!('replication-lag-time' in replica)) {
+                replica['replication-lag-time'] = ["-"];
+            }
+            if (!('replication-status' in replica)) {
+                replica['replication-status'] = ['-'];
+            }
+            if (replica['replica-enabled'] === "off") {
+                replEnabled = (
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
+                        {replica['replica-enabled'][0]} <ExclamationTriangleIcon />
+                    </div>
+                );
+            } else {
+                replEnabled = replica['replica-enabled'][0];
+            }
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [
+                        replica['agmt-name'][0],
+                        { title: replEnabled },
+                        replica['replication-status'][0],
+                        replica['replication-lag-time'][0],
+                    ]
                 },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(replica) }]
                 }
+            );
+            count += 2;
+        }
+        if (rows.length === 0) {
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Replication Agreements") }];
+        }
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleCollapse(event, rowKey, isOpen) {
+        const { rows } = this.state;
+        rows[rowKey].isOpen = isOpen;
+        this.setState({
+            rows
+        });
+    }
+
+    handleSort(_event, index, direction) {
+        const sorted_agmts = [];
+        const rows = [];
+        let count = 0;
+
+        // Convert the conns into a sortable array based on the column indexes
+        for (const agmt of this.props.rows) {
+            sorted_agmts.push({
+                agmt,
+                1: agmt['agmt-name'][0],
+                2: agmt['agmt-enabled'][0],
+                3: agmt['replication-status'][0],
+                4: agmt['replication-lag-time'][0],
+            });
+        }
+
+        // Sort the connections and build the new rows
+        sorted_agmts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_agmts.reverse();
+        }
+        for (let agmt of sorted_agmts) {
+            let replEnabled;
+            agmt = agmt.agmt;
+            if (agmt['replica-enabled'] === "off") {
+                replEnabled = (
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
+                        {agmt['replica-enabled'][0]} <ExclamationTriangleIcon />
+                    </div>
+                );
+            } else {
+                replEnabled = agmt['replica-enabled'][0];
+            }
+
+            rows.push({
+                isOpen: false,
+                cells: [
+                    agmt['agmt-name'][0],
+                    { title: replEnabled },
+                    agmt['replication-status'][0],
+                    agmt['replication-lag-time'][0],
+                ]
+            });
+            rows.push({
+                parent: count,
+                fullWidth: true,
+                cells: [{ title: this.getExpandedRow(agmt) }]
+            });
+            count += 2;
+        }
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
+            rows,
+        });
     }
 
     render() {
-        let reportConsumersTable;
-        let filteredRows = this.props.rows;
-        if (!this.props.showDisabledAgreements) {
-            filteredRows = searchFilter("on", ["replica-enabled"], filteredRows);
-        }
-        if (filteredRows.length < 1) {
-            reportConsumersTable = (
-                <DSShortTable
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{ msg: "No agreement entries" }]}
-                    disableLoadingSpinner
-                    noSearchBar
-                />
-            );
-        } else {
-            reportConsumersTable = (
-                <DSShortTable
-                    getColumns={this.getColumns}
-                    rowKey="rowKey"
-                    rows={filteredRows}
-                    disableLoadingSpinner
-                    noSearchBar
-                />
-            );
-        }
-
-        return <div>{reportConsumersTable}</div>;
+        const { columns, rows, sortBy } = this.state;
+        return (
+            <div className="ds-margin-top">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="Expandable consumer table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: columnIndex + 1
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => {
+                            if (row.parent !== undefined) {
+                                return (
+                                    <Tr
+                                        key={rowIndex}
+                                        isExpanded={rows[row.parent].isOpen}
+                                    >
+                                        <Td />
+                                        <Td
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {row.cells[0].title}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                );
+                            }
+                            return (
+                                <Tr key={rowIndex}>
+                                    <Td
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {typeof cell === 'object' ? cell.title : cell}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
+                </Table>
+            </div>
+        );
     }
 }
-// Proptypes and defaults
 
-LagReportTable.propTypes = {
-    agmts: PropTypes.array,
-    viewAgmt: PropTypes.func,
-    pokeAgmt: PropTypes.func,
+class ReplDSRCTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            sortBy: {},
+            columns: [
+                { title: _("Name"), sortable: true },
+                { title: _("Connection Data"), sortable: true },
+                { title: _("Bind DN"), sortable: true },
+                { title: _("Password"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Delete Button") }
+            ],
+            rows: [],
+        };
+        this.handleSort = this.handleSort.bind(this);
+    }
+
+    componentDidMount() {
+        let columns = [...this.state.columns];
+        let rows = [];
+
+        for (const conn of this.props.rows) {
+            let cred = conn[4];
+            if (conn[4] === "*") {
+                const desc = <i>Prompt</i>;
+                cred = desc;
+            } else if (!conn[4].startsWith("[")) {
+                cred = "**********";
+            }
+            rows.push([
+                conn[0],
+                `${conn[1]}:${conn[2]}`,
+                conn[3],
+                cred,
+                <div className="pf-v5-u-text-align-center">{this.props.getDeleteButton(conn[0])}</div>
+            ]);
+        }
+        if (this.props.rows.length === 0) {
+            rows = [[_("There is no saved replication monitor connections")]];
+            columns = [{ title: _("Replication Connections") }];
+        }
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleSort(_event, columnIndex, direction) {
+        const sortedRows = [...this.state.rows].sort((a, b) => (
+            a[columnIndex] < b[columnIndex] ? -1 : a[columnIndex] > b[columnIndex] ? 1 : 0
+        ));
+
+        this.setState({
+            sortBy: {
+                index: columnIndex,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    render() {
+        const { columns, rows, sortBy } = this.state;
+
+        return (
+            <div className="ds-margin-top-xlg">
+                <Table
+                    aria-label="Sortable DSRC Table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+            </div>
+        );
+    }
+}
+
+class ReplDSRCAliasTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            sortBy: {},
+            columns: [
+                { title: _("Alias"), sortable: true },
+                { title: _("Connection Data"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Delete Button") }
+            ],
+            rows: [],
+        };
+        this.handleSort = this.handleSort.bind(this);
+    }
+
+    componentDidMount() {
+        let columns = [...this.state.columns];
+        let rows = [];
+
+        for (const alias of this.props.rows) {
+            rows.push([
+                alias[0],
+                alias[1] + ":" + alias[2],
+                <div className="pf-v5-u-text-align-center">{this.props.getDeleteButton(alias[0])}</div>
+            ]);
+        }
+        if (this.props.rows.length === 0) {
+            rows = [[_("There are no saved replication monitor aliases")]];
+            columns = [{ title: _("Replication Monitoring Aliases") }];
+        }
+        this.setState({
+            rows,
+            columns
+        });
+    }
+
+    handleSort(_event, columnIndex, direction) {
+        const sortedRows = [...this.state.rows].sort((a, b) => (
+            a[columnIndex] < b[columnIndex] ? -1 : a[columnIndex] > b[columnIndex] ? 1 : 0
+        ));
+
+        this.setState({
+            sortBy: {
+                index: columnIndex,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    render() {
+        const { columns, rows, sortBy } = this.state;
+
+        return (
+            <div className="ds-margin-top-xlg">
+                <Table
+                    aria-label="Sortable DSRC Table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+            </div>
+        );
+    }
+}
+
+class ExistingLagReportsTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            page: 1,
+            perPage: 10,
+            sortBy: {},
+            expandedRows: new Set(),
+            reports: this.props.reports || [],
+            showLagReportModal: false,
+            reportUrls: null,
+            selectedReport: null,
+            showConfirmReportDelete: false,
+            reportToDelete: null,
+            modalSpinning: false,
+            modalChecked: false
+        };
+
+        this.handleSetPage = (_evt, newPage) => {
+            this.setState({ page: newPage });
+        };
+
+        this.handlePerPageSelect = (_evt, newPerPage) => {
+            this.setState({ page: 1, perPage: newPerPage });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleViewReport = this.handleViewReport.bind(this);
+        this.closeLagReportModal = this.closeLagReportModal.bind(this);
+        this.showConfirmReportDelete = this.showConfirmReportDelete.bind(this);
+        this.closeConfirmReportDelete = this.closeConfirmReportDelete.bind(this);
+        this.deleteReport = this.deleteReport.bind(this);
+        this.onChange = this.onChange.bind(this);
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.reports !== this.props.reports) {
+            this.setState({ reports: this.props.reports || [] });
+        }
+    }
+
+    handleSort(_event, index, direction) {
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            }
+        });
+    }
+
+    handleViewReport(report) {
+        // Construct the report URLs based on the report data
+        const reportUrls = {
+            base: report.path,
+            json: report.hasJson ? `${report.path}/replication_analysis.json` : null,
+            summary: report.hasJson ? `${report.path}/replication_analysis_summary.json` : null,
+            html: report.hasHtml ? `${report.path}/replication_analysis.html` : null,
+            csv: report.hasCsv ? `${report.path}/replication_analysis.csv` : null,
+            png: report.hasPng ? `${report.path}/replication_analysis.png` : null
+        };
+
+        this.setState({
+            showLagReportModal: true,
+            reportUrls,
+            selectedReport: report
+        });
+
+        // If there's an onSelectReport prop function, call it too
+        if (this.props.onSelectReport) {
+            this.props.onSelectReport(report);
+        }
+    }
+
+    closeLagReportModal() {
+        this.setState({
+            showLagReportModal: false,
+            reportUrls: null,
+            selectedReport: null
+        });
+    }
+
+    onChange(e) {
+        // Basic handler for checkbox in confirmation modal
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value,
+        });
+    }
+
+    showConfirmReportDelete(report) {
+        this.setState({
+            showConfirmReportDelete: true,
+            reportToDelete: report,
+            modalSpinning: false,
+            modalChecked: false
+        });
+    }
+
+    closeConfirmReportDelete() {
+        this.setState({
+            showConfirmReportDelete: false,
+            modalSpinning: false,
+            modalChecked: false
+        });
+    }
+
+    deleteReport() {
+        const { reportToDelete } = this.state;
+        if (!reportToDelete || !reportToDelete.path) {
+            return;
+        }
+
+        this.setState({
+            modalSpinning: true
+        });
+
+        const reportPath = reportToDelete.path;
+        const reportName = reportToDelete.name;
+
+        // Safety check: Validate the path is within expected directories
+        // Don't allow deletion from system directories
+        const blockedPaths = [
+            '/etc/', '/bin/', '/sbin/', '/usr/', '/lib/', '/lib64/',
+            '/boot/', '/dev/', '/proc/', '/sys/', '/root/'
+        ];
+
+        const isBlockedPath = blockedPaths.some(prefix => reportPath.startsWith(prefix));
+
+        if (isBlockedPath) {
+            const errorMsg = cockpit.format(_("Cannot delete report from protected system path: $0"), reportPath);
+            console.error("Attempted to delete report from protected path:", reportPath);
+            this.setState({
+                modalSpinning: false,
+                showConfirmReportDelete: false,
+                reportToDelete: null
+            });
+            if (this.props.addNotification) {
+                this.props.addNotification("error", errorMsg);
+            }
+            return;
+        }
+
+        // Additional check: path must not be root or be too short (likely system directory)
+        if (reportPath === '/' || reportPath.split('/').filter(p => p).length < 2) {
+            const errorMsg = cockpit.format(_("Invalid report path: $0"), reportPath);
+            console.error("Attempted to delete report from invalid path:", reportPath);
+            this.setState({
+                modalSpinning: false,
+                showConfirmReportDelete: false,
+                reportToDelete: null
+            });
+            if (this.props.addNotification) {
+                this.props.addNotification("error", errorMsg);
+            }
+            return;
+        }
+
+        // List of expected report file extensions
+        const reportFilePatterns = [
+            'replication_analysis.json',
+            'replication_analysis_summary.json',
+            'replication_analysis.html',
+            'replication_analysis.csv',
+            'replication_analysis.png'
+        ];
+
+        // Track deleted files for rollback if needed
+        const deletedFiles = [];
+
+        // First, list all files in the directory to verify they're report files
+        cockpit.spawn(["ls", "-1A", reportPath], { superuser: "require", err: "message" })
+            .then(output => {
+                const files = output.trim().split('\n').filter(f => f);
+
+                // Verify all files match expected patterns
+                const allFilesValid = files.every(file =>
+                    reportFilePatterns.includes(file)
+                );
+
+                if (!allFilesValid) {
+                    const errorMsg = cockpit.format(
+                        _("Report directory '$0' contains unexpected files and cannot be safely deleted."),
+                        reportName
+                    );
+                    console.error("Directory contains unexpected files, refusing to delete:", reportPath);
+                    console.error("Files found:", files);
+                    this.setState({
+                        modalSpinning: false,
+                        showConfirmReportDelete: false,
+                        reportToDelete: null
+                    });
+                    if (this.props.addNotification) {
+                        this.props.addNotification("error", errorMsg);
+                    }
+                    return Promise.reject(new Error("Directory contains unexpected files"));
+                }
+
+                // Delete each file individually and track progress
+                const deletePromises = files.map(file => {
+                    const filePath = `${reportPath}/${file}`;
+                    return cockpit.spawn(["rm", "-f", filePath], { superuser: "require", err: "message" })
+                        .then(() => {
+                            deletedFiles.push(file);
+                            return Promise.resolve();
+                        })
+                        .catch(err => {
+                            console.error(`Failed to delete file ${file}:`, err);
+                            return Promise.reject({ file, error: err });
+                        });
+                });
+
+                return Promise.all(deletePromises);
+            })
+            .then(() => {
+                // After all files are deleted, remove the directory
+                return cockpit.spawn(["rmdir", reportPath], { superuser: "require", err: "message" });
+            })
+            .then(() => {
+                // Success! Remove the report from the list
+                this.setState(prevState => ({
+                    reports: prevState.reports.filter(r => r.path !== reportPath),
+                    modalSpinning: false,
+                    showConfirmReportDelete: false,
+                    reportToDelete: null
+                }));
+
+                // Show success notification
+                if (this.props.addNotification) {
+                    this.props.addNotification(
+                        "success",
+                        cockpit.format(_("Report '$0' successfully deleted"), reportName)
+                    );
+                }
+
+                // Notify parent component if callback provided
+                if (this.props.onReportDeleted) {
+                    this.props.onReportDeleted(reportToDelete);
+                }
+            })
+            .catch(err => {
+                console.error("Error deleting report:", err);
+
+                // Determine what went wrong and provide specific feedback
+                let errorMsg;
+                if (err && err.file) {
+                    // Specific file deletion failed
+                    errorMsg = cockpit.format(
+                        _("Failed to delete file '$0' from report '$1'. The report directory may be partially deleted."),
+                        err.file,
+                        reportName
+                    );
+                } else if (deletedFiles.length > 0) {
+                    // Some files were deleted, but directory removal failed
+                    errorMsg = cockpit.format(
+                        _("Deleted $0 files from report '$1', but failed to remove the directory. You may need to manually clean up: $2"),
+                        deletedFiles.length,
+                        reportName,
+                        reportPath
+                    );
+                } else {
+                    // General failure
+                    const errDetail = (err && err.message) ? err.message : err.toString();
+                    errorMsg = cockpit.format(
+                        _("Failed to delete report '$0': $1"),
+                        reportName,
+                        errDetail
+                    );
+                }
+
+                this.setState({
+                    modalSpinning: false,
+                    showConfirmReportDelete: false,
+                    reportToDelete: null
+                });
+
+                if (this.props.addNotification) {
+                    this.props.addNotification("error", errorMsg);
+                }
+
+                // Reload the report list to reflect actual state
+                if (this.props.onReloadReports) {
+                    this.props.onReloadReports();
+                }
+            });
+    }
+
+    render() {
+        const { page, perPage, sortBy, reports, showLagReportModal, reportUrls, showConfirmReportDelete, reportToDelete, modalSpinning, modalChecked } = this.state;
+        const { onSelectReport } = this.props;
+
+        // Sort reports
+        let sortedReports = [...reports];
+        if (sortBy.index !== undefined) {
+            sortedReports.sort((a, b) => {
+                // Sort by report name
+                if (sortBy.index === 0) {
+                    return sortBy.direction === 'asc' ?
+                        a.name.localeCompare(b.name) :
+                        b.name.localeCompare(a.name);
+                }
+
+                // Sort by creation time
+                if (sortBy.index === 1) {
+                    return sortBy.direction === 'asc' ?
+                        new Date(a.creationTime) - new Date(b.creationTime) :
+                        new Date(b.creationTime) - new Date(a.creationTime);
+                }
+
+                // Sort by JSON
+                if (sortBy.index === 2) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasJson - b.hasJson :
+                        b.hasJson - a.hasJson;
+                }
+
+                // Sort by HTML
+                if (sortBy.index === 3) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasHtml - b.hasHtml :
+                        b.hasHtml - a.hasHtml;
+                }
+
+                // Sort by CSV
+                if (sortBy.index === 4) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasCsv - b.hasCsv :
+                        b.hasCsv - a.hasCsv;
+                }
+
+                // Sort by PNG
+                if (sortBy.index === 5) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasPng - b.hasPng :
+                        b.hasPng - a.hasPng;
+                }
+                return 0;
+            });
+        }
+
+        const startIdx = (page - 1) * perPage;
+        const paginatedReports = sortedReports.slice(startIdx, startIdx + perPage);
+        const columns = [
+            { title: _("Report Name"), transforms: [sortable] },
+            { title: _("Creation Time"), transforms: [sortable] },
+            { title: _("JSON"), transforms: [] },
+            { title: _("HTML"), transforms: [] },
+            { title: _("CSV"), transforms: [] },
+            { title: _("PNG"), transforms: [] },
+            { title: _("Actions"), transforms: [] }
+        ];
+
+        return (
+            <>
+                <div className="ds-margin-top-lg">
+                    {reports.length > 0 ? (
+                        <>
+                            <Table
+                                aria-label={_("Existing Reports")}
+                                variant="compact"
+                            >
+                                <Thead>
+                                    <Tr>
+                                        {columns.map((column, columnIndex) => (
+                                            <Th
+                                                key={columnIndex}
+                                                sort={{
+                                                    columnIndex,
+                                                    sortBy,
+                                                    onSort: this.handleSort
+                                                }}
+                                            >
+                                                {column.title}
+                                            </Th>
+                                        ))}
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                                    {paginatedReports.map((report, rowIndex) => (
+                                                        <Tr key={rowIndex}>
+                                                            <Td>{report.name}</Td>
+                                                            <Td>{report.creationTime}</Td>
+                                                            <Td>{report.hasJson ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasHtml ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasCsv ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasPng ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>
+                                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                                    <Button
+                                                                        variant="primary"
+                                                                        onClick={() => this.handleViewReport(report)}
+                                                                    >
+                                                                        {_("View")}
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="danger"
+                                                                        onClick={() => this.showConfirmReportDelete(report)}
+                                                                    >
+                                                                        {_("Delete")}
+                                                                    </Button>
+                                                                </div>
+                                                            </Td>
+                                                        </Tr>
+                                                    ))}
+                                </Tbody>
+                            </Table>
+                            <Pagination
+                                itemCount={reports.length}
+                                widgetId="pagination-options-menu-bottom"
+                                perPage={perPage}
+                                page={page}
+                                variant="bottom"
+                                onSetPage={this.handleSetPage}
+                                onPerPageSelect={this.handlePerPageSelect}
+                            />
+                        </>
+                    ) : (
+                        <EmptyState>
+                            <EmptyStateIcon icon={SearchIcon} />
+                            <Title headingLevel="h4" size="lg">
+                                {_("No reports found")}
+                            </Title>
+                            <EmptyStateBody>
+                                {_("No replication log analysis reports were found in the selected directory.")}
+                            </EmptyStateBody>
+                        </EmptyState>
+                    )}
+                </div>
+
+                {showLagReportModal && (
+                    <LagReportModal
+                        showModal={showLagReportModal}
+                        closeHandler={this.closeLagReportModal}
+                        reportUrls={reportUrls}
+                    />
+                )}
+
+                <DoubleConfirmModal
+                    showModal={showConfirmReportDelete}
+                    closeHandler={this.closeConfirmReportDelete}
+                    handleChange={this.onChange}
+                    actionHandler={this.deleteReport}
+                    spinning={modalSpinning}
+                    item={reportToDelete ? reportToDelete.name : ""}
+                    checked={modalChecked}
+                    mTitle={_("Delete Report")}
+                    mMsg={_("Are you sure you want to delete this report?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete Report")}
+                />
+            </>
+        );
+    }
+}
+
+// Proptypes and defaults
+ReplDSRCAliasTable.defaultProps = {
+    rows: PropTypes.array
 };
 
-LagReportTable.defaultProps = {
-    agmts: [],
-    viewAgmt: noop,
-    pokeAgmt: noop
+ReplDSRCAliasTable.defaultProps = {
+    rows: []
+};
+
+ReplDSRCTable.defaultProps = {
+    rows: PropTypes.array
+};
+
+ReplDSRCTable.defaultProps = {
+    rows: []
 };
 
 AgmtTable.propTypes = {
     agmts: PropTypes.array,
-    viewAgmt: PropTypes.func,
-    pokeAgmt: PropTypes.func,
+    handlePokeAgmt: PropTypes.func,
 };
 
 AgmtTable.defaultProps = {
     agmts: [],
-    viewAgmt: noop,
-    pokeAgmt: noop
 };
 
 WinsyncAgmtTable.propTypes = {
     agmts: PropTypes.array,
-    viewAgmt: PropTypes.func,
-    pokeAgmt: PropTypes.func,
+    handlePokeAgmt: PropTypes.func,
 };
 
 WinsyncAgmtTable.defaultProps = {
     agmts: [],
-    viewAgmt: noop,
-    pokeAgmt: noop
 };
 
 ConnectionTable.propTypes = {
@@ -2587,22 +3095,18 @@ ConnectionTable.defaultProps = {
 
 CleanALLRUVTable.propTypes = {
     tasks: PropTypes.array,
-    viewLog: PropTypes.func,
 };
 
 CleanALLRUVTable.defaultProps = {
     tasks: [],
-    viewLog: PropTypes.func,
 };
 
 AbortCleanALLRUVTable.propTypes = {
     tasks: PropTypes.array,
-    viewLog: PropTypes.func,
 };
 
 AbortCleanALLRUVTable.defaultProps = {
     tasks: [],
-    viewLog: PropTypes.func,
 };
 
 ConflictTable.propTypes = {
@@ -2612,7 +3116,6 @@ ConflictTable.propTypes = {
 
 ConflictTable.defaultProps = {
     conflicts: [],
-    resolveConflict: noop,
 };
 
 GlueTable.propTypes = {
@@ -2623,8 +3126,6 @@ GlueTable.propTypes = {
 
 GlueTable.defaultProps = {
     glues: PropTypes.array,
-    convertGlue: noop,
-    deleteGlue: noop,
 };
 
 ReportCredentialsTable.propTypes = {
@@ -2635,8 +3136,6 @@ ReportCredentialsTable.propTypes = {
 
 ReportCredentialsTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 ReportAliasesTable.propTypes = {
@@ -2647,32 +3146,22 @@ ReportAliasesTable.propTypes = {
 
 ReportAliasesTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 ReportConsumersTable.propTypes = {
-    showDisabledAgreements: PropTypes.bool,
     rows: PropTypes.array,
-    viewAgmt: PropTypes.func
 };
 
 ReportConsumersTable.defaultProps = {
-    showDisabledAgreements: false,
     rows: [],
-    viewAgmt: noop
 };
 
 ReportSingleTable.propTypes = {
-    showDisabledAgreements: PropTypes.bool,
     rows: PropTypes.array,
-    viewAgmt: PropTypes.func
 };
 
 ReportSingleTable.defaultProps = {
-    showDisabledAgreements: false,
     rows: [],
-    viewAgmt: noop
 };
 
 DiskTable.defaultProps = {
@@ -2683,18 +3172,36 @@ DiskTable.defaultProps = {
     rows: []
 };
 
+ExistingLagReportsTable.propTypes = {
+    reports: PropTypes.array,
+    onSelectReport: PropTypes.func,
+    addNotification: PropTypes.func,
+    onReportDeleted: PropTypes.func,
+    onReloadReports: PropTypes.func
+};
+
+ExistingLagReportsTable.defaultProps = {
+    reports: [],
+    onSelectReport: () => {},
+    addNotification: () => {},
+    onReportDeleted: () => {},
+    onReloadReports: () => {}
+};
+
 export {
     ConnectionTable,
-    AgmtTable,
-    WinsyncAgmtTable,
-    LagReportTable,
     CleanALLRUVTable,
     AbortCleanALLRUVTable,
+    WinsyncAgmtTable,
+    AgmtTable,
     ConflictTable,
     GlueTable,
     ReportCredentialsTable,
     ReportAliasesTable,
     ReportConsumersTable,
     ReportSingleTable,
-    DiskTable
+    DiskTable,
+    ReplDSRCTable,
+    ReplDSRCAliasTable,
+    ExistingLagReportsTable
 };

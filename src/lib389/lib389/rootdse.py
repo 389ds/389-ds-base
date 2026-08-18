@@ -22,6 +22,9 @@ class RootDSE(DSLdapObject):
     def supported_sasl(self):
         return self.get_attr_vals_utf8('supportedSASLMechanisms')
 
+    def available_sasl(self):
+        return self.get_attr_vals_utf8('availableSASLMechanisms')
+
     def supports_sasl_gssapi(self):
         return self.present("supportedSASLMechanisms", 'GSSAPI')
 

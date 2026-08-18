@@ -1,6 +1,6 @@
 use crate::ber::{ol_berval, BerValRef};
 use crate::dn::Sdn;
-use std::convert::{From, TryFrom};
+use std::convert::{From, TryFrom, TryInto};
 use std::ffi::CString;
 use std::iter::once;
 use std::iter::FromIterator;
@@ -61,7 +61,7 @@ impl ValueArrayRef {
         ValueArrayRef { raw_slapi_val }
     }
 
-    pub fn iter(&self) -> ValueArrayRefIter {
+    pub fn iter(&self) -> ValueArrayRefIter<'_> {
         ValueArrayRefIter {
             idx: 0,
             va_ref: &self,
@@ -174,7 +174,7 @@ impl Deref for Value {
 impl From<&Uuid> for Value {
     fn from(u: &Uuid) -> Self {
         // turn the uuid to a str
-        let u_str = u.to_hyphenated().to_string();
+        let u_str = u.hyphenated().to_string();
         let len = u_str.len();
         let cstr = CString::new(u_str)
             .expect("Invalid uuid, should never occur!")
@@ -182,7 +182,7 @@ impl From<&Uuid> for Value {
         let s_ptr = cstr.as_ptr();
         Box::leak(cstr);
 
-        let mut v = unsafe { slapi_value_new() };
+        let v = unsafe { slapi_value_new() };
         unsafe {
             (*v).bv.len = len;
             (*v).bv.data = s_ptr as *const u8;
@@ -210,6 +210,14 @@ impl TryFrom<&ValueRef> for String {
 
     fn try_from(value: &ValueRef) -> Result<Self, Self::Error> {
         value.bvr.into_string().ok_or(())
+    }
+}
+
+impl TryFrom<&ValueRef> for Uuid {
+    type Error = ();
+
+    fn try_from(value: &ValueRef) -> Result<Self, Self::Error> {
+        (&value.bvr).try_into().map_err(|_| ())
     }
 }
 

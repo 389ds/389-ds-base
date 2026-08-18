@@ -14,6 +14,19 @@ from lib389.cos import CosTemplates, CosClassicDefinitions
 from lib389.mappingTree import MappingTrees
 from lib389.idm.nscontainer import nsContainers
 
+MUST_ATTRIBUTES = [
+    'cn',
+]
+MUST_ATTRIBUTES_NESTED = [
+    'cn',
+    'nsroledn'
+]
+MUST_ATTRIBUTES_FILTERED = [
+    'cn',
+    'nsrolefilter'
+]
+RDN = 'cn'
+
 
 class RoleState(Enum):
     ACTIVATED = "activated"
@@ -40,12 +53,13 @@ class Role(DSLdapObject):
 
     def __init__(self, instance, dn=None):
         super(Role, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = [
             'top',
             'LDAPsubentry',
             'nsRoleDefinition',
         ]
+        self._protected = False
 
     def _format_status_message(self, message, role_dn=None):
         return {"state": message, "role_dn": role_dn}
@@ -112,7 +126,7 @@ class Role(DSLdapObject):
             except ldap.NO_SUCH_OBJECT:
                 # We don't use "ensure_state" because we want to preserve the existing attributes
                 disabled_role = nested_roles.create(properties={"cn": "nsDisabledRole",
-                                                                "nsRoleDN": managed_role.dn})
+                                                                "nsroledn": managed_role.dn})
             disabled_role.add("nsRoleDN", self.dn)
 
             inact_containers = nsContainers(inst, basedn=root_suffix)
@@ -238,6 +252,7 @@ class Roles(DSLdapObjects):
 
         return result
 
+
 class FilteredRole(Role):
     """A single instance of FilteredRole entry to create FilteredRole role
 
@@ -249,9 +264,9 @@ class FilteredRole(Role):
 
     def __init__(self, instance, dn=None):
         super(FilteredRole, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition']
-
+        self._protected = False
 
 
 class FilteredRoles(Roles):
@@ -266,6 +281,7 @@ class FilteredRoles(Roles):
     def __init__(self, instance, basedn):
         super(FilteredRoles, self).__init__(instance, basedn)
         self._objectclasses = ['LDAPsubentry', 'nsComplexRoleDefinition', 'nsFilteredRoleDefinition']
+        self._must_attributes = MUST_ATTRIBUTES_FILTERED
         self._filterattrs = ['cn']
         self._basedn = basedn
         self._childobject = FilteredRole
@@ -282,8 +298,9 @@ class ManagedRole(Role):
 
     def __init__(self, instance, dn=None):
         super(ManagedRole, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = ['nsSimpleRoleDefinition', 'nsManagedRoleDefinition']
+        self._protected = False
 
 
 class ManagedRoles(Roles):
@@ -316,9 +333,10 @@ class NestedRole(Role):
 
     def __init__(self, instance, dn=None):
         super(NestedRole, self).__init__(instance, dn)
-        self._must_attributes = ['cn', 'nsRoleDN']
-        self._rdn_attribute = 'cn'
+        self._must_attributes = MUST_ATTRIBUTES_NESTED
+        self._rdn_attribute = RDN
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsNestedRoleDefinition']
+        self._protected = False
 
 
 class NestedRoles(Roles):

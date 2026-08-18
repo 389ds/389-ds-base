@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,11 +9,19 @@
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.utils import ds_is_older, ensure_str
+from lib389.cli_base.dsrc import dsrc_to_ldap
+from lib389._constants import DSRC_HOME
 
 MUST_ATTRIBUTES = [
     'cn',
 ]
+MAY_ATTRIBUTES = [
+    'description'
+]
 RDN = 'cn'
+DEFAULT_BASEDN_RDN = 'ou=Groups'
+DEFAULT_BASEDN_RDN_ADMIN_GROUPS = 'ou=People'
+
 
 class Group(DSLdapObject):
     """A single instance of Group entry
@@ -32,7 +41,7 @@ class Group(DSLdapObject):
             'top',
             'groupOfNames',
         ]
-        if not ds_is_older('1.3.7'):
+        if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
@@ -78,6 +87,7 @@ class Group(DSLdapObject):
 
         self.ensure_present('member', dn)
 
+
 class Groups(DSLdapObjects):
     """DSLdapObjects that represents Groups entry
     By default it uses 'ou=Groups' as rdn.
@@ -88,13 +98,18 @@ class Groups(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=Groups'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(Groups, self).__init__(instance)
         self._objectclasses = [
             'groupOfNames',
         ]
         self._filterattrs = [RDN]
         self._childobject = Group
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'groups_rdn' in dsrc_inst and dsrc_inst['groups_rdn'] is not None:
+            rdn = dsrc_inst['groups_rdn']
+
         if rdn is None:
             self._basedn = ensure_str(basedn)
         else:
@@ -112,9 +127,15 @@ class UniqueGroup(DSLdapObject):
             'top',
             'groupOfUniqueNames',
         ]
-        if not ds_is_older('1.3.7'):
+        if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
+
+    def list_members(self):
+        """List the members of this group.
+
+        """
+        return self.get_attr_vals_utf8('uniquemember')
 
     def is_member(self, dn):
         # Check if dn is a member
@@ -130,13 +151,18 @@ class UniqueGroup(DSLdapObject):
 class UniqueGroups(DSLdapObjects):
     # WARNING!!!
     # Use group, not unique group!!!
-    def __init__(self, instance, basedn, rdn='ou=Groups'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(UniqueGroups, self).__init__(instance)
         self._objectclasses = [
             'groupOfUniqueNames',
         ]
         self._filterattrs = [RDN]
         self._childobject = UniqueGroup
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'groups_rdn' in dsrc_inst and dsrc_inst['groups_rdn'] is not None:
+            rdn = dsrc_inst['groups_rdn']
+
         if rdn is None:
             self._basedn = ensure_str(basedn)
         else:
@@ -160,11 +186,11 @@ class nsAdminGroup(DSLdapObject):
             'top',
             'nsAdminGroup'
         ]
-        if ds_is_older('1.3.7'):
+        if ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('inetUser')
         else:
             self._create_objectclasses.append('nsMemberOf')
-        if not ds_is_older('1.4.0'):
+        if not ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.append('nsAccount')
         user_compare_exclude = [
             'nsUniqueId',
@@ -188,15 +214,19 @@ class nsAdminGroups(DSLdapObjects):
     :type rdn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=People'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN_ADMIN_GROUPS):
         super(nsAdminGroups, self).__init__(instance)
         self._objectclasses = [
             'nsAdminGroup'
         ]
         self._filterattrs = [RDN]
         self._childobject = nsAdminGroup
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
         if rdn is None:
             self._basedn = basedn
         else:
             self._basedn = '{},{}'.format(rdn, basedn)
-

@@ -9,12 +9,17 @@
 import time
 import subprocess
 import pytest
+import re
 
 from lib389.cli_conf.replication import get_repl_monitor_info
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389.cli_base import FakeArgs
+from lib389.cli_base.dsrc import dsrc_arg_concat
+from lib389.cli_base import connect_instance
+from lib389.replica import Replicas
+
 
 pytestmark = pytest.mark.tier0
 
@@ -40,7 +45,7 @@ def set_log_file(request):
     request.addfinalizer(fin)
 
 
-def check_value_in_log_and_reset(content_list, second_list=None, single_value=None):
+def check_value_in_log_and_reset(content_list, second_list=None, single_value=None, error_list=None):
     with open(LOG_FILE, 'r+') as f:
         file_content = f.read()
 
@@ -57,12 +62,36 @@ def check_value_in_log_and_reset(content_list, second_list=None, single_value=No
             log.info('Check for "{}"'.format(single_value))
             assert single_value in file_content
 
+        if error_list is not None:
+            log.info('Check that "{}" is not present'.format(error_list))
+            for item in error_list:
+                assert item not in file_content
+
         log.info('Reset log file')
         f.truncate(0)
 
+def get_hostnames_from_log(port1, port2):
+    # Get the supplier host names as displayed in replication monitor output
+    with open(LOG_FILE, 'r') as logfile:
+        logtext = logfile.read()
+    # search for Supplier :hostname:port 
+    # and use \D to insure there is no more number is after
+    # the matched port (i.e that 10 is not matching 101)
+    regexp = '(Supplier: )([^:]*)(:' + str(port1) + r'\D)'
+    match=re.search(regexp, logtext)
+    host_m1 = 'localhost.localdomain'
+    if (match is not None):
+        host_m1 = match.group(2)
+    # Same for supplier 2 
+    regexp = '(Supplier: )([^:]*)(:' + str(port2) + r'\D)'
+    match=re.search(regexp, logtext)
+    host_m2 = 'localhost.localdomain'
+    if (match is not None):
+        host_m2 = match.group(2)
+    return (host_m1, host_m2)
 
-@pytest.mark.ds50545
-@pytest.mark.bz1739718
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.skipif(ds_is_older("1.4.0"), reason="Not implemented")
 def test_dsconf_replication_monitor(topology_m2, set_log_file):
     """Test replication monitor that was ported from legacy tools
@@ -75,16 +104,33 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
          3. Run replication monitor with aliases option
          4. Run replication monitor with --json option
          5. Run replication monitor with .dsrc file created
+         6. Run replication monitor with connections option as if using dsconf CLI
     :expectedresults:
          1. Success
          2. Success
          3. Success
          4. Success
          5. Success
+         6. Success
     """
 
-    m1 = topology_m2.ms["master1"]
-    m2 = topology_m2.ms["master2"]
+    m1 = topology_m2.ms["supplier1"]
+    m2 = topology_m2.ms["supplier2"]
+
+    # Enable ldapi if not already done.
+    for inst in [topology_m2.ms["supplier1"], topology_m2.ms["supplier2"]]:
+        if not inst.can_autobind():
+            # Update ns-slapd instance
+            inst.config.set('nsslapd-ldapilisten', 'on')
+            inst.config.set('nsslapd-ldapiautobind', 'on')
+            inst.restart()
+    # Ensure that updates have been sent both ways.
+    replicas = Replicas(m1)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    replica.test_replication([m2])
+    replicas = Replicas(m2)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    replica.test_replication([m1])
 
     alias_content = ['Supplier: M1 (' + m1.host + ':' + str(m1.port) + ')',
                      'Supplier: M2 (' + m2.host + ':' + str(m2.port) + ')']
@@ -92,7 +138,7 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
     connection_content = 'Supplier: '+ m1.host + ':' + str(m1.port)
     content_list = ['Replica Root: dc=example,dc=com',
                     'Replica ID: 1',
-                    'Replica Status: Available',
+                    'Replica Status: Online',
                     'Max CSN',
                     'Status For Agreement: "002" ('+ m2.host + ':' + str(m2.port) + ')',
                     'Replica Enabled: on',
@@ -114,6 +160,9 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
                     'Replica ID: 2',
                     'Status For Agreement: "001" (' + m1.host + ':' + str(m1.port)+')']
 
+    error_list = ['consumer (Unavailable)',
+                  'Failed to retrieve database RUV entry from consumer']
+
     json_list = ['type',
                  'list',
                  'items',
@@ -122,7 +171,7 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
                  'data',
                  '"replica_id": "1"',
                  '"replica_root": "dc=example,dc=com"',
-                 '"replica_status": "Available"',
+                 '"replica_status": "Online"',
                  'maxcsn',
                  'agmts_status',
                  'agmt-name',
@@ -148,19 +197,8 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
                  '001',
                  m1.host + ':' + str(m1.port)]
 
-    dsrc_content = '[repl-monitor-connections]\n' \
-                   'connection1 = ' + m1.host + ':' + str(m1.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
-                   'connection2 = ' + m2.host + ':' + str(m2.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
-                   '\n' \
-                   '[repl-monitor-aliases]\n' \
-                   'M1 = ' + m1.host + ':' + str(m1.port) + '\n' \
-                   'M2 = ' + m2.host + ':' + str(m2.port)
-
     connections = [m1.host + ':' + str(m1.port) + ':' + DN_DM + ':' + PW_DM,
                    m2.host + ':' + str(m2.port) + ':' + DN_DM + ':' + PW_DM]
-
-    aliases = ['M1=' + m1.host + ':' + str(m1.port),
-               'M2=' + m2.host + ':' + str(m2.port)]
 
     args = FakeArgs()
     args.connections = connections
@@ -169,7 +207,23 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
 
     log.info('Run replication monitor with connections option')
     get_repl_monitor_info(m1, DEFAULT_SUFFIX, log, args)
-    check_value_in_log_and_reset(content_list, connection_content)
+    (host_m1, host_m2) = get_hostnames_from_log(m1.port, m2.port)
+    check_value_in_log_and_reset(content_list, connection_content, error_list=error_list)
+
+    # Prepare the data for next tests
+    aliases = ['M1=' + host_m1 + ':' + str(m1.port),
+               'M2=' + host_m2 + ':' + str(m2.port)]
+
+    alias_content = ['Supplier: M1 (' + host_m1 + ':' + str(m1.port) + ')',
+                     'Supplier: M2 (' + host_m2 + ':' + str(m2.port) + ')']
+
+    dsrc_content = '[repl-monitor-connections]\n' \
+                   'connection1 = ' + m1.host + ':' + str(m1.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
+                   'connection2 = ' + m2.host + ':' + str(m2.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
+                   '\n' \
+                   '[repl-monitor-aliases]\n' \
+                   'M1 = ' + host_m1 + ':' + str(m1.port) + '\n' \
+                   'M2 = ' + host_m2 + ':' + str(m2.port)
 
     log.info('Run replication monitor with aliases option')
     args.aliases = aliases
@@ -192,6 +246,27 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
     log.info('Run replication monitor when .dsrc file is present with content')
     get_repl_monitor_info(m1, DEFAULT_SUFFIX, log, args)
     check_value_in_log_and_reset(content_list, alias_content)
+    os.remove(os.path.expanduser(DSRC_HOME))
+
+    log.info('Run replication monitor with connections option as if using dsconf CLI')
+    # Perform same test than steps 2 test but without using directly the topology instance.
+    # but with an instance similar to those than dsconf cli generates:
+    # step 2 args
+    args.connections = connections
+    args.aliases = None
+    args.json = False
+    # args needed to generate an instance with dsrc_arg_concat
+    args.instance = 'supplier1'
+    args.basedn = None
+    args.binddn = None
+    args.bindpw = None
+    args.pwdfile = None
+    args.prompt = False
+    args.starttls = False
+    dsrc_inst = dsrc_arg_concat(args, None)
+    inst = connect_instance(dsrc_inst, True, args)
+    get_repl_monitor_info(inst, DEFAULT_SUFFIX, log, args)
+    check_value_in_log_and_reset(content_list, connection_content, error_list=error_list)
 
 
 if __name__ == '__main__':

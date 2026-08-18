@@ -54,48 +54,37 @@ dn2entry_ext(
     e = cache_find_dn(&inst->inst_cache, ndnv.bv_val, ndnv.bv_len);
     if (e == NULL) {
         ID id = ALLID;
+
         /* convert dn to entry id */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            *err = entryrdn_index_read_ext(be, sdn, &id,
-                                           flags & TOMBSTONE_INCLUDED, txn);
-            if (*err) {
-                if (DB_NOTFOUND != *err) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dn2entry_ext", "Failed to get id for %s "
-                                                  "from entryrdn index (%d)\n",
-                                  slapi_sdn_get_dn(sdn), *err);
-                }
-                /* There's no entry with this DN. */
-                goto bail;
+        *err = entryrdn_index_read_ext(be, sdn, &id,
+                                       flags & TOMBSTONE_INCLUDED, txn);
+        indexname = LDBM_ENTRYRDN_STR;
+        if (*err) {
+            if (DBI_RC_NOTFOUND != *err) {
+                slapi_log_err(SLAPI_LOG_ERR, "dn2entry_ext",
+                              "Failed to get id for %s from %s index: (%d)\n",
+                              slapi_sdn_get_dn(sdn), indexname, *err);
             }
-            if (0 == id) {
-                /*
-                 * Note: A special entry such as RUV could be added
-                 * to entryrdn even if the suffix does not exist in
-                 * the index.  At that time, fake ID 0 is used as the
-                 * parent id.
-                 */
-                /* There's no entry with this suffix. */
-                goto bail;
-            }
-            indexname = LDBM_ENTRYRDN_STR;
-        } else {
-            IDList *idl = NULL;
-            if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
-                                  &ndnv, txn, err)) == NULL) {
-                /* There's no entry with this DN. */
-                goto bail;
-            }
-            id = idl_firstid(idl);
-            slapi_ch_free((void **)&idl);
-            indexname = LDBM_ENTRYDN_STR;
+            /* There's no entry with this DN. */
+            goto bail;
         }
+        if (0 == id) {
+            /*
+             * Note: A special entry such as RUV could be added
+             * to entryrdn even if the suffix does not exist in
+             * the index.  At that time, fake ID 0 is used as the
+             * parent id.
+             */
+            /* There's no entry with this suffix. */
+            goto bail;
+        }
+
         /* convert entry id to entry */
         if ((e = id2entry(be, id, txn, err)) != NULL) {
             /* Means that we found the entry OK */
         } else {
             /* Hmm. The DN mapped onto an EntryID, but that didn't map onto an Entry. */
-            if (*err != 0 && *err != DB_NOTFOUND) {
+            if (*err != 0 && *err != DBI_RC_NOTFOUND) {
                 /* JCM - Not sure if this is ever OK or not. */
             } else {
                 /*
@@ -232,7 +221,7 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
             err = 1;
         }
     }
-    if (0 != err && DB_NOTFOUND != err) {
+    if (0 != err && DBI_RC_NOTFOUND != err) {
         if (must_exist) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "get_copy_of_entry", "Operation error fetching %s (%s), error %d.\n",
@@ -264,6 +253,7 @@ done_with_pblock_entry(Slapi_PBlock *pb, int plock_parameter) /* JCM - Move some
     if (entry != NULL) {
         slapi_entry_free(entry);
         entry = NULL;
+        /* coverity[var_deref_model] */
         slapi_pblock_set(pb, plock_parameter, entry);
     }
 }

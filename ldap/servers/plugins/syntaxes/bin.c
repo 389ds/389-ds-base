@@ -139,7 +139,8 @@ static struct mr_plugin_def mr_plugin_table[] = {
         NULL,
         bin_compare,
         NULL /* mr_normalize */
-    }};
+    }
+};
 /*
 certificateExactMatch
 certificateListExactMatch

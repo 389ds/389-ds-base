@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -363,24 +363,76 @@ handle_bad_certificate(void *clientData, PRFileDesc *prfd)
     char sbuf[BUFSIZ], ibuf[BUFSIZ];
     Connection *conn = (Connection *)clientData;
     CERTCertificate *clientCert = slapd_ssl_peerCertificate(prfd);
-
     PRErrorCode errorCode = PR_GetError();
     char *subject = subject_of(clientCert);
     char *issuer = issuer_of(clientCert);
-    slapi_log_access(LDAP_DEBUG_STATS,
-                     "conn=%" PRIu64 " " SLAPI_COMPONENT_NAME_NSPR " error %i (%s); unauthenticated client %s; issuer %s\n",
-                     conn->c_connid, errorCode, slapd_pr_strerror(errorCode),
-                     subject ? escape_string(subject, sbuf) : "NULL",
-                     issuer ? escape_string(issuer, ibuf) : "NULL");
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
+
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock_init(&logpb, log_format, NULL);
+        logpb.conn_id = conn->c_connid;
+        logpb.msg = "unauthenticated client";
+        logpb.subject = subject ? escape_string(subject, sbuf) : "NULL";
+        logpb.issuer = issuer ? escape_string(issuer, ibuf) : "NULL";
+        logpb.err = errorCode;
+        logpb.err_str = slapd_pr_strerror(errorCode);
+        slapd_log_access_tls_client_auth(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS,
+                        "conn=%" PRIu64 " " SLAPI_COMPONENT_NAME_NSPR " error %i (%s); unauthenticated client %s; issuer %s\n",
+                        conn->c_connid, errorCode, slapd_pr_strerror(errorCode),
+                        subject ? escape_string(subject, sbuf) : "NULL",
+                        issuer ? escape_string(issuer, ibuf) : "NULL");
+    }
     if (issuer)
-        free(issuer);
+        slapi_ch_free_string(&issuer);
     if (subject)
-        free(subject);
+        slapi_ch_free_string(&subject);
     if (clientCert)
         CERT_DestroyCertificate(clientCert);
     return -1; /* non-zero means reject this certificate */
 }
 
+
+/*
+ * Determine if the connection key exchange is Post Quantum Cryptography aware.
+ * This function may need to evolve with NSS as more PQC methods get supported.
+ */
+static bool
+check_pqc(uint64_t connid, SSLChannelInfo *sci)
+{
+    /*
+     * FYI: To interpret the values:
+     * KeaType and KeaGroup values are defined in
+     * https://github.com/nss-dev/nss/blob/master/lib/ssl/sslt.h
+     * Respectively in SSLKEAType and SSLNamedGroup enums
+     */
+    slapi_log_err(SLAPI_LOG_CONNS, "check_pqc", "conn=%" PRIu64 " TLS keaType=%d keaGroup=%d\n",
+                  connid, sci->keaType, sci->keaGroup);
+#ifdef MAX_ML_DSA_PRIVATE_KEY_LEN
+    /* NSS supports PQC (because of the ifdef). Now lets check if the connection uses it */
+    /* Check that PQC KeaType is hybrid */
+    switch (sci->keaType) {
+        case ssl_kea_ecdh_hybrid:
+        case ssl_kea_ecdh_hybrid_psk:
+            break;
+        default:
+            return false;
+    }
+    /* Check that PQC keaGroup is KEM */
+    switch (sci->keaGroup) {
+        case ssl_grp_kem_secp256r1mlkem768:
+        case ssl_grp_kem_secp384r1mlkem1024:
+        case ssl_grp_kem_mlkem768x25519:
+        case ssl_grp_kem_xyber768d00:
+            return true;
+        default:
+            return false;
+    }
+#endif
+    return false;
+}
 
 /*
  * Get an identity from the client's certificate (if any was sent).
@@ -394,7 +446,8 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
 {
     Connection *conn = (Connection *)clientData;
     CERTCertificate *clientCert = slapd_ssl_peerCertificate(prfd);
-
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
     char *clientDN = NULL;
     int keySize = 0;
     char *cipher = NULL;
@@ -403,24 +456,50 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
     SSLCipherSuiteInfo cipherInfo;
     char *subject = NULL;
     char sslversion[64];
+    bool pqc = false;
+    int err = 0;
 
     if ((slapd_ssl_getChannelInfo(prfd, &channelInfo, sizeof(channelInfo))) != SECSuccess) {
         PRErrorCode errorCode = PR_GetError();
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " SSL failed to obtain channel info; " SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
-                         conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.conn_id = conn->c_connid;
+            logpb.err = errorCode;
+            logpb.err_str = slapd_pr_strerror(errorCode);
+            logpb.msg = "SSL failed to obtain channel info; " SLAPI_COMPONENT_NAME_NSPR;
+            slapd_log_access_tls(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                    "conn=%" PRIu64 " SSL failed to obtain channel info; " SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
+                    conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
+        }
         goto done;
     }
+
     if ((slapd_ssl_getCipherSuiteInfo(channelInfo.cipherSuite, &cipherInfo, sizeof(cipherInfo))) != SECSuccess) {
         PRErrorCode errorCode = PR_GetError();
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " SSL failed to obtain cipher info; " SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
-                         conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.conn_id = conn->c_connid;
+            logpb.err = errorCode;
+            logpb.err_str = slapd_pr_strerror(errorCode);
+            logpb.msg = "SSL failed to obtain cipher info; " SLAPI_COMPONENT_NAME_NSPR;
+            slapd_log_access_tls(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                    "conn=%" PRIu64 " SSL failed to obtain cipher info; " SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
+                    conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
+        }
         goto done;
     }
 
     keySize = cipherInfo.effectiveKeyBits;
-    cipher = slapi_ch_strdup(cipherInfo.symCipherName);
+    pqc = check_pqc(conn->c_connid, &channelInfo);
+    if (pqc) {
+        cipher = slapi_ch_smprintf("%s[PQC]", cipherInfo.symCipherName);
+    } else {
+        cipher = slapi_ch_strdup(cipherInfo.symCipherName);
+    }
 
     /* If inside an Start TLS operation, perform the privacy level discovery
      * and if the security degree achieved after the handshake is not reckoned
@@ -434,47 +513,84 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
 
     if (config_get_SSLclientAuth() == SLAPD_SSLCLIENTAUTH_OFF) {
         (void)slapi_getSSLVersion_str(channelInfo.protocolVersion, sslversion, sizeof(sslversion));
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " %s %i-bit %s\n",
-                         conn->c_connid,
-                         sslversion, keySize, cipher ? cipher : "NULL");
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.conn_id = conn->c_connid;
+            logpb.tls_version = sslversion;
+            logpb.keysize = keySize;
+            logpb.cipher = cipher ? cipher : "NULL";
+            slapd_log_access_tls(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " %s %i-bit %s\n",
+                    conn->c_connid,
+                    sslversion, keySize, cipher ? cipher : "NULL");
+        }
         goto done;
     }
     if (clientCert == NULL) {
         (void)slapi_getSSLVersion_str(channelInfo.protocolVersion, sslversion, sizeof(sslversion));
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " %s %i-bit %s\n",
-                         conn->c_connid,
-                         sslversion, keySize, cipher ? cipher : "NULL");
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.conn_id = conn->c_connid;
+            logpb.tls_version = sslversion;
+            logpb.keysize = keySize;
+            logpb.cipher = cipher ? cipher : "NULL";
+            slapd_log_access_tls(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " %s %i-bit %s\n",
+                    conn->c_connid,
+                    sslversion, keySize, cipher ? cipher : "NULL");
+        }
     } else {
         subject = subject_of(clientCert);
         if (!subject) {
             (void)slapi_getSSLVersion_str(channelInfo.protocolVersion,
                                           sslversion, sizeof(sslversion));
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " %s %i-bit %s; missing subject\n",
-                             conn->c_connid,
-                             sslversion, keySize, cipher ? cipher : "NULL");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_pblock_init(&logpb, log_format, NULL);
+                logpb.conn_id = conn->c_connid;
+                logpb.msg = "missing subject";
+                logpb.tls_version = sslversion;
+                logpb.keysize = keySize;
+                logpb.cipher = cipher ? cipher : "NULL";
+                slapd_log_access_tls_client_auth(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                "conn=%" PRIu64 " %s %i-bit %s; missing subject\n",
+                                conn->c_connid,
+                                sslversion, keySize, cipher ? cipher : "NULL");
+            }
             goto done;
-        }
-        {
+        } else {
             char *issuer = issuer_of(clientCert);
             char sbuf[BUFSIZ], ibuf[BUFSIZ];
             (void)slapi_getSSLVersion_str(channelInfo.protocolVersion,
                                           sslversion, sizeof(sslversion));
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " %s %i-bit %s; client %s; issuer %s\n",
-                             conn->c_connid,
-                             sslversion, keySize,
-                             cipher ? cipher : "NULL",
-                             subject ? escape_string(subject, sbuf) : "NULL",
-                             issuer ? escape_string(issuer, ibuf) : "NULL");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_pblock_init(&logpb, log_format, NULL);
+                logpb.conn_id = conn->c_connid;
+                logpb.tls_version = sslversion;
+                logpb.keysize = keySize;
+                logpb.cipher = cipher ? cipher : "NULL";
+                logpb.subject = escape_string(subject, sbuf);
+                logpb.issuer = issuer ? escape_string(issuer, ibuf) : "NULL";
+                slapd_log_access_tls_client_auth(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                        "conn=%" PRIu64 " %s %i-bit %s; client %s; issuer %s\n",
+                        conn->c_connid,
+                        sslversion, keySize,
+                        cipher ? cipher : "NULL",
+                        escape_string(subject, sbuf),
+                        issuer ? escape_string(issuer, ibuf) : "NULL");
+            }
             if (issuer)
-                free(issuer);
+                slapi_ch_free_string(&issuer);
         }
         slapi_dn_normalize(subject);
         {
             LDAPMessage *chain = NULL;
             char *basedn = config_get_basedn();
-            int err;
 
             err = ldapu_cert_to_ldap_entry(clientCert, internal_ld, basedn ? basedn : "" /*baseDN*/, &chain);
             if (err == LDAPU_SUCCESS && chain) {
@@ -505,18 +621,37 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
         slapi_sdn_free(&sdn);
         (void)slapi_getSSLVersion_str(channelInfo.protocolVersion,
                                       sslversion, sizeof(sslversion));
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " %s client bound as %s\n",
-                         conn->c_connid,
-                         sslversion, clientDN);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.conn_id = conn->c_connid;
+            logpb.msg = "client bound";
+            logpb.tls_version = sslversion;
+            logpb.client_dn = clientDN;
+            slapd_log_access_tls_client_auth(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                            "conn=%" PRIu64 " %s client bound as %s\n",
+                            conn->c_connid,
+                            sslversion, clientDN);
+        }
     } else if (clientCert != NULL) {
         (void)slapi_getSSLVersion_str(channelInfo.protocolVersion,
                                       sslversion, sizeof(sslversion));
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " %s failed to map client "
-                         "certificate to LDAP DN (%s)\n",
-                         conn->c_connid,
-                         sslversion, extraErrorMsg);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.conn_id = conn->c_connid;
+            logpb.msg = "failed to map client certificate to LDAP DN";
+            logpb.tls_version = sslversion;
+            logpb.err = err;
+            logpb.err_str = extraErrorMsg;
+            slapd_log_access_tls_client_auth(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                            "conn=%" PRIu64 " %s failed to map client "
+                            "certificate to LDAP DN (%s)\n",
+                            conn->c_connid,
+                            sslversion, extraErrorMsg);
+        }
     }
 
     /*

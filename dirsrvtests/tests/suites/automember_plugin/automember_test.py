@@ -1,7 +1,16 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 alisha17 <anejaalisha@yahoo.com>
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import pytest
 import os
 import ldap
+import time
 from lib389.utils import ds_is_older
 from lib389._constants import *
 from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions, AutoMembershipRegexRule
@@ -9,7 +18,7 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389 import agreement
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups, Group
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX
 
 
@@ -164,6 +173,10 @@ def test_delete_default_group(automember_fixture, topo):
 
     from lib389.plugins import MemberOfPlugin
     memberof = MemberOfPlugin(topo.standalone)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        tries = 10 # to avoid any risk of transient failure
+    else:
+        tries = 1
     memberof.enable()
     topo.standalone.restart()
     topo.standalone.setLogLevel(65536)
@@ -174,8 +187,20 @@ def test_delete_default_group(automember_fixture, topo):
     try:
         assert group.is_member(user_1.dn)
         group.delete()
-        error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group.dn)
-        assert (len(error_lines) == 1)
+        # Check there is the expected message
+        while tries > 0:
+            error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group.dn)
+            nb_match = len(error_lines)
+            log.info("len(error_lines)=%d" % nb_match)
+            for i in error_lines:
+                log.info(" - %s" % i)
+            assert nb_match <= 1
+            if (nb_match == 1):
+                # we are done the test is successful
+                break
+            time.sleep(1)
+            tries -= 1
+        assert tries > 0
     finally:
         user_1.delete()
         topo.standalone.setLogLevel(0)
@@ -277,6 +302,10 @@ def test_delete_target_group(automember_fixture, topo):
 
     from lib389.plugins import MemberOfPlugin
     memberof = MemberOfPlugin(topo.standalone)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     memberof.enable()
 
     topo.standalone.restart()
@@ -292,6 +321,7 @@ def test_delete_target_group(automember_fixture, topo):
 
         # delete that target filter group
         group_regex.delete()
+        time.sleep(delay)
         error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group_regex.dn)
         # one line for default group and one for target group
         assert (len(error_lines) == 1)

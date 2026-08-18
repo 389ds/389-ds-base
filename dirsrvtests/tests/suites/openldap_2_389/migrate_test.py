@@ -8,8 +8,7 @@
 #
 import pytest
 import os
-from lib389.topologies import topology_st
-from lib389.password_plugins import PBKDF2Plugin
+from test389.topologies import topology_st
 from lib389.utils import ds_is_older
 from lib389.migrate.openldap.config import olConfig
 from lib389.migrate.openldap.config import olOverlayType
@@ -39,6 +38,12 @@ def test_parse_openldap_slapdd():
 
     # Do we have databases?
     assert len(config.databases) == 2
+    # Check that we unpacked uid eq,pres,sub correctly.
+    assert len(config.databases[0].index) == 4
+    assert ('objectClass', 'eq') in config.databases[0].index
+    assert ('uid', 'eq') in config.databases[0].index
+    assert ('uid', 'pres') in config.databases[0].index
+    assert ('uid', 'sub') in config.databases[0].index
 
     # Did our schema parse?
     assert any(['suseModuleConfiguration' in x.names for x in config.schema.classes])
@@ -67,7 +72,7 @@ def test_migrate_openldap_slapdd(topology_st):
         "dc=example,dc=net": os.path.join(DATADIR1, 'example_net.slapcat.ldif'),
     }
 
-    migration = Migration(config, inst, ldifs)
+    migration = Migration(inst, config.schema, config.databases, ldifs)
 
     print("==== migration plan ====")
     print(migration.__unicode__())
@@ -105,7 +110,7 @@ def test_migrate_openldap_slapdd_skip_elements(topology_st):
 
     # 1.3.6.1.4.1.5322.13.1.1 is namedObject, so check that isn't there
 
-    migration = Migration(config, inst, ldifs,
+    migration = Migration(inst, config.schema, config.databases, ldifs,
         skip_schema_oids=['1.3.6.1.4.1.5322.13.1.1'],
         skip_overlays=[olOverlayType.UNIQUE],
     )

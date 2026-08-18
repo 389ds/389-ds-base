@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -11,52 +11,44 @@
 
     TODO put them in a module!
 """
-try:
-    from subprocess import Popen as my_popen, PIPE
-except ImportError:
-    from popen2 import popen2
-
-    def my_popen(cmd_l, stdout=None):
-        class MockPopenResult(object):
-            def wait(self):
-                pass
-        p = MockPopenResult()
-        p.stdout, p.stdin = popen2(cmd_l)
-        return p
-
+import json
 import re
 import os
+import glob
 import logging
 import shutil
 import ldap
+import mmap
 import socket
+import ipaddress
+import itertools
 import time
 import stat
-from datetime import datetime
+from datetime import (datetime, timedelta)
 import sys
 import filecmp
 import pwd
-import six
 import shlex
 import operator
 import subprocess
 import math
-# Setuptools ships with 'packaging' module, let's use it from there
-try:
-    from pkg_resources.extern.packaging.version import LegacyVersion
-# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
-except:
-    from packaging.version import LegacyVersion
+import errno
+from typing import Optional, Union
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
-
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import pkcs12
 import lib389
-from lib389.paths import Paths
-from lib389.dseldif import DSEldif
+from pathlib import Path
+from subprocess import check_output
+from lib389.paths import ( Paths, DEFAULTS_PATH )
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
-        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS
+        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB,
+        DEFAULT_LMDB_SIZE
     )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
@@ -69,6 +61,8 @@ MAJOR, MINOR, _, _, _ = sys.version_info
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 log = logging.getLogger(__name__)
+
+selinux_fcontext_info = None
 
 #
 # Various searches to be used in getEntry
@@ -83,110 +77,121 @@ searches = {
 
 # Map table for pseudolocalized strings
 _chars = {
-    " ": six.u("\u2003"),
-    "!": six.u("\u00a1"),
-    "\"": six.u("\u2033"),
-    "#": six.u("\u266f"),
-    "$": six.u("\u20ac"),
-    "%": six.u("\u2030"),
-    "&": six.u("\u214b"),
-    "'": six.u("\u00b4"),
-    ")": six.u("}"),
-    "(": six.u("{"),
-    "*": six.u("\u204e"),
-    "+": six.u("\u207a"),
-    ",": six.u("\u060c"),
-    "-": six.u("\u2010"),
-    ".": six.u("\u00b7"),
-    "/": six.u("\u2044"),
-    "0": six.u("\u24ea"),
-    "1": six.u("\u2460"),
-    "2": six.u("\u2461"),
-    "3": six.u("\u2462"),
-    "4": six.u("\u2463"),
-    "5": six.u("\u2464"),
-    "6": six.u("\u2465"),
-    "7": six.u("\u2466"),
-    "8": six.u("\u2467"),
-    "9": six.u("\u2468"),
-    ":": six.u("\u2236"),
-    ";": six.u("\u204f"),
-    "<": six.u("\u2264"),
-    "=": six.u("\u2242"),
-    ">": six.u("\u2265"),
-    "?": six.u("\u00bf"),
-    "@": six.u("\u055e"),
-    "A": six.u("\u00c5"),
-    "B": six.u("\u0181"),
-    "C": six.u("\u00c7"),
-    "D": six.u("\u00d0"),
-    "E": six.u("\u00c9"),
-    "F": six.u("\u0191"),
-    "G": six.u("\u011c"),
-    "H": six.u("\u0124"),
-    "I": six.u("\u00ce"),
-    "J": six.u("\u0134"),
-    "K": six.u("\u0136"),
-    "L": six.u("\u013b"),
-    "M": six.u("\u1e40"),
-    "N": six.u("\u00d1"),
-    "O": six.u("\u00d6"),
-    "P": six.u("\u00de"),
-    "Q": six.u("\u01ea"),
-    "R": six.u("\u0154"),
-    "S": six.u("\u0160"),
-    "T": six.u("\u0162"),
-    "U": six.u("\u00db"),
-    "V": six.u("\u1e7c"),
-    "W": six.u("\u0174"),
-    "X": six.u("\u1e8a"),
-    "Y": six.u("\u00dd"),
-    "Z": six.u("\u017d"),
-    "[": six.u("\u2045"),
-    "\\": six.u("\u2216"),
-    "]": six.u("\u2046"),
-    "^": six.u("\u02c4"),
-    "_": six.u("\u203f"),
-    "`": six.u("\u2035"),
-    "a": six.u("\u00e5"),
-    "b": six.u("\u0180"),
-    "c": six.u("\u00e7"),
-    "d": six.u("\u00f0"),
-    "e": six.u("\u00e9"),
-    "f": six.u("\u0192"),
-    "g": six.u("\u011d"),
-    "h": six.u("\u0125"),
-    "i": six.u("\u00ee"),
-    "j": six.u("\u0135"),
-    "k": six.u("\u0137"),
-    "l": six.u("\u013c"),
-    "m": six.u("\u0271"),
-    "n": six.u("\u00f1"),
-    "o": six.u("\u00f6"),
-    "p": six.u("\u00fe"),
-    "q": six.u("\u01eb"),
-    "r": six.u("\u0155"),
-    "s": six.u("\u0161"),
-    "t": six.u("\u0163"),
-    "u": six.u("\u00fb"),
-    "v": six.u("\u1e7d"),
-    "w": six.u("\u0175"),
-    "x": six.u("\u1e8b"),
-    "y": six.u("\u00fd"),
-    "z": six.u("\u017e"),
-    "{": six.u("("),
-    "}": six.u(")"),
-    "|": six.u("\u00a6"),
-    "~": six.u("\u02de"),
+    " ": u"\u2003",
+    "!": u"\u00a1",
+    "\"": u"\u2033",
+    "#": u"\u266f",
+    "$": u"\u20ac",
+    "%": u"\u2030",
+    "&": u"\u214b",
+    "'": u"\u00b4",
+    ")": u"}",
+    "(": u"{",
+    "*": u"\u204e",
+    "+": u"\u207a",
+    ",": u"\u060c",
+    "-": u"\u2010",
+    ".": u"\u00b7",
+    "/": u"\u2044",
+    "0": u"\u24ea",
+    "1": u"\u2460",
+    "2": u"\u2461",
+    "3": u"\u2462",
+    "4": u"\u2463",
+    "5": u"\u2464",
+    "6": u"\u2465",
+    "7": u"\u2466",
+    "8": u"\u2467",
+    "9": u"\u2468",
+    ":": u"\u2236",
+    ";": u"\u204f",
+    "<": u"\u2264",
+    "=": u"\u2242",
+    ">": u"\u2265",
+    "?": u"\u00bf",
+    "@": u"\u055e",
+    "A": u"\u00c5",
+    "B": u"\u0181",
+    "C": u"\u00c7",
+    "D": u"\u00d0",
+    "E": u"\u00c9",
+    "F": u"\u0191",
+    "G": u"\u011c",
+    "H": u"\u0124",
+    "I": u"\u00ce",
+    "J": u"\u0134",
+    "K": u"\u0136",
+    "L": u"\u013b",
+    "M": u"\u1e40",
+    "N": u"\u00d1",
+    "O": u"\u00d6",
+    "P": u"\u00de",
+    "Q": u"\u01ea",
+    "R": u"\u0154",
+    "S": u"\u0160",
+    "T": u"\u0162",
+    "U": u"\u00db",
+    "V": u"\u1e7c",
+    "W": u"\u0174",
+    "X": u"\u1e8a",
+    "Y": u"\u00dd",
+    "Z": u"\u017d",
+    "[": u"\u2045",
+    "\\": u"\u2216",
+    "]": u"\u2046",
+    "^": u"\u02c4",
+    "_": u"\u203f",
+    "`": u"\u2035",
+    "a": u"\u00e5",
+    "b": u"\u0180",
+    "c": u"\u00e7",
+    "d": u"\u00f0",
+    "e": u"\u00e9",
+    "f": u"\u0192",
+    "g": u"\u011d",
+    "h": u"\u0125",
+    "i": u"\u00ee",
+    "j": u"\u0135",
+    "k": u"\u0137",
+    "l": u"\u013c",
+    "m": u"\u0271",
+    "n": u"\u00f1",
+    "o": u"\u00f6",
+    "p": u"\u00fe",
+    "q": u"\u01eb",
+    "r": u"\u0155",
+    "s": u"\u0161",
+    "t": u"\u0163",
+    "u": u"\u00fb",
+    "v": u"\u1e7d",
+    "w": u"\u0175",
+    "x": u"\u1e8b",
+    "y": u"\u00fd",
+    "z": u"\u017e",
+    "{": u"(",
+    "}": u")",
+    "|": u"\u00a6",
+    "~": u"\u02de",
 }
+
+#
+# Size parser constants
+#
+SIZE_UNITS = { 't': 2**40, 'g': 2**30, 'm': 2**20, 'k': 2**10, '': 1, }
+SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
+
+RPM_TOOL = '/usr/bin/rpm'
+LDD_TOOL = '/usr/bin/ldd'
+OBJDUMP_TOOL = '/usr/bin/objdump'
 
 #
 # Utilities
 #
 
+
 def selinux_present():
     """
-    Determine if selinux libraries are on a system, and if so, if we are in
+    Determine if SELinux libraries are on a system, and if so, if we are in
     a state to consume them (enabled, disabled).
 
     :returns: bool
@@ -196,14 +201,20 @@ def selinux_present():
     try:
         import selinux
         if selinux.is_selinux_enabled():
-            # We have selinux, continue.
-            status = True
+            # We have SELinux, lets see if we are allowed to configure it.
+            # (just checking the uid for now - we may rather check if semanage command success)
+            if os.geteuid() != 0:
+                log.info('Non-privileged user cannot use semanage, will not relabel ports or files.' )
+            elif not os.path.exists('/usr/sbin/semanage'):
+                log.info('semanage command is not installed, will not relabel ports or files. Please install policycoreutils-python-utils.' )
+            else:
+                status = True
         else:
             # We have the module, but it's disabled.
-            log.error('selinux is disabled, will not relabel ports or files.' )
+            log.info('SELinux is disabled, will not relabel ports or files.' )
     except ImportError:
         # No python module, so who knows what state we are in.
-        log.error('selinux python module not found, will not relabel files.' )
+        log.error('SELinux python module not found, will not relabel files.' )
 
     return status
 
@@ -219,11 +230,11 @@ def selinux_restorecon(path):
     try:
         import selinux
     except ImportError:
-        log.debug('selinux python module not found, skipping relabel path %s' % path)
+        log.debug('SELinux python module not found, skipping relabel path %s' % path)
         return
 
     if not selinux.is_selinux_enabled():
-        log.debug('selinux is disabled, skipping relabel path %s' % path)
+        log.debug('SELinux is disabled, skipping relabel path %s' % path)
         return
 
     try:
@@ -232,8 +243,136 @@ def selinux_restorecon(path):
         log.debug("Failed to run restorecon on: " + path)
 
 
+def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", reject=None):
+    """Parse semanage fcontext -L output
+    """
+    if reject is None:
+        reject = {}
+    info = {}
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    args = ' '.join(ensure_list_str(result.args))
+    stdout = ensure_str(result.stdout)
+    stderr = ensure_str(result.stderr)
+    if result.returncode:
+        log.debug("CMD: {args} returned {result.returncode} STDOUT: {stdout} STDERR: {stderr}")
+        return info
+    for m in re.finditer(regex, stdout, flags=re.MULTILINE):
+        if not m.group(1) in reject:
+            info[m.group(1)] = m.group(2)
+    return info
+
+
+def _get_selinux_fcontext_info():
+    global selinux_fcontext_info
+    if not selinux_fcontext_info:
+        local = _parse_semanage_fcontexts(["semanage", "fcontext", "-l", "-C"])
+        selinux_fcontext_info = {
+            "local"  : local,
+            "policy" : _parse_semanage_fcontexts(["semanage", "fcontext", "-l"], reject=local),
+            "equiv"  : _parse_semanage_fcontexts(["semanage", "fcontext", "-l"], regex=r"^(/[^ ]*) += +(.*)$"),
+        }
+    return selinux_fcontext_info
+
+
+def resolve_selinux_path(path):
+    """Return the path as expected by semanage fcontext"""
+    path = str(Path(path).resolve())
+    if selinux_present():
+        _get_selinux_fcontext_info()
+        equiv = selinux_fcontext_info['equiv']
+        for r in equiv:
+            if path.startswith(r):
+                path = path.replace(r, equiv[r])
+    return path
+
+
+def selinux_label_file(path, label):
+    """
+    Set set an SELinux label to a file (or a directory)
+
+    :param path: The file path
+    :type path: str
+    :param label: The label to set (None to unset a label)
+    :type path: str
+    :raises: ValueError: Error message
+    """
+    if not selinux_present():
+        return
+    _get_selinux_fcontext_info()
+    if os.path.exists(path):
+        path = resolve_selinux_path(path)
+    local = selinux_fcontext_info['local']
+    policy = selinux_fcontext_info['policy']
+    if path in local:
+        if local[path] == label:
+            return
+        log.debug(f"Removing SELinux file context {path} with label {local[path]}.")
+        subprocess.run(["semanage", "fcontext", "-d", path])
+        del local[path]
+    if path in policy:
+        if policy[path] == label:
+            return
+        raise ValueError(f'Cannot change file context for {path} because it is defined in SELinux policy. Please choose another path.')
+    if label:
+        rc = 0
+        for i in range(5):
+            try:
+                log.debug(f"Setting label {label} in SELinux file context {path}. Attempt {i}")
+                result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                args = ' '.join(ensure_list_str(result.args))
+                stdout = ensure_str(result.stdout)
+                stderr = ensure_str(result.stderr)
+                rc = result.returncode
+                if rc == 0:
+                    local[path] = label
+                    break
+                else:
+                    log.debug(f"Failure setting label {label} for context {path}: Result code {rc}, retrying...")
+                    time.sleep(2)
+            except (OSError, subprocess.CalledProcessError) as e:
+                log.debug(f"Failure setting label {label} for context {path}: Exception {str(e)}, retrying...")
+                time.sleep(2)
+
+        if rc != 0:
+            log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+            try:
+                result.check_returncode()
+            except (OSError, subprocess.CalledProcessError) as e:
+                raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
+
+    if os.path.exists(path):
+        # pytest fails if I use selinux_restorecon(path)
+        subprocess.run(["restorecon", "-R", path])
+
+
+def selinux_clean_files_label(all=False):
+    """Remove dirsrv_*_t labels from either removed files or all files."""
+    if not selinux_present():
+        return
+    _get_selinux_fcontext_info()
+    local = { **selinux_fcontext_info['local'] }
+    for path, label in local.items():
+        if label in ( 'dirsrv_config_t', 'dirsrv_tmpfs_t', 'dirsrv_var_lib_t', 'dirsrv_var_lock_t', 'dirsrv_var_log_t', 'dirsrv_var_run_t', ):
+            if all or not os.path.exists(path):
+                selinux_label_file(path, None)
+
+
+def selinux_clean_ports_label():
+    """Remove labels from all port having ldap_port_t labels."""
+    if not selinux_present():
+        return
+    cmd=[ 'semanage', 'port', '--list', '-C' ]
+    res = _parse_semanage_fcontexts(cmd, regex=r"^(ldap_port_t) *tcp *(.*)$")
+    if 'ldap_port_t' in res:
+        for port in res['ldap_port_t'].split(","):
+            # Cannot use selinux_label_port here because port may be a range.
+            subprocess.run(["semanage", "port", "-d", "-p", "tcp", port.strip()])
+
+
 def _get_selinux_port_policies(port):
-    """Get a list of selinux port policies for the specified port, 'tcp' protocol and
+    """Get a list of SELinux port policies for the specified port, 'tcp' protocol and
     excluding 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t' labels"""
 
     # [2:] - cut first lines containing the headers. [:-1] - empty line
@@ -251,7 +390,7 @@ def _get_selinux_port_policies(port):
                 p = [int(p)]
             ports_list.extend(p)
         if data[1] == 'tcp' and port in ports_list and \
-           data[0] not in ['unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
+           data[0] not in ['hi_reserved_port_t', 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
             policies.append({'protocol': data[1], 'type': data[0], 'ports': ports_list})
     return policies
 
@@ -266,14 +405,16 @@ def selinux_label_port(port, remove_label=False):
     :type remove_label: boolean
     :raises: ValueError: Error message
     """
+    if port is None:
+        return
     try:
         import selinux
     except ImportError:
-        log.debug('selinux python module not found, skipping port labeling.')
+        log.debug('SELinux python module not found, skipping port labeling.')
         return
 
-    if not selinux.is_selinux_enabled():
-        log.debug('selinux is disabled, skipping port relabel')
+    if not selinux_present():
+        log.debug('SELinux is disabled, skipping port relabel')
         return
 
     # We only label ports that ARE NOT in the default policy that comes with
@@ -374,7 +515,10 @@ def is_dn_parent(parent_dn, child_dn, ):
 def normalizeDN(dn, usespace=False):
     # not great, but will do until we use a newer version of python-ldap
     # that has DN utilities
-    ary = ldap.explode_dn(dn.lower())
+    try:
+        ary = ldap.explode_dn(dn.lower())
+    except ldap.DECODING_ERROR:
+        raise ValueError(f"Unable to normalize DN '{dn}'")
     joinstr = ","
     if usespace:
         joinstr = ", "
@@ -382,10 +526,11 @@ def normalizeDN(dn, usespace=False):
 
 
 def escapeDNValue(dn):
-    '''convert special characters in a DN into LDAPv3 escapes.
+    """convert special characters in a DN into LDAPv3 escapes.
 
      e.g.
-    "dc=example,dc=com" -> \"dc\=example\,\ dc\=com\"'''
+    "dc=example,dc=com" -> \\"dc\\=example\\,\\ dc\\=com\\"
+    """
     for cc in (' ', '"', '+', ',', ';', '<', '>', '='):
         dn = dn.replace(cc, '\\' + cc)
     return dn
@@ -470,7 +615,7 @@ def valgrind_enable(sbin_dir, wrapper=None):
     (making a backup of the original ns-slapd binary).
 
     The script calling valgrind_enable() must be run as the 'root' user
-    as selinux needs to be disabled for valgrind to work
+    as SELinux needs to be disabled for valgrind to work
 
     The server instance(s) should be stopped prior to calling this function.
     Then after calling valgrind_enable():
@@ -489,8 +634,10 @@ def valgrind_enable(sbin_dir, wrapper=None):
     :raise EnvironmentError: If script is not run as 'root'
     '''
 
-    if os.geteuid() != 0:
-        log.error('This script must be run as root to use valgrind')
+    if not os.access(sbin_dir, os.W_OK):
+        # Note: valgrind has no limitation but  ns-slapd must be replaced
+        # This check allows non root user to use custom install prefix
+        log.error('This script must be run as root to use valgrind (Should at least be able to write in {sbin_dir})')
         raise EnvironmentError
 
     if not wrapper:
@@ -535,8 +682,21 @@ def valgrind_enable(sbin_dir, wrapper=None):
         raise IOError('failed to copy valgrind wrapper to ns-slapd, error: %s' %
                       e.strerror)
 
-    # Disable selinux
-    os.system('setenforce 0')
+    # Disable SELinux
+    if os.geteuid() == 0:
+        os.system('setenforce 0')
+
+    # Disable systemd by turning off with_system in .inf file
+    old_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
+    new_path = f'{old_path}.orig'
+    os.rename(old_path, new_path)
+    with open(new_path, 'rt') as fin:
+       with open(old_path, 'wt') as fout:
+            for line in fin:
+                if line.startswith('with_systemd'):
+                    fout.write('with_systemd = 0\n')
+                else:
+                    fout.write(line)
 
     log.info('Valgrind is now enabled.')
 
@@ -546,15 +706,17 @@ def valgrind_disable(sbin_dir):
     Restore the ns-slapd binary to its original state - the server instances
     are expected to be stopped.
 
-    Note - selinux is enabled at the end of this process.
+    Note - SELinux is enabled at the end of this process.
 
     :param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
     :raise ValueError
     :raise EnvironmentError: If script is not run as 'root'
     '''
 
-    if os.geteuid() != 0:
-        log.error('This script must be run as root to use valgrind')
+    if not os.access(sbin_dir, os.W_OK):
+        # Note: valgrind has no limitation but  ns-slapd must be replaced
+        # This check allows non root user to use custom install prefix
+        log.error('This script must be run as root to use valgrind (Should at least be able to write in {sbin_dir})')
         raise EnvironmentError
 
     nsslapd_orig = '%s/ns-slapd' % sbin_dir
@@ -577,8 +739,15 @@ def valgrind_disable(sbin_dir):
         raise ValueError('Failed to delete backup ns-slapd, error: %s' %
                          e.strerror)
 
-    # Enable selinux
-    os.system('setenforce 1')
+    # Enable SELinux
+    if os.geteuid() == 0:
+        os.system('setenforce 1')
+
+    # Restore .inf file (for systemd)
+    new_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
+    old_path = f'{new_path}.orig'
+    if os.path.exists(old_path):
+        os.replace(old_path, new_path)
 
     log.info('Valgrind is now disabled.')
 
@@ -600,11 +769,11 @@ def valgrind_get_results_file(dirsrv_inst):
     We need to extract the "--log-file" value
     """
     cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
-           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
+           " ' | awk '{ print $14 }' | sed -e 's/\\-\\-log\\-file=//'")
 
     # Run the command and grab the output
     p = os.popen(cmd)
-    results_file = p.readline()
+    results_file = p.readline().strip()
     p.close()
 
     return results_file
@@ -662,7 +831,8 @@ def isLocalHost(host_name):
         Uses gethostbyname()
     """
     # first see if this is a "well known" local hostname
-    if host_name == 'localhost' or \
+    if host_name is None or \
+       host_name == 'localhost' or \
        host_name == 'localhost.localdomain' or \
        host_name == socket.gethostname():
         return True
@@ -679,7 +849,7 @@ def isLocalHost(host_name):
 
     # next, see if this IP addr is one of our
     # local addresses
-    p = my_popen(['/sbin/ip', 'addr'], stdout=PIPE)
+    p = subprocess.Popen(['/sbin/ip', 'addr'], stdout=subprocess.PIPE)
     child_stdout = p.stdout.read()
     found = ('inet %s' % ip_addr).encode() in child_stdout
     p.wait()
@@ -1022,25 +1192,25 @@ def formatInfData(args):
 
 def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
     """Generate a host, port, secure port, server ID and replica ID
-    for the selected role and instance number. I.e. inst_num=1, role="master".
+    for the selected role and instance number. I.e. inst_num=1, role="supplier".
 
     @param inst_num - an instance number in a range from 1 to 99
-    @param role - ReplicaRole.STANDALONE, ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER
+    @param role - ReplicaRole.STANDALONE, ReplicaRole.SUPPLIER, ReplicaRole.HUB, ReplicaRole.CONSUMER
     @return - the dict with next keys: host, port, secure port, server id and replica id
     """
 
     if inst_num not in range(1, 100):
         raise ValueError("Instance number should be in a range from 1 to 99")
 
-    if role not in (ReplicaRole.STANDALONE, ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER):
-        raise ValueError('Role should be {}, {}, {}, {}'.format(ReplicaRole.STANDALONE, ReplicaRole.MASTER,
+    if role not in (ReplicaRole.STANDALONE, ReplicaRole.SUPPLIER, ReplicaRole.HUB, ReplicaRole.CONSUMER):
+        raise ValueError('Role should be {}, {}, {}, {}'.format(ReplicaRole.STANDALONE, ReplicaRole.SUPPLIER,
                                                                 ReplicaRole.HUB, ReplicaRole.CONSUMER))
 
     instance_data = {}
     relevant_num = 38900
 
     # Set relevant number for ports
-    if role == ReplicaRole.MASTER:
+    if role == ReplicaRole.SUPPLIER:
         relevant_num += 100
     elif role == ReplicaRole.HUB:
         relevant_num += 200
@@ -1048,7 +1218,7 @@ def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
         relevant_num += 300
 
     # Define replica ID
-    if role == ReplicaRole.MASTER:
+    if role == ReplicaRole.SUPPLIER:
         replica_id = inst_num
     else:
         replica_id = CONSUMER_REPLICAID
@@ -1062,6 +1232,76 @@ def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
     instance_data[REPLICA_ID] = replica_id
 
     return instance_data
+
+class DSVersion():
+    def __init__(self, version):
+        self._version = str(version)
+        self._key = _cmpkey(self._version)
+
+    def __str__(self):
+        return self._version
+
+    def __repr__(self):
+        return f"<DSVersion('{self}')>"
+
+    def __hash__(self):
+        return hash(self._key)
+
+    def __lt__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key < other._key
+
+    def __le__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key <= other._key
+
+    def __eq__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key == other._key
+
+    def __ge__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key >= other._key
+
+    def __gt__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key > other._key
+
+    def __ne__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key != other._key
+
+
+def _parse_version_parts(s):
+    for part in re.compile(r"(\d+ | [a-z]+ | \. | -)", re.VERBOSE).split(s):
+
+        if not part or part == ".":
+            continue
+
+        if part[:1] in "0123456789":
+            # pad for numeric comparison
+            yield part.zfill(8)
+        else:
+            yield "*" + part
+
+def _cmpkey(version):
+    parts = []
+    for part in _parse_version_parts(version.lower()):
+        parts.append(part)
+
+    return tuple(parts)
 
 
 def get_ds_version(paths=None):
@@ -1090,9 +1330,9 @@ def ds_is_related(relation, *ver, instance=None):
     if len(ver) > 1:
         for cmp_ver in ver:
             if cmp_ver.startswith(ds_ver[:3]):
-                return ops[relation](LegacyVersion(ds_ver),LegacyVersion(cmp_ver))
+                return ops[relation](DSVersion(ds_ver), DSVersion(cmp_ver))
     else:
-        return ops[relation](LegacyVersion(ds_ver), LegacyVersion(ver[0]))
+        return ops[relation](DSVersion(ds_ver), DSVersion(ver[0]))
 
 
 def ds_is_older(*ver, instance=None):
@@ -1178,6 +1418,32 @@ def socket_check_open(host, port):
                 return False
 
 
+def socket_check_bind(port):
+    """
+    Check if a socket can be bound.  Need to handle cases where IPv6 is
+    completely disabled.
+    """
+    # Trying IPv6 first ...
+    host = "::1"
+    family = socket.AF_INET6
+    try:
+        with closing(socket.socket(family, socket.SOCK_STREAM)) as sock:
+            sock.bind((host, port))
+            return True
+    except OSError as e:
+        if e.errno == errno.EACCES or  e.errno == errno.EADDRINUSE:
+            return False
+    # Maybe there is no IPv6, adjust hostname, and try IPv4 ...
+    host = "127.0.0.1"
+    family = socket.AF_INET
+    try:
+        with closing(socket.socket(family, socket.SOCK_STREAM)) as sock:
+            sock.bind((host, port))
+            return True
+    except OSError as e:
+        return False
+
+
 def ensure_bytes(val):
     if val is not None and type(val) != bytes:
         return val.encode()
@@ -1225,8 +1491,13 @@ def ensure_dict_str(val):
     return retdict
 
 
+def align_to_page_size(size):
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    return ((size + page_size - 1) // page_size) * page_size
+
+
 def pseudolocalize(string):
-    pseudo_string = six.u("")
+    pseudo_string = u""
     for char in string:
         try:
             pseudo_string += _chars[char]
@@ -1249,41 +1520,6 @@ def format_cmd_list(cmd):
     return " ".join(map(shlex.quote, cmd))
 
 
-def get_ldapurl_from_serverid(instance):
-    """ Take an instance name, and get the host/port/protocol from dse.ldif
-    and return a LDAP URL to use in the CLI tools (dsconf)
-
-    :param instance: The server ID of a server instance
-    :return tuple of LDAPURL and certificate directory (for LDAPS)
-    """
-    try:
-        dse_ldif = DSEldif(None, instance)
-    except:
-        return (None, None)
-
-    port = dse_ldif.get("cn=config", "nsslapd-port", single=True)
-    secureport = dse_ldif.get("cn=config", "nsslapd-secureport", single=True)
-    host = dse_ldif.get("cn=config", "nsslapd-localhost", single=True)
-    sec = dse_ldif.get("cn=config", "nsslapd-security", single=True)
-    ldapi_listen = dse_ldif.get("cn=config", "nsslapd-ldapilisten", single=True)
-    ldapi_autobind = dse_ldif.get("cn=config", "nsslapd-ldapiautobind", single=True)
-    ldapi_socket = dse_ldif.get("cn=config", "nsslapd-ldapifilepath", single=True)
-    certdir = dse_ldif.get("cn=config", "nsslapd-certdir", single=True)
-
-    if ldapi_listen is not None and ldapi_listen.lower() == "on" and \
-       ldapi_autobind is not None and ldapi_autobind.lower() == "on" and \
-       ldapi_socket is not None:
-        # Use LDAPI
-        socket = ldapi_socket.replace("/", "%2f")  # Escape the path
-        return ("ldapi://" + socket, None)
-    elif sec is not None and sec.lower() == "on" and secureport is not None:
-        # Use LDAPS
-        return ("ldaps://{}:{}".format(host, secureport), certdir)
-    else:
-        # Use LDAP
-        return ("ldap://{}:{}".format(host, port), None)
-
-
 def get_instance_list():
     # List all server instances
     paths = Paths()
@@ -1295,11 +1531,20 @@ def get_instance_list():
                 insts.append(inst)
     except OSError as e:
         log.error("Failed to check directory: {} - {}".format(conf_dir, str(e)))
-    except IOError as e:
-        log.error(e)
-        log.error("Perhaps you need to be a different user?")
+
     insts.sort()
     return insts
+
+
+# used by arg parse completers
+def instance_choices(prefix, parsed_args, **kwargs):
+    insts = get_instance_list()
+    inst_names = []
+    for inst in insts:
+        inst_names.append(inst)
+        inst_names.append(inst.replace("slapd-", ""))
+
+    return inst_names
 
 
 def get_user_is_ds_owner():
@@ -1419,3 +1664,529 @@ def cmp(self, x, y):
     and strictly positive if x > y.
     """
     return (x > y) - (x < y)
+
+
+def is_valid_hostname(hostname):
+    if len(hostname) > 255:
+        return False
+    if hostname[-1] == ".":
+        hostname = hostname[:-1] # strip exactly one dot from the right, if present
+    allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    return all(allowed.match(x) for x in hostname.split("."))
+
+def is_valid_ip(ip):
+    """ Validate an IPv4 or IPv6 address, including asterisks for wildcards. """
+    if '*' in ip and '.' in ip:
+        ipv4_pattern = r'^(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)$'
+        if re.match(ipv4_pattern, ip):
+            octets = ip.split('.')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 10)
+                        if not (0 <= val <= 255):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    if '*' in ip and ':' in ip:
+        ipv6_pattern = r'^([0-9a-fA-F]{1,4}|\*)(:([0-9a-fA-F]{1,4}|\*)){0,7}$'
+        if re.match(ipv6_pattern, ip):
+            octets = ip.split(':')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 16)
+                        if not (0 <= val <= 0xFFFF):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
+
+def parse_size(size):
+    """
+    Parse a string representing a size (like "5 kb" or "2.5Gb") and
+    return the size in bytes.
+    :param size: The size to parse
+    :type size: str:
+    :return int:
+    :raise ValueError: if the string cannot be parsed.
+    """
+    try:
+        val,unit = re.fullmatch(SIZE_PATTERN, str(size), flags=re.IGNORECASE).groups()
+        return round(float(val) * SIZE_UNITS[unit.lower()])
+    except AttributeError:
+        raise ValueError(f'Unable to parse "{size}" as a size.')
+
+
+def format_size(size):
+    """
+    Return a string representing a size (like "5 kb" or "2.5Gb")
+    :param size: The size int bytes to format
+    :type size: int:
+    :return str:
+    """
+    for unit in ["B", "KB", "MB", "GB",]:
+        if (size < 1024):
+            return f"{size:3.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
+def get_default_db_lib():
+    """
+    Get the default value for the database implementation
+    :return str:  Should be either 'bdb' or 'mdb'
+    """
+    return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
+
+
+def get_default_mdb_max_size(paths):
+    """
+    Get the default maximum size for the lmdb database.
+    :return str:  A size that can be parsed with parse_size()
+    """
+    if paths is None:
+        paths = Paths()
+    mdb_max_size = format_size(parse_size(DEFAULT_LMDB_SIZE))
+    size = parse_size(mdb_max_size)
+    # Make sure that there is enough available disk space
+    # otherwise decrease the value
+    dbdir = paths.db_dir
+    # dbdir may not exists because:
+    #  - paths instance name has not been expanded
+    #  - dscreate has not yet created it.
+    # so let use the first existing parent in that case.
+    while not os.path.exists(dbdir):
+        dbdir = os.path.dirname(dbdir)
+    try:
+        statvfs = os.statvfs(dbdir)
+        avail = statvfs.f_frsize * statvfs.f_bavail
+        avail *= 0.8 # Reserve 20% as margin
+        if size > avail:
+            mdb_max_size = format_size(avail)
+    except (TimeoutError, InterruptedError) as e:
+        raise e
+    except OSError as e:
+        log.warning(f'Cannot determine the free space in the file system containing {dbdir} because of {e}')
+    return mdb_max_size
+
+
+def is_fips():
+    if os.path.exists('/proc/sys/crypto/fips_enabled'):
+        with open('/proc/sys/crypto/fips_enabled', 'r') as f:
+            state = f.readline().strip()
+            if state == '1':
+                return True
+            else:
+                return False
+    else:
+        return False
+
+
+def convert_timestamp(timestamp):
+    """Convert createtimestamp to ctime: 20170405184656Z ----> Wed Apr  5 19:46:56 2017
+    :param timestamp - A timestamp from the server
+    :return - the ctime of the timestamp
+    """
+    if timestamp:
+        time_tuple = (int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[6:8]),
+                      int(timestamp[8:10]), int(timestamp[10:12]), int(timestamp[12:14]),
+                      0, 0, 0)
+        secs = time.mktime(time_tuple)
+        return time.ctime(secs)
+    else:
+        return ""
+
+
+def elapsed_time(timestamp1, timestamp2):
+    """Take two timestamps from the server and get the diff
+    """
+    if timestamp1 and timestamp2:
+        time1_tuple = (int(timestamp1[:4]), int(timestamp1[4:6]), int(timestamp1[6:8]),
+                       int(timestamp1[8:10]), int(timestamp1[10:12]), int(timestamp1[12:14]),
+                       0, 0, 0)
+        time2_tuple = (int(timestamp2[:4]), int(timestamp2[4:6]), int(timestamp2[6:8]),
+                       int(timestamp2[8:10]), int(timestamp2[10:12]), int(timestamp2[12:14]),
+                       0, 0, 0)
+        time1_secs = time.mktime(time1_tuple)
+        time2_secs = time.mktime(time2_tuple)
+        elapsed_secs = time2_secs - time1_secs
+        return str(timedelta(seconds=elapsed_secs))
+    else:
+        return ""
+
+
+def get_task_status(inst, log, taskObj, dn=None, show_log=False, watch=False, use_json=False):
+    """Get the status of a Task, if "watching" keep looping over the tasks
+    :param inst: DirSrv Object
+    :type inst: Object
+    :param log: Logging Object
+    :type log: Object
+    :param taskObj: Lib389 Object (task object from plugins.py)
+    :type taskObj: Object
+    :param dn: A task DN to get the status for (if omitted all tasks for checked)
+    :type dn: str
+    :param show_log: Show the task's log attribute (could be lengthy)
+    :type show_log: boolean
+    :param watch: Keep looping over the task until it completes
+    :type watch: boolean
+    :param use_json: Report the status in JSON
+    :type use_json: boolean
+    """
+
+    tasks = taskObj(inst).list()
+    all_finished = False
+    while not all_finished:
+        task_list = []
+        all_finished = True
+        for task in tasks:
+            task_base_dn = task.get_attr_val_utf8_l('basedn')
+            if task_base_dn is None:
+                # Try linked attr, it uses a different attr name
+                task_base_dn = task.get_attr_val_utf8_l('linkdn')
+            task_filter = task.get_attr_val_utf8_l('filter')
+            status = task.get_attr_val_utf8('nsTaskStatus')
+            exitcode = task.get_attr_val_utf8('nsTaskExitcode')
+            task_log =  task.get_attr_val_utf8('nsTaskLog')
+            task_created = task.get_attr_val_utf8('nsTaskCreated')
+            task_ended = task.get_attr_val_utf8('modifyTimestamp')
+            if task_base_dn is None:
+                task_base_dn = ""
+            if task_filter is None:
+                task_filter = ""
+            if status is None:
+                status = ""
+            if exitcode is None:
+                all_finished = False
+                task_ended = ""
+                exitcode = "Not finished ..."
+                elapsed_time_str = ""
+            else:
+                # Task is finished, use start and end times to calc elapsed time
+                elapsed_time_str = elapsed_time(task_created, task_ended)
+
+            if not show_log:
+                task_log = ""
+
+            if (dn is not None and dn.lower() == task.dn.lower()) or dn is None:
+                    task_list.append({
+                        'dn': task.dn,
+                        'basedn': task_base_dn,
+                        'filter': task_filter,
+                        'log': task_log,
+                        'status': status,
+                        'created': task_created,
+                        'created_str': convert_timestamp(task_created),
+                        'ended': task_ended,
+                        'ended_str': convert_timestamp(task_ended),
+                        'elapsed_time':  elapsed_time_str,
+                        'exitcode': exitcode
+                    })
+
+        # Display the status
+        if use_json:
+            log.info(json.dumps({"type": "list", "items": task_list}, indent=4))
+        else:
+            num_of_tasks = len(task_list)
+            count = 1
+            plural = ""
+            if num_of_tasks != 1:
+                plural = "s"
+            log.info(f'Found {num_of_tasks} fix-up task{plural}\n')
+
+            for task in task_list:
+                log.info(f"[{count}] Task: {task['dn']}")
+                log.info("-" * 80)
+                log.info(f" - Base DN:       {task['basedn']}")
+                if task['filter']:
+                    log.info(f" - Filter:        {task['filter']}")
+                log.info(f" - Status:        {task['status']}")
+                log.info(f" - Started:       {task['created_str']} ({task['created']})")
+                if task['ended_str']:
+                    log.info(f" - Ended:         {task['ended_str']} ({task['ended']})")
+                else:
+                    log.info(" - Ended:")
+                log.info(f" - Elapsed Time:  {task['elapsed_time']}")
+                log.info(f" - Exit Code:     {task['exitcode']}")
+                if show_log:
+                    log.info(f" - Log:\n{task['log']}")
+                log.info("")
+                count += 1
+        if not watch or all_finished:
+            break
+        elif not use_json:
+            log.info("Refreshing status ...")
+        time.sleep(2)
+
+
+def is_cert_der(file_name):
+    try:
+        with open(file_name, 'tr') as check_file:
+            check_file.read()
+            # PEM cert
+            return False
+    except UnicodeDecodeError:
+        # DER cert
+        return True
+
+
+def check_cert_info(cert_file_name, search_text):
+    # Use openssl to get cert details
+    cmd = [
+        'openssl',
+        'x509',
+        '-in', cert_file_name,
+        '-text',
+        '-noout',
+    ]
+    log.debug("get_cert_details cmd: %s", format_cmd_list(cmd))
+    try:
+        result = check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise ValueError(e.output.decode('utf-8').rstrip())
+
+    cert_text = ensure_str(result)
+    return search_text.lower() in cert_text.lower()
+
+
+def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
+    """
+    Determine if a certificate is a CA.
+
+    Supports PEM, DER, and PKCS#12 certificates, from bytes or file paths.
+    """
+    # If passed bytes directly (DER,PEM)
+    cert_file = None
+    if isinstance(cert_data, (bytes, bytearray)):
+        data = bytes(cert_data)
+    else:
+        cert_file = cert_data
+        try:
+            with open(cert_file, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            raise ValueError(f"Unable to load certificate '{cert_data}': {e}")
+
+    try:
+        # p12
+        if cert_file and cert_file.lower().endswith((".p12", ".pfx")):
+            try:
+                privkey, cert, _ = pkcs12.load_key_and_certificates(
+                    data, ensure_bytes(pkcs12_password),
+                    backend=default_backend()
+                )
+            except Exception as e:
+                raise ValueError(f"Failed to load PKCS#12 file: {cert_file}: {e}")
+
+            if cert is None:
+                raise ValueError("No certificate found in PKCS#12 container")
+
+        # Bytes
+        elif cert_file is None:
+            try:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+
+        # File
+        else:
+            try:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+
+    except ValueError as ve:
+        raise ValueError(f"Unable to load certificate '{cert_file}': {ve}")
+
+    try:
+        # Check key usage
+        key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
+        if not key_usage.value.key_cert_sign:
+            return False
+
+        # Check constraints
+        basic_constraints = cert.extensions.get_extension_for_oid(
+            x509.oid.ExtensionOID.BASIC_CONSTRAINTS
+        )
+        if not basic_constraints.value.ca:
+            return False
+        else:
+            return True
+
+    except x509.ExtensionNotFound:
+        # No extensions, check the cert info directly
+        return check_cert_info(cert_file, "CA:TRUE")
+
+def pem_to_der(blob: bytes):
+    """
+    Convert PEM certificate bytes to DER format.
+
+    :param blob: PEM encoded certificate bytes
+    :return: DER encoded certificate bytes
+    """
+    cert = x509.load_pem_x509_certificate(blob)
+    return cert.public_bytes(serialization.Encoding.DER)
+
+def is_pem_cert(blob: bytes):
+    """
+    Check if the given blob is a PEM certificate.
+
+    :param blob: Certificate data bytes
+    :return: True if PEM format, else False
+    """
+    return b"-----BEGIN CERTIFICATE-----" in blob
+
+def get_passwd_from_file(passwd_file):
+    if os.path.exists(passwd_file):
+        with open(passwd_file, 'r') as f:
+            passwd = f.readline().strip()
+            return passwd
+    raise ValueError(f"The password file '{passwd_file}' does not exist, or can not be read.")
+
+
+def find_plugin_path(plugin_name):
+    p = Paths()
+    plugin = None
+    for ppath in glob.glob(f'{p.plugin_dir}/{plugin_name}.*'):
+        if not ppath.endswith('.la'):
+            plugin = ppath
+    return plugin
+
+
+def check_plugin_strings(plugin_name, tested_strings):
+    """
+    Returns a dict mapping each tested symbol to True, False or None
+    """
+    plugin = find_plugin_path(plugin_name)
+    if plugin:
+        # Otherwise looks directly for the string in the plugin
+        with open(plugin, "rb") as f:
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                return { astring:(mm.find(astring.encode()) >=0) for astring in tested_strings }
+    return { astring:None for astring in tested_strings }
+
+
+def get_timeout_scale():
+    """
+    Get the timeout scale factor
+    :return float:
+    """
+    scale_factor = 1.0
+    if Paths().asan_enabled:
+        scale_factor = 2.0
+
+    env_value = os.getenv('DS_TIMEOUT_SCALE', default=str(scale_factor))
+
+    try:
+        return float(env_value)
+    except ValueError:
+        log.error(f"DS_TIMEOUT_SCALE should be a valid float. Using default value: {scale_factor}")
+        return scale_factor
+
+
+def rpm_is_older(pkg, version):
+    """Check if an RPM package version is older than specified version"""
+    # rpm module is not installed in build environment so let import it only when used.
+    import rpm
+    ts = rpm.TransactionSet()
+    mi = ts.dbMatch('name', pkg)
+    for h in mi:
+        log.debug(f"{pkg} {h['version']} {version}")
+        for n1,n2 in itertools.zip_longest(h['version'].split('.'), version.split('.'), fillvalue=""):
+            try:
+                if int(n1) < int(n2):
+                    return True
+            except ValueError:
+                if n1 < n2:
+                    return True
+                if n1 > n2:
+                    return False
+    return False
+
+
+# Validate the max-age settings for changelogs.
+# The value must be a number followed by a duration unit [sSmMhHdDwW].
+# The first digit can not be a zero.
+def validate_max_age(value, ignore_value=None):
+    if ignore_value is not None and value == ignore_value:
+        return
+
+    # check value using digits except for the last character which must be a duration unit
+    if not re.match(r'^\d+[sSmMhHdDwW]$', value) or value[0] == '0':
+        raise ValueError(f"Invalid max age value: {value}")
+
+
+def get_mount_point(dir):
+    path = os.path.realpath(os.path.abspath(dir))
+    while not os.path.ismount(path):
+        path = os.path.dirname(path)
+    return path
+
+
+def get_disk_space(path):
+    stats = os.statvfs(path)
+    block_size = stats.f_frsize
+    total_size = stats.f_blocks * block_size
+    if total_size == 0:
+        return {
+            'total': 0,
+            'available': 0,
+            'used': 0,
+            'percent': 0
+        }
+
+    available_size = stats.f_bavail * block_size
+    used_size = total_size - available_size
+    used_percent = (used_size / total_size) * 100
+    return {
+        'total': total_size,
+        'available': available_size,
+        'used': used_size,
+        'percent': used_percent
+    }
+
+
+def check_asan_report(inst, err_string):
+    """
+    Check if the ASAN report contains the string.
+
+    This is used for CI tests that expect an ASAN report to exist after
+    stopping the server.
+
+    :param inst: Instance object
+    :param err_string: Error string to search for
+    :return: True if the error string is found, False otherwise
+    :raises ValueError: If the ASAN report does not exist
+    """
+    if not inst.has_asan():
+        return False
+
+    asan_report = os.path.join(inst.ds_paths.run_dir,
+                               f"ns-slapd-{inst.serverid}.asan.{inst.get_pid()}")
+
+    # Now we have the pid (and the proper file name) we can stop the server
+    inst.stop()
+
+    # Check the ASAN report
+    try:
+        with open(asan_report, 'r') as f:
+            content = f.read()
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        raise ValueError(f"Failed to read ASAN report '{asan_report}': {e}")
+
+    if err_string in content:
+        return True
+
+    return False

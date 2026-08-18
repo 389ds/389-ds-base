@@ -6,12 +6,16 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import base64
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, PORT_STANDALONE
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.paths import Paths
+
+default_paths = Paths()
 
 pytestmark = pytest.mark.tier1
 
@@ -120,10 +124,20 @@ def _test_algo_for_pbkdf2(inst, algo_name):
     inst.delete_s(USER_DN)
 
 
-@pytest.mark.parametrize("algo",
-    ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
+ALGO_SET = ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
      'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
-     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',))
+     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',
+     'GOST_YESCRYPT',
+)
+
+if default_paths.rust_enabled and ds_is_newer('1.4.3.0'):
+    ALGO_SET = ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
+         'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
+         'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',
+         'PBKDF2-SHA1', 'PBKDF2-SHA256', 'PBKDF2-SHA512', 'GOST_YESCRYPT',
+    )
+
+@pytest.mark.parametrize("algo", ALGO_SET)
 def test_pwd_algo_test(topology_st, algo):
     """Assert that all of our password algorithms correctly PASS and FAIL varying
     password conditions.
@@ -138,7 +152,66 @@ def test_pwd_algo_test(topology_st, algo):
     log.info('Test %s PASSED' % algo)
 
 
-@pytest.mark.ds397
+def _craft_smd5_short_hash(decoded_length=3):
+    """Return a {SMD5} hash whose decoded length is less than MD5_LENGTH (16)."""
+    payload = bytes(range(1, decoded_length + 1))
+    return '{SMD5}' + base64.b64encode(payload).decode()
+
+
+def test_smd5_reject_short_hash(topology_st):
+    """Reject {SMD5} stored hashes shorter than MD5_LENGTH without crashing
+
+    :id: 246e702d-9c63-4a28-b4f5-31596b1fc840
+    :setup: Standalone instance
+    :steps:
+        1. Enable nsslapd-allow-hashed-passwords
+        2. Create a test user
+        3. Set userPassword to a truncated {SMD5} hash (decoded length < 16)
+        4. Attempt bind as that user
+        5. Verify the server is still running
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Bind fails with ldap.INVALID_CREDENTIALS
+        5. Server remains up
+    """
+    inst = topology_st.standalone
+    orig_allow_hashed = inst.config.get_attr_val_utf8('nsslapd-allow-hashed-passwords') or 'off'
+    orig_upgrade_hash = inst.config.get_attr_val_utf8('nsslapd-enable-upgrade-hash') or 'off'
+
+    inst.config.set('nsslapd-allow-hashed-passwords', 'on')
+    inst.config.set('nsslapd-enable-upgrade-hash', 'off')
+
+    inst.restart()
+
+    user = None
+    try:
+        users = UserAccounts(inst, DEFAULT_SUFFIX)
+        user = users.create_test_user()
+        short_hash = _craft_smd5_short_hash(3)
+
+        log.info('Setting truncated SMD5 hash')
+        user.set('userPassword', short_hash)
+
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            user.bind('doesntmatter')
+
+        assert inst.status(), 'Server crashed comparing short SMD5 hash'
+    finally:
+        if user is not None:
+            try:
+                if user.exists():
+                    user.delete()
+            except ldap.LDAPError:
+                pass
+        try:
+            inst.config.set('nsslapd-allow-hashed-passwords', orig_allow_hashed)
+            inst.config.set('nsslapd-enable-upgrade-hash', orig_upgrade_hash)
+        except ldap.LDAPError:
+            pass
+
+
 def test_pbkdf2_algo(topology_st):
     """Changing password storage scheme to PBKDF2_SHA256
     and trying to bind with different password combination

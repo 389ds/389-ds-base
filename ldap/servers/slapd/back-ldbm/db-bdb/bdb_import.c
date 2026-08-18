@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -18,7 +18,6 @@
 
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
-#include "../import.h"
 
 #define ERR_IMPORT_ABORTED -23
 #define NEED_DN_NORM -24
@@ -31,6 +30,18 @@ static int bdb_ancestorid_create_index(backend *be, ImportJob *job);
 static int bdb_ancestorid_default_create_index(backend *be, ImportJob *job);
 static int bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job);
 
+/* Helper struct used to compute numsubordinates */
+
+typedef struct {
+    backend *be;
+    DB_TXN *txn;
+    const char *attrname;
+    struct attrinfo *ai;
+    dbi_db_t *db;
+    DBC *dbc;
+} subcount_cursor_info_t;
+
+
 /* Start of definitions for a simple cache using a hash table */
 
 typedef struct id2idl
@@ -38,24 +49,52 @@ typedef struct id2idl
     ID keyid;
     IDList *idl;
     struct id2idl *next;
-} id2idl;
+} bdb_id2idl;
 
-static void id2idl_free(id2idl **ididl);
-static int id2idl_same_key(const void *ididl, const void *k);
+static void bdb_id2idl_free(bdb_id2idl **ididl);
+static int bdb_id2idl_same_key(const void *ididl, const void *k);
 
 typedef Hashtable id2idl_hash;
 
-#define id2idl_new_hash(size) new_hash(size, HASHLOC(id2idl, next), NULL, id2idl_same_key)
-#define id2idl_hash_lookup(ht, key, he) find_hash(ht, key, sizeof(ID), (void **)(he))
-#define id2idl_hash_add(ht, key, he, alt) add_hash(ht, key, sizeof(ID), he, (void **)(alt))
-#define id2idl_hash_remove(ht, key) remove_hash(ht, key, sizeof(ID))
+#define bdb_id2idl_new_hash(size) new_hash(size, HASHLOC(bdb_id2idl, next), NULL, bdb_id2idl_same_key)
+#define bdb_id2idl_hash_lookup(ht, key, he) find_hash(ht, key, sizeof(ID), (void **)(he))
+#define bdb_id2idl_hash_add(ht, key, he, alt) add_hash(ht, key, sizeof(ID), he, (void **)(alt))
+#define bdb_id2idl_hash_remove(ht, key) remove_hash(ht, key, sizeof(ID))
 
-static void id2idl_hash_destroy(id2idl_hash *ht);
+static void bdb_id2idl_hash_destroy(id2idl_hash *ht);
 /* End of definitions for a simple cache using a hash table */
 
 static int bdb_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid);
-static int check_cache(id2idl_hash *ht);
-static IDList *idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b);
+static int bdb_check_cache(id2idl_hash *ht);
+static IDList *bdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b);
+
+
+/********** Code to debug numsubordinates/tombstonenumsubordinates computation **********/
+
+#ifdef DEBUG_SUBCOUNT
+#define DEBUG_SUBCOUNT_MSG(msg, ...) { debug_subcount(__FUNCTION__, __LINE__, (msg), __VA_ARGS__); }
+#define DUMP_SUBCOUNT_KEY(msg, key, ret) { debug_subcount(__FUNCTION__, __LINE__, "ret=%d size=%u ulen=%u doff=%u dlen=%u", \
+                                               ret, (key).size, (key).ulen, (key).doff, (key).dlen); \
+                                           if (ret == 0) slapi_log_hexadump(SLAPI_LOG_INFO, msg, (key).data, (key).size); \
+                                           else if (ret == DB_BUFFER_SMALL) \
+                                                slapi_log_hexadump(SLAPI_LOG_INFO, msg, (key).data, (key).ulen); }
+
+static void
+debug_subcount(const char *funcname, int line, char *msg, ...)
+{
+    va_list ap;
+    char buff[1024];
+    va_start(ap, msg);
+    PR_vsnprintf(buff, (sizeof buff), msg, ap);
+    va_end(ap);
+    slapi_log_err(SLAPI_LOG_INFO, (char*)funcname, "DEBUG SUBCOUNT [%d] %s\n", line, buff);
+}
+
+#else
+#define DEBUG_SUBCOUNT_MSG(msg, ...)
+#define DUMP_SUBCOUNT_KEY(msg, key, ret)
+#endif
+
 
 /********** routines to manipulate the entry fifo **********/
 
@@ -64,19 +103,19 @@ static IDList *idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDL
 #define MAX_FIFO_SIZE 8000
 
 static int
-import_fifo_init(ImportJob *job)
+bdb_import_fifo_init(ImportJob *job)
 {
     ldbm_instance *inst = job->inst;
 
     /* Work out how big the entry fifo can be */
-    if (inst->inst_cache.c_maxentries > 0)
-        job->fifo.size = inst->inst_cache.c_maxentries;
+    if (inst->inst_cache.c_stats.maxentries > 0)
+        job->fifo.size = inst->inst_cache.c_stats.maxentries;
     else
-        job->fifo.size = inst->inst_cache.c_maxsize / 1024; /* guess */
+        job->fifo.size = inst->inst_cache.c_stats.maxsize / 1024; /* guess */
 
     /* byte limit that should be respected to avoid memory starvation */
     /* Rather than cachesize * .8, we set it to cachesize for clarity */
-    job->fifo.bsize = inst->inst_cache.c_maxsize;
+    job->fifo.bsize = inst->inst_cache.c_stats.maxsize;
 
     job->fifo.c_bsize = 0;
 
@@ -113,7 +152,7 @@ import_fifo_init(ImportJob *job)
  * \return int: If able to hold the entry, returns 0. If unable to, but resize was sucessful, so now able to hold the entry, 0. If unable to hold the entry and unable to resize, 1.
  */
 int
-import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize)
+bdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize)
 {
     int result = 1;
     /* We shoot for four times as much to start with. */
@@ -144,7 +183,7 @@ import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize)
 }
 
 FifoItem *
-import_fifo_fetch(ImportJob *job, ID id, int worker)
+bdb_import_fifo_fetch(ImportJob *job, ID id, int worker)
 {
     int idx = id % job->fifo.size;
     FifoItem *fi;
@@ -160,7 +199,7 @@ import_fifo_fetch(ImportJob *job, ID id, int worker)
                 if (fi->bad == FIFOITEM_BAD) {
                     fi->bad = FIFOITEM_BAD_PRINTED;
                     if (!(job->flags & FLAG_UPGRADEDNFORMAT_V1)) {
-                        import_log_notice(job, SLAPI_LOG_WARNING, "import_fifo_fetch",
+                        import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_fifo_fetch",
                                           "Bad entry: ID %d", id);
                     }
                 }
@@ -173,7 +212,7 @@ import_fifo_fetch(ImportJob *job, ID id, int worker)
 }
 
 static void
-import_fifo_destroy(ImportJob *job)
+bdb_import_fifo_destroy(ImportJob *job)
 {
     /* Free any entries in the fifo first */
     struct backentry *be = NULL;
@@ -198,7 +237,7 @@ import_fifo_destroy(ImportJob *job)
  * here wipes out any previous status)
  */
 static void
-import_log_status_start(ImportJob *job)
+bdb_import_log_status_start(ImportJob *job)
 {
     if (!job->task_status)
         job->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
@@ -209,7 +248,7 @@ import_log_status_start(ImportJob *job)
 }
 
 static void
-import_log_status_add_line(ImportJob *job, char *format, ...)
+bdb_import_log_status_add_line(ImportJob *job, char *format, ...)
 {
     va_list ap;
     int len = 0;
@@ -229,7 +268,7 @@ import_log_status_add_line(ImportJob *job, char *format, ...)
 }
 
 static void
-import_log_status_done(ImportJob *job)
+bdb_import_log_status_done(ImportJob *job)
 {
     if (job->task) {
         slapi_task_log_status(job->task, "%s", job->task_status);
@@ -237,7 +276,7 @@ import_log_status_done(ImportJob *job)
 }
 
 static void
-import_task_destroy(Slapi_Task *task)
+bdb_import_task_destroy(Slapi_Task *task)
 {
     ImportJob *job = (ImportJob *)slapi_task_get_data(task);
 
@@ -258,7 +297,7 @@ import_task_destroy(Slapi_Task *task)
 }
 
 static void
-import_task_abort(Slapi_Task *task)
+bdb_import_task_abort(Slapi_Task *task)
 {
     ImportJob *job;
 
@@ -300,7 +339,7 @@ bdb_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid)
     char *p;
 
     /* Open the id2entry file */
-    ret = dblayer_get_id2entry(be, &db);
+    ret = dblayer_get_id2entry(be, (dbi_db_t**)&db);
     if (ret != 0) {
         ldbm_nasty("bdb_parentid", sourcefile, 13100, ret);
         goto out;
@@ -345,22 +384,22 @@ out:
 }
 
 static void
-id2idl_free(id2idl **ididl)
+bdb_id2idl_free(bdb_id2idl **ididl)
 {
     idl_free(&((*ididl)->idl));
     slapi_ch_free((void **)ididl);
 }
 
 static int
-id2idl_same_key(const void *ididl, const void *k)
+bdb_id2idl_same_key(const void *ididl, const void *k)
 {
-    return (((id2idl *)ididl)->keyid == *(ID *)k);
+    return (((bdb_id2idl *)ididl)->keyid == *(ID *)k);
 }
 
 static int
-check_cache(id2idl_hash *ht)
+bdb_check_cache(id2idl_hash *ht)
 {
-    id2idl *e;
+    bdb_id2idl *e;
     u_long i, found = 0;
     int ret = 0;
 
@@ -368,7 +407,7 @@ check_cache(id2idl_hash *ht)
         return 0;
 
     for (i = 0; i < ht->size; i++) {
-        e = (id2idl *)ht->slot[i];
+        e = (bdb_id2idl *)ht->slot[i];
         while (e) {
             found++;
             e = e->next;
@@ -376,7 +415,7 @@ check_cache(id2idl_hash *ht)
     }
 
     if (found > 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "check_cache",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_check_cache",
                       "parentid index is not complete (%lu extra keys in ancestorid cache)\n", found);
         ret = -1;
     }
@@ -385,19 +424,19 @@ check_cache(id2idl_hash *ht)
 }
 
 static void
-id2idl_hash_destroy(id2idl_hash *ht)
+bdb_id2idl_hash_destroy(id2idl_hash *ht)
 {
     u_long i;
-    id2idl *e, *next;
+    bdb_id2idl *e, *next;
 
     if (ht == NULL)
         return;
 
     for (i = 0; i < ht->size; i++) {
-        e = (id2idl *)ht->slot[i];
+        e = (bdb_id2idl *)ht->slot[i];
         while (e) {
             next = e->next;
-            id2idl_free(&e);
+            bdb_id2idl_free(&e);
             e = next;
         }
     }
@@ -405,11 +444,11 @@ id2idl_hash_destroy(id2idl_hash *ht)
 }
 
 /*
- * idl_union_allids - return a union b
+ * bdb_idl_union_allids - return a union b
  * takes attr index allids setting into account
  */
 static IDList *
-idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b)
+bdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b)
 {
     if (!idl_get_idl_new()) {
         if (a != NULL && b != NULL) {
@@ -439,7 +478,7 @@ bdb_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
     ainfo_get(be, LDBM_PARENTID_STR, &ai);
 
     /* Open the parentid index file */
-    ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai, (dbi_db_t**)&db, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_get_nonleaf_ids", sourcefile, 13010, ret);
         goto out;
@@ -468,18 +507,30 @@ bdb_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
         }
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
-                              "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
+                                  "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
+                                  "Gathering ancestorid non-leaf IDs: processed %d ancestors...",
+                                  key_count);
+            }
             started_progress_logging = 1;
         }
     } while (ret == 0 && !(job->flags & FLAG_ABORT));
 
     if (started_progress_logging) {
         /* finish what we started logging */
-        import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
-                          "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
-                          (key_count * 100 / job->numsubordinates), key_count);
+        if (job->numsubordinates) {
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
+                              "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+                              (key_count * 100 / job->numsubordinates), key_count);
+        } else {
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
+                              "Gathering ancestorid non-leaf IDs: processed %d ancestors",
+                              key_count);
+        }
     }
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_get_nonleaf_ids",
                       "Finished gathering ancestorid non-leaf IDs.");
@@ -563,7 +614,7 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     int ret = 0;
     DB *db_pid = NULL;
     DB *db_aid = NULL;
-    DBT key = {0};
+    dbi_val_t key = {0};
     DB_TXN *txn = NULL;
     struct attrinfo *ai_pid = NULL;
     struct attrinfo *ai_aid = NULL;
@@ -573,7 +624,7 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     NIDS nids;
     ID id, parentid;
     id2idl_hash *ht = NULL;
-    id2idl *ididl;
+    bdb_id2idl *ididl;
     int started_progress_logging = 0;
 
     /*
@@ -599,7 +650,7 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
 
     /* Open the ancestorid index file */
-    ret = dblayer_get_index_file(be, ai_aid, &db_aid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_aid, (dbi_db_t**)&db_aid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_default_create_index", sourcefile, 13050, ret);
         goto out;
@@ -613,22 +664,20 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     }
 
     /* Create an ancestorid cache */
-    ht = id2idl_new_hash(nodes->b_nids);
+    ht = bdb_id2idl_new_hash(nodes->b_nids);
 
     /* Get the parentid index */
     ainfo_get(be, LDBM_PARENTID_STR, &ai_pid);
 
     /* Open the parentid index file */
-    ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_pid, (dbi_db_t**)&db_pid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_default_create_index", sourcefile, 13060, ret);
         goto out;
     }
 
     /* Initialize key DBT */
-    key.data = keybuf;
-    key.ulen = sizeof(keybuf);
-    key.flags = DB_DBT_USERMEM;
+    dblayer_value_set_buffer(be, &key, keybuf, sizeof(keybuf));
 
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
                       "Creating ancestorid index (old idl)...");
@@ -660,21 +709,27 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
 
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
-                              "Creating ancestorid index: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d ancestors...",
+                                  key_count);
+            }
             started_progress_logging = 1;
         }
 
         /* Insert into ancestorid for this node */
-        if (id2idl_hash_lookup(ht, &id, &ididl)) {
-            descendants = idl_union_allids(be, ai_aid, ididl->idl, children);
+        if (bdb_id2idl_hash_lookup(ht, &id, &ididl)) {
+            descendants = bdb_idl_union_allids(be, ai_aid, ididl->idl, children);
             idl_free(&children);
-            if (id2idl_hash_remove(ht, &id) == 0) {
+            if (bdb_id2idl_hash_remove(ht, &id) == 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_ancestorid_default_create_index",
-                              "id2idl_hash_remove() failed\n");
+                              "bdb_id2idl_hash_remove() failed\n");
             } else {
-                id2idl_free(&ididl);
+                bdb_id2idl_free(&ididl);
             }
         } else {
             descendants = children;
@@ -697,18 +752,18 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
         }
 
         /* Insert into ancestorid for this node's parent */
-        if (id2idl_hash_lookup(ht, &parentid, &ididl)) {
-            IDList *idl = idl_union_allids(be, ai_aid, ididl->idl, descendants);
+        if (bdb_id2idl_hash_lookup(ht, &parentid, &ididl)) {
+            IDList *idl = bdb_idl_union_allids(be, ai_aid, ididl->idl, descendants);
             idl_free(&descendants);
             idl_free(&(ididl->idl));
             ididl->idl = idl;
         } else {
-            ididl = (id2idl *)slapi_ch_calloc(1, sizeof(id2idl));
+            ididl = (bdb_id2idl *)slapi_ch_calloc(1, sizeof(bdb_id2idl));
             ididl->keyid = parentid;
             ididl->idl = descendants;
-            if (id2idl_hash_add(ht, &parentid, ididl, NULL) == 0) {
+            if (bdb_id2idl_hash_add(ht, &parentid, ididl, NULL) == 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_ancestorid_default_create_index ",
-                              "id2idl_hash_add failed\n");
+                              "bdb_id2idl_hash_add failed\n");
             }
         }
 
@@ -719,12 +774,12 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     }
 
     /* We're expecting the cache to be empty */
-    ret = check_cache(ht);
+    ret = bdb_check_cache(ht);
 
 out:
 
     /* Destroy the cache */
-    id2idl_hash_destroy(ht);
+    bdb_id2idl_hash_destroy(ht);
 
     /* Free any leftover idlists */
     idl_free(&nodes);
@@ -743,9 +798,15 @@ out:
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
-                              "Creating ancestorid index: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d ancestors",
+                                  key_count);
+            }
         }
         import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
                           "Created ancestorid index (old idl).");
@@ -769,7 +830,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     int ret = 0;
     DB *db_pid = NULL;
     DB *db_aid = NULL;
-    DBT key = {0};
+    dbi_val_t key = {0};
     DB_TXN *txn = NULL;
     struct attrinfo *ai_pid = NULL;
     struct attrinfo *ai_aid = NULL;
@@ -811,7 +872,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
 
     /* Open the ancestorid index file */
-    ret = dblayer_get_index_file(be, ai_aid, &db_aid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_aid, (dbi_db_t**)&db_aid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_new_idl_create_index", sourcefile, 13050, ret);
         goto out;
@@ -828,16 +889,14 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     ainfo_get(be, LDBM_PARENTID_STR, &ai_pid);
 
     /* Open the parentid index file */
-    ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_pid, (dbi_db_t**)&db_pid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_new_idl_create_index", sourcefile, 13060, ret);
         goto out;
     }
 
-    /* Initialize key DBT */
-    key.data = keybuf;
-    key.ulen = sizeof(keybuf);
-    key.flags = DB_DBT_USERMEM;
+    /* Initialize key memory */
+    dblayer_value_set_buffer(be, &key, keybuf, sizeof(keybuf));
 
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
                       "Creating ancestorid index (new idl)...");
@@ -853,6 +912,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
                                EQ_PREFIX, (u_long)id);
         key.size++; /* include the null terminator */
         ret = NEW_IDL_NO_ALLID;
+        idl_free(&children);
         children = idl_fetch(be, db_pid, &key, txn, ai_pid, &ret);
         if (ret != 0) {
             ldbm_nasty("bdb_ancestorid_new_idl_create_index", sourcefile, 13070, ret);
@@ -863,15 +923,22 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
         if (job->flags & FLAG_ABORT) {
             import_log_notice(job, SLAPI_LOG_ERR, "bdb_ancestorid_new_idl_create_index",
                               "ancestorid creation aborted.");
+            idl_free(&children);
             ret = -1;
             break;
         }
 
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
-                              "Creating ancestorid index: progress %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: progress %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: progress %d ancestors...",
+                                  key_count);
+            }
             started_progress_logging = 1;
         }
 
@@ -932,9 +999,15 @@ out:
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
-                              "Creating ancestorid index: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: processed %d ancestors",
+                                  key_count);
+            }
         }
         import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
                           "Created ancestorid index (new idl).");
@@ -963,173 +1036,85 @@ out:
 
     return ret;
 }
-/* Update subordinate count in a hint list, given the parent's ID */
-int
-import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count)
-{
-    PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable, (void *)((uintptr_t)parent_id)));
-    PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)count);
-    return 0;
-}
-
-/* Look for a subordinate count in a hint list, given the parent's ID */
-static int
-import_subcount_mothers_lookup(import_subcount_stuff *mothers,
-                               ID parent_id,
-                               size_t *count)
-{
-    size_t stored_count = 0;
-
-    *count = 0;
-    /* Lookup hash table for ID */
-    stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void *)((uintptr_t)parent_id));
-    /* If present, return the count found */
-    if (0 != stored_count) {
-        *count = stored_count;
-        return 0;
-    }
-    return -1;
-}
-
-/* Update subordinate count in a hint list, given the parent's ID */
-int
-import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
-{
-    size_t stored_count = 0;
-
-    /* Lookup the hash table for the target ID */
-    stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void *)((uintptr_t)parent_id));
-    PR_ASSERT(0 != stored_count);
-    /* Increment the count */
-    stored_count++;
-    PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)stored_count);
-    return 0;
-}
-
-static int
-import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted)
-{
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    int ret = 0;
-    modify_context mc = {0};
-    char value_buffer[22] = {0}; /* enough digits for 2^64 children */
-    struct backentry *e = NULL;
-    int isreplace = 0;
-    char *numsub_str = numsubordinates;
-
-    /* Get hold of the parent */
-    e = id2entry(be, parentid, NULL, &ret);
-    if ((NULL == e) || (0 != ret)) {
-        ldbm_nasty("import_update_entry_subcount", sourcefile, 5, ret);
-        return (0 == ret) ? -1 : ret;
-    }
-    /* Lock it (not really required since we're single-threaded here, but
-     * let's do it so we can reuse the modify routines) */
-    cache_lock_entry(&inst->inst_cache, e);
-    modify_init(&mc, e);
-    mc.attr_encrypt = isencrypted;
-    sprintf(value_buffer, "%lu", (long unsigned int)sub_count);
-    /* If it is a tombstone entry, add tombstonesubordinates instead of
-     * numsubordinates. */
-    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = tombstone_numsubordinates;
-    }
-    /* attr numsubordinates/tombstonenumsubordinates could already exist in
-     * the entry, let's check whether it's already there or not */
-    isreplace = (attrlist_find(e->ep_entry->e_attrs, numsub_str) != NULL);
-    {
-        int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
-        Slapi_Mods *smods = slapi_mods_new();
-
-        slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsub_str,
-                       strlen(value_buffer), value_buffer);
-        ret = modify_apply_mods(&mc, smods); /* smods passed in */
-    }
-    if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
-        /* This will correctly index subordinatecount: */
-        ret = modify_update_all(be, NULL, &mc, NULL);
-        if (0 == ret) {
-            modify_switch_entries(&mc, be);
-        }
-    }
-    /* entry is unlocked and returned to the cache in modify_term */
-    modify_term(&mc, be);
-    return ret;
-}
-struct _import_subcount_trawl_info
-{
-    struct _import_subcount_trawl_info *next;
-    ID id;
-    size_t sub_count;
-};
-typedef struct _import_subcount_trawl_info import_subcount_trawl_info;
 
 static void
-import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
+bdb_close_subcount_cursor(subcount_cursor_info_t *info)
 {
-    import_subcount_trawl_info *new_info = CALLOC(import_subcount_trawl_info);
-
-    new_info->next = *list;
-    new_info->id = id;
-    *list = new_info;
+    if  (info->dbc) {
+        int ret = info->dbc->c_close(info->dbc);
+        if (ret) {
+            char errfunc[60];
+            snprintf(errfunc, (sizeof errfunc), "%s[%s]", __FUNCTION__, info->attrname);
+            ldbm_nasty(errfunc, sourcefile, 73, ret);
+        }
+        info->dbc = NULL;
+    }
+    if (info->db) {
+        dblayer_release_index_file(info->be, info->ai, info->db);
+        info->db = NULL;
+        info->ai = NULL;
+    }
 }
 
 static int
-import_subcount_trawl(backend *be,
-                      import_subcount_trawl_info *trawl_list,
-                      int isencrypted)
+bdb_open_subcount_cursor(backend *be, const char *attrname, DB_TXN *txn, subcount_cursor_info_t *info)
 {
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    ID id = 1;
+    char errfunc[60];
+    DB *db = NULL;
     int ret = 0;
-    import_subcount_trawl_info *current = NULL;
-    char value_buffer[20]; /* enough digits for 2^64 children */
 
-    /* OK, we do */
-    /* We open id2entry and iterate through it */
-    /* Foreach entry, we check to see if its parentID matches any of the
-     * values in the trawl list . If so, we bump the sub count for that
-     * parent in the list.
+    snprintf(errfunc, (sizeof errfunc), "%s[%s]", __FUNCTION__, attrname);
+    info->attrname = attrname;
+    info->txn = txn;
+    info->be = be;
+
+    /* Lets get the attrinfo */
+    ainfo_get(be, (char*)attrname, &info->ai);
+    PR_ASSERT(info->ai);
+    /* Lets get the db instance */
+    if ((ret = dblayer_get_index_file(be, info->ai, &info->db, 0)) != 0) {
+        if (ret == DBI_RC_NOTFOUND) {
+            bdb_close_subcount_cursor(info);
+            return 0;
+        }
+        ldbm_nasty(errfunc, sourcefile, 70, ret);
+        bdb_close_subcount_cursor(info);
+        return ret;
+    }
+
+    /* Lets get the cursor */
+    db = (DB*)(info->db);
+    if ((ret = db->cursor(db, info->txn, &info->dbc, 0)) != 0) {
+        ldbm_nasty(errfunc, sourcefile, 71, ret);
+        bdb_close_subcount_cursor(info);
+        ret = bdb_map_error(__FUNCTION__, ret);
+    }
+    return 0;
+}
+
+static bool
+bdb_subcount_is_tombstone(subcount_cursor_info_t *info, DBT *id)
+{
+    /*
+     * Check if record =nstombstone ==> id exists in objectclass index
      */
-    while (1) {
-        struct backentry *e = NULL;
+    DBT key = {0};
+    DBC *dbc = info->dbc;
+    int ret;
+    key.flags = DB_DBT_USERMEM;
+    key.data = "=nstombstone" ;
+    key.size = key.ulen = 13;
+    ret = dbc->c_get(dbc, &key, id, DB_GET_BOTH);
 
-        /* Get the next entry */
-        e = id2entry(be, id, NULL, &ret);
-        if ((NULL == e) || (0 != ret)) {
-            if (DB_NOTFOUND == ret) {
-                break;
-            } else {
-                ldbm_nasty("import_subcount_trawl", sourcefile, 8, ret);
-                return ret;
-            }
-        }
-        for (current = trawl_list; current != NULL; current = current->next) {
-            sprintf(value_buffer, "%lu", (u_long)current->id);
-            if (slapi_entry_attr_hasvalue(e->ep_entry, LDBM_PARENTID_STR, value_buffer)) {
-                /* If this entry's parent ID matches one we're trawling for,
-                 * bump its count */
-                current->sub_count++;
-            }
-        }
-        /* Free the entry */
-        CACHE_REMOVE(&inst->inst_cache, e);
-        CACHE_RETURN(&inst->inst_cache, &e);
-        id++;
+    switch (ret) {
+        case 0:
+            return true;
+        case DB_NOTFOUND:
+            return false;
+        default:
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 72, ret);
+            return false;
     }
-    /* Now update the parent entries from the list */
-    for (current = trawl_list; current != NULL; current = current->next) {
-        /* Update the parent entry with the correctly counted subcount */
-        ret = import_update_entry_subcount(be, current->id,
-                                           current->sub_count, isencrypted);
-        if (0 != ret) {
-            ldbm_nasty("import_subcount_trawl", sourcefile, 10, ret);
-            break;
-        }
-    }
-    return ret;
 }
 
 /*
@@ -1141,62 +1126,67 @@ import_subcount_trawl(backend *be,
 static int
 bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 {
-    import_subcount_stuff *mothers = job->mothers;
-    int isencrypted = job->encrypt;
+    subcount_cursor_info_t c_objectclass = {0};
+    subcount_cursor_info_t c_entryrdn = {0};
     int started_progress_logging = 0;
-    int key_count = 0;
-    int ret = 0;
-    DB *db = NULL;
-    DBC *dbc = NULL;
-    struct attrinfo *ai = NULL;
-    DBT key = {0};
+    int isencrypted = job->encrypt;
     DBT data = {0};
-    import_subcount_trawl_info *trawl_list = NULL;
+    DBT key = {0};
+    int key_count = 0;
+    char tmp[11];
+    char oldkey[11];
+    ID data_data;
+    int ret2 = 0;
+    int ret = 0;
 
-    /* Open the parentid index */
-    ainfo_get(be, LDBM_PARENTID_STR, &ai);
-
-    /* Open the parentid index file */
-    if ((ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE)) != 0) {
-        ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 67, ret);
-        return (ret);
+    /* Open cursor on the objectclass index */
+    ret = bdb_open_subcount_cursor(be, SLAPI_ATTR_OBJECTCLASS, txn, &c_objectclass);
+    if (ret) {
+        if (ret != DBI_RC_NOTFOUND) {
+            /* No database ==> There is nothing to do. */
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 61, ret);
+        }
+        return ret;
     }
-    /* Get a cursor so we can walk through the parentid */
-    ret = db->cursor(db, txn, &dbc, 0);
-    if (ret != 0) {
-        ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 68, ret);
-        dblayer_release_index_file(be, ai, db);
+    /* Open entryrdn index */
+    /* Open cursor on the entryrdn index */
+    ret = bdb_open_subcount_cursor(be, LDBM_ENTRYRDN_STR, txn, &c_entryrdn);
+    if (ret) {
+        ldbm_nasty((char*)__FUNCTION__, sourcefile, 62, ret);
+        bdb_close_subcount_cursor(&c_objectclass);
         return ret;
     }
 
-    /* Walk along the index */
-    while (1) {
+    key.flags = DB_DBT_USERMEM;
+    key.ulen = sizeof tmp;
+    key.data = tmp;
+    /* Only the first 4 bytes of the data record interrest us */
+    data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
+    data.ulen = sizeof data_data;
+    data.data = &data_data;
+    data.dlen = sizeof (ID);
+    data.doff = 0;
+
+    /* Walk along C* keys (usually starting at C1) */
+    strcpy(tmp, "C");
+    key.size = 1;
+    ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_SET_RANGE);
+
+    while (ret == 0) {
         size_t sub_count = 0;
-        int found_count = 1;
+        size_t t_sub_count = 0;
         ID parentid = 0;
 
-        /* Foreach key which is an equality key : */
-        data.flags = DB_DBT_MALLOC;
-        key.flags = DB_DBT_MALLOC;
-        ret = dbc->c_get(dbc, &key, &data, DB_NEXT_NODUP);
-        if (NULL != data.data) {
-            slapi_ch_free(&(data.data));
-            data.data = NULL;
-        }
-        if (0 != ret) {
-            if (ret != DB_NOTFOUND) {
-                ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 62, ret);
-            }
-            if (NULL != key.data) {
-                slapi_ch_free(&(key.data));
-                key.data = NULL;
-            }
-            break;
-        }
+        DUMP_SUBCOUNT_KEY("key:", key, ret);
+        DUMP_SUBCOUNT_KEY("data:", data, ret);
         /* check if we need to abort */
         if (job->flags & FLAG_ABORT) {
             import_log_notice(job, SLAPI_LOG_ERR, "bdb_update_subordinatecounts",
                               "numsubordinate generation aborted.");
+            break;
+        }
+        if (0 != ret) {
+            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 63, ret);
             break;
         }
         /*
@@ -1209,54 +1199,47 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
                               key_count);
             started_progress_logging = 1;
         }
-
-        if (*(char *)key.data == EQ_PREFIX) {
-            char *idptr = NULL;
-
-            /* construct the parent's ID from the key */
-            /* Look for the ID in the hint list supplied by the caller */
-            /* If its there, we know the answer already */
-            idptr = (((char *)key.data) + 1);
-            parentid = (ID)atol(idptr);
-            PR_ASSERT(0 != parentid);
-            ret = import_subcount_mothers_lookup(mothers, parentid, &sub_count);
-            if (0 != ret) {
-                IDList *idl = NULL;
-
-                /* If it's not, we need to compute it ourselves: */
-                /* Load the IDL matching the key */
-                key.flags = DB_DBT_REALLOC;
-                ret = NEW_IDL_NO_ALLID;
-                idl = idl_fetch(be, db, &key, NULL, NULL, &ret);
-                if ((NULL == idl) || (0 != ret)) {
-                    ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 4, ret);
-                    dblayer_release_index_file(be, ai, db);
-                    return (0 == ret) ? -1 : ret;
-                }
-                /* The number of IDs in the IDL tells us the number of
-                 * subordinates for the entry */
-                /* Except, the number might be above the allidsthreshold,
-                 * in which case */
-                if (ALLIDS(idl)) {
-                    /* We add this ID to the list for which to trawl */
-                    import_subcount_trawl_add(&trawl_list, parentid);
-                    found_count = 0;
-                } else {
-                    /* We get the count from the IDL */
-                    sub_count = idl->b_nids;
-                }
-                idl_free(&idl);
-            }
-            /* Did we get the count ? */
-            if (found_count) {
-                PR_ASSERT(0 != sub_count);
-                /* If so, update the parent now */
-                import_update_entry_subcount(be, parentid, sub_count, isencrypted);
-            }
+        if (key.size == 0 || *(char *)key.data != 'C') {
+            /* No more children */
+            break;
         }
-        if (NULL != key.data) {
-            slapi_ch_free(&(key.data));
-            key.data = NULL;
+
+        /* construct the parent's ID from the key */
+        if (key.size >= sizeof tmp) {
+            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 64, ret);
+            break;
+        }
+        /* Generate expected value for parentid */
+        tmp[key.size] = 0;
+        parentid = (ID)atol(tmp+1);
+        PR_ASSERT(0 != parentid);
+        strcpy(oldkey,tmp);
+        /* Walk the entries having same key and check if they are tombstone */
+        do {
+            /* Reorder data_data */
+            ID old_data_data = data_data;
+            id_internal_to_stored(old_data_data, (char*)&data_data);
+            if (!bdb_subcount_is_tombstone(&c_objectclass, &data)) {
+                sub_count++;
+            } else {
+                t_sub_count++;
+            }
+            DUMP_SUBCOUNT_KEY("key:", key, ret);
+            DUMP_SUBCOUNT_KEY("data:", data, ret);
+            ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_NEXT);
+            DUMP_SUBCOUNT_KEY("key:", key, ret);
+            DUMP_SUBCOUNT_KEY("data:", data, ret);
+            if (ret == 0 && key.size < sizeof tmp) {
+                tmp[key.size] = 0;
+            } else {
+                break;
+            }
+        } while (strcmp(key.data, oldkey) == 0);
+        ret2 = import_update_entry_subcount(be, parentid, sub_count, t_sub_count, isencrypted, (dbi_txn_t*)txn);
+        if (ret2) {
+            ret = ret2;
+            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 65, ret);
+            break;
         }
     }
     if (started_progress_logging) {
@@ -1266,28 +1249,24 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
                           key_count);
         job->numsubordinates = key_count;
     }
-
-    ret = dbc->c_close(dbc);
-    if (0 != ret) {
-        ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 6, ret);
+    if (ret == DB_NOTFOUND || ret == DB_BUFFER_SMALL) {
+        /* No more records or record is the suffix dn
+         * ==> there is no more children to look at
+         */
+        ret = 0;
     }
-    dblayer_release_index_file(be, ai, db);
+    bdb_close_subcount_cursor(&c_entryrdn);
+    bdb_close_subcount_cursor(&c_objectclass);
 
-    /* Now see if we need to go trawling through id2entry for the info
-     * we need */
-    if (NULL != trawl_list) {
-        ret = import_subcount_trawl(be, trawl_list, isencrypted);
-        if (0 != ret) {
-            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 7, ret);
-        }
-    }
-    return (ret);
+    return ret;
 }
 
 /* Function used to gather a list of indexed attrs */
 static int
-import_attr_callback(void *node, void *param)
+bdb_import_attr_callback(caddr_t n, caddr_t p)
 {
+    void *node = (void *)n;
+    void *param  = (void *)p;
     ImportJob *job = (ImportJob *)param;
     struct attrinfo *a = (struct attrinfo *)node;
 
@@ -1359,7 +1338,7 @@ import_attr_callback(void *node, void *param)
 }
 
 static void
-import_set_index_buffer_size(ImportJob *job)
+bdb_import_set_index_buffer_size(ImportJob *job)
 {
     IndexInfo *current_index = NULL;
     size_t substring_index_count = 0;
@@ -1389,7 +1368,7 @@ import_set_index_buffer_size(ImportJob *job)
 }
 
 static void
-import_free_thread_data(ImportJob *job)
+bdb_import_free_thread_data(ImportJob *job)
 {
     /* DBDB free the lists etc */
     ImportWorkerInfo *worker = job->worker_list;
@@ -1403,12 +1382,12 @@ import_free_thread_data(ImportJob *job)
 }
 
 void
-import_free_job(ImportJob *job)
+bdb_import_free_job(ImportJob *job)
 {
     /* DBDB free the lists etc */
     IndexInfo *index = job->index_list;
 
-    import_free_thread_data(job);
+    bdb_import_free_thread_data(job);
     while (index != NULL) {
         IndexInfo *asabird = index;
         index = index->next;
@@ -1416,34 +1395,25 @@ import_free_job(ImportJob *job)
         slapi_ch_free((void **)&asabird);
     }
     job->index_list = NULL;
-    if (NULL != job->mothers) {
-        import_subcount_stuff_term(job->mothers);
-        slapi_ch_free((void **)&job->mothers);
-    }
 
     bdb_back_free_incl_excl(job->include_subtrees, job->exclude_subtrees);
     charray_free(job->input_filenames);
     if (job->fifo.size) {
-        /* bulk_import_queue is running, while holding the job lock.
-         * bulk_import_queue is using the fifo queue.
-         * To avoid freeing fifo queue under bulk_import_queue use
+        /* bdb_bulk_import_queue is running, while holding the job lock.
+         * bdb_bulk_import_queue is using the fifo queue.
+         * To avoid freeing fifo queue under bdb_bulk_import_queue use
          * job lock to synchronize
          */
-        if (job->wire_lock)
-            PR_Lock(job->wire_lock);
-
-        import_fifo_destroy(job);
-
-        if (job->wire_lock)
-            PR_Unlock(job->wire_lock);
+        pthread_mutex_lock(&job->wire_lock);
+        bdb_import_fifo_destroy(job);
+        pthread_mutex_unlock(&job->wire_lock);
     }
 
-    if (NULL != job->uuid_namespace)
+    if (NULL != job->uuid_namespace) {
         slapi_ch_free((void **)&job->uuid_namespace);
-    if (job->wire_lock)
-        PR_DestroyLock(job->wire_lock);
-    if (job->wire_cv)
-        PR_DestroyCondVar(job->wire_cv);
+    }
+    pthread_mutex_destroy(&job->wire_lock);
+    pthread_cond_destroy(&job->wire_cv);
     slapi_ch_free((void **)&job->task_status);
 }
 
@@ -1454,7 +1424,7 @@ import_free_job(ImportJob *job)
  * present in EVERY backend independently of the distribution applied.
  */
 int
-import_entry_belongs_here(Slapi_Entry *e, backend *be)
+bdb_import_entry_belongs_here(Slapi_Entry *e, backend *be)
 {
     Slapi_Backend *retbe;
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
@@ -1475,7 +1445,7 @@ import_entry_belongs_here(Slapi_Entry *e, backend *be)
 #define CREATE_THREAD PR_CreateThread
 
 static void
-import_init_worker_info(ImportWorkerInfo *info, ImportJob *job)
+bdb_import_init_worker_info(ImportWorkerInfo *info, ImportJob *job)
 {
     info->command = PAUSE;
     info->job = job;
@@ -1484,7 +1454,7 @@ import_init_worker_info(ImportWorkerInfo *info, ImportJob *job)
 }
 
 static int
-import_start_threads(ImportJob *job)
+bdb_import_start_threads(ImportJob *job)
 {
     IndexInfo *current_index = NULL;
     ImportWorkerInfo *foreman = NULL, *worker = NULL;
@@ -1494,13 +1464,13 @@ import_start_threads(ImportJob *job)
         goto error;
 
     /* start the foreman */
-    import_init_worker_info(foreman, job);
+    bdb_import_init_worker_info(foreman, job);
     foreman->work_type = FOREMAN;
-    if (!CREATE_THREAD(PR_USER_THREAD, (VFP)import_foreman, foreman,
+    if (!CREATE_THREAD(PR_USER_THREAD, (VFP)bdb_import_foreman, foreman,
                        PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                        PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
         PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "import_start_threads",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_import_start_threads",
                       "Unable to spawn import foreman thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                       prerr, slapd_pr_strerror(prerr));
         FREE(foreman);
@@ -1520,17 +1490,17 @@ import_start_threads(ImportJob *job)
                 goto error;
 
             /* fill it in */
-            import_init_worker_info(worker, job);
+            bdb_import_init_worker_info(worker, job);
             worker->index_info = current_index;
             worker->work_type = WORKER;
 
             /* Start the thread */
-            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)import_worker, worker,
+            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)bdb_import_worker, worker,
                                PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                                PR_UNJOINABLE_THREAD,
                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "import_start_threads",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_start_threads",
                               "Unable to spawn import worker thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 FREE(worker);
@@ -1546,10 +1516,10 @@ import_start_threads(ImportJob *job)
     return 0;
 
 error:
-    import_log_notice(job, SLAPI_LOG_ERR, "import_start_threads", "Import thread creation failed.");
-    import_log_notice(job, SLAPI_LOG_ERR, "import_start_threads", "Aborting all import threads...");
+    import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_start_threads", "Import thread creation failed.");
+    import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_start_threads", "Aborting all import threads...");
     import_abort_all(job, 1);
-    import_log_notice(job, SLAPI_LOG_ERR, "import_start_threads", "Import threads aborted.");
+    import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_start_threads", "Import threads aborted.");
     return -1;
 }
 
@@ -1557,7 +1527,7 @@ error:
 /********** monitoring the worker threads **********/
 
 static void
-import_clear_progress_history(ImportJob *job)
+bdb_import_clear_progress_history(ImportJob *job)
 {
     int i = 0;
 
@@ -1570,7 +1540,7 @@ import_clear_progress_history(ImportJob *job)
 }
 
 static double
-import_grok_db_stats(ldbm_instance *inst)
+bdb_import_grok_db_stats(ldbm_instance *inst)
 {
     DB_MPOOL_STAT *mpstat = NULL;
     DB_MPOOL_FSTAT **mpfstat = NULL;
@@ -1611,7 +1581,7 @@ out:
 }
 
 static char *
-import_decode_worker_state(int state)
+bdb_import_decode_worker_state(int state)
 {
     switch (state) {
     case WAITING:
@@ -1628,13 +1598,13 @@ import_decode_worker_state(int state)
 }
 
 static void
-import_print_worker_status(ImportWorkerInfo *info)
+bdb_import_print_worker_status(ImportWorkerInfo *info)
 {
     char *name = (info->work_type == PRODUCER ? "Producer" : (info->work_type == FOREMAN ? "Foreman" : info->index_info->name));
 
-    import_log_status_add_line(info->job,
+    bdb_import_log_status_add_line(info->job,
                                "%-25s %s%10ld %7.1f", name,
-                               import_decode_worker_state(info->state),
+                               bdb_import_decode_worker_state(info->state),
                                info->last_ID_processed, info->rate);
 }
 
@@ -1649,7 +1619,7 @@ import_print_worker_status(ImportWorkerInfo *info)
 #define IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B (0.1)
 
 static int
-import_throw_in_towel(ImportJob *job, time_t current_time, ID trailing_ID)
+bdb_import_throw_in_towel(ImportJob *job, time_t current_time, ID trailing_ID)
 {
     static int number_of_times_here = 0;
 
@@ -1676,7 +1646,7 @@ import_throw_in_towel(ImportJob *job, time_t current_time, ID trailing_ID)
          * for the slowdown */
             if (job->cache_hit_ratio < IMPORT_CHUNK_TEST_CACHE_HIT_RATIO) {
                 /* We have a winner ! */
-                import_log_notice(job, SLAPI_LOG_INFO, "import_throw_in_towel",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_throw_in_towel",
                                   "Decided to end this pass because the progress rate has dropped below "
                                   "the %.0f%% threshold.",
                                   IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_A * 100.0);
@@ -1691,7 +1661,7 @@ import_throw_in_towel(ImportJob *job, time_t current_time, ID trailing_ID)
          * been misconfigured too large */
                 if (number_of_times_here > 10) {
                     /* Got to get here ten times at least */
-                    import_log_notice(job, SLAPI_LOG_INFO, "import_throw_in_towel",
+                    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_throw_in_towel",
                                       "Decided to end this pass because the progress rate plummeted below %.0f%%",
                                       IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B * 100.0);
                     return 1;
@@ -1706,7 +1676,7 @@ import_throw_in_towel(ImportJob *job, time_t current_time, ID trailing_ID)
 }
 
 static void
-import_push_progress_history(ImportJob *job, ID current_id, time_t current_time)
+bdb_import_push_progress_history(ImportJob *job, ID current_id, time_t current_time)
 {
     int i = 0;
 
@@ -1719,7 +1689,7 @@ import_push_progress_history(ImportJob *job, ID current_id, time_t current_time)
 }
 
 static void
-import_calc_rate(ImportWorkerInfo *info, int time_interval)
+bdb_import_calc_rate(ImportWorkerInfo *info, time_t time_interval)
 {
     size_t ids = info->last_ID_processed - info->previous_ID_counted;
     double rate = (double)ids / time_interval;
@@ -1742,7 +1712,7 @@ import_calc_rate(ImportWorkerInfo *info, int time_interval)
                                                   : (double)0)
 
 static int
-import_monitor_threads(ImportJob *job, int *status)
+bdb_import_monitor_threads(ImportJob *job, int *status)
 {
     PRIntervalTime tenthsecond = PR_MillisecondsToInterval(100);
     ImportWorkerInfo *current_worker = NULL;
@@ -1777,9 +1747,9 @@ import_monitor_threads(ImportJob *job, int *status)
         goto error_abort;
     }
 
-    last_time = slapi_current_utc_time();
+    last_time = slapi_current_rel_time_t();
     job->start_time = last_time;
-    import_clear_progress_history(job);
+    bdb_import_clear_progress_history(job);
 
     while (!finished) {
         ID trailing_ID = NOID;
@@ -1789,26 +1759,38 @@ import_monitor_threads(ImportJob *job, int *status)
 
         /* First calculate the time interval since last reported */
         if (0 == (count % display_interval)) {
-            time_now = slapi_current_utc_time();
+            time_now = slapi_current_rel_time_t();
             time_interval = time_now - last_time;
             last_time = time_now;
             /* Now calculate our rate of progress overall for this chunk */
             if (time_now != job->start_time) {
                 /* log a cute chart of the worker progress */
-                import_log_status_start(job);
-                import_log_status_add_line(job,
-                                           "Index status for import of %s:", job->inst->inst_name);
-                import_log_status_add_line(job,
-                                           "-------Index Task-------State---Entry----Rate-");
+                uint32_t history_size = 0;
+                double rate = 0.0;
 
-                import_push_progress_history(job, foreman->last_ID_processed,
-                                             time_now);
-                job->average_progress_rate =
-                    (double)(HISTORY(IMPORT_JOB_PROG_HISTORY_SIZE - 1) + 1 - foreman->first_ID) /
+                bdb_import_log_status_start(job);
+                bdb_import_log_status_add_line(job,
+                                               "Index status for import of %s:",
+                                               job->inst->inst_name);
+                bdb_import_log_status_add_line(job,
+                        "-------Index Task-------State---Entry----Rate-");
+
+                bdb_import_push_progress_history(job, foreman->last_ID_processed,
+                                                 time_now);
+
+                history_size = HISTORY(IMPORT_JOB_PROG_HISTORY_SIZE - 1) + 1;
+                if (foreman->first_ID > history_size) {
+                    /* Import is stalled and subtracting first_ID will
+                     * underflow the rate - so set it to 0.0 */
+                    rate = 0.0;
+                } else {
+                    rate = (double)(history_size - foreman->first_ID);
+                }
+                job->average_progress_rate = rate /
                     (double)(TIMES(IMPORT_JOB_PROG_HISTORY_SIZE - 1) - job->start_time);
                 job->recent_progress_rate =
                     PROGRESS(0, IMPORT_JOB_PROG_HISTORY_SIZE - 1);
-                job->cache_hit_ratio = import_grok_db_stats(job->inst);
+                job->cache_hit_ratio = bdb_import_grok_db_stats(job->inst);
             }
         }
 
@@ -1821,8 +1803,8 @@ import_monitor_threads(ImportJob *job, int *status)
                 trailing_ID = current_worker->last_ID_processed;
             }
             if (0 == (count % display_interval) && time_interval) {
-                import_calc_rate(current_worker, time_interval);
-                import_print_worker_status(current_worker);
+                bdb_import_calc_rate(current_worker, time_interval);
+                bdb_import_print_worker_status(current_worker);
             }
             corestate = current_worker->state & CORESTATE;
             if (current_worker->state == ABORTED) {
@@ -1854,7 +1836,7 @@ import_monitor_threads(ImportJob *job, int *status)
             (job->start_time != time_now)) {
             char buffer[256], *p = buffer;
 
-            import_log_status_done(job);
+            bdb_import_log_status_done(job);
             p += sprintf(p, "Processed %lu entries ", (u_long)job->ready_ID);
             if (job->total_pass > 1)
                 p += sprintf(p, "(pass %d) ", job->total_pass);
@@ -1863,22 +1845,22 @@ import_monitor_threads(ImportJob *job, int *status)
                          job->average_progress_rate);
             p += sprintf(p, "recent rate %.1f/sec, ",
                          job->recent_progress_rate);
-            p += sprintf(p, "hit ratio %.0f%%", job->cache_hit_ratio * 100.0);
-            import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads", "%s", buffer);
+            sprintf(p, "hit ratio %.0f%%", job->cache_hit_ratio * 100.0);
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_monitor_threads", "%s", buffer);
         }
 
         /* Then let's see if it's time to complete this import pass */
         if (!giveup) {
-            giveup = import_throw_in_towel(job, time_now, trailing_ID);
+            giveup = bdb_import_throw_in_towel(job, time_now, trailing_ID);
             if (giveup) {
                 /* If so, signal the lead thread to stop */
-                import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_monitor_threads",
                                   "Ending pass number %d ...", job->total_pass);
                 foreman->command = STOP;
                 while (foreman->state != FINISHED) {
                     DS_Sleep(tenthsecond);
                 }
-                import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_monitor_threads",
                                   "Foreman is done; waiting for workers to finish...");
             }
         }
@@ -1888,7 +1870,7 @@ import_monitor_threads(ImportJob *job, int *status)
             producer_done = (producer->state == FINISHED) ||
                             (producer->state == QUIT);
         } else {
-            /* set in ldbm_back_wire_import */
+            /* set in bdb_ldbm_back_wire_import */
             producer_done = (job->flags & FLAG_PRODUCER_DONE);
         }
         if (producer_done && (job->lead_ID == job->ready_ID)) {
@@ -1911,7 +1893,7 @@ import_monitor_threads(ImportJob *job, int *status)
         count++;
     }
 
-    import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads",
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_monitor_threads",
                       "Workers finished; cleaning up...");
 
     /* Now tell all the workers to stop */
@@ -1933,7 +1915,7 @@ import_monitor_threads(ImportJob *job, int *status)
             current_worker = current_worker->next;
         }
     }
-    import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads", "Workers cleaned up.");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_monitor_threads", "Workers cleaned up.");
 
     /* If we're here and giveup is true, and the primary hadn't finished
      * processing the input files, we need to return IMPORT_INCOMPLETE_PASS */
@@ -1960,25 +1942,25 @@ error_abort:
 /********** running passes **********/
 
 static int
-import_run_pass(ImportJob *job, int *status)
+bdb_import_run_pass(ImportJob *job, int *status)
 {
     int ret = 0;
 
     /* Start the threads running */
-    ret = import_start_threads(job);
+    ret = bdb_import_start_threads(job);
     if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "import_run_pass", "Starting threads failed: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_run_pass", "Starting threads failed: %d\n", ret);
         goto error;
     }
 
     /* Monitor the threads until we're done or fail */
-    ret = import_monitor_threads(job, status);
+    ret = bdb_import_monitor_threads(job, status);
     if ((ret == ERR_IMPORT_ABORTED) || (ret == NEED_DN_NORM) ||
         (ret == NEED_DN_NORM_SP) || (ret == NEED_DN_NORM_BT)) {
-        import_log_notice(job, SLAPI_LOG_ERR, "import_run_pass", "Thread monitoring returned: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_run_pass", "Thread monitoring returned: %d\n", ret);
         goto error;
     } else if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "import_run_pass", "Thread monitoring aborted: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_run_pass", "Thread monitoring aborted: %d\n", ret);
         goto error;
     }
 
@@ -1987,7 +1969,7 @@ error:
 }
 
 static void
-import_set_abort_flag_all(ImportJob *job, int wait_for_them)
+bdb_import_set_abort_flag_all(ImportJob *job, int wait_for_them)
 {
 
     ImportWorkerInfo *worker;
@@ -2018,36 +2000,9 @@ import_set_abort_flag_all(ImportJob *job, int wait_for_them)
     }
 }
 
-
-/* tell all the threads to abort */
-void
-import_abort_all(ImportJob *job, int wait_for_them)
-{
-    ImportWorkerInfo *worker;
-
-    /* tell all the worker threads to abort */
-    job->flags |= FLAG_ABORT;
-
-    for (worker = job->worker_list; worker; worker = worker->next)
-        worker->command = ABORT;
-
-    if (wait_for_them) {
-        /* Having done that, wait for them to say that they've stopped */
-        for (worker = job->worker_list; worker != NULL;) {
-            DS_Sleep(PR_MillisecondsToInterval(100));
-            if ((worker->state != FINISHED) && (worker->state != ABORTED) &&
-                (worker->state != QUIT)) {
-                continue;
-            } else {
-                worker = worker->next;
-            }
-        }
-    }
-}
-
 /* Helper function to make up filenames */
 int
-import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname)
+bdb_import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname)
 {
     /* Filenames look like this: attributename<LDBM_FILENAME_SUFFIX>
        and need to be renamed to: attributename<LDBM_FILENAME_SUFFIX>.n
@@ -2077,12 +2032,12 @@ import_make_merge_filenames(char *directory, char *indexname, int pass, char **o
  *     us to not muck with it.
  */
 static int
-import_sweep_after_pass(ImportJob *job)
+bdb_import_sweep_after_pass(ImportJob *job)
 {
     backend *be = job->inst->inst_be;
     int ret = 0;
 
-    import_log_notice(job, SLAPI_LOG_INFO, "import_sweep_after_pass",
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_sweep_after_pass",
                       "Sweeping files for merging later...");
 
     ret = dblayer_instance_close(be);
@@ -2101,7 +2056,7 @@ import_sweep_after_pass(ImportJob *job)
                 char *newname = NULL;
                 char *oldname = NULL;
 
-                ret = import_make_merge_filenames(job->inst->inst_dir_name,
+                ret = bdb_import_make_merge_filenames(job->inst->inst_dir_name,
                                                   current_worker->index_info->name, job->current_pass,
                                                   &oldname, &newname);
                 if (0 != ret) {
@@ -2111,7 +2066,7 @@ import_sweep_after_pass(ImportJob *job)
                     ret = PR_Rename(oldname, newname);
                     if (ret != PR_SUCCESS) {
                         PRErrorCode prerr = PR_GetError();
-                        import_log_notice(job, SLAPI_LOG_ERR, "import_sweep_after_pass",
+                        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_sweep_after_pass",
                                           "Failed to rename file \"%s\" to \"%s\", " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
                                           oldname, newname, prerr, slapd_pr_strerror(prerr));
                         slapi_ch_free((void **)&newname);
@@ -2128,13 +2083,13 @@ import_sweep_after_pass(ImportJob *job)
     }
 
     if (0 == ret) {
-        import_log_notice(job, SLAPI_LOG_INFO, "import_sweep_after_pass", "Sweep done.");
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_sweep_after_pass", "Sweep done.");
     } else {
         if (ENOSPC == ret) {
-            import_log_notice(job, LOG_CRIT, "import_sweep_after_pass",
+            import_log_notice(job, LOG_CRIT, "bdb_import_sweep_after_pass",
                               "NO DISK SPACE LEFT in sweep phase");
         } else {
-            import_log_notice(job, SLAPI_LOG_ERR, "import_sweep_after_pass",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_sweep_after_pass",
                               "Sweep phase error %d (%s)", ret,
                               dblayer_strerror(ret));
         }
@@ -2147,7 +2102,7 @@ import_sweep_after_pass(ImportJob *job)
  * returns 0 on success; anything else is an error
  */
 static int
-import_all_done(ImportJob *job, int ret)
+bdb_import_all_done(ImportJob *job, int ret)
 {
     ldbm_instance *inst = job->inst;
 
@@ -2199,7 +2154,7 @@ import_all_done(ImportJob *job, int ret)
 
 
 int
-bdb_import_main(void *arg)
+bdb_public_bdb_import_main(void *arg)
 {
     ImportJob *job = (ImportJob *)arg;
     ldbm_instance *inst = job->inst;
@@ -2216,6 +2171,7 @@ bdb_import_main(void *arg)
 
     if (job->task) {
         slapi_task_inc_refcount(job->task);
+        slapi_task_wait(job->task);
     }
 
     if (job->flags & (FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1)) {
@@ -2232,28 +2188,28 @@ bdb_import_main(void *arg)
         opstr = "Reindexing";
     }
     PR_ASSERT(inst != NULL);
-    beginning = slapi_current_utc_time();
+    beginning = slapi_current_rel_time_t();
 
     /* Decide which indexes are needed */
     if (job->flags & FLAG_INDEX_ATTRS) {
         /* Here, we get an AVL tree which contains nodes for all attributes
          * in the schema.  Given this tree, we need to identify those nodes
          * which are marked for indexing. */
-        avl_apply(job->inst->inst_attrs, (IFP)import_attr_callback,
+        avl_apply(job->inst->inst_attrs, bdb_import_attr_callback,
                   (caddr_t)job, -1, AVL_INORDER);
-        vlv_getindices((IFP)import_attr_callback, (void *)job, be);
+        vlv_getindices(bdb_import_attr_callback, (void *)job, be);
     }
 
     /* Determine how much index buffering space to allocate to each index */
-    import_set_index_buffer_size(job);
+    bdb_import_set_index_buffer_size(job);
 
     /* initialize the entry FIFO */
-    ret = import_fifo_init(job);
+    ret = bdb_import_fifo_init(job);
     if (ret) {
         if (!(job->flags & FLAG_USE_FILES)) {
-            PR_Lock(job->wire_lock);
-            PR_NotifyCondVar(job->wire_cv);
-            PR_Unlock(job->wire_lock);
+            pthread_mutex_lock(&job->wire_lock);
+            pthread_cond_signal(&job->wire_cv);
+            pthread_mutex_unlock(&job->wire_lock);
         }
         goto error;
     }
@@ -2267,37 +2223,37 @@ bdb_import_main(void *arg)
             goto error;
 
         /* start the producer */
-        import_init_worker_info(producer, job);
+        bdb_import_init_worker_info(producer, job);
         producer->work_type = PRODUCER;
         if (job->flags & (FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1)) {
-            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)upgradedn_producer,
+            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)bdb_upgradedn_producer,
                                producer, PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                                PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                               "Unable to spawn upgrade dn producer thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 goto error;
             }
         } else if (job->flags & FLAG_REINDEXING) {
-            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)index_producer, producer,
+            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)bdb_index_producer, producer,
                                PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                                PR_UNJOINABLE_THREAD,
                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                               "Unable to spawn index producer thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 goto error;
             }
         } else {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Beginning import job...");
-            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)import_producer, producer,
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Beginning import job...");
+            if (!CREATE_THREAD(PR_USER_THREAD, (VFP)bdb_import_producer, producer,
                                PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                                PR_UNJOINABLE_THREAD,
                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                               "Unable to spawn import producer thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 goto error;
@@ -2305,9 +2261,9 @@ bdb_import_main(void *arg)
         }
 
         if (0 == job->job_index_buffer_suggestion)
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Index buffering is disabled.");
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Index buffering is disabled.");
         else
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                               "Index buffering enabled with bucket size %lu",
                               (long unsigned int)job->job_index_buffer_suggestion);
 
@@ -2315,9 +2271,9 @@ bdb_import_main(void *arg)
     } else {
         /* release the startup lock and let the entries start queueing up
          * in for import */
-        PR_Lock(job->wire_lock);
-        PR_NotifyCondVar(job->wire_cv);
-        PR_Unlock(job->wire_lock);
+        pthread_mutex_lock(&job->wire_lock);
+        pthread_cond_signal(&job->wire_cv);
+        pthread_mutex_unlock(&job->wire_lock);
     }
 
     /* Run as many passes as we need to complete the job or die honourably in
@@ -2325,7 +2281,7 @@ bdb_import_main(void *arg)
     while (!finished) {
         job->current_pass++;
         job->total_pass++;
-        ret = import_run_pass(job, &status);
+        ret = bdb_import_run_pass(job, &status);
         /* The following could have happened:
          *     (a) Some error happened such that we're hosed.
          *         This is indicated by a non-zero return code.
@@ -2343,13 +2299,13 @@ bdb_import_main(void *arg)
         if (ret == ERR_IMPORT_ABORTED) {
             /* at least one of the threads has aborted -- shut down ALL
              * of the threads */
-            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                               "Aborting all %s threads...", opstr);
             /* this abort sets the  abort flag on the threads and will block for
              * the exit of all threads
              */
-            import_set_abort_flag_all(job, 1);
-            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
+            bdb_import_set_abort_flag_all(job, 1);
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                               "%s threads aborted.", opstr);
             aborted = 1;
             goto error;
@@ -2359,7 +2315,7 @@ bdb_import_main(void *arg)
             goto error;
         } else if (0 != ret) {
             /* Some horrible fate has befallen the import */
-            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                               "Fatal pass error %d", ret);
             goto error;
         }
@@ -2370,11 +2326,11 @@ bdb_import_main(void *arg)
                 /* We're done !!!! */;
             } else {
                 /* Save the files, then merge */
-                ret = import_sweep_after_pass(job);
+                ret = bdb_import_sweep_after_pass(job);
                 if (0 != ret) {
                     goto error;
                 }
-                ret = import_mega_merge(job);
+                ret = bdb_import_mega_merge(job);
                 if (0 != ret) {
                     goto error;
                 }
@@ -2384,18 +2340,18 @@ bdb_import_main(void *arg)
             if (IMPORT_INCOMPLETE_PASS == status) {
                 /* Need to go round again */
                 /* Time to save the files we've built for later */
-                ret = import_sweep_after_pass(job);
+                ret = bdb_import_sweep_after_pass(job);
                 if (0 != ret) {
                     goto error;
                 }
                 if ((inst->inst_li->li_maxpassbeforemerge != 0) &&
                     (job->current_pass > inst->inst_li->li_maxpassbeforemerge)) {
-                    ret = import_mega_merge(job);
+                    ret = bdb_import_mega_merge(job);
                     if (0 != ret) {
                         goto error;
                     }
                     job->current_pass = 1;
-                    ret = import_sweep_after_pass(job);
+                    ret = bdb_import_sweep_after_pass(job);
                     if (0 != ret) {
                         goto error;
                     }
@@ -2403,9 +2359,9 @@ bdb_import_main(void *arg)
 
                 /* Fixup the first_ID value to reflect previous work */
                 job->first_ID = job->ready_ID + 1;
-                import_free_thread_data(job);
+                bdb_import_free_thread_data(job);
                 job->worker_list = producer;
-                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                                   "Beginning pass number %d", job->total_pass + 1);
             } else {
                 /* Bizarro-slapd */
@@ -2416,7 +2372,7 @@ bdb_import_main(void *arg)
 
     /* kill the producer now; we're done */
     if (producer) {
-        import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Cleaning up producer thread...");
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Cleaning up producer thread...");
         producer->command = STOP;
         /* wait for the lead thread to stop */
         while (producer->state != FINISHED) {
@@ -2424,36 +2380,34 @@ bdb_import_main(void *arg)
         }
     }
 
-    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Indexing complete.  Post-processing...");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
-    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                       "Generating numsubordinates (this may take several minutes to complete)...");
     if ((!(job->flags & FLAG_REINDEXING) || (job->flags & FLAG_DN2RDN)) &&
         (ret = bdb_update_subordinatecounts(be, job, NULL)) != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                           "Failed to update numsubordinates attributes");
         goto error;
     }
-    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                       "Generating numSubordinates complete.");
 
-    if (!entryrdn_get_noancestorid()) {
-        /* And the ancestorid index */
-        /* Creating ancestorid from the scratch; delete the index file first. */
-        struct attrinfo *ai = NULL;
+    /* And the ancestorid index */
+    /* Creating ancestorid from the scratch; delete the index file first. */
+    struct attrinfo *ai = NULL;
 
-        ainfo_get(be, "ancestorid", &ai);
-        dblayer_erase_index_file(be, ai, PR_TRUE, 0);
-        if ((ret = bdb_ancestorid_create_index(be, job)) != 0) {
-            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main", "Failed to create ancestorid index");
-            goto error;
-        }
+    ainfo_get(be, "ancestorid", &ai);
+    dblayer_erase_index_file(be, ai, PR_TRUE, 0);
+    if ((ret = bdb_ancestorid_create_index(be, job)) != 0) {
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main", "Failed to create ancestorid index");
+        goto error;
     }
 
-    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Flushing caches...");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Flushing caches...");
 
-/* New way to exit the routine: check the return code.
+    /* New way to exit the routine: check the return code.
      * If it's non-zero, delete the database files.
      * Otherwise don't, but always close the database layer properly.
      * Then return. This ensures that we can't make a half-good/half-bad
@@ -2462,44 +2416,57 @@ bdb_import_main(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it
        except dry run mode */
-    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Closing files...");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) {
-        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
+
     if (aborted) {
         /* If aborted, it's safer to rebuild the caches. */
         cache_destroy_please(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
+
         /* initialize the entry cache */
-        if (!cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
+        if (!cache_init(&(inst->inst_cache), inst, inst->inst_cache.c_stats.maxsize,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                           "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
-        if (!cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
+        if (!cache_init(&(inst->inst_dncache), inst, inst->inst_dncache.c_stats.maxsize,
                         DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                           "dn cache_init failed.  Server should be restarted.\n");
         }
     }
     if (0 != ret) {
-        dblayer_instance_close(job->inst->inst_be);
-        if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
-            /* If not dryrun NOR upgradedn space */
-            /* if running in the dry run mode, don't touch the db */
-            dblayer_delete_instance_dir(be);
+        if (job->flags & FLAG_REINDEXING) {
+            /* Reindex only rebuilds secondary indexes from id2entry
+             * which is never modified during reindex. On failure we
+             * must NOT close or delete the instance, just bring the
+             * backend back online so the server can continue operating
+             * or shut down cleanly.
+             */
+            import_log_notice(job, SLAPI_LOG_CRIT, "bdb_public_bdb_import_main",
+                              "Reindex failed. Indexes may be incomplete."
+                              " The backend is unavailable until offline"
+                              " reindex is performed:"
+                              " stop the server, run 'dsctl <instance> db2index %s',"
+                              " then start the server.",
+                              inst->inst_name);
+        } else {
+            dblayer_instance_close(job->inst->inst_be);
+            if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
+                /* Not dryrun nor upgradedn - delete the half-imported db */
+                bdb_delete_instance_dir(be);
+            }
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_main", "Failed to close database");
+            import_log_notice(job, SLAPI_LOG_WARNING, "bdb_public_bdb_import_main", "Failed to close database");
         }
     }
-    end = slapi_current_utc_time();
+    end = slapi_current_rel_time_t();
     if (verbose && (0 == ret)) {
         int seconds_to_import = end - beginning;
         size_t entries_processed = job->lead_ID - (job->starting_ID - 1);
@@ -2508,7 +2475,7 @@ error:
 
         if (job->not_here_skipped) {
             if (job->skipped) {
-                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "(%d bad entries were skipped, "
                                   "%d entries were skipped because they don't "
@@ -2518,7 +2485,7 @@ error:
                                   job->skipped, job->not_here_skipped,
                                   seconds_to_import, entries_per_second);
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "(%d entries were skipped because they don't "
                                   "belong to this database) "
@@ -2529,7 +2496,7 @@ error:
             }
         } else {
             if (job->skipped) {
-                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "(%d were skipped) in %d seconds. "
                                   "(%.2f entries/sec)",
@@ -2537,7 +2504,7 @@ error:
                                   job->skipped, seconds_to_import,
                                   entries_per_second);
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "in %d seconds. (%.2f entries/sec)",
                                   opstr, (long unsigned int)entries_processed,
@@ -2548,40 +2515,40 @@ error:
 
     if (job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1)) {
         if (0 == ret) {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "%s complete.  %s is up-to-date.",
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "%s complete.  %s is up-to-date.",
                               opstr, job->inst->inst_name);
             ret = 0;
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
-            import_all_done(job, ret);
+            bdb_import_all_done(job, ret);
         } else if (NEED_DN_NORM_BT == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
                               "%s complete. %s needs upgradednformat all.",
                               opstr, job->inst->inst_name);
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
-            import_all_done(job, ret);
-            ret = 1;
+            bdb_import_all_done(job, ret);
+            ret |= WARN_UPGRADE_DN_FORMAT_ALL;
         } else if (NEED_DN_NORM == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
                               "%s complete. %s needs upgradednformat.",
                               opstr, job->inst->inst_name);
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
-            import_all_done(job, ret);
-            ret = 2;
+            bdb_import_all_done(job, ret);
+            ret |= WARN_UPGRADE_DN_FORMAT;
         } else if (NEED_DN_NORM_SP == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
                               "%s complete. %s needs upgradednformat spaces.",
                               opstr, job->inst->inst_name);
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
-            import_all_done(job, ret);
-            ret = 3;
+            bdb_import_all_done(job, ret);
+            ret |= WARN_UPGRADE_DN_FORMAT_SPACE;
         } else {
             ret = -1;
             if (job->task != NULL) {
@@ -2589,21 +2556,33 @@ error:
             }
         }
     } else if (0 != ret) {
-        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main", "%s failed.", opstr);
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main", "%s failed.", opstr);
         if (job->task != NULL) {
             slapi_task_finish(job->task, ret);
         }
     } else {
+        dblayer_private *priv = NULL;
+        struct ldbminfo *li = inst->inst_li;
+
         if (job->task) {
             slapi_task_dec_refcount(job->task);
         }
-        import_all_done(job, ret);
+        bdb_import_all_done(job, ret);
+
+        /* Import is done, we need to autotune caches */
+        priv = (dblayer_private *)li->li_dblayer_private;
+        priv->dblayer_auto_tune_fn(li);
+    }
+
+    /* set task warning if there are no errors */
+    if((!ret) && (job->skipped)) {
+        ret |= WARN_SKIPPED_IMPORT_ENTRY;
     }
 
     /* This instance isn't busy anymore */
     instance_set_not_busy(job->inst);
 
-    import_free_job(job);
+    bdb_import_free_job(job);
     if (!job->task) {
         FREE(job);
     }
@@ -2619,8 +2598,9 @@ error:
  *
  */
 void
-import_main(void *arg)
+bdb_import_main(void *arg)
 {
+    slapi_set_thread_name("bdb-import");
     /* For online import tasks increment/decrement the global thread count */
     g_incr_active_threadcnt();
     import_main_offline(arg);
@@ -2637,6 +2617,7 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     int total_files, i;
     int up_flags = 0;
     PRThread *thread = NULL;
+    int ret = 0;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
@@ -2687,19 +2668,9 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
                 job->flags |= FLAG_DRYRUN;
             }
         } else {
-            job->flags |= FLAG_REINDEXING; /* call index_producer */
+            job->flags |= FLAG_REINDEXING; /* call bdb_index_producer */
             if (up_flags & SLAPI_UPGRADEDB_DN2RDN) {
-                if (entryrdn_get_switch()) {
-                    job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR, "bdb_back_ldif2db",
-                                  "DN to RDN option is specified, "
-                                  "but %s is not enabled\n",
-                                  CONFIG_ENTRYRDN_SWITCH);
-                    import_free_job(job);
-                    FREE(job);
-                    return -1;
-                }
+                job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
             }
         }
     }
@@ -2711,10 +2682,9 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     }
     job->starting_ID = 1;
     job->first_ID = 1;
-    job->mothers = CALLOC(import_subcount_stuff);
 
     /* how much space should we allocate to index buffering? */
-    job->job_index_buffer_size = import_get_index_buffer_size();
+    job->job_index_buffer_size = bdb_import_get_index_buffer_size();
     if (job->job_index_buffer_size == 0) {
         /* 10% of the allocated cache size + one meg */
         PR_Lock(job->inst->inst_li->li_config_mutex);
@@ -2722,7 +2692,6 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
             (job->inst->inst_li->li_import_cachesize / 10) + (1024 * 1024);
         PR_Unlock(job->inst->inst_li->li_config_mutex);
     }
-    import_subcount_stuff_init(job->mothers);
 
     if (job->task != NULL) {
         /* count files, use that to track "progress" in cn=tasks */
@@ -2742,12 +2711,12 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
         job->task->task_progress = 0;
         job->task->task_state = SLAPI_TASK_RUNNING;
         slapi_task_set_data(job->task, job);
-        slapi_task_set_destructor_fn(job->task, import_task_destroy);
-        slapi_task_set_cancel_fn(job->task, import_task_abort);
+        slapi_task_set_destructor_fn(job->task, bdb_import_task_destroy);
+        slapi_task_set_cancel_fn(job->task, bdb_import_task_abort);
         job->flags |= FLAG_ONLINE;
 
-        /* create thread for import_main, so we can return */
-        thread = PR_CreateThread(PR_USER_THREAD, import_main, (void *)job,
+        /* create thread for bdb_import_main, so we can return */
+        thread = PR_CreateThread(PR_USER_THREAD, bdb_import_main, (void *)job,
                                  PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                  PR_UNJOINABLE_THREAD,
                                  SLAPD_DEFAULT_THREAD_STACKSIZE);
@@ -2756,7 +2725,7 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_ERR, "bdb_back_ldif2db",
                           "Unable to spawn import thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr));
-            import_free_job(job);
+            bdb_import_free_job(job);
             FREE(job);
             return -2;
         }
@@ -2764,7 +2733,15 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     }
 
     /* old style -- do it all synchronously (THIS IS GOING AWAY SOON) */
-    return import_main_offline((void *)job);
+    ret = import_main_offline((void *)job);
+
+    /* no error just warning, reset ret */
+    if(ret &= WARN_SKIPPED_IMPORT_ENTRY) {
+        slapi_pblock_set_task_warning(pb, WARN_SKIPPED_IMPORT_ENTRY);
+        ret = 0;
+    }
+
+    return ret;
 }
 
 struct _import_merge_thang
@@ -2790,10 +2767,12 @@ struct _import_merge_queue_entry
 typedef struct _import_merge_queue_entry import_merge_queue_entry;
 
 static int
-import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang *thang, DBT *key, int type)
+bdb_import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang *thang, DBT *key, int type)
 {
     int ret = 0;
     DBT value = {0};
+    dbi_val_t dbikey = {0};
+
 
     value.flags = DB_DBT_MALLOC;
     key->flags = DB_DBT_MALLOC;
@@ -2810,7 +2789,10 @@ import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang
                 /* If not, read the IDL using idl_fetch() */
                 key->flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
-                thang->payload.idl = idl_fetch(be, db, key, NULL, NULL, &ret);
+                bdb_dbt2dbival(key, &dbikey, PR_FALSE);
+                thang->payload.idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
+                bdb_dbival2dbt(&dbikey, key, PR_TRUE);
+                dblayer_value_protect_data(be, &dbikey);
                 PR_ASSERT(NULL != thang->payload.idl);
             } else {
                 slapi_ch_free(&(value.data));
@@ -2844,7 +2826,7 @@ import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang
 }
 
 static import_merge_queue_entry *
-import_merge_make_new_queue_entry(import_merge_thang *thang, DBT *key, int fileno, int passes)
+bdb_import_merge_make_new_queue_entry(import_merge_thang *thang, DBT *key, int fileno, int passes)
 {
     /* Make a new entry */
     import_merge_queue_entry *new_entry = (import_merge_queue_entry *)slapi_ch_calloc(1, sizeof(import_merge_queue_entry));
@@ -2860,7 +2842,7 @@ import_merge_make_new_queue_entry(import_merge_thang *thang, DBT *key, int filen
 
 /* Put an IDL onto the priority queue */
 static int
-import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue, int fileno, DBT *key, import_merge_thang *thang, int passes)
+bdb_import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue, int fileno, DBT *key, import_merge_thang *thang, int passes)
 {
     /* Walk the list, looking for a key value which is greater than or equal
      * to the presented key */
@@ -2874,7 +2856,7 @@ import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue, i
     PR_ASSERT(NULL != thang);
     if (NULL == *queue) {
         /* Queue was empty--- put ourselves at the head */
-        *queue = import_merge_make_new_queue_entry(thang, key, fileno, passes);
+        *queue = bdb_import_merge_make_new_queue_entry(thang, key, fileno, passes);
         if (NULL == *queue) {
             return -1;
         }
@@ -2921,7 +2903,7 @@ import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue, i
         /* Now insert */
         {
             import_merge_queue_entry *new_entry =
-                import_merge_make_new_queue_entry(thang, key, fileno, passes);
+                bdb_import_merge_make_new_queue_entry(thang, key, fileno, passes);
 
             if (NULL == new_entry) {
                 return -1;
@@ -2943,7 +2925,7 @@ done:
 }
 
 static int
-import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, import_merge_thang *thang, DBT *key, DBC **input_cursors, DB **input_files, int passes)
+bdb_import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, import_merge_thang *thang, DBT *key, DBC **input_cursors, DB **input_files, int passes)
 {
     import_merge_queue_entry *head = NULL;
     int file_referenced = 0;
@@ -2970,7 +2952,7 @@ import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, i
 
         file_referenced = (head->file_referenced_list)[i];
         if (file_referenced) {
-            ret = import_merge_get_next_thang(be, input_cursors[i],
+            ret = bdb_import_merge_get_next_thang(be, input_cursors[i],
                                               input_files[i], &new_thang, &new_key, thang->type);
             if (0 != ret) {
                 if (EOF == ret) {
@@ -2983,7 +2965,7 @@ import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, i
                 }
             } else {
                 /* This function is responsible for any freeing needed */
-                import_merge_insert_input_queue(be, queue, i, &new_key,
+                bdb_import_merge_insert_input_queue(be, queue, i, &new_key,
                                                 &new_thang, passes);
             }
         }
@@ -2995,7 +2977,7 @@ import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, i
 }
 
 static int
-import_merge_open_input_cursors(DB **files, int passes, DBC ***cursors)
+bdb_import_merge_open_input_cursors(DB **files, int passes, DBC ***cursors)
 {
     int i = 0;
     int ret = 0;
@@ -3022,7 +3004,7 @@ import_merge_open_input_cursors(DB **files, int passes, DBC ***cursors)
 }
 
 static int
-import_count_merge_input_files(ldbm_instance *inst,
+bdb_import_count_merge_input_files(ldbm_instance *inst,
                                char *indexname,
                                int passes,
                                int *number_found,
@@ -3061,7 +3043,7 @@ import_count_merge_input_files(ldbm_instance *inst,
 }
 
 static int
-import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, DB ***input_files, int *number_found, int *pass_number)
+bdb_import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, DB ***input_files, int *number_found, int *pass_number)
 {
     int i = 0;
     int ret = 0;
@@ -3088,10 +3070,10 @@ import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, DB
            the new code works with the old semantics */
             int saved_mask = index_info->ai->ai_indexmask;
             index_info->ai->ai_indexmask |= INDEX_VLV;
-            ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+            ret = dblayer_open_file(be, filename, 0, index_info->ai, (dbi_db_t**)&pDB);
             index_info->ai->ai_indexmask = saved_mask;
         } else {
-            ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+            ret = dblayer_open_file(be, filename, 0, index_info->ai, (dbi_db_t**)&pDB);
         }
 
         slapi_ch_free((void **)&filename);
@@ -3116,9 +3098,10 @@ import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, DB
 
 /* Performs the n-way merge on one file */
 static int
-import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
+bdb_import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
 {
     ldbm_instance *inst = worker->job->inst;
+    PR_ASSERT(NULL != inst);
     backend *be = inst->inst_be;
     DB *output_file = NULL;
     int ret = 0;
@@ -3128,12 +3111,10 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
     DB **input_files = NULL;
     DBC **input_cursors = NULL;
 
-    PR_ASSERT(NULL != inst);
-
     /* Try to open all the input files.
        If we can't open file a file, we assume that is
        because there was no data in it. */
-    ret = import_count_merge_input_files(inst, worker->index_info->name,
+    ret = bdb_import_count_merge_input_files(inst, worker->index_info->name,
                                          passes, &number_found, &pass_number);
     if (0 != ret) {
         goto error;
@@ -3148,17 +3129,17 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
         char *newname = NULL;
         char *oldname = NULL;
 
-        ret = import_make_merge_filenames(inst->inst_dir_name,
+        ret = bdb_import_make_merge_filenames(inst->inst_dir_name,
                                           worker->index_info->name, pass_number, &oldname, &newname);
         if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file",
                               "Failed making filename in merge");
             goto error;
         }
         ret = PR_Rename(newname, oldname);
         if (0 != ret) {
             PRErrorCode prerr = PR_GetError();
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file",
                               "Failed to rename file \"%s\" to \"%s\" "
                               "in merge, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
                               oldname, newname, prerr, slapd_pr_strerror(prerr));
@@ -3173,6 +3154,7 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
         /* We really need to merge */
         import_merge_queue_entry *merge_queue = NULL;
         DBT key = {0};
+        dbi_val_t dbikey = {0};
         import_merge_thang thang = {0};
         int i = 0;
         int not_finished = 1;
@@ -3180,26 +3162,26 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
 
         ret = dblayer_instance_close(be);
         if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8i %d\n", ret);
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 8i %d\n", ret);
             goto error;
         }
         ret = bdb_instance_start(be, DBLAYER_IMPORT_MODE);
         if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8j %d\n", ret);
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 8j %d\n", ret);
             goto error;
         }
 
-        ret = import_open_merge_input_files(be, worker->index_info,
+        ret = bdb_import_open_merge_input_files(be, worker->index_info,
                                             passes, &input_files, &number_found, &pass_number);
         if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 10");
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 10");
             goto error;
         }
 
         ret = dblayer_open_file(be, worker->index_info->name, 1,
-                                worker->index_info->ai, &output_file);
+                                worker->index_info->ai, (dbi_db_t**)&output_file);
         if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "Failed to open output file for "
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "Failed to open output file for "
                                                                                    "index %s in merge",
                               worker->index_info->name);
             goto error;
@@ -3209,10 +3191,10 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
      * merge */
         /* We want to pre-fill the input IDL queue */
         /* Open cursors onto the input files */
-        ret = import_merge_open_input_cursors(input_files, passes,
+        ret = bdb_import_merge_open_input_cursors(input_files, passes,
                                               &input_cursors);
         if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 2 %s %d",
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 2 %s %d",
                               worker->index_info->name, ret);
             goto error;
         }
@@ -3224,19 +3206,19 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
                 import_merge_thang prime_thang = {0};
 
                 /* Read an IDL from the file */
-                ret = import_merge_get_next_thang(be, input_cursors[i],
+                ret = bdb_import_merge_get_next_thang(be, input_cursors[i],
                                                   input_files[i], &prime_thang, &key,
                                                   vlv_index ? IMPORT_MERGE_THANG_VLV : IMPORT_MERGE_THANG_IDL);
                 if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 1 %s %d",
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 1 %s %d",
                                       worker->index_info->name, ret);
                     goto error;
                 }
                 /* Put it on the queue */
-                ret = import_merge_insert_input_queue(be, &merge_queue, i, &key,
+                ret = bdb_import_merge_insert_input_queue(be, &merge_queue, i, &key,
                                                       &prime_thang, passes);
                 if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 0 %s",
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 0 %s",
                                       worker->index_info->name);
                     goto error;
                 }
@@ -3246,14 +3228,14 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
        head entry and write it to the output file, and repeat this process
        until we've finished reading all the input data */
         while (not_finished && (0 == ret)) {
-            ret = import_merge_remove_input_queue(be, &merge_queue, &thang,
+            ret = bdb_import_merge_remove_input_queue(be, &merge_queue, &thang,
                                                   &key, input_cursors, input_files, passes);
             if (0 != ret) {
                 /* Have we finished cleanly ? */
                 if (EOF == ret) {
                     not_finished = 0;
                 } else {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 3 %s, %d",
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 3 %s, %d",
                                       worker->index_info->name, ret);
                 }
             } else {
@@ -3267,8 +3249,11 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
                     thang.payload.vlv_data.data = NULL;
                 } else {
                     /* Write the IDL index */
-                    ret = idl_store_block(be, output_file, &key,
+                    bdb_dbt2dbival(&key, &dbikey, PR_FALSE);
+                    ret = idl_store_block(be, output_file, &dbikey,
                                           thang.payload.idl, NULL, worker->index_info->ai);
+                    bdb_dbival2dbt(&dbikey, &key, PR_TRUE);
+                    dblayer_value_protect_data(be, &dbikey);
                     /* Free the key we got back from the queue */
                     idl_free(&(thang.payload.idl));
                     thang.payload.idl = NULL;
@@ -3282,11 +3267,11 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
                    really handle this properly, but we're always bad at
                    this. */
                     if (ret == DB_RUNRECOVERY || ret == ENOSPC) {
-                        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                        import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file",
                                           "OUT OF SPACE ON DISK, failed writing index file %s",
                                           worker->index_info->name);
                     } else {
-                        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                        import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file",
                                           "Failed to write index file %s, errno=%d (%s)\n",
                                           worker->index_info->name, errno,
                                           dblayer_strerror(errno));
@@ -3306,24 +3291,24 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
                 PR_ASSERT(NULL != cursor);
                 ret = cursor->c_close(cursor);
                 if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 4");
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 4");
                 }
                 ret = bdb_close_file(&db);
                 if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 5");
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 5");
                 }
                 /* Now make the filename and delete the file */
                 {
                     char *newname = NULL;
                     char *oldname = NULL;
-                    ret = import_make_merge_filenames(inst->inst_dir_name,
+                    ret = bdb_import_make_merge_filenames(inst->inst_dir_name,
                                                       worker->index_info->name, i + 1, &oldname, &newname);
                     if (0 != ret) {
-                        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 6");
+                        import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 6");
                     } else {
                         ret = PR_Delete(newname);
                         if (0 != ret) {
-                            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 7");
+                            import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file", "MERGE FAIL 7");
                         }
                         slapi_ch_free((void **)&newname);
                         slapi_ch_free((void **)&oldname);
@@ -3342,7 +3327,7 @@ error:
     slapi_ch_free((void **)&input_cursors);
     slapi_ch_free((void **)&input_files);
     if (ret) {
-        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+        import_log_notice(worker->job, SLAPI_LOG_ERR, "bdb_import_merge_one_file",
                           "%s: Import merge failed. "
                           "If this is an online-import, shutdown the server "
                           "and try the offline command line import (ldif2db)",
@@ -3362,7 +3347,7 @@ error:
  *         IDL to the output file.
  */
 int
-import_mega_merge(ImportJob *job)
+bdb_import_mega_merge(ImportJob *job)
 {
     ImportWorkerInfo *current_worker = NULL;
     int ret = 0;
@@ -3371,15 +3356,15 @@ import_mega_merge(ImportJob *job)
     int passes = job->current_pass;
 
     if (1 == job->number_indexers) {
-        import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge",
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_mega_merge",
                           "Beginning %d-way merge of one file...", passes);
     } else {
-        import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge",
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_mega_merge",
                           "Beginning %d-way merge of up to %lu files...",
                           passes, (long unsigned int)job->number_indexers);
     }
 
-    beginning = slapi_current_utc_time();
+    beginning = slapi_current_rel_time_t();
     /* Iterate over the files */
     for (current_worker = job->worker_list;
          (ret == 0) && (current_worker != NULL);
@@ -3391,19 +3376,19 @@ import_mega_merge(ImportJob *job)
             time_t file_end = 0;
             int key_count = 0;
 
-            file_beginning = slapi_current_utc_time();
-            ret = import_merge_one_file(current_worker, passes, &key_count);
-            file_end = slapi_current_utc_time();
+            file_beginning = slapi_current_rel_time_t();
+            ret = bdb_import_merge_one_file(current_worker, passes, &key_count);
+            file_end = slapi_current_rel_time_t();
             if (key_count == 0) {
-                import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "No files to merge for \"%s\".",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_mega_merge", "No files to merge for \"%s\".",
                                   current_worker->index_info->name);
             } else {
                 if (-1 == key_count) {
-                    import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": Simple merge - "
+                    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_mega_merge", "Merged \"%s\": Simple merge - "
                                                                                 "file renamed.",
                                       current_worker->index_info->name);
                 } else {
-                    import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": %d keys merged "
+                    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_mega_merge", "Merged \"%s\": %d keys merged "
                                                                                 "in %ld seconds.",
                                       current_worker->index_info->name,
                                       key_count, file_end - file_beginning);
@@ -3412,10 +3397,10 @@ import_mega_merge(ImportJob *job)
         }
     }
 
-    end = slapi_current_utc_time();
+    end = slapi_current_rel_time_t();
     if (0 == ret) {
         int seconds_to_merge = end - beginning;
-        import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_mega_merge", "Merging completed in %d seconds.",
                           seconds_to_merge);
     }
 

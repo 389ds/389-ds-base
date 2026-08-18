@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -36,7 +36,7 @@
 #include <string.h>                              /* strerror(), etc... */
 #include <errno.h>        /* errno, etc... */    /*JLS 06-03-00*/
 #include <fcntl.h>        /* O_RDONLY, etc... */ /*JLS 02-04-01*/
-#include <time.h>        /* ctime(), etc... */   /*JLS 18-08-00*/
+#include <time.h>         /* ctime(), etc... */  /*JLS 18-08-00*/
 #include <lber.h>                                /* ldap C-API BER decl. */
 #include <ldap.h>                                /* ldap C-API decl. */
 #ifdef LDAP_H_FROM_QA_WKA
@@ -62,8 +62,8 @@
  */
 main_context mctx;                /* Main context */
 thread_context tctx[MAX_THREADS]; /* Threads contextes */
-check_context cctx[MAX_SLAVES];   /* Check threads contextes */
-int masterPort = 16000;
+check_context cctx[MAX_WORKERS];  /* Check threads contextes */
+int supplierPort = 16000;
 
 extern char *ldcltVersion; /* ldclt version */ /*JLS 18-08-00*/
 
@@ -134,7 +134,7 @@ copyVersAttribute(
 
     dstattr->name = srcattr->name;
     dstattr->src = srcattr->src;
-    dstattr->field = (vers_field *)malloc(sizeof(vers_field));
+    dstattr->field = (vers_field *)safe_malloc(sizeof(vers_field));
 
     /*
    * Copy each field of the attribute
@@ -145,7 +145,7 @@ copyVersAttribute(
         memcpy(dst, src, sizeof(vers_field));
         dst->commonField = src; /*JLS 28-03-01*/
         if ((src = src->next) != NULL) {
-            dst->next = (vers_field *)malloc(sizeof(vers_field));
+            dst->next = (vers_field *)safe_malloc(sizeof(vers_field));
             dst = dst->next;
         }
     }
@@ -156,7 +156,7 @@ copyVersAttribute(
     if (srcattr->buf == NULL) /*JLS 28-03-01*/
         dstattr->buf = NULL;  /*JLS 28-03-01*/
     else                      /*JLS 28-03-01*/
-        dstattr->buf = (char *)malloc(MAX_FILTER);
+        dstattr->buf = (char *)safe_malloc(MAX_FILTER);
 
     /*
    * End of function
@@ -178,30 +178,29 @@ copyVersObject(
     vers_object *srcobj)
 {
     vers_object *newobj; /* New object */
-    int i;               /* For the loops */
 
     /*
    * Copy the object and initiates the buffers...
    */
-    newobj = (vers_object *)malloc(sizeof(vers_object));
+    newobj = (vers_object *)safe_malloc(sizeof(vers_object));
     newobj->attribsNb = srcobj->attribsNb;
     newobj->fname = srcobj->fname;
 
     /*
    * Initiates the variables
    */
-    for (i = 0; i + VAR_MIN < VAR_MAX; i++)
+    for (size_t i = 0; i + VAR_MIN < VAR_MAX + 1; i++) /*25-08-07*/
         if (srcobj->var[i] == NULL)
             newobj->var[i] = NULL;
         else
-            newobj->var[i] = (char *)malloc(MAX_FILTER);
+            newobj->var[i] = (char *)safe_malloc(MAX_FILTER);
 
     /*
    * Maybe copy the rdn ?
    */
     if (srcobj->rdn != NULL) {
         newobj->rdnName = strdup(srcobj->rdnName);
-        newobj->rdn = (vers_attribute *)malloc(sizeof(vers_attribute));
+        newobj->rdn = (vers_attribute *)safe_malloc(sizeof(vers_attribute));
         if (copyVersAttribute(srcobj->rdn, newobj->rdn) < 0)
             return (NULL);
     }
@@ -209,7 +208,7 @@ copyVersObject(
     /*
    * Copy each attribute
    */
-    for (i = 0; i < srcobj->attribsNb; i++)
+    for (size_t i = 0; i < srcobj->attribsNb; i++)
         if (copyVersAttribute(&(srcobj->attribs[i]), &(newobj->attribs[i])) < 0)
             return (NULL);
 
@@ -247,10 +246,11 @@ tttctxInit(
     tttctx->status = FREE;
     tttctx->thrdNum = num;
     tttctx->totalReq = mctx.totalReq;
+    tttctx->bufBindDN = NULL;
     sprintf(tttctx->thrdId, "T%03d", tttctx->thrdNum);
 
     if (mctx.mod2 & M2_OBJECT) {
-        tttctx->bufObject1 = (char *)malloc(MAX_FILTER);
+        tttctx->bufObject1 = (char *)safe_malloc(MAX_FILTER);
         if ((tttctx->object = copyVersObject(&(mctx.object))) == NULL)
             return (-1);
     }
@@ -296,8 +296,8 @@ runThem(void)
     /*
    * Maybe create the check operation threads.
    */
-    if (mctx.slavesNb > 0) {
-        for (i = 0; i < mctx.slavesNb; i++) {
+    if (mctx.workersNb > 0) {
+        for (i = 0; i < mctx.workersNb; i++) {
             if (mctx.mode & VERY_VERBOSE)
                 printf("ldclt[%d]: Creating thread C%03d\n", mctx.pid, i);
 
@@ -308,7 +308,7 @@ runThem(void)
             cctx[i].status = DEAD;
             cctx[i].thrdNum = i;
             cctx[i].calls = 0;
-            cctx[i].slaveName = NULL;
+            cctx[i].workerName = NULL;
             cctx[i].nbEarly = 0;
             cctx[i].nbLate = 0;
             cctx[i].nbLostOp = 0;
@@ -594,10 +594,10 @@ monitorThem(void)
    * Let's wait for the consumers (aka ckeck threads)
    */
     allDead = 0;
-    if (mctx.slavesNb > 0)
+    if (mctx.workersNb > 0)
         while (!allDead) {
             allDead = 1;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 if (cctx[i].status != DEAD)
                     allDead = 0;
             if (!allDead)
@@ -711,60 +711,60 @@ printGlobalStatistics(void)
     /*
    * Check threads statistics
    */
-    if (mctx.slavesNb > 0) {
-        if (!(mctx.slaveConn))
-            printf("ldclt[%d]: Problem: slave never connected !!!!\n", mctx.pid);
+    if (mctx.workersNb > 0) {
+        if (!(mctx.workerConn))
+            printf("ldclt[%d]: Problem: worker never connected !!!!\n", mctx.pid);
         else {
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbOpRecv;
             printf("ldclt[%d]: Global number of replication operations received: %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbEarly;
             printf("ldclt[%d]: Global number of early replication:               %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbLate;
             printf("ldclt[%d]: Global number of late replication:                %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbLostOp;
             printf("ldclt[%d]: Global number of lost operation:                  %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbNotOnList;
             printf("ldclt[%d]: Global number of not on list replication op.:     %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbRepFail32;
             printf("ldclt[%d]: Global number of repl failed LDAP_NO_SUCH_OBJECT: %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbRepFail68;
             printf("ldclt[%d]: Global number of repl failed LDAP_ALREADY_EXISTS: %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbRepFailX;
             printf("ldclt[%d]: Global number of repl failed other error:         %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbStillOnQ;
             printf("ldclt[%d]: Global number of repl still on Queue:             %5d\n",
                    mctx.pid, total);
@@ -891,7 +891,7 @@ parseFilter(
 
     for (i = 0; (i < strlen(src)) && (src[i] != 'X'); i++)
         ;
-    *head = (char *)malloc(i + 1);
+    *head = (char *)safe_malloc(i + 1);
     if (*head == NULL) {
         printf("Error: cannot malloc(*head), error=%d (%s)\n",
                errno, strerror(errno));
@@ -902,7 +902,7 @@ parseFilter(
 
     for (j = i; (i < strlen(src)) && (src[j] == 'X'); j++)
         ;
-    *tail = (char *)malloc(strlen(src) - j + 1);
+    *tail = (char *)safe_malloc(strlen(src) - j + 1);
     if (*tail == NULL) {
         printf("Error: cannot malloc(*tail), error=%d (%s)\n",
                errno, strerror(errno));
@@ -1120,7 +1120,11 @@ basicInit(void)
                     (mctx.attrpl[i] != ':');
              i++)
             ;                                     /*JLS 21-11-00*/
-        mctx.attrplName = (char *)malloc(i + 1);  /*JLS 21-11-00*/
+        mctx.attrplName = (char *)calloc(1, i + 1);  /*JLS 21-11-00*/
+        if (mctx.attrplName == NULL) {
+            printf("Error: unable to allocate memory for attrplName\n");
+            return (-1);
+        }
         strncpy(mctx.attrplName, mctx.attrpl, i); /*JLS 21-11-00*/
         mctx.attrplName[i] = '\0';                /*JLS 21-11-00*/
 
@@ -1142,55 +1146,59 @@ basicInit(void)
    */
     if ((mctx.mod2 & M2_DEREF) && mctx.attrpl) {
         /*
-     * Find the reference attribute name
-     */
-        for (i = 0; (i < strlen(mctx.attrpl)) &&
-                    (mctx.attrpl[i] != ':');
-             i++)
-            ;
-        mctx.attRef = (char *)malloc(i + 1);
+         * Find the reference attribute name
+         */
+        for (i = 0; (i < strlen(mctx.attrpl)) && (mctx.attrpl[i] != ':'); i++);
+
+        mctx.attRef = (char *)calloc(1, i + 1);
+        if (mctx.attRef == NULL) {
+            printf("Error: unable to allocate memory for attRef\n");
+            return (-1);
+        }
         strncpy(mctx.attRef, mctx.attrpl, i);
         mctx.attRef[i] = '\0';
 
         /*
-     * Parse the deference attribute value
-     */
-        mctx.attRefDef = (char *)malloc(strlen(mctx.attrpl + i) + 2);
+         * Parse the deference attribute value
+         */
+        mctx.attRefDef = (char *)calloc(1, strlen(mctx.attrpl + i) + 2);
         if (mctx.attRefDef == NULL) {
             printf("Error: unable to allocate memory for attRefDef\n");
             return (-1);
         }
 
-        strncpy(mctx.attRefDef, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
+        memcpy(mctx.attRefDef, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
         mctx.attRefDef[strlen(mctx.attrpl + i + 1)] = '\0';
     }
 
 
     /*
-   * Parse attreplacefile subvalue
-   */
+     * Parse attreplacefile subvalue
+     */
     if ((mctx.mod2 & M2_ATTR_REPLACE_FILE) && mctx.attrpl) {
         /*
-     * Find the attribute name
-     */
-        for (i = 0; (i < strlen(mctx.attrpl)) &&
-                    (mctx.attrpl[i] != ':');
-             i++)
-            ;
-        mctx.attrplName = (char *)malloc(i + 1);
+         * Find the attribute name
+         */
+        for (i = 0; (i < strlen(mctx.attrpl)) && (mctx.attrpl[i] != ':'); i++);
+        free(mctx.attrplName);
+        mctx.attrplName = (char *)calloc(1, i + 1);
+        if (mctx.attrplName == NULL) {
+            printf("Error: unable to allocate memory for attrplName\n");
+            return (-1);
+        }
         strncpy(mctx.attrplName, mctx.attrpl, i);
         mctx.attrplName[i] = '\0';
 
         /*
-     * Parse the attribute value
-     */
-        mctx.attrplFile = (char *)malloc(strlen(mctx.attrpl + i) + 2);
+         * Parse the attribute value
+         */
+        mctx.attrplFile = (char *)safe_malloc(strlen(mctx.attrpl + i) + 2);
         if (mctx.attrplFile == NULL) {
             printf("Error: unable to allocate memory for attreplfile\n");
             return (-1);
         }
 
-        strncpy(mctx.attrplFile, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
+        memcpy(mctx.attrplFile, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
         mctx.attrplFile[strlen(mctx.attrpl + i + 1)] = '\0';
 
         /*
@@ -1227,7 +1235,7 @@ basicInit(void)
         }
 
         /* start to read file content */
-        mctx.attrplFileContent = (char *)malloc(mctx.attrplFileSize + 1);
+        mctx.attrplFileContent = (char *)safe_malloc(mctx.attrplFileSize + 1);
         i = 0;
         while ((ret = fread(buffer, BUFFERSIZE, 1, attrF))) {
             memcpy(mctx.attrplFileContent + i, buffer, ret);
@@ -1288,7 +1296,7 @@ basicInit(void)
    * Maybe we should initiate the operation list mutex and other check-related
    * thing...
    */
-    if (mctx.slavesNb > 0) {
+    if (mctx.workersNb > 0) {
         /*
      * Initiates the mutex
      */
@@ -1304,7 +1312,7 @@ basicInit(void)
      * We need to initiate this entry to dummy values because some opXyz()
      * functions will access this entry careless.
      */
-        mctx.opListTail = (oper *)malloc(sizeof(oper));
+        mctx.opListTail = (oper *)safe_malloc(sizeof(oper));
         if (mctx.opListTail == NULL) /*JLS 06-03-00*/
         {                            /*JLS 06-03-00*/
             printf("Error: cannot malloc(mctx.opListTail), error=%d (%s)\n",
@@ -1657,7 +1665,11 @@ addAttrToList(
 
         for (end = start; (list[end] != '\0') && (list[end] != ':'); end++)
             ;
-        mctx.attrlist[mctx.attrlistNb] = (char *)malloc(1 + end - start);
+        mctx.attrlist[mctx.attrlistNb] = (char *)safe_malloc(1 + end - start);
+        if (mctx.attrlist[mctx.attrlistNb] == NULL) {
+            fprintf(stderr, "Error : failed to allocate mctx.attrlist\n");
+            return (-1);
+        }
         strncpy(mctx.attrlist[mctx.attrlistNb], &(list[start]), end - start);
         mctx.attrlist[mctx.attrlistNb][end - start] = '\0';
         mctx.attrlistNb++;
@@ -1688,7 +1700,11 @@ decodeRdnParam(
    *        simply lost this data...
    *        Anyway, there is not a lot of memory used here...
    */
-    mctx.object.rdn = (vers_attribute *)malloc(sizeof(vers_attribute));
+    mctx.object.rdn = (vers_attribute *)safe_malloc(sizeof(vers_attribute));
+    if (mctx.object.rdn == NULL) {
+        fprintf(stderr, "Error : failed to allocate mctx.object.rdn\n");
+        return (-1);
+    }
     mctx.object.rdn->buf = NULL; /*JLS 28-03-01*/
 
     /*
@@ -1700,7 +1716,11 @@ decodeRdnParam(
         fprintf(stderr, "Error: missing rdn attribute name\n");
         return (-1);
     }
-    mctx.object.rdnName = (char *)malloc(i + 1);
+    mctx.object.rdnName = (char *)safe_malloc(i + 1);
+    if (mctx.object.rdnName == NULL) {
+        fprintf(stderr, "Error : failed to allocate mctx.object.rdnName\n");
+        return (-1);
+    }
     strncpy(mctx.object.rdnName, value, i);
     mctx.object.rdnName[i] = '\0';
 
@@ -2165,11 +2185,11 @@ decodeExecParams(
 
 
 /* ****************************************************************************
-    FUNCTION :    buildArgListString
+    FUNCTION :   buildArgListString
     PURPOSE :    Saved the arguments of ldclt into a string.
-    INPUT :        argc, argv
-    OUTPUT :    None.
-    RETURN :    The resulting string.
+    INPUT :      argc, argv
+    OUTPUT :     None.
+    RETURN :     The resulting string.
     DESCRIPTION :
  *****************************************************************************/
 char *
@@ -2182,17 +2202,22 @@ buildArgListString(
     int i;          /* For the loops */
 
     /*
-   * Compute the length
-   */
+     * Compute the length
+     */
     lgth = 0;
     for (i = 0; i < argc; i++) {
         lgth += strlen(argv[i]) + 1;
         if ((strchr(argv[i], ' ') != NULL) || (strchr(argv[i], '\t') != NULL))
             lgth += 2;
     }
-    argvList = (char *)malloc(lgth);
+    argvList = (char *)safe_malloc(lgth);
+    if (argvList == NULL) {
+        return (argvList);
+    }
     argvList[0] = '\0';
-    strcat(argvList, argv[0]);
+    if (argv && argv[0]) {
+        strcat(argvList, argv[0]);
+    }
     for (i = 1; i < argc; i++) {
         strcat(argvList, " ");
         if ((strchr(argv[i], ' ') == NULL) && (strchr(argv[i], '\t') == NULL))
@@ -2203,7 +2228,6 @@ buildArgListString(
             strcat(argvList, "\"");
         }
     }
-
 
     return (argvList);
 }
@@ -2223,7 +2247,6 @@ main(
     char **argv)
 {
     int opt_ret;                                      /* For getopt() */
-    int i;                                            /* For the loops */
     time_t tim; /* For time() */                      /*JLS 18-08-00*/
     char *argvList; /* To keep track in core files */ /*JLS 07-12-00*/
     int found; /* General purpose variable */         /*JLS 18-12-00*/
@@ -2282,8 +2305,8 @@ main(
     mctx.sasl_secprops = NULL;
     mctx.sasl_username = NULL;
     mctx.scope = DEF_SCOPE;
-    mctx.slaveConn = 0;
-    mctx.slavesNb = 0;
+    mctx.workerConn = 0;
+    mctx.workersNb = 0;
     mctx.srch_nentries = -1;
     mctx.timeout = DEF_TIMEOUT;
     mctx.totalReq = -1;
@@ -2298,7 +2321,7 @@ main(
    */
     mctx.object.attribsNb = 0;              /*JLS 23-03-01*/
     mctx.object.rdn = NULL;                 /*JLS 23-03-01*/
-    for (i = 0; i + VAR_MIN < VAR_MAX; i++) /*JLS 23-03-01*/
+    for (size_t i = 0; i + VAR_MIN < VAR_MAX + 1; i++) /*25-08-07*/
         mctx.object.var[i] = NULL;          /*JLS 23-03-01*/
 
     /*
@@ -2339,7 +2362,7 @@ main(
             break;
         case 'I':
             found = 0;                              /*JLS 18-12-00*/
-            for (i = 0; i < mctx.ignErrNb; i++)     /*JLS 18-12-00*/
+            for (size_t i = 0; i < mctx.ignErrNb; i++)
                 if (mctx.ignErr[i] == atoi(optarg)) /*JLS 18-12-00*/
                     found = 1;                      /*JLS 18-12-00*/
             if (found)                              /*JLS 18-12-00*/
@@ -2365,7 +2388,7 @@ main(
             mctx.port = atoi(optarg);
             break;
         case 'P':
-            masterPort = atoi(optarg);
+            supplierPort = atoi(optarg);
             break;
         case 'q':
             mctx.mode |= QUIET;
@@ -2388,8 +2411,8 @@ main(
             mctx.timeout = atoi(optarg);
             break;
         case 'S':
-            mctx.slaves[mctx.slavesNb] = optarg;
-            mctx.slavesNb++;
+            mctx.workers[mctx.workersNb] = optarg;
+            mctx.workersNb++;
             break;
         case 'T':
             mctx.totalReq = atoi(optarg);
@@ -2547,6 +2570,7 @@ main(
     }
     if (mctx.filter != NULL) /*JLS 07-12-00*/
     {                        /*JLS 07-12-00*/
+    	size_t i;
         for (i = 0; (mctx.filter[i] != '\0') && (mctx.filter[i] != '='); i++)
             ;
         if (mctx.filter[i] != '=') {
@@ -2735,7 +2759,7 @@ main(
         if (mctx.attrlistNb > 0)                  /*JLS 15-03-01*/
         {                                         /*JLS 15-03-01*/
             printf("Attributes list    =");       /*JLS 15-03-01*/
-            for (i = 0; i < mctx.attrlistNb; i++) /*JLS 15-03-01*/
+            for (size_t i = 0; i < mctx.attrlistNb; i++) /*JLS 15-03-01*/
                 printf(" %s", mctx.attrlist[i]);  /*JLS 15-03-01*/
             printf("\n");                         /*JLS 15-03-01*/
         }                                         /*JLS 15-03-01*/
@@ -2819,14 +2843,14 @@ main(
             printf("Async max pending  = %d\n", mctx.asyncMax);
             printf("Async min pending  = %d\n", mctx.asyncMin);
         }
-        for (i = 0; i < mctx.ignErrNb; i++)
+        for (size_t i = 0; i < mctx.ignErrNb; i++)
             printf("Ignore error       = %d (%s)\n",
                    mctx.ignErr[i], my_ldap_err2string(mctx.ignErr[i]));
         fflush(stdout);
-        if (mctx.slavesNb > 0) {
-            printf("Slave(s) to check  =");
-            for (i = 0; i < mctx.slavesNb; i++)
-                printf(" %s", mctx.slaves[i]);
+        if (mctx.workersNb > 0) {
+            printf("Workers(s) to check  =");
+            for (size_t i = 0; i < mctx.workersNb; i++)
+                printf(" %s", mctx.workers[i]);
             printf("\n");
         }
     }

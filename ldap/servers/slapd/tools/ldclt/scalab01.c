@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -336,7 +336,7 @@ scalab01_addLogin(
 {
     int ret;       /* Return value */
     isp_user *new; /* New entry */
-    isp_user *cur; /* Current entry */
+    isp_user **ptcur; /* Current entry address */
     int rc = 0;
 
     /*
@@ -368,48 +368,24 @@ scalab01_addLogin(
         goto error;
     }
 
-    /*
-   * Maybe this is the first entry of the list ?
-   */
-    if (s1ctx.list == NULL)
-        s1ctx.list = new;
-    else {
-        /*
-     * Check with the list's head
+    /* 
+     * Find insertion point
      */
-        if (s1ctx.list->counter >= duration) {
-            new->next = s1ctx.list;
-            s1ctx.list = new;
-        } else {
-            cur = s1ctx.list;
-
-            /* If cur is NULL, we should just bail and free new. */
-            if (cur == NULL) {
-                goto error;
-            }
-
-            while (cur != NULL) {
-                if (cur->next == NULL) {
-                    cur->next = new;
-                    cur = NULL; /* Exit loop */
-                } else if (cur->next->counter >= duration) {
-                    new->next = cur->next;
-                    cur->next = new;
-                    cur = NULL; /* Exit loop */
-                } else {
-                    cur = cur->next;
-                }
-            }
-        }
+    ptcur = &s1ctx.list;
+    while ((*ptcur != NULL) && ((*ptcur)->counter < duration)) {
+        ptcur = &(*ptcur)->next;
     }
-
-    goto done;
+    /*
+     * Insert new element
+     */
+    new->next = *ptcur;
+    *ptcur = new;
+    new = NULL;
 
 error:
     if (new)
         free(new);
 
-done:
     /*
    * Free mutex
    */
@@ -492,19 +468,12 @@ readAttrValue(
     char *filter;     /* Filter used for searching */
 
     /*
-   * First, ldap_search() the entry.
-   */
+     * First, ldap_search() the entry.
+     */
     attrs[0] = attname;
     attrs[1] = NULL;
 
-    filter = (char *)malloc((4 + strlen(attname)) * sizeof(char));
-    if (NULL == filter) {
-        printf("ldclt[%d]: %s: Out of memory\n", mctx.pid, ident);
-        fflush(stdout);
-        return (-1);
-    }
-
-    sprintf(filter, "(%s=*)", attname);
+    filter = PR_smprintf("(%s=*)", attname);
     ret = ldap_search_ext_s(ldapCtx, dn, LDAP_SCOPE_BASE,
                             filter, attrs, 0, NULL, NULL, NULL, -1, &res);
     free(filter);
@@ -583,7 +552,7 @@ writeAttrValue(
     char *value)
 {
     int ret;              /* Return value */
-    LDAPMod attribute;    /* To build the attributes */
+    LDAPMod attr;         /* To build the attributes */
     LDAPMod *attrsmod[2]; /* Modify attributes */
     char *pvalues[2];     /* To build the values list */
 
@@ -592,10 +561,10 @@ writeAttrValue(
    */
     pvalues[0] = value;
     pvalues[1] = NULL;
-    attribute.mod_op = LDAP_MOD_REPLACE;
-    attribute.mod_type = attname;
-    attribute.mod_values = pvalues;
-    attrsmod[0] = &attribute;
+    attr.mod_op = LDAP_MOD_REPLACE;
+    attr.mod_type = attname;
+    attr.mod_values = pvalues;
+    attrsmod[0] = &attr;
     attrsmod[1] = NULL;
 
     /*

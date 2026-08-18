@@ -1,6 +1,6 @@
 -- BEGIN COPYRIGHT BLOCK
 -- Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
--- Copyright (C) 2018 Red Hat, Inc.
+-- Copyright (C) 2021 Red Hat, Inc.
 -- All rights reserved.
 --
 -- License: GPL (version 3 or any later version).
@@ -29,7 +29,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
         ;
 
     rhds MODULE-IDENTITY
-        LAST-UPDATED "201801180000Z"
+        LAST-UPDATED "202104070000Z"
         ORGANIZATION "Red Hat, Inc."
         CONTACT-INFO
             "Red Hat, Inc.
@@ -88,11 +88,11 @@ RHDS-MIB DEFINITIONS ::= BEGIN
                   dsConnections,
                   dsConnectionsInMaxThreads,
                   dsMaxThreadsHits,
-                  dsMasterEntries,
+                  dsSupplierEntries,
                   dsCopyEntries,
                   dsCacheEntries,
                   dsCacheHits,
-                  dsSlaveHits,
+                  dsConsumerHits,
                   dsName,
                   dsTimeOfCreation,
                   dsTimeOfLastAttempt,
@@ -502,7 +502,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
         ::= { dsEntriesTable 1 }
 
 	DsEntriesEntry ::= SEQUENCE {
-        dsMasterEntries
+        dsSupplierEntries
             Counter64,
         dsCopyEntries
             Counter64,
@@ -510,21 +510,21 @@ RHDS-MIB DEFINITIONS ::= BEGIN
             Counter64,
         dsCacheHits
             Counter64,
-        dsSlaveHits
+        dsConsumerHits
             Counter64
     }
 
    -- A (C)LDAP frontend to the X.500 Directory will not have
-   -- MasterEntries, CopyEntries; the following counters will
+   -- SupplierEntries, CopyEntries; the following counters will
    -- be inaccessible for LDAP/CLDAP frontends to the X.500
-   -- directory: dsMasterEntries, dsCopyEntries, dsSlaveHits.
+   -- directory: dsSupplierEntries, dsCopyEntries, dsConsumerHits.
 
-    dsMasterEntries OBJECT-TYPE
+    dsSupplierEntries OBJECT-TYPE
         SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
-            "Number of entries mastered in the DS."
+            "Number of entries replicated in the DS."
         ::= { dsEntriesEntry 1 }
 
     dsCopyEntries OBJECT-TYPE
@@ -532,7 +532,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
-            "Number of entries for which systematic (slave)
+            "Number of entries for which systematic (consumer)
             copies are maintained in the DS."
         ::= { dsEntriesEntry 2 }
 
@@ -556,7 +556,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
             startup."
         ::= { dsEntriesEntry 4 }
 
-    dsSlaveHits  OBJECT-TYPE
+    dsConsumerHits  OBJECT-TYPE
         SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current

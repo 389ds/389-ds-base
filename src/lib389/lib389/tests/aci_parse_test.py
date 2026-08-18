@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 from lib389._entry import EntryAci
 from lib389.utils import *
 import pytest

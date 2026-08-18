@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2687,7 +2687,6 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         LDAPMod mod;
         LDAPMod *mods[3];
         char *vals[2];
-        int result = LDAP_SUCCESS;
         Slapi_PBlock *mep_pb = slapi_pblock_new();
         Slapi_Entry *new_managed_entry = NULL;
         Slapi_DN *managed_sdn = NULL;
@@ -2734,6 +2733,16 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                 }
             }
             /* Clear out the pblock for reuse. */
+            /*
+             * False/positive coverity issue:
+             * CID 1548916:  Memory - corruptions  (USE_AFTER_FREE)
+             * >>> Calling "slapi_pblock_init" frees pointer "mep_pb->pb_op" which has
+             * already been freed.
+             * But the 'identity transfer' inference related to
+             * slapi_pblock_get is wrong: the switch value does not match
+             * mep_pb->pb_op is not freed by slapi_delete_internal_pb
+             */
+            /* coverity[double_free : FALSE] */
             slapi_pblock_init(mep_pb);
 
             /* Remove the pointer from the origin entry. */

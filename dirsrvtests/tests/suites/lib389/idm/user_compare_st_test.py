@@ -1,9 +1,17 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import os
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.group import Groups
 from lib389.idm.user import UserAccounts, UserAccount
-from lib389.topologies import topology_st as topology
+from test389.topologies import topology_st as topology
 
 pytestmark = pytest.mark.tier1
 

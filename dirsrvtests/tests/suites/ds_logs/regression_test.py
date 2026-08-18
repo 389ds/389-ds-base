@@ -11,7 +11,7 @@ import pytest
 from lib389.dseldif import DSEldif
 from lib389._constants import DN_CONFIG, LOG_REPLICA, LOG_DEFAULT, LOG_TRACE, LOG_ACL
 from lib389.utils import os, logging
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier2
 
@@ -23,7 +23,6 @@ else:
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.bz1460718
 @pytest.mark.parametrize("log_level", [(LOG_REPLICA + LOG_DEFAULT), (LOG_ACL + LOG_DEFAULT), (LOG_TRACE + LOG_DEFAULT)])
 def test_default_loglevel_stripped(topo, log_level):
     """The default log level 16384 is stripped from the log level returned to a client
@@ -44,7 +43,6 @@ def test_default_loglevel_stripped(topo, log_level):
     assert topo.standalone.config.get_attr_val_int('nsslapd-errorlog-level') == log_level
 
 
-@pytest.mark.bz1460718
 def test_dse_config_loglevel_error(topo):
     """Manually setting nsslapd-errorlog-level to 64 in dse.ldif throws error
 

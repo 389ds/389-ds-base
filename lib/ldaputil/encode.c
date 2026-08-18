@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -47,7 +47,7 @@ Snip-n-shift, snip-n-shift, etc....
 
     for (p = dst, i = 0; i < srclen; i += 3) {
         /* Do 3 bytes of src */
-        register char b0, b1, b2;
+        char b0, b1, b2;
 
         b0 = src[0];
         if (i == srclen - 1)
@@ -71,9 +71,12 @@ Snip-n-shift, snip-n-shift, etc....
 
     /* Always do 4-for-3, but if not round threesome, have to go
           clean up the last extra bytes */
-
+    
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
     for (; i != srclen; i--)
         *--p = '=';
+#pragma GCC diagnostic pop
 
     return r;
 }
@@ -94,9 +97,9 @@ const unsigned char pr2six[256] = {
 static char *
 _uudecode(const char *bufcoded)
 {
-    register const char *bufin = bufcoded;
-    register unsigned char *bufout;
-    register int nprbytes;
+    const char *bufin = bufcoded;
+    unsigned char *bufout;
+    int nprbytes;
     unsigned char *bufplain;
     int nbytesdecoded;
 
@@ -107,6 +110,9 @@ _uudecode(const char *bufcoded)
     nbytesdecoded = ((nprbytes + 3) / 4) * 3;
 
     bufout = (unsigned char *)malloc(nbytesdecoded + 1);
+    if (bufout == NULL) {
+        return NULL;
+    }            
     bufplain = bufout;
 
     bufin = bufcoded;

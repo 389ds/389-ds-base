@@ -1,0 +1,53 @@
+name: Validate tests and minimal Python version
+
+on:
+  push:
+    branches:
+      - main
+      - "389-ds-base-*"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  actions: read
+  packages: read
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: quay.io/389ds/ci-images:test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Run testimony
+        if: always()
+        run: testimony validate -c dirsrvtests/testimony.yaml dirsrvtests/tests/suites
+
+      - name: Check for duplicate IDs
+        if: always()
+        run: python3 dirsrvtests/check_for_duplicate_ids.py dirsrvtests/tests/suites
+
+      - name: Check for minimal Python version for lib389
+        if: always()
+        run: |
+          uv tool run vermin --target=3.8 src/lib389 || {
+            echo "Check failed, rerunning in verbose mode..."
+            uv tool run vermin -vv --target=3.8 src/lib389
+          }
+
+      - name: Check for minimal Python version for dirsrvtests
+        if: always()
+        run: |
+          uv tool run vermin --target=3.8 dirsrvtests || {
+            echo "Check failed, rerunning in verbose mode..."
+            uv tool run vermin -vv --target=3.8 dirsrvtests
+          }
+

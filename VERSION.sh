@@ -8,12 +8,12 @@ capbrand=389
 vendor="389 Project"
 
 # PACKAGE_VERSION is constructed from these
-VERSION_MAJOR=2
-VERSION_MINOR=0
-VERSION_MAINT=0.0
+VERSION_MAJOR=3
+VERSION_MINOR=3
+VERSION_MAINT=0
 # NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
 VERSION_PREREL=
-VERSION_DATE=$(date -u +%Y%m%d)
+VERSION_DATE=$(date -u +%Y%m%d%H%M)
 
 # Set the version and release numbers for local developer RPM builds. We
 # set these here because we do not want the git commit hash in the RPM
@@ -47,7 +47,7 @@ PACKAGE_VERSION=$VERSION_MAJOR.$VERSION_MINOR.${VERSION_MAINT}${VERSION_PREREL}
 PACKAGE_TARNAME=${brand}-ds-base
 # url for bug reports
 PACKAGE_BUGREPORT="${PACKAGE_BUGREPORT}enter_bug.cgi?product=$brand"
-PACKAGE_STRING="$PACKAGE_TARNAME $PACKAGE_VERSION"
+# PACKAGE_STRING="$PACKAGE_TARNAME $PACKAGE_VERSION"
 # the version of the ds console package that this directory server
 # is compatible with
 # console .2 is still compatible with 389 .3 for now

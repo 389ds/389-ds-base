@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -35,7 +35,6 @@ nsslapd-plugindescription: Retrocl Plugin
 
 #include "retrocl.h"
 
-
 void *g_plg_identity[PLUGIN_MAX];
 Slapi_Backend *retrocl_be_changelog = NULL;
 PRLock *retrocl_internal_lock = NULL;
@@ -44,16 +43,21 @@ int retrocl_nattributes = 0;
 char **retrocl_attributes = NULL;
 char **retrocl_aliases = NULL;
 int retrocl_log_deleted = 0;
+int retrocl_nexclude_attrs = 0;
+static int legacy_initialised = 0;
 
 static Slapi_DN **retrocl_includes = NULL;
 static Slapi_DN **retrocl_excludes = NULL;
+static char **retrocl_exclude_attrs = NULL;
 
 /* ----------------------------- Retrocl Plugin */
 
 static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, DS_PACKAGE_VERSION, "Retrocl Plugin"};
 static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", VENDOR, DS_PACKAGE_VERSION, "retrocl post-operation plugin"};
 static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", VENDOR, DS_PACKAGE_VERSION, "retrocl internal post-operation plugin"};
-static int legacy_initialised = 0;
+
+static int retrocl_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+
 
 /*
  * Function: retrocl_*
@@ -180,6 +184,9 @@ retrocl_rootdse_init(Slapi_PBlock *pb)
     slapi_config_register_callback_plugin(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN, "",
                                           LDAP_SCOPE_BASE, "(objectclass=*)",
                                           retrocl_rootdse_search, NULL, pb);
+    slapi_config_register_callback_plugin(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, RETROCL_PLUGIN_DN,
+                                          LDAP_SCOPE_BASE, "(objectclass=*)", retrocl_config_modify,
+                                          NULL, pb);
     return return_value;
 }
 
@@ -369,7 +376,6 @@ retrocl_start(Slapi_PBlock *pb)
     Slapi_Entry *e = NULL;
     char **values = NULL;
     int num_vals = 0;
-    int i = 0;
 
     retrocl_rootdse_init(pb);
 
@@ -390,11 +396,31 @@ retrocl_start(Slapi_PBlock *pb)
         return -1;
     }
 
+    /* Get the exclude attributes */
+    values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_EXCLUDE_ATTRS, &num_vals);
+    if (values) {
+        retrocl_nexclude_attrs = num_vals;
+        retrocl_exclude_attrs = (char **)slapi_ch_calloc(num_vals + 1, sizeof(char *));
+
+        for (size_t i = 0; i < num_vals; i++) {
+            char *value = values[i];
+            char *pos = strchr(value, ':');
+            if (pos == NULL) {
+                retrocl_exclude_attrs[i] = slapi_ch_strdup(value);
+            } else {
+                retrocl_exclude_attrs[i] = slapi_ch_malloc(pos - value + 1);
+                strncpy(retrocl_exclude_attrs[i], value, pos - value);
+                retrocl_exclude_attrs[i][pos - value] = '\0';
+            }
+            slapi_log_err(SLAPI_LOG_INFO, RETROCL_PLUGIN_NAME,"retrocl_start - retrocl_exclude_attrs (%s).\n", retrocl_exclude_attrs[i]);
+        }
+        slapi_ch_array_free(values);
+    }
     /* Get the exclude suffixes */
     values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_EXCLUDE_SUFFIX, &num_vals);
     if (values) {
         /* Validate the syntax before we create our DN array */
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             if (slapi_dn_syntax_check(pb, values[i], 1)) {
                 /* invalid dn syntax */
                 slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
@@ -405,7 +431,7 @@ retrocl_start(Slapi_PBlock *pb)
         }
         /* Now create our SDN array */
         retrocl_excludes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals + 1);
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             retrocl_excludes[i] = slapi_sdn_new_dn_byval(values[i]);
         }
         slapi_ch_array_free(values);
@@ -413,7 +439,7 @@ retrocl_start(Slapi_PBlock *pb)
     /* Get the include suffixes */
     values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_INCLUDE_SUFFIX, &num_vals);
     if (values) {
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             /* Validate the syntax before we create our DN array */
             if (slapi_dn_syntax_check(pb, values[i], 1)) {
                 /* invalid dn syntax */
@@ -425,7 +451,7 @@ retrocl_start(Slapi_PBlock *pb)
         }
         /* Now create our SDN array */
         retrocl_includes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals + 1);
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             retrocl_includes[i] = slapi_sdn_new_dn_byval(values[i]);
         }
         slapi_ch_array_free(values);
@@ -474,7 +500,6 @@ retrocl_start(Slapi_PBlock *pb)
     values = slapi_entry_attr_get_charray(e, "nsslapd-attribute");
     if (values != NULL) {
         int n = 0;
-        int i = 0;
 
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - nsslapd-attribute:\n");
 
@@ -489,7 +514,7 @@ retrocl_start(Slapi_PBlock *pb)
 
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - Attributes:\n");
 
-        for (i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             char *value = values[i];
             size_t length = strlen(value);
 
@@ -500,14 +525,14 @@ retrocl_start(Slapi_PBlock *pb)
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n",
                               retrocl_attributes[i]);
-
             } else {
                 retrocl_attributes[i] = slapi_ch_malloc(pos - value + 1);
                 strncpy(retrocl_attributes[i], value, pos - value);
                 retrocl_attributes[i][pos - value] = '\0';
 
-                retrocl_aliases[i] = slapi_ch_malloc(value + length - pos);
-                strcpy(retrocl_aliases[i], pos + 1);
+                retrocl_aliases[i] = slapi_ch_malloc(value + length - pos + 1);
+                strncpy(retrocl_aliases[i], pos + 1, value + length - pos);
+                retrocl_aliases[i][value + length - pos] = '\0';
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s [%s]\n",
                               retrocl_attributes[i], retrocl_aliases[i]);
@@ -599,6 +624,8 @@ retrocl_stop(Slapi_PBlock *pb __attribute__((unused)))
     retrocl_attributes = NULL;
     slapi_ch_array_free(retrocl_aliases);
     retrocl_aliases = NULL;
+    slapi_ch_array_free(retrocl_exclude_attrs);
+    retrocl_exclude_attrs = NULL;
 
     while (retrocl_excludes && retrocl_excludes[i]) {
         slapi_sdn_free(&retrocl_excludes[i]);
@@ -661,10 +688,10 @@ retrocl_plugin_init(Slapi_PBlock *pb)
     }
 
     if (!legacy_initialised) {
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01);
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retrocldesc);
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)retrocl_start);
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)retrocl_stop);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retrocldesc);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)retrocl_start);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)retrocl_stop);
 
         if (is_betxn) {
             plugintype = "betxnpostoperation";
@@ -683,4 +710,108 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 
     legacy_initialised = 1;
     return rc;
+}
+
+/*
+ * Function: retrocl_attr_in_exclude_attrs
+ *
+ * Return 1 if attribute exists in the retrocl_exclude_attrs list, else return 0.
+ *
+ * Arguments: attribute string, attribute length.
+ *
+ * Description: Check if an attribute is in the global exclude attribute list.
+ *
+ */
+int
+retrocl_attr_in_exclude_attrs(char *attr, int attrlen)
+{
+    int i = 0;
+
+    if (retrocl_exclude_attrs) {
+        if (attr && attrlen > 0 && retrocl_nexclude_attrs > 0) {
+            while (retrocl_exclude_attrs[i]) {
+                if (strncmp(retrocl_exclude_attrs[i], attr, attrlen) == 0) {
+                    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,"retrocl_attr_in_exclude_attrs - excluding attr (%s).\n", attr);
+                    return 1;
+                }
+                i++;
+            }
+        }
+    }
+    return 0;
+}
+
+static int
+retrocl_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+{
+    LDAPMod **mods;
+    *returncode = LDAP_SUCCESS;
+
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+    for (size_t i = 0; mods && mods[i] != NULL; i++) {
+        if (mods[i]->mod_op & LDAP_MOD_DELETE) {
+            continue;
+        } else if (mods[i]->mod_values == NULL) {
+            if (returntext) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "%s: no value provided",
+                            mods[i]->mod_type ? mods[i]->mod_type : "<unknown attribute>");
+            }
+            *returncode = LDAP_UNWILLING_TO_PERFORM;
+            goto done;
+        } else {
+            for (size_t j = 0; mods[i]->mod_values[j]; j++) {
+                char *config_attr, *config_attr_value;
+                config_attr = (char *)mods[i]->mod_type;
+                config_attr_value = (char *)mods[i]->mod_bvalues[j]->bv_val;
+
+                if (slapi_attr_is_last_mod(config_attr)) {
+                    continue;
+                }
+
+                if (strcasecmp(config_attr, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE) == 0) {
+                    if (config_attr_value == NULL ||
+                        (!slapi_is_duration_valid_strict(config_attr_value) && strcmp(config_attr_value, "0") != 0)) {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must be \"0\" or a range from 1 to %lld and end with a duration unit[sSmMhHdDwW]",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
+                                        (long long int)LONG_MAX);
+                        }
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
+                    }
+                } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_TRIM_INTERVAL) == 0 &&
+                           config_attr_value && config_attr_value[0] != '\0')
+                {
+                    errno = 0;
+                    if (strtol(config_attr_value, (char **)NULL, 10) < 0 ||
+                        errno != 0 ||
+                        !slapi_is_duration_valid(config_attr_value))
+                    {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must be between 0 and %d",
+                                        CONFIG_CHANGELOG_TRIM_INTERVAL, config_attr_value ? config_attr_value : "null",
+                                        CONFIG_CHANGELOG_TRIM_INTERVAL,
+                                        INT_MAX);
+                        }
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
+                    }
+                }
+            }
+        }
+    }
+
+done:
+    if (*returncode == LDAP_SUCCESS) {
+        if (returntext) {
+            returntext[0] = '\0';
+        }
+        return SLAPI_DSE_CALLBACK_OK;
+    }
+
+    return SLAPI_DSE_CALLBACK_ERROR;
 }

@@ -1,0 +1,28 @@
+.automation-script-modal pre {
+  max-block-size: 20em;
+  margin-block-end: 5px;
+}
+
+.automation-script-modal span.fa {
+  margin-inline-end: 5px;
+}
+
+.automation-script-modal i.fa {
+  margin-inline: 5px 2px;
+}
+
+.automation-script-modal textarea {
+  min-block-size: 15rem;
+}
+
+.automation-script-modal .ansible-docs-link > svg {
+  padding-inline-end: var(--pf-v5-global--spacer--xs);
+}
+
+.green-icon {
+  color: var(--pf-v5-global--success-color--100);
+}
+
+.pf-v5-c-card.modifications-table .pf-v5-c-card__header {
+  justify-content: space-between;
+}

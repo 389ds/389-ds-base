@@ -1,9 +1,17 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import pytest
 import os
 import ldap
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -60,9 +68,10 @@ def test_logging_digit_config(topo, attr, invalid_vals, valid_vals):
     auditlog_attr = "nsslapd-auditlog-{}".format(attr)
     auditfaillog_attr = "nsslapd-auditfaillog-{}".format(attr)
     errorlog_attr = "nsslapd-errorlog-{}".format(attr)
+    securitylog_attr = "nsslapd-securitylog-{}".format(attr)
 
     # Test each log
-    for attr in [accesslog_attr, auditlog_attr, auditfaillog_attr, errorlog_attr]:
+    for attr in [accesslog_attr, auditlog_attr, auditfaillog_attr, errorlog_attr, securitylog_attr]:
         # Invalid values
         for invalid_val in invalid_vals:
             with pytest.raises(ldap.LDAPError):

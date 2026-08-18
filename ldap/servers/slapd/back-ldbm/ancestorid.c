@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,27 +15,25 @@
 #include "back-ldbm.h"
 #include "import.h"
 
-static char *sourcefile = "ancestorid.c";
+static const char *sourcefile = "ancestorid.c";
 
 static int
 ancestorid_addordel(
     backend *be,
-    DB *db,
+    dbi_db_t *db,
     ID node_id,
     ID id,
-    DB_TXN *txn,
+    back_txn *txn,
     struct attrinfo *ai,
     int flags,
     int *allids)
 {
-    DBT key = {0};
+    dbi_val_t key = {0};
     char keybuf[24];
     int ret = 0;
 
-    /* Initialize key DBT */
-    key.data = keybuf;
-    key.ulen = sizeof(keybuf);
-    key.flags = DB_DBT_USERMEM;
+    /* Initialize key dbi_val_t */
+    dblayer_value_set_buffer(be, &key, keybuf, sizeof(keybuf));
     key.size = PR_snprintf(key.data, key.ulen, "%c%lu",
                            EQ_PREFIX, (u_long)node_id);
     key.size++; /* include the null terminator */
@@ -81,7 +79,7 @@ ldbm_ancestorid_index_update(
     int flags, /* BE_INDEX_ADD, BE_INDEX_DEL */
     back_txn *txn)
 {
-    DB *db = NULL;
+    dbi_db_t *db = NULL;
     int allids = IDL_INSERT_NORMAL;
     Slapi_DN sdn;
     Slapi_DN nextsdn;
@@ -89,13 +87,12 @@ ldbm_ancestorid_index_update(
     ID node_id, sub_id;
     idl_iterator iter;
     int err = 0, ret = 0;
-    DB_TXN *db_txn = txn != NULL ? txn->back_txn_txn : NULL;
 
     slapi_sdn_init(&sdn);
     slapi_sdn_init(&nextsdn);
 
     /* Open the ancestorid index */
-    ainfo_get(be, LDBM_ANCESTORID_STR, &ai);
+    ainfo_get(be, (char *)LDBM_ANCESTORID_STR, &ai);
     ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13130, ret);
@@ -125,38 +122,20 @@ ldbm_ancestorid_index_update(
         }
 
         /* Get the id for that DN */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            node_id = 0;
-            err = entryrdn_index_read(be, &sdn, &node_id, txn);
-            if (err) {
-                if (DB_NOTFOUND != err) {
-                    ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13141, err);
-                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_ancestorid_index_update",
-                                  "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
-                    ret = err;
-                }
-                break;
+        node_id = 0;
+        err = entryrdn_index_read(be, &sdn, &node_id, txn);
+        if (err) {
+            if (DBI_RC_NOTFOUND != err) {
+                ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13141, err);
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_ancestorid_index_update",
+                              "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
+                ret = err;
             }
-        } else {
-            IDList *idl = NULL;
-            struct berval ndnv;
-            ndnv.bv_val = (void *)slapi_sdn_get_ndn(&sdn);
-            ndnv.bv_len = slapi_sdn_get_ndn_len(&sdn);
-            err = 0;
-            idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &ndnv, txn, &err);
-            if (idl == NULL) {
-                if (err != 0 && err != DB_NOTFOUND) {
-                    ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13140, err);
-                    ret = err;
-                }
-                break;
-            }
-            node_id = idl_firstid(idl);
-            idl_free(&idl);
+            break;
         }
 
         /* Update ancestorid for the base entry */
-        ret = ancestorid_addordel(be, db, node_id, id, db_txn, ai, flags, &allids);
+        ret = ancestorid_addordel(be, db, node_id, id, txn, ai, flags, &allids);
         if (ret != 0)
             break;
 
@@ -172,7 +151,7 @@ ldbm_ancestorid_index_update(
         if (subtree_idl != NULL && ((flags & BE_INDEX_ADD) || (!ALLIDS(subtree_idl)))) {
             iter = idl_iterator_init(subtree_idl);
             while ((sub_id = idl_iterator_dereference_increment(&iter, subtree_idl)) != NOID) {
-                ret = ancestorid_addordel(be, db, node_id, sub_id, db_txn, ai, flags, &allids);
+                ret = ancestorid_addordel(be, db, node_id, sub_id, txn, ai, flags, &allids);
                 if (ret != 0)
                     break;
             }
@@ -383,7 +362,7 @@ ldbm_ancestorid_read_ext(
     bv.bv_val = keybuf;
     bv.bv_len = PR_snprintf(keybuf, sizeof(keybuf), "%lu", (u_long)id);
 
-    *idl = index_read_ext_allids(NULL, be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
+    *idl = index_read_ext_allids(NULL, be, (char *)LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
 
     return ret;
 }

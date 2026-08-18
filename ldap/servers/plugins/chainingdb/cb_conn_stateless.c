@@ -453,7 +453,7 @@ cb_get_connection(cb_conn_pool *pool,
             conn->ld = ld;
             conn->status = CB_CONNSTATUS_OK;
             conn->refcount = 0; /* incremented below */
-            conn->opentime = slapi_current_utc_time();
+            conn->opentime = slapi_current_rel_time_t();
             conn->ThreadId = PR_MyThreadId(); /* store the thread id */
             conn->next = NULL;
             if (secure) {
@@ -488,7 +488,7 @@ cb_get_connection(cb_conn_pool *pool,
         }
 
         if (!secure)
-            slapi_wait_condvar(pool->conn.conn_list_cv, NULL);
+            slapi_wait_condvar_pt(pool->conn.conn_list_cv, pool->conn.conn_list_mutex, NULL);
 
         if (cb_debug_on()) {
             slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
@@ -639,7 +639,7 @@ cb_check_for_stale_connections(cb_conn_pool *pool)
     slapi_lock_mutex(pool->conn.conn_list_mutex);
 
     if (connlifetime > 0)
-        curtime = slapi_current_utc_time();
+        curtime = slapi_current_rel_time_t();
 
     if (pool->secure) {
         myself = PR_ThreadSelf();
@@ -846,23 +846,45 @@ cb_stale_all_connections(cb_backend_instance *cb)
 int
 cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn *cnx, time_t end_time)
 {
-
+    int version = LDAP_VERSION3;
     char *attrs[] = {"1.1", NULL};
     int rc;
+    int ret;
     struct timeval timeout;
     LDAP *ld;
     LDAPMessage *result;
     time_t now;
     int secure;
-    if (cb->max_idle_time <= 0) /* Heart-beat disabled */
-        return LDAP_SUCCESS;
+    char *plain = NULL;
+    const char *target = NULL;
 
-    if (cnx && (cnx->status != CB_CONNSTATUS_OK)) /* Known problem */
+    if (cb->max_idle_time <= 0) {
+        /* Heart-beat disabled */
+        return LDAP_SUCCESS;
+    }
+
+    const Slapi_DN *target_sdn = slapi_be_getsuffix(cb->inst_be, 0);
+
+    if (target_sdn == NULL) {
+        return LDAP_NO_SUCH_ATTRIBUTE;
+    }
+
+    target = slapi_sdn_get_dn(target_sdn);
+
+    if (cnx && (cnx->status != CB_CONNSTATUS_OK)) {
+        /* Known problem */
         return LDAP_SERVER_DOWN;
+    }
 
-    now = slapi_current_utc_time();
-    if (end_time && ((now <= end_time) || (end_time < 0)))
+    now = slapi_current_rel_time_t();
+    if (end_time && ((now <= end_time) || (end_time < 0))) {
         return LDAP_SUCCESS;
+    }
+
+    ret = pw_rever_decode(cb->pool->password, &plain, CB_CONFIG_USERPASSWORD);
+    if (ret == -1) {
+        return LDAP_INVALID_CREDENTIALS;
+    }
 
     secure = cb->pool->secure;
     if (cb->pool->starttls) {
@@ -870,16 +892,38 @@ cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn *cnx, time_t end_time)
     }
     ld = slapi_ldap_init(cb->pool->hostname, cb->pool->port, secure, 0);
     if (NULL == ld) {
+        if (ret == 0) {
+            slapi_ch_free_string(&plain);
+        }
+        cb_update_failed_conn_cpt(cb);
+        return LDAP_SERVER_DOWN;
+    }
+    ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
+    /* Don't chase referrals */
+    ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
+
+    /* Authenticate as the multiplexor user */
+    LDAPControl **serverctrls = NULL;
+    rc = slapi_ldap_bind(ld, cb->pool->binddn, plain,
+                         cb->pool->mech, NULL, &serverctrls,
+                         &(cb->pool->conn.bind_timeout), NULL);
+    if (ret == 0) {
+        slapi_ch_free_string(&plain);
+    }
+
+    if (LDAP_SUCCESS != rc) {
+        slapi_ldap_unbind(ld);
         cb_update_failed_conn_cpt(cb);
         return LDAP_SERVER_DOWN;
     }
 
+    ldap_controls_free(serverctrls);
+
+    /* Setup to search the base of the suffix */
     timeout.tv_sec = cb->max_test_time;
     timeout.tv_usec = 0;
 
-    /* NOTE: This will fail if we implement the ability to disable
-       anonymous bind */
-    rc = ldap_search_ext_s(ld, NULL, LDAP_SCOPE_BASE, "objectclass=*", attrs, 1, NULL,
+    rc = ldap_search_ext_s(ld, target, LDAP_SCOPE_BASE, "objectclass=*", attrs, 1, NULL,
                            NULL, &timeout, 1, &result);
     if (LDAP_SUCCESS != rc) {
         slapi_ldap_unbind(ld);
@@ -899,13 +943,13 @@ cb_update_failed_conn_cpt(cb_backend_instance *cb)
 {
     /* if the chaining BE is already unavailable, we do nothing*/
     time_t now;
+
+    slapi_lock_mutex(cb->monitor_availability.cpt_lock);
     if (cb->monitor_availability.farmserver_state == FARMSERVER_AVAILABLE) {
-        slapi_lock_mutex(cb->monitor_availability.cpt_lock);
         cb->monitor_availability.cpt++;
-        slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
         if (cb->monitor_availability.cpt >= CB_NUM_CONN_BEFORE_UNAVAILABILITY) {
             /* we reach the limit of authorized failed connections => we setup the chaining BE state to unavailable */
-            now = slapi_current_utc_time();
+            now = slapi_current_rel_time_t();
             slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
             cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD;
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -914,21 +958,22 @@ cb_update_failed_conn_cpt(cb_backend_instance *cb)
                           "cb_update_failed_conn_cpt - Farm server unavailable");
         }
     }
+    slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
 }
 
 void
 cb_reset_conn_cpt(cb_backend_instance *cb)
 {
+    slapi_lock_mutex(cb->monitor_availability.cpt_lock);
     if (cb->monitor_availability.cpt > 0) {
-        slapi_lock_mutex(cb->monitor_availability.cpt_lock);
         cb->monitor_availability.cpt = 0;
         if (cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE) {
             cb->monitor_availability.farmserver_state = FARMSERVER_AVAILABLE;
             slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                           "cb_reset_conn_cpt - Farm server is back");
         }
-        slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
     }
+    slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
 }
 
 int
@@ -938,7 +983,7 @@ cb_check_availability(cb_backend_instance *cb, Slapi_PBlock *pb)
     time_t now;
     if (cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE) {
         slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-        now = slapi_current_utc_time();
+        now = slapi_current_rel_time_t();
         if (now >= cb->monitor_availability.unavailableTimeLimit) {
             cb->monitor_availability.unavailableTimeLimit = now + CB_INFINITE_TIME; /* to be sure only one thread can do the test */
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -951,7 +996,7 @@ cb_check_availability(cb_backend_instance *cb, Slapi_PBlock *pb)
                       "cb_check_availability - ping the farm server and check if it's still unavailable");
         if (cb_ping_farm(cb, NULL, 0) != LDAP_SUCCESS) { /* farm still unavailable... Just change the timelimit */
             slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-            now = slapi_current_utc_time();
+            now = slapi_current_rel_time_t();
             cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD;
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
             cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL);
@@ -961,7 +1006,7 @@ cb_check_availability(cb_backend_instance *cb, Slapi_PBlock *pb)
         } else {
             /* farm is back !*/
             slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-            now = slapi_current_utc_time();
+            now = slapi_current_rel_time_t();
             cb->monitor_availability.unavailableTimeLimit = now; /* the unavailable period is finished */
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
             /* The farmer server state backs to FARMSERVER_AVAILABLE, but this already done in cb_ping_farm, and also the reset of cpt*/

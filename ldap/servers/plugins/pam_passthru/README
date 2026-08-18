@@ -1,6 +1,6 @@
 #
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -172,17 +172,23 @@ nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
 nsslapd-pluginLoadGlobal: true
 nsslapd-plugin-depends-on-type: database
-pamMissingSuffix: ALLOW
-pamExcludeSuffix: o=NetscapeRoot
-pamExcludeSuffix: cn=config
-pamIDMapMethod: RDN
-pamFallback: FALSE
-pamSecure: TRUE
-pamService: ldapserver
 
 Make sure there is a blank line at the end. The line with
 o=NetscapeRoot may be omitted if this is not a configuration DS. Then
 restart slapd.
+
+Default config entry
+Previous to 2012 you could only configure the plugin through the main plugin entry under cn=config:
+      
+      cn=PAM Pass Through Auth,cn=plugins,cn=config
+
+But after 2012 we added "config" child entries under the main plugin entry:
+
+     cn=<config>, cn=PAM Pass Through Auth,cn=plugins,cn=config
+
+For backwards compatibility, users could use the main plugin entry although the child entry approach is
+what we wanted to use. To make life easier for CLI/UI and to be consistent with other plugins, we are
+deprecating the use of main plugin config entries in favour of using child config entries. (2025)
 
 Testing
 

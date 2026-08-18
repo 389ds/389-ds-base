@@ -10,7 +10,7 @@
 import logging
 import pytest
 from lib389.tasks import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389._constants import DEFAULT_SUFFIX
 
@@ -20,7 +20,6 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds365
 def test_hide_unhashed_pwd(topology_st):
     """Change userPassword, enable hiding of un-hashed
     password and check the audit logs.

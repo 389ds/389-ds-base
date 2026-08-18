@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2008 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -35,21 +35,93 @@
 #define MEMBEROF_PLUGIN_SUBSYSTEM "memberof-plugin" /* used for logging */
 #define MEMBEROF_INT_PREOP_DESC   "memberOf internal postop plugin"
 #define MEMBEROF_PREOP_DESC       "memberof preop plugin"
+#define MEMBEROF_BEPOSTOP_DESC    "memberof backend postop plugin"
 #define MEMBEROF_GROUP_ATTR       "memberOfGroupAttr"
 #define MEMBEROF_ATTR             "memberOfAttr"
 #define MEMBEROF_BACKEND_ATTR     "memberOfAllBackends"
 #define MEMBEROF_ENTRY_SCOPE_ATTR "memberOfEntryScope"
 #define MEMBEROF_SKIP_NESTED_ATTR "memberOfSkipNested"
+#define MEMBEROF_DEFERRED_UPDATE_ATTR "memberOfDeferredUpdate"
 #define MEMBEROF_AUTO_ADD_OC      "memberOfAutoAddOC"
+#define MEMBEROF_NEED_FIXUP       "memberOfNeedFixup"
+#define MEMBEROF_LAUNCH_FIXUP     "memberOfLaunchFixup"
 #define NSMEMBEROF                "nsMemberOf"
 #define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
 #define DN_SYNTAX_OID             "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID   "1.3.6.1.4.1.1466.115.121.1.34"
+#define SHUTDOWN_TIMEOUT          60   /* systemctl timeout is by default 90s */
+#define MEMBEROF_SPECIFIC_GROUP_FILTER         "memberOfSpecificGroupFilter"
+#define MEMBEROF_EXCLUDE_SPECIFIC_GROUP_FILTER "memberOfExcludeSpecificGroupFilter"
+#define MEMBEROF_SPECIFIC_GROUP_OC "memberOfSpecificGroupOC"
 
 
 /*
  * structs
  */
+
+typedef struct memberof_deferred_mod_task
+{
+    Slapi_PBlock *pb_original;
+    Slapi_PBlock *pb;
+    LDAPMod **mods;
+    Slapi_DN *target_sdn;
+} MemberofDeferredModTask;
+typedef struct memberof_deferred_add_task
+{
+    Slapi_PBlock *pb_original;
+    Slapi_PBlock *pb;
+    int foo;
+} MemberofDeferredAddTask;
+typedef struct memberof_deferred_del_task
+{
+    Slapi_PBlock *pb_original;
+    Slapi_PBlock *pb;
+    int foo;
+} MemberofDeferredDelTask;
+typedef struct memberof_deferred_modrdn_task
+{
+    Slapi_PBlock *pb_original;
+    Slapi_PBlock *pb;
+    int foo;
+} MemberofDeferredModrdnTask;
+typedef struct memberof_deferred_task
+{
+    unsigned long deferred_choice;
+    union
+    {
+        /* modify */
+        struct memberof_deferred_mod_task *d_un_mod;
+
+        /* modify */
+        struct memberof_deferred_add_task *d_un_add;
+
+        /* modify */
+        struct memberof_deferred_del_task *d_un_del;
+
+        /* modify */
+        struct memberof_deferred_modrdn_task *d_un_modrdn;
+    } d_un;
+#define d_mod d_un.d_un_mod
+#define d_add d_un.d_un_add
+#define d_del d_un.d_un_del
+#define d_modrdn d_un.d_un_modrdn
+    struct memberof_deferred_task *next;
+    struct memberof_deferred_task *prev;
+} MemberofDeferredTask;
+
+typedef struct memberof_deferred_list
+{
+    pthread_mutex_t deferred_list_mutex;
+    pthread_cond_t deferred_list_cv;
+    PRThread *deferred_tid;
+    int current_task;
+    int total_added;
+    int total_removed;
+    MemberofDeferredTask *tasks_head;
+    MemberofDeferredTask *tasks_queue;
+} MemberofDeferredList;
+
+
 typedef struct memberofconfig
 {
     char **groupattrs;
@@ -59,13 +131,25 @@ typedef struct memberofconfig
     int entryScopeCount;
     Slapi_DN **entryScopeExcludeSubtrees;
     int entryExcludeScopeCount;
+    Slapi_Filter **specificGroupFilter;
+    Slapi_Filter **excludeSpecificGroupFilter;
+    int specificGroupFilterCount;
+    int excludeSpecificGroupFilterCount;
+    char **specificGroupOC;
+    int specificGroupOCCount;
     Slapi_Filter *group_filter;
     Slapi_Attr **group_slapiattrs;
     int skip_nested;
     int fixup_task;
     char *auto_add_oc;
+    PRBool deferred_update;
+    MemberofDeferredList *deferred_list;
     PLHashTable *ancestors_cache;
     PLHashTable *fixup_cache;
+    Slapi_Task *task;
+    int need_fixup;
+    PRBool launch_fixup;
+    bool is_lmdb;
 } MemberOfConfig;
 
 /* The key to access the hash table is the normalized DN
@@ -103,6 +187,6 @@ void memberof_release_config(void);
 PRUint64 get_plugin_started(void);
 void ancestor_hashtable_entry_free(memberof_cached_value *entry);
 PLHashTable *hashtable_new(int usetxn);
-int memberof_use_txn();
+int memberof_use_txn(void);
 
 #endif /* _MEMBEROF_H_ */

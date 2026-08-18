@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2008 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -17,6 +17,7 @@
 #include "plhash.h"
 #include <plstr.h>
 #include "memberof.h"
+#include "slap.h"
 
 #define MEMBEROF_CONFIG_FILTER "(objectclass=*)"
 #define MEMBEROF_HASHTABLE_SIZE 1000
@@ -36,8 +37,8 @@
  */
 static void fixup_hashtable_empty( MemberOfConfig *config, char *msg);
 static void ancestor_hashtable_empty(MemberOfConfig *config, char *msg);
-static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-										 int *returncode, char *returntext, void *arg);
+static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
+                                     int *returncode, char *returntext, void *arg);
 static int memberof_search (Slapi_PBlock *pb __attribute__((unused)),
                             Slapi_Entry* entryBefore __attribute__((unused)),
                             Slapi_Entry* e __attribute__((unused)),
@@ -81,6 +82,19 @@ memberof_free_scope(Slapi_DN ***scopes, int *count)
         i++;
     }
     slapi_ch_free((void **)scopes);
+    *count = 0;
+}
+
+static void
+memberof_free_filter(Slapi_Filter ***filters, int *count)
+{
+    size_t i = 0;
+
+    while (*filters && (*filters)[i]) {
+        slapi_filter_free((*filters)[i], 1);
+        i++;
+    }
+    slapi_ch_free((void **)filters);
     *count = 0;
 }
 
@@ -195,8 +209,12 @@ memberof_validate_config(Slapi_PBlock *pb,
     char *config_dn = NULL;
     const char *skip_nested = NULL;
     const char *auto_add_oc = NULL;
+    const char *all_backends = NULL;
     char **entry_scopes = NULL;
     char **entry_exclude_scopes = NULL;
+    char **specific_group_filter = NULL;
+    char **exclude_specific_group_filter = NULL;
+    char **specificGroupOC = NULL;
     int not_dn_syntax = 0;
     int num_vals = 0;
 
@@ -300,9 +318,61 @@ memberof_validate_config(Slapi_PBlock *pb,
         }
     }
 
+    specific_group_filter = slapi_entry_attr_get_charray_ext(e, MEMBEROF_SPECIFIC_GROUP_FILTER, &num_vals);
+    if (specific_group_filter) {
+        for (size_t i = 0; i < num_vals; i++) {
+            Slapi_Filter *filter = NULL;
+            if((filter = slapi_str2filter(specific_group_filter[i])) == NULL) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "%s: %s has invalid filter (%s)",
+                            MEMBEROF_PLUGIN_SUBSYSTEM, MEMBEROF_SPECIFIC_GROUP_FILTER,
+                            specific_group_filter[i]);
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            }
+            slapi_filter_free(filter, 1);
+        }
+        theConfig.specificGroupFilterCount = num_vals;
+    }
+
+    exclude_specific_group_filter = slapi_entry_attr_get_charray_ext(e, MEMBEROF_EXCLUDE_SPECIFIC_GROUP_FILTER, &num_vals);
+    if (exclude_specific_group_filter) {
+        for (size_t i = 0; i < num_vals; i++) {
+            Slapi_Filter *filter = NULL;
+            if((filter = slapi_str2filter(exclude_specific_group_filter[i])) == NULL) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "%s: %s has invalid filter (%s)",
+                            MEMBEROF_PLUGIN_SUBSYSTEM, MEMBEROF_EXCLUDE_SPECIFIC_GROUP_FILTER,
+                            exclude_specific_group_filter[i]);
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            }
+            slapi_filter_free(filter, 1);
+        }
+        theConfig.excludeSpecificGroupFilterCount = num_vals;
+    }
+
+    if ((specificGroupOC = slapi_entry_attr_get_charray_ext(e, MEMBEROF_SPECIFIC_GROUP_OC, &num_vals))) {
+        /* Validate the syntax before we create our DN array */
+        for (size_t i = 0; i < num_vals; i++) {
+            /* Check if the objectclass exists by looking for its superior oc */
+            char *sup = NULL;
+            if ((sup = slapi_schema_get_superior_name(specificGroupOC[i])) == NULL) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "The %s configuration attribute must be set "
+                "to an existing objectclass (unknown: %s)",
+                MEMBEROF_SPECIFIC_GROUP_OC, specificGroupOC[i]);
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            } else {
+                slapi_ch_free_string(&sup);
+            }
+        }
+    }
+
     if ((config_dn = (char *)slapi_entry_attr_get_ref(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA))) {
         /* Now check the shared config attribute, validate it now */
-        Slapi_Entry *e = NULL;
+        Slapi_Entry *config_e = NULL;
         int rc = 0;
 
         rc = slapi_dn_syntax_check(pb, config_dn, 1);
@@ -315,14 +385,14 @@ memberof_validate_config(Slapi_PBlock *pb,
         }
         config_sdn = slapi_sdn_new_dn_byval(config_dn);
 
-        slapi_search_internal_get_entry(config_sdn, NULL, &e, memberof_get_plugin_id());
-        if (e) {
-            slapi_entry_free(e);
+        slapi_search_internal_get_entry(config_sdn, NULL, &config_e, memberof_get_plugin_id());
+        if (config_e) {
+            slapi_entry_free(config_e);
             *returncode = LDAP_SUCCESS;
         } else {
             /* config area does not exist! */
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "The %s configuration attribute points to an entry that  "
+                        "The %s configuration attribute points to an entry that "
                         "can not be found.  (%s)",
                         SLAPI_PLUGIN_SHARED_CONFIG_AREA, config_dn);
             *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -372,6 +442,7 @@ memberof_validate_config(Slapi_PBlock *pb,
                             MEMBEROF_PLUGIN_SUBSYSTEM, entry_exclude_scopes[i]);
                 slapi_ch_array_free(entry_exclude_scopes);
                 entry_exclude_scopes = NULL;
+                theConfig.entryExcludeScopeCount = 0;
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 goto done;
             }
@@ -429,11 +500,55 @@ memberof_validate_config(Slapi_PBlock *pb,
         }
     }
 
+    /*
+     * If the memberof plugin is configured to monitor all backends, verify
+     * that the global backend lock is enabled. If it is not, log a warning
+     * since this config may lead to deadlocks during cross backend updates.
+     */
+    all_backends = slapi_entry_attr_get_ref(e, MEMBEROF_BACKEND_ATTR);
+    if (all_backends && (strcasecmp(all_backends, "on") == 0)) {
+        const char *config_base = "cn=config";
+        const char *filter = "(objectclass=*)";
+        char *attrs[] = { CONFIG_GLOBAL_BACKEND_LOCK, NULL };
+        Slapi_PBlock *pb = NULL;
+        Slapi_Entry **entries = NULL;
+        char *global_lock = NULL;
+
+        pb = slapi_pblock_new();
+        if (pb) {
+            slapi_search_internal_set_pb(pb, config_base, LDAP_SCOPE_BASE, filter,
+                                        attrs, 0, NULL, NULL,
+                                        memberof_get_plugin_id(), 0);
+
+            if (slapi_search_internal_pb(pb) == LDAP_SUCCESS) {
+                slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+                if (entries && entries[0]) {
+                    global_lock = slapi_entry_attr_get_charptr(entries[0], CONFIG_GLOBAL_BACKEND_LOCK);
+                }
+            }
+            if (global_lock && strcasecmp(global_lock, "off") == 0) {
+                slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "Warning: %s is set to \"off\" while %s is \"on\". "
+                              "This configuration may lead to potential deadlocks during "
+                              "cross backend updates. It is recommended to enable %s.\n",
+                              CONFIG_GLOBAL_BACKEND_LOCK, MEMBEROF_BACKEND_ATTR,
+                              CONFIG_GLOBAL_BACKEND_LOCK);
+           }
+
+            slapi_free_search_results_internal(pb);
+            slapi_pblock_destroy(pb);
+            slapi_ch_free_string(&global_lock);
+        }
+    }
+
 done:
     memberof_free_scope(&exclude_dn, &num_vals);
     memberof_free_scope(&include_dn, &num_vals);
     slapi_ch_free((void **)&entry_scopes);
     slapi_ch_free((void **)&entry_exclude_scopes);
+    slapi_ch_array_free(specificGroupOC);
+    slapi_ch_array_free(specific_group_filter);
+    slapi_ch_array_free(exclude_specific_group_filter);
     slapi_sdn_free(&config_sdn);
 
     if (*returncode != LDAP_SUCCESS) {
@@ -467,9 +582,15 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     const char *allBackends = NULL;
     char **entryScopes = NULL;
     char **entryScopeExcludeSubtrees = NULL;
+    char **specificGroupFilter = NULL;
+    char **excludeSpecificGroupFilter = NULL;
+    char **specificGroupOC = NULL;
     char *sharedcfg = NULL;
     const char *skip_nested = NULL;
+    const char *deferred_update = NULL;
     char *auto_add_oc = NULL;
+    const char *needfixup = NULL;
+    const char *launchfixup = NULL;
     int num_vals = 0;
 
     *returncode = LDAP_SUCCESS;
@@ -503,7 +624,10 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
     allBackends = slapi_entry_attr_get_ref(e, MEMBEROF_BACKEND_ATTR);
     skip_nested = slapi_entry_attr_get_ref(e, MEMBEROF_SKIP_NESTED_ATTR);
+    deferred_update = slapi_entry_attr_get_ref(e, MEMBEROF_DEFERRED_UPDATE_ATTR);
     auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
+    needfixup = slapi_entry_attr_get_ref(e, MEMBEROF_NEED_FIXUP);
+    launchfixup = slapi_entry_attr_get_ref(e, MEMBEROF_LAUNCH_FIXUP);
 
     if (auto_add_oc == NULL) {
         auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
@@ -514,6 +638,9 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
      * a memberOf operation, so we obtain an exclusive lock here
      */
     memberof_wlock_config();
+    theConfig.need_fixup = (needfixup != NULL);
+    /* DB implementation */
+    theConfig.is_lmdb = slapi_db_is_lmdb();
 
     if (groupattrs) {
         int i = 0;
@@ -563,18 +690,32 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         slapi_filter_free(theConfig.group_filter, 1);
 
         if (num_groupattrs > 1) {
-            int bytes_out = 0;
-            int filter_str_len = groupattr_name_len + (num_groupattrs * 4) + 4;
+            size_t bytes_out = 0;
+            size_t filter_str_len = groupattr_name_len + (num_groupattrs * 4) + 4;
+            int32_t rc = 0;
 
             /* Allocate enough space for the filter */
             filter_str = slapi_ch_malloc(filter_str_len);
 
             /* Add beginning of filter. */
-            bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+            rc = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+            if (rc < 0) {
+                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            } else {
+                bytes_out = rc;
+            }
 
             /* Add filter section for each groupattr. */
-            for (i = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
-                bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
+            for (size_t i=0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
+                int32_t bytes_read = snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
+                if (bytes_read<0) {
+                    slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    goto done;
+                }
+                bytes_out += bytes_read;
             }
 
             /* Add end of filter. */
@@ -615,6 +756,28 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         }
     }
 
+    if (deferred_update) {
+        theConfig.deferred_update = PR_FALSE;
+        if (strcasecmp(deferred_update, "on") == 0) {
+            if (theConfig.is_lmdb) {
+                slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "memberof_apply_config - "
+                              "deferred_update is not supported with LMDB backend and will be ignored\n");
+            } else {
+                theConfig.deferred_update = PR_TRUE;
+            }
+        }
+    }
+    theConfig.launch_fixup = PR_FALSE;
+    if (theConfig.deferred_update) {
+        /* The automatic fixup task is only triggered when
+         * deferred update is on
+         */
+        if (launchfixup && (strcasecmp(launchfixup, "on") == 0)) {
+            theConfig.launch_fixup = PR_TRUE;
+        }
+    }
+
     if (allBackends) {
         if (strcasecmp(allBackends, "on") == 0) {
             theConfig.allBackends = 1;
@@ -634,11 +797,9 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     memberof_free_scope(&(theConfig.entryScopes), &theConfig.entryScopeCount);
     entryScopes = slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_ATTR, &num_vals);
     if (entryScopes) {
-        int i = 0;
-
         /* Validation has already been performed in preop, just build the DN's */
         theConfig.entryScopes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals + 1);
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             theConfig.entryScopes[i] = slapi_sdn_new_dn_passin(entryScopes[i]);
         }
         theConfig.entryScopeCount = num_vals; /* shortcut for config copy */
@@ -651,16 +812,51 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     entryScopeExcludeSubtrees =
         slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE, &num_vals);
     if (entryScopeExcludeSubtrees) {
-        int i = 0;
-
         /* Validation has already been performed in preop, just build the DN's */
         theConfig.entryScopeExcludeSubtrees =
             (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals + 1);
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             theConfig.entryScopeExcludeSubtrees[i] =
                 slapi_sdn_new_dn_passin(entryScopeExcludeSubtrees[i]);
         }
         theConfig.entryExcludeScopeCount = num_vals; /* shortcut for config copy */
+    }
+
+    memberof_free_filter(&(theConfig.specificGroupFilter), &theConfig.specificGroupFilterCount);
+    specificGroupFilter = slapi_entry_attr_get_charray_ext(e, MEMBEROF_SPECIFIC_GROUP_FILTER, &num_vals);
+    if (specificGroupFilter) {
+        theConfig.specificGroupFilter = (Slapi_Filter **)slapi_ch_calloc(sizeof(Slapi_Filter *), num_vals + 1);
+        for (size_t i = 0; i < num_vals; i++) {
+            theConfig.specificGroupFilter[i] = slapi_str2filter(specificGroupFilter[i]);
+        }
+        theConfig.specificGroupFilterCount = num_vals; /* shortcut for config copy */
+    }
+
+    memberof_free_filter(&(theConfig.excludeSpecificGroupFilter), &theConfig.excludeSpecificGroupFilterCount);
+    excludeSpecificGroupFilter = slapi_entry_attr_get_charray_ext(e, MEMBEROF_EXCLUDE_SPECIFIC_GROUP_FILTER, &num_vals);
+    if (excludeSpecificGroupFilter) {
+        theConfig.excludeSpecificGroupFilter = (Slapi_Filter **)slapi_ch_calloc(sizeof(Slapi_Filter *), num_vals + 1);
+        for (size_t i = 0; i < num_vals; i++) {
+            theConfig.excludeSpecificGroupFilter[i] = slapi_str2filter(excludeSpecificGroupFilter[i]);
+        }
+        theConfig.excludeSpecificGroupFilterCount = num_vals; /* shortcut for config copy */
+    }
+
+    slapi_ch_array_free(theConfig.specificGroupOC);
+    specificGroupOC = slapi_entry_attr_get_charray_ext(e, MEMBEROF_SPECIFIC_GROUP_OC, &num_vals);
+    if (specificGroupOC) {
+        theConfig.specificGroupOC = (char **)slapi_ch_calloc(sizeof(char *), num_vals + 1);
+        for (size_t i = 0; i < num_vals; i++) {
+            theConfig.specificGroupOC[i] = specificGroupOC[i];
+        }
+        theConfig.specificGroupOCCount = num_vals; /* shortcut for config copy */
+    } else {
+        theConfig.specificGroupOC = (char **)slapi_ch_calloc(sizeof(char *), 4);
+        theConfig.specificGroupOC[0] = slapi_ch_strdup("groupofUniqueNames");
+        theConfig.specificGroupOC[1] = slapi_ch_strdup("groupOfNames");
+        theConfig.specificGroupOC[2] = slapi_ch_strdup("nsAdminGroup");
+        theConfig.specificGroupOC[3] = NULL;
+        theConfig.specificGroupOCCount = 3; /* shortcut for config copy */
     }
 
     /* release the lock */
@@ -673,7 +869,9 @@ done:
     slapi_ch_free_string(&memberof_attr);
     slapi_ch_free((void **)&entryScopes);
     slapi_ch_free((void **)&entryScopeExcludeSubtrees);
-
+    slapi_ch_array_free(specificGroupFilter);
+    slapi_ch_array_free(excludeSpecificGroupFilter);
+    slapi_ch_free((void **)&specificGroupOC);
     if (*returncode != LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_ERROR;
     } else {
@@ -755,6 +953,14 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
         slapi_ch_free_string(&dest->auto_add_oc);
         dest->auto_add_oc = slapi_ch_strdup(src->auto_add_oc);
 
+        dest->deferred_update = src->deferred_update;
+        dest->need_fixup = src->need_fixup;
+        /*
+         * deferred_list, ancestors_cache, fixup_cache are not config parameters
+         *  but simple global parameters and should not be copied as
+         *  and they are only meaningful in the original config (i.e: theConfig)
+         */
+
         if (src->entryScopes) {
             int num_vals = 0;
 
@@ -771,6 +977,27 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
                 dest->entryScopeExcludeSubtrees[num_vals] = slapi_sdn_dup(src->entryScopeExcludeSubtrees[num_vals]);
             }
         }
+        if (src->specificGroupFilter) {
+            int num_vals = 0;
+            dest->specificGroupFilter = (Slapi_Filter **)slapi_ch_calloc(sizeof(Slapi_Filter *), src->specificGroupFilterCount + 1);
+            for (num_vals = 0; src->specificGroupFilter[num_vals]; num_vals++) {
+                dest->specificGroupFilter[num_vals] = slapi_filter_dup(src->specificGroupFilter[num_vals]);
+            }
+        }
+        if (src->excludeSpecificGroupFilter) {
+            int num_vals = 0;
+            dest->excludeSpecificGroupFilter = (Slapi_Filter **)slapi_ch_calloc(sizeof(Slapi_Filter *), src->excludeSpecificGroupFilterCount + 1);
+            for (num_vals = 0; src->excludeSpecificGroupFilter[num_vals]; num_vals++) {
+                dest->excludeSpecificGroupFilter[num_vals] = slapi_filter_dup(src->excludeSpecificGroupFilter[num_vals]);
+            }
+        }
+        if (src->specificGroupOC) {
+            int num_vals = 0;
+            dest->specificGroupOC = (char **)slapi_ch_calloc(sizeof(char *), src->specificGroupOCCount + 1);
+            for (num_vals = 0; src->specificGroupOC[num_vals]; num_vals++) {
+                dest->specificGroupOC[num_vals] = slapi_ch_strdup(src->specificGroupOC[num_vals]);
+            }
+        }
     }
 }
 
@@ -783,12 +1010,10 @@ void
 memberof_free_config(MemberOfConfig *config)
 {
     if (config) {
-        int i = 0;
-
         slapi_ch_array_free(config->groupattrs);
         slapi_filter_free(config->group_filter, 1);
 
-        for (i = 0; config->group_slapiattrs && config->group_slapiattrs[i]; i++) {
+        for (size_t i = 0; config->group_slapiattrs && config->group_slapiattrs[i]; i++) {
             slapi_attr_free(&config->group_slapiattrs[i]);
         }
         slapi_ch_free((void **)&config->group_slapiattrs);
@@ -796,6 +1021,15 @@ memberof_free_config(MemberOfConfig *config)
         slapi_ch_free_string(&config->memberof_attr);
         memberof_free_scope(&(config->entryScopes), &config->entryScopeCount);
         memberof_free_scope(&(config->entryScopeExcludeSubtrees), &config->entryExcludeScopeCount);
+        for (size_t i = 0; config->specificGroupFilter && config->specificGroupFilter[i]; i++) {
+            slapi_filter_free(config->specificGroupFilter[i], 1);
+        }
+        slapi_ch_free((void **)&config->specificGroupFilter);
+        for (size_t i = 0; config->excludeSpecificGroupFilter && config->excludeSpecificGroupFilter[i]; i++) {
+            slapi_filter_free(config->excludeSpecificGroupFilter[i], 1);
+        }
+        slapi_ch_free((void **)&config->excludeSpecificGroupFilter);
+        slapi_ch_array_free(config->specificGroupOC);
         if (config->fixup_cache) {
             fixup_hashtable_empty(config, "memberof_free_config empty fixup_entry_hastable");
             PL_HashTableDestroy(config->fixup_cache);
@@ -986,7 +1220,7 @@ bail:
     if (ret) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, returntext);
-        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate - %s/n",
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate - %s\n",
                       returntext);
     }
     slapi_sdn_free(&config_sdn);

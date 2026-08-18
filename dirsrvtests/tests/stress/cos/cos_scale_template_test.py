@@ -9,7 +9,7 @@
 
 import pytest
 
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389.plugins import ClassOfServicePlugin
 from lib389.cos import CosIndirectDefinitions, CosTemplates, CosTemplate
@@ -77,7 +77,7 @@ def test_indirect_template_scale(topology_st):
         5. Add the user to the cos template and assert it works.
         6. Add 25,000 templates to the database
         7. Search the user. It should not exceed THRESHOLD.
-    :expected results:
+    :expectedresults:
         1. It is enabled.
         2. It is created.
         3. Is is created.

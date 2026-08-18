@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -25,7 +25,7 @@
  * Structure that contains our system memory information in bytes and pages.
  *
  */
-typedef struct _slapi_pal_meminfo
+typedef struct slapi_pal_meminfo_
 {
     uint64_t pagesize_bytes;
     uint64_t system_total_pages;

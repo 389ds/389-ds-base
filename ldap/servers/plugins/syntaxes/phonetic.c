@@ -212,9 +212,10 @@ static char vsvfn[26] = {
 /*
     case 0xC3:
 */
-#define same(x) ((x) != '\0' && vsvfn[(x) - 'A'] & 2)           /* FJLMNR */
-#define varson(x) ((x) != '\0' && vsvfn[(x) - 'A'] & 4)         /* CGPST */
-#define frontv(x) ((*(x) != '\0' && vsvfn[(*(x)) - 'A'] & 8) || /* EIY */                            \
+#define getCode(x)  (((x)>='A' && (x)<='Z') ? vsvfn[(x) - 'A'] : ((x)>='a' && (x)<='z') ? vsvfn[(x) - 'a'] : 0 )
+#define same(x) ((x) != '\0' && getCode(x) & 2)           /* FJLMNR */
+#define varson(x) ((x) != '\0' && getCode(x) & 4)         /* CGPST */
+#define frontv(x) ((*(x) != '\0' && getCode(*(x)) & 8) || /* EIY */                            \
                    (((*(x) == 0xC3) && (*((x) + 1))) ? ((0x88 <= *((x) + 1) && *((x) + 1) < 0x90) || \
                                                         (0xA8 <= *((x) + 1) && *((x) + 1) < 0xB0))   \
                                                      : 0) /* Latin-1 E/I */)

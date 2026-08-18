@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -10,6 +10,7 @@
 import os
 import sys
 import shutil
+import stat
 import pwd
 import grp
 import re
@@ -17,7 +18,7 @@ import socket
 import subprocess
 import getpass
 import configparser
-from lib389 import _ds_shutil_copytree, DirSrv
+from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
@@ -30,21 +31,30 @@ from lib389.configurations.sample import (
     create_base_cn,
     create_base_c,
 )
-from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
+from lib389.instance.options import General2Base, Slapd2Base, Backend2Base, Options2
 from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
 from lib389.instance.remove import remove_ds_instance
 from lib389.index import Indexes
+from lib389.replica import Replicas, BootstrapReplicationManager, Changelog
 from lib389.utils import (
+    align_to_page_size,
     assert_c,
     is_a_dn,
     ensure_str,
     ensure_list_str,
+    get_default_db_lib,
+    get_default_mdb_max_size,
     normalizeDN,
+    parse_size,
     socket_check_open,
+    selinux_label_file,
     selinux_label_port,
+    resolve_selinux_path,
     selinux_restorecon,
     selinux_present)
+from lib389.backend import DatabaseConfig
+
 
 ds_paths = Paths()
 
@@ -55,7 +65,7 @@ DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 def get_port(port, default_port, secure=False):
     # Get the port number for the interactive installer and validate it
-    while 1:
+    while True:
         if secure:
             val = input('\nEnter secure port number [{}]: '.format(default_port)).rstrip()
         else:
@@ -195,6 +205,25 @@ class SetupDs(object):
                     if req_idx:
                         be[BACKEND_REQ_INDEX] = "on"
 
+                    # Replication settings
+                    be[BACKEND_REPL_ENABLED] = False
+                    if config.get(section, BACKEND_REPL_ENABLED, fallback=False):
+                        be[BACKEND_REPL_ENABLED] = True
+                        role = config.get(section, BACKEND_REPL_ROLE, fallback="supplier")
+                        be[BACKEND_REPL_ROLE] = role
+                        rid = config.get(section, BACKEND_REPL_ID, fallback="1")
+                        be[BACKEND_REPL_ID] = rid
+                        binddn = config.get(section, BACKEND_REPL_BINDDN, fallback=None)
+                        be[BACKEND_REPL_BINDDN] = binddn
+                        bindpw = config.get(section, BACKEND_REPL_BINDPW, fallback=None)
+                        be[BACKEND_REPL_BINDPW] = bindpw
+                        bindgrp = config.get(section, BACKEND_REPL_BINDGROUP, fallback=None)
+                        be[BACKEND_REPL_BINDGROUP] = bindgrp
+                        cl_max_entries = config.get(section, BACKEND_REPL_CL_MAX_ENTRIES, fallback="-1")
+                        be[BACKEND_REPL_CL_MAX_ENTRIES] = cl_max_entries
+                        cl_max_age = config.get(section, BACKEND_REPL_CL_MAX_AGE, fallback="7d")
+                        be[BACKEND_REPL_CL_MAX_AGE] = cl_max_age
+
                     # Add this backend to the list
                     backends.append(be)
 
@@ -253,8 +282,8 @@ class SetupDs(object):
         general = {'config_version': 2,
                    'full_machine_name': socket.getfqdn(),
                    'strict_host_checking': False,
-                   'selinux': True,
-                   'systemd': ds_paths.with_systemd,
+                   'selinux': Options2.default_values['selinux'],
+                   'systemd': Options2.get_systemd_default(),
                    'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
@@ -263,10 +292,10 @@ class SetupDs(object):
                  'initconfig_dir': ds_paths.initconfig_dir,
                  'self_sign_cert': True,
                  'root_password': '',
-                 'port': 389,
+                 'port': Options2.default_values['port'],
                  'instance_name': 'localhost',
                  'user': ds_paths.user,
-                 'secure_port': 636,
+                 'secure_port': Options2.default_values['secure_port'],
                  'prefix': ds_paths.prefix,
                  'bin_dir': ds_paths.bin_dir,
                  'sbin_dir': ds_paths.sbin_dir,
@@ -283,6 +312,7 @@ class SetupDs(object):
                  'backup_dir': ds_paths.backup_dir,
                  'db_dir': ds_paths.db_dir,
                  'db_home_dir': ds_paths.db_home_dir,
+                 'db_lib': get_default_db_lib(),
                  'ldif_dir': ds_paths.ldif_dir,
                  'lock_dir': ds_paths.lock_dir,
                  'log_dir': ds_paths.log_dir,
@@ -290,7 +320,7 @@ class SetupDs(object):
 
         # Let them know about the selinux status
         if not selinux_present():
-            val = input('\nSelinux support will be disabled, continue? [yes]: ')
+            val = input('\nSELinux labels will not be applied, continue? [yes]: ')
             if val.strip().lower().startswith('n'):
                 return
 
@@ -300,7 +330,7 @@ class SetupDs(object):
             general['full_machine_name'] = val
 
         # Instance name - adjust defaults once set
-        while 1:
+        while True:
             slapd['instance_name'] = general['full_machine_name'].split('.', 1)[0]
 
             # Check if default server id is taken
@@ -323,9 +353,9 @@ class SetupDs(object):
                     continue
 
                 # Check that valid characters are used
-                safe = re.compile(r'^[#%:\w@_-]+$').search
+                safe = re.compile(r'^(?!-)[#%:\w@_-]+$').search
                 if not bool(safe(val)):
-                    print("Server identifier has invalid characters, please choose a different value")
+                    print("Server identifier has invalid characters or starts with a dash, please choose a different value")
                     continue
 
                 # Check if server id is taken
@@ -359,7 +389,7 @@ class SetupDs(object):
         slapd['port'] = port
 
         # Self-Signed Cert DB
-        while 1:
+        while True:
             val = input('\nCreate self-signed certificate database [yes]: ').rstrip().lower()
             if val != "":
                 if val== 'no' or val == "n":
@@ -387,7 +417,7 @@ class SetupDs(object):
             slapd['secure_port'] = False
 
         # Root DN
-        while 1:
+        while True:
             val = input('\nEnter Directory Manager DN [{}]: '.format(slapd['root_dn'])).rstrip()
             if val != '':
                 # Validate value is a DN
@@ -402,7 +432,7 @@ class SetupDs(object):
                 break
 
         # Root DN Password
-        while 1:
+        while True:
             rootpw1 = getpass.getpass('\nEnter the Directory Manager password: ').rstrip()
             if rootpw1 == '':
                 print('Password can not be empty')
@@ -422,6 +452,36 @@ class SetupDs(object):
             slapd['root_password'] = rootpw1
             break
 
+        # Database implementation (db_lib)
+        while True:
+            vdef = get_default_db_lib()
+            val = input(f'\nChoose whether mdb or bdb is used. [{vdef}]: ').rstrip().lower()
+            if val == '':
+                val = vdef
+            if val in [ 'bdb', 'mdb' ]:
+                slapd['db_lib'] = val
+                break
+            else:
+                print('The value "{}" is not "mdb" nor "bdb".'.format(val))
+                continue
+
+        # Database size (mdb_max_size)
+        while slapd['db_lib'] == 'mdb':
+            try:
+                vdef = get_default_mdb_max_size(ds_paths)
+                val = input(f'\nEnter the lmdb database size [{vdef}]: ').rstrip()
+                if val == '':
+                    val = vdef
+                val = parse_size(val)
+                if val <= 0.0:
+                    print('The value should positive.')
+                    continue
+                slapd['mdb_max_size'] = val
+                break
+            except ValueError:
+                print('The value "{}" is not a valid real number.'.format(val))
+                continue
+
         # Backend   [{'name': 'userroot', 'suffix': 'dc=example,dc=com'}]
         backend = {'name': 'userroot', 'suffix': ''}
         backends = [backend]
@@ -433,7 +493,7 @@ class SetupDs(object):
             else:
                 suffix += ",dc=" + comp
 
-        while 1:
+        while True:
             val = input("\nEnter the database suffix (or enter \"none\" to skip) [{}]: ".format(suffix)).rstrip()
             if val != '':
                 if val.lower() == "none":
@@ -452,7 +512,7 @@ class SetupDs(object):
 
         # Add sample entries or root suffix entry?
         if len(backends) > 0:
-            while 1:
+            while True:
                 val = input("\nCreate sample entries in the suffix [no]: ").rstrip().lower()
                 if val != "":
                     if val == "no" or val == "n":
@@ -469,7 +529,7 @@ class SetupDs(object):
 
             if 'sample_entries' not in backend:
                 # Check if they want to create the root node entry instead
-                while 1:
+                while True:
                     val = input("\nCreate just the top suffix entry [no]: ").rstrip().lower()
                     if val != "":
                         if val == "no" or val == "n":
@@ -485,7 +545,7 @@ class SetupDs(object):
                         break
 
         # Start the instance?
-        while 1:
+        while True:
             val = input('\nDo you want to start the instance after the installation? [yes]: ').rstrip().lower()
             if val == '' or val == 'yes' or val == 'y':
                 # Default behaviour
@@ -498,7 +558,7 @@ class SetupDs(object):
                 continue
 
         # Are you ready?
-        while 1:
+        while True:
             val = input('\nAre you ready to install? [no]: ').rstrip().lower()
             if val == '' or val == "no" or val == 'n':
                 print('Aborting installation...')
@@ -539,8 +599,32 @@ class SetupDs(object):
 
         return True
 
-    def _prepare_ds(self, general, slapd, backends):
+    def create_from_dict(self, inf_dict):
+        """
+        Will trigger a create from the settings stored in inf_dict.
+        Note: Unlike in create_from_args, missing options in the dict are
+        automatically preset to their default value (by _validate_ds_config)
+        """
+        # Get the inf data
+        self.log.debug("Using inf from %s" % inf_dict)
+        config = None
+        try:
+            config = configparser.ConfigParser()
+            config.read_dict(inf_dict)
+        except Exception as e:
+            self.log.error("Exception %s occured", e)
+            return False
 
+        self.log.debug("Configuration %s" % config.sections())
+        (general, slapd, backends) = self._validate_ds_config(config)
+
+        # Actually do the setup now.
+        self.create_from_args(general, slapd, backends, self.extra)
+
+        return True
+
+    def _prepare_ds(self, general, slapd, backends):
+        self.log.info("Validate installation settings ...")
         assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
         self.log.debug("PASSED: using config settings %s" % general['defaults'])
         # Validate our arguments.
@@ -563,6 +647,8 @@ class SetupDs(object):
             # Check it resolves with dns
             assert_c(socket.gethostbyname(general['full_machine_name']), "Strict hostname check failed. Check your DNS records for %s" % general['full_machine_name'])
             self.log.debug("PASSED: Hostname strict checking")
+
+        assert_c(slapd['db_lib'] in ['bdb', 'mdb'], "Invalid value for slapd['db_lib'] (should be 'bdb' or 'mdb'")
 
         assert_c(slapd['prefix'] is not None, "Configuration prefix in section [slapd] not found")
         if (slapd['prefix'] != ""):
@@ -604,7 +690,7 @@ class SetupDs(object):
 
         # Right now, the way that rootpw works on ns-slapd works, it force hashes the pw
         # see https://fedorahosted.org/389/ticket/48859
-        if not re.match('^\{[A-Z0-9]+\}.*$', slapd['root_password']):
+        if not re.match('^([A-Z0-9]+).*$', slapd['root_password']):
             # We need to hash it. Call pwdhash-bin.
             # slapd['root_password'] = password_hash(slapd['root_password'], prefix=slapd['prefix'])
             pass
@@ -653,9 +739,9 @@ class SetupDs(object):
         Actually does the setup. this is what you want to call as an api.
         """
 
-        self.log.debug("START: Starting installation...")
+        self.log.debug("START: Starting installation ...")
         if not self.verbose:
-            self.log.info("Starting installation...")
+            self.log.info("Starting installation ...")
 
         # Check we have privs to run
         self.log.debug("READY: Preparing installation for %s...", slapd['instance_name'])
@@ -681,9 +767,9 @@ class SetupDs(object):
 
             # Call the child api to do anything it needs.
             self._install(extra)
-        self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
+        self.log.debug("FINISH: Completed installation for instance: slapd-%s", slapd['instance_name'])
         if not self.verbose:
-            self.log.info("Completed installation for %s", slapd['instance_name'])
+            self.log.info("Completed installation for instance: slapd-%s", slapd['instance_name'])
 
         return True
 
@@ -731,8 +817,24 @@ class SetupDs(object):
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
+        # Check if we are in a container, if so don't use /dev/shm for the db home dir
+        # as containers typically don't allocate enough space for dev/shm and we don't
+        # want to unexpectedly break the server after an upgrade
+        #
+        # If we know we are are in a container, we don't need to re-detect on systemd.
+        # It actually turns out if you add systemd-detect-virt, that pulls in system
+        # which subsequently breaks containers starting as instance.start then believes
+        # it COULD check the ds status. The times we need to check for systemd are mainly
+        # in other environments that use systemd natively in their containers.
+        container_result = 1
+        if not self.containerised:
+            container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
+        if self.containerised or container_result.returncode == 0:
+            # In a container, set the db_home_dir to the db path
+            self.log.debug("Container detected setting db home directory to db directory.")
+            slapd['db_home_dir'] = slapd['db_dir']
+
         with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
-            ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])
             dse_fmt = dse.format(
                 schema_dir=slapd['schema_dir'],
                 lock_dir=slapd['lock_dir'],
@@ -755,15 +857,21 @@ class SetupDs(object):
                 config_dir=slapd['config_dir'],
                 db_dir=slapd['db_dir'],
                 db_home_dir=slapd['db_home_dir'],
+                db_lib=slapd['db_lib'],
                 ldapi_enabled="on",
-                ldapi=ldapi_path,
+                ldapi=slapd['ldapi'],
                 ldapi_autobind="on",
             )
             file_dse.write(dse_fmt)
+            # Set minimum permission required by snmp ldap-agent
+            status = os.fstat(file_dse.fileno())
+            os.fchmod(file_dse.fileno(), status.st_mode | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
+        os.chown(os.path.join(slapd['config_dir'], 'dse.ldif'), slapd['user_uid'], slapd['group_gid'])
 
+        self.log.info("Create file system structures ...")
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
-        for path in ('backup_dir', 'cert_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+        for path in ('backup_dir', 'cert_dir', 'db_dir', 'db_home_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             self.log.debug("ACTION: creating %s", slapd[path])
             try:
                 os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
@@ -777,30 +885,43 @@ class SetupDs(object):
         os.chown(parentdir, slapd['user_uid'], slapd['group_gid'])
 
         ### Warning! We need to down the directory under db too for .restore to work.
-        # See dblayer.c for more!
-        db_parent = os.path.join(slapd['db_dir'], '..')
-        os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
+        # During a restore, the db dir is deleted and recreated, which is why we need
+        # to own it for a restore.
+        #
+        # However, in a container, we can't always guarantee this due to how the volumes
+        # work and are mounted. Specifically, if we have an anonymous volume we will
+        # NEVER be able to own it, but in a true deployment it is reasonable to expect
+        # we DO own it. Thus why we skip it in this specific context
+        if not self.containerised:
+            db_parent = os.path.join(slapd['db_dir'], '..')
+            os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
 
         # Copy correct data to the paths.
         # Copy in the schema
         #  This is a little fragile, make it better.
         # It won't matter when we move schema to usr anyway ...
 
-        _ds_shutil_copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
+        shutil.copytree(
+            os.path.join(slapd["sysconf_dir"], "dirsrv/schema"),
+            slapd["schema_dir"],
+            copy_function=shutil.copy,
+            # Schema directory might be bind mounted, ingore it
+            dirs_exist_ok=True,
+        )
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
         os.chmod(slapd['schema_dir'], 0o770)
 
         # Copy in the collation
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/slapd-collations.conf')
         dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
-        shutil.copy2(srcfile, dstfile)
+        shutil.copy(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
         os.chmod(dstfile, 0o440)
 
         # Copy in the certmap configuration
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/certmap.conf')
         dstfile = os.path.join(slapd['config_dir'], 'certmap.conf')
-        shutil.copy2(srcfile, dstfile)
+        shutil.copy(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
         os.chmod(dstfile, 0o440)
 
@@ -837,7 +958,7 @@ class SetupDs(object):
 
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
-        ds_instance = DirSrv(self.verbose)
+        ds_instance = DirSrv(self.verbose, containerised=self.containerised)
         if self.containerised:
             ds_instance.systemd_override = general['systemd']
 
@@ -857,7 +978,7 @@ class SetupDs(object):
             SER_ROOT_PW: self._raw_secure_password,
             SER_DEPLOYED_DIR: slapd['prefix'],
             SER_LDAPI_ENABLED: 'on',
-            SER_LDAPI_SOCKET: ldapi_path,
+            SER_LDAPI_SOCKET: slapd['ldapi'],
             SER_LDAPI_AUTOBIND: 'on'
         }
 
@@ -868,9 +989,10 @@ class SetupDs(object):
         # Create a certificate database.
         tlsdb = NssSsl(dirsrv=ds_instance, dbpath=slapd['cert_dir'])
         if not tlsdb._db_exists():
-            tlsdb.reinit()
+            tlsdb.reinit(uid=slapd['user_uid'], gid=slapd['group_gid'])
 
         if slapd['self_sign_cert']:
+            self.log.info("Create self-signed certificate database ...")
             etc_dirsrv_path = os.path.join(slapd['sysconf_dir'], 'dirsrv/')
             ssca_path = os.path.join(etc_dirsrv_path, 'ssca/')
             ssca = NssSsl(dbpath=ssca_path)
@@ -888,7 +1010,7 @@ class SetupDs(object):
                         tlsdb_inst = NssSsl(dbpath=os.path.join(etc_dirsrv_path, dir))
                         tlsdb_inst.import_rsa_crt(ca)
 
-            csr = tlsdb.create_rsa_key_and_csr()
+            csr = tlsdb.create_rsa_key_and_csr(alt_names=[general['full_machine_name']])
             (ca, crt) = ssca.rsa_ca_sign_csr(csr)
             tlsdb.import_rsa_crt(ca, crt)
             if general['selinux']:
@@ -896,17 +1018,33 @@ class SetupDs(object):
                 selinux_label_port(slapd['secure_port'])
 
         # Do selinux fixups
-        if general['selinux']:
-            selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
-                             'ldif_dir', 'lock_dir', 'log_dir',
-                             'run_dir', 'schema_dir', 'tmp_dir')
-            for path in selinux_paths:
-                selinux_restorecon(slapd[path])
+        if general['selinux'] and selinux_present():
+            self.log.info("Perform SELinux labeling ...")
+            # We must explicitly set the labels for non-default prefix installs
+            if ds_instance.ds_paths.prefix != '/usr':
+                selinux_labels = {
+                                    'backup_dir': 'dirsrv_var_lib_t',
+                                    'cert_dir': 'dirsrv_config_t',
+                                    'config_dir': 'dirsrv_config_t',
+                                    'db_dir': 'dirsrv_var_lib_t',
+                                    'ldif_dir': 'dirsrv_var_lib_t',
+                                    'lock_dir': 'dirsrv_var_lock_t',
+                                    'log_dir': 'dirsrv_var_log_t',
+                                    'db_home_dir': 'dirsrv_tmpfs_t',
+                                    'run_dir': 'dirsrv_var_run_t',
+                                    'schema_dir': 'dirsrv_config_t',
+                                    'tmp_dir': 'tmp_t',
+                }
+                for k, label in selinux_labels.items():
+                    selinux_label_file(resolve_selinux_path(slapd[k]), label)
 
             selinux_label_port(slapd['port'])
 
         # Start the server
         # Make changes using the temp root
+        self.log.debug(f"asan_enabled={ds_instance.has_asan()}")
+        self.log.debug(f"libfaketime installed ={'libfaketime' in sys.modules}")
+        assert_c(not ds_instance.has_asan() or 'libfaketime' not in sys.modules, "libfaketime python module is incompatible with ASAN build.")
         ds_instance.start(timeout=60)
         ds_instance.open()
 
@@ -929,6 +1067,15 @@ class SetupDs(object):
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
 
+        # Before we create any backends, set lmdb max size
+        if slapd['db_lib'] == 'mdb':
+            mdb_max_size = parse_size(slapd['mdb_max_size'])
+            # MDB max size requires pagesize alignment
+            mdb_max_size_aligned = align_to_page_size(mdb_max_size)
+            if mdb_max_size_aligned != mdb_max_size:
+                self.log.debug(f"Aligning MDB max size from {mdb_max_size} to nearest pagesize {mdb_max_size_aligned}")
+            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size_aligned)),])
+
         # Before we create any backends, create any extra default indexes that may be
         # dynamically provisioned, rather than from template-dse.ldif. Looking at you
         # entryUUID (requires rust enabled).
@@ -945,8 +1092,18 @@ class SetupDs(object):
         # Create the backends as listed
         # Load example data if needed.
         for backend in backends:
+            self.log.info(f"Create database backend: {backend['nsslapd-suffix']} ...")
             is_sample_entries_in_props = "sample_entries" in backend
             create_suffix_entry_in_props = backend.pop('create_suffix_entry', False)
+            repl_enabled = backend.pop(BACKEND_REPL_ENABLED, False)
+            rid = backend.pop(BACKEND_REPL_ID, False)
+            role = backend.pop(BACKEND_REPL_ROLE, False)
+            binddn = backend.pop(BACKEND_REPL_BINDDN, False)
+            bindpw = backend.pop(BACKEND_REPL_BINDPW, False)
+            bindgrp = backend.pop(BACKEND_REPL_BINDGROUP, False)
+            cl_maxage = backend.pop(BACKEND_REPL_CL_MAX_AGE, False)
+            cl_maxentries = backend.pop(BACKEND_REPL_CL_MAX_ENTRIES, False)
+
             ds_instance.backends.create(properties=backend)
             if not is_sample_entries_in_props and create_suffix_entry_in_props:
                 # Set basic ACIs
@@ -975,6 +1132,74 @@ class SetupDs(object):
                     # Unsupported rdn
                     raise ValueError("Suffix RDN '{}' in '{}' is not supported.  Supported RDN's are: 'c', 'cn', 'dc', 'o', and 'ou'".format(suffix_rdn_attr, backend['nsslapd-suffix']))
 
+            if repl_enabled:
+                # Okay enable replication....
+                self.log.info(f"Enable replication for: {backend['nsslapd-suffix']} ...")
+                repl_root = backend['nsslapd-suffix']
+                if role == "supplier":
+                    repl_type = '3'
+                    repl_flag = '1'
+                elif role == "hub":
+                    repl_type = '2'
+                    repl_flag = '1'
+                elif role == "consumer":
+                    repl_type = '2'
+                    repl_flag = '0'
+                else:
+                    # error - unknown type
+                    raise ValueError("Unknown replication role ({}), you must use \"supplier\", \"hub\", or \"consumer\"".format(role))
+
+                # Start the propeties and update them as needed
+                repl_properties = {
+                    'cn': 'replica',
+                    'nsDS5ReplicaRoot': repl_root,
+                    'nsDS5Flags': repl_flag,
+                    'nsDS5ReplicaType': repl_type,
+                    'nsDS5ReplicaId': '65535'
+                    }
+
+                # Validate supplier settings
+                if role == "supplier":
+                    try:
+                        rid_num = int(rid)
+                        if rid_num < 1 or rid_num > 65534:
+                            raise ValueError
+                        repl_properties['nsDS5ReplicaId'] = rid
+                    except ValueError:
+                        raise ValueError("replica_id expects a number between 1 and 65534")
+
+                    # rid is good add it to the props
+                    repl_properties['nsDS5ReplicaId'] = rid
+
+                # Bind DN & Group
+                if binddn:
+                    repl_properties['nsDS5ReplicaBindDN'] = binddn
+                if bindgrp:
+                    repl_properties['nsDS5ReplicaBindDNGroup'] = bindgrp
+
+                # Enable replication
+                replicas = Replicas(ds_instance)
+                replicas.create(properties=repl_properties)
+
+                # Create replication manager if password was provided
+                if binddn is not None and bindpw:
+                    rdn = binddn.split(",", 1)[0]
+                    rdn_attr, rdn_val = rdn.split("=", 1)
+                    manager = BootstrapReplicationManager(ds_instance, dn=binddn, rdn_attr=rdn_attr)
+                    manager.create(properties={
+                        'cn': rdn_val,
+                        'uid': rdn_val,
+                        'userPassword': bindpw
+                    })
+
+                # Changelog settings
+                if role != "consumer":
+                    cl = Changelog(ds_instance, repl_root)
+                    cl.set_max_age(cl_maxage)
+                    if cl_maxentries != "-1":
+                        cl.set_max_entries(cl_maxentries)
+
+
         # Create all required sasl maps: if we have a single backend ...
         # our default maps are really really bad, and we should feel bad.
         # they basically only work with a single backend, and they'll break
@@ -999,6 +1224,7 @@ class SetupDs(object):
         else:
             self.log.debug("Skipping default SASL maps - no backend found!")
 
+        self.log.info("Perform post-installation tasks ...")
         # Change the root password finally
         ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
 
@@ -1013,3 +1239,5 @@ class SetupDs(object):
         else:
             # Just stop the instance now.
             ds_instance.stop()
+
+        self.log.debug(" 🎉 Instance setup complete")

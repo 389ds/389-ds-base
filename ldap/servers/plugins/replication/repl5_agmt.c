@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -56,10 +56,18 @@
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
 #include "slapi-plugin.h"
+#include "slap.h"
+#include "../../slapd/back-ldbm/dbimpl.h"          /* for dblayer_is_lmdb */
+#include <pk11func.h>
+#include <pk11pqg.h>
+#include <plbase64.h>
 
-#define DEFAULT_TIMEOUT 120             /* (seconds) default outbound LDAP connection */
-#define DEFAULT_FLOWCONTROL_WINDOW 1000 /* #entries sent without acknowledgment */
-#define DEFAULT_FLOWCONTROL_PAUSE 2000  /* msec of pause when #entries sent witout acknowledgment */
+#define DEFAULT_TIMEOUT 120                  /* (seconds) default outbound LDAP connection */
+#define DEFAULT_FLOWCONTROL_WINDOW      1000 /* #entries sent without acknowledgment (bdb) */
+#define DEFAULT_FLOWCONTROL_PAUSE       2000 /* msec of pause when #entries sent witout acknowledgment (bdb) */
+#define LMDB_DEFAULT_FLOWCONTROL_WINDOW 50   /* #entries sent without acknowledgment (lmdb) */
+#define LMDB_DEFAULT_FLOWCONTROL_PAUSE  200  /* msec of pause when #entries sent witout acknowledgment (lmdb) */
+
 #define STATUS_LEN 2048
 #define STATUS_GOOD "green"
 #define STATUS_WARNING "amber"
@@ -90,6 +98,10 @@ typedef struct repl5agmt
     const Slapi_DN *dn;                    /* DN of replication agreement entry */
     const Slapi_RDN *rdn;                  /* RDN of replication agreement entry */
     char *long_name;                       /* Long name (rdn + host, port) of entry, for logging */
+    int session_id_cnt;                    /* use to differentiate sessions */
+    char *session_id_prefix;               /* use for debugging purpose on server/client sides */
+#define SESSION_ID_STR_SZ 15
+    char session_id[SESSION_ID_STR_SZ + 49];
     Repl_Protocol *protocol;               /* Protocol object - manages protocol */
     struct changecounter **changecounters; /* changes sent/skipped since server start up */
     int64_t num_changecounters;
@@ -175,7 +187,87 @@ nsds5ReplicaBusyWaitTime - time to wait after getting a REPLICA BUSY from the co
 nsds5ReplicaSessionPauseTime - time to pause after sending updates to allow another supplier to send
 */
 
+/* It sets various fields related to client side (repl_agmt)
+ * of the session tracking
+ * - session_id_cnt (counting the the outbound connection)
+ * - session_tracking_supported (a flag stating if the server side support SID)
+ * - session_id_prefix (fixed part of the session identifier for this repl_agmt)
+ */
+static void
+agmt_init_session_id(Repl_Agmt *ra)
+{
+    char hash_out[HASH_LENGTH_MAX] = {0};
+    char *enc = NULL;
+    char *root = NULL; /* e.g. dc=example,dc=com */
+    char *host = NULL; /* e.g. localhost.domain */
+    char port[10];   /* e.g. 389 */
+    char sport[10];  /* e.g. 636 */
+    char *hash_in = NULL;
+    int32_t max_str_sid = SESSION_ID_STR_SZ - 4;
 
+    if (ra == NULL) {
+        goto fail;
+    }
+    ra->session_id_cnt = 1;
+    root = slapi_ch_strdup(slapi_sdn_get_dn(ra->replarea));
+    if (root == NULL) {
+        root = slapi_ch_strdup("unknown suffix");
+    }
+    host = get_localhost_DNS();
+    if (host == NULL) {
+        host = slapi_ch_strdup("unknown host");
+    }
+    snprintf(port,  sizeof(port), "%d", config_get_port());
+    snprintf(sport, sizeof(sport),"%d", config_get_secureport());
+    hash_in = slapi_ch_calloc(1, strlen(root) + strlen(host) + strlen(port) + strlen(sport) + 1);
+    if (hash_in == NULL) {
+        goto fail;
+    }
+    sprintf(hash_in, "%s%s%s%s", root, host, port, sport);
+    PK11_HashBuf(SEC_OID_SHA1, (unsigned char *)hash_out, (unsigned char *)hash_in, strlen(hash_in));
+
+    if ((enc = slapi_ch_calloc(LDIF_BASE64_LEN(SHA1_LENGTH) + 1, sizeof(char))) == NULL) {
+        goto fail;
+    }
+    (void)PL_Base64Encode(hash_out, SHA1_LENGTH, enc);
+    goto done;
+
+fail:
+    enc = slapi_ch_strdup("dummyID");
+
+done:
+    if (hash_in) {
+        slapi_ch_free_string(&hash_in);
+    }
+    if (root) {
+        slapi_ch_free_string(&root);
+    }
+    if (host) {
+        slapi_ch_free_string(&host);
+    }
+    if (strlen(enc) > max_str_sid) {
+        enc[max_str_sid] = '\0';
+    }
+    ra->session_id_prefix = enc;
+    sprintf(ra->session_id, "%s ---", ra->session_id_prefix);
+}
+
+void
+agmt_set_session_id(Repl_Agmt *ra)
+{
+    if (ra->session_id_cnt == 999) {
+        ra->session_id_cnt = 1;
+    } else {
+        ra->session_id_cnt++;
+    }
+    sprintf(ra->session_id, "%s %3d", ra->session_id_prefix, ra->session_id_cnt);
+}
+
+char *
+agmt_get_session_id(Repl_Agmt *ra)
+{
+    return(ra->session_id);
+}
 /*
  * Validate an agreement, making sure that it's valid.
  * Return 1 if the agreement is valid, 0 otherwise.
@@ -260,8 +352,10 @@ agmt_new_from_entry(Slapi_Entry *e)
     char **denied_attrs = NULL;
     const char *auto_initialize = NULL;
     char *val_nsds5BeginReplicaRefresh = "start";
+    Slapi_Backend *be = NULL;
     const char *val = NULL;
     int64_t ptimeout = 0;
+    int use_lmdb = 0;
     int rc = 0;
 
     ra = (Repl_Agmt *)slapi_ch_calloc(1, sizeof(repl5agmt));
@@ -358,8 +452,33 @@ agmt_new_from_entry(Slapi_Entry *e)
         ra->timeout = timeout;
     }
 
+    /* DN of entry at root of replicated area */
+    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
+    if (NULL != tmpstr) {
+        ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
+
+        /* now that we set the repl area, when can bump our agmt count */
+        if ((replica = replica_get_replica_from_dn(ra->replarea))) {
+            replica_incr_agmt_count(replica);
+        }
+        be = slapi_be_select(ra->replarea);
+    }
+    if (!be) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmt_new_from_entry - Failed to get backend for agreement %s on replicated suffix %s).\n",
+                      slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
+        goto loser;
+    }
+    if (!replica) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmt_new_from_entry - Failed to get replica for agreement %s on replicated suffix %s).\n",
+                      slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
+        goto loser;
+    }
+
     /* flow control update window. */
-    ra->flowControlWindow = DEFAULT_FLOWCONTROL_WINDOW;
+    use_lmdb = dblayer_is_lmdb(be);
+    ra->flowControlWindow = use_lmdb ? LMDB_DEFAULT_FLOWCONTROL_WINDOW : DEFAULT_FLOWCONTROL_WINDOW;
     if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlWindow))){
         int64_t flow;
         if (repl_config_valid_num(type_nsds5ReplicaFlowControlWindow, (char *)val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
@@ -369,7 +488,7 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
 
     /* flow control update pause. */
-    ra->flowControlPause = DEFAULT_FLOWCONTROL_PAUSE;
+    ra->flowControlPause = use_lmdb ? LMDB_DEFAULT_FLOWCONTROL_PAUSE : DEFAULT_FLOWCONTROL_PAUSE;
     if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlPause))){
         int64_t pause;
         if (repl_config_valid_num(type_nsds5ReplicaFlowControlPause, (char *)val, 0, INT_MAX, &rc, errormsg, &pause) != 0) {
@@ -389,17 +508,6 @@ agmt_new_from_entry(Slapi_Entry *e)
         } else if (strcasecmp(tmpstr, "always") == 0) {
             ra->ignoreMissingChange = -1;
         };
-    }
-
-    /* DN of entry at root of replicated area */
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
-    if (NULL != tmpstr) {
-        ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
-
-        /* now that we set the repl area, when can bump our agmt count */
-        if ((replica = replica_get_replica_from_dn(ra->replarea))) {
-            replica_incr_agmt_count(replica);
-        }
     }
 
     /* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
@@ -479,13 +587,31 @@ agmt_new_from_entry(Slapi_Entry *e)
         }
         ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%" PRId64 ")", agmtname, hostname, ra->port);
     }
+    /* init the RA session id structs */
+    agmt_init_session_id(ra);
 
     /* DBDB: review this code */
     if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement")) {
-        ra->agreement_type = REPLICA_TYPE_WINDOWS;
-        windows_init_agreement_from_entry(ra, e);
+        if (replica_get_type(replica) == REPLICA_TYPE_PRIMARY
+           || (replica_get_type(replica) == REPLICA_TYPE_UPDATABLE && replica_is_flag_set(replica, REPLICA_LOG_CHANGES))
+        ) {
+            ra->agreement_type = REPLICA_TYPE_WINDOWS;
+            windows_init_agreement_from_entry(ra, e);
+        } else {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                          "agmt_new_from_entry: type -> %d\n", replica_get_type(replica));
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "agmt_new_from_entry: failed to initialise windows replication"
+                          "agreement \"%s\" - replica is not a supplier (may be hub or consumer).\n",
+                          agmt_get_long_name(ra));
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "To proceed, you MUST promote this server to a supplier with: "
+                          "dsconf INSTANCENAME replication promote --suffix \"%s\" --newrole supplier --replica-id=NEW_REPLICA_ID\n",
+                          slapi_sdn_get_dn(ra->replarea));
+            goto loser;
+        }
     } else {
-        ra->agreement_type = REPLICA_TYPE_MULTIMASTER;
+        ra->agreement_type = REPLICA_TYPE_MULTISUPPLIER;
         repl_session_plugin_call_agmt_init_cb(ra);
     }
 
@@ -496,13 +622,36 @@ agmt_new_from_entry(Slapi_Entry *e)
     ra->last_update_status[0] = '\0';
     ra->update_in_progress = PR_FALSE;
     ra->stop_in_progress = PR_FALSE;
-    ra->last_init_end_time = 0UL;
-    ra->last_init_start_time = 0UL;
-    ra->last_init_status[0] = '\0';
-    ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+    val = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaLastInitEnd);
+    if (val) {
+        time_t init_end_time;
+
+        init_end_time = parse_genTime((char *) val);
+        if (init_end_time == NO_TIME || init_end_time == SLAPD_END_TIME) {
+            ra->last_init_end_time = 0UL;
+        } else {
+            ra->last_init_end_time = init_end_time;
+        }
+    }
+    val = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaLastInitStart);
+    if (val) {
+        time_t init_start_time;
+
+        init_start_time = parse_genTime((char *) val);
+        if (init_start_time == NO_TIME || init_start_time == SLAPD_END_TIME) {
+            ra->last_init_start_time = 0UL;
+        } else {
+            ra->last_init_start_time = init_start_time;
+        }
+    }
+    val = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaLastInitStatus);
+    if (val) {
+        strcpy(ra->last_init_status, val);
+    }
+    ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_SUPPLIERS + 1,
                                                                   sizeof(struct changecounter *));
     ra->num_changecounters = 0;
-    ra->max_changecounters = MAX_NUM_OF_MASTERS;
+    ra->max_changecounters = MAX_NUM_OF_SUPPLIERS;
 
     /* Fractional attributes */
     slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
@@ -565,8 +714,10 @@ agmt_new_from_entry(Slapi_Entry *e)
      * This should not with the new per backend changelog design */
     if (!cldb_is_open(replica)) {
         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "agmt_new_from_entry: "
-                                                           "Replication agreement added but there is no changelog configured. "
-                                                           "No change will be replicated until a changelog is configured.\n");
+                                                           "Replication agreement (%s) added but there is no changelog configured. "
+                                                           "No change will be replicated until a changelog is configured.\n",
+                                                           replica_get_name(replica)
+        );
     }
 
     /*
@@ -680,6 +831,7 @@ agmt_delete(void **rap)
     }
     schedule_destroy(ra->schedule);
     slapi_ch_free_string(&ra->long_name);
+    slapi_ch_free_string(&ra->session_id_prefix);
 
     slapi_counter_destroy(&ra->protocol_timeout);
 
@@ -747,7 +899,7 @@ agmt_start(Repl_Agmt *ra)
         0,
         NULL,
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED);
     slapi_search_internal_pb(pb);
 
@@ -1603,7 +1755,7 @@ _agmt_set_default_fractional_attrs(Repl_Agmt *ra)
                                  0,     /* AttrOnly */
                                  NULL,  /* Controls */
                                  NULL,  /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -1958,7 +2110,7 @@ agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bo
     } else {
         return_value = agmt_set_transportinfo_no_lock(ra, e);
     }
-    return_value = agmt_set_transportinfo_no_lock(ra, e);
+    return_value |= agmt_set_transportinfo_no_lock(ra, e);
     PR_Unlock(ra->lock);
     prot_notify_agmt_changed(ra->protocol, ra->long_name);
 
@@ -2401,7 +2553,7 @@ agmt_replica_init_done(const Repl_Agmt *agmt)
     mod.mod_bvalues = NULL;
 
     slapi_modify_internal_set_pb_ext(pb, agmt->dn, mods, NULL /* controls */,
-                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* flags */);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -2431,7 +2583,7 @@ agmt_replica_reset_ignoremissing(const Repl_Agmt *agmt)
     mod.mod_bvalues = NULL;
 
     slapi_modify_internal_set_pb_ext(pb, agmt->dn, mods, NULL /* controls */,
-                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* flags */);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -2490,6 +2642,109 @@ agmt_set_consumer_ruv(Repl_Agmt *ra, RUV *ruv)
 }
 
 void
+agmt_update_init_status(Repl_Agmt *ra)
+{
+    int rc;
+    Slapi_PBlock *pb;
+    LDAPMod **mods;
+    int nb_mods = 0;
+    int mod_idx;
+    Slapi_Mod smod_start_time = {0};
+    Slapi_Mod smod_end_time = {0};
+    Slapi_Mod smod_status = {0};
+
+    PR_ASSERT(ra);
+    PR_Lock(ra->lock);
+
+    if (ra->last_init_start_time) {
+        nb_mods++;
+    }
+    if (ra->last_init_end_time) {
+        nb_mods++;
+    }
+    if (ra->last_init_status[0] != '\0') {
+        nb_mods++;
+    }
+    if (nb_mods == 0) {
+        /* shortcut. no need to go further */
+        PR_Unlock(ra->lock);
+        return;
+    }
+    mods = (LDAPMod **) slapi_ch_malloc((nb_mods + 1) * sizeof(LDAPMod *));
+    mod_idx = 0;
+    if (ra->last_init_start_time) {
+        struct berval val;
+        char *time_tmp = NULL;
+        slapi_mod_init(&smod_start_time, 1);
+        slapi_mod_set_type(&smod_start_time, type_nsds5ReplicaLastInitStart);
+        slapi_mod_set_operation(&smod_start_time, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+        time_tmp = format_genTime(ra->last_init_start_time);
+        val.bv_val = time_tmp;
+        val.bv_len = strlen(time_tmp);
+        slapi_mod_add_value(&smod_start_time, &val);
+        slapi_ch_free((void **)&time_tmp);
+        mods[mod_idx] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_start_time);
+        mod_idx++;
+    }
+    if (ra->last_init_end_time) {
+        struct berval val;
+        char *time_tmp = NULL;
+        slapi_mod_init(&smod_end_time, 1);
+        slapi_mod_set_type(&smod_end_time, type_nsds5ReplicaLastInitEnd);
+        slapi_mod_set_operation(&smod_end_time, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+        time_tmp = format_genTime(ra->last_init_end_time);
+        val.bv_val = time_tmp;
+        val.bv_len = strlen(time_tmp);
+        slapi_mod_add_value(&smod_end_time, &val);
+        slapi_ch_free((void **)&time_tmp);
+        mods[mod_idx] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_end_time);
+        mod_idx++;
+    }
+    if (ra->last_init_status[0] != '\0') {
+        struct berval val;
+        char *init_status = NULL;
+        slapi_mod_init(&smod_status, 1);
+        slapi_mod_set_type(&smod_status, type_nsds5ReplicaLastInitStatus);
+        slapi_mod_set_operation(&smod_status, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+        init_status = slapi_ch_strdup(ra->last_init_status);
+        val.bv_val = init_status;
+        val.bv_len = strlen(init_status);
+        slapi_mod_add_value(&smod_status, &val);
+        slapi_ch_free((void **)&init_status);
+        mods[mod_idx] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_status);
+        mod_idx++;
+    }
+
+    /* it is ok to release the lock here because we are done with the agreement data.
+       we have to do it before issuing the modify operation because it causes
+       agmtlist_notify_all to be called which uses the same lock - hence the deadlock */
+    PR_Unlock(ra->lock);
+
+    pb = slapi_pblock_new();
+    mods[nb_mods] = NULL;
+
+    slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
+    slapi_modify_internal_pb(pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_update_consumer_ruv - "
+                      "%s: agmt_update_consumer_ruv: failed to update consumer's RUV; LDAP error - %d\n",
+                      ra->long_name, rc);
+    }
+
+    slapi_pblock_destroy(pb);
+    slapi_ch_free((void **)&mods);
+    slapi_mod_done(&smod_start_time);
+    slapi_mod_done(&smod_end_time);
+    slapi_mod_done(&smod_status);
+}
+
+void
 agmt_update_consumer_ruv(Repl_Agmt *ra)
 {
     int rc;
@@ -2520,7 +2775,7 @@ agmt_update_consumer_ruv(Repl_Agmt *ra)
         mods[2] = NULL;
 
         slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
-                                         repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
         slapi_modify_internal_pb(pb);
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -2964,21 +3219,21 @@ agmt_get_consumer_rid(Repl_Agmt *agmt, void *conn)
 {
     if (agmt->consumerRID <= 0 || agmt->tmpConsumerRID) {
 
-        char *mapping_tree_node = NULL;
+        char *mt_node = NULL;
         struct berval **bvals = NULL;
 
         /* This function converts the old style DN to the new one. */
-        mapping_tree_node =
+        mt_node =
             slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
                                    slapi_sdn_get_dn(agmt->replarea));
-        if (NULL == mapping_tree_node) {
+        if (NULL == mt_node) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                           "agmt_get_consumer_rid: failed to normalize "
                           "replica dn for %s\n",
                           slapi_sdn_get_dn(agmt->replarea));
             agmt->consumerRID = 0;
         }
-        conn_read_entry_attribute(conn, mapping_tree_node, "nsDS5ReplicaID", &bvals);
+        conn_read_entry_attribute(conn, mt_node, "nsDS5ReplicaID", &bvals);
         if (NULL != bvals && NULL != bvals[0]) {
             char *ridstr = slapi_ch_malloc(bvals[0]->bv_len + 1);
             memcpy(ridstr, bvals[0]->bv_val, bvals[0]->bv_len);
@@ -2987,7 +3242,7 @@ agmt_get_consumer_rid(Repl_Agmt *agmt, void *conn)
             slapi_ch_free((void **)&ridstr);
             ber_bvecfree(bvals);
         }
-        slapi_ch_free_string(&mapping_tree_node);
+        slapi_ch_free_string(&mt_node);
     }
     agmt->tmpConsumerRID = 0;
 
@@ -3108,6 +3363,7 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext)
                 PR_Unlock(ra->lock);
                 agmt_stop(ra);
                 agmt_update_consumer_ruv(ra);
+                agmt_update_init_status(ra);
                 agmt_set_last_update_status(ra, 0, 0, "agreement disabled");
                 return rc;
             }
@@ -3345,10 +3601,10 @@ agmt_maxcsn_get_rid(char *maxcsn)
     char *iter = NULL;
     char *value = slapi_ch_strdup(maxcsn);
 
-    token = ldap_utf8strtok_r(value, ";", &iter); /* repl area */
-    token = ldap_utf8strtok_r(iter, ";", &iter);  /* agmt rdn */
-    token = ldap_utf8strtok_r(iter, ";", &iter);  /* host */
-    token = ldap_utf8strtok_r(iter, ";", &iter);  /* port */
+    (void) ldap_utf8strtok_r(value, ";", &iter);  /* repl area */
+    (void) ldap_utf8strtok_r(iter, ";", &iter);   /* agmt rdn */
+    (void) ldap_utf8strtok_r(iter, ";", &iter);   /* host */
+    (void) ldap_utf8strtok_r(iter, ";", &iter);   /* port */
     token = ldap_utf8strtok_r(iter, ";", &iter);  /* rid */
 
     if (token && strcmp(token, "Unavailable")) {
@@ -3404,7 +3660,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         0,    /* attrsonly */
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED); /* flags */
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -3467,7 +3723,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
                             mods,
                             NULL, /* controls */
                             RUV_STORAGE_ENTRY_UNIQUEID,
-                            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                            repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                             /* Add OP_FLAG_TOMBSTONE_ENTRY so that this doesn't get logged in the Retro ChangeLog */
                             OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_TOMBSTONE_ENTRY |
                                 OP_FLAG_REPL_RUV);

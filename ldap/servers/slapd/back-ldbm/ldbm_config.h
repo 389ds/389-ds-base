@@ -84,6 +84,8 @@ struct config_info
 #define CONFIG_DB_TRANSACTION_WAIT "nsslapd-db-transaction-wait"
 #define CONFIG_DB_CHECKPOINT_INTERVAL "nsslapd-db-checkpoint-interval"
 #define CONFIG_DB_COMPACTDB_INTERVAL "nsslapd-db-compactdb-interval"
+#define CONFIG_DB_COMPACTDB_TIME "nsslapd-db-compactdb-time"
+#define CONFIG_DB_COMPACTDB_STARTTIME "nsslapd-db-compactdb-starttime"
 #define CONFIG_DB_TRANSACTION_BATCH "nsslapd-db-transaction-batch-val"
 #define CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP "nsslapd-db-transaction-batch-min-wait"
 #define CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP "nsslapd-db-transaction-batch-max-wait"
@@ -104,6 +106,9 @@ struct config_info
 #define CONFIG_DB_VERBOSE "nsslapd-db-verbose"
 #define CONFIG_DB_DEBUG "nsslapd-db-debug"
 #define CONFIG_DB_LOCK "nsslapd-db-locks"
+#define CONFIG_DB_LOCKS_MONITORING "nsslapd-db-locks-monitoring-enabled"
+#define CONFIG_DB_LOCKS_THRESHOLD "nsslapd-db-locks-monitoring-threshold"
+#define CONFIG_DB_LOCKS_PAUSE "nsslapd-db-locks-monitoring-pause"
 #define CONFIG_DB_NAMED_REGIONS "nsslapd-db-named-regions"
 #define CONFIG_DB_PRIVATE_MEM "nsslapd-db-private-mem"
 #define CONFIG_DB_PRIVATE_IMPORT_MEM "nsslapd-db-private-import-mem"
@@ -122,13 +127,11 @@ struct config_info
 #define CONFIG_SERIAL_LOCK "nsslapd-serial-lock"
 #define CONFIG_BACKEND_OPT_LEVEL "nsslapd-backend-opt-level"
 
-#define CONFIG_ENTRYRDN_SWITCH "nsslapd-subtree-rename-switch"
-/* nsslapd-noancestorid is ignored unless nsslapd-subtree-rename-switch is on */
-#define CONFIG_ENTRYRDN_NOANCESTORID "nsslapd-noancestorid"
-
 /* instance config options */
 #define CONFIG_INSTANCE_CACHESIZE "nsslapd-cachesize"
 #define CONFIG_INSTANCE_CACHEMEMSIZE "nsslapd-cachememsize"
+#define CONFIG_INSTANCE_CACHE_PINNED_ENTRIES "nsslapd-cache-pinned-entries"
+#define CONFIG_INSTANCE_CACHE_DEBUG_PATTERN "nsslapd-cache-debug-pattern"
 #define CONFIG_INSTANCE_DNCACHEMEMSIZE "nsslapd-dncachememsize"
 #define CONFIG_INSTANCE_SUFFIX "nsslapd-suffix"
 #define CONFIG_INSTANCE_READONLY "nsslapd-readonly"
@@ -142,6 +145,11 @@ struct config_info
 #define CONFIG_DB_DEADLOCK_POLICY "nsslapd-db-deadlock-policy"
 
 #define CONFIG_LDBM_DN "cn=config,cn=ldbm database,cn=plugins,cn=config"
+
+#define CONFIG_DYNAMIC_LISTS_ENABLED "nsslapd-dynamic-lists-enabled"
+#define CONFIG_DYNAMIC_LISTS_ATTR "nsslapd-dynamic-lists-attr"
+#define CONFIG_DYNAMIC_LISTS_OC "nsslapd-dynamic-lists-oc"
+#define CONFIG_DYNAMIC_LISTS_URL_ATTR "nsslapd-dynamic-lists-url-attr"
 
 #define LDBM_INSTANCE_CONFIG_DONT_WRITE 1
 

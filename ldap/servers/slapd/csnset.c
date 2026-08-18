@@ -311,6 +311,8 @@ csnset_as_string(const CSNSet *csnset, char *s)
 {
     const CSNSet *n = csnset;
     while (n != NULL) {
+        /* coverity false positive: there is no alloc involved in this case because s is not NULL */
+        /* coverity[leaked_storage] */
         csn_as_attr_option_string(n->type, &n->csn, s);
         /* sizeof(;vucsn-011111111222233334444) */
         s += 1 + LDIF_CSNPREFIX_MAXLENGTH + _CSN_VALIDCSN_STRLEN;

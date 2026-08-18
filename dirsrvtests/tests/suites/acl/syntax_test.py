@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,7 +10,7 @@ import os
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.domain import Domain
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
 
 import ldap
@@ -190,13 +190,10 @@ FAILED = [('test_targattrfilters_18',
            f'(all)userdn="ldap:///anyone";)'), ]
 
 
-@pytest.mark.xfail(reason='https://bugzilla.redhat.com/show_bug.cgi?id=1691473')
 @pytest.mark.parametrize("real_value", [a[1] for a in FAILED],
                          ids=[a[0] for a in FAILED])
-def test_aci_invalid_syntax_fail(topo, real_value):
-    """
-
-    Try to set wrong ACI syntax.
+def test_aci_invalid_syntax_fail(topo, real_value, request):
+    """Try to set wrong ACI syntax.
 
         :id: 83c40784-fff5-49c8-9535-7064c9c19e7e
         :parametrized: yes
@@ -208,6 +205,16 @@ def test_aci_invalid_syntax_fail(topo, real_value):
             1. It should pass
             2. It should not pass
         """
+    # Mark specific test cases as xfail
+    xfail_cases = [
+        'test_targattrfilters_18',
+        'test_targattrfilters_20',
+        'test_bind_rule_set_with_more_than_three'
+    ]
+
+    if request.node.callspec.id in xfail_cases:
+        pytest.xfail("DS6913 - This test case is expected to fail")
+
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
     with pytest.raises(ldap.INVALID_SYNTAX):
         domain.add("aci", real_value)
@@ -216,9 +223,7 @@ def test_aci_invalid_syntax_fail(topo, real_value):
 @pytest.mark.parametrize("real_value", [a[1] for a in INVALID],
                          ids=[a[0] for a in INVALID])
 def test_aci_invalid_syntax(topo, real_value):
-    """
-
-    Try to set wrong ACI syntax.
+    """Try to set wrong ACI syntax.
 
         :id: e8bf20b6-48be-4574-8300-056e42a0f0a8
         :parametrized: yes
@@ -253,6 +258,39 @@ def test_target_set_above_the_entry_test(topo):
         domain.add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
                           f'(targetattr="*")(version 3.0; acl "Name of the ACI"; deny absolute '
                           f'(all)userdn="ldap:///anyone";)')
+
+
+INVALID_ACLTXT_HEADER_VALUES = [
+    pytest.param(
+        '(targetattr="*")(version 3.0;)',
+        id="empty_acltxt_header",
+    ),
+    pytest.param(
+        '(targetattr="*")(version 3.0; v;)',
+        id="short_acltxt_header",
+    ),
+    pytest.param(
+        '(targetattr="*")(version 3.0; abc;)',
+        id="missing_acl_name",
+    ),
+]
+
+@pytest.mark.parametrize("real_value", INVALID_ACLTXT_HEADER_VALUES)
+def test_invalid_acltxt_header_is_rejected(topo, real_value):
+    """Verify malformed ACL text headers are rejected and
+    ASAN doesn't complain
+
+    :id: 95f19087-afbb-44eb-b692-595bdeaf7b23
+    :parametrized: yes
+    :setup: Standalone Instance
+    :steps:
+        1. Add an ACI value with an invalid ACL text header
+    :expectedresults:
+        1. The add operation fails with invalid syntax
+    """
+    domain = Domain(topo.standalone, DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        domain.add("aci", real_value)
 
 
 if __name__ == "__main__":

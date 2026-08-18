@@ -1,4 +1,6 @@
+#[cfg(not(feature = "test_log_direct"))]
 use crate::log::{log_error, ErrorLevel};
+
 use libc;
 use std::ffi::CString;
 // use std::ptr;

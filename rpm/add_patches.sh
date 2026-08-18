@@ -48,8 +48,8 @@ fi
 for p in $patches; do
     p=`basename $p`
     echo "Adding patch to spec file - $p"
-    sed -i -e "/${prefix}/a Patch${i}: ${p}" -e "/$prepprefix/a %patch${i} -p1" $specfile
+    sed -i -e "/${prefix}/a Patch${i}: ${p}" -e "/$prepprefix/a %patch -P${i} -p1" $specfile
     prefix="Patch${i}:"
-    prepprefix="%patch${i}"
+    prepprefix="%patch -P${i}"
     i=`expr $i + 1`
 done

@@ -1,20 +1,28 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
-    Modal,
-    Row,
-    Checkbox,
-    Col,
-    ControlLabel,
-    Radio,
-    Icon,
     Button,
+    Checkbox,
     Form,
-    FormControl,
-    Spinner,
-    noop
-} from "patternfly-react";
+    FormHelperText,
+    FormSelect,
+    FormSelectOption,
+    HelperText,
+    HelperTextItem,
+    Grid,
+    GridItem,
+    Modal,
+    ModalVariant,
+    TextInput,
+    ValidatedOptions,
+} from "@patternfly/react-core";
+import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
 import { LDIFTable } from "./databaseTables.jsx";
 import PropTypes from "prop-types";
+import { valid_dn } from "../tools.jsx";
+
+
+const _ = cockpit.gettext;
 
 class CreateLinkModal extends React.Component {
     render() {
@@ -24,185 +32,325 @@ class CreateLinkModal extends React.Component {
             handleChange,
             saveHandler,
             suffix,
-            pwdMatch,
             error,
+            saving,
+            handleSelectChange,
+            starttls_checked,
+            bindMech,
         } = this.props;
 
+        let saveBtnName = _("Create Database Link");
+        const extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = _("Creating Link ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
+        }
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Create Database Link
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal>
-                            <div>
-                                <label htmlFor="createLinkSuffix" className="ds-config-label" title="The RDN of the link suffix">
-                                    Link Sub-Suffix</label><input className={error.createLinkSuffix ? "ds-input-bad ds-input-right" : "ds-input ds-input-right"} onChange={handleChange} type="text" id="createLinkSuffix" size="12" /><b><font color="blue"> ,{suffix}</font></b>
+            <Modal
+                variant={ModalVariant.medium}
+                title={_("Create Database Link")}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? _("Creating Link") : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.props.saveBtnDisabled || saving}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="close" variant="link" onClick={closeHandler}>
+                        {_("Close")}
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <Grid className="ds-margin-top" title={_("The RDN of the link suffix.")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Link Sub-Suffix")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <div className="ds-container">
+                                <div>
+                                    <TextInput
+                                        type="text"
+                                        className="ds-right-align"
+                                        id="createLinkSuffix"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="createLinkSuffix"
+                                        onChange={(e, checked) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.createLinkSuffix ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                </div>
+                                <div className="ds-left-margin ds-lower-field-md">
+                                    <b><font color="blue">,{suffix}</font></b>
+                                </div>
                             </div>
-                            <div>
-                                <label htmlFor="createLinkName" className="ds-config-label" title="A name for the backend chaining database link">
-                                    Link Database Name</label><input onChange={handleChange} className={error.createLinkName ? "ds-input-bad" : "ds-input"} type="text" id="createLinkName" size="45" />
-                            </div>
-                            <div>
-                                <label htmlFor="createNsfarmserverurl" className="ds-config-label" title="The LDAP URL for the remote server.  Add additional failover LDAP URLs separated by a space. (nsfarmserverurl)">
-                                    Remote Server URL(s)</label><input className={error.createNsfarmserverurl ? "ds-input-bad" : "ds-input"} onChange={handleChange} type="text" id="createNsfarmserverurl" size="45" />
-                            </div>
-                            <div>
-                                <input type="checkbox" onChange={handleChange} className="ds-left-indent ds-config-checkbox" id="createUseStartTLS" /><label
-                                    htmlFor="createUseStartTLS" className="ds-label" title="Use StartTLS for the remote server LDAP URL"> Use StartTLS</label>
-                            </div>
-                            <div>
-                                <label htmlFor="createNsmultiplexorbinddn" className="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn).">Remote Server Bind DN</label><input
-                                    className={error.createNsmultiplexorbinddn ? "ds-input-bad" : "ds-input"} type="text" onChange={handleChange} placeholder="Bind DN" id="createNsmultiplexorbinddn" size="45" />
-                            </div>
-                            <div>
-                                <label htmlFor="createNsmultiplexorcredentials" className="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Bind DN Credentials</label><input
-                                    className={error.createNsmultiplexorcredentials ? "ds-input-bad" : "ds-input"} type="password" onChange={handleChange} placeholder="Enter password" id="createNsmultiplexorcredentials" size="45" />
-                            </div>
-                            <div>
-                                <label htmlFor="createNsmultiplexorcredentialsConfirm" className="ds-config-label" title="Confirm password">Confirm Password</label><input
-                                    className={(error.createNsmultiplexorcredentialsConfirm || !pwdMatch) ? "ds-input-bad" : "ds-input"} type="password" onChange={handleChange} placeholder="Confirm password" id="createNsmultiplexorcredentialsConfirm" size="45" />
-                            </div>
-                            <div>
-                                <label htmlFor="createNsbindmechanism" className="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism).">Bind Method</label><select
-                                    className="btn btn-default dropdown ds-dblink-dropdown" onChange={handleChange} id="createNsbindmechanism">
-                                    <option>Simple</option>
-                                    <option>SASL/DIGEST-MD5</option>
-                                    <option>SASL/GSSAPI</option>
-                                </select>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Database Link
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            <FormHelperText  >
+                                {_("Required field")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("A name for the backend chaining database link.")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Link Database Name")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="createLinkName"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="createLinkName"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.createLinkName ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText  >
+                                {_("Required field")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The LDAP URL for the remote server.  Add additional failover LDAP URLs separated by a space. (nsfarmserverurl).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Remote Server URL(s)")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="createNsfarmserverurl"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="createNsfarmserverurl"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.createNsfarmserverurl ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText  >
+                                {_("Required field")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The DN of the entry to authenticate with on the remote server.")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Remote Server Bind DN")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="createNsmultiplexorbinddn"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="createNsmultiplexorbinddn"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.createNsmultiplexorbinddn ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText  >
+                                {_("Required field")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The credentials for the bind DN (nsmultiplexorcredentials).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Bind DN Credentials")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="password"
+                                id="createNsmultiplexorcredentials"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="createNsmultiplexorcredentials"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.createNsmultiplexorcredentials ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText  >
+                                {_("Password does not match")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Confirm credentials for the bind DN (nsmultiplexorcredentials).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Confirm Password")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="password"
+                                id="createNsmultiplexorcredentialsConfirm"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="createNsmultiplexorcredentialsConfirm"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.createNsmultiplexorcredentialsConfirm ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText  >
+                                {_("Password does not match")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title={_("The bind method for contacting the remote server  (nsbindmechanism).")}
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            {_("Bind Method")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <FormSelect value={bindMech} onChange={(event, value) => handleSelectChange(value)} aria-label="FormSelect Input">
+                                <FormSelectOption key={1} value="SIMPLE" label="SIMPLE" />
+                                <FormSelectOption key={2} value="SASL/DIGEST-MD5" label="SASL/DIGEST-MD5" />
+                                <FormSelectOption key={3} value="SASL/GSSAPI" label="SASL/GSSAPI" />
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top" title={_("Use StartTLS for the remote server LDAP URL.")}>
+                        <GridItem span={12}>
+                            <Checkbox
+                                id="createUseStartTLS"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                isChecked={starttls_checked}
+                                label={_("Use StartTLS")}
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
             </Modal>
         );
     }
 }
 
 class CreateSubSuffixModal extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            isOpen: false,
+        };
+
+        this.onToggle = isOpen => {
+            this.setState({
+                isOpen
+            });
+        };
+    }
+
     render() {
         const {
             showModal,
             closeHandler,
             handleChange,
-            handleRadioChange,
+            handleSelectChange,
             saveHandler,
             suffix,
-            noInit,
-            addSuffix,
-            addSample,
-            error
+            error,
+            saving,
+            initOption,
         } = this.props;
 
+        let saveBtnName = _("Create Sub-Suffix");
+        const extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = _("Creating suffix ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
+        }
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div>
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Create Sub Suffix
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
-                                <Col sm={3}>
-                                    <ControlLabel>Sub-Suffix DN</ControlLabel>
-                                </Col>
-                                <Col sm={3}>
-                                    <FormControl
+            <Modal
+                variant={ModalVariant.medium}
+                title={_("Create Sub Suffix")}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? _("Creating Suffix") : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.props.saveBtnDisabled || saving}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="close" variant="link" onClick={closeHandler}>
+                        {_("Close")}
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distinguished Name (DN)")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Sub-Suffix DN")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <div className="ds-container">
+                                <div>
+                                    <TextInput
                                         type="text"
+                                        className="ds-right-align"
                                         id="subSuffixValue"
-                                        className={error.subSuffixValue ? "ds-input-bad ds-input-right" : "ds-input-right"}
-                                        onChange={handleChange}
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="subSuffixValue"
+                                        onChange={(e, val) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.subSuffixValue ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                </Col>
-                                <Col sm={6} className="ds-col-append">
-                                    <ControlLabel><b><font color="blue">,{suffix}</font></b></ControlLabel>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
-                                <Col sm={3}>
-                                    <ControlLabel>Database Name</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        id="subSuffixBeName"
-                                        className={error.subSuffixBeName ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <hr />
-                            <div>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="noSuffixInit" onChange={handleRadioChange} checked={noInit} inline>
-                                        Do Not Initialize Database
-                                    </Radio>
-                                </Row>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="createSuffixEntry" onChange={handleRadioChange} checked={addSuffix} inline>
-                                        Create The Top Sub-Suffix Entry
-                                    </Radio>
-                                </Row>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="createSampleEntries" onChange={handleRadioChange} checked={addSample} inline>
-                                        Add Sample Entries
-                                    </Radio>
-                                </Row>
+                                </div>
+                                <div className="ds-left-margin ds-lower-field-md">
+                                    <b><font color="blue">,{suffix}</font></b>
+                                </div>
                             </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Sub-Suffix
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            <FormHelperText  >
+                                {_("Required field")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Database Name")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="subSuffixBeName"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="subSuffixBeName"
+                                onChange={(e, val) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.subSuffixBeName ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText  >
+                                {_("Required field")}
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title={_("Database initialization options")}
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            {_("Initialization Option")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <FormSelect value={initOption} onChange={(event, value) => handleSelectChange(value)} aria-label="FormSelect Input">
+                                <FormSelectOption key={1} value="noInit" label={_("Do Not Initialize Database")} />
+                                <FormSelectOption key={2} value="addSuffix" label={_("Create The Top Sub-Suffix Entry")} />
+                                <FormSelectOption key={3} value="addSample" label={_("Add Sample Entries")} />
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                </Form>
             </Modal>
         );
     }
@@ -214,81 +362,84 @@ class ExportModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
+            includeReplData,
             saveHandler,
             spinning,
-            error
+            item,
+            error,
+            exportCompleted
         } = this.props;
-        let spinner = "";
+        let saveBtnName = _("Export Database");
+        const extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting database... <font size="2">(You can safely close this window)</font>
-                    </div>
-                </Row>;
+            saveBtnName = _("Exporting ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Exporting");
         }
 
+        const actions = [];
+        if (!exportCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isDisabled={this.props.saveBtnDisabled || spinning}
+                    isLoading={spinning}
+                    spinnerAriaValueText={spinning ? _("Exporting ...") : undefined}
+                    {...extraPrimaryProps}
+                >
+                    {saveBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Export Database To LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="Name of exported LDIF file">
-                                <Col sm={3}>
-                                    <ControlLabel>LDIF File Name</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        id="ldifLocation"
-                                        className={error.ldifLocation ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top-xlg">
-                                <Col sm={12} className="ds-margin-left">
-                                    <Checkbox
-                                        id="includeReplData"
-                                        onChange={handleChange}
-                                        title="Include the replication metadata needed to restore or initialize another replica."
-                                    >
-                                        Include Replication Data
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Export Database
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title={_("Export Database To LDIF File")}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={actions}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <Grid title={_("Name of exported LDIF file.")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("LDIF File Name")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="ldifLocation"
+                                aria-describedby="horizontal-form-name-helper"
+                                isDisabled={spinning || exportCompleted}
+                                name="ldifLocation"
+                                onChange={(e, val) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.ldifLocation ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Include the replication metadata needed to restore or initialize another replica.")}>
+                        <GridItem span={12}>
+                            <Checkbox
+                                id="includeReplData"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                isChecked={includeReplData}
+                                isDisabled={spinning || exportCompleted}
+                                label={_("Include Replication Data")}
+                            />
+                        </GridItem>
+                    </Grid>
+                    {item}
+                </Form>
             </Modal>
         );
     }
@@ -301,134 +452,205 @@ class ImportModal extends React.Component {
             closeHandler,
             handleChange,
             saveHandler,
-            spinning,
             rows,
             suffix
         } = this.props;
 
-        let suffixRows = [];
-        let spinner = "";
-        if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Importing LDIF file... <font size="2">(You can safely close this window)</font>
-                    </div>
-                </Row>;
-        }
-        for (let idx in rows) {
-            if (rows[idx].suffix == suffix) {
-                suffixRows.push(rows[idx]);
+        const suffixRows = [];
+        for (const row of rows) {
+            if (row[3] === suffix) {
+                suffixRows.push(row);
             }
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Initialize Database via LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <LDIFTable
-                            rows={suffixRows}
-                            confirmImport={this.props.showConfirmImport}
-                        />
-                        <hr />
-                        <Form horizontal autoComplete="off">
-                            <Row title="The full path to the LDIF file.  The server must have permissions to read it">
-                                <Col sm={4}>
-                                    <ControlLabel>Or, enter LDIF location</ControlLabel>
-                                </Col>
-                                <Col sm={6}>
-                                    <FormControl
-                                        type="text"
-                                        id="ldifLocation"
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Button
-                                        bsStyle="primary"
-                                        onClick={saveHandler}
-                                    >
-                                        Import
-                                    </Button>
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title={_("Initialize Database via LDIF File")}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="close" variant="link" onClick={closeHandler}>
+                        {_("Close")}
+                    </Button>
+                ]}
+            >
+                <LDIFTable
+                    rows={suffixRows}
+                    confirmImport={this.props.showConfirmImport}
+                />
+                <hr />
+                <Form isHorizontal autoComplete="off">
+                    <Grid title={_("The full path to the LDIF file.  The server must have permissions to read it.")}>
+                        <GridItem className="ds-label" span={4}>
+                            {_("Or, enter LDIF location")}
+                        </GridItem>
+                        <GridItem span={6}>
+                            <TextInput
+                                type="text"
+                                id="ldifLocation"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="ldifLocation"
+                                onChange={(e, val) => {
+                                    handleChange(e);
+                                }}
+                            />
+                        </GridItem>
+                        <GridItem span={2}>
+                            <Button
+                                key="import"
+                                className="ds-left-margin"
+                                variant="primary"
+                                onClick={saveHandler}
+                                isDisabled={this.props.saveBtnDisabled}
+                            >
+                                {_("Import")}
+                            </Button>
+                        </GridItem>
+                    </Grid>
+                </Form>
             </Modal>
         );
     }
 }
 
-class ReindexModal extends React.Component {
+class ShadowFixupModal extends React.Component {
+
+    handleSelectChange = (value) => {
+        this.props.handleChange(value);
+    }
+
     render() {
         const {
             showModal,
             closeHandler,
-            msg
+            handleChange,
+            saveHandler,
+            spinning,
+            item,
+            force,
+            suffix,
+            fixupCompleted,
+            suffixes
         } = this.props;
+        let saveBtnName = _("Run Fix-Up task");
+        const extraPrimaryProps = {};
+        if (spinning) {
+            saveBtnName = _("Fixing ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Fixing");
+        }
+
+        const actions = [];
+        if (!fixupCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={spinning}
+                    spinnerAriaValueText={spinning ? _("Fixing ...") : undefined}
+                    isDisabled={suffix === ""  || !valid_dn(suffix) || spinning || fixupCompleted}
+                    {...extraPrimaryProps}
+                >
+                    {saveBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
+
+
+        const placeHolder = "Choose a base suffix";
+        let suffixList = [placeHolder];
+        suffixList.push.apply(suffixList, suffixes);
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Index Attribute
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Indexing <b>{msg}</b> ...
-                                <p className="ds-margin-top-lg"><font size="2">(You can safely close this window)</font></p>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title={_("Run Shadow Account Fixup Task")}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={actions}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <Grid className="ds-margin-top-lg" title={_("Suffix to run the fix-up task on.")}>
+                        <GridItem className="ds-label" span={1}>
+                            {_("Suffix")}
+                        </GridItem>
+                        <GridItem offset={2} span={10}>
+                            <FormSelect
+                                id="fixupShadowSuffix"
+                                name="fixupShadowSuffix"
+                                value={suffix}
+                                onChange={(event, value) => handleChange(event)}
+                                aria-label="FormSelect Input"
+                                isDisabled={spinning || fixupCompleted}
+                            >
+                                {suffixList.map((suffixOption) => (
+                                    <FormSelectOption
+                                        key={suffixOption}
+                                        value={suffixOption === placeHolder ? "" : suffixOption}
+                                        label={suffixOption}
+                                        isDisabled={suffixOption === placeHolder}
+                                        isPlaceholder={suffixOption === placeHolder}
+                                    />
+                                ))}
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Branch to run the fix-up task on.")}>
+                        <GridItem offset={2} span={10}>
+                            <TextInput
+                                type="text"
+                                id="fixupShadowSuffixInput"
+                                aria-describedby="horizontal-form-name-helper"
+                                isDisabled={spinning || fixupCompleted}
+                                name="fixupShadowSuffix"
+                                value={suffix}
+                                onChange={(e, val) => {
+                                    handleChange(e);
+                                }}
+                                validated={!valid_dn(suffix) ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                            <FormHelperText>
+                                <HelperText>
+                                    <HelperTextItem
+                                        icon={suffix !== "" && !valid_dn(suffix) ? <ExclamationCircleIcon /> : undefined}
+                                        variant={suffix !== "" && !valid_dn(suffix) ? ValidatedOptions.error : ValidatedOptions.default}
+                                    >
+                                        {suffix !== "" && !valid_dn(suffix) ? _("Invalid DN syntax") : _("Required field")}
+                                    </HelperTextItem>
+                                </HelperText>
+                            </FormHelperText>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Update all Shadow Account users regardless if they have ShadowLastChange attribute present")}>
+                        <GridItem span={12}>
+                            <Checkbox
+                                id="fixupShadowForce"
+                                name="fixupShadowForce"
+                                onChange={(e, checked) => {
+                                    handleChange(e);
+                                }}
+                                isChecked={force}
+                                isDisabled={spinning || fixupCompleted}
+                                label={_("Force update of all users")}
+                            />
+                        </GridItem>
+                    </Grid>
+                    {item}
+                </Form>
             </Modal>
         );
     }
 }
+
+
+
+
 
 // Property types and defaults
 
@@ -438,17 +660,12 @@ CreateLinkModal.propTypes = {
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     suffix: PropTypes.string,
-    pwdMatch: PropTypes.bool,
     error: PropTypes.object,
 };
 
 CreateLinkModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     suffix: "",
-    pwdMatch: false,
     error: {},
 };
 
@@ -463,9 +680,6 @@ CreateSubSuffixModal.propTypes = {
 
 CreateSubSuffixModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     suffix: "",
     error: {},
 };
@@ -476,16 +690,15 @@ ExportModal.propTypes = {
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     error: PropTypes.object,
-    spinning: PropTypes.bool
+    spinning: PropTypes.bool,
+    item: PropTypes.node,
 };
 
 ExportModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     error: {},
-    spinning: false
+    spinning: false,
+    item: null
 };
 
 ImportModal.propTypes = {
@@ -493,7 +706,6 @@ ImportModal.propTypes = {
     closeHandler: PropTypes.func,
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
-    spinning: PropTypes.bool,
     showConfirmImport: PropTypes.func,
     rows: PropTypes.array,
     suffix: PropTypes.string
@@ -501,31 +713,38 @@ ImportModal.propTypes = {
 
 ImportModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
-    spinning: false,
-    showConfirmImport: noop,
     rows: [],
     suffix: ""
 };
 
-ReindexModal.propTypes = {
+ShadowFixupModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
-    msg: PropTypes.string
+    handleChange: PropTypes.func,
+    saveHandler: PropTypes.func,
+    spinning: PropTypes.bool,
+    item: PropTypes.node,
+    force: PropTypes.bool,
+    suffix: PropTypes.string,
+    fixupCompleted: PropTypes.bool,
+    suffixes: PropTypes.array
 };
 
-ReindexModal.defaultProps = {
+ShadowFixupModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    msg: ""
+    error: {},
+    spinning: false,
+    item: null,
+    force: false,
+    suffix: "",
+    fixupCompleted: false,
+    suffixes: []
 };
 
 export {
-    ReindexModal,
     ImportModal,
     ExportModal,
     CreateSubSuffixModal,
     CreateLinkModal,
+    ShadowFixupModal,
 };

@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * Copyright (C) 2019 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
@@ -27,6 +27,9 @@ int run_plugin_tests(void);
 /* libslapd */
 void test_libslapd_hello(void **state);
 
+/* libslapd-filter-optimise */
+void test_libslapd_filter_optimise(void **state);
+
 /* libslapd-pblock-analytics */
 void test_libslapd_pblock_analytics(void **state);
 
@@ -52,6 +55,35 @@ void test_libslapd_counters_atomic_overflow(void **state);
 void test_libslapd_pal_meminfo(void **state);
 void test_libslapd_util_cachesane(void **state);
 
+/* libslapd-haproxy */
+void test_libslapd_haproxy_v1(void **state);
+void test_libslapd_haproxy_v2_valid(void **state);
+void test_libslapd_haproxy_v2_valid_local(void **state);
+void test_libslapd_haproxy_v2_invalid(void **state);
+void test_haproxy_ipv4_subnet_matching(void **state);
+void test_haproxy_ipv6_subnet_matching(void **state);
+void test_haproxy_trusted_ip_parsing(void **state);
+void test_haproxy_parsing_edge_cases(void **state);
+void test_haproxy_netmask_precomputation(void **state);
+void test_haproxy_ip_matches_cidr(void **state);
+void test_haproxy_ipv4_mask_edge_cases(void **state);
+
+/* libslapd-csngen-clock-error (Bug 1837105 / Issue #4148) */
+void test_libslapd_csngen_clock_failure(void **state);
+void test_libslapd_csngen_large_time_jump(void **state);
+void test_libslapd_csngen_time_backwards(void **state);
+void test_libslapd_csngen_multiple_clock_failures(void **state);
+void test_libslapd_csngen_seqnum_handling(void **state);
+
+#ifdef ENABLE_HIBP
+/* libslapd-hibp */
+void test_hibp_sha1_hex(void **state);
+void test_hibp_parse_response(void **state);
+void test_hibp_buffer_handling(void **state);
+void test_hibp_api_integration(void **state);
+void test_hibp_concurrent_requests(void **state);
+#endif
+
 /* plugins */
 
 void test_plugin_hello(void **state);
@@ -63,3 +95,4 @@ int test_plugin_pwdstorage_nss_stop(void **state);
 
 void test_plugin_pwdstorage_pbkdf2_auth(void **state);
 void test_plugin_pwdstorage_pbkdf2_rounds(void **state);
+void test_plugin_pwdstorage_pbkdf2_pw_cmp_invalid_hash(void **state);

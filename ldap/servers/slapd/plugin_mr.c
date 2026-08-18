@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2005-2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -35,7 +35,7 @@ struct mr_private
     const struct berval *value;   /* orig value from filter */
     int ftype;                    /* filter type */
     int op;                       /* query op type */
-    IFP match_fn;                 /* match func to use */
+    int32_t (*match_fn)(Slapi_PBlock *, const struct berval *, Slapi_Value **, int32_t, Slapi_Value **); /* match func to use */
     /* note - substring matching rules not currently supported */
     char *initial;                  /* these are for substring matches */
     char *any[2];                   /* at most one value for extensible filter */
@@ -225,7 +225,7 @@ int /* an LDAP error code, hopefully LDAP_SUCCESS */
     int rc;
     char *oid;
     if (!(rc = slapi_pblock_get(opb, SLAPI_PLUGIN_MR_OID, &oid))) {
-        IFP createFn = NULL;
+        int32_t (*createFn)(Slapi_PBlock *) = NULL;
         struct slapdplugin *mrp = plugin_mr_find_registered(oid);
         if (mrp != NULL) {
             /* Great the matching OID -> MR plugin was already found, just reuse it */
@@ -251,7 +251,6 @@ int /* an LDAP error code, hopefully LDAP_SUCCESS */
             rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
 
             for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next) {
-
                 Slapi_PBlock *pb = slapi_pblock_new();
                 mr_indexer_init_pb(opb, pb);
                 slapi_pblock_set(pb, SLAPI_PLUGIN, mrp);
@@ -263,8 +262,8 @@ int /* an LDAP error code, hopefully LDAP_SUCCESS */
                 }
 
                 if (createFn && !createFn(pb)) {
-                    IFP indexFn = NULL;
-                    IFP indexSvFn = NULL;
+                    int32_t (*indexFn)(void) = NULL;
+                    int32_t (*indexSvFn)(void) = NULL;
                     /* These however, are in the pblock direct, so we need to copy them. */
                     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn);
                     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexSvFn);
@@ -364,6 +363,7 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock *pb)
     Slapi_Value **out_vals = NULL;
     struct slapdplugin *pi = NULL;
 
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals); /* make sure output is cleared */
     slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
     if (!pi) {
@@ -391,28 +391,18 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock *pb)
     return rc;
 }
 
-/* this function takes SLAPI_PLUGIN_MR_VALUES as struct berval ** and
+/* this function takes SLAPI_PLUGIN_MR_VALUES as Slapi_Value ** and
    returns SLAPI_PLUGIN_MR_KEYS as struct berval **
 */
 static int
 mr_wrap_mr_index_fn(Slapi_PBlock *pb)
 {
     int rc = -1;
-    struct berval **in_vals = NULL;
     struct berval **out_vals = NULL;
     struct mr_private *mrpriv = NULL;
-    Slapi_Value **in_vals_sv = NULL;
     Slapi_Value **out_vals_sv = NULL;
 
-    slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &in_vals); /* get bervals */
-    /* convert bervals to sv ary */
-    valuearray_init_bervalarray(in_vals, &in_vals_sv);
-    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals_sv); /* use sv */
     rc = mr_wrap_mr_index_sv_fn(pb);
-    /* clean up in_vals_sv */
-    valuearray_free(&in_vals_sv);
-    /* restore old in_vals */
-    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals);
     /* get result sv keys */
     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &out_vals_sv);
     /* convert to bvec */
@@ -443,6 +433,7 @@ default_mr_filter_destroy(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
     mr_private_free(&mrpriv);
     mrpriv = NULL;
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrpriv);
 
     return 0;
@@ -632,9 +623,9 @@ static int
 attempt_mr_filter_create(mr_filter_t *f, struct slapdplugin *mrp, Slapi_PBlock *pb)
 {
     int rc;
-    IFP mrf_create = NULL;
+    int32_t  (*mrf_create)(Slapi_PBlock *) = NULL;
     f->mrf_match = NULL;
-    pblock_init(pb);
+    slapi_pblock_init(pb);
     if (!(rc = slapi_pblock_set(pb, SLAPI_PLUGIN, mrp)) &&
         !(rc = slapi_pblock_get(pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, &mrf_create)) &&
         mrf_create != NULL &&
@@ -716,6 +707,7 @@ default_mr_indexer_destroy(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
     mr_private_free(&mrpriv);
     mrpriv = NULL;
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrpriv);
     /* keys destroyed in mr_private_free */
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, NULL);

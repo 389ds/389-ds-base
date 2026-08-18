@@ -346,7 +346,7 @@ cos_cache_init(void)
     if (ret == 0) {
         slapi_lock_mutex(start_lock);
         while (!started) {
-            while (slapi_wait_condvar(start_cond, NULL) == 0)
+            while (slapi_wait_condvar_pt(start_cond, start_lock, NULL) == 0)
                 ;
         }
         slapi_unlock_mutex(start_lock);
@@ -373,6 +373,7 @@ out:
 static void
 cos_cache_wait_on_change(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("cos-cache");
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_wait_on_change thread\n");
 
     slapi_lock_mutex(stop_lock);
@@ -401,7 +402,7 @@ cos_cache_wait_on_change(void *arg __attribute__((unused)))
              * thread notifies our condvar, and so we will not miss any
              * notifications, including the shutdown notification.
              */
-            slapi_wait_condvar(something_changed, NULL);
+            slapi_wait_condvar_pt(something_changed, change_lock, NULL);
         } else {
             /* Something to do...do it below */
         }
@@ -1006,6 +1007,14 @@ cos_dn_defs_cb(Slapi_Entry *e, void *callback_data)
             cos_cache_del_attrval_list(&pCosSpecifier);
         if (pCosAttribute)
             cos_cache_del_attrval_list(&pCosAttribute);
+        if (pCosOverrides)
+            cos_cache_del_attrval_list(&pCosOverrides);
+        if (pCosOperational)
+            cos_cache_del_attrval_list(&pCosOperational);
+        if (pCosMerge)
+            cos_cache_del_attrval_list(&pCosMerge);
+        if (pCosOpDefault)
+            cos_cache_del_attrval_list(&pCosOpDefault);
         if (pDn)
             cos_cache_del_attrval_list(&pDn);
     }
@@ -1429,6 +1438,14 @@ out:
             cos_cache_del_attrval_list(spec);
         if (pAttrs)
             cos_cache_del_attrval_list(pAttrs);
+        if (pOverrides)
+            cos_cache_del_attrval_list(pOverrides);
+        if (pOperational)
+            cos_cache_del_attrval_list(pOperational);
+        if (pCosMerge)
+            cos_cache_del_attrval_list(pCosMerge);
+        if (pCosOpDefault)
+            cos_cache_del_attrval_list(pCosOpDefault);
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_defn\n");
@@ -1677,16 +1694,22 @@ cos_cache_release(cos_cache *ptheCache)
 
     slapi_unlock_mutex(cache_lock);
 
-    if (destroy) {
+    if (destroy && (pOldCache != NULL)) {
         cosDefinitions *pDef = pOldCache->pDefs;
 
         /* now is the first time it is
          * safe to assess whether
          * vattr caching can be turned on
          */
+        /* Work around gcc -fanalyzer bug: it complain about pOldCache
+         * but that is pCache that is tested ...
+         */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-deref-before-check"
         if (pCache && pCache->vattr_cacheable) {
             slapi_vattrcache_cache_all();
         }
+#pragma GCC diagnostic pop
 
         /* destroy the cache here - no locking required, no references outstanding */
 
@@ -3052,7 +3075,6 @@ static int
 cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int *result)
 {
     int ret = 0;
-    int index = 0;
     cosAttrValue *pAttrVal = pAttr->pAttrValue;
     char *the_cmp = (char *)slapi_value_get_string(test_this);
 
@@ -3069,7 +3091,6 @@ cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int *result)
         }
 
         pAttrVal = pAttrVal->list.pNext;
-        index++;
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_cmp_attr\n");
@@ -3086,7 +3107,6 @@ static int
 cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet **out_vs)
 {
     int ret = 0;
-    int index = 0;
     cosAttrValue *pAttrVal = pAttr->pAttrValue;
     int add_mode = 0;
     static Slapi_Attr *attr = 0; /* allocated once, never freed */
@@ -3125,7 +3145,6 @@ cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet **out_vs)
             }
 
             pAttrVal = pAttrVal->list.pNext;
-            index++;
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_cos_2_slapi_valueset - "

@@ -9,40 +9,42 @@ import { DoubleConfirmModal } from "../notifications.jsx";
 import { EnableReplModal } from "./replModals.jsx";
 import {
     Button,
-    Col,
-    ControlLabel,
-    Icon,
-    Nav,
-    NavItem,
-    noop,
-    Row,
+    Grid,
+    GridItem,
     Spinner,
-    TabContainer,
-    TabContent,
-    TabPane,
-} from "patternfly-react";
+    Tab,
+    Tabs,
+    TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import { SyncAltIcon, TreeIcon, CloneIcon, LeafIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
+
+const _ = cockpit.gettext;
 
 export class ReplSuffix extends React.Component {
     constructor (props) {
         super(props);
         this.state = {
             loading: false,
-            activeKey: 1,
+            activeTabKey: 0,
             showDisableConfirm: false,
             replicationEnabled: false,
             errObj: {},
             replEnabled: this.props.replicated,
             // Enable replication settings
             showEnableReplModal: false,
-            enableRole: "Master",
-            enableRID: "1",
+            enableRole: "Supplier",
+            enableRID: 1,
             enableBindDN: "cn=replication manager,cn=config",
             enableBindPW: "",
             enableBindPWConfirm: "",
             enableBindGroupDN: "",
-            disabled: false, // Disable repl enable button
+            enableSpinning: false,
+            disabled: true, // Disable repl enable button
             // Disable replication
             showDisableReplModal: false,
             disableChecked: false,
@@ -51,10 +53,37 @@ export class ReplSuffix extends React.Component {
             modalSpinning: false,
         };
 
+        this.handleMinusChange = () => {
+            this.setState({
+                enableRID: Number(this.state.enableRID) - 1
+            });
+        };
+        this.handleNumberChange = (event) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                enableRID: newValue > 65534 ? 65534 : newValue < 1 ? 1 : newValue
+            });
+        };
+
+        this.handlePlusChange = () => {
+            this.setState({
+                enableRID: Number(this.state.enableRID) + 1
+            });
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            event.preventDefault();
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
         // General bindings
         this.handleReplChange = this.handleReplChange.bind(this);
-        this.handleEnableChange = this.handleEnableChange.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onEnableChange = this.onEnableChange.bind(this);
+        this.validateEnable = this.validateEnable.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.disableReplication = this.disableReplication.bind(this);
         this.enableReplication = this.enableReplication.bind(this);
@@ -81,73 +110,59 @@ export class ReplSuffix extends React.Component {
         } else {
             // Enable replication
             this.setState({
-                showEnableReplModal: true
+                showEnableReplModal: true,
+                enableSpinning: false,
             });
         }
     }
 
-    handleChange (e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    onChange (e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
+        const errObj = this.state.errObj;
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
-    handleEnableChange (e) {
-        let value = e.target.value;
-        let attr = e.target.id;
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        let disable = false;
+    validateEnable() {
+        const errObj = {};
+        let all_good = true;
 
-        if (attr == "enableBindDN" && value != "" && (!valid_dn(value) || !value.includes(','))) {
-            valueErr = true;
-        }
-        if (attr == "enableBindGroupDN" && value != "" && (!valid_dn(value) || !value.includes(','))) {
-            valueErr = true;
-        }
-        if (attr == "enableBindPW") {
-            if (value != this.state.enableBindPWConfirm) {
-                valueErr = true;
-            } else {
-                errObj.enableBindPW = false;
-                errObj.enableBindPWConfirm = false;
-            }
-        }
-        if (attr == "enableBindPWConfirm") {
-            if (value != this.state.enableBindPW) {
-                valueErr = true;
-            } else {
-                errObj.enableBindPW = false;
-                errObj.enableBindPWConfirm = false;
+        const dnAttrs = ['enableBindDN', 'enableBindGroupDN'];
+        for (const attr of dnAttrs) {
+            if (this.state[attr] !== "" && (!valid_dn(this.state[attr]) || !this.state[attr].includes(','))) {
+                all_good = false;
+                errObj[attr] = true;
             }
         }
 
-        // Validate form and disable enable button if something is wrong.
-        if (valueErr) {
-            disable = true;
-        } else {
-            if ((attr != "enableBindPW" && attr != "enableBindPWConfirm" && this.state.enableBindPW != this.state.enableBindPWConfirm) ||
-                (this.state.enableBindDN != "" && attr != "enableBindDN" && (!valid_dn(this.state.enableBindDN) ||
-                                                                             !this.state.enableBindDN.includes(','))) ||
-                (this.state.enableBindGroupDN != "" && attr != "enableBindGroupDN" && (!valid_dn(this.state.enableBindGroupDN) ||
-                                                                                    !this.state.enableBindGroupDN.includes(',')))) {
-                disable = true;
+        if (this.state.enableBindDN) {
+            if (this.state.enableBindPW === "" || this.state.enableBindPW !== this.state.enableBindPWConfirm) {
+                errObj.enableBindPW = true;
+                errObj.enableBindPWConfirm = true;
+                all_good = false;
             }
         }
-        errObj[attr] = valueErr;
+
+        this.setState({
+            errObj,
+            disabled: !all_good
+        });
+    }
+
+    onEnableChange (e) {
+        const value = e.target.value;
+        const attr = e.target.id;
+
         this.setState({
             [attr]: value,
-            errObj: errObj,
-            disabled: disable
-        });
+        }, () => { this.validateEnable() });
     }
 
     closeEnableReplModal () {
@@ -158,73 +173,76 @@ export class ReplSuffix extends React.Component {
 
     enableReplication () {
         // First, Validate
-        if (this.state.enableBindDN != "" && !valid_dn(this.state.enableBindDN)) {
+        if (this.state.enableBindDN !== "" && !valid_dn(this.state.enableBindDN)) {
             this.props.addNotification(
                 "error",
-                `The Bind DN is not a valid DN (Distinguished Name) ${this.state.enableBindDN}`
+                cockpit.format(_("The Bind DN is not a valid DN (Distinguished Name) $0"), this.state.enableBindDN)
             );
             return;
         }
-        if (this.state.enableBindGroupDN != "" && !valid_dn(this.state.enableBindGroupDN)) {
+        if (this.state.enableBindGroupDN !== "" && !valid_dn(this.state.enableBindGroupDN)) {
             this.props.addNotification(
                 "error",
-                `The Group DN is not a valid DN (Distinguished Name)`
+                _("The Group DN is not a valid DN (Distinguished Name)")
             );
             return;
         }
-        if (this.state.enableBindPW != this.state.enableBindPWConfirm) {
+        if (this.state.enableBindPW !== this.state.enableBindPWConfirm) {
             this.props.addNotification(
                 "error",
-                `The Bind DN passwords do not match`
+                _("The Bind DN passwords do not match")
             );
             return;
         }
-        if (this.state.enableRID != "" && (this.state.enableRID < 1 || this.state.enableRID > 65534)) {
+        if (this.state.enableRID !== "" && (this.state.enableRID < 1 || this.state.enableRID > 65534)) {
             this.props.addNotification(
                 "error",
-                `The Replica ID is not in the valid range of 1 - 65534`
+                _("The Replica ID is not in the valid range of 1 - 65534")
             );
             return;
         }
 
         // Now enable replication
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'enable', '--suffix=' + this.props.suffix,
             '--role=' + this.state.enableRole
         ];
-        if (this.state.enableBindDN != "") {
+        let passwd = "";
+        if (this.state.enableBindDN !== "") {
             cmd.push('--bind-dn=' + this.state.enableBindDN);
         }
-        if (this.state.enableBindPW != "") {
-            cmd.push('--bind-passwd=' + this.state.enableBindPW);
+        if (this.state.enableBindPW !== "") {
+            passwd = this.state.enableBindPW;
         }
-        if (this.state.enableBindGroupDN != "") {
+        if (this.state.enableBindGroupDN !== "") {
             cmd.push('--bind-group-dn=' + this.state.enableBindGroupDN);
         }
-        if (this.state.enableRole == "Master") {
+        if (this.state.enableRole === "Supplier") {
             cmd.push('--replica-id=' + this.state.enableRID);
         }
 
+        this.setState({
+            enableSpinning: true
+        });
+
         this.props.disableTree();
-        log_cmd('enableReplication', 'Enable replication', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reload(1);
-                    this.props.addNotification(
-                        "success",
-                        `Successfully enabled replication for "${this.props.suffix}"`
-                    );
-                })
-                .fail(err => {
-                    this.props.reload(1);
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to enable replication for "${this.props.suffix}" - ${errMsg.desc}`
-                    );
-                });
+
+        // Something changed, perform the update
+        const config = {
+            cmd,
+            promptArg: "--bind-passwd-prompt",
+            passwd,
+            addNotification: this.props.addNotification,
+            success_msg: cockpit.format(_("Successfully enabled replication for $0"), this.props.suffix),
+            error_msg: cockpit.format(_("Failed to enable replication for $0"), this.props.suffix),
+            state_callback: () => {},
+            reload_func: this.props.reload,
+            reload_arg: "1",
+            funcName: "enableReplication",
+            funcDesc: "Enable replication"
+        };
+        callCmdStreamPassword(config);
     }
 
     closeDisableReplModal () {
@@ -235,23 +253,32 @@ export class ReplSuffix extends React.Component {
 
     disableReplication () {
         this.props.disableTree();
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'disable', '--suffix=' + this.props.suffix];
+        this.setState({
+            modalSpinning: true
+        });
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'disable', '--suffix=' + this.props.suffix];
         log_cmd('disableReplication', 'Disable replication', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(1);
+                    this.setState({
+                        modalSpinning: false
+                    });
                     this.props.addNotification(
                         "success",
-                        `Successfully disabled replication for "${this.props.suffix}"`
+                        cockpit.format(_("Successfully disabled replication for $0"), this.props.suffix)
                     );
                 })
                 .fail(err => {
                     this.props.reload(1);
-                    let errMsg = JSON.parse(err);
+                    this.setState({
+                        modalSpinning: false
+                    });
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to disable replication for "${this.props.suffix}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to disable replication for $0 - $1"), this.props.suffix, errMsg)
                     );
                 });
     }
@@ -262,185 +289,169 @@ export class ReplSuffix extends React.Component {
     render () {
         let spinning = "";
         let spintext = "";
-        let suffixIcon = "tree";
+        let SuffixIcon = TreeIcon;
         if (this.props.replicated) {
-            suffixIcon = "clone";
+            SuffixIcon = CloneIcon;
         } else {
-            if (this.props.repl == "subsuffix") {
-                suffixIcon = "leaf";
+            if (this.props.repl === "subsuffix") {
+                SuffixIcon = LeafIcon;
             }
         }
         if (this.props.spinning) {
             spinning =
-                <Spinner className="ds-margin-top ds-margin-left ds-inline-spinner" loading inline size="sm" />;
+                <Spinner className="ds-margin-top ds-margin-left ds-inline-spinner" size="sm" />;
             spintext =
-                <font size="2"><i>Refreshing</i></font>;
+                <font size="2"><i>{_("Refreshing")}</i></font>;
         }
-        let suffixClass = "ds-margin-top-xlg";
+        let suffixClass = "ds-margin-top-lg";
         if (this.props.disabled) {
-            suffixClass = "ds-margin-top-xlg ds-disabled";
+            suffixClass = "ds-margin-top-lg ds-disabled";
         }
-        let replAgmtNavTitle = 'Agreements <font size="2">(' + this.props.agmtRows.length + ')</font>';
-        let winsyncNavTitle = 'Winsync Agreements <font size="2">(' + this.props.winsyncRows.length + ')</font>';
 
-        let enabledContent =
+        let enabledContent = (
             <div className={suffixClass}>
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div>
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Configuration'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: replAgmtNavTitle}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: winsyncNavTitle}} />
-                            </NavItem>
-                            <NavItem eventKey={4}>
-                                <div dangerouslySetInnerHTML={{__html: "Change Log"}} />
-                            </NavItem>
-                            <NavItem eventKey={5}>
-                                <div dangerouslySetInnerHTML={{__html: "RUV's & Tasks"}} />
-                            </NavItem>
-                        </Nav>
-                        <TabContent>
-                            <TabPane eventKey={1}>
-                                <ReplConfig
-                                    suffix={this.props.suffix}
-                                    role={this.props.role}
-                                    data={this.props.data}
-                                    serverId={this.props.serverId}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reload}
-                                    reloadConfig={this.props.reloadConfig}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={2}>
-                                <ReplAgmts
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    rows={this.props.agmtRows}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reloadAgmts}
-                                    attrs={this.props.attrs}
-                                    disableTable={this.props.disableAgmtTable}
-                                    key={this.props.agmtRows}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={3}>
-                                <WinsyncAgmts
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    rows={this.props.winsyncRows}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reloadWinsyncAgmts}
-                                    attrs={this.props.attrs}
-                                    disableTable={this.props.disableWSAgmtTable}
-                                    key={this.props.winsyncRows}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={4}>
-                                <Changelog
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    addNotification={this.props.addNotification}
-                                    clMaxEntries={this.props.data['clMaxEntries']}
-                                    clMaxAge={this.props.data['clMaxAge']}
-                                    clTrimInt={this.props.data['clTrimInt']}
-                                    clEncrypt={this.props.data['clEncrypt']}
-                                    key={this.props.data}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={5}>
-                                <ReplRUV
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    rows={this.props.ruvRows}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reloadRUV}
-                                    localRID={this.props.data.nsds5replicaid}
-                                    key={this.props.ruvRows}
-                                />
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
-            </div>;
+                <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Configuration")}</TabTitleText>}>
+                        <ReplConfig
+                            suffix={this.props.suffix}
+                            role={this.props.role}
+                            data={this.props.data}
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reload}
+                            reloadConfig={this.props.reloadConfig}
+                        />
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Agreements ")}<font size="2">({this.props.agmtRows.length})</font></TabTitleText>}>
+                        <ReplAgmts
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            rows={this.props.agmtRows}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reloadAgmts}
+                            attrs={this.props.attrs}
+                            disableTable={this.props.disableAgmtTable}
+                            key={this.props.agmtRows}
+                        />
+                    </Tab>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Winsync Agreements ")}<font size="2">({this.props.winsyncRows.length})</font></TabTitleText>}>
+                        <WinsyncAgmts
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            rows={this.props.winsyncRows}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reloadWinsyncAgmts}
+                            attrs={this.props.attrs}
+                            disableTable={this.props.disableWSAgmtTable}
+                            key={this.props.winsyncRows}
+                        />
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText>{_("Change Log")}</TabTitleText>}>
+                        <Changelog
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            clMaxEntries={this.props.data.clMaxEntries}
+                            clMaxAge={this.props.data.clMaxAge}
+                            clTrimInt={this.props.data.clTrimInt}
+                            clEncrypt={this.props.data.clEncrypt}
+                            key={this.props.data}
+                        />
+                    </Tab>
+                    <Tab eventKey={4} title={<TabTitleText>{_("RUV's & Tasks")}</TabTitleText>}>
+                        <ReplRUV
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            rows={this.props.ruvRows}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reloadRUV}
+                            localRID={this.props.data.nsds5replicaid}
+                            ldifRows={this.props.ldifRows}
+                            key={this.props.ruvRows}
+                        />
+                    </Tab>
+                </Tabs>
+            </div>
+        );
 
         let replActionButton = "";
         if (this.props.replicated) {
-            replActionButton =
+            replActionButton = (
                 <Button
-                    bsStyle="danger"
+                    className="ds-float-right"
+                    variant="danger"
                     onClick={this.handleReplChange}
-                    title="Disable replication, and remove all replication agreements."
+                    title={_("Disable replication, and remove all replication agreements.")}
                 >
-                    Disable
-                </Button>;
+                    {_("Disable")}
+                </Button>
+            );
         } else {
-            enabledContent =
+            enabledContent = (
                 <div className="ds-center ds-margin-top-xlg">
-                    <h4>
-                        Replication is not enabled for this suffix
-                    </h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            {_("Replication is not enabled for this suffix")}
+                        </Text>
+                    </TextContent>
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         onClick={this.handleReplChange}
                         className="ds-margin-top-lg"
                     >
-                        Enable Replication
+                        {_("Enable Replication")}
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (
             <div id="suffix-page">
-                <Row>
-                    <Col sm={8} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name={suffixIcon} />
-                            {" " + this.props.suffix}
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh replication settings for this suffix"
-                                onClick={() => {
-                                    this.props.reload(false);
-                                }}
-                            />
-                            {spinning} {spintext}
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={4}>
-                        <Row>
-                            <Col className="ds-no-padding ds-container" componentClass={ControlLabel} sm={12}>
-                                {replActionButton}
-                            </Col>
-                        </Row>
-                    </Col>
-                </Row>
-                <p />
+                <Grid>
+                    <GridItem className="ds-suffix-header" span={8}>
+                        <SuffixIcon />
+                        &nbsp;&nbsp;{this.props.suffix}
+                        <Button 
+                            variant="plain"
+                            aria-label={_("Refresh replication settings for this suffix")}
+                            onClick={() => this.props.reload(false)}
+                        >
+                            <SyncAltIcon />
+                        </Button>
+                        {spinning} {spintext}
+                    </GridItem>
+                    <GridItem span={4}>
+                        {replActionButton}
+                    </GridItem>
+                </Grid>
                 {enabledContent}
                 <EnableReplModal
                     showModal={this.state.showEnableReplModal}
                     closeHandler={this.closeEnableReplModal}
-                    handleChange={this.handleEnableChange}
+                    handleChange={this.onEnableChange}
                     saveHandler={this.enableReplication}
-                    spinning={this.state.addManagerSpinning}
-                    role={this.state.enableRole}
+                    spinning={this.state.enableSpinning}
+                    enableRole={this.state.enableRole}
+                    enableRID={this.state.enableRID}
+                    enableBindDN={this.state.enableBindDN}
                     disabled={this.state.disabled}
+                    onMinus={this.handleMinusChange}
+                    onNumberChange={this.handleNumberChange}
+                    onPlus={this.handlePlusChange}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showDisableReplModal}
                     closeHandler={this.closeDisableReplModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.disableReplication}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Disable Replication"
-                    mMsg="Are you sure you want to disable replication for this suffix?"
-                    mSpinningMsg="Disabling Replication ..."
-                    mBtnName="Disable Replication"
+                    mTitle={_("Disable Replication")}
+                    mMsg={_("Are you sure you want to disable replication for this suffix?")}
+                    mSpinningMsg={_("Disabling Replication ...")}
+                    mBtnName={_("Disable Replication")}
                 />
             </div>
         );
@@ -453,6 +464,7 @@ ReplSuffix.propTypes = {
     role: PropTypes.string,
     addNotification: PropTypes.func,
     agmtRows: PropTypes.array,
+    ldifRows: PropTypes.array,
     winsyncRows: PropTypes.array,
     ruvRows: PropTypes.array,
     reloadAgmts: PropTypes.func,
@@ -471,18 +483,12 @@ ReplSuffix.defaultProps = {
     serverId: "",
     suffix: "",
     role: "",
-    addNotification: noop,
     agmtRows: [],
     winsyncRows: [],
     ruvRows: [],
-    reloadAgmts: noop,
-    reloadRUV: noop,
-    reloadConfig: noop,
-    reload: noop,
+    ldifRows: [],
     replicated: false,
     attrs: [],
-    enableTree: noop,
-    disableTree: noop,
     spinning: false,
     disabled: false,
 };

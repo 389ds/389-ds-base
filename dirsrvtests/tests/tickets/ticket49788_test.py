@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2018 Dj Padzensky <djpadz@padz.net>
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import time
 
@@ -10,7 +18,7 @@ from lib389 import Entry
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.properties import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, DN_CONFIG, DN_DM, PASSWORD, DEFAULT_SUFFIX_ESCAPED
 
 pytestmark = pytest.mark.tier2

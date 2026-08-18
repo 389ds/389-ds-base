@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -27,6 +27,7 @@ SER_LDAPI_ENABLED = 'ldapi_enabled'
 SER_LDAPI_SOCKET = 'ldapi_socket'
 SER_LDAPI_AUTOBIND = 'ldapi_autobind'
 SER_INST_SCRIPTS_ENABLED = 'InstScriptsEnabled'
+SER_DB_LIB = 'db_lib'
 
 SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_PORT: 'nsslapd-port',
@@ -38,15 +39,17 @@ SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_LDAPI_ENABLED: 'nsslapd-ldapilisten',
                             SER_LDAPI_SOCKET: 'nsslapd-ldapifilepath',
                             SER_LDAPI_AUTOBIND: 'nsslapd-ldapiautobind',
+                            SER_DB_LIB: 'nsslapd-backend-implement',
                             }
 #
-# Those WITHOUT related attribute name
+# Properties that are not associated with an attribute in cn=config entry
 #
 SER_SERVERID_PROP = 'server-id'
 SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'
 SER_BACKUP_INST_DIR = 'inst-backupdir'
 SER_STRICT_HOSTNAME_CHECKING = 'strict_hostname_checking'
+SER_MDB_MAX_SIZE = 'mdb_max_size'
 
 ####################################
 #
@@ -108,8 +111,15 @@ BACKEND_CHAIN_BIND_PW = 'chain-bind-pw'
 BACKEND_CHAIN_URLS = 'chain-urls'
 BACKEND_STATS = 'stats'
 BACKEND_SAMPLE_ENTRIES = 'sample_entries'
-
 BACKEND_OBJECTCLASS_VALUE = 'nsBackendInstance'
+BACKEND_REPL_ENABLED = 'enable_replication'
+BACKEND_REPL_ROLE = 'replica_role'
+BACKEND_REPL_ID = 'replica_id'
+BACKEND_REPL_BINDDN = 'replica_binddn'
+BACKEND_REPL_BINDPW = 'replica_bindpw'
+BACKEND_REPL_BINDGROUP = 'replica_bindgroup'
+BACKEND_REPL_CL_MAX_ENTRIES = "changelog_max_entries"
+BACKEND_REPL_CL_MAX_AGE = "changelog_max_age"
 
 # THIS NEEDS TO BE REMOVED. HACKS!!!!
 BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX: 'nsslapd-suffix',
@@ -444,6 +454,7 @@ INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
 ####################################
 
 TASK_WAIT = "wait"
+TASK_WATCH = "watch"
 TASK_TOMB_STRIP = "strip-csn"
 EXPORT_REPL_INFO = "repl-info"
 

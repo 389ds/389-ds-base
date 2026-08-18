@@ -1,0 +1,43 @@
+.package-list-ct {
+  margin-block: 1em;
+  margin-inline: 0;
+  padding: 0;
+  max-inline-size: 110rem;
+  text-align: start;
+  box-sizing: border-box;
+}
+
+.package-list-ct li {
+  text-align: start;
+  box-sizing: border-box;
+  inline-size: 22rem;
+  padding-block: 0;
+  padding-inline: 1ex;
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.scale-up-ct {
+  animation: dialogScaleUpCt 1s;
+}
+
+@keyframes dialogScaleUpCt {
+  0% {
+    opacity: 0;
+    max-block-size: 0;
+  }
+
+  25% {
+    opacity: 0;
+  }
+
+  50% {
+    max-block-size: 100vh;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}

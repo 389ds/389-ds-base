@@ -87,7 +87,7 @@ ACL_CacheFlush(void)
     NSErr_t *errp = 0;
 
     PR_ASSERT(ACLGlobal);
-    PR_ASSERT(ACLGlobal->masterlist);
+    PR_ASSERT(ACLGlobal->primarylist);
     PR_ASSERT(ACLGlobal->listhash);
     PR_ASSERT(ACLGlobal->urihash);
     PR_ASSERT(ACLGlobal->urigethash);
@@ -119,9 +119,9 @@ ACL_CacheFlush(void)
     //	Mark all existing ACL Lists as stale. Delete any unreferenced ones.
     PR_HashTableEnumerateEntries(oldACLGlobal->listhash, deletelists, NULL);
 
-    //  Delete the old master list.
-    ACL_ListDestroy(errp, oldACLGlobal->masterlist);
-    oldACLGlobal->masterlist = NULL;
+    //  Delete the old primary list.
+    ACL_ListDestroy(errp, oldACLGlobal->primarylist);
+    oldACLGlobal->primarylist = NULL;
     PR_HashTableDestroy(oldACLGlobal->listhash);
     oldACLGlobal->listhash = NULL;
     PR_HashTableDestroy(oldACLGlobal->urihash);
@@ -150,7 +150,7 @@ ACL_Restart(void *clntData)
     NSErr_t *errp = 0;
 
     PR_ASSERT(ACLGlobal);
-    PR_ASSERT(ACLGlobal->masterlist);
+    PR_ASSERT(ACLGlobal->primarylist);
     PR_ASSERT(ACLGlobal->listhash);
     PR_ASSERT(ACLGlobal->urihash);
     PR_ASSERT(ACLGlobal->urigethash);
@@ -167,8 +167,8 @@ ACL_Restart(void *clntData)
     //  (i.e. all of them)
     PR_HashTableEnumerateEntries(ACLGlobal->listhash, restartdeletelists, NULL);
 
-    //  Delete the  master list.
-    ACL_ListDestroy(errp, ACLGlobal->masterlist);
+    //  Delete the primary list.
+    ACL_ListDestroy(errp, ACLGlobal->primarylist);
 
     ACL_LasHashDestroy();
     PR_HashTableDestroy(ACLGlobal->listhash);

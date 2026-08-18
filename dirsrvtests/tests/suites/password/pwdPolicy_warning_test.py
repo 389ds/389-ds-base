@@ -11,13 +11,12 @@ import subprocess
 from ldap.controls.ppolicy import PasswordPolicyControl
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM)
-from dateutil.parser import parse as dt_parse
 from lib389.config import Config
-import datetime
+import datetime as dt
 
 pytestmark = pytest.mark.tier1
 
@@ -351,7 +350,7 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
     old_ts = user.get_attr_val_utf8('passwordExpirationTime')
     log.info("Old passwordExpirationTime: {}".format(old_ts))
 
-    new_ts = (dt_parse(old_ts) - datetime.timedelta(31)).strftime('%Y%m%d%H%M%SZ')
+    new_ts = (dt.datetime.strptime(old_ts, '%Y%m%d%H%M%SZ') - dt.timedelta(31)).strftime('%Y%m%d%H%M%SZ')
     log.info("New passwordExpirationTime: {}".format(new_ts))
     user.replace('passwordExpirationTime', new_ts)
 
@@ -499,8 +498,6 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
 
-@pytest.mark.bz1589144
-@pytest.mark.ds50091
 def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_policy):
     """Test if value shadowWarning is present with global password policy
        when passwordWarning is set with lower value.
@@ -546,7 +543,6 @@ def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_
     assert testuser.present('shadowWarning')
 
 
-@pytest.mark.bug624080
 def test_password_expire_works(topology_st):
     """Regression test for bug624080. If passwordMaxAge is set to a
     value and a new user is added, if the passwordMaxAge is changed
@@ -565,7 +561,7 @@ def test_password_expire_works(topology_st):
         5. Modify the users password
         6. Modify the user one more time to make sur etime has been reset
         7. turn off the password policy
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

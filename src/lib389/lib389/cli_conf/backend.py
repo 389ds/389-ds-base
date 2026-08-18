@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -7,7 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.backend import Backend, Backends, DatabaseConfig
+from lib389.backend import Backend, Backends, DatabaseConfig, BackendSuffixView, is_subsuffix_of
 from lib389.configurations.sample import (
     create_base_domain,
     create_base_org,
@@ -18,34 +18,42 @@ from lib389.configurations.sample import (
 from lib389.chaining import (ChainingLinks)
 from lib389.monitor import MonitorLDBM
 from lib389.replica import Replicas
-from lib389.utils import ensure_str, is_a_dn, is_dn_parent
-from lib389._constants import *
+from lib389.utils import ensure_str, is_a_dn, is_dn_parent, parse_size, align_to_page_size
+from lib389.tasks import DBCompactTask
+from lib389._constants import INSTALL_LATEST_CONFIG
+from lib389.properties import BACKEND_SAMPLE_ENTRIES
 from lib389.cli_base import (
     _format_status,
     _generic_get,
     _generic_get_dn,
     _get_arg,
     _warn,
+    CustomHelpFormatter
     )
 import json
 import ldap
+from ldap.dn import str2dn
 
 arg_to_attr = {
         'lookthroughlimit': 'nsslapd-lookthroughlimit',
         'mode': 'nsslapd-mode',
+        'state': 'nsslapd-state',
         'idlistscanlimit': 'nsslapd-idlistscanlimit',
         'directory': 'nsslapd-directory',
         'dbcachesize': 'nsslapd-dbcachesize',
         'logdirectory': 'nsslapd-db-logdirectory',
-        'durable_txn': 'nsslapd-db-durable-transaction',
         'txn_wait': 'nsslapd-db-transaction-wait',
         'checkpoint_interval': 'nsslapd-db-checkpoint-interval',
         'compactdb_interval': 'nsslapd-db-compactdb-interval',
+        'compactdb_time': 'nsslapd-db-compactdb-time',
         'txn_batch_val': 'nsslapd-db-transaction-batch-val',
         'txn_batch_min': 'nsslapd-db-transaction-batch-min-wait',
         'txn_batch_max': 'nsslapd-db-transaction-batch-max-wait',
         'logbufsize': 'nsslapd-db-logbuf-size',
         'locks': 'nsslapd-db-locks',
+        'locks_monitoring_enabled': 'nsslapd-db-locks-monitoring-enabled',
+        'locks_monitoring_threshold': 'nsslapd-db-locks-monitoring-threshold',
+        'locks_monitoring_pause': 'nsslapd-db-locks-monitoring-pause',
         'import_cache_autosize': 'nsslapd-import-cache-autosize',
         'cache_autosize': 'nsslapd-cache-autosize',
         'cache_autosize_split': 'nsslapd-cache-autosize-split',
@@ -57,11 +65,21 @@ arg_to_attr = {
         'backend_opt_level': 'nsslapd-backend-opt-level',
         'deadlock_policy': 'nsslapd-db-deadlock-policy',
         'db_home_directory': 'nsslapd-db-home-directory',
+        'db_lib': 'nsslapd-backend-implement',
+        'mdb_max_size': 'nsslapd-mdb-max-size',
+        'mdb_max_readers': 'nsslapd-mdb-max-readers',
+        'mdb_max_dbs': 'nsslapd-mdb-max-dbs',
         # VLV attributes
         'search_base': 'vlvbase',
         'search_scope': 'vlvscope',
         'search_filter': 'vlvfilter',
         'sort': 'vlvsort',
+        # Dynamic lists
+        'enable_dynamic_lists': 'nsslapd-dynamic-lists-enabled',
+        'disable_dynamic_lists': 'nsslapd-dynamic-lists-disabled',
+        'dynamic_oc': 'nsslapd-dynamic-lists-oc',
+        'dynamic_list_attr': 'nsslapd-dynamic-lists-attr',
+        'dynamic_url_attr': 'nsslapd-dynamic-lists-url-attr',
     }
 
 SINGULAR = Backend
@@ -81,40 +99,38 @@ def _args_to_attrs(args):
 
 
 def _search_backend_dn(inst, be_name):
-    found = False
     be_insts = MANY(inst).list()
+    be_name = be_name.lower()
     for be in be_insts:
-        cn = ensure_str(be.get_attr_val('cn')).lower()
-        suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
-        del_be_name = be_name.lower()
-        if cn == del_be_name or suffix == del_be_name:
-            dn = be.dn
-            found = True
-            break
-    if found:
-        return dn
+        cn = be.get_attr_val_utf8_l('cn')
+        suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        if (is_a_dn(be_name) and str2dn(suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
+            return be.dn
 
 
-def _get_backend(inst, name):
+def _get_backend(inst, be_name):
     be_insts = Backends(inst).list()
+    be_name = be_name.lower()
     for be in be_insts:
-        be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
-        cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if be_suffix == name.lower() or cn == name.lower():
+        be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        cn = be.get_attr_val_utf8_l('cn')
+        if (is_a_dn(be_name) and str2dn(be_suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
             return be
 
-    raise ValueError('Could not find backend suffix: {}'.format(name))
+    raise ValueError('Could not find backend suffix: {}'.format(be_name))
 
 
-def _get_index(inst, bename, attr):
+def _get_index(inst, be_name, attr):
     be_insts = Backends(inst).list()
+    be_name = be_name.lower()
+    attr = attr.lower()
     for be in be_insts:
-        be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix'))
-        cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if be_suffix == bename.lower() or cn == bename.lower():
+        be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        cn = be.get_attr_val_utf8_l('cn')
+        if (is_a_dn(be_name) and str2dn(be_suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
             for index in be.get_indexes().list():
-                idx_name = index.get_attr_val_utf8_l('cn').lower()
-                if idx_name == attr.lower():
+                idx_name = index.get_attr_val_utf8_l('cn')
+                if idx_name == attr:
                     return index
     raise ValueError('Could not find index: {}'.format(attr))
 
@@ -123,8 +139,8 @@ def backend_list(inst, basedn, log, args):
     be_list = []
     be_insts = MANY(inst).list()
     for be in be_insts:
-        suffix = be.get_attr_val_utf8_l('nsslapd-suffix').lower()
-        be_name = be.get_attr_val_utf8_l('cn').lower()
+        suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        be_name = be.get_attr_val_utf8_l('cn')
         if args.skip_subsuffixes:
             # Skip subsuffixes
             mt = be._mts.get(suffix)
@@ -150,7 +166,16 @@ def backend_list(inst, basedn, log, args):
 
 def backend_get(inst, basedn, log, args):
     rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
-    _generic_get(inst, basedn, log.getChild('backend_get'), MANY, rdn, args)
+    be = _get_backend(inst, rdn)
+    bev = BackendSuffixView(inst, be)
+    if args.json:
+        entry = bev.get_all_attrs_json()
+        entry_dict = json.loads(entry)
+        log.info(json.dumps(entry_dict, indent=4))
+    else:
+        entry = bev.display()
+        updated_entry = entry[:-1]  # remove \n
+        log.info(updated_entry)
 
 
 def backend_get_dn(inst, basedn, log, args):
@@ -221,14 +246,17 @@ def backend_delete(inst, basedn, log, args, warn=True):
     dn = _search_backend_dn(inst, args.be_name)
     if dn is None:
         raise ValueError("Unable to find a backend with the name: ({})".format(args.be_name))
-    if warn and args.json is False:
-        _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
+    if not args.ack:
+        log.info("""Not removing backend: if you are really sure add: --do-it""")
+    else:
+        if warn and args.json is False:
+            _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
 
-    be = _get_backend(inst, args.be_name)
-    _recursively_del_backends(be)
-    be.delete()
+        be = _get_backend(inst, args.be_name)
+        _recursively_del_backends(be)
+        be.delete()
 
-    log.info("The database, and any sub-suffixes, were sucessfully deleted")
+        log.info("The database, and any sub-suffixes, were successfully deleted")
 
 
 def backend_import(inst, basedn, log, args):
@@ -241,13 +269,23 @@ def backend_import(inst, basedn, log, args):
     task = mc.import_ldif(ldifs=args.ldifs, chunk_size=args.chunks_size, encrypted=args.encrypted,
                           gen_uniq_id=args.gen_uniq_id, only_core=args.only_core, include_suffixes=args.include_suffixes,
                           exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=None)
+    if args.watch:
+        task.watch()
+    else:
+        task.wait(timeout=args.timeout)
     result = task.get_exit_code()
+    warning = task.get_task_warn()
 
     if task.is_complete() and result == 0:
-        log.info("The import task has finished successfully")
+        if warning is None or (warning == 0):
+            log.info("The import task has finished successfully")
+        else:
+            log.info("The import task has finished successfully, with warning code {}, check the logs for more detail".format(warning))
     else:
-        raise ValueError("Import task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
+        if result is None:
+            raise ValueError(f"Import task has not completed\n-------------------------\n{ensure_str(task.get_task_log())}")
+        else:
+            raise ValueError(f"Import task failed\n-------------------------\n{ensure_str(task.get_task_log())}")
 
 
 def backend_export(inst, basedn, log, args):
@@ -269,19 +307,25 @@ def backend_export(inst, basedn, log, args):
                           encrypted=args.encrypted, min_base64=args.min_base64, no_dump_uniq_id=args.no_dump_uniq_id,
                           replication=args.replication, not_folded=args.not_folded, no_seq_num=args.no_seq_num,
                           include_suffixes=args.include_suffixes, exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=None)
+    if args.watch:
+        task.watch()
+    else:
+        task.wait(timeout=args.timeout)
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
         log.info("The export task has finished successfully")
     else:
-        raise ValueError("Export task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
+        if result is None:
+            raise ValueError(f"Export task did not complete\n-------------------------\n{ensure_str(task.get_task_log())}")
+        else:
+            raise ValueError(f"Export task failed\n-------------------------\n{ensure_str(task.get_task_log())}")
 
 
 def is_db_link(inst, rdn):
     links = ChainingLinks(inst).list()
     for link in links:
-        cn = link.get_attr_val_utf8('cn').lower()
+        cn = link.get_attr_val_utf8_l('cn')
         if cn == rdn.lower():
             return True
     return False
@@ -299,8 +343,9 @@ def is_db_replicated(inst, suffix):
 def backend_get_subsuffixes(inst, basedn, log, args):
     subsuffixes = []
     be_insts = MANY(inst).list()
+    all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
     for be in be_insts:
-        be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
+        be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
         if be_suffix == args.be_name.lower():
             # We have our parent, now find the children
             mts = be._mts.list()
@@ -308,7 +353,7 @@ def backend_get_subsuffixes(inst, basedn, log, args):
                 db_type = "suffix"
                 sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                 sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
-                if sub == be_suffix:
+                if is_subsuffix_of(sub, be_suffix, all_suffixes):
                     # We have a subsuffix (maybe a db link?)
                     if is_db_link(inst, sub_be):
                         db_type = "link"
@@ -344,59 +389,50 @@ def backend_get_subsuffixes(inst, basedn, log, args):
 def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     """Build the UI node for a suffix
     """
-    icon = "glyphicon glyphicon-tree-conifer"
     suffix_type = "suffix"
     if subsuf:
-        icon = "glyphicon glyphicon-leaf"
         suffix_type = "subsuffix"
     if link:
-        icon = "glyphicon glyphicon-link"
         suffix_type = "dblink"
 
     return {
-        "text": suffix,
+        "name": suffix,
         "id": suffix,
-        "selectable": True,
-        "icon": icon,
         "type": suffix_type,
         "replicated": replicated,
         "be": be_name,
-        "nodes": []
+        "children": []
     }
 
 
-def backend_build_tree(inst, be_insts, nodes):
-    """Recursively build the tree
-    """
-    if len(nodes) == 0:
-        # Done
+def backend_build_tree(inst, be_insts, nodes, all_suffixes):
+    """Recursively build the tree."""
+    if not nodes:
         return
 
     for node in nodes:
-        node_suffix = node['id']
+        node_suffix = node['id'].lower()
         # Get sub suffixes and chaining of node
         for be in be_insts:
             be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
-            if be_suffix == node_suffix.lower():
+            if be_suffix == node_suffix:
                 # We have our parent, now find the children
                 mts = be._mts.list()
-
                 for mt in mts:
                     sub_parent = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                     sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
                     sub_suffix = mt.get_attr_val_utf8_l('cn')
-                    if sub_parent == be_suffix:
+                    if is_subsuffix_of(sub_parent, be_suffix, all_suffixes):
                         # We have a subsuffix (maybe a db link?)
                         link = is_db_link(inst, sub_be)
                         replicated = is_db_replicated(inst, sub_suffix)
-                        node['nodes'].append(build_node(sub_suffix,
-                                                        sub_be,
-                                                        subsuf=True,
-                                                        link=link,
-                                                        replicated=replicated))
-
+                        node['children'].append(build_node(sub_suffix,
+                                                           sub_be,
+                                                           subsuf=True,
+                                                           link=link,
+                                                           replicated=replicated))
                 # Recurse over the new subsuffixes
-                backend_build_tree(inst, be_insts, node['nodes'])
+                backend_build_tree(inst, be_insts, node['children'], all_suffixes)
                 break
 
 
@@ -407,8 +443,8 @@ def print_suffix_tree(nodes, level, log):
         for node in nodes:
             spaces = " " * level
             log.info('{}- {}'.format(spaces, node['id']))
-            if len(node['nodes']) > 0:
-                print_suffix_tree(node['nodes'], level + 2, log)
+            if len(node['children']) > 0:
+                print_suffix_tree(node['children'], level + 2, log)
 
 
 def backend_get_tree(inst, basedn, log, args):
@@ -437,7 +473,8 @@ def backend_get_tree(inst, basedn, log, args):
     else:
         # Build the tree
         be_insts = Backends(inst).list()
-        backend_build_tree(inst, be_insts, nodes)
+        all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
+        backend_build_tree(inst, be_insts, nodes, all_suffixes)
 
         # Done
         if args.json:
@@ -451,33 +488,49 @@ def backend_set(inst, basedn, log, args):
     if args.enable and args.disable:
         raise ValueError("You can not enable and disable a backend at the same time")
     if args.enable_readonly and args.disable_readonly:
-        raise ValueError("You can not set the backend to be both enabled and disabled at the same time")
+        raise ValueError("You can not set the backend readonly mode to be both enabled and disabled at the same time")
+    if args.enable_orphan and args.disable_orphan:
+        raise ValueError("You can not set the backend orphan mode to be both enabled and disabled at the same time")
 
     # Update backend
+    need_restart = False
     be = _get_backend(inst, args.be_name)
+    bev = BackendSuffixView(inst, be)
     if args.enable_readonly:
-        be.set('nsslapd-readonly', 'on')
+        bev.set('nsslapd-readonly', 'on')
     if args.disable_readonly:
-        be.set('nsslapd-readonly', 'off')
+        bev.set('nsslapd-readonly', 'off')
+    if args.enable_orphan:
+        bev.set('orphan', 'true')
+        need_restart = True
+    if args.disable_orphan:
+        bev.set('orphan', 'false')
+        need_restart = True
     if args.add_referral:
-        be.add('nsslapd-referral', args.add_referral)
+        bev.add('nsslapd-referral', args.add_referral)
     if args.del_referral:
-        be.remove('nsslapd-referral', args.del_referral)
+        bev.remove('nsslapd-referral', args.del_referral)
     if args.cache_size:
-        be.set('nsslapd-cachesize', args.cache_size)
+        bev.set('nsslapd-cachesize', args.cache_size)
     if args.cache_memsize:
-        be.set('nsslapd-cachememsize', args.cache_memsize)
+        bev.set('nsslapd-cachememsize', args.cache_memsize)
+    if args.cache_preserved_entries:
+        bev.set('nsslapd-cache-preserved-entries', args.cache_preserved_entries)
     if args.dncache_memsize:
-        be.set('nsslapd-dncachememsize', args.dncache_memsize)
+        bev.set('nsslapd-dncachememsize', args.dncache_memsize)
     if args.require_index:
-        be.set('nsslapd-require-index', 'on')
+        bev.set('nsslapd-require-index', 'on')
     if args.ignore_index:
-        be.set('nsslapd-require-index', 'off')
+        bev.set('nsslapd-require-index', 'off')
+    if args.state:
+        bev.set_state(args.state)
     if args.enable:
         be.enable()
     if args.disable:
         be.disable()
     log.info("The backend configuration was successfully updated")
+    if need_restart:
+        log.warn("Warning! The server instance must be restarted to take in account that configuration change.")
 
 
 def db_config_get(inst, basedn, log, args):
@@ -494,12 +547,39 @@ def db_config_set(inst, basedn, log, args):
     did_something = False
     replace_list = []
 
+    if getattr(args,'enable_dynamic_lists', None) and getattr(args, 'disable_dynamic_lists', None):
+        raise ValueError("You can not enable and disable dynamic lists at the same time")
+
     for attr, value in list(attrs.items()):
         if value == "":
             # We don't support deleting attributes or setting empty values in db
             continue
-        else:
-            replace_list.append([attr, value])
+
+        if attr == "nsslapd-dynamic-lists-enabled":
+            if value:
+                value = "on"
+            else:
+                continue
+        elif attr == "nsslapd-dynamic-lists-disabled":
+            attr = "nsslapd-dynamic-lists-enabled"
+            if value:
+                value = "off"
+            else:
+                continue
+
+        if attr == "nsslapd-mdb-max-size":
+            try:
+                mdb_max_size = parse_size(value)
+                # MDB max size requires pagesize alignment
+                mdb_max_size_aligned = align_to_page_size(mdb_max_size)
+                if mdb_max_size_aligned != mdb_max_size:
+                    log.info(f"Aligning MDB max size from {mdb_max_size} to nearest pagesize {mdb_max_size_aligned}")
+                value = str(mdb_max_size_aligned)
+            except ValueError:
+                raise ValueError(f"Invalid value for --mdb-max-size: {value}")
+
+        replace_list.append([attr, value])
+
     if len(replace_list) > 0:
         db_cfg.set(replace_list)
     elif not did_something:
@@ -601,7 +681,7 @@ def backend_del_index(inst, basedn, log, args):
 
 def backend_reindex(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
-    be.reindex(attrs=args.attr, wait=args.wait)
+    be.reindex(attrs=args.attr, wait=args.wait, watch=args.watch)
     log.info("Successfully reindexed database")
 
 
@@ -680,7 +760,6 @@ def backend_list_vlv(inst, basedn, log, args):
                     log.info(' - dn: ' + idx.dn)
                     for k, v in list(entry.items()):
                         log.info(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
-                    log.info()
 
     if args.json:
         log.info(json.dumps({"type": "list", "items": results}, indent=4))
@@ -691,7 +770,7 @@ def backend_get_vlv(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     vlvs = be.get_vlv_searches()
     for vlv in vlvs:
-        vlv_name = vlv.get_attr_val_utf8_l('cn').lower()
+        vlv_name = vlv.get_attr_val_utf8_l('cn')
         if vlv_name == args.name.lower():
             if args.json:
                 entry = vlv.get_attrs_vals_json(VLV_SEARCH_ATTRS)
@@ -782,328 +861,388 @@ def backend_reindex_vlv(inst, basedn, log, args):
     log.info("Successfully reindexed VLV indexes")
 
 
+def backend_compact(inst, basedn, log, args):
+    task = DBCompactTask(inst)
+    task_properties = {}
+    if args.only_changelog:
+        task_properties = {'justChangelog': 'yes'}
+    task.create(properties=task_properties)
+    task.wait(timeout=args.timeout)
+    result = task.get_exit_code()
+    if result != 0:
+        if result is None:
+            raise ValueError("Database Compaction Task has not completed")
+        else:
+            raise ValueError(f"Database Compaction Task failed, error: {result}")
+
+    log.info("Successfully started Database Compaction Task")
+
+
 def create_parser(subparsers):
-    backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends")
+    backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends", formatter_class=CustomHelpFormatter)
     subcommands = backend_parser.add_subparsers(help="action")
 
     #####################################################
     # Suffix parser
     #####################################################
-    suffix_parser = subcommands.add_parser('suffix', help="Manage a backend suffix")
+    suffix_parser = subcommands.add_parser('suffix', help="Manage backend suffixes", formatter_class=CustomHelpFormatter)
     suffix_subcommands = suffix_parser.add_subparsers(help="action")
 
     # List backends/suffixes
-    list_parser = suffix_subcommands.add_parser('list', help="List current active backends and suffixes")
+    list_parser = suffix_subcommands.add_parser('list', help="List active backends and suffixes", formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=backend_list)
-    list_parser.add_argument('--suffix', action='store_true', help='Just display the suffix, and not the backend name')
-    list_parser.add_argument('--skip-subsuffixes', action='store_true', help='Skip over sub-suffixes')
+    list_parser.add_argument('--suffix', action='store_true', help='Displays the suffixes without backend name')
+    list_parser.add_argument('--skip-subsuffixes', action='store_true', help='Displays the list of suffixes without sub-suffixes')
 
     # Get backend
-    get_parser = suffix_subcommands.add_parser('get', help='Get the suffix entry')
+    get_parser = suffix_subcommands.add_parser('get', help='Display the suffix entry', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=backend_get)
-    get_parser.add_argument('selector', nargs='?', help='The backend to search for')
+    get_parser.add_argument('selector', nargs='?', help='The backend database name to search for')
 
     # Get the DN of a backend
-    get_dn_parser = suffix_subcommands.add_parser('get-dn', help='get_dn')
+    get_dn_parser = suffix_subcommands.add_parser('get-dn', help='Display the DN of a backend', formatter_class=CustomHelpFormatter)
     get_dn_parser.set_defaults(func=backend_get_dn)
-    get_dn_parser.add_argument('dn', nargs='?', help='The backend dn to get')
+    get_dn_parser.add_argument('dn', nargs='?', help='The DN to the database entry in cn=ldbm database,cn=plugins,cn=config')
 
     # Get subsuffixes
-    get_subsuffix_parser = suffix_subcommands.add_parser('get-sub-suffixes', help='Get the sub-suffixes of this backend')
+    get_subsuffix_parser = suffix_subcommands.add_parser('get-sub-suffixes', help='Display sub-suffixes', formatter_class=CustomHelpFormatter)
     get_subsuffix_parser.set_defaults(func=backend_get_subsuffixes)
-    get_subsuffix_parser.add_argument('--suffix', action='store_true', help='Just display the suffix, and not the backend name')
-    get_subsuffix_parser.add_argument('be_name', help='The backend name or suffix to search for sub-suffixes')
+    get_subsuffix_parser.add_argument('--suffix', action='store_true', help='Displays the list of suffixes without backend name')
+    get_subsuffix_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Set the backend/suffix configuration
-    set_backend_parser = suffix_subcommands.add_parser('set', help='Set configuration settings for a single backend')
+    set_backend_parser = suffix_subcommands.add_parser('set', help='Set configuration settings for a specific backend', formatter_class=CustomHelpFormatter)
     set_backend_parser.set_defaults(func=backend_set)
-    set_backend_parser.add_argument('--enable-readonly', action='store_true', help='Set backend database to be read-only')
-    set_backend_parser.add_argument('--disable-readonly', action='store_true', help='Disable read-only mode for backend database')
-    set_backend_parser.add_argument('--require-index', action='store_true', help='Only allow indexed searches')
-    set_backend_parser.add_argument('--ignore-index', action='store_true', help='Allow all searches even if they are unindexed')
-    set_backend_parser.add_argument('--add-referral', help='Add a LDAP referral to the backend')
-    set_backend_parser.add_argument('--del-referral', help='Remove a LDAP referral to the backend')
-    set_backend_parser.add_argument('--enable', action='store_true', help='Enable the backend database')
-    set_backend_parser.add_argument('--disable', action='store_true', help='Disable the backend database')
-    set_backend_parser.add_argument('--cache-size', help='The maximum number of entries to keep in the entry cache')
-    set_backend_parser.add_argument('--cache-memsize', help='The maximum size in bytes that the entry cache can grow to')
-    set_backend_parser.add_argument('--dncache-memsize', help='The maximum size in bytes that the DN cache can grow to')
-    set_backend_parser.add_argument('be_name', help='The backend name or suffix to delete')
+    set_backend_parser.add_argument('--enable-readonly', action='store_true', help='Enables read-only mode for the backend database')
+    set_backend_parser.add_argument('--disable-readonly', action='store_true', help='Disables read-only mode for the backend database')
+    set_backend_parser.add_argument('--enable-orphan', action='store_true', help='Disconnect a subsuffix from its parent suffix.')
+    set_backend_parser.add_argument('--disable-orphan', action='store_true', help='Let the subsuffix be connected to its parent suffix.')
+    set_backend_parser.add_argument('--require-index', action='store_true', help='Allows only indexed searches')
+    set_backend_parser.add_argument('--ignore-index', action='store_true', help='Allows all searches even if they are unindexed')
+    set_backend_parser.add_argument('--add-referral', help='Adds an LDAP referral to the backend')
+    set_backend_parser.add_argument('--del-referral', help='Removes an LDAP referral from the backend')
+    set_backend_parser.add_argument('--enable', action='store_true', help='Enables the backend database')
+    set_backend_parser.add_argument('--disable', action='store_true', help='Disables the backend database')
+    set_backend_parser.add_argument('--cache-size', help='Sets the maximum number of entries to keep in the entry cache')
+    set_backend_parser.add_argument('--cache-memsize', help='Sets the maximum size in bytes that the entry cache can grow to')
+    set_backend_parser.add_argument('--cache-preserved-entries', help='Sets the maximum number of entries that are not evicted from the cache when trying to make space. This is typically used to keep very large groups in the cache')
+    set_backend_parser.add_argument('--dncache-memsize', help='Sets the maximum size in bytes that the DN cache can grow to')
+    set_backend_parser.add_argument('--state', help='Changes the backend state to: "backend", "disabled", "referral", or "referral on update"')
+    set_backend_parser.add_argument('be_name', help='The backend name or suffix')
 
     #########################################
     # Index parser
     #########################################
-    index_parser = subcommands.add_parser('index', help="Manage backend indexes")
+    index_parser = subcommands.add_parser('index', help="Manage backend indexes", formatter_class=CustomHelpFormatter)
     index_subcommands = index_parser.add_subparsers(help="action")
 
     # Create index
-    add_index_parser = index_subcommands.add_parser('add', help='Set configuration settings for a single backend')
+    add_index_parser = index_subcommands.add_parser('add', help='Add an index', formatter_class=CustomHelpFormatter)
     add_index_parser.set_defaults(func=backend_add_index)
-    add_index_parser.add_argument('--index-type', required=True, action='append', help='An indexing type: eq, sub, pres, or approximate')
-    add_index_parser.add_argument('--matching-rule', action='append', help='Matching rule for the index')
-    add_index_parser.add_argument('--reindex', action='store_true', help='After adding new index, reindex the database')
-    add_index_parser.add_argument('--attr', required=True, help='The index attribute\'s name')
-    add_index_parser.add_argument('be_name', help='The backend name or suffix to delete')
+    add_index_parser.add_argument('--index-type', required=True, action='append', help='Sets the indexing type (eq, sub, pres, or approx)')
+    add_index_parser.add_argument('--matching-rule', action='append', help='Sets the matching rule for the index')
+    add_index_parser.add_argument('--reindex', action='store_true', help='Re-indexes the database after adding a new index')
+    add_index_parser.add_argument('--attr', required=True, help='Sets the attribute name to index')
+    add_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Edit index
-    edit_index_parser = index_subcommands.add_parser('set', help='Edit an index entry')
+    edit_index_parser = index_subcommands.add_parser('set', help='Update an index', formatter_class=CustomHelpFormatter)
     edit_index_parser.set_defaults(func=backend_set_index)
-    edit_index_parser.add_argument('--attr', required=True, help='The index name to edit')
-    edit_index_parser.add_argument('--add-type', action='append', help='An index type to add to the index: eq, sub, pres, or approx')
-    edit_index_parser.add_argument('--del-type', action='append', help='An index type to remove from the index: eq, sub, pres, or approx')
-    edit_index_parser.add_argument('--add-mr', action='append', help='A matching-rule to add to the index')
-    edit_index_parser.add_argument('--del-mr', action='append', help='A matching-rule to remove from the index')
-    edit_index_parser.add_argument('--reindex', action='store_true', help='After editing index, reindex the database')
-    edit_index_parser.add_argument('be_name', help='The backend name or suffix to edit an index from')
+    edit_index_parser.add_argument('--attr', required=True, help='Sets the indexed attribute to update')
+    edit_index_parser.add_argument('--add-type', action='append', help='Adds an index type to the index (eq, sub, pres, or approx)')
+    edit_index_parser.add_argument('--del-type', action='append', help='Removes an index type from the index: (eq, sub, pres, or approx)')
+    edit_index_parser.add_argument('--add-mr', action='append', help='Adds a matching-rule to the index')
+    edit_index_parser.add_argument('--del-mr', action='append', help='Removes a matching-rule from the index')
+    edit_index_parser.add_argument('--reindex', action='store_true', help='Re-indexes the database after editing the index')
+    edit_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Get index
-    get_index_parser = index_subcommands.add_parser('get', help='Get an index entry')
+    get_index_parser = index_subcommands.add_parser('get', help='Display an index entry', formatter_class=CustomHelpFormatter)
     get_index_parser.set_defaults(func=backend_get_index)
-    get_index_parser.add_argument('--attr', required=True, action='append', help='The index name to get')
-    get_index_parser.add_argument('be_name', help='The backend name or suffix to get the index from')
+    get_index_parser.add_argument('--attr', required=True, action='append', help='Sets the index name to display')
+    get_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # list indexes
-    list_index_parser = index_subcommands.add_parser('list', help='Set configuration settings for a single backend')
+    list_index_parser = index_subcommands.add_parser('list', help='Display the index', formatter_class=CustomHelpFormatter)
     list_index_parser.set_defaults(func=backend_list_index)
-    list_index_parser.add_argument('--just-names', action='store_true', help='Return a list of just the attribute names for a backend')
-    list_index_parser.add_argument('be_name', help='The backend name or suffix to list indexes from')
+    list_index_parser.add_argument('--just-names', action='store_true', help='Displays only the names of indexed attributes')
+    list_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Delete index
-    del_index_parser = index_subcommands.add_parser('delete', help='Set configuration settings for a single backend')
+    del_index_parser = index_subcommands.add_parser('delete', help='Delete an index', formatter_class=CustomHelpFormatter)
     del_index_parser.set_defaults(func=backend_del_index)
-    del_index_parser.add_argument('--attr', action='append', help='The index attribute\'s name')
-    del_index_parser.add_argument('be_name', help='The backend name or suffix to delete')
+    del_index_parser.add_argument('--attr', action='append', help='Sets the name of the attribute to delete from the index')
+    del_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # reindex index
-    reindex_parser = index_subcommands.add_parser('reindex', help='Reindex the database (for a single index or all indexes')
+    reindex_parser = index_subcommands.add_parser('reindex', help='Re-index the database for a single index or all indexes', formatter_class=CustomHelpFormatter)
     reindex_parser.set_defaults(func=backend_reindex)
-    reindex_parser.add_argument('--attr', action='append', help='The index attribute\'s name to reindex.  Skip this argument to reindex all attributes')
-    reindex_parser.add_argument('--wait', action='store_true', help='Wait for the index task to complete and report the status')
-    reindex_parser.add_argument('be_name', help='The backend name or suffix to reindex')
+    reindex_parser.add_argument('--attr', action='append', help='Sets the name of the attribute to re-index. Omit this argument to re-index all attributes')
+    reindex_parser.add_argument('--wait', action='store_true', help='Waits for the index task to complete and reports the status')
+    reindex_parser.add_argument('--watch', action='store_true', help='Watch the status of the reindexing task')
+    reindex_parser.add_argument('be_name', help='The backend name or suffix')
 
     #############################################
     # VLV parser
     #############################################
-    vlv_parser = subcommands.add_parser('vlv-index', help="Manage VLV searches and indexes")
+    vlv_parser = subcommands.add_parser('vlv-index', help="Manage VLV searches and indexes", formatter_class=CustomHelpFormatter)
     vlv_subcommands = vlv_parser.add_subparsers(help="action")
 
     # List VLV Searches
-    list_vlv_search_parser = vlv_subcommands.add_parser('list', help='List VLV search and index entries')
+    list_vlv_search_parser = vlv_subcommands.add_parser('list', help='List VLV search and index entries', formatter_class=CustomHelpFormatter)
     list_vlv_search_parser.set_defaults(func=backend_list_vlv)
-    list_vlv_search_parser.add_argument('--just-names', action='store_true', help='List just the names of the VLV search entries')
+    list_vlv_search_parser.add_argument('--just-names', action='store_true', help='Displays only the names of VLV search entries')
     list_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Get VLV search entry and indexes
-    get_vlv_search_parser = vlv_subcommands.add_parser('get', help='Get a VLV search & index')
+    get_vlv_search_parser = vlv_subcommands.add_parser('get', help='Display a VLV search and indexes', formatter_class=CustomHelpFormatter)
     get_vlv_search_parser.set_defaults(func=backend_get_vlv)
-    get_vlv_search_parser.add_argument('--name', help='Get the VLV search entry and its index entries')
+    get_vlv_search_parser.add_argument('--name', help='Displays the VLV search entry and its index entries')
     get_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Create VLV Search
-    add_vlv_search_parser = vlv_subcommands.add_parser('add-search', help='Add a VLV search entry.  The search entry is the parent entry '
-                                                                             'of the VLV index entries, and it specifies the search params that '
-                                                                             'are used to match entries for those indexes.')
+    add_vlv_search_parser = vlv_subcommands.add_parser('add-search', help='Add a VLV search entry. The search entry is the parent entry '
+                                                                          'of the VLV index entries, and it specifies the search parameters that '
+                                                                          'are used to match entries for those indexes.')
     add_vlv_search_parser.set_defaults(func=backend_create_vlv)
-    add_vlv_search_parser.add_argument('--name', required=True, help='Name of the VLV search entry')
-    add_vlv_search_parser.add_argument('--search-base', required=True, help='The VLV search base')
-    add_vlv_search_parser.add_argument('--search-scope', required=True, help='The VLV search scope: 0 (base search), 1 (one-level search), or 2 (subtree search)')
-    add_vlv_search_parser.add_argument('--search-filter', required=True, help='The VLV search filter')
+    add_vlv_search_parser.add_argument('--name', required=True, help='Sets the name of the VLV search entry')
+    add_vlv_search_parser.add_argument('--search-base', required=True, help='Sets the VLV search base')
+    add_vlv_search_parser.add_argument('--search-scope', required=True, help='Sets the VLV search scope: 0 (base search), 1 (one-level search), or 2 (subtree search)')
+    add_vlv_search_parser.add_argument('--search-filter', required=True, help='Sets the VLV search filter')
     add_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Edit vlv search
-    edit_vlv_search_parser = vlv_subcommands.add_parser('edit-search', help='Edit a VLV search & index')
+    edit_vlv_search_parser = vlv_subcommands.add_parser('edit-search', help='Update a VLV search and index', formatter_class=CustomHelpFormatter)
     edit_vlv_search_parser.set_defaults(func=backend_edit_vlv)
-    edit_vlv_search_parser.add_argument('--name', required=True, help='Name of the VLV index')
-    edit_vlv_search_parser.add_argument('--search-base', help='The VLV search base')
-    edit_vlv_search_parser.add_argument('--search-scope', help='The VLV search scope: 0 (base search), 1 (one-level search), or 2 (subtree search)')
-    edit_vlv_search_parser.add_argument('--search-filter', help='The VLV search filter')
-    edit_vlv_search_parser.add_argument('--reindex', action='store_true', help='Reindex all the VLV database indexes')
-    edit_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
+    edit_vlv_search_parser.add_argument('--name', required=True, help='Sets the name of the VLV index')
+    edit_vlv_search_parser.add_argument('--search-base', help='Sets the VLV search base')
+    edit_vlv_search_parser.add_argument('--search-scope', help='Sets the VLV search scope: 0 (base search), 1 (one-level search), or 2 (subtree search)')
+    edit_vlv_search_parser.add_argument('--search-filter', help='Sets the VLV search filter')
+    edit_vlv_search_parser.add_argument('--reindex', action='store_true', help='Re-indexes all VLV database indexes')
+    edit_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index to update')
 
     # Delete vlv search(and index)
-    del_vlv_search_parser = vlv_subcommands.add_parser('del-search', help='Delete VLV search & index')
+    del_vlv_search_parser = vlv_subcommands.add_parser('del-search', help='Delete VLV search & index', formatter_class=CustomHelpFormatter)
     del_vlv_search_parser.set_defaults(func=backend_del_vlv)
-    del_vlv_search_parser.add_argument('--name', required=True, help='Name of the VLV search index')
+    del_vlv_search_parser.add_argument('--name', required=True, help='Sets the name of the VLV search index')
     del_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Create VLV Index
-    add_vlv_index_parser = vlv_subcommands.add_parser('add-index', help='Create a VLV index under a VLV search entry(parent entry).  '
-                                                                        'The VLV index just specifies the attributes to sort')
+    add_vlv_index_parser = vlv_subcommands.add_parser('add-index', help='Create a VLV index under a VLV search entry (parent entry, formatter_class=CustomHelpFormatter). '
+                                                                        'The VLV index specifies the attributes to sort')
     add_vlv_index_parser.set_defaults(func=backend_create_vlv_index)
-    add_vlv_index_parser.add_argument('--parent-name', required=True, help='Name, or "cn" attribute value, of the parent VLV search entry')
-    add_vlv_index_parser.add_argument('--index-name', required=True, help='Name of the new VLV index')
-    add_vlv_index_parser.add_argument('--sort', required=True, help='A space separated list of attributes to sort for this VLV index')
-    add_vlv_index_parser.add_argument('--index-it', action='store_true', help='Create the database index for this VLV index definition')
+    add_vlv_index_parser.add_argument('--parent-name', required=True, help='Sets the name or "cn" attribute of the parent VLV search entry')
+    add_vlv_index_parser.add_argument('--index-name', required=True, help='Sets the name of the new VLV index')
+    add_vlv_index_parser.add_argument('--sort', required=True, help='Sets a space-separated list of attributes to sort for this VLV index')
+    add_vlv_index_parser.add_argument('--index-it', action='store_true', help='Creates the database index for this VLV index definition')
     add_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Delete VLV Index
-    del_vlv_index_parser = vlv_subcommands.add_parser('del-index', help='Delete a VLV index under a VLV search entry(parent entry).')
+    del_vlv_index_parser = vlv_subcommands.add_parser('del-index', help='Delete a VLV index under a VLV search entry (parent entry)', formatter_class=CustomHelpFormatter)
     del_vlv_index_parser.set_defaults(func=backend_delete_vlv_index)
-    del_vlv_index_parser.add_argument('--parent-name', required=True, help='Name, or "cn" attribute value, of the parent VLV search entry')
-    del_vlv_index_parser.add_argument('--index-name', help='Name of the VLV index to delete')
+    del_vlv_index_parser.add_argument('--parent-name', required=True, help='Sets the name or "cn" attribute value of the parent VLV search entry')
+    del_vlv_index_parser.add_argument('--index-name', help='Sets the name of the VLV index to delete')
     del_vlv_index_parser.add_argument('--sort', help='Delete a VLV index that has this vlvsort value')
     del_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Reindex VLV
-    reindex_vlv_parser = vlv_subcommands.add_parser('reindex', help='Index/reindex the VLV database index')
+    reindex_vlv_parser = vlv_subcommands.add_parser('reindex', help='Index/re-index the VLV database index', formatter_class=CustomHelpFormatter)
     reindex_vlv_parser.set_defaults(func=backend_reindex_vlv)
-    reindex_vlv_parser.add_argument('--index-name', help='Name of the VLV Index entry to reindex.  If not set, all indexes are reindexed')
-    reindex_vlv_parser.add_argument('--parent-name', required=True, help='Name, or "cn" attribute value, of the parent VLV search entry')
+    reindex_vlv_parser.add_argument('--index-name', help='Sets the name of the VLV index entry to re-index. If not set, all indexes are re-indexed')
+    reindex_vlv_parser.add_argument('--parent-name', required=True, help='Sets the name or "cn" attribute value of the parent VLV search entry')
     reindex_vlv_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     ############################################
     # Encrypted Attributes
     ############################################
-    attr_encrypt_parser = subcommands.add_parser('attr-encrypt', help='Encrypted attribute options')
+    attr_encrypt_parser = subcommands.add_parser('attr-encrypt', help='Manage encrypted attribute settings', formatter_class=CustomHelpFormatter)
     attr_encrypt_parser.set_defaults(func=backend_attr_encrypt)
-    attr_encrypt_parser.add_argument('--list', action='store_true', help='List all the encrypted attributes for this backend')
-    attr_encrypt_parser.add_argument('--just-names', action='store_true', help='List just the names of the encrypted attributes (used with --list)')
-    attr_encrypt_parser.add_argument('--add-attr', action='append', help='Add an attribute to be encrypted')
-    attr_encrypt_parser.add_argument('--del-attr', action='append', help='Remove an attribute from being encrypted')
-    attr_encrypt_parser.add_argument('be_name', help='The backend name or suffix to to reindex')
+    attr_encrypt_parser.add_argument('--list', action='store_true', help='Lists all encrypted attributes in the backend')
+    attr_encrypt_parser.add_argument('--just-names', action='store_true', help='List only the names of the encrypted attributes when used with --list')
+    attr_encrypt_parser.add_argument('--add-attr', action='append', help='Enables encryption for the specified attribute')
+    attr_encrypt_parser.add_argument('--del-attr', action='append', help='Disables encryption for the specified attribute')
+    attr_encrypt_parser.add_argument('be_name', help='The backend name or suffix')
 
     ############################################
     # Global DB Config
     ############################################
-    db_parser = subcommands.add_parser('config', help="Manage the global database configuration settings")
+    db_parser = subcommands.add_parser('config', help="Manage the global database configuration settings", formatter_class=CustomHelpFormatter)
     db_subcommands = db_parser.add_subparsers(help="action")
 
     # Get the global database configuration
-    get_db_config_parser = db_subcommands.add_parser('get', help='Get the global database configuration')
+    get_db_config_parser = db_subcommands.add_parser('get', help='Display the global database configuration', formatter_class=CustomHelpFormatter)
     get_db_config_parser.set_defaults(func=db_config_get)
 
     # Update the global database configuration
-    set_db_config_parser = db_subcommands.add_parser('set', help='Set the global database configuration')
+    set_db_config_parser = db_subcommands.add_parser('set', help='Set the global database configuration', formatter_class=CustomHelpFormatter)
     set_db_config_parser.set_defaults(func=db_config_set)
-    set_db_config_parser.add_argument('--lookthroughlimit', help='specifies the maximum number of entries that the Directory '
-                                                                 'Server will check when examining candidate entries in response to a search request')
+    set_db_config_parser.add_argument('--lookthroughlimit', help='Specifies the maximum number of entries that the server '
+                                                                 'will check when examining candidate entries in response to a search request')
     set_db_config_parser.add_argument('--mode', help='Specifies the permissions used for newly created index files')
     set_db_config_parser.add_argument('--idlistscanlimit', help='Specifies the number of entry IDs that are searched during a search operation')
     set_db_config_parser.add_argument('--directory', help='Specifies absolute path to database instance')
-    set_db_config_parser.add_argument('--dbcachesize', help='Specifies the database index cache size, in bytes.')
+    set_db_config_parser.add_argument('--dbcachesize', help='Specifies the database index cache size in bytes')
     set_db_config_parser.add_argument('--logdirectory', help='Specifies the path to the directory that contains the database transaction logs')
-    set_db_config_parser.add_argument('--durable-txn', help='Sets whether database transaction log entries are immediately written to the disk.')
     set_db_config_parser.add_argument('--txn-wait', help='Sets whether the server should should wait if there are no db locks available')
-    set_db_config_parser.add_argument('--checkpoint-interval', help='Sets the amount of time in seconds after which the Directory Server sends a '
+    set_db_config_parser.add_argument('--checkpoint-interval', help='Sets the amount of time in seconds after which the server sends a '
                                                                     'checkpoint entry to the database transaction log')
     set_db_config_parser.add_argument('--compactdb-interval', help='Sets the interval in seconds when the database is compacted')
+    set_db_config_parser.add_argument('--compactdb-time', help='Sets the time (HH:MM format) of day when to compact the database after the "compactdb interval" has been reached')
     set_db_config_parser.add_argument('--txn-batch-val', help='Specifies how many transactions will be batched before being committed')
     set_db_config_parser.add_argument('--txn-batch-min', help='Controls when transactions should be flushed earliest, independently of '
-                                                              'the batch count (only works when txn-batch-val is set)')
+                                                              'the batch count. Requires that txn-batch-val is set')
     set_db_config_parser.add_argument('--txn-batch-max', help='Controls when transactions should be flushed latest, independently of '
-                                                              'the batch count (only works when txn-batch-val is set)')
+                                                              'the batch count. Requires that txn-batch-val is set)')
     set_db_config_parser.add_argument('--logbufsize', help='Specifies the transaction log information buffer size')
     set_db_config_parser.add_argument('--locks', help='Sets the maximum number of database locks')
-    set_db_config_parser.add_argument('--import-cache-autosize', help='Set to "on" or "off" to automatically set the size of the import '
-                                                                       'cache to be used during the the import process of LDIF files')
+    set_db_config_parser.add_argument('--locks-monitoring-enabled', help='Enables or disables monitoring of DB locks when the value crosses the percentage '
+                                                                         'set with "--locks-monitoring-threshold"')
+    set_db_config_parser.add_argument('--locks-monitoring-threshold', help='Sets the DB lock exhaustion threshold in percentage (valid range is 70-90). '
+                                                                           'When the threshold is reached, all searches are aborted until the number of active '
+                                                                           'locks decreases below the configured threshold and/or the '
+                                                                           'administrator increases the number of database locks (nsslapd-db-locks). '
+                                                                           'This threshold is a safeguard against DB corruption which might be caused '
+                                                                           'by locks exhaustion.')
+    set_db_config_parser.add_argument('--locks-monitoring-pause', help='Sets the DB lock monitoring value in milliseconds for the amount of time '
+                                                                       'that the monitoring thread spends waiting between checks.')
+    set_db_config_parser.add_argument('--import-cache-autosize', help='Enables or disables to automatically set the size of the import '
+                                                                      'cache to be used during the import process of LDIF files')
     set_db_config_parser.add_argument('--cache-autosize', help='Sets the percentage of free memory that is used in total for the database '
-                                                               'and entry cache.  Set to "0" to disable this feature.')
+                                                               'and entry cache.')
     set_db_config_parser.add_argument('--cache-autosize-split', help='Sets the percentage of RAM that is used for the database cache. The '
                                                                      'remaining percentage is used for the entry cache')
-    set_db_config_parser.add_argument('--import-cachesize', help='Sets the size, in bytes, of the database cache used in the import process.')
+    set_db_config_parser.add_argument('--import-cachesize', help='Sets the size in bytes of the database cache used in the import process.')
     set_db_config_parser.add_argument('--exclude-from-export', help='List of attributes to not include during database export operations')
-    set_db_config_parser.add_argument('--pagedlookthroughlimit', help='Specifies the maximum number of entries that the Directory Server '
+    set_db_config_parser.add_argument('--pagedlookthroughlimit', help='Specifies the maximum number of entries that the server '
                                                                       'will check when examining candidate entries for a search which uses '
                                                                       'the simple paged results control')
     set_db_config_parser.add_argument('--pagedidlistscanlimit', help='Specifies the number of entry IDs that are searched, specifically, '
                                                                      'for a search operation using the simple paged results control.')
-    set_db_config_parser.add_argument('--rangelookthroughlimit', help='Specifies the maximum number of entries that the Directory Server '
+    set_db_config_parser.add_argument('--rangelookthroughlimit', help='Specifies the maximum number of entries that the server '
                                                                       'will check when examining candidate entries in response to a '
                                                                       'range search request.')
-    set_db_config_parser.add_argument('--backend-opt-level', help='WARNING this parameter can trigger experimental code to improve write '
-                                                                  'performance.  Valid values are: 0, 1, 2, or 4')
+    set_db_config_parser.add_argument('--backend-opt-level', help='Sets the backend optimization level for write performance (0, 1, 2, or 4). '
+                                                                  'WARNING: This parameter can trigger experimental code.')
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
+    set_db_config_parser.add_argument('--db-lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
+    set_db_config_parser.add_argument('--mdb-max-size', help='Sets the lmdb database maximum size (accepts bytes, or with unit suffix: k, m, g, t)')
+    set_db_config_parser.add_argument('--mdb-max-readers', help='Sets the lmdb database maximum number of readers (Advanced setting)')
+    set_db_config_parser.add_argument('--mdb-max-dbs', help='Sets the lmdb database maximum number of sub databases (Advanced setting)')
+    # Dynamic lists
+    set_db_config_parser.add_argument('--enable-dynamic-lists', action='store_true', help='Enables dynamic lists')
+    set_db_config_parser.add_argument('--disable-dynamic-lists', action='store_true', help='Disables dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-oc', help='Sets the objectclass for dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-url-attr', help='Sets the url attribute for dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-list-attr', help='Sets the list attribute for dynamic lists')
 
     #######################################################
     # Database & Suffix Monitor
     #######################################################
-    get_monitor_parser = subcommands.add_parser('monitor', help="Get the global database monitor information")
+    get_monitor_parser = subcommands.add_parser('monitor', help="Displays global database or suffix monitoring information", formatter_class=CustomHelpFormatter)
     get_monitor_parser.set_defaults(func=get_monitor)
-    get_monitor_parser.add_argument('--suffix', help='Get just the suffix monitor entry')
+    get_monitor_parser.add_argument('--suffix', help='Displays monitoring information only for the specified suffix')
 
     #######################################################
     # Import LDIF
     #######################################################
-    import_parser = subcommands.add_parser('import', help="Do an online import of the suffix")
+    import_parser = subcommands.add_parser('import', help="Online import of a suffix", formatter_class=CustomHelpFormatter)
     import_parser.set_defaults(func=backend_import)
     import_parser.add_argument('be_name', nargs='?',
-                               help='The backend name or the root suffix where to import')
+                               help='The backend name or the root suffix')
     import_parser.add_argument('ldifs', nargs='*',
-                               help="Specifies the filename of the input LDIF files."
-                                    "When multiple files are imported, they are imported in the order"
-                                    "they are specified on the command line.")
+                               help="Specifies the filename of the input LDIF files. "
+                                    "Multiple files are imported in the specified order.")
     import_parser.add_argument('-c', '--chunks-size', type=int,
-                               help="The number of chunks to have during the import operation.")
+                               help="The number of chunks to have during the import operation")
     import_parser.add_argument('-E', '--encrypted', action='store_true',
-                               help="Decrypts encrypted data during export. This option is used only"
-                                    "if database encryption is enabled.")
+                               help="Encrypt attributes configured in the database for encryption")
     import_parser.add_argument('-g', '--gen-uniq-id',
-                               help="Generate a unique id. Type none for no unique ID to be generated"
-                                    "and deterministic for the generated unique ID to be name-based."
-                                    "By default, a time-based unique ID is generated."
-                                    "When using the deterministic generation to have a name-based unique ID,"
-                                    "it is also possible to specify the namespace for the server to use."
-                                    "namespaceId is a string of characters"
+                               help="Generate a unique id. Set \"none\" for no unique ID to be generated "
+                                    "and \"deterministic\" for the generated unique ID to be name-based. "
+                                    "By default, a time-based unique ID is generated. "
+                                    "When using the deterministic generation to have a name-based unique ID, "
+                                    "it is also possible to specify the namespace for the server to use. "
+                                    "namespaceId is a string of characters "
                                     "in the format 00-xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx.")
     import_parser.add_argument('-O', '--only-core', action='store_true',
-                               help="Requests that only the core database is created without attribute indexes.")
+                               help="Creates only the core database attribute indexes")
     import_parser.add_argument('-s', '--include-suffixes', nargs='+',
-                               help="Specifies the suffixes or the subtrees to be included.")
+                               help="Specifies the suffixes or the subtrees to be included")
     import_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
-                               help="Specifies the suffixes to be excluded.")
+                               help="Specifies the suffixes to be excluded")
+    import_parser.add_argument('--timeout', type=int, default=0,
+                               help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
+    import_parser.add_argument('-w', '--watch', action='store_true',
+                               help="Watch the status of the import")
 
     #######################################################
     # Export LDIF
     #######################################################
-    export_parser = subcommands.add_parser('export', help='Do an online export of the suffix')
+    export_parser = subcommands.add_parser('export', help='Online export of a suffix', formatter_class=CustomHelpFormatter)
     export_parser.set_defaults(func=backend_export)
     export_parser.add_argument('be_names', nargs='+',
-                               help="The backend names or the root suffixes from where to export.")
+                               help="The backend names or the root suffixes")
     export_parser.add_argument('-l', '--ldif',
-                               help="Gives the filename of the output LDIF file."
-                                    "If more than one are specified, use a space as a separator")
-    export_parser.add_argument('-C', '--use-id2entry', action='store_true', help="Uses only the main database file.")
+                               help="Sets the filename of the output LDIF file. "
+                                    "Separate multiple file names with spaces.")
+    export_parser.add_argument('-C', '--use-id2entry', action='store_true', help="Uses only the main database file")
     export_parser.add_argument('-E', '--encrypted', action='store_true',
                                help="""Decrypts encrypted data during export. This option is used only
                                        if database encryption is enabled.""")
     export_parser.add_argument('-m', '--min-base64', action='store_true',
-                               help="Sets minimal base-64 encoding.")
+                               help="Sets minimal base-64 encoding")
     export_parser.add_argument('-N', '--no-seq-num', action='store_true',
-                               help="Enables you to suppress printing the sequence number.")
+                               help="Suppresses printing the sequence numbers")
     export_parser.add_argument('-r', '--replication', action='store_true',
-                               help="Exports the information required to initialize a replica when the LDIF is imported")
+                               help="Exports the data with information required to initialize a replica")
     export_parser.add_argument('-u', '--no-dump-uniq-id', action='store_true',
-                               help="Requests that the unique ID is not exported.")
+                               help="Omits exporting the unique ID")
     export_parser.add_argument('-U', '--not-folded', action='store_true',
-                               help="Requests that the output LDIF is not folded.")
+                               help="Disables folding the output")
     export_parser.add_argument('-s', '--include-suffixes', nargs='+',
-                               help="Specifies the suffixes or the subtrees to be included.")
+                               help="Specifies the suffixes or the subtrees to be included")
     export_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
-                               help="Specifies the suffixes to be excluded.")
+                               help="Specifies the suffixes to be excluded")
+    export_parser.add_argument('--timeout', default=0, type=int,
+                               help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
+    export_parser.add_argument('-w', '--watch', action='store_true',
+                               help="Watch the status of the export")
 
     #######################################################
     # Create a new backend database
     #######################################################
-    create_parser = subcommands.add_parser('create', help='Create a backend database')
+    create_parser = subcommands.add_parser('create', help='Create a backend database', formatter_class=CustomHelpFormatter)
     create_parser.set_defaults(func=backend_create)
     create_parser.add_argument('--parent-suffix', default=False,
                                help="Sets the parent suffix only if this backend is a sub-suffix")
-    create_parser.add_argument('--suffix', required=True, help='The database suffix DN, for example "dc=example,dc=com"')
-    create_parser.add_argument('--be-name', required=True, help='The database backend name, for example "userroot"')
-    create_parser.add_argument('--create-entries', action='store_true', help='Create sample entries in the database')
+    create_parser.add_argument('--suffix', required=True, help='Sets the database suffix DN')
+    create_parser.add_argument('--be-name', required=True, help='Sets the database backend name"')
+    create_parser.add_argument('--create-entries', action='store_true', help='Adds sample entries to the database')
     create_parser.add_argument('--create-suffix', action='store_true',
-        help="Create the suffix object entry in the database.  Only suffixes using the attributes 'dc', 'o', 'ou', or 'cn' are supported in this feature")
+                               help="Creates the suffix object entry in the database. Only suffixes using the 'dc', 'o', 'ou', or 'cn' attributes are supported.")
 
     #######################################################
     # Delete backend
     #######################################################
-    delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
+    delete_parser = subcommands.add_parser('delete', help='Delete a backend database', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=backend_delete)
-    delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
+    delete_parser.add_argument('be_name', help='The backend name or suffix')
+    delete_parser.add_argument('--do-it', dest="ack",
+                               help="Remove backend and its subsuffixes",
+                               action='store_true', default=False)
 
     #######################################################
     # Get Suffix Tree (for use in web console)
     #######################################################
-    get_tree_parser = subcommands.add_parser('get-tree', help='Get a representation of the suffix tree')
+    get_tree_parser = subcommands.add_parser('get-tree', help='Display the suffix tree', formatter_class=CustomHelpFormatter)
     get_tree_parser.set_defaults(func=backend_get_tree)
+
+    #######################################################
+    # Run the db compaction task
+    #######################################################
+    compact_parser = subcommands.add_parser('compact-db', help='Compact the database and the replication changelog', formatter_class=CustomHelpFormatter)
+    compact_parser.set_defaults(func=backend_compact)
+    compact_parser.add_argument('--only-changelog', action='store_true', help='Compacts only the replication change log')
+    compact_parser.add_argument('--timeout', default=0, type=int,
+                                help="Set a timeout to wait for the compaction task.  Default is 0 (no timeout)")

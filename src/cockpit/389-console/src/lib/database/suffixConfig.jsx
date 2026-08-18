@@ -1,98 +1,211 @@
 import React from "react";
+import cockpit from "cockpit";
 import PropTypes from "prop-types";
 import {
-    noop,
-    Row,
-    Col,
-    ControlLabel,
+    Button,
+    Checkbox,
     Form,
-} from "patternfly-react";
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    TextInput,
+} from "@patternfly/react-core";
+import { displayBytes } from "../tools.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
+
+const _ = cockpit.gettext;
 
 export class SuffixConfig extends React.Component {
     render() {
+        const ec_size_pretty = displayBytes(this.props.cachememsize);
+        const dn_size_pretty = displayBytes(this.props.dncachememsize);
         let cacheInputs;
         if (this.props.autoTuning) {
             const cacheValue = this.props.cachesize + "  (auto-sized)";
-            const cachememValue = this.props.cachememsize + "  (auto-sized)";
-            cacheInputs =
-                <Form horizontal>
-                    <Row className="ds-margin-top" title="The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Entry Cache Size
-                        </Col>
-                        <Col sm={8}>
-                            <input disabled value={cachememValue} className="ds-input-auto" type="text" id="cachememsize" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Entry Cache Max Entries
-                        </Col>
-                        <Col sm={8}>
-                            <input disabled value={cacheValue} className="ds-input-auto" type="text" id="cachesize" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            DN Cache Size
-                        </Col>
-                        <Col sm={8}>
-                            <input onChange={this.props.handleChange} value={this.props.dncachememsize} className="ds-input-auto" type="text" id="dncachememsize" />
-                        </Col>
-                    </Row>
-                </Form>;
+            const cachememValue = displayBytes(this.props.cachememsize) + "  (auto-sized)";
+            const dnCacheValue = displayBytes(this.props.dncachememsize) + "  (auto-sized)";
+            console
+            cacheInputs = (
+                <Form isHorizontal autoComplete="off">
+                    <Grid title={_("The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration (Advanced Settings)")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Entry Cache Size")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <TextInput
+                                value={cachememValue}
+                                type="text"
+                                id="cachememsize"
+                                aria-describedby="cachememsize"
+                                name="cachememsize"
+                                isDisabled
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration (Advanced Settings)")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Entry Cache Max Entries")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <TextInput
+                                value={cacheValue}
+                                type="text"
+                                id="cachesize"
+                                aria-describedby="cachesize"
+                                name="cachesize"
+                                isDisabled
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("DN Cache Size")}
+                        </GridItem>
+                        <GridItem span={3} title={dn_size_pretty}>
+                            <TextInput
+                                value={dnCacheValue}
+                                id="dncachememsize"
+                                onChange={(e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                type="text"
+                                isDisabled
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
+            );
         } else {
-            cacheInputs =
-                <Form horizontal>
-                    <Row className="ds-margin-top" title="The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Entry Cache Size
-                        </Col>
-                        <Col sm={8}>
-                            <input onChange={this.props.handleChange} value={this.props.cachememsize} className="ds-input-auto" type="text" id="cachememsize" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Entry Cache Max Entries
-                        </Col>
-                        <Col sm={8}>
-                            <input onChange={this.props.handleChange} value={this.props.cachesize} className="ds-input-auto" type="text" id="cachesize" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="the available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            DN Cache Size
-                        </Col>
-                        <Col sm={8}>
-                            <input onChange={this.props.handleChange} value={this.props.dncachememsize} className="ds-input-auto" type="text" id="dncachememsize" />
-                        </Col>
-                    </Row>
-                </Form>;
+            cacheInputs = (
+                <Form isHorizontal autoComplete="off">
+                    <Grid title={_("The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Entry Cache Size")}
+                        </GridItem>
+                        <GridItem span={3} title={ec_size_pretty}>
+                            <DsNumberInput
+                                value={this.props.cachememsize}
+                                id="cachememsize"
+                                min={512000}
+                                max={INT32_MAX}
+                                onChange={(e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                widthChars={10}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("Entry Cache Max Entries")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <DsNumberInput
+                                value={this.props.cachesize}
+                                id="cachesize"
+                                min={-1}
+                                max={INT32_MAX}
+                                onChange={(e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                widthChars={10}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("the available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).")}>
+                        <GridItem className="ds-label" span={3}>
+                            {_("DN Cache Size")}
+                        </GridItem>
+                        <GridItem span={3} title={dn_size_pretty}>
+                            <DsNumberInput
+                                value={this.props.dncachememsize}
+                                id="dncachememsize"
+                                min={512000}
+                                max={INT32_MAX}
+                                onChange={(e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                widthChars={10}
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
+            );
+        }
+
+        let saveBtnName = _("Save Configuration");
+        const extraPrimaryProps = {};
+        if (this.props.saving) {
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("saving");
         }
         return (
-            <div className="ds-margin-top-lg">
+            <div className="ds-margin-top-lg ds-left-margin">
                 {cacheInputs}
-                <Form horizontal>
-                    <Row className="ds-margin-top-lg" title="Put database in Read-Only mode (nsslapd-readonly).">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Database Read-Only Mode
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.props.handleChange} checked={this.props.readOnly} className="ds-config-checkbox" id="readOnly" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Block unindexed searches on this suffix (nsslapd-require-index).">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Block Unindexed Searches
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.props.handleChange} checked={this.props.requireIndex} className="ds-config-checkbox" id="requireIndex" />
-                        </Col>
-                    </Row>
+                <Form isHorizontal autoComplete="off">
+                    <Grid
+                        className="ds-margin-top-lg"
+                        title={_("Set the backend type.  Warning, changing this setting could lead to unexpected database behavior.")}
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            {_("Backend State")}
+                        </GridItem>
+                        <GridItem span={3}>
+                            <FormSelect
+                                id="dbstate"
+                                value={this.props.dbstate}
+                                onChange={(e, str) => {
+                                    this.props.handleChange(e);
+                                }}
+                                aria-label="FormSelect Input"
+                            >
+                                <FormSelectOption value="backend" label={_("Backend")} />
+                                <FormSelectOption value="disabled" label={_("Disabled")} />
+                                <FormSelectOption value="referral" label={_("Referral")} />
+                                <FormSelectOption value="referral on update" label={_("Referral On Update")} />
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Put database in Read-Only mode (nsslapd-readonly).")}>
+                        <GridItem span={3}>
+                            <Checkbox
+                                label={_("Database Read-Only Mode")}
+                                id="readOnly"
+                                isChecked={this.props.readOnly}
+                                onChange={(e, checked) => {
+                                    this.props.handleChange(e);
+                                }}
+                                aria-label="send ref"
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid title={_("Block unindexed searches on this suffix (nsslapd-require-index).")}>
+                        <GridItem span={3}>
+                            <Checkbox
+                                label={_("Block Unindexed Searches")}
+                                id="requireIndex"
+                                isChecked={this.props.requireIndex}
+                                onChange={(e, checked) => {
+                                    this.props.handleChange(e);
+                                }}
+                                aria-label="requireIndex"
+                            />
+                        </GridItem>
+                    </Grid>
                 </Form>
                 <div className="ds-margin-top-lg">
-                    <button className="btn btn-primary save-button" onClick={this.props.saveHandler}>Save Configuration</button>
+                    <Button
+                        className="ds-margin-top-lg"
+                        onClick={this.props.handleSave}
+                        variant="primary"
+                        isLoading={this.props.saving}
+                        spinnerAriaValueText={this.props.saving ? _("Saving") : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.props.saveBtnDisabled || this.props.saving}
+                    >
+                        {saveBtnName}
+                    </Button>
                 </div>
             </div>
         );
@@ -119,6 +232,4 @@ SuffixConfig.defaultProps = {
     readOnly: false,
     requireIndex: false,
     autoTuning: false,
-    handleChange: noop,
-    saveHandler: noop,
 };

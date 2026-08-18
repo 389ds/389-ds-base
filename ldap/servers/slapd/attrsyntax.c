@@ -226,6 +226,8 @@ attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, PRUint32 schema_f
         return;
 
     if (schema_flags & DSE_SCHEMA_LOCKED) {
+        if (0 != attr_syntax_init_tmp())
+            return;
         PL_HashTableAdd(oid2asi_tmp, oid, a);
     } else {
         if (lock) {
@@ -379,19 +381,21 @@ attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
         }
 
         if (delete_it) {
-            if (asi->asi_marked_for_delete) { /* one final check */
-                if (use_lock) {
-                    AS_UNLOCK_READ(name2asi_lock);
-                    AS_LOCK_WRITE(name2asi_lock);
-                }
+            if (use_lock) {
+                AS_UNLOCK_READ(name2asi_lock);
+                AS_LOCK_WRITE(name2asi_lock);
+            }
+            if (slapi_atomic_load_64(&asi->asi_refcnt, __ATOMIC_ACQUIRE) == 0 &&
+                asi->asi_marked_for_delete) /* one final check */
+            {
                 /* ref count is 0 and it's flagged for
                  * deletion, so it's safe to free now */
                 attr_syntax_remove(asi);
                 attr_syntax_free(asi);
-                if (use_lock) {
-                    AS_UNLOCK_WRITE(name2asi_lock);
-                    locked = 0;
-                }
+            }
+            if (use_lock) {
+                AS_UNLOCK_WRITE(name2asi_lock);
+                locked = 0;
             }
         }
     }
@@ -416,6 +420,8 @@ attr_syntax_add_by_name(struct asyntaxinfo *a, PRUint32 schema_flags, int lock)
         return;
 
     if (schema_flags & DSE_SCHEMA_LOCKED) {
+        if (0 != attr_syntax_init_tmp())
+            return;
         /* insert the attr into the temp global linked list */
         attr_syntax_insert_tmp(a);
 
@@ -579,7 +585,7 @@ attr_syntax_exists(const char *attr_name)
 {
     struct asyntaxinfo *asi;
     char *check_attr_name = NULL;
-    char *p = NULL;
+    const char *p = NULL;
     int free_attr = 0;
 
     /* Ignore any attribute subtypes. */
@@ -608,10 +614,11 @@ attr_syntax_exists(const char *attr_name)
 
 static void default_dirstring_normalize_int(char *s, int trim_spaces);
 
-static int
-default_dirstring_filter_ava(struct berval *bvfilter __attribute__((unused)),
-                             Slapi_Value **bvals __attribute__((unused)),
-                             int ftype __attribute__((unused)),
+static int32_t
+default_dirstring_filter_ava(Slapi_PBlock *pb __attribute__((unused)),
+                             const struct berval *bv __attribute__((unused)),
+                             Slapi_Value **vals __attribute__((unused)),
+                             int32_t ftype __attribute__((unused)),
                              Slapi_Value **retVal __attribute__((unused)))
 {
     return (0);
@@ -621,7 +628,7 @@ static int
 default_dirstring_values2keys(Slapi_PBlock *pb __attribute__((unused)),
                               Slapi_Value **bvals,
                               Slapi_Value ***ivals,
-                              int ftype)
+                              int32_t ftype)
 {
     int numbvals = 0;
     Slapi_Value **nbvals, **nbvlp;
@@ -664,11 +671,11 @@ default_dirstring_values2keys(Slapi_PBlock *pb __attribute__((unused)),
     return (0);
 }
 
-static int
+static int32_t
 default_dirstring_assertion2keys_ava(Slapi_PBlock *pb __attribute__((unused)),
                                      Slapi_Value *val __attribute__((unused)),
                                      Slapi_Value ***ivals __attribute__((unused)),
-                                     int ftype __attribute__((unused)))
+                                     int32_t ftype __attribute__((unused)))
 {
     return (0);
 }
@@ -759,11 +766,11 @@ attr_syntax_default_plugin(const char *nameoroid)
     pi->plg_syntax_oid = slapi_ch_strdup(nameoroid);
 
 
-    pi->plg_syntax_filter_ava = (IFP)default_dirstring_filter_ava;
-    pi->plg_syntax_values2keys = (IFP)default_dirstring_values2keys;
-    pi->plg_syntax_assertion2keys_ava = (IFP)default_dirstring_assertion2keys_ava;
+    pi->plg_syntax_filter_ava = default_dirstring_filter_ava;
+    pi->plg_syntax_values2keys = default_dirstring_values2keys;
+    pi->plg_syntax_assertion2keys_ava = default_dirstring_assertion2keys_ava;
     pi->plg_syntax_compare = (IFP)default_dirstring_cmp;
-    pi->plg_syntax_normalize = (VFPV)default_dirstring_normalize;
+    pi->plg_syntax_normalize = default_dirstring_normalize;
 
     return (pi);
 }
@@ -1196,6 +1203,9 @@ slapi_attr_is_dn_syntax_type(char *type)
             dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID)) || (0 == strcmp(syntaxoid, DN_SYNTAX_OID)));
         }
     }
+    if (asi) {
+        attr_syntax_return(asi);
+    }
     return dn_syntax;
 }
 
@@ -1464,13 +1474,6 @@ attr_syntax_init(void)
         }
     }
 
-    if (!oid2asi_tmp) {
-        /* temporary hash table for schema reload */
-        oid2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
-                                      hashNocaseCompare,
-                                      PL_CompareValues, 0, 0);
-    }
-
     if (!name2asi) {
         name2asi = PL_NewHashTable(2047, hashNocaseString,
                                    hashNocaseCompare,
@@ -1491,14 +1494,78 @@ attr_syntax_init(void)
                                    DIRSTRING_SYNTAX_OID,
                                    SLAPI_ATTR_FLAG_NOUSERMOD | SLAPI_ATTR_FLAG_NOEXPOSE);
     }
-    if (!name2asi_tmp) {
-        /* temporary hash table for schema reload */
+
+    return 0;
+}
+
+/*
+ * Create the temporary hash tables used only during schema reload.
+ * These must not be created from attr_syntax_init(): after a reload the
+ * tmp pointers are swapped into place and set to NULL, and recreating them
+ * on every attr_syntax_read_lock() would leak hash tables.
+ */
+int
+attr_syntax_init_tmp(void)
+{
+    int rc = 0;
+
+    if (0 != attr_syntax_init()) {
+        return 1;
+    }
+
+    if (!oid2asi_tmp) {
+        oid2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
+                                      hashNocaseCompare,
+                                      PL_CompareValues, 0, 0);
+        if (!oid2asi_tmp) {
+            slapi_log_err(SLAPI_LOG_ERR, "attr_syntax_init_tmp",
+                          "Failed to create oid2asi_tmp hash table\n");
+            rc = 1;
+        }
+    }
+
+    if (!name2asi_tmp && rc == 0) {
         name2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
                                        hashNocaseCompare,
                                        PL_CompareValues, 0, 0);
+        if (!name2asi_tmp) {
+            slapi_log_err(SLAPI_LOG_ERR, "attr_syntax_init_tmp",
+                          "Failed to create name2asi_tmp hash table\n");
+            rc = 1;
+        }
     }
 
-    return 0;
+    if (rc) {
+        /* destroy everything on failure */
+        attr_syntax_destroy_tmp();
+    }
+
+    return rc;
+}
+
+/*
+ * Discard a failed or abandoned schema reload build in the tmp tables.
+ */
+void
+attr_syntax_destroy_tmp(void)
+{
+    struct asyntaxinfo *asi;
+    struct asyntaxinfo *next;
+
+    for (asi = global_at_tmp; asi != NULL; asi = next) {
+        next = asi->asi_next;
+        attr_syntax_free(asi);
+    }
+    global_at_tmp = NULL;
+
+    if (oid2asi_tmp) {
+        PL_HashTableDestroy(oid2asi_tmp);
+        oid2asi_tmp = NULL;
+    }
+    if (name2asi_tmp) {
+        PL_HashTableDestroy(name2asi_tmp);
+        name2asi_tmp = NULL;
+    }
 }
 
 int
@@ -1647,7 +1714,10 @@ attr_syntax_swap_ht()
     /* Free the global attr linked list */
     while (global_at) {
         next = global_at->asi_next;
-        attr_syntax_free(global_at);
+        global_at->asi_marked_for_delete = 1;
+        if (slapi_atomic_load_64(&global_at->asi_refcnt, __ATOMIC_ACQUIRE) == 0) {
+            attr_syntax_free(global_at);
+        }
         global_at = next;
     }
 

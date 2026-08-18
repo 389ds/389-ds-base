@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -112,7 +112,7 @@ bdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int 
         return LDAP_SUCCESS;
     } else {
         return bdb_config_set((void *)inst, config->config_name, bdb_instance_config, value, NULL, phase, mod_apply, mod_op);
-    } 
+    }
 }
 
 
@@ -253,7 +253,7 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
     bdb_db_env *inst_env = (bdb_db_env *)inst->inst_db;
     DB_ENV *env = 0;
     return_value |= ((bdb_db_env *)inst->inst_db)->bdb_DB_ENV->close(((bdb_db_env *)inst->inst_db)->bdb_DB_ENV, 0);
-    return_value = db_env_create(&env, 0);
+    return_value |= db_env_create(&env, 0);
     if (return_value == 0) {
         char inst_dir[MAXPATHLEN];
         char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
@@ -261,6 +261,7 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
         if (inst_dirp && *inst_dir) {
             return_value = env->remove(env, inst_dirp, 0);
         } else {
+            slapi_ch_free((void **)&env);
             return_value = -1;
         }
         if (return_value == EBUSY) {
@@ -270,12 +271,10 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
             slapi_ch_free_string(&inst_dirp);
     }
     slapi_destroy_rwlock(inst_env->bdb_env_lock);
-    PR_DestroyCondVar(inst_env->bdb_thread_count_cv);
-    inst_env->bdb_thread_count_cv = NULL;
-    PR_DestroyLock(inst_env->bdb_thread_count_lock);
-    inst_env->bdb_thread_count_lock = NULL;
+    pthread_mutex_destroy(&(inst_env->bdb_thread_count_lock));
+    pthread_cond_destroy(&(inst_env->bdb_thread_count_cv));
     slapi_ch_free((void **)&inst->inst_db);
-    /* 
+    /*
     slapi_destroy_rwlock(((bdb_db_env *)inst->inst_db)->bdb_env_lock);
     slapi_ch_free((void **)&inst->inst_db);
     */

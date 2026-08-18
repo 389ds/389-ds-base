@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,14 +10,298 @@ import time
 import os
 import pytest
 import ldap
-from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
-from lib389.index import Indexes
-from lib389.backend import Backends
-from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_st as topo
+import logging
+import glob
+import re
+from lib389.backend import Backend, Backends, DatabaseConfig
+from lib389.cli_ctl.dblib import DbscanHelper
+from lib389.config import LDBMConfig
+from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, PW_DM, SER_ROOT_DN, SER_ROOT_PW
+from lib389.cos import CosClassicDefinition, CosTemplate
+from lib389.dbgen import dbgen_users
+from lib389.dirsrv_log import DirsrvErrorLog
+from lib389.idm.domain import Domain
+from lib389.idm.group import Groups
+from lib389.idm.nscontainer import nsContainer
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.index import Index
+from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389.plugins import MemberOfPlugin
+from lib389.properties import TASK_WAIT
+from lib389.tasks import Tasks, Task
+from test389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
+
+SUFFIX2 = 'dc=example2,dc=com'
+BENAME2 = 'be2'
+CN_INDEX_DN = f'cn=cn,cn=index,cn={DEFAULT_BENAME},cn=ldbm database,cn=plugins,cn=config'
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="function")
+def add_backend_and_ldif_50K_users(request, topo):
+    """
+    Add an empty backend and associated 50K users ldif file
+    """
+
+    tasks = Tasks(topo.standalone)
+    import_ldif = f'{topo.standalone.ldifdir}/be2_50K_users.ldif'
+    be2 = Backend(topo.standalone)
+    be2.create(properties={
+            'cn': BENAME2,
+            'nsslapd-suffix': SUFFIX2,
+        },
+    )
+
+    def fin():
+        nonlocal be2
+        if not DEBUGGING:
+            be2.delete()
+
+    request.addfinalizer(fin)
+    parent = f'ou=people,{SUFFIX2}'
+    dbgen_users(topo.standalone, 50000, import_ldif, SUFFIX2, generic=True, parent=parent)
+    assert tasks.importLDIF(
+        suffix=SUFFIX2,
+        input_file=import_ldif,
+        args={TASK_WAIT: True}
+    ) == 0
+
+    return import_ldif
+
+
+@pytest.fixture(scope="function")
+def add_a_group_with_users(request, topo):
+    """
+    Add a group and users, which are members of this group.
+    """
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={'cn': 'test_group'})
+    users_list = []
+    users_num = 100
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn=None)
+    for num in range(users_num):
+        USER_NAME = f'test_{num}'
+        user = users.create(properties={
+            'uid': USER_NAME,
+            'sn': USER_NAME,
+            'cn': USER_NAME,
+            'uidNumber': f'{num}',
+            'gidNumber': f'{num}',
+            'description': f'Description for {USER_NAME}',
+            'homeDirectory': f'/home/{USER_NAME}'
+        })
+        users_list.append(user)
+        group.add_member(user.dn)
+
+    def fin():
+        """
+        Removes group and users.
+        """
+        # If the server crashed, start it again to do the cleanup
+        if not topo.standalone.status():
+            topo.standalone.start()
+        if not DEBUGGING:
+            for user in users_list:
+                user.delete()
+            group.delete()
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def set_small_idlistscanlimit(request, topo):
+    """
+    Set nsslapd-idlistscanlimit to a smaller value to accelerate the reproducer
+    """
+    db_cfg = DatabaseConfig(topo.standalone)
+    old_idlistscanlimit = db_cfg.get_attr_vals_utf8('nsslapd-idlistscanlimit')
+    db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+    topo.standalone.restart()
+
+    def fin():
+        """
+        Set nsslapd-idlistscanlimit back to the default value
+        """
+        # If the server crashed, start it again to do the cleanup
+        if not topo.standalone.status():
+            topo.standalone.start()
+        db_cfg.set([('nsslapd-idlistscanlimit', old_idlistscanlimit)])
+        topo.standalone.restart()
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def set_description_index(request, topo, add_a_group_with_users):
+    """
+    Set some description values and description index without reindexing.
+    """
+    inst = topo.standalone
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    attr = 'description'
+
+    def fin(always=False):
+        if always or not DEBUGGING:
+            try:
+                idx = indexes.get(attr)
+                idx.delete()
+            except ldap.NO_SUCH_OBJECT:
+                pass
+
+    request.addfinalizer(fin)
+    fin(always=True)
+    index = indexes.create(properties={
+        'cn': attr,
+        'nsSystemIndex': 'false',
+        'nsIndexType': ['eq', 'pres', 'sub']
+        })
+    # Restart needed with lmdb (to open the dbi handle)
+    inst.restart()
+    return (indexes, attr)
+
+
+@pytest.fixture(scope="function")
+def homeDirectory_index_cleanup(request, topo):
+    """
+    Ensure homeDirectory index is not present at start and end of test
+    """
+    inst = topo.standalone
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+
+    try:
+        idx = indexes.get('homeDirectory')
+        idx.delete()
+    except ldap.NO_SUCH_OBJECT:
+        pass
+
+    def cleanup():
+        try:
+            idx = indexes.get('homeDirectory')
+            idx.delete()
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+    request.addfinalizer(cleanup)
+
+
+def check_dbi(dbsh, attr_name, expected = True, lowercase=False):
+    dbsh.resync()
+    # mdb dbi names are always lowercase while bdb names are case sensitive
+    if dbsh.dblib == 'mdb':
+        lowercase=True
+    try:
+        dbi = dbsh.get_dbi(attr_name)
+    except KeyError:
+        dbi = None
+    log.info(f'Found dbi {dbi} for attribute {attr_name}. (expected={expected})')
+    if expected:
+        assert dbi is not None
+        if lowercase:
+            assert attr_name.lower() in dbi
+            assert attr_name not in dbi
+        else:
+            assert attr_name.lower() not in dbi
+            assert attr_name in dbi
+    else:
+        assert dbi is None
+
+
+class PersonPosix(DSLdapObject):
+    def __init__(self, instance, dn=None): 
+        super(PersonPosix, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = [ 'uid', 'cn', 'sn', 'uidNumber', 'gidNumber', 'homeDirectory' ]
+        self._create_objectclasses = ['person', 'posixAccount', 'top']
+        self._protected = False
+
+    def bind(self, password=None, *args, **kwargs):
+        inst_clone = self._instance.clone({SER_ROOT_DN: self.dn, SER_ROOT_PW: password})
+        inst_clone.open(*args, **kwargs)
+        return inst_clone
+
+
+class PersonPosixs(DSLdapObjects):
+    def __init__(self, instance, basedn):
+        super(PersonPosixs, self).__init__(instance)
+        self._objectclasses = ['person', 'posixAccount', 'top']
+        self._filterattrs = None
+        self._childobject = PersonPosix
+        self._basedn = basedn
+
+
+class PersonOrg(DSLdapObject):
+    def __init__(self, instance, dn=None): 
+        super(PersonOrg, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = [ 'cn', 'sn' ]
+        self._create_objectclasses = ['person', 'nsOrgPerson', 'top']
+        self._protected = False
+
+
+class PersonOrgs(DSLdapObjects):
+    def __init__(self, instance, basedn):
+        super(PersonOrgs, self).__init__(instance)
+        self._objectclasses = ['person', 'nsOrgPerson', 'top']
+        self._filterattrs = None
+        self._childobject = PersonOrg
+        self._basedn = basedn
+
+
+@pytest.fixture(scope="function")
+def add_some_entries(topo, request):
+    inst = topo.standalone
+    added_entries = []
+    e1 = PersonPosixs(inst, DEFAULT_SUFFIX)
+    e2 = PersonOrgs(inst, DEFAULT_SUFFIX)
+    # It is easier to add aci to all entries than to modify the suffix aci then revert it later
+    aci='(targetattr="*")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+
+    for idx in range(100):
+        p1 = {
+                'cn': f'p1_{idx}',
+                'sn': 'foo',
+                'uid': f'uid1_{idx}',
+                'uidNumber': str(1000+idx),
+                'gidNumber': str(1000+idx),
+                'homeDirectory': f'/home/uid1_{idx}',
+                'userPassword': PW_DM,
+                'aci': aci,
+             }
+        p2 = {
+                'cn': f'p2_{idx}',
+                'sn': f'sn2_{idx}',
+                'aci': aci,
+             }
+        added_entries.append(e1.create(properties=p1))
+        added_entries.append(e2.create(properties=p2))
+    for idx in range(3):
+        p3 = {
+                'cn': f'p3_{idx}',
+                'sn': 'foo',
+                'uid': f'uid3_{idx}',
+                'aci': aci,
+             }
+        added_entries.append(e2.create(properties=p3))
+
+    # Prepare finalizer
+    def fin():
+        for e in added_entries:
+            e.delete()
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    return added_entries
 
 
 @pytest.mark.skipif(ds_is_older("1.4.4.4"), reason="Not implemented")
@@ -27,6 +311,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
     the case of for example 1 letter, results in abandoned indexfile
 
     :id: 07ae5274-481a-4fa8-8074-e0de50d89ac6
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
         1. Create a user object with additional attributes:
@@ -92,9 +377,10 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    dbsh = DbscanHelper(inst)
+    check_dbi(dbsh, attr_name,lowercase=True)
     index.delete()
-    assert not os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    check_dbi(dbsh, attr_name, expected=False)
 
     index = indexes.create(properties={
         'cn': attr_name,
@@ -104,8 +390,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert not os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
-    assert os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name}.db")
+    check_dbi(dbsh, attr_name)
 
     entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f"{attr_name}={attr_value}")
     assert len(entries) > 0
@@ -115,8 +400,1002 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert not os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
-    assert os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name}.db")
+    check_dbi(dbsh, attr_name)
+
+
+def test_unindexed_internal_search_crashes_server(topo, add_a_group_with_users, set_small_idlistscanlimit):
+    """
+    An internal unindexed search was able to crash the server due to missing logging function.
+
+    :id: 2d0e4070-96d6-46e5-b2c8-9495925e3e87
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1. Add a group with users
+        2. Change nsslapd-idlistscanlimit to a smaller value to accelerate the reproducer
+        3. Enable memberOf plugin
+        4. Restart the instance
+        5. Run memberOf fixup task
+        6. Wait for the task to complete
+    :expectedresults:
+        1. Should succeed
+        2. Should succeed
+        3. Should succeed
+        4. Should succeed
+        5. Should succeed
+        6. Server should not crash
+    """
+    inst = topo.standalone
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+    inst.restart()
+    task = memberof.fixup(DEFAULT_SUFFIX)
+    task.wait()
+    assert inst.status()
+
+
+def test_reject_virtual_attr_for_indexing(topo):
+    """Reject trying to add an index for a virtual attribute (nsrole and COS)
+
+    :id: 0fffa7a8-aaec-44d6-bdbc-93cf4b197b56
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1. Create COS
+        2. Adding index for nsRole is rejected
+        3. Adding index for COS attribute is rejected
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    # Create COS:  add container, create template, and definition
+    nsContainer(topo.standalone, f'cn=cosClassicTemplates,{DEFAULT_SUFFIX}').create(properties={'cn': 'cosClassicTemplates'})
+    properties = {'employeeType': 'EngType',
+                  'cn': '"cn=filterRoleEngRole,dc=example,dc=com",cn=cosClassicTemplates,dc=example,dc=com'
+                  }
+    CosTemplate(topo.standalone,
+                'cn="cn=filterRoleEngRole,dc=example,dc=com",cn=cosClassicTemplates,{}'.format(
+                    DEFAULT_SUFFIX)) \
+        .create(properties=properties)
+    properties = {'cosTemplateDn': 'cn=cosClassicTemplate,{}'.format(DEFAULT_SUFFIX),
+                  'cosAttribute': 'employeeType',
+                  'cosSpecifier': 'nsrole',
+                  'cn': 'cosClassicGenerateEmployeeTypeUsingnsrole'}
+    CosClassicDefinition(topo.standalone, 'cn=cosClassicGenerateEmployeeTypeUsingnsrole,{}'.format(DEFAULT_SUFFIX)) \
+        .create(properties=properties)
+
+    # Test nsrole and cos attribute
+    be_insts = Backends(topo.standalone).list()
+    for be in be_insts:
+        if be.get_attr_val_utf8_l('nsslapd-suffix') == DEFAULT_SUFFIX:
+            # Attempt to add nsRole as index
+            with pytest.raises(ValueError):
+                be.add_index('nsrole', ['eq'])
+            # Attempt to add COS attribute as index
+            with pytest.raises(ValueError):
+                be.add_index('employeeType', ['eq'])
+            break
+
+
+def test_reject_ns_index_type_comma_packed_value(topo):
+    """Reject nsIndexType given as one comma-packed value
+
+    Types must be separate attribute values (e.g. ``eq`` and ``pres``), not ``eq,pres``.
+
+    :id: 92295258-d0f4-41d0-8a38-675e2e5ee450
+    :setup: Standalone instance
+    :steps:
+        1. MOD_ADD nsIndexType ``eq,pres`` on the ``cn`` index entry
+    :expectedresults:
+        1. ldap.UNWILLING_TO_PERFORM
+    """
+    cn_index = Index(topo.standalone, CN_INDEX_DN)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        cn_index.set('nsIndexType', 'eq,pres', action=ldap.MOD_ADD)
+
+
+def test_task_status(topo):
+    """Check that finished tasks have both a status and exit code
+
+    :id: 56d03656-79a6-11ee-bfc3-482ae39447e5
+    :setup: Standalone instance
+    :steps:
+        1. Start a Reindex task on 'cn' and wait until it is completed
+        2. Check that task has a status
+        3. Check that exit code is 0
+        4. Start a Reindex task on 'badattr' and wait until it is completed
+        5. Check that task has a status
+        6. Check that exit code is 0
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    tasks = Tasks(topo.standalone)
+    # completed reindex tasks MUST have a status because freeipa check it.
+
+    # Reindex 'cn'
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='cn',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    assert reindex_task.get_exit_code() == 0
+
+    # Reindex 'badattr'
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='badattr',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    # Bad attribute are skipped without setting error code
+    assert reindex_task.get_exit_code() == 0
+
+
+def test_reindex_entrydn_only_is_noop(topo):
+    """Reindex of obsolete entrydn alone must not rebuild all indexes.
+
+    When entryrdn is in use, leftover entrydn index config is ignored. A
+    reindex task for only entrydn must warn, finish successfully, and not
+    fall through to a full attribute rebuild.
+
+    :id: e3bbda7a-82f0-409f-a926-d86835c56aaa
+    :setup: Standalone instance
+    :steps:
+        1. Add obsolete entrydn index configuration
+        2. Clear the error log and restart
+        3. Run an online reindex task for entrydn only
+        4. Check task exit code and log messages
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Task completes with exit code 0
+        4. Log shows entrydn is no longer applicable / no applicable
+           indexes; no "Indexing attribute: cn" (full rebuild)
+    """
+    inst = topo.standalone
+    backend = Backends(inst).get(DEFAULT_BENAME)
+
+    log.info("Add obsolete entrydn index configuration")
+    backend.add_index("entrydn", ["eq"])
+    inst.restart()
+
+    log.info("Clear error log so assertions are limited to this reindex")
+    inst.deleteErrorLogs(restart=True)
+
+    log.info("Reindex entrydn only")
+    tasks = Tasks(inst)
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='entrydn',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(inst, tasks.dn)
+    assert reindex_task.get_exit_code() == 0
+    task_log = reindex_task.get_task_log() or ""
+    assert "no longer applicable" in task_log.lower() or \
+           "no applicable indexes" in task_log.lower(), \
+           f"Unexpected task log: {task_log}"
+
+    errlog = DirsrvErrorLog(inst)
+    assert errlog.match(".*no longer applicable") or errlog.match(".*No applicable indexes")
+    assert not errlog.match(".*Indexing attribute: cn"), \
+        "entrydn-only reindex must not fall through to a full index rebuild"
+
+    log.info("Remove obsolete entrydn index configuration")
+    Index(inst, f"cn=entrydn,cn=index,cn={DEFAULT_BENAME},cn=ldbm database,cn=plugins,cn=config").delete()
+    inst.restart()
+
+
+def count_keys(inst, bename, attr, prefix=''):
+    indexfile = os.path.join(inst.dbdir, bename, attr + '.db')
+    # (bdb - we should also accept a version number for .db suffix)
+    for f in glob.glob(f'{indexfile}*'):
+        indexfile = f
+
+    inst.stop()
+    output = inst.dbscan(None, None, args=['-f', indexfile, '-A'], stopping=False).decode()
+    inst.start()
+    count = 0
+    regexp = f'^KEY: {re.escape(prefix)}'
+    for match in re.finditer(regexp, output, flags=re.MULTILINE):
+        count += 1
+    log.info(f"count_keys found {count} keys starting with '{prefix}' in {indexfile}")
+    return count
+
+
+def test_reindex_task_with_type(topo, set_description_index):
+    """Check that reindex task works as expected when index type is specified.
+
+    :id: 0c7f2fda-69f6-11ef-9eb8-083a88554478
+    :setup: Standalone instance
+             - with 100 users having description attribute
+             - with description:eq,pres,sub index entry but not yet reindexed
+    :steps:
+        1. Set description in suffix entry
+        2. Count number of equality keys in description index
+        3. Start a Reindex task on description:eq,pres and wait for completion
+        4. Check the task status and exit code
+        5. Count the equality, presence and substring keys in description index
+        6. Start a Reindex task on description and wait for completion
+        7. Check the task status and exit code
+        8. Count the equality, presence and substring keys in description index
+
+    :expectedresults:
+        1. Success
+        2. Should be either no key (bdb) or a single one (lmdb)
+        3. Success
+        4. Success
+        5. Should have: more equality keys than in step 2
+                        one presence key
+                        some substrings keys
+        6. Success
+        7. Success
+        8. Should have same counts than in step 5
+    """
+    (indexes, attr) = set_description_index
+    inst = topo.standalone
+    if not inst.is_dbi_supported():
+        pytest.skip('This test requires that dbscan supports -A option')
+    # modify indexed value
+    Domain(inst, DEFAULT_SUFFIX).replace(attr, f'test_before_reindex')
+
+    keys1 = count_keys(inst, DEFAULT_BENAME, attr, prefix='=')
+    assert keys1 <= 1
+
+    tasks = Tasks(topo.standalone)
+    # completed reindex tasks MUST have a status because freeipa check it.
+
+    # Reindex attr with eq,pres types
+    log.info(f'Reindex {attr} with eq,pres types')
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=f'{attr}:eq,pres',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    assert reindex_task.get_exit_code() == 0
+
+    keys2e = count_keys(inst, DEFAULT_BENAME, attr, prefix='=')
+    keys2p = count_keys(inst, DEFAULT_BENAME, attr, prefix='+')
+    keys2s = count_keys(inst, DEFAULT_BENAME, attr, prefix='*')
+    assert keys2e > keys1
+    assert keys2p > 0
+    assert keys2s > 0
+
+    # Reindex attr without types
+    log.info(f'Reindex {attr} without types')
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=attr,
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    assert reindex_task.get_exit_code() == 0
+
+    keys3e = count_keys(inst, DEFAULT_BENAME, attr, prefix='=')
+    keys3p = count_keys(inst, DEFAULT_BENAME, attr, prefix='+')
+    keys3s = count_keys(inst, DEFAULT_BENAME, attr, prefix='*')
+    assert keys3e == keys2e
+    assert keys3p == keys2p
+    assert keys3s == keys2s
+
+
+def test_task_and_be(topo, add_backend_and_ldif_50K_users):
+    """Check that backend is writable after finishing a tasks
+
+    :id: 047869da-7a4d-11ee-895c-482ae39447e5
+    :setup: Standalone instance + a second backend with 50K users
+    :steps:
+        1. Start an Import task and wait until it is completed
+        2. Modify the suffix entry description
+        3. Start a Reindex task on all attributes and wait until it is completed
+        4. Modify the suffix entry description
+        5. Start an Export task and wait until it is completed
+        6. Modify the suffix entry description
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    tasks = Tasks(topo.standalone)
+    user = UserAccount(topo.standalone, f'uid=user00001,ou=people,{SUFFIX2}')
+    ldif_file = add_backend_and_ldif_50K_users
+
+    # Import
+    tasks.importLDIF(
+        suffix=SUFFIX2,
+        input_file=ldif_file,
+        args={TASK_WAIT: True}
+    ) == 0
+    descval = 'test_task_and_be tc1'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
+
+    # Reindex some attributes
+    assert tasks.reindex(
+        suffix=SUFFIX2,
+        attrname=[ 'description', 'rdn', 'uid', 'cn', 'sn', 'badattr' ],
+        args={TASK_WAIT: True}
+    ) == 0
+    descval = 'test_task_and_be tc2'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
+    users = UserAccounts(topo.standalone, SUFFIX2, rdn=None)
+    user = users.create(properties={
+        'uid': 'user1',
+        'sn': 'user1',
+        'cn': 'user1',
+        'uidNumber': '1001',
+        'gidNumber': '1001',
+        'homeDirectory': '/home/user1'
+    })
+
+    # Export
+    assert tasks.exportLDIF(
+        suffix=SUFFIX2,
+        output_file=f'{ldif_file}2',
+        args={TASK_WAIT: True}
+    ) == 0
+    descval = 'test_task_and_be tc3'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
+
+
+def test_reindex_extended_matching_rule(topo, add_backend_and_ldif_50K_users):
+    """Check that index with extended matching rule are reindexed properly.
+
+    :id: 8a3198e8-cc5a-11ef-a3e7-482ae39447e5
+    :setup: Standalone instance + a second backend with 50K users
+    :steps:
+        1. Configure uid with 2.5.13.2 matching rule
+        1. Configure cn with 2.5.13.2 matching rule
+        2. Reindex
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topo.standalone
+    tasks = Tasks(inst)
+    be2 = Backends(topo.standalone).get_backend(SUFFIX2)
+    index = be2.get_index('uid')
+    index.replace('nsMatchingRule', '2.5.13.2')
+    index = be2.get_index('cn')
+    index.replace('nsMatchingRule', '2.5.13.2')
+
+    assert tasks.reindex(
+        suffix=SUFFIX2,
+        args={TASK_WAIT: True}
+    ) == 0
+
+
+def test_update_eq_index_after_deleting_and_readding_attribute_in_one_step(topo):
+    """ Test that 'eq' index is properly updated
+    when deleting and re-adding an attribute in one step
+
+    :id: d306b511-01bd-4400-96fa-9838a310f086
+    :setup: Standalone instance
+    :steps:
+        1. Create a user with a 3 valued attribute (mail)
+        2. Modify the user in one step: delete two mail attribute values and re-add one of the values back
+        3. Search for an entry using deleted value as filter
+        4. Search for an entry using the re-added value as filter
+        5. Delete all mail attribute values
+        6. Search for an entry using the re-added value as filter
+        7. Search for an entry using 'mail=*' as a filter
+        8. Re-add two values for mail attribute in order to test with different amount of original values
+        9. Rerun modification in step 2
+        10. Search for an entry using deleted value as filter
+        11. Search for an entry using the re-added value as filter
+    :expectedresults:
+        1. Success
+        2. Success
+        3. No entry found
+        4. Original user found
+        5. Success
+        6. No entry found
+        7. No entry found
+        8. Success
+        9. Success
+        10. No entry found
+        11. Original user found
+    """
+
+    rdn = 'user0099'
+    name = 'Test User'
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': rdn,
+        'sn': rdn,
+        'cn': rdn,
+        'uidNumber': '10099',
+        'gidNumber': '10099',
+        'givenname': name,
+        'gecos': name,
+        'description': name,
+        'homeDirectory': '/home/{}'.format(rdn),
+        'mail': ['{}@dev.null'.format(rdn),
+                 'alias@dev.null',
+                 '{}@redhat.com'.format(rdn)]
+        })
+
+    #
+    # Remove mail values and re-add one of them in the same step
+    #
+    try:
+        user.apply_mods([(ldap.MOD_DELETE, 'mail', b'user0099@dev.null'),
+                         (ldap.MOD_DELETE, 'mail', b'alias@dev.null'),
+                         (ldap.MOD_ADD, 'mail', b'user0099@dev.null')])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to modify user: {}'.format(e))
+        assert False
+
+    #
+    # Search using deleted attribute value - no entries should be returned
+    #
+    try:
+        entry = user.search(filter='mail=alias@dev.null')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Search using existing attribute value - the entry should be returned
+    #
+    try:
+        entry = user.search(filter='mail=user0099@dev.null')
+        if not entry:
+            log.fatal('Entry not found, but it should have been')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Delete the last values
+    #
+    try:
+        user.remove_all('mail')
+    except ldap.LDAPError as e:
+        log.fatal('Failed to modify user: {}'.format(e))
+        assert False
+
+    #
+    # Search using deleted attribute value - no entries should be returned
+    #
+    try:
+        entry = user.search(filter='mail=user0099@redhat.com')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Make sure presence index is correctly updated - no entries should be
+    # returned
+    #
+    try:
+        entry = user.search(filter='mail=*')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Now add the attributes back, and lets run a set of tests with
+    # a different number of attributes
+    #
+    try:
+        user.add('mail', [b'user0099@dev.null', b'alias@dev.null'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to modify user: {}'.format(e))
+        assert False
+
+    #
+    # Remove and re-add some attributes
+    #
+    try:
+        user.apply_mods([(ldap.MOD_DELETE, 'mail', b'alias@dev.null'),
+                         (ldap.MOD_DELETE, 'mail', b'user0099@dev.null'),
+                         (ldap.MOD_ADD, 'mail', b'user0099@dev.null')])
+    except ldap.LDAPError as e:
+        log.fatal('Failedto modify user: {}'.format(e))
+        assert False
+
+    #
+    # Search using deleted attribute value - no entries should be returned
+    #
+    try:
+        entry = user.search(filter='mail=alias@dev.null')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Search using existing attribute value - the entry should be returned
+    #
+    try:
+        entry = user.search(filter='mail=user0099@dev.null')
+        if not entry:
+            log.fatal('Entry not found, but it should have been')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+
+def test_concurrent_modifications_during_indexing(topo, homeDirectory_index_cleanup):
+    """Test that concurrent modifications are rejected during index rebuilding
+
+    :id: 1df16d5a-1b92-46b7-8435-876b87545748
+    :setup: Standalone Instance
+    :steps:
+        1. Create homeDirectory index with substring matching
+        2. Create 100 users with large homeDirectory values to slow down indexing
+        3. Start an indexing task WITHOUT waiting for its completion
+        4. Monitor task status and verify modifications are rejected with UNWILLING_TO_PERFORM
+        5. Verify modifications work once indexing is complete
+    :expectedresults:
+        1. Index configuration succeeds
+        2. Users are successfully created
+        3. Indexing task starts
+        4. Modifications return UNWILLING_TO_PERFORM while indexing is in progress
+        5. Modifications succeed once indexing is complete
+    """
+
+    inst = topo.standalone
+
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+
+    log.info("Creating homeDirectory index")
+    index = indexes.create(properties={
+        'cn': 'homeDirectory',
+        'nsSystemIndex': 'false',
+        'nsMatchingRule': ['caseIgnoreIA5Match', 'caseExactIA5Match'],
+        'nsIndexType': ['eq', 'sub', 'pres']
+    })
+
+    inst.restart()
+
+    log.info("Creating 100 users with large homeDirectory values")
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    test_users = []
+    home_value = 'x' * (32 * 1024)
+
+    for i in range(100):
+        user_name = f'testuser{i}'
+        user = users.create(properties={
+            'uid': user_name,
+            'cn': user_name,
+            'sn': f'_{user_name}',
+            'uidNumber': str(1000 + i),
+            'gidNumber': str(2000 + i),
+            'homeDirectory': home_value
+        })
+        test_users.append(user)
+
+    log.info("Starting indexing task without waiting for completion")
+    tasks = Tasks(inst)
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='homeDirectory',
+        args={TASK_WAIT: False}
+    )
+
+    reindex_task = Task(inst, tasks.dn)
+
+    finish_pattern = re.compile(r".*Finished indexing.*")
+    max_attempts = 20
+    unwilling_to_perform_seen = False
+
+    for attempt in range(max_attempts):
+        log.info(f"Monitoring task status, attempt {attempt + 1}/{max_attempts}")
+
+        try:
+            task_status = reindex_task.status()
+            if task_status:
+                log.info(f"Task status: {task_status}")
+                is_finished = finish_pattern.search(task_status)
+            else:
+                log.info("Task status: NO STATUS")
+                is_finished = False
+
+            if not is_finished:
+                try:
+                    test_users[0].replace('sn', f'modified_{attempt}')
+                    log.info("Modification succeeded - indexing might have just finished")
+                    final_status = reindex_task.status()
+                    if final_status and finish_pattern.search(final_status):
+                        log.info("Confirmed: indexing just finished")
+                        break
+                    else:
+                        log.info("Unexpected: modification succeeded but indexing not finished")
+                except ldap.UNWILLING_TO_PERFORM:
+                    log.info("Expected UNWILLING_TO_PERFORM during indexing")
+                    unwilling_to_perform_seen = True
+            else:
+                test_users[0].replace('sn', f'final_modification_{attempt}')
+                log.info("Modification succeeded after indexing completed")
+                break
+
+        except ldap.NO_SUCH_OBJECT:
+            log.info("Task completed and cleaned up")
+            break
+
+        time.sleep(3)
+
+    if unwilling_to_perform_seen:
+        log.info("Successfully observed UNWILLING_TO_PERFORM during indexing")
+    else:
+        log.info("Indexing completed too quickly to observe UNWILLING_TO_PERFORM")
+
+    # On slow machines the reindex can outlive the monitoring loop; the final
+    # modifications below are only expected to succeed once it is done.
+    log.info("Waiting for the indexing task to complete")
+    reindex_task.wait(timeout=600)
+    exit_code = reindex_task.get_exit_code()
+    assert exit_code == 0, f"Reindex task failed or timed out: {exit_code}"
+
+    test_users[0].replace('sn', 'final_test')
+    assert test_users[0].get_attr_val_utf8('sn') == 'final_test'
+
+    log.info("Cleaning up test data")
+    for user in test_users:
+        user.delete()
+
+
+@pytest.fixture(scope="function")
+def homeDirectory_setup(request, topo, homeDirectory_index_cleanup):
+    """ Create test entries and index for homeDirectory"""
+    log.info("Add POSIX users with per-entry homeDirectory values")
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user_list = []
+    for cpt in range(20):
+        name = f"new_account{cpt}"
+        u = users.create(properties={
+            'uid': name,
+            'cn': name,
+            'sn': name,
+            'uidNumber': f'1{cpt}',
+            'gidNumber': f'2{cpt}',
+            'homeDirectory': f"/home/{name}_{cpt}",
+        })
+        user_list.append(u)
+
+    backends = Backends(topo.standalone)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    index = indexes.create(properties={
+        'cn': 'homeDirectory',
+        'nsSystemIndex': 'false',
+        'nsIndexType': 'eq'
+    })
+
+    def fin():
+        for user in user_list:
+            user.delete()
+        index.delete()
+        topo.standalone.restart()
+
+    request.addfinalizer(fin)
+
+    return user_list, index
+
+
+MIXED_VALUE = "/home/mYhOmEdIrEcToRy"
+LOWER_VALUE = "/home/myhomedirectory"
+
+
+def setup_matching_rule(topo, index):
+    index.replace('nsMatchingRule',
+                  ['caseIgnoreIA5Match', 'caseExactIA5Match'])
+    topo.standalone.restart()
+
+    log.info("Reindex homeDirectory")
+    tasks = Tasks(topo.standalone)
+    assert tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='homeDirectory',
+        args={TASK_WAIT: True}
+    ) == 0
+
+
+def _reindex_homedirectory(inst):
+    """Run a blocking reindex task for homeDirectory on the default suffix."""
+    tasks = Tasks(inst)
+    assert (
+        tasks.reindex(
+            suffix=DEFAULT_SUFFIX,
+            attrname="homeDirectory",
+            args={TASK_WAIT: True},
+        )
+        == 0
+    )
+
+
+def _assert_homedirectory_errlog_clean(inst):
+    """Assert reindex did not log an unknown or invalid matching rule."""
+    errlog = DirsrvErrorLog(inst)
+    assert not errlog.match("unknown or invalid matching rule")
+
+
+def test_reindex_homedirectory_matching_rules(topo, homeDirectory_setup):
+    """Reindexing homeDirectory succeeds when both caseIgnoreIA5Match and caseExactIA5Match are
+    set on the index, with no "unknown or invalid matching rule" in the error log.
+
+    The homeDirectory_setup fixture creates multiple POSIX users, adds a default eq index
+    for homeDirectory, and defers index and entry cleanup. This test then applies the dual
+    IA5 matching rules, restarts, and runs a reindex. The log is scanned to ensure the server
+    does not report an invalid matching rule after that configuration and reindex.
+    Pre-existing error log content is removed first so the scan is limited to this test run.
+
+    :id: 48270a0b-1c2d-3e4f-5a6b-7c8d9e0f1a2b
+    :setup: Standalone instance, homeDirectory_setup (sample users, homeDirectory index)
+    :steps:
+        1. Delete the instance error log files and restart the server (empty log)
+        2. Set nsMatchingRule to caseIgnoreIA5Match and caseExactIA5Match, restart, reindex
+        3. Scan the error log for the substring unknown or invalid matching rule
+    :expectedresults:
+        1. Server is back up with no prior error log lines
+        2. Reindex task completes with return code 0; no such error line appears
+        3. Assertion holds (no match found)
+    """
+
+    _, index = homeDirectory_setup
+
+    log.info("Remove existing error logs so the scan is limited to reindex/matching-rule output")
+    topo.standalone.deleteErrorLogs(restart=True)
+
+    setup_matching_rule(topo, index)
+
+    log.info("Scan error log for bad matching rule")
+    _assert_homedirectory_errlog_clean(topo.standalone)
+
+
+def test_reindex_homedirectory_mixed_value(topo, homeDirectory_setup):
+    """Equality and extensible filters on homeDirectory with dual IA5 matching rules and mixed
+    storage.
+
+    After the same index configuration and reindex as test_reindex_homedirectory_matching_rules,
+    one user stores a mixed-case homeDirectory value. Base-scope searches use plain equality,
+    caseExactIA5Match (case-sensitive to the stored IA5 value), and caseIgnoreIA5Match
+    (casefolding). A lowercased path matches caseIgnore but not caseExact or default eq when it
+    is not the same string as stored.
+
+    :id: 48270b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c
+    :setup: Standalone instance, homeDirectory_setup, then setup_matching_rule (MRs, restart, reindex)
+    :steps:
+        1. On new_account1, replace homeDirectory with a mixed-case path
+        2. Base search (homeDirectory=<mixed>); expect one entry
+        3. Base search (homeDirectory:caseExactIA5Match:=<mixed>); expect one entry
+        4. Base search (homeDirectory=<lower>); expect no entry
+        5. Base search (homeDirectory:caseExactIA5Match:=<lower>); expect no entry
+        6. Base search (homeDirectory:caseIgnoreIA5Match:=<lower>); expect one entry
+    :expectedresults:
+        1. Success
+        2. One entry found
+        3. One entry found
+        4. No entry found
+        5. No entry found
+        6. One entry found
+    """
+    user_list, index = homeDirectory_setup
+    setup_matching_rule(topo, index)
+
+    target = user_list[1]
+    log.info("Replace homeDirectory with mixed-case value")
+    target.replace('homeDirectory', MIXED_VALUE)
+
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+
+    log.info("Search with plain eq search")
+    r = users.filter(f"(homeDirectory={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Search with caseExactIA5Match")
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Search with lower-case value")
+    r = users.filter(f"(homeDirectory={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Search with caseExactIA5Match and lower-case value")
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Search with caseIgnoreIA5Match and lower-case value")
+    r = users.filter(f"(homeDirectory:caseIgnoreIA5Match:={LOWER_VALUE})")
+    assert len(r) == 1
+
+    log.info("Subtree search with exact stored homeDirectory value")
+    r = users.filter(f"(homeDirectory={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Subtree search with caseExactIA5Match and exact stored value")
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})")
+    assert len(r) == 1
+
+    log.info("Subtree search with lower-case value does not match default eq")
+    r = users.filter(f"(homeDirectory={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Subtree search with caseExactIA5Match and lower-case value")
+    r = users.filter(f"(homeDirectory:caseExactIA5Match:={LOWER_VALUE})")
+    assert len(r) == 0
+
+    log.info("Subtree search with caseIgnoreIA5Match and lower-case value")
+    r = users.filter(f"(homeDirectory:caseIgnoreIA5Match:={LOWER_VALUE})")
+    assert len(r) == 1
+
+
+def test_homedirectory_caseexactia5_reindex_after_dual_ia5(topo, homeDirectory_setup):
+    """homeDirectory caseExactIA5Match reindex after dual IA5 index (ticket 48746).
+
+    Covers the full ticket 48746 sequence on one index instance: index with
+    caseIgnoreIA5Match and caseExactIA5Match, reindex, set a mixed-case value,
+    base-scope extensible filter search, then replace matching rules with
+    caseExactIA5Match only and reindex without crash or invalid-MR errors.
+
+    :id: 17636675-0273-42cd-afdc-1511cf3a1d7e
+    :setup: Standalone instance, homeDirectory_setup fixture
+    :steps:
+        1. Set nsMatchingRule to caseIgnoreIA5Match and caseExactIA5Match, reindex
+        2. Verify the error log has no unknown or invalid matching rule
+        3. Set a mixed-case homeDirectory on new_account1
+        4. Base-scope search with (homeDirectory:caseExactIA5Match:=<mixed>)
+        5. Set nsMatchingRule to caseExactIA5Match only, reindex
+        6. Verify the error log is still clean
+    :expectedresults:
+        1. Reindex succeeds
+        2. No invalid matching-rule message in the error log
+        3. Success
+        4. One entry is returned (server stays up)
+        5. Reindex succeeds
+        6. No invalid matching-rule message in the error log
+    """
+    user_list, index = homeDirectory_setup
+    inst = topo.standalone
+    target = user_list[1]
+
+    inst.deleteErrorLogs(restart=True)
+
+    log.info("Index homeDirectory with caseIgnoreIA5Match and caseExactIA5Match")
+    setup_matching_rule(topo, index)
+    _assert_homedirectory_errlog_clean(inst)
+
+    log.info("Set mixed-case homeDirectory on new_account1")
+    target.replace("homeDirectory", MIXED_VALUE)
+
+    log.info(
+        "Base-scope caseExactIA5Match search with exact stored value "
+        "(loads filter MR before CES-only reindex)"
+    )
+    results = target.search(
+        scope="base",
+        filter=f"(homeDirectory:caseExactIA5Match:={MIXED_VALUE})",
+    )
+    assert len(results) == 1
+    assert results[0].dn.lower() == target.dn.lower()
+
+    log.info("Reindex homeDirectory with caseExactIA5Match only")
+    index.replace("nsMatchingRule", ["caseExactIA5Match"])
+    inst.restart()
+    _reindex_homedirectory(inst)
+    _assert_homedirectory_errlog_clean(inst)
+
+
+def test_idl_range_limit(topo, add_some_entries):
+    """Test nsslapd-rangelookthroughlimit and AND shortcut
+
+    :id: 746a5af2-d755-11f0-8b62-c85309d5c3e3
+    :setup: Standalone Instance with some entries
+    :steps:
+        1. Set nsslapd-rangelookthroughlimit
+        2. Open a new connection and bound it as an user
+        3. Perform Range search that hit nsslapd-rangelookthroughlimit and AND shortcut
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    inst = topo.standalone
+    added_entries = add_some_entries
+
+    dbconfig = LDBMConfig(inst)
+    dbconfig.set('nsslapd-rangelookthroughlimit', "50")
+
+    conn = added_entries[0].bind(PW_DM)
+
+    entries = conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(&(objectclass=nsOrgPerson)(sn=foo)(uid>=a))")
+    assert len(entries) == 3
+
+
+def test_large_multivalued_sn_attribute(topo):
+    """Test adding a user entry with 512 values for sn attribute, each 512 bytes
+
+    :id: 8f2a9b3c-e8d7-11ef-9a5f-482ae39447e5
+    :setup: Standalone Instance
+    :steps:
+        1. Create a user with 512 sn values, each 512 bytes long
+        2. Verify the user was created successfully
+        3. Search for the user and verify all sn values are present
+        4. Clean up the user entry
+    :expectedresults:
+        1. User is created successfully
+        2. User entry exists
+        3. All 512 sn values are present and have correct length
+        4. User is deleted successfully
+    """
+
+    inst = topo.standalone
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+
+    log.info("Creating user with 512 sn values, each 512 bytes")
+
+    # Generate 512 unique sn values, each 512 bytes long
+    # Use a pattern that makes each value unique but predictable
+    sn_values = []
+    for i in range(512):
+        # Create a 512-byte value with unique identifier at the start
+        value = f'sn_value_{i:04d}_' + 'x' * (512 - len(f'sn_value_{i:04d}_'))
+        sn_values.append(value)
+
+    # Create the user with first sn value
+    user_name = 'test_user_large_sn'
+    user = users.create(properties={
+        'uid': user_name,
+        'cn': user_name,
+        'sn': sn_values,
+        'uidNumber': '99999',
+        'gidNumber': '99999',
+        'homeDirectory': f'/home/{user_name}'
+    })
+
+    # Verify the entry was created and has all sn values
+    log.info("Verifying all sn values are present")
+    sn_attr_values = user.get_attr_vals_utf8('sn')
+
+    assert len(sn_attr_values) == 512, f"Expected 512 sn values, got {len(sn_attr_values)}"
+
+    # Verify each value has the correct length
+    for idx, value in enumerate(sn_attr_values):
+        assert len(value) == 512, f"sn value {idx} has length {len(value)}, expected 512"
+
+    log.info("Successfully created and verified user with 512 sn values of 512 bytes each")
+
+    # Clean up
+    user.delete()
+    log.info("User entry deleted successfully")
 
 
 if __name__ == "__main__":

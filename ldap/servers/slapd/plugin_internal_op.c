@@ -255,7 +255,7 @@ slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base, int scope, cons
     slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_set(pb, SLAPI_SEARCH_STRFILTER, (void *)filter);
     slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
-    /* forbidden attrs could be removed in slapi_pblock_set. */
+    /* forbidden attrs could be removed in slapi_pblock_set */
     tmp_attrs = slapi_ch_array_dup(attrs);
     slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, tmp_attrs);
     slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
@@ -368,6 +368,11 @@ seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_ca
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
     slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
     slapi_pblock_set(pb, SLAPI_SEQ_ATTRNAME, attrname);
+    /* coverity false positive:
+     *  var_deref_model: Passing null pointer "val" to "slapi_pblock_set", which dereferences it.
+     * but val is not dereferenced in SLAPI_SEQ_VAL case so lets ignore this one.
+     */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_SEQ_VAL, val);
     slapi_pblock_set(pb, SLAPI_REQCONTROLS, controls);
 
@@ -378,6 +383,7 @@ seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_ca
     set_common_params(pb);
 
     slapi_td_internal_op_start();
+    slapi_operation_set_time_started(op);
     if (be->be_seq != NULL) {
         rc = (*be->be_seq)(pb);
     } else {
@@ -586,7 +592,9 @@ search_internal_pb(Slapi_PBlock *pb)
 
     /* setup additional pb data */
     slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, pb_search_entries);
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS, pb_search_referrals);
 
     /* call internal search callback, define search_entry_callback, and result_callback such
@@ -736,6 +744,7 @@ done:
     slapi_ch_free_string(&fstr);
     slapi_filter_free(filter, 1 /* recurse */);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
+    /* coverity[callee_ptr_arith] */
     slapi_ch_array_free(tmp_attrs);
     slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, NULL);
 

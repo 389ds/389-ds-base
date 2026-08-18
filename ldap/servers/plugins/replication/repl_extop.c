@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -73,6 +73,18 @@ done:
     return rc;
 }
 
+static void
+ruv_dump_to_log(const RUV *ruv, char *log_name)
+{
+    if (!ruv) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: RUV: None\n", log_name);
+    } else {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: RUV:\n", log_name);
+        ruv_dump(ruv, log_name, NULL);
+    }
+}
+
+
 /* The data_guid and data parameters should only be set if we
  * are talking with a 9.0 replica. */
 static struct berval *
@@ -95,34 +107,56 @@ create_ReplicationExtopPayload(const char *protocol_oid,
     PR_ASSERT(protocol_oid != NULL || send_end);
     PR_ASSERT(repl_root != NULL);
 
-    /* Create the request data */
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                "encoding '%s' payload...\n",
+                send_end ? "End Replication" : "Start Replication");
+    }
 
+    /* Create the request data */
     if ((tmp_bere = der_alloc()) == NULL) {
-        rc = LDAP_ENCODING_ERROR;
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: der_alloc failed\n");
         goto loser;
     }
     if (!send_end) {
         if (ber_printf(tmp_bere, "{ss", protocol_oid, repl_root) == -1) {
-            rc = LDAP_ENCODING_ERROR;
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf failed - protocol_oid (%s) repl_root (%s)\n",
+                    protocol_oid, repl_root);
             goto loser;
+        }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding protocol_oid: %s\n", protocol_oid);
         }
     } else {
         if (ber_printf(tmp_bere, "{s", repl_root) == -1) {
-            rc = LDAP_ENCODING_ERROR;
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf failed - repl_root (%s)\n",
+                    repl_root);
             goto loser;
+        }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding repl_root: %s\n", repl_root);
         }
     }
 
     sdn = slapi_sdn_new_dn_byref(repl_root);
     repl = replica_get_replica_from_dn(sdn);
     if (repl == NULL) {
-        rc = LDAP_OPERATIONS_ERROR;
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: failed to get replica from dn (%s)\n",
+                slapi_sdn_get_dn(sdn));
         goto loser;
     }
 
     ruv_obj = replica_get_ruv(repl);
     if (ruv_obj == NULL) {
-        rc = LDAP_OPERATIONS_ERROR;
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: failed to get ruv from replica suffix (%s)\n",
+                slapi_sdn_get_dn(sdn));
         goto loser;
     }
     ruv = object_get_data(ruv_obj);
@@ -134,7 +168,13 @@ create_ReplicationExtopPayload(const char *protocol_oid,
     /* We need to encode and send each time the local ruv in case we have changed it */
     rc = encode_ruv(tmp_bere, ruv);
     if (rc != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: encode_ruv failed for replica suffix (%s)\n",
+                slapi_sdn_get_dn(sdn));
         goto loser;
+    }
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        ruv_dump_to_log(ruv, "create_ReplicationExtopPayload");
     }
 
     if (!send_end) {
@@ -151,42 +191,68 @@ create_ReplicationExtopPayload(const char *protocol_oid,
              * generated), then we need to explicitly add this server to the list
              * of referrals, since it wouldn't have been sent with the RUV.
              */
-            local_replica_referral[0] = (char *)multimaster_get_local_purl(); /* XXXggood had to cast away const */
+            local_replica_referral[0] = (char *)multisupplier_get_local_purl(); /* XXXggood had to cast away const */
         }
         charray_merge(&referrals_to_send, extra_referrals, 0);
         charray_merge(&referrals_to_send, local_replica_referral, 0);
         if (NULL != referrals_to_send) {
             if (ber_printf(tmp_bere, "[v]", referrals_to_send) == -1) {
-                rc = LDAP_ENCODING_ERROR;
+                slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                        "encoding failed: ber_printf (referrals_to_send)\n");
                 goto loser;
+            }
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                for (size_t i = 0; referrals_to_send[i]; i++) {
+                    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                            "encoding ref: %s\n", referrals_to_send[i]);
+                }
             }
             slapi_ch_free((void **)&referrals_to_send);
         }
         /* Add the CSN */
         PR_ASSERT(NULL != csn);
         if (ber_printf(tmp_bere, "s", csn_as_string(csn, PR_FALSE, s)) == -1) {
-            rc = LDAP_ENCODING_ERROR;
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf (csnstr)\n");
             goto loser;
+        }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding csn: %s\n", csn_as_string(csn, PR_FALSE, s));
         }
     }
 
     /* If we have data to send to a 9.0 style replica, set it here. */
     if (data_guid && data) {
         if (ber_printf(tmp_bere, "sO", data_guid, data) == -1) {
-            rc = LDAP_ENCODING_ERROR;
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf (data_guid, data)\n");
             goto loser;
+        }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding data_guid (%s) data (%s:%ld)\n",
+                    data_guid, data->bv_val, data->bv_len);
         }
     }
 
+
     if (ber_printf(tmp_bere, "}") == -1) {
-        rc = LDAP_ENCODING_ERROR;
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: ber_printf (set's end)\n");
         goto loser;
     }
 
     if (ber_flatten(tmp_bere, &req_data) == -1) {
-        rc = LDAP_LOCAL_ERROR;
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: ber_flatten failed\n");
         goto loser;
     }
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                "Encoding finished\n");
+    }
+
     /* Success */
     goto done;
 
@@ -293,8 +359,14 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
     if ((NULL == extop_oid) ||
         ((strcmp(extop_oid, REPL_START_NSDS50_REPLICATION_REQUEST_OID) != 0) &&
          (strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) != 0)) ||
-        !BV_HAS_DATA(extop_value)) {
+        !BV_HAS_DATA(extop_value))
+    {
         /* bogus */
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: extop_oid (%s) (%s) extop_value (%s)\n",
+                NULL == extop_oid ? "NULL" : "Ok",
+                extop_oid ? extop_oid : "",
+                extop_value ? !BV_HAS_DATA(extop_value) ? "No data" : "Ok" : "No data");
         rc = -1;
         goto free_and_return;
     }
@@ -307,25 +379,36 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
     }
 
     if ((tmp_bere = ber_init(extop_value)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_init for extop_value (%s:%lu)\n",
+                extop_value->bv_val, extop_value->bv_len);
         rc = -1;
         goto free_and_return;
     }
     if (ber_scanf(tmp_bere, "{") == LBER_ERROR) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_scanf 1\n");
         rc = -1;
         goto free_and_return;
     }
     /* Get the required protocol OID and root of replicated subtree */
     if (ber_get_stringa(tmp_bere, protocol_oid) == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_get_stringa (protocol_oid)\n");
         rc = -1;
         goto free_and_return;
     }
     if (ber_get_stringa(tmp_bere, repl_root) == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_get_stringa (repl_root)\n");
         rc = -1;
         goto free_and_return;
     }
 
     /* get supplier's ruv */
     if (decode_ruv(tmp_bere, supplier_ruv) == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: decode_ruv (supplier_ruv)\n");
         rc = -1;
         goto free_and_return;
     }
@@ -333,33 +416,45 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
     /* Get the optional set of referral URLs */
     if (ber_peek_tag(tmp_bere, &len) == LBER_SET) {
         if (ber_scanf(tmp_bere, "[v]", extra_referrals) == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                    "decoding failed: ber_scanf (extra_referrals)\n");
             rc = -1;
             goto free_and_return;
         }
     }
     /* Get the CSN */
     if (ber_get_stringa(tmp_bere, csnstr) == LBER_ERROR) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_get_stringa (csnstr)\n");
         rc = -1;
         goto free_and_return;
     }
     /* Get the optional replication session callback data. */
     if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING) {
         if (ber_get_stringa(tmp_bere, data_guid) == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                    "decoding failed: ber_get_stringa (data_guid)\n");
             rc = -1;
             goto free_and_return;
         }
         /* If a data_guid was specified, data must be specified as well. */
         if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING) {
             if (ber_get_stringal(tmp_bere, data) == LBER_ERROR) {
+                slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                        "decoding failed: ber_get_stringal (data)\n");
                 rc = -1;
                 goto free_and_return;
             }
         } else {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                    "decoding failed: ber_peek_tag\n");
             rc = -1;
             goto free_and_return;
         }
     }
     if (ber_scanf(tmp_bere, "}") == LBER_ERROR) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_scanf 2\n");
         rc = -1;
         goto free_and_return;
     }
@@ -378,6 +473,22 @@ free_and_return:
         if (*supplier_ruv) {
             ruv_destroy(supplier_ruv);
         }
+    } else if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoding payload...\n");
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoded protocol_oid: %s\n", *protocol_oid);
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoded repl_root: %s\n", *repl_root);
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoded csn: %s\n", *csnstr);
+        ruv_dump_to_log(*supplier_ruv, "decode_startrepl_extop");
+        for (size_t i = 0; *extra_referrals && (*extra_referrals)[i]; i++) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "decode_startrepl_extop - "
+                "decoded referral: %s\n", (*extra_referrals)[i]);
+        }
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - Finshed decoding payload.\n");
     }
     if (NULL != tmp_bere) {
         ber_free(tmp_bere, 1);
@@ -406,28 +517,52 @@ decode_endrepl_extop(Slapi_PBlock *pb, char **repl_root)
 
     if ((NULL == extop_oid) ||
         (strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0) ||
-        !BV_HAS_DATA(extop_value)) {
+        !BV_HAS_DATA(extop_value))
+    {
         /* bogus */
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: extop_oid (%s) correct oid (%s) extop_value data (%s)\n",
+                extop_oid ? extop_oid : "NULL",
+                extop_oid ? strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0 ? "wrong oid" : "correct oid" : "NULL",
+                !BV_HAS_DATA(extop_value) ? "No data" : "Has data");
         rc = -1;
         goto free_and_return;
     }
 
     if ((tmp_bere = ber_init(extop_value)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_init failed:  extop_value (%s:%lu)\n",
+                extop_value->bv_val, extop_value->bv_len);
         rc = -1;
         goto free_and_return;
     }
     if (ber_scanf(tmp_bere, "{") == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_scanf failed1\n");
         rc = -1;
         goto free_and_return;
     }
     /* Get the required root of replicated subtree */
     if (ber_get_stringa(tmp_bere, repl_root) == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_get_stringa failed\n");
         rc = -1;
         goto free_and_return;
     }
     if (ber_scanf(tmp_bere, "}") == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_scanf2 failed\n");
         rc = -1;
         goto free_and_return;
+    }
+
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, "decode_endrepl_extop",
+                "Decoding payload...\n");
+        slapi_log_err(SLAPI_LOG_REPL, "decode_endrepl_extop",
+                "Decoded repl_root: %s\n", *repl_root);
+        slapi_log_err(SLAPI_LOG_REPL, "decode_endrepl_extop",
+                "Finished decoding payload.\n");
     }
 
 free_and_return:
@@ -461,27 +596,46 @@ decode_repl_ext_response(struct berval *bvdata, int *response_code, struct berva
     PR_ASSERT(NULL != ruv_bervals);
 
     if ((NULL == response_code) || (NULL == ruv_bervals) ||
-        (NULL == data_guid) || (NULL == data) || !BV_HAS_DATA(bvdata)) {
+        (NULL == data_guid) || (NULL == data) || !BV_HAS_DATA(bvdata))
+    {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                "decoding failed: response_code (%s) ruv_bervals (%s) data_guid (%s) data (%s) bvdata (%s)\n",
+                NULL == response_code ? "NULL" : "Ok",
+                NULL == ruv_bervals ? "NULL" : "Ok",
+                NULL == data_guid ? "NULL" : "Ok",
+                NULL == data ? "NULL" : "Ok",
+               !BV_HAS_DATA(bvdata) ? "No data" : "Ok");
         return_value = -1;
     } else {
         ber_len_t len;
         ber_int_t temp_response_code = 0;
         *ruv_bervals = NULL;
         if ((tmp_bere = ber_init(bvdata)) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                    "decoding failed: ber_init failed from bvdata (%s:%lu)\n",
+                    bvdata->bv_val, bvdata->bv_len);
             return_value = -1;
         } else if (ber_scanf(tmp_bere, "{e", &temp_response_code) == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                    "decoding failed: ber_scanf failed\n");
             return_value = -1;
         } else if (ber_peek_tag(tmp_bere, &len) == LBER_SEQUENCE) {
             if (ber_scanf(tmp_bere, "{V}", ruv_bervals) == LBER_ERROR) {
+                slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                     "decoding failed: ber_scanf2 failed from ruv_bervals\n");
                 return_value = -1;
             }
         }
         /* Check for optional data from replication session callback */
         if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING) {
             if (ber_scanf(tmp_bere, "aO}", data_guid, data) == LBER_ERROR) {
+                slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                        "decoding failed: ber_scanf3 failed from data_guid & data\n");
                 return_value = -1;
             }
         } else if (ber_scanf(tmp_bere, "}") == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                    "decoding failed: ber_scanf4 failed\n");
             return_value = -1;
         }
 
@@ -505,7 +659,7 @@ decode_repl_ext_response(struct berval *bvdata, int *response_code, struct berva
  * StartNSDS50ReplicationRequest is received.
  */
 int
-multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
+multisupplier_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 {
     int return_value = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
     ber_int_t response = 0;
@@ -590,7 +744,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         /* Stash info that this is an incremental update session */
         connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": Begin incremental protocol\n",
                       connid, opid, repl_root);
         isInc = PR_TRUE;
@@ -613,7 +767,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
             connext->repl_protocol_version = REPL_PROTOCOL_50_TOTALUPDATE;
         }
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": Begin total protocol\n",
                       connid, opid, repl_root);
         isInc = PR_FALSE;
@@ -621,7 +775,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         /* Stash info that this is an incremental update session */
         connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": Begin 7.1 incremental protocol\n",
                       connid, opid, repl_root);
         isInc = PR_TRUE;
@@ -631,7 +785,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
             connext->repl_protocol_version = REPL_PROTOCOL_50_TOTALUPDATE;
         }
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": Begin 7.1 total protocol\n",
                       connid, opid, repl_root);
         isInc = PR_FALSE;
@@ -650,7 +804,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
     /* see if this replica is being configured and wait for it */
     if (replica_is_being_configured(repl_root)) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d replica=\"%s\": "
                       "Replica is being configured: try again later\n",
                       connid, opid, repl_root);
@@ -671,8 +825,8 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         if (replica_is_state_flag_set(replica,
                                       REPLICA_TOTAL_EXCL_SEND | REPLICA_TOTAL_EXCL_RECV)) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                          "multimaster_extop_StartNSDS50ReplicationRequest - "
-                          "%s: total update on is initiated on the replica.  Cannot execute the total update from other master.\n",
+                          "multisupplier_extop_StartNSDS50ReplicationRequest - "
+                          "%s: total update on is initiated on the replica.  Cannot execute the total update from other supplier.\n",
                           repl_root);
             response = NSDS50_REPL_REPLICA_BUSY;
             goto send_response;
@@ -703,7 +857,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
                 rc = replica_update_csngen_state_ext(replica, supplier_ruv, replicacsn); /* too much skew */
                 if (rc == CSN_LIMIT_EXCEEDED) {
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                                  "multimaster_extop_StartNSDS50ReplicationRequest - "
+                                  "multisupplier_extop_StartNSDS50ReplicationRequest - "
                                   "conn=%" PRIu64 " op=%d repl=\"%s\": "
                                   "Excessive clock skew from supplier RUV\n",
                                   connid, opid, repl_root);
@@ -733,7 +887,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 
     if (check_replica_id_uniqueness(replica, supplier_ruv) != 0) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": "
                       "Replica has same replicaID %d as supplier\n",
                       connid, opid, repl_root, replica_get_rid(replica));
@@ -742,7 +896,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
     }
 
     /* Attempt to acquire exclusive access to the replicated area */
-    /* Since partial URL is always the master, this locking_purl does not
+    /* Since partial URL is always the supplier, this locking_purl does not
      * help us to know the true locker when it is a hub. Change to use
      * the session's conn id and op id to identify the the supplier.
      */
@@ -769,7 +923,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         int i = 0;
         int max = 480 * 5;
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": "
                       "374 - Starting sleep: connext->repl_protocol_version == %d\n",
                       connid, opid, repl_root, connext->repl_protocol_version);
@@ -779,7 +933,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         }
 
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": "
                       "374 - Finished sleep: connext->repl_protocol_version == %d\n",
                       connid, opid, repl_root, connext->repl_protocol_version);
@@ -868,7 +1022,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
          * https://fedorahosted.org/389/ticket/374 */
         response = NSDS50_REPL_INTERNAL_ERROR;
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d repl=\"%s\": "
                       "Unexpected update protocol received: %d.  "
                       "Expected incremental or total.\n",
@@ -900,7 +1054,7 @@ send_response:
            a replica is not converging, then look for pathological replica
            busy errors by turning on the replication log level.  We also
            don't want to log replica backoff as an error, as that response
-                   is only used when a replication session hook wants a master to
+                   is only used when a replication session hook wants a supplier to
                    go into incremental backoff mode. */
         if ((response == NSDS50_REPL_REPLICA_BUSY) || (response == NSDS50_REPL_BACKOFF)) {
             resp_log_level = SLAPI_LOG_REPL;
@@ -908,7 +1062,7 @@ send_response:
 
         slapi_log_err(resp_log_level,
                       repl_plugin_name,
-                      "multimaster_extop_StartNSDS50ReplicationRequest - "
+                      "multisupplier_extop_StartNSDS50ReplicationRequest - "
                       "conn=%" PRIu64 " op=%d replica=\"%s\": "
                       "Unable to acquire replica: error: %s%s\n",
                       connid, opid,
@@ -934,16 +1088,35 @@ send_response:
         /* ONREPL - not sure what we suppose to do here */
     }
     ber_printf(resp_bere, "{e", response);
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "multisupplier_extop_StartNSDS50ReplicationRequest - encoded response: %d\n",
+                response);
+    }
     if (NULL != ruv_bervals) {
         ber_printf(resp_bere, "{V}", ruv_bervals);
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            ruv_dump_to_log(ruv, "multisupplier_extop_StartNSDS50ReplicationRequest");
+        }
     }
+
     /* Add extra data from replication session callback if necessary */
     if (is90 && data_guid && data) {
         ber_printf(resp_bere, "sO", data_guid, data);
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                    "multisupplier_extop_StartNSDS50ReplicationRequest - encoded data_guid (%s) data (%s:%ld)\n",
+                    data_guid, data->bv_val, data->bv_len);
+        }
     }
 
     ber_printf(resp_bere, "}");
     ber_flatten(resp_bere, &resp_bval);
+
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "multisupplier_extop_StartNSDS50ReplicationRequest - Finished encoding payload\n");
+    }
 
     if (is90) {
         slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS90_REPLICATION_RESPONSE_OID);
@@ -951,9 +1124,15 @@ send_response:
         slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS50_REPLICATION_RESPONSE_OID);
     }
 
+    /* connext (release our hold on it at least) */
+    if (NULL != connext) {
+        /* don't free it, just let go of it */
+        consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+    }
+
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                  "multimaster_extop_StartNSDS50ReplicationRequest - "
+                  "multisupplier_extop_StartNSDS50ReplicationRequest - "
                   "conn=%" PRIu64 " op=%d repl=\"%s\": "
                   "%s: response=%d rc=%d\n",
                   connid, opid, repl_root,
@@ -1005,8 +1184,8 @@ send_response:
              * sending this request).
              * The situation is confused
              */
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
-                                                            "already acquired replica: replica not ready (%d) (replica=%s)\n",
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_StartNSDS50ReplicationRequest - "
+                          "already acquired replica: replica not ready (%d) (replica=%s)\n",
                           response, replica_get_name(r) ? replica_get_name(r) : "no name");
 
             /*
@@ -1016,8 +1195,8 @@ send_response:
             if (r) {
 
                 r_locking_conn = replica_get_locking_conn(r);
-                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
-                                                                "already acquired replica: locking_conn=%" PRIu64 ", current connid=%" PRIu64 "\n",
+                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_StartNSDS50ReplicationRequest - "
+                              "already acquired replica: locking_conn=%" PRIu64 ", current connid=%" PRIu64 "\n",
                               r_locking_conn, connid);
 
                 if ((r_locking_conn != ULONG_MAX) && (r_locking_conn == connid)) {
@@ -1032,8 +1211,8 @@ send_response:
              * On the supplier, we need to close the connection so
              * that the RA will restart a new session in a clear state
              */
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
-                                                            "already acquired replica: disconnect conn=%" PRIu64 "\n",
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_StartNSDS50ReplicationRequest - "
+                           "already acquired replica: disconnect conn=%" PRIu64 "\n",
                           connid);
             slapi_disconnect_server(conn);
         }
@@ -1068,12 +1247,6 @@ send_response:
     if (NULL != ruv_bervals) {
         ber_bvecfree(ruv_bervals);
     }
-    /* connext (our hold on it at least) */
-    if (NULL != connext) {
-        /* don't free it, just let go of it */
-        consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
-        connext = NULL;
-    }
 
     return return_value;
 }
@@ -1084,7 +1257,7 @@ send_response:
  * XXXggood this code is not finished.
  */
 int
-multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
+multisupplier_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 {
     int return_value = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
     char *repl_root = NULL;
@@ -1175,6 +1348,10 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                 */
                 if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) && cldb_is_open(r)) {
                     replica_log_ruv_elements(r);
+                    /* now that the changelog is open and started, we can alos cretae the
+                     * keep alive entry without risk that db and cl will not match
+                     */
+                    replica_subentry_check(slapi_sdn_get_dn(replica_get_root(r)), replica_get_rid(r));
                 }
 
                 /* ONREPL code that dealt with new RUV, etc was moved into the code
@@ -1199,14 +1376,26 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
             /* Outbound replication agreements need to all be restarted now */
             /* XXXGGOOD RESTART REEPL AGREEMENTS */
         } else {
-            /* Unless bail out, we return uninitialized response */
-            goto free_and_return;
+            /* No active replication session on this connection, treat as
+             * already released so the supplier can shut down cleanly */
+            response = NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED;
         }
     }
 send_response:
+    /* connext (release our hold on it at least) */
+    if (NULL != connext) {
+        /* don't free it, just let go of it */
+        consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+        connext = NULL;
+    }
+
     /* Send the response code */
     if ((resp_bere = der_alloc()) == NULL) {
         goto free_and_return;
+    }
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, "multisupplier_extop_EndNSDS50ReplicationRequest",
+                "encoded response: %d\n", response);
     }
     ber_printf(resp_bere, "{e}", response);
     ber_flatten(resp_bere, &resp_bval);
@@ -1230,11 +1419,10 @@ free_and_return:
     if (NULL != resp_bval) {
         ber_bvfree(resp_bval);
     }
-    /* connext (our hold on it at least) */
+    /* connext (release our hold on it if not already released) */
     if (NULL != connext) {
         /* don't free it, just let go of it */
         consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
-        connext = NULL;
     }
 
     return return_value;
@@ -1284,7 +1472,7 @@ free_and_return:
 }
 
 int
-multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
+multisupplier_extop_abort_cleanruv(Slapi_PBlock *pb)
 {
     PRThread *thread = NULL;
     cleanruv_data *data;
@@ -1310,7 +1498,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
      *  Decode the payload, and grab our settings
      */
     if (decode_cleanruv_payload(extop_payload, &payload)) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_abort_cleanruv - "
                                                        "Abort CleanAllRUV Task - Failed to decode payload.  Aborting ext op\n");
         return LDAP_OPERATIONS_ERROR;
     }
@@ -1322,15 +1510,15 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
         /* This replica has already been aborted, or was never cleaned, or already finished cleaning */
         goto out;
     } else {
-        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multisupplier_extop_abort_cleanruv - "
                                                         "Abort CleanAllRUV Task - Aborting cleanallruv task for rid(%d)\n",
                       rid);
     }
     /*
-     *  Get the replica 
+     *  Get the replica
      */
     if ((r = replica_get_replica_from_root(repl_root)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_abort_cleanruv - "
                                                        "Abort CleanAllRUV Task - Replica is NULL, aborting task\n");
         rc = LDAP_OPERATIONS_ERROR;
         goto out;
@@ -1346,7 +1534,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
      */
     data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
     if (data == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_abort_cleanruv - "
                                                         "Abort CleanAllRUV Task - Failed to allocate "
                                                         "abort_cleanruv_data.  Aborting task.\n");
         rc = LDAP_OPERATIONS_ERROR;
@@ -1371,7 +1559,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
                              (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_abort_cleanruv - "
                                                         "Abort CleanAllRUV Task - Unable to create abort "
                                                         "thread.  Aborting task.\n");
         slapi_ch_free_string(&data->repl_root);
@@ -1391,7 +1579,7 @@ out:
  *
  *  The payload consists of the replica ID, repl root dn, and the maxcsn.  Since this is
  *  basically a replication operation, it could of originated here and bounced
- *  back from another master.  So check the rid against the "cleaned_rid".  If
+ *  back from another supplier.  So check the rid against the "cleaned_rid".  If
  *  it's a match, then we were already here, and we can just return success.
  *
  *  Otherwise, we the set the cleaned_rid from the payload, fire off extended ops
@@ -1399,7 +1587,7 @@ out:
  *  cleanruv_task on this replica.
  */
 int
-multimaster_extop_cleanruv(Slapi_PBlock *pb)
+multisupplier_extop_cleanruv(Slapi_PBlock *pb)
 {
     PRThread *thread = NULL;
     Replica *replica = NULL;
@@ -1429,7 +1617,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
      *  Decode the payload
      */
     if (decode_cleanruv_payload(extop_payload, &payload)) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to decode payload.  Aborting ext op\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Failed to decode payload.  Aborting ext op\n");
         goto free_and_return;
     }
     rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
@@ -1456,7 +1644,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
     replica = replica_get_replica_from_root(repl_root);
 
     if (replica == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Replica is NULL, aborting task\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Replica is NULL, aborting task\n");
         goto free_and_return;
     }
 
@@ -1472,10 +1660,10 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
          *  Launch the cleanruv monitoring thread.  Once all the replicas are cleaned it will release the rid
          */
 
-        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Launching cleanAllRUV thread...\n");
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Launching cleanAllRUV thread...");
         data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
         if (data == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to allocate "
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Failed to allocate "
                                                            "cleanruv_Data\n");
             goto free_and_return;
         }
@@ -1492,7 +1680,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
                                  (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                  PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
         if (thread == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Unable to create cleanAllRUV "
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Unable to create cleanAllRUV "
                                                            "monitoring thread.  Aborting task.\n");
             ber_bvfree(data->payload);
             data->payload = NULL;
@@ -1518,18 +1706,18 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
                 /* we've already been cleaned */
                 break;
             }
-            slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Checking if we're caught up...\n");
+            slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Checking if we're caught up...\n");
             if (ruv_covers_csn_cleanallruv(ruv, maxcsn) || csn_get_replicaid(maxcsn) == 0 || strcmp(force, "yes") == 0) {
                 /* We are caught up */
                 break;
             } else {
-                char csnstr[CSN_STRSIZE];
-                csn_as_string(maxcsn, PR_FALSE, csnstr);
-                slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Not ruv caught up maxcsn(%s)\n", csnstr);
+                char csn_str[CSN_STRSIZE];
+                csn_as_string(maxcsn, PR_FALSE, csn_str);
+                slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Not ruv caught up maxcsn(%s)\n", csnstr);
             }
             DS_Sleep(PR_SecondsToInterval(5));
         }
-        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - We're caught up...\n");
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - We're caught up...\n");
         /*
          *  Set cleaned rid in memory only - does not survive a server restart
          */
@@ -1545,8 +1733,8 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
          *  This read-only replica has no easy way to tell when it's safe to release the rid.
          *  So we won't release it, not until a server restart.
          */
-        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - You must restart the server if you want to reuse rid(%d).\n", rid);
-        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Successfully cleaned rid(%d).\n", rid);
+        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - You must restart the server if you want to reuse rid(%d).\n", rid);
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Successfully cleaned rid(%d).\n", rid);
         rc = LDAP_SUCCESS;
     }
 
@@ -1583,7 +1771,7 @@ free_and_return:
  *  Get the max csn for the designated repl area
  */
 int
-multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
+multisupplier_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
 {
     struct berval *resp_bval = NULL;
     struct berval *extop_payload;
@@ -1608,7 +1796,7 @@ multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
      *  Decode the payload
      */
     if (decode_cleanruv_payload(extop_payload, &payload)) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_get_maxcsn - CleanAllRUV Task - Get MaxCSN Task: failed to decode payload.  Aborting ext op\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv_get_maxcsn - CleanAllRUV Task - Get MaxCSN Task: failed to decode payload.  Aborting ext op\n");
         goto free_and_return;
     }
     rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
@@ -1650,7 +1838,7 @@ free_and_return:
  *  Search cn=config for the cleanallruv attributes (clean & abort)
  */
 int
-multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb)
+multisupplier_extop_cleanruv_check_status(Slapi_PBlock *pb)
 {
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
@@ -1675,14 +1863,14 @@ multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb)
      *  Decode the payload - which should just be a filter
      */
     if (decode_cleanruv_payload(extop_payload, &filter)) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_check_status - "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv_check_status - "
                                                        "CleanAllRUV Task - Check Status Task: failed to decode payload.  Aborting ext op\n");
         goto free_and_return;
     }
 
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(search_pb, "cn=config", LDAP_SCOPE_SUBTREE,
-                                 filter, NULL, 0, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 filter, NULL, 0, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
     if (LDAP_SUCCESS == res) {
@@ -1747,7 +1935,7 @@ check_replica_id_uniqueness(Replica *replica, RUV *supplier_ruv)
     char *sup_purl = NULL;
 
     if (ruv_get_first_id_and_purl(supplier_ruv, &sup_rid, &sup_purl) == RUV_SUCCESS) {
-        /* ReplicaID Uniqueness is checked only on Masters */
+        /* ReplicaID Uniqueness is checked only on Suppliers/Providers */
         if ((replica_get_type(replica) == REPLICA_TYPE_UPDATABLE) &&
             (sup_rid == local_rid)) {
             return 1;

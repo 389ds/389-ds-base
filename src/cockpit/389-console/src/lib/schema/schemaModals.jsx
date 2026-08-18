@@ -1,20 +1,22 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
-    Row,
-    Spinner,
-    Modal,
-    Icon,
-    Button,
-    Checkbox,
-    noop,
-    Form,
-    FormControl,
-    FormGroup,
-    ControlLabel,
-    Col
-} from "patternfly-react";
-import { Typeahead } from "react-bootstrap-typeahead";
+	Button,
+	Checkbox,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
+
+const _ = cockpit.gettext;
 
 class ObjectClassModal extends React.Component {
     render() {
@@ -23,7 +25,6 @@ class ObjectClassModal extends React.Component {
             ocModalViewOnly,
             addHandler,
             editHandler,
-            handleTypeaheadChange,
             handleFieldChange,
             objectclasses,
             attributes,
@@ -36,205 +37,200 @@ class ObjectClassModal extends React.Component {
             ocMay,
             objectclassModalShow,
             closeModal,
-            loading
+            loading,
+            isRequiredAttrsOpen,
+            isAllowedAttrsOpen,
+            onRequiredAttrsToggle,
+            onRequiredAttrsClear,
+            onRequiredAttrsSelect,
+            onRequiredAttrsCreateOption,
+            onAllowedAttrsToggle,
+            onAllowedAttrsClear,
+            onAllowedAttrsSelect,
+            onAllowedAttrsCreateOption,
+            error,
+            saveBtnDisabled,
         } = this.props;
-        let spinner = "";
-        if (loading) {
-            spinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
-                        Saving objectClass...
+
+        const modalTitle =
+            ocModalViewOnly
+                ? (
+                    cockpit.format(_("View ObjectClass - $0"), ocName)
+                )
+                : (
+                    <div>
+                        {cockpit.format(_("$0 ObjectClass"), newOcEntry ? _("Add") : _("Edit"))}
+                        {ocName !== "" ? ` - ${ocName}` : ""}{" "}
                     </div>
-                </Row>
+                );
+
+        const btnList = [
+            <Button key="cancel" variant="link" onClick={closeModal}>
+                {_("Close")}
+            </Button>
+        ];
+        if (!ocModalViewOnly) {
+            let btnText = _("Save");
+            const extraPrimaryProps = {};
+
+            if (loading) {
+                btnText = _("Saving...");
+                extraPrimaryProps.spinnerAriaValueText = _("Loading");
+            }
+            btnList.unshift(
+                <Button
+                    key="oc"
+                    isLoading={loading}
+                    spinnerAriaValueText={loading ? _("Loading") : undefined}
+                    variant="primary"
+                    onClick={newOcEntry ? addHandler : editHandler}
+                    {...extraPrimaryProps}
+                    isDisabled={saveBtnDisabled || loading}
+                >
+                    {btnText}
+                </Button>
             );
         }
 
         return (
             <div>
-                <Modal show={objectclassModalShow} onHide={closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {ocModalViewOnly ? (
-                                    `View ObjectClass - ${ocName}`
-                                ) : (
-                                    <div>
-                                        {newOcEntry ? "Add" : "Edit"} ObjectClass
-                                        {ocName != "" ? ` - ${ocName}` : ""}{" "}
-                                    </div>
-                                )}
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Form horizontal>
-                                <FormGroup controlId="ocName">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Name of the objectClass">
-                                            Objectclass Name
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            id="ocName"
-                                            type="text"
-                                            value={ocName}
-                                            onChange={handleFieldChange}
-                                            disabled={ocModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup controlId="ocDesc">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Describes what is the objectClass's purpose">
-                                            Description
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            type="text"
-                                            value={ocDesc}
-                                            onChange={handleFieldChange}
-                                            disabled={ocModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup controlId="ocOID">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Object identifier">
-                                            OID (optional)
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            type="text"
-                                            value={ocOID}
-                                            onChange={handleFieldChange}
-                                            disabled={ocModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="ocParent" controlId="ocParent" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An objectClass's parent">
-                                            Parent Objectclass
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={values => {
-                                                handleTypeaheadChange("ocParent", values);
-                                            }}
-                                            selected={ocParent}
-                                            newSelectionPrefix="Add a parent: "
-                                            options={objectclasses}
-                                            placeholder="Type a parent objectClass..."
-                                            disabled={ocModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="ocKind" controlId="ocKind" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An objectClass kind">
-                                            Objectclass Kind
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <select
-                                            id="ocKind"
-                                            className="btn btn-default dropdown"
-                                            onChange={handleFieldChange}
-                                            value={ocKind}
-                                            disabled={ocModalViewOnly}
-                                        >
-                                            <option>STRUCTURAL</option>
-                                            <option>ABSTRACT</option>
-                                            <option>AUXILIARY</option>
-                                        </select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="ocMust" controlId="ocMust" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="A must attribute name">
-                                            Required Attributes
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                handleTypeaheadChange("ocMust", values);
-                                            }}
-                                            selected={ocMust}
-                                            newSelectionPrefix="Add a required attribute: "
-                                            options={attributes}
-                                            placeholder="Type an attribute name..."
-                                            disabled={ocModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="ocMay" controlId="ocMay" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="A may attribute name">
-                                            Allowed Attributes
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                handleTypeaheadChange("ocMay", values);
-                                            }}
-                                            selected={ocMay}
-                                            newSelectionPrefix="Add an allowed attribute: "
-                                            options={attributes}
-                                            placeholder="Type an attribute name..."
-                                            disabled={ocModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                            {spinner}
-                        </Modal.Body>
-                        <Modal.Footer>
-                            {ocModalViewOnly ? (
-                                <Button
-                                    bsStyle="default"
-                                    className="btn-cancel"
-                                    onClick={closeModal}
+                <Modal
+                    variant={ModalVariant.medium}
+                    aria-labelledby="ds-modal"
+                    title={modalTitle}
+                    isOpen={objectclassModalShow}
+                    onClose={closeModal}
+                    actions={btnList}
+                >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title={_("Name of the objectClass")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Objectclass Name")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={ocName}
+                                    type="text"
+                                    id="ocName"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="ocName"
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    validated={error.ocName ? ValidatedOptions.error : ValidatedOptions.default}
+                                    isDisabled={!newOcEntry}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Describes what is the objectClass's purpose")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Description")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={ocDesc}
+                                    type="text"
+                                    id="ocDesc"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="ocDesc"
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    validated={error.ocDesc ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Object identifier")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("OID (optional)")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={ocOID}
+                                    type="text"
+                                    id="ocOID"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="ocOID"
+                                    isDisabled={ocModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An objectClass's parent")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Parent Objectclass")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="ocParent"
+                                    value={ocParent}
+                                    isDisabled={ocModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    Close
-                                </Button>
-                            ) : (
-                                <div>
-                                    <Button
-                                        bsStyle="default"
-                                        className="btn-cancel"
-                                        onClick={closeModal}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        bsStyle="primary"
-                                        onClick={newOcEntry ? addHandler : editHandler}
-                                    >
-                                        {newOcEntry ? "Add" : "Save"}
-                                    </Button>
-                                </div>
-                            )}
-                        </Modal.Footer>
-                    </div>
+                                    {objectclasses.map((obj, index) => (
+                                        <FormSelectOption key={index} value={obj} label={obj} />
+                                    ))}
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An objectClass's kind")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Objectclass Kind")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="ocKind"
+                                    value={ocKind}
+                                    isDisabled={ocModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key={0} value="STRUCTURAL" label="STRUCTURAL" />
+                                    <FormSelectOption key={1} value="ABSTRACT" label="ABSTRACT" />
+                                    <FormSelectOption key={2} value="AUXILIARY" label="AUXILIARY" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("A must attribute name")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Required Attributes")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={ocMust}
+                                    onSelect={onRequiredAttrsSelect}
+                                    onClear={onRequiredAttrsClear}
+                                    options={attributes}
+                                    isOpen={isRequiredAttrsOpen}
+                                    onToggle={onRequiredAttrsToggle}
+                                    placeholder={_("Type an attribute name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute name"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={onRequiredAttrsCreateOption}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("A may attribute name")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Allowed Attributes")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={ocMay}
+                                    onSelect={onAllowedAttrsSelect}
+                                    onClear={onAllowedAttrsClear}
+                                    options={attributes}
+                                    isOpen={isAllowedAttrsOpen}
+                                    onToggle={onAllowedAttrsToggle}
+                                    placeholder={_("Type an attribute name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute name"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={onAllowedAttrsCreateOption}
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
             </div>
         );
@@ -253,7 +249,7 @@ ObjectClassModal.propTypes = {
     ocName: PropTypes.string,
     ocDesc: PropTypes.string,
     ocOID: PropTypes.string,
-    ocParent: PropTypes.array,
+    ocParent: PropTypes.string,
     ocKind: PropTypes.string,
     ocMust: PropTypes.array,
     ocMay: PropTypes.array,
@@ -263,23 +259,18 @@ ObjectClassModal.propTypes = {
 };
 
 ObjectClassModal.defaultProps = {
-    addHandler: noop,
-    editHandler: noop,
     newOcEntry: true,
     ocModalViewOnly: false,
-    handleTypeaheadChange: noop,
-    handleFieldChange: noop,
     objectclasses: [],
     attributes: [],
     ocName: "",
     ocDesc: "",
     ocOID: "",
-    ocParent: [],
+    ocParent: "",
     ocKind: "",
     ocMust: [],
     ocMay: [],
     objectclassModalShow: false,
-    closeModal: noop,
     loading: false
 };
 
@@ -303,299 +294,301 @@ class AttributeTypeModal extends React.Component {
             newAtEntry,
             addHandler,
             editHandler,
-            handleTypeaheadChange,
             handleFieldChange,
             attributes,
             syntaxes,
             matchingrules,
             closeModal,
-            loading
+            loading,
+            isParentAttrOpen,
+            isAliasNameOpen,
+            isEqualityMROpen,
+            isOrderMROpen,
+            isSubstringMROpen,
+            onParentAttrToggle,
+            onParentAttrClear,
+            onParentAttrSelect,
+            onAliasNameToggle,
+            onAliasNameClear,
+            onAliasNameSelect,
+            onAliasNameCreateOption,
+            onEqualityMRToggle,
+            onEqualityMRClear,
+            onEqualityMRSelect,
+            onOrderMRToggle,
+            onOrderMRClear,
+            onOrderMRSelect,
+            onSubstringMRToggle,
+            onSubstringMRClear,
+            onSubstringMRSelect,
+            error,
+            saveBtnDisabled,
         } = this.props;
-        let spinner = "";
-        if (loading) {
-            spinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
-                        Saving attribute...
+        const modalTitle =
+            atModalViewOnly
+                ? (
+                    cockpit.format(_("View Attribute - $0"), atName)
+                )
+                : (
+                    <div>
+                        {cockpit.format(_("$0 Attribute"), newAtEntry ? _("Add") : _("Edit"))}
+                        {atName !== "" ? ` - ${atName}` : ""}{" "}
                     </div>
-                </Row>
+                );
+
+        const btnList = [
+            <Button key="cancel" variant="link" onClick={closeModal}>
+                {_("Close")}
+            </Button>
+        ];
+        if (!atModalViewOnly) {
+            let btnText = _("Save");
+            const extraPrimaryProps = {};
+
+            if (loading) {
+                btnText = _("Saving...");
+                extraPrimaryProps.spinnerAriaValueText = _("Loading");
+            }
+            btnList.unshift(
+                <Button
+                    key="at"
+                    isLoading={loading}
+                    spinnerAriaValueText={loading ? _("Loading") : undefined}
+                    variant="primary"
+                    onClick={newAtEntry ? addHandler : editHandler}
+                    {...extraPrimaryProps}
+                    isDisabled={saveBtnDisabled || loading}
+                >
+                    {btnText}
+                </Button>
             );
         }
 
         return (
             <div>
-                <Modal show={attributeModalShow} onHide={closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {atModalViewOnly ? (
-                                    `View Attribute - ${atName}`
-                                ) : (
-                                    <div>
-                                        {newAtEntry ? "Add" : "Edit"} Attribute
-                                        {atName != "" ? ` - ${atName}` : ""}{" "}
-                                    </div>
-                                )}
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Form horizontal>
-                                <FormGroup controlId="atName">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Name of the attribute">
-                                            Attribute Name
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            id="atName"
-                                            type="text"
-                                            value={atName}
-                                            onChange={handleFieldChange}
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup controlId="atDesc">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Describes what is the attribute's purpose">
-                                            Description
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            type="text"
-                                            value={atDesc}
-                                            onChange={handleFieldChange}
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup controlId="atOID">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Object identifier">
-                                            OID (optional)
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            type="text"
-                                            value={atOID}
-                                            onChange={handleFieldChange}
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atParent" controlId="atParent" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An attribute's parent">
-                                            Parent Attribute
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={values => {
-                                                handleTypeaheadChange("atParent", values);
-                                            }}
-                                            selected={atParent}
-                                            newSelectionPrefix="Add a parent: "
-                                            options={attributes}
-                                            placeholder="Type a parent attribute..."
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atSyntax" controlId="atSyntax" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An attribute's syntax">
-                                            Syntax Name
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            onChange={values => {
-                                                handleTypeaheadChange("atSyntax", values);
-                                            }}
-                                            selected={atSyntax}
-                                            newSelectionPrefix="Add a syntax: "
-                                            options={syntaxes}
-                                            placeholder="Type a syntax name..."
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atUsage" controlId="atUsage" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An attribute usage purpose">
-                                            Attribute Usage
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <select
-                                            id="atUsage"
-                                            className="btn btn-default dropdown"
-                                            onChange={handleFieldChange}
-                                            value={atUsage}
-                                            disabled={atModalViewOnly}
-                                        >
-                                            <option>userApplications</option>
-                                            <option>directoryOperation</option>
-                                            <option>distributedOperation</option>
-                                            <option>dSAOperation</option>
-                                        </select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atMultivalued" controlId="atMultivalued">
-                                    <Col sm={4}>
-                                        <ControlLabel title="If attribute can have a multiple values">
-                                            Multivalued Attribute
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Checkbox
-                                            id="atMultivalued"
-                                            checked={atMultivalued}
-                                            title="If attribute can have a multiple values"
-                                            onChange={handleFieldChange}
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atNoUserMod" controlId="atNoUserMod">
-                                    <Col sm={4}>
-                                        <ControlLabel title="If attribute is not modifiable by a client application">
-                                            Not Modifiable By A User
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Checkbox
-                                            id="atNoUserMod"
-                                            checked={atNoUserMod}
-                                            title="If attribute is not modifiable by a client application"
-                                            onChange={handleFieldChange}
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atAlias" controlId="atAlias" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An alias name for the attribute">
-                                            Alias Names
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                handleTypeaheadChange("atAlias", values);
-                                            }}
-                                            selected={atAlias}
-                                            options={[]}
-                                            newSelectionPrefix="Add an alias: "
-                                            placeholder="Type an alias name..."
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atEqMr" controlId="atEqMr" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An equality matching rule">
-                                            Equality Matching Rule
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            onChange={values => {
-                                                handleTypeaheadChange("atEqMr", values);
-                                            }}
-                                            selected={atEqMr}
-                                            newSelectionPrefix="Add an matching rule: "
-                                            options={matchingrules}
-                                            placeholder="Type an matching rule..."
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atOrder" controlId="atOrder" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="An order matching rule">
-                                            Order Matching Rule
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            onChange={values => {
-                                                handleTypeaheadChange("atOrder", values);
-                                            }}
-                                            selected={atOrder}
-                                            newSelectionPrefix="Add an matching rule: "
-                                            options={matchingrules}
-                                            placeholder="Type an matching rule..."
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="atSubMr" controlId="atSubMr" disabled={false}>
-                                    <Col sm={4}>
-                                        <ControlLabel title="A substring matching rule">
-                                            Substring Matching Rule
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Typeahead
-                                            onChange={values => {
-                                                handleTypeaheadChange("atSubMr", values);
-                                            }}
-                                            selected={atSubMr}
-                                            newSelectionPrefix="Add an matching rule: "
-                                            options={matchingrules}
-                                            placeholder="Type an matching rule..."
-                                            disabled={atModalViewOnly}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                            {spinner}
-                        </Modal.Body>
-                        <Modal.Footer>
-                            {atModalViewOnly ? (
-                                <Button
-                                    bsStyle="default"
-                                    className="btn-cancel"
-                                    onClick={closeModal}
+                <Modal
+                    variant={ModalVariant.medium}
+                    aria-labelledby="ds-modal"
+                    title={modalTitle}
+                    isOpen={attributeModalShow}
+                    onClose={closeModal}
+                    actions={btnList}
+                >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title={_("Name of the attribute")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Attribute Name")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={atName}
+                                    type="text"
+                                    id="atName"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="atName"
+                                    isDisabled={!newAtEntry}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    validated={error.atName ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Describes what is the attribute's purpose")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Description")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={atDesc}
+                                    type="text"
+                                    id="atDesc"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="atDesc"
+                                    isDisabled={atModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    validated={error.atDesc ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Object identifier")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("OID (optional)")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={atOID}
+                                    type="text"
+                                    id="atOID"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="atOID"
+                                    isDisabled={atModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An attribute's parent/superior")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Parent Attribute")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={atParent}
+                                    onSelect={onParentAttrSelect}
+                                    onClear={onParentAttrClear}
+                                    options={attributes}
+                                    isOpen={isParentAttrOpen}
+                                    onToggle={onParentAttrToggle}
+                                    placeholder={_("Type an attribute name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute name"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An attribute's syntax")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Syntax Name")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="atSyntax"
+                                    value={atSyntax}
+                                    isDisabled={atModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    Close
-                                </Button>
-                            ) : (
-                                <div>
-                                    <Button
-                                        bsStyle="default"
-                                        className="btn-cancel"
-                                        onClick={closeModal}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        bsStyle="primary"
-                                        onClick={newAtEntry ? addHandler : editHandler}
-                                    >
-                                        {newAtEntry ? "Add" : "Save"}
-                                    </Button>
-                                </div>
-                            )}
-                        </Modal.Footer>
-                    </div>
+                                    {syntaxes.map((syntax, index) => (
+                                        <FormSelectOption key={index} value={syntax.id} label={syntax.label} />
+                                    ))}
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An attribute's usage purpose")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Attribute Usage")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="atUsage"
+                                    value={atUsage}
+                                    isDisabled={atModalViewOnly}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key={0} value="userApplications" label="userApplications" />
+                                    <FormSelectOption key={1} value="directoryOperation" label="directoryOperation" />
+                                    <FormSelectOption key={2} value="distributedOperation" label="distributedOperation" />
+                                    <FormSelectOption key={3} value="dSAOperation" label="dSAOperation" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("If attribute can have a multiple values")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Multivalued Attribute")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Checkbox
+                                    id="atMultivalued"
+                                    isChecked={atMultivalued}
+                                    title={_("If attribute can have a multiple values")}
+                                    onChange={(e, checked) => {
+                                        handleFieldChange(e);
+                                    }}
+                                    isDisabled={atModalViewOnly}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("If attribute is not modifiable by a client application")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Not Modifiable By A User")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Checkbox
+                                    id="atNoUserMod"
+                                    isChecked={atNoUserMod}
+                                    title={_("If attribute is not modifiable by a client application")}
+                                    onChange={(e, checked) => {
+                                        handleFieldChange(e);
+                                    }}
+                                    isDisabled={atModalViewOnly}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An alias name for the attribute")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Alias Names")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={atAlias}
+                                    onSelect={onAliasNameSelect}
+                                    onClear={onAliasNameClear}
+                                    options={atAlias}
+                                    isOpen={isAliasNameOpen}
+                                    onToggle={onAliasNameToggle}
+                                    placeholder={_("Type an alias name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an alias name"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={onAliasNameCreateOption}
+                                />
+                            </GridItem>
+                        </Grid>
+
+                        <Grid title={_("An equality matching rule")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Equality Matching Rule")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={atEqMr}
+                                    onSelect={onEqualityMRSelect}
+                                    onClear={onEqualityMRClear}
+                                    options={matchingrules}
+                                    isOpen={isEqualityMROpen}
+                                    onToggle={onEqualityMRToggle}
+                                    placeholder={_("Type an Equality matching rule...")}
+                                    noResultsText={_("There are no matching rules")}
+                                    ariaLabel="Type a matching rule"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("An order matching rule")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Order Matching Rule")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={atOrder}
+                                    onSelect={onOrderMRSelect}
+                                    onClear={onOrderMRClear}
+                                    options={matchingrules}
+                                    isOpen={isOrderMROpen}
+                                    onToggle={onOrderMRToggle}
+                                    placeholder={_("Type an Ordering matching rule..")}
+                                    noResultsText={_("There are no matching rules")}
+                                    ariaLabel="Type a matching rule"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("A substring matching rule")}>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Substring Matching Rule")}
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={atSubMr}
+                                    onSelect={onSubstringMRSelect}
+                                    onClear={onSubstringMRClear}
+                                    options={matchingrules}
+                                    isOpen={isSubstringMROpen}
+                                    onToggle={onSubstringMRToggle}
+                                    placeholder={_("Type a Substring matching rule...")}
+                                    noResultsText={_("There are no matching rules")}
+                                    ariaLabel="Type a matching rule"
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
             </div>
         );
@@ -613,15 +606,15 @@ AttributeTypeModal.propTypes = {
     atName: PropTypes.string,
     atDesc: PropTypes.string,
     atOID: PropTypes.string,
-    atParent: PropTypes.array,
-    atSyntax: PropTypes.array,
+    atParent: PropTypes.string,
+    atSyntax: PropTypes.string,
     atUsage: PropTypes.string,
     atMultivalued: PropTypes.bool,
     atNoUserMod: PropTypes.bool,
     atAlias: PropTypes.array,
-    atEqMr: PropTypes.array,
-    atOrder: PropTypes.array,
-    atSubMr: PropTypes.array,
+    atEqMr: PropTypes.string,
+    atOrder: PropTypes.string,
+    atSubMr: PropTypes.string,
     atModalViewOnly: PropTypes.bool,
     attributeModalShow: PropTypes.bool,
     newAtEntry: PropTypes.bool,
@@ -630,29 +623,24 @@ AttributeTypeModal.propTypes = {
 };
 
 AttributeTypeModal.defaultProps = {
-    addHandler: noop,
-    editHandler: noop,
-    handleTypeaheadChange: noop,
-    handleFieldChange: noop,
     attributes: [],
     matchingrules: [],
     syntaxes: [],
     atName: "",
     atDesc: "",
     atOID: "",
-    atParent: [],
-    atSyntax: [],
+    atParent: "",
+    atSyntax: "",
     atUsage: "userApplications",
     atMultivalued: false,
     atNoUserMod: false,
     atAlias: [],
-    atEqMr: [],
-    atOrder: [],
-    atSubMr: [],
+    atEqMr: "",
+    atOrder: "",
+    atSubMr: "",
     atModalViewOnly: false,
     attributeModalShow: false,
     newAtEntry: true,
-    closeModal: noop,
     loading: false
 };
 

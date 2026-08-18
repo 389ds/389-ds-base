@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,17 +10,20 @@ import json
 import ldap
 from lib389.plugins import AttributeUniquenessPlugin, AttributeUniquenessPlugins
 from lib389.cli_conf import (generic_object_edit, generic_object_add)
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'enabled': 'nsslapd-pluginenabled',
     'attr_name': 'uniqueness-attribute-name',
     'subtree': 'uniqueness-subtrees',
+    'exclude_subtree': 'uniqueness-exclude-subtrees',
     'across_all_subtrees': 'uniqueness-across-all-subtrees',
     'top_entry_oc': 'uniqueness-top-entry-oc',
     'subtree_entries_oc': 'uniqueness-subtree-entries-oc'
 }
 
 PLUGIN_DN = "cn=plugins,cn=config"
+
 
 def attruniq_list(inst, basedn, log, args):
     log = log.getChild('attruniq_list')
@@ -113,7 +116,7 @@ def attruniq_status(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('NAME', help='Sets the name of the plug-in configuration record. (cn) You can use any string, '
+    parser.add_argument('NAME', help='The name of the plug-in configuration record. (cn) You can use any string, '
                                      'but "attribute_name Attribute Uniqueness" is recommended.')
     parser.add_argument('--enabled', choices=['on', 'off'],
                         help='Identifies whether or not the config is enabled.')
@@ -123,6 +126,9 @@ def _add_parser_args(parser):
     parser.add_argument('--subtree', nargs='+',
                         help='Sets the DN under which the plug-in checks for uniqueness of '
                              'the attributes value. This attribute is multi-valued (uniqueness-subtrees)')
+    parser.add_argument('--exclude-subtree', nargs='+',
+                        help='Sets subtrees that should be excluded from attribute uniqueness checks. '
+                             'This attribute is multi-valued (uniqueness-exclude-subtrees)')
     parser.add_argument('--across-all-subtrees', choices=['on', 'off'], type=str.lower,
                         help='If enabled (on), the plug-in checks that the attribute is unique across all subtrees '
                              'set. If you set the attribute to off, uniqueness is only enforced within the subtree '
@@ -136,37 +142,37 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    attruniq = subparsers.add_parser('attr-uniq', help='Manage and configure Attribute Uniqueness plugin')
+    attruniq = subparsers.add_parser('attr-uniq', help='Manage and configure Attribute Uniqueness plugin', formatter_class=CustomHelpFormatter)
     subcommands = attruniq.add_subparsers(help='action')
     # We can't use the add_generic_plugin_parsers as we need named sub instances.
 
-    list = subcommands.add_parser('list', help='List available plugin configs')
+    list = subcommands.add_parser('list', help='Lists available plugin configs', formatter_class=CustomHelpFormatter)
     list.set_defaults(func=attruniq_list)
 
-    add = subcommands.add_parser('add', help='Add the config entry')
+    add = subcommands.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add.set_defaults(func=attruniq_add)
     _add_parser_args(add)
 
-    edit = subcommands.add_parser('set', help='Edit the config entry')
+    edit = subcommands.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=attruniq_edit)
     _add_parser_args(edit)
 
-    show = subcommands.add_parser('show', help='Display the config entry')
+    show = subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show.add_argument('NAME', help='The name of the plug-in configuration record')
     show.set_defaults(func=attruniq_show)
 
-    delete = subcommands.add_parser('delete', help='Delete the config entry')
-    delete.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    delete = subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
+    delete.add_argument('NAME', help='The name of the plug-in configuration record')
     delete.set_defaults(func=attruniq_del)
 
-    enable = subcommands.add_parser('enable', help='enable plugin')
-    enable.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    enable = subcommands.add_parser('enable', help='enable plugin', formatter_class=CustomHelpFormatter)
+    enable.add_argument('NAME', help='The name of the plug-in configuration record')
     enable.set_defaults(func=attruniq_enable)
 
-    disable = subcommands.add_parser('disable', help='disable plugin')
-    disable.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    disable = subcommands.add_parser('disable', help='disable plugin', formatter_class=CustomHelpFormatter)
+    disable.add_argument('NAME', help='The name of the plug-in configuration record')
     disable.set_defaults(func=attruniq_disable)
 
-    status = subcommands.add_parser('status', help='display plugin status')
-    status.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    status = subcommands.add_parser('status', help='display plugin status', formatter_class=CustomHelpFormatter)
+    status.add_argument('NAME', help='The name of the plug-in configuration record')
     status.set_defaults(func=attruniq_status)

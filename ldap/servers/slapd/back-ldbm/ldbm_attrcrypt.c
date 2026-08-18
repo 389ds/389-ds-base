@@ -350,6 +350,9 @@ attrcrypt_fetch_public_key(SECKEYPublicKey **public_key)
         errorCode = PR_GetError();
         slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_fetch_public_key", "Can't find certificate %s: %d - %s\n",
                       cert_name, errorCode, slapd_pr_strerror(errorCode));
+        if (PR_FILE_NOT_FOUND_ERROR == errorCode) {
+            slapd_cert_not_found_error_help(cert_name);
+        }
     }
     if (cert != NULL) {
         key = slapd_CERT_ExtractPublicKey(cert);
@@ -397,6 +400,9 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
         errorCode = PR_GetError();
         slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_fetch_private_key", "Can't find certificate %s: %d - %s\n",
                       cert_name, errorCode, slapd_pr_strerror(errorCode));
+        if (PR_FILE_NOT_FOUND_ERROR == errorCode) {
+            slapd_cert_not_found_error_help(cert_name);
+        }
     }
     if (cert != NULL) {
         key = slapd_get_unlocked_key_for_cert(cert, NULL);
@@ -420,6 +426,16 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
     }
     slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_fetch_private_key", "-> (%d)\n", ret);
     return ret;
+}
+
+/* Free acs */
+static void
+acs_free(attrcrypt_cipher_state **acs)
+{
+    if (*acs) {
+        PR_DestroyLock((*acs)->cipher_lock);
+        slapi_ch_free((void**)acs);
+    }
 }
 
 /*
@@ -452,7 +468,7 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
     /* Try to get the symmetric key for this cipher */
     ret = attrcrypt_keymgmt_get_key(li, acs, private_key, &symmetric_key);
     if (KEYMGMT_ERR_NO_ENTRY == ret) {
-        slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_cipher_init",
+        slapi_log_err(SLAPI_LOG_NOTICE, "attrcrypt_cipher_init",
                       "No symmetric key found for cipher %s in backend %s, "
                       "attempting to create one...\n",
                       acs->cipher_display_name, li->inst_name);
@@ -532,7 +548,7 @@ attrcrypt_init(ldbm_instance *li)
                     attrcrypt_cipher_state *acs = (attrcrypt_cipher_state *)slapi_ch_calloc(sizeof(attrcrypt_cipher_state), 1);
                     ret = attrcrypt_cipher_init(li, ace, private_key, public_key, acs);
                     if (ret) {
-                        slapi_ch_free((void **)&acs);
+                        acs_free(&acs);
                         if (li->attrcrypt_configured) {
                             if ((ace + 1)->cipher_number) {
                                 /* this is not the last cipher */
@@ -651,6 +667,10 @@ log_bytes(char *format_string, unsigned char *bytes, size_t length)
     size_t x = 0;
     char *print_buffer = NULL;
     char *print_ptr = NULL;
+
+    if (bytes == NULL) {
+        return;
+    }
 
     print_buffer = (char *)slapi_ch_malloc((truncated_length * 3) + 1);
     print_ptr = print_buffer;
@@ -1049,6 +1069,65 @@ attrcrypt_decrypt_index_key(backend *be,
     return rc;
 }
 
+/*
+ * Hash an index key if it is too large.
+ *
+ * return values:  0 - success
+ *              : -1 - error
+ *
+ * output value: out: non-NULL - hash successful
+ *                  :     NULL - no hash or failure
+ */
+int
+attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo *ai, const struct berval *in, struct berval **out)
+{
+    int ret = 0;
+    struct berval *out_berval = NULL;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    size_t final_key_len = INDEX_KEY_LENGTH(in->bv_len, strlen(prefix));
+
+    /* If the index key is too long (i.e mdb case) we must hash it */
+    if (final_key_len >=  li->li_max_key_len) {
+        PK11Context *c = PK11_CreateDigestContext(SEC_OID_MD5);
+        if (c != NULL) {
+            unsigned char hash[32];
+            unsigned int hashLen = 0;
+            char *hkey;
+            int i;
+
+            out_berval = (struct berval *)ber_alloc();
+            if (NULL == out_berval) {
+                PK11_DestroyContext(c, PR_TRUE);
+                return ENOMEM;
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_hash_large_index_key",
+                          "Key lenght (%lu) >= max key lenght (%lu) so key must be hashed\n", final_key_len, li->li_max_key_len);
+            slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
+            PK11_DigestBegin(c);
+            /* Compute hash for the key without the prefix */
+            PK11_DigestOp(c, (unsigned char *)in->bv_val, in->bv_len);
+            PK11_DigestFinal(c, hash, &hashLen, sizeof hash);
+
+            /* Build the key: hash value in hexa */
+            hkey = slapi_ch_malloc(1+2*sizeof hash);
+            out_berval->bv_val = hkey;
+            out_berval->bv_len = 0;
+            for (i=0; i<hashLen; i++) {
+                sprintf(hkey, "%02X", hash[i]);
+                out_berval->bv_len += 2;
+                hkey += 2;
+            }
+            *out = out_berval;
+            PK11_DestroyContext(c, PR_TRUE);
+        } else {
+            return ENODEV;
+        }
+    }
+
+    return ret;
+}
+
+
 /******************************************************************************/
 static int _back_crypt_cipher_init(Slapi_Backend *be, attrcrypt_state_private **state_priv, attrcrypt_cipher_entry *ace, SECKEYPrivateKey *private_key, SECKEYPublicKey *public_key, attrcrypt_cipher_state *acs, const char *dn_string);
 static int _back_crypt_keymgmt_store_key(Slapi_Backend *be, attrcrypt_cipher_state *acs, SECKEYPublicKey *public_key, PK11SymKey *key_to_store, const char *dn_string);
@@ -1099,7 +1178,7 @@ back_crypt_init(Slapi_Backend *be, const char *dn, const char *encAlgorithm, voi
                           "Please choose other cipher or disable changelog "
                           "encryption.\n",
                           ace->cipher_display_name);
-            slapi_ch_free((void **)&acs);
+            acs_free(&acs);
         } else {
             /* Since we succeeded, set acs to state_priv */
             _back_crypt_acs_list_add(state_priv, acs);

@@ -223,7 +223,6 @@ addn_prebind(Slapi_PBlock *pb)
     if (dn_bind != NULL) {
         dn_bind_len = strlen(dn_bind);
         dn_bind_escaped = slapi_escape_filter_value(dn_bind, dn_bind_len);
-        dn_bind_len = strlen(dn_bind_escaped);
     }
 
     dn_domain = strtok(NULL, "@");
@@ -232,12 +231,10 @@ addn_prebind(Slapi_PBlock *pb)
     if (dn_domain != NULL) {
         dn_domain_len = strlen(dn_domain);
         dn_domain_escaped = slapi_escape_filter_value(dn_domain, dn_domain_len);
-        dn_domain_len = strlen(dn_domain_escaped);
         slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_prebind: Selected bind submitted domain %s\n", dn_domain_escaped);
     } else {
         /* Or we could do the escape earlier. */
         dn_domain_escaped = slapi_ch_strdup(config->default_domain);
-        dn_domain_len = config->default_domain_len;
         slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_prebind: Selected default domain %s\n", dn_domain_escaped);
     }
 

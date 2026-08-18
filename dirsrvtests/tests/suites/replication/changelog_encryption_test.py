@@ -1,12 +1,22 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX,  DN_CHANGELOG,  DN_USERROOT_LDBM
-from lib389.topologies import topology_m1c1 as topo
+from test389.topologies import topology_m1c1 as topo
 from lib389.dseldif import DSEldif
 from lib389.utils import ds_supports_new_changelog
 from lib389.replica import Replicas
+
+pytestmark = pytest.mark.tier1
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -21,7 +31,7 @@ def test_cl_encryption_setup_process(topo):
     encryption
 
     :id: 1a1b7d29-69f5-4f0e-91c4-e7f66140ff17
-    :setup: Master Instance, Consumer Instance
+    :setup: Supplier Instance, Consumer Instance
     :steps:
         1. Enable TLS for the server
         2. Export changelog
@@ -36,7 +46,7 @@ def test_cl_encryption_setup_process(topo):
         5. Success
     """
 
-    supplier = topo.ms['master1']
+    supplier = topo.ms['supplier1']
     consumer = topo.cs['consumer1']
 
     # Enable TLS

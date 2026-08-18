@@ -2,6 +2,7 @@
 
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,60 +11,68 @@
 #
 # PYTHON_ARGCOMPLETE_OK
 
+import json
+import sys
+import signal
 import ldap
 import argparse
 import argcomplete
-import sys
-import signal
+from lib389.utils import get_instance_list, instance_choices
 from lib389._constants import DSRC_HOME
+from lib389.cli_idm import _get_basedn_arg
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organizationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
+from lib389.cli_idm import uniquegroup as cli_uniquegroup
 from lib389.cli_idm import user as cli_user
 from lib389.cli_idm import client_config as cli_client_config
 from lib389.cli_idm import role as cli_role
+from lib389.cli_idm import service as cli_service
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
-from lib389.cli_base import format_error_to_dict
+from lib389.cli_base import format_error_to_dict, format_pretty_error
+from lib389.cli_base import parent_argparser
 
+# Pre-pass to resolve --user-type before the main parser is built. This lets
+# `dsidm inst user create` surface only the MUST-attribute flags relevant to
+# the selected user type. The side parser knows ONLY --user-type, has no
+# positionals, and uses parse_known_args so everything else passes through
+# untouched to the real parser below.
+_pre_user_type = argparse.ArgumentParser(add_help=False)
+_pre_user_type.add_argument('--user-type', dest='user_type',
+                            choices=sorted(cli_user.USER_TYPE_CHOICES),
+                            default=cli_user.DEFAULT_USER_TYPE)
+_pre_args, _ = _pre_user_type.parse_known_args(sys.argv[1:])
 
-parser = argparse.ArgumentParser(allow_abbrev=True)
+parser = argparse.ArgumentParser(allow_abbrev=True, parents=[parent_argparser])
 # First, add the LDAP options
 parser.add_argument('instance',
-        help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
-    )
+        help="The name of the instance or its LDAP URL, such as ldap://server.example.com:389",
+    ).completer = instance_choices
 parser.add_argument('-b', '--basedn',
-        help="Basedn (root naming context) of the instance to manage",
+        help="Base DN (root naming context) of the instance to manage",
         default=None
-    )
-parser.add_argument('-v', '--verbose',
-        help="Display verbose operation tracing during command execution",
-        action='store_true', default=False
     )
 parser.add_argument('-D', '--binddn',
         help="The account to bind as for executing operations",
         default=None
     )
 parser.add_argument('-w', '--bindpw',
-        help="Password for binddn",
+        help="Password for the bind DN",
         default=None
     )
 parser.add_argument('-W', '--prompt',
         action='store_true', default=False,
-        help="Prompt for password for binddn"
+        help="Prompt for password of the bind DN"
     )
 parser.add_argument('-y', '--pwdfile',
-        help="Specifies a file containing the password for the bind DN",
+        help="Specifies a file containing the password of the bind DN",
         default=None
     )
 parser.add_argument('-Z', '--starttls',
         help="Connect with StartTLS",
-        default=False, action='store_true'
-    )
-parser.add_argument('-j', '--json',
-        help="Return result in JSON object",
         default=False, action='store_true'
     )
 subparsers = parser.add_subparsers(help="resources to act upon")
@@ -73,11 +82,14 @@ cli_group.create_parser(subparsers)
 cli_init.create_parser(subparsers)
 cli_ou.create_parser(subparsers)
 cli_posixgroup.create_parser(subparsers)
-cli_user.create_parser(subparsers)
+cli_user.create_parser(subparsers, user_type=_pre_args.user_type)
 cli_client_config.create_parser(subparsers)
 cli_role.create_parser(subparsers)
+cli_service.create_parser(subparsers)
+cli_uniquegroup.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
+
 
 # handle a control-c gracefully
 def signal_handler(signal, frame):
@@ -109,12 +121,12 @@ if __name__ == '__main__':
 
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
-        log.error("No action provided, here is some --help.")
-        parser.print_help()
-        sys.exit(1)
-
-    if dsrc_inst['basedn'] is None:
-        log.error("Must provide a basedn!")
+        errmsg = "No action provided, here is some --help."
+        if args.json:
+            sys.stderr.write('{"desc": "%s"}\n' % errmsg)
+        else:
+            log.error(errmsg)
+            parser.print_help()
         sys.exit(1)
 
     if not args.verbose:
@@ -127,7 +139,15 @@ if __name__ == '__main__':
     result = False
     try:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
-        result = args.func(inst, dsrc_inst['basedn'], log, args)
+        basedn = _get_basedn_arg(inst, args,  dsrc_inst['basedn'], log, msg="Enter basedn")
+        if basedn is None:
+            errmsg = "Must provide a basedn!"
+            if args.json:
+                sys.stderr.write('{"desc": "%s"}\n' % errmsg)
+            else:
+                log.error(errmsg)
+            sys.exit(1)
+        result = args.func(inst, basedn, log, args)
         if args.verbose:
             log.info("Command successful.")
     except Exception as e:
@@ -136,6 +156,8 @@ if __name__ == '__main__':
         if args.json:
             sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
         else:
+            if not args.verbose:
+                msg = format_pretty_error(msg)
             log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
 

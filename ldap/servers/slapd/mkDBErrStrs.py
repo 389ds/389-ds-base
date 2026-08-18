@@ -8,33 +8,24 @@ def build_header(args):
     """Dynamically build the all the bdb errors codes and strings into a header
     file used by the server.
     """
-    re_dberr = re.compile(r'^#define[ 	][_A-Z]*[ 	]*\(-[0-9]*')
+
+    re_dberr = re.compile(r'^ *DBI_RC_')
     if args.output_dir is not None:
         new_header = f"{args.output_dir}/dberrstrs.h"
     else:
         new_header = "dberrstrs.h"
 
-    with open(f"{args.bdb_dir}/db.h") as bdb_file:
+    with open(f"{args.dbi_dir}/dbimpl.h") as bdb_file:
         err_list = []
         line = bdb_file.readline()
         while line:
             mo = re_dberr.search(line)
             if mo is not None:
                 # Get the error code and error string from lines like this:
-                ignore, err_start = line.split('(', 1)
-                err_code, r = err_start.split(')', 1)
-                if '/* ' in r:
-                    ignore, err_msg = r.split('/* ', 1)
-                    if '*/' not in err_msg:
-                        # continuation line, get the next line
-                        line = bdb_file.readline()
-                        err_str = err_msg.rstrip() + " " + line.replace("*/", "").strip()
-                    else:
-                        err_str, ignore = err_msg.split('*/', 1)
-                    err_str = err_str.replace('"', '\\"').rstrip()
-                else:
-                    err_str = ""
-                err_list.append((err_code, err_str))
+                err_split = line.split('*', 2)
+                if len(err_split) == 3:
+                    err_code, err_str = err_split[1].split(',', 1)
+                    err_list.append((err_code.strip(), err_str.strip()))
             line = bdb_file.readline()
 
         # Sort the dict
@@ -54,8 +45,8 @@ def main():
     bdb_parser.add_argument('-o', '--output', help='The output file location',
                             dest='output_dir', default=None)
     bdb_parser.add_argument('-i', '--include-dir',
-                            help='The location of the libdb header file',
-                            dest='bdb_dir', required=True)
+                            help='The location of the dbimpl header file',
+                            dest='dbi_dir', required=True)
     args = bdb_parser.parse_args()
 
     # Do it!

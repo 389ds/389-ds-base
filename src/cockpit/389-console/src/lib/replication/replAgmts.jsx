@@ -1,17 +1,26 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReplAgmtTable } from "./replTables.jsx";
 import { ReplAgmtModal } from "./replModals.jsx";
-import { log_cmd, valid_dn, valid_port } from "../tools.jsx";
+import { getApiErrorMessage, log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
-    noop,
-} from "patternfly-react";
+} from "@patternfly/react-core";
+import {
+    SortByDirection,
+} from '@patternfly/react-table';
+
+const ldapOptions = ['SIMPLE', 'SASL/DIGEST-MD5', 'SASL/GSSAPI'];
+const ldapsOptions = ['SIMPLE', 'SSLCLIENTAUTH'];
+const ldapBootstrapOptions = ['SIMPLE'];
+const ldapsBootstrapOptions = ['SIMPLE', 'SSLCLIENTAUTH'];
+const _ = cockpit.gettext;
 
 export class ReplAgmts extends React.Component {
     _mounted = false;
+
     constructor(props) {
         super(props);
         this.state = {
@@ -22,23 +31,27 @@ export class ReplAgmts extends React.Component {
             showConfirmEnableAgmt: false,
             showConfirmDisableAgmt: false,
             errObj: {},
-            modalMsg: "",
-            modalScheduleMsg: "",
             savingAgmt: false,
             mounted: false,
+            rows: [],
+            page: 1,
+            value: "",
+            sortBy: {},
             // Create agreement
             agmtName: "",
             agmtHost: "",
-            agmtPort: "",
-            agmtProtocol: "LDAP",
+            agmtPort: "636",
+            agmtProtocol: "LDAPS",
             agmtBindMethod: "SIMPLE",
-            agmtBindDN: "",
+            agmtBindMethodOptions: ldapsOptions,
+            agmtBindDN: "cn=replication manager,cn=config",
             agmtBindPW: "",
             agmtBindPWConfirm: "",
             agmtBootstrap: false,
-            agmtBootstrapProtocol: "LDAP",
+            agmtBootstrapProtocol: "LDAPS",
             agmtBootstrapBindMethod: "SIMPLE",
-            agmtBootstrapBindDN: "",
+            agmtBootstrapBindMethodOptions: ldapsBootstrapOptions,
+            agmtBootstrapBindDN: "cn=replication manager,cn=config",
             agmtBootstrapBindPW: "",
             agmtBootstrapBindPWConfirm: "",
             agmtStripAttrs: [],
@@ -52,8 +65,8 @@ export class ReplAgmts extends React.Component {
             agmtSyncFri: true,
             agmtSyncSat: true,
             agmtSyncSun: true,
-            agmtStartTime: "0",
-            agmtEndTime: "0",
+            agmtStartTime: "0000",
+            agmtEndTime: "2359",
             agmtInit: "noinit",
             agmtSaveOK: false,
             modalChecked: false,
@@ -61,18 +74,107 @@ export class ReplAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
+
+            isExcludeAttrsCreateOpen: false,
+            isExcludeInitAttrsCreateOpen: false,
+            isStripAttrsCreateOpen: false,
+            isExcludeAttrsEditOpen: false,
+            isExcludeInitAttrsEditOpen: false,
+            isStripAttrsEditOpen: false,
         };
-        this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
+
+        // Create - Exclude Attributes
+        this.handleExcludeAttrsCreateToggle = (_event, isExcludeAttrsCreateOpen) => {
+            this.setState({
+                isExcludeAttrsCreateOpen
+            });
+        };
+        this.handleExcludeAttrsCreateClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrsCreateOpen: false
+            });
+        };
+
+        // Create - Exclude Init Attributes
+        this.handleExcludeAttrsInitCreateToggle = (_event, isExcludeInitAttrsCreateOpen) => {
+            this.setState({
+                isExcludeInitAttrsCreateOpen
+            });
+        };
+        this.handleExcludeAttrsInitCreateClear = () => {
+            this.setState({
+                agmtFracInitAttrs: [],
+                isExcludeInitAttrsCreateOpen: false
+            });
+        };
+
+        // Create - Skip Attributes
+        this.onStripAttrsCreateToggle = (_event, isStripAttrsCreateOpen) => {
+            this.setState({
+                isStripAttrsCreateOpen
+            });
+        };
+        this.handleStripAttrsCreateClear = () => {
+            this.setState({
+                agmtStripAttrs: [],
+                isStripAttrsCreateOpen: false
+            });
+        };
+
+        // Edit - Exclude Attributes
+        this.handleExcludeAttrsEditToggle = (_event, isExcludeAttrsEditOpen) => {
+            this.setState({
+                isExcludeAttrsEditOpen
+            });
+        };
+        this.handleExcludeAttrsEditClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrsEditOpen: false
+            });
+        };
+
+        // Edit - Exclude Init Attributes
+        this.handleExcludeAttrsInitEditToggle = (_event, isExcludeInitAttrsEditOpen) => {
+            this.setState({
+                isExcludeInitAttrsEditOpen
+            });
+        };
+        this.handleExcludeAttrsInitEditClear = () => {
+            this.setState({
+                agmtFracInitAttrs: [],
+                isExcludeInitAttrsEditOpen: false
+            });
+        };
+
+        // Edit - Skip Attributes
+        this.onStripAttrsEditToggle = (_event, isStripAttrsEditOpen) => {
+            this.setState({
+                isStripAttrsEditOpen
+            });
+        };
+        this.handleStripAttrsEditClear = () => {
+            this.setState({
+                agmtStripAttrs: [],
+                isStripAttrsEditOpen: false
+            });
+        };
+
+        this.handleShowCreateAgmtModal = this.handleShowCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
-        this.handleChange = this.handleChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleTAFracInitAttrChange = this.handleTAFracInitAttrChange.bind(this);
-        this.handleTAFracAttrChange = this.handleTAFracAttrChange.bind(this);
-        this.handleTAStripAttrChange = this.handleTAStripAttrChange.bind(this);
-        this.handleTAFracInitAttrChangeEdit = this.handleTAFracInitAttrChangeEdit.bind(this);
-        this.handleTAFracAttrChangeEdit = this.handleTAFracAttrChangeEdit.bind(this);
-        this.handleTAStripAttrChangeEdit = this.handleTAStripAttrChangeEdit.bind(this);
+        this.handleTASelectChange = this.handleTASelectChange.bind(this);
+        this.onTimeChange = this.onTimeChange.bind(this);
+        this.onCreateChange = this.onCreateChange.bind(this);
+        this.onEditChange = this.onEditChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.onTAFracInitAttrChange = this.onTAFracInitAttrChange.bind(this);
+        this.onTAFracAttrChange = this.onTAFracAttrChange.bind(this);
+        this.onTAStripAttrChange = this.onTAStripAttrChange.bind(this);
+        this.onTAFracInitAttrChangeEdit = this.onTAFracInitAttrChangeEdit.bind(this);
+        this.onTAFracAttrChangeEdit = this.onTAFracAttrChangeEdit.bind(this);
+        this.onTAStripAttrChangeEdit = this.onTAStripAttrChangeEdit.bind(this);
         this.createAgmt = this.createAgmt.bind(this);
         this.showEditAgmt = this.showEditAgmt.bind(this);
         this.saveAgmt = this.saveAgmt.bind(this);
@@ -89,509 +191,609 @@ export class ReplAgmts extends React.Component {
         this.closeConfirmEnableAgmt = this.closeConfirmEnableAgmt.bind(this);
         this.closeConfirmDisableAgmt = this.closeConfirmDisableAgmt.bind(this);
         this.watchAgmtInit = this.watchAgmtInit.bind(this);
+        // Table sort and search
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
+        this.validateConfig = this.validateConfig.bind(this);
     }
 
     componentDidMount () {
         this._mounted = true;
+        const rows = JSON.parse(JSON.stringify(this.props.rows));
+        this.setState({ rows });
     }
 
     componentWillUnmount () {
         this._mounted = false;
     }
 
-    listEqual(old_values, new_values) {
-        if (old_values.length != new_values.length) {
-            return false;
-        }
-        for (let i = old_values.length; i--;) {
-            if (old_values[i] != new_values[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    handleModalChange (e) {
+    onModalChange (e) {
         this.setState({
             [e.target.id]: e.target.checked,
         });
     }
 
-    handleChange (e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
-        let time_val = "";
-        let valueErr = false;
-        let errObj = this.state.errObj;
+    validateConfig(attr, value, modalData, errObj) {
+        // Validate the current Settings
         let all_good = true;
-        let modal_msg = "";
-        let modal_schedule_msg = "";
-        let edit = false;
-        if (value == "") {
-            valueErr = true;
+        const configAttrs = [
+            'agmtName', 'agmtHost'
+        ];
+        const dnAttrs = [
+            'agmtBindDN',
+        ];
+
+        // If we disable
+        if (attr === 'agmtBootstrap' && value === false) {
+            errObj.agmtBootstrapBindDN = false;
+            errObj.agmtBootstrapBindPW = false;
+            errObj.agmtBootstrapBindPWConfirm = false;
         }
-        errObj[attr] = valueErr;
-        if (e.target.name == "agmt-modal-edit") {
-            let orig_attr = "_" + e.target.id;
-            all_good = false;
-            if ((attr != 'agmtHost' && this.state.agmtHost != this.state._agmtHost) ||
-                (attr != 'agmtPort' && this.state.agmtPort != this.state._agmtPort) ||
-                (attr != 'agmtBindDN' && this.state.agmtBindDN != this.state._agmtBindDN) ||
-                (attr != 'agmtBindMethod' && this.state.agmtBindMethod != this.state._agmtBindMethod) ||
-                (attr != 'agmtProtocol' && this.state.agmtProtocol != this.state._agmtProtocol) ||
-                (attr != 'agmtSync' && this.state.agmtSync != this.state._agmtSync) ||
-                (attr != 'agmtBootstrap' && this.state.agmtBootstrap != this.state._agmtBootstrap) ||
-                (attr != 'agmtStripAttrs' && !this.listEqual(this.state.agmtStripAttrs, this.state._agmtStripAttrs)) ||
-                (attr != 'agmtFracAttrs' && !this.listEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
-                (attr != 'agmtFracInitAttrs' && !this.listEqual(this.state.agmtFracInitAttrs, this.state._agmtFracInitAttrs))) {
-                all_good = true;
-            }
-            if (!this.state._agmtSync) {
-                if ((attr != 'agmtSyncMon' && this.state.agmtSyncMon != this.state._agmtSyncMon) ||
-                    (attr != 'agmtSyncTue' && this.state.agmtSyncTue != this.state._agmtSyncTue) ||
-                    (attr != 'agmtSyncWed' && this.state.agmtSyncWed != this.state._agmtSyncWed) ||
-                    (attr != 'agmtSyncThu' && this.state.agmtSyncThu != this.state._agmtSyncThu) ||
-                    (attr != 'agmtSyncFri' && this.state.agmtSyncFri != this.state._agmtSyncFri) ||
-                    (attr != 'agmtSyncSat' && this.state.agmtSyncSat != this.state._agmtSyncSat) ||
-                    (attr != 'agmtSyncSun' && this.state.agmtSyncSun != this.state._agmtSyncSun)) {
-                    all_good = true;
-                }
-            }
-            if (this.state._agmtBootstrap) {
-                if ((attr != 'agmtBootstrapBindDN' && this.state.agmtBootstrapBindDN != this.state._agmtBootstrapBindDN) ||
-                    (attr != 'agmtBootstrapBindPW' && this.state.agmtBootstrapBindPW != this.state._agmtBootstrapBindPW) ||
-                    (attr != 'agmtBootstrapBindPWConfirm' && this.state.agmtBootstrapBindPWConfirm != this.state._agmtBootstrapBindPWConfirm) ||
-                    (attr != 'agmtBootstrapBindMethod' && this.state.agmtBootstrapBindMethod != this.state._agmtBootstrapBindMethod) ||
-                    (attr != 'agmtBootstrapProtocol' && this.state.agmtBootstrapProtocol != this.state._agmtBootstrapProtocol)) {
-                    all_good = true;
+        if (attr === 'agmtSync' && value === true) {
+            errObj.agmtSyncMon = false;
+            errObj.agmtSyncTue = false;
+            errObj.agmtSyncWed = false;
+            errObj.agmtSyncThu = false;
+            errObj.agmtSyncFri = false;
+            errObj.agmtSyncSat = false;
+            errObj.agmtSyncSun = false;
+            errObj.agmtStartTime = false;
+            errObj.agmtEndTime = false;
+        }
+
+        for (const configAttr of configAttrs) {
+            if (attr === configAttr) {
+                if (value === "") {
+                    errObj[attr] = true;
+                    all_good = false;
                 } else {
-                    all_good = false;
+                    errObj[attr] = false;
                 }
-            }
-            if (attr != 'agmtStripAttrs' &&
-                attr != 'agmtFracAttrs' &&
-                attr != 'agmtFracInitAttrs' &&
-                value != this.state[orig_attr]) {
-                all_good = true;
-            } else if ((attr == 'agmtStripAttrs' && !this.listEqual(value, this.state._agmtStripAttrs)) ||
-                       (attr == 'agmtFracAttrs' && !this.listEqual(value, this.state._agmtFracAttrs)) ||
-                       (attr == 'agmtFracInitAttrs' && !this.listEqual(value, this.state._agmtFracInitAttrs))) {
-                all_good = true;
+            } else if (this.state[configAttr] === "") {
+                errObj[configAttr] = true;
+                all_good = false;
             }
         }
 
-        if (e.target.type == "time") {
-            // Strip out the colon from the time
-            time_val = value.replace(':', '');
-        }
-
-        if (e.target.name.startsWith("agmt-modal")) {
-            // Validate modal settings "live"
-            if (attr == 'agmtName') {
-                if (value == "") {
-                    all_good = false;
-                }
-            } else if (this.state.agmtName == "") {
-                all_good = false;
-            }
-            if (attr == 'agmtHost') {
-                if (value == "") {
-                    all_good = false;
-                }
-            } else if (this.state.agmtHost == "") {
-                all_good = false;
-            } else if (edit && value == this.state._agmtHost) {
-                all_good = false;
-            }
-            if (attr == 'agmtPort') {
-                if (value == "") {
-                    all_good = false;
-                } else if (!valid_port(value)) {
-                    all_good = false;
-                    errObj['agmtPort'] = true;
-                    modal_msg = "Invalid Consumer Port number";
-                }
-            } else if (this.state.agmtPort == "") {
-                all_good = false;
-            }
-            if (attr == 'agmtBindDN') {
-                if (value == "") {
-                    all_good = false;
-                }
+        for (const dnAttr of dnAttrs) {
+            if (attr === dnAttr) {
                 if (!valid_dn(value)) {
-                    errObj['agmtBindDN'] = true;
-                    all_good = false;
-                    modal_msg = "Invalid DN for Bind DN";
-                }
-            } else if (this.state.agmtBindDN == "") {
-                all_good = false;
-            } else if (!valid_dn(this.state.agmtBindDN)) {
-                modal_msg = "Invalid DN for Bind DN";
-                errObj['agmtBindDN'] = true;
-                all_good = false;
-            }
-            if (attr == 'agmtBindPW') {
-                if (value == "") {
-                    all_good = false;
-                } else if (value != this.state.agmtBindPWConfirm) {
-                    modal_msg = "Passwords Do Not Match";
-                    errObj['agmtBindPW'] = true;
-                    errObj['agmtBindPWConfirm'] = true;
+                    errObj[dnAttr] = true;
                     all_good = false;
                 } else {
-                    errObj['agmtBindPW'] = false;
-                    errObj['agmtBindPWConfirm'] = false;
+                    errObj[attr] = false;
                 }
-            } else if (this.state.agmtBindPW == "") {
+            } else if (!valid_dn(this.state[dnAttr])) {
+                errObj[dnAttr] = true;
                 all_good = false;
             }
-            if (attr == 'agmtBindPWConfirm') {
-                if (value == "") {
-                    all_good = false;
-                } else if (value != this.state.agmtBindPW) {
-                    modal_msg = "Passwords Do Not Match";
-                    errObj['agmtBindPW'] = true;
-                    errObj['agmtBindPWConfirm'] = true;
+        }
+
+        if (attr === 'agmtPort') {
+            if (!valid_port(value)) {
+                errObj.agmtPort = true;
+                all_good = false;
+            } else {
+                errObj.agmtPort = false;
+            }
+        } else if (attr === 'agmtProtocol') {
+            if (value === "LDAP") {
+                modalData.agmtBindMethodOptions = ldapOptions;
+            } else {
+                modalData.agmtBindMethodOptions = ldapsOptions;
+            }
+            if (modalData.agmtBindMethodOptions.indexOf(this.state.agmtBindMethod) === -1) {
+                // Auto adjust the current state to account for the new method
+                modalData.agmtBindMethod = modalData.agmtBindMethodOptions[0];
+            }
+        } else if (attr === "agmtBindMethod") {
+            modalData.agmtBindMethod = value;
+        } else if (attr === "agmtBootstrapBindMethod") {
+            modalData.agmtBootstrapBindMethod = value;
+        } else if (attr === 'agmtBootstrapProtocol') {
+            if (value === "LDAP") {
+                modalData.agmtBootstrapBindMethodOptions = ldapBootstrapOptions;
+            } else {
+                modalData.agmtBootstrapBindMethodOptions = ldapsBootstrapOptions;
+            }
+            if (modalData.agmtBootstrapBindMethodOptions.indexOf(this.state.agmtBootstrapBindMethod) === -1) {
+                // Auto adjust the current state to account for the new method
+                modalData.agmtBootstrapBindMethod = modalData.agmtBootstrapBindMethodOptions[0];
+            }
+        }
+
+        // Check passwords match
+        if (attr === 'agmtBindMethod' && (value !== "SIMPLE" && value !== "SASL/DIGEST-MD5")) {
+            errObj.agmtBindPW = false;
+            errObj.agmtBindPWConfirm = false;
+        } else if ((this.state.agmtBindMethod === "SIMPLE" || this.state.agmtBindMethod === "SASL/DIGEST-MD5") ||
+                   (attr === 'agmtBindMethod' && (value === "SIMPLE" || value === "SASL/DIGEST-MD5"))) {
+            if (attr === 'agmtBindPW') {
+                if (value !== this.state.agmtBindPWConfirm || value === "") {
+                    errObj.agmtBindPW = true;
+                    errObj.agmtBindPWConfirm = true;
                     all_good = false;
                 } else {
-                    errObj['agmtBindPW'] = false;
-                    errObj['agmtBindPWConfirm'] = false;
+                    errObj.agmtBindPW = false;
+                    errObj.agmtBindPWConfirm = false;
                 }
-            } else if (this.state.agmtBindPWConfirm == "") {
+            } else if (attr === 'agmtBindPWConfirm') {
+                if (value !== this.state.agmtBindPW || value === "") {
+                    errObj.agmtBindPW = true;
+                    errObj.agmtBindPWConfirm = true;
+                    all_good = false;
+                } else {
+                    errObj.agmtBindPW = false;
+                    errObj.agmtBindPWConfirm = false;
+                }
+            } else if (this.state.agmtBindPW !== this.state.agmtBindPWConfirm || this.state.agmtBindPW === "" || this.state.agmtBindPWConfirm === "") {
+                // Not a pasword change, but the values are no good
+                errObj.agmtBindPW = true;
+                errObj.agmtBindPWConfirm = true;
                 all_good = false;
+            }
+        } else {
+            errObj.agmtBindPW = false;
+            errObj.agmtBindPWConfirm = false;
+        }
+
+        // Handle the bootstrap settings.  There is a lot going on here.  If
+        // the Bind Method is SIMPLE we need a user password, if it's
+        // SSLCLIENTAUTH we do not need a password.  We also have to enforce
+        // LDAPS is used for SSLCLIENTAUTH.  This is similar to how we
+        // handle the agmt schedule settings.  We always need to check all
+        // the bootstrap settings if one of the bootstrap settings is
+        // changed - so there is a lot of overlap of checks, and setting and
+        // unsetting the errObj, etc
+        if (attr === 'agmtBootstrap') {
+            if (value) {
+                // Bootstrapping is enabled, validate the settings
+                if (this.state.agmtBootstrapBindMethod === "SIMPLE") {
+                    if (this.state.agmtBootstrapBindPW === "" || this.state.agmtBootstrapBindPWConfirm === "") {
+                        // Can't be empty
+                        errObj.agmtBootstrapBindPW = true;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                        all_good = false;
+                    } else if (this.state.agmtBootstrapBindPW !== this.state.agmtBootstrapBindPWConfirm) {
+                        // Must match
+                        errObj.agmtBootstrapBindPW = true;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                        all_good = false;
+                    } else {
+                        errObj.agmtBootstrapProtocol = false;
+                        errObj.agmtBootstrapBindMethod = false;
+                    }
+                } else {
+                    // All good, reset the errObj
+                    errObj.agmtBootstrapProtocol = false;
+                    errObj.agmtBootstrapBindMethod = false;
+                }
+                if (this.state.agmtBootstrapBindDN === "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
+                    errObj.agmtBootstrapBindDN = true;
+                    all_good = false;
+                }
+            }
+        } else if (this.state.agmtBootstrap) {
+            // Check all the bootstrap settings
+            if (attr === "agmtBootstrapBindDN") {
+                if (value === "" || !valid_dn(value)) {
+                    errObj.agmtBootstrapBindDN = true;
+                    all_good = false;
+                } else {
+                    errObj.agmtBootstrapBindDN = false;
+                }
+            } else if (this.state.agmtBootstrapBindDN === "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
+                errObj.agmtBootstrapBindDN = true;
+                all_good = false;
+            } else {
+                // No problems here, make sure the errObj is reset
+                errObj.agmtBootstrapBindDN = false;
             }
 
-            // Check for conflicting bind methods verses connection protocol
-            if (attr == 'agmtBindMethod') {
-                if (value == "SSLCLIENTAUTH" && this.state.agmtProtocol == "LDAP") {
-                    modal_msg = "You must use the connection protocol LDAPS if you choose the bind method SSLCLIENTAUTH";
-                    errObj['agmtBindMethod'] = true;
-                    all_good = false;
-                } else if (value == "SASL/GSSAPI" && this.state.agmtProtocol == "LDAPS") {
-                    // GSSAPI must be over LDAP, not LDAPS
-                    modal_msg = "You must use the connection protocol LDAP if you choose the bind method SASL/GSSAPI";
-                    errObj['agmtBindMethod'] = true;
-                    all_good = false;
+            if (attr === 'agmtBootstrapBindMethod') {
+                // Adjusting the Bind Method, if SIMPLE then verify the
+                // passwords are set and correct
+                if (value === "SIMPLE") {
+                    if (this.state.agmtBootstrapBindPW === "" || this.state.agmtBootstrapBindPWConfirm === "") {
+                        // Can't be empty
+                        errObj.agmtBootstrapBindPW = true;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                        all_good = false;
+                    } else if (this.state.agmtBootstrapBindPW !== this.state.agmtBootstrapBindPWConfirm) {
+                        // Must match
+                        errObj.agmtBootstrapBindPW = true;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                        all_good = false;
+                    }
                 } else {
-                    errObj['agmtBindMethod'] = false;
-                    errObj['agmtProtocol'] = false;
+                    // Not SIMPLE, ignore the passwords and reset errObj
+                    errObj.agmtBootstrapBindPW = false;
+                    errObj.agmtBootstrapBindPWConfirm = false;
+                    if (this.state.agmtBootstrapProtocol === "LDAP") {
+                        errObj.agmtBootstrapBindMethod = true;
+                        all_good = false;
+                    } else {
+                        // All good, reset the errObj
+                        errObj.agmtBootstrapProtocol = false;
+                        errObj.agmtBootstrapBindMethod = false;
+                    }
                 }
-            } else if (attr == 'agmtProtocol') {
-                if (value == "LDAP" && this.state.agmtBindMethod == "SSLCLIENTAUTH") {
-                    modal_msg = "You must use the connection protocol LDAPS if you choose the bind method SSLCLIENTAUTH";
-                    errObj['agmtBindMethod'] = true;
+            } else if (this.state.agmtBootstrapBindMethod === "SIMPLE") {
+                // Current bind method is SIMPLE, check old password values,
+                // and new ones.
+                if (attr === 'agmtBootstrapBindPW') {
+                    // Modifying password
+                    if (value === "") {
+                        all_good = false;
+                        errObj.agmtBootstrapBindPW = true;
+                    } else if (value !== this.state.agmtBootstrapBindPWConfirm) {
+                        errObj.agmtBootstrapBindPW = true;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                        all_good = false;
+                    } else {
+                        errObj.agmtBootstrapBindPW = false;
+                        errObj.agmtBootstrapBindPWConfirm = false;
+                    }
+                } else if (this.state.agmtBootstrapBindPW === "") {
+                    // Current value is no good
                     all_good = false;
-                } else if (value == "LDAPS" && this.state.agmtBindMethod == "SASL/GSSAPI") {
-                    // GSSAPI must be over LDAP, not LDAPS
-                    modal_msg = "You must use the connection protocol LDAP if you choose the bind method SASL/GSSAPI";
-                    errObj['agmtBindMethod'] = true;
+                }
+                if (attr === 'agmtBootstrapBindPWConfirm') {
+                    // Modifying password confirmation
+                    if (value === "") {
+                        all_good = false;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                    } else if (value !== this.state.agmtBootstrapBindPW) {
+                        errObj.agmtBootstrapBindPW = true;
+                        errObj.agmtBootstrapBindPWConfirm = true;
+                        all_good = false;
+                    } else {
+                        errObj.agmtBootstrapBindPW = false;
+                        errObj.agmtBootstrapBindPWConfirm = false;
+                    }
+                } else if (this.state.agmtBootstrapBindPWConfirm === "") {
+                    // Current value is no good
                     all_good = false;
-                } else {
-                    errObj['agmtBindMethod'] = false;
-                    errObj['agmtProtocol'] = false;
                 }
             } else {
-                if (this.state.agmtBindMethod == "SSLCLIENTAUTH" && this.state.agmtProtocol == "LDAP") {
-                    modal_msg = "You must use the connection protocol LDAPS if you choose the bind method SSLCLIENTAUTH";
-                    errObj['agmtBindMethod'] = true;
-                    errObj['agmtProtocol'] = true;
+                // Bind method is SSLCLIENTAUTH, make sure the connection protocol is LDAPS
+                if (this.state.agmtBootstrapProtocol === "LDAP") {
+                    errObj.agmtBootstrapProtocol = true;
                     all_good = false;
                 } else {
-                    errObj['agmtBindMethod'] = false;
-                    errObj['agmtProtocol'] = false;
+                    // All good, reset the errObj
+                    errObj.agmtBootstrapProtocol = false;
+                    errObj.agmtBootstrapBindMethod = false;
                 }
             }
-            // Handle the bootstrap settings.  There is a lot going on here.  If
-            // the Bind Method is SIMPLE we need a user password, if it's
-            // SSLCLIENTAUTH we do not need a password.  We also have to enforce
-            // LDAPS is used for SSLCLIENTAUTH.  This is similar to how we
-            // handle the agmt schedule settings.  We always need to check all
-            // the bootstrap settings if one of the bootstrap settings is
-            // changed - so there is a lot of overlap of checks, and setting and
-            // unsetting the errObj, etc
-            if (attr == 'agmtBootstrap') {
-                if (value) {
-                    if (this.state.agmtBootstrapBindMethod == "SIMPLE") {
-                        if (this.state.agmtBootstrapBindPW == "" || this.state.agmtBootstrapBindPWConfirm == "") {
-                            // Can't be empty
-                            errObj['agmtBootstrapBindPW'] = true;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                            all_good = false;
-                        } else if (this.state.agmtBootstrapBindPW != this.state.agmtBootstrapBindPWConfirm) {
-                            // Must match
-                            modal_msg = "Bootstrap Passwords Do Not Match";
-                            errObj['agmtBootstrapBindPW'] = true;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                            all_good = false;
-                        } else {
-                            errObj['agmtBootstrapProtocol'] = false;
-                            errObj['agmtBootstrapBindMethod'] = false;
-                        }
-                    } else if (this.state.agmtBootstrapProtocol != "LDAPS") {
-                        modal_msg = "You must use the connection protocol LDAPS if you choose the bind method SSLCLIENTAUTH";
-                        errObj['agmtBootstrapProtocol'] = true;
-                        all_good = false;
-                    } else {
-                        // All good, reset the errObj
-                        errObj['agmtBootstrapProtocol'] = false;
-                        errObj['agmtBootstrapBindMethod'] = false;
-                    }
-                    if (this.state.agmtBootstrapBindDN == "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
-                        errObj['agmtBootstrapBindDN'] = true;
-                        all_good = false;
-                    }
-                }
-            } else if (this.state.agmtBootstrap) {
-                // Check all the bootstrap settings
-                if (attr == "agmtBootstrapBindDN") {
-                    if (value == "" || !valid_dn(value)) {
-                        errObj['agmtBootstrapBindDN'] = true;
-                        all_good = false;
-                    } else {
-                        errObj['agmtBootstrapBindDN'] = false;
-                    }
-                } else if (this.state.agmtBootstrapBindDN == "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
-                    errObj['agmtBootstrapBindDN'] = true;
-                    all_good = false;
-                } else {
-                    // No problems here, make sure the errObj is reset
-                    errObj['agmtBootstrapBindDN'] = false;
-                }
+        }
 
-                if (attr == 'agmtBootstrapBindMethod') {
-                    // Adjusting the Bind Method, if SIMPLE then verify the
-                    // passwords are set and correct
-                    console.log("MARK proto2: ", this.state.agmtBootstrapProtocol);
-                    if (value == "SIMPLE") {
-                        if (this.state.agmtBootstrapBindPW == "" || this.state.agmtBootstrapBindPWConfirm == "") {
-                            // Can't be empty
-                            errObj['agmtBootstrapBindPW'] = true;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                            all_good = false;
-                        } else if (this.state.agmtBootstrapBindPW != this.state.agmtBootstrapBindPWConfirm) {
-                            // Must match
-                            modal_msg = "Bootstrap Passwords Do Not Match";
-                            errObj['agmtBootstrapBindPW'] = true;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                            all_good = false;
-                        }
-                    } else {
-                        // Not SIMPLE, ignore the passwords and reset errObj
-                        errObj['agmtBootstrapBindPW'] = false;
-                        errObj['agmtBootstrapBindPWConfirm'] = false;
-                        if (this.state.agmtBootstrapProtocol != "LDAPS") {
-                            modal_msg = "You must use the connection protocol LDAPS if you choose the bind method SSLCLIENTAUTH";
-                            errObj['agmtBootstrapBindMethod'] = true;
-                            all_good = false;
-                        } else {
-                            // All good, reset the errObj
-                            errObj['agmtBootstrapProtocol'] = false;
-                            errObj['agmtBootstrapBindMethod'] = false;
-                        }
-                    }
-                } else if (this.state.agmtBootstrapBindMethod == "SIMPLE") {
-                    // Current bind method is SIMPLE, check old password values,
-                    // and new ones.
-                    if (attr == 'agmtBootstrapBindPW') {
-                        // Modifying password
-                        if (value == "") {
-                            all_good = false;
-                            errObj['agmtBootstrapBindPW'] = true;
-                        } else if (value != this.state.agmtBootstrapBindPWConfirm) {
-                            modal_msg = "Bootstrap Passwords Do Not Match";
-                            errObj['agmtBootstrapBindPW'] = true;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                            all_good = false;
-                        } else {
-                            errObj['agmtBootstrapBindPW'] = false;
-                            errObj['agmtBootstrapBindPWConfirm'] = false;
-                        }
-                    } else if (this.state.agmtBootstrapBindPW == "") {
-                        // Current value is no good
-                        all_good = false;
-                    }
-                    if (attr == 'agmtBootstrapBindPWConfirm') {
-                        // Modifying password confirmation
-                        if (value == "") {
-                            all_good = false;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                        } else if (value != this.state.agmtBootstrapBindPW) {
-                            modal_msg = "Bootstrap Passwords Do Not Match";
-                            errObj['agmtBootstrapBindPW'] = true;
-                            errObj['agmtBootstrapBindPWConfirm'] = true;
-                            all_good = false;
-                        } else {
-                            errObj['agmtBootstrapBindPW'] = false;
-                            errObj['agmtBootstrapBindPWConfirm'] = false;
-                        }
-                    } else if (this.state.agmtBootstrapBindPWConfirm == "") {
-                        // Current value is no good
-                        all_good = false;
-                    }
+        if (attr === 'agmtSync') {
+            if (value) {
+                // Just set all the days and let the user remove days as needed
+                errObj.agmtStartTime = false;
+                errObj.agmtEndTime = false;
+                this.setState({
+                    agmtSyncMon: true,
+                    agmtSyncTue: true,
+                    agmtSyncWed: true,
+                    agmtSyncThu: true,
+                    agmtSyncFri: true,
+                    agmtSyncSat: true,
+                    agmtSyncSun: true,
+                    agmtStartTime: "0000",
+                    agmtEndTime: "2359",
+                });
+            }
+        } else if (this.state.agmtSync) {
+            // Check the days first
+            let have_days = false;
+            const days = [
+                "agmtSyncSun", "agmtSyncMon", "agmtSyncTue", "agmtSyncWed",
+                "agmtSyncThu", "agmtSyncFri", "agmtSyncSat"
+            ];
+            for (const day of days) {
+                if ((attr !== day && this.state[day]) || (attr === day && value)) {
+                    have_days = true;
+                    break;
+                }
+            }
+            errObj.agmtSyncSun = false;
+            errObj.agmtSyncMon = false;
+            errObj.agmtSyncTue = false;
+            errObj.agmtSyncWed = false;
+            errObj.agmtSyncThu = false;
+            errObj.agmtSyncFri = false;
+            errObj.agmtSyncSat = false;
+            if (!have_days) {
+                errObj.agmtSyncSun = true;
+                errObj.agmtSyncMon = true;
+                errObj.agmtSyncTue = true;
+                errObj.agmtSyncWed = true;
+                errObj.agmtSyncThu = true;
+                errObj.agmtSyncFri = true;
+                errObj.agmtSyncSat = true;
+                all_good = false;
+            } else if (attr === 'agmtStartTime') {
+                if (value === "") {
+                    all_good = false;
+                    errObj.agmtStartTime = true;
+                } else if (value >= this.state.agmtEndTime) {
+                    errObj.agmtStartTime = true;
+                    all_good = false;
                 } else {
-                    // Bind method is SSLCLIENTAUTH, make sure the connection protocol is LDAPS
-                    if (this.state.agmtBootstrapProtocol != "LDAPS") {
-                        modal_msg = "You must use the connection protocol LDAPS if you choose the bind method SSLCLIENTAUTH";
-                        errObj['agmtBootstrapProtocol'] = true;
-                        all_good = false;
-                    } else {
-                        // All good, reset the errObj
-                        errObj['agmtBootstrapProtocol'] = false;
-                        errObj['agmtBootstrapBindMethod'] = false;
-                    }
+                    // All good, reset form
+                    errObj.agmtStartTime = false;
+                    errObj.agmtEndTime = false;
                 }
+            } else if (attr === 'agmtEndTime') {
+                if (value === "") {
+                    errObj.agmtEndTime = true;
+                    all_good = false;
+                } else if (this.state.agmtStartTime >= value) {
+                    errObj.agmtStartTime = true;
+                    all_good = false;
+                } else {
+                    // All good, reset form
+                    errObj.agmtStartTime = false;
+                    errObj.agmtEndTime = false;
+                }
+            } else if (this.state.agmtStartTime >= this.state.agmtEndTime) {
+                errObj.agmtStartTime = true;
+                all_good = false;
             }
+        }
 
-            if (attr == 'agmtSync') {
-                if (!value) {
-                    if (this.state.agmtStartTime >= this.state.agmtEndTime) {
-                        modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                        errObj['agmtStartTime'] = true;
-                        all_good = false;
-                    }
-                }
-            } else if (!this.state.agmtSync) {
-                // Check the days first
-                let have_days = false;
-                let days = ["agmtSyncSun", "agmtSyncMon", "agmtSyncTue", "agmtSyncWed",
-                    "agmtSyncThu", "agmtSyncFri", "agmtSyncSat"];
-                for (let day of days) {
-                    if ((attr != day && this.state[day]) || (attr == day && value)) {
-                        have_days = true;
-                        break;
-                    }
-                }
-                if (!have_days) {
-                    modal_schedule_msg = "You must select at least one day for replication";
-                    all_good = false;
-                } else if (attr == 'agmtStartTime') {
-                    if (time_val == "") {
-                        all_good = false;
-                        errObj['agmtStartTime'] = true;
-                        modal_schedule_msg = "Schedule start time must be set";
-                    } else if (time_val >= this.state.agmtEndTime.replace(":", "")) {
-                        errObj['agmtStartTime'] = true;
-                        all_good = false;
-                        modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                    } else {
-                        // All good, reset form
-                        modal_schedule_msg = "";
-                        errObj['agmtStartTime'] = false;
-                        errObj['agmtEndTime'] = false;
-                    }
-                } else if (attr == 'agmtEndTime') {
-                    if (time_val == "") {
-                        errObj['agmtEndTime'] = true;
-                        all_good = false;
-                    } else if (this.state.agmtStartTime.replace(":", "") >= time_val) {
-                        modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                        errObj['agmtStartTime'] = true;
-                        all_good = false;
-                    } else {
-                        // All good, reset form
-                        modal_schedule_msg = "";
-                        errObj['agmtStartTime'] = false;
-                        errObj['agmtEndTime'] = false;
-                    }
-                } else if (this.state.agmtStartTime >= this.state.agmtEndTime) {
-                    modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                    errObj['agmtStartTime'] = true;
-                    all_good = false;
-                }
+        return all_good;
+    }
+
+    onTimeChange(action, attr, val) {
+        let value = val.replace(":", "");
+        const errObj = this.state.errObj;
+        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+
+        if (value === "") {
+            value = "0000";
+        }
+        if (attr === "agmtStartTime") {
+            if (value > this.state.agmtEndTime) {
+                errObj.agmtStartTime = true;
+            } else {
+                errObj.agmtStartTime = false;
+                errObj.agmtEndTime = false;
             }
-            // End of agmt modal live validation
+        } else if (attr === "agmtEndTime") {
+            if (this.state.agmtStartTime > value) {
+                errObj.agmtEndTime = true;
+            } else {
+                errObj.agmtEndTime = false;
+                errObj.agmtStartTime = false;
+            }
         }
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
+            errObj,
+        }, () => { action === "edit" ? this.onEditChange(e) : this.onCreateChange(e) });
+    }
+
+    onCreateChange (e) {
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
+        let all_good = true;
+        const modalData = {
+            agmtBindMethod: this.state.agmtBindMethod,
+            agmtBindMethodOptions:this.state.agmtBindMethodOptions,
+            agmtBootstrapBindMethod: this.state.agmtBootstrapBindMethod,
+            agmtBootstrapBindMethodOptions: this.state.agmtBootstrapBindMethodOptions
+        };
+        if (e.target.type === "time") {
+            // Strip out the colon from the time
+            value = value.replace(':', '');
+        }
+
+        all_good = this.validateConfig(attr, value, modalData, errObj);
+
+        this.setState({
+            [attr]: value,
+            errObj,
             agmtSaveOK: all_good,
-            modalMsg: modal_msg,
-            modalScheduleMsg: modal_schedule_msg,
+            agmtBindMethod: modalData.agmtBindMethod,
+            agmtBindMethodOptions: modalData.agmtBindMethodOptions,
+            agmtBootstrapBindMethod: modalData.agmtBootstrapBindMethod,
+            agmtBootstrapBindMethodOptions: modalData.agmtBootstrapBindMethodOptions,
+            [e.target.toggle]: false
         });
     }
 
-    handleTAStripAttrChangeEdit (values) {
-        // TypeAhead handling
-        let e = {
-            target: {
-                name: 'agmt-modal-edit',
-                id: 'agmtStripAttrs',
-                value: values,
-                type: 'input',
-            }
+    onEditChange (e) {
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
+        let all_good = false;
+        const modalData = {
+            agmtBindMethod: this.state.agmtBindMethod,
+            agmtBindMethodOptions:this.state.agmtBindMethodOptions,
+            agmtBootstrapBindMethod: this.state.agmtBootstrapBindMethod,
+            agmtBootstrapBindMethodOptions: this.state.agmtBootstrapBindMethodOptions
         };
-        this.handleChange(e);
+        errObj[attr] = false;
+
+        if (e.target.type === "time") {
+            // Strip out the colon from the time
+            value = value.replace(':', '');
+        }
+
+        all_good = this.validateConfig(attr, value, modalData, errObj);
+
+        if (all_good) {
+            // All the values are valid, but did something change that warrants
+            // the save button to be enabled?
+            all_good = false;
+            if ((attr !== 'agmtHost' && this.state.agmtHost !== this.state._agmtHost) ||
+                (attr !== 'agmtPort' && this.state.agmtPort !== this.state._agmtPort) ||
+                (attr !== 'agmtBindDN' && this.state.agmtBindDN !== this.state._agmtBindDN) ||
+                (attr !== 'agmtBindMethod' && this.state.agmtBindMethod !== this.state._agmtBindMethod) ||
+                (attr !== 'agmtProtocol' && this.state.agmtProtocol !== this.state._agmtProtocol) ||
+                (attr !== 'agmtSync' && this.state.agmtSync !== this.state._agmtSync) ||
+                (attr !== 'agmtBootstrap' && this.state.agmtBootstrap !== this.state._agmtBootstrap) ||
+                (attr !== 'agmtStripAttrs' && !listsEqual(this.state.agmtStripAttrs, this.state._agmtStripAttrs)) ||
+                (attr !== 'agmtFracAttrs' && !listsEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
+                (attr !== 'agmtFracInitAttrs' && !listsEqual(this.state.agmtFracInitAttrs, this.state._agmtFracInitAttrs))) {
+                all_good = true;
+            }
+            if ((attr !== "agmtSync" && this.state.agmtSync) || (attr === "agmtSync" && value)) {
+                if ((attr !== 'agmtSyncMon' && this.state.agmtSyncMon !== this.state._agmtSyncMon) ||
+                    (attr !== 'agmtSyncTue' && this.state.agmtSyncTue !== this.state._agmtSyncTue) ||
+                    (attr !== 'agmtSyncWed' && this.state.agmtSyncWed !== this.state._agmtSyncWed) ||
+                    (attr !== 'agmtSyncThu' && this.state.agmtSyncThu !== this.state._agmtSyncThu) ||
+                    (attr !== 'agmtSyncFri' && this.state.agmtSyncFri !== this.state._agmtSyncFri) ||
+                    (attr !== 'agmtSyncSat' && this.state.agmtSyncSat !== this.state._agmtSyncSat) ||
+                    (attr !== 'agmtSyncSun' && this.state.agmtSyncSun !== this.state._agmtSyncSun) ||
+                    (attr !== 'agmtStartTime' && this.state.agmtStartTime !== this.state._agmtStartTime) ||
+                    (attr !== 'agmtEndTime' && this.state.agmtEndTime !== this.state._agmtEndTime)) {
+                    all_good = true;
+                }
+            }
+            if ((attr !== "agmtBootstrap" && this.state.agmtBootstrap) || (attr === "agmtBootstrap" && value)) {
+                if ((attr !== 'agmtBootstrapBindDN' && this.state.agmtBootstrapBindDN !== this.state._agmtBootstrapBindDN) ||
+                    (attr !== 'agmtBootstrapBindPW' && this.state.agmtBootstrapBindPW !== this.state._agmtBootstrapBindPW) ||
+                    (attr !== 'agmtBootstrapBindPWConfirm' && this.state.agmtBootstrapBindPWConfirm !== this.state._agmtBootstrapBindPWConfirm) ||
+                    (attr !== 'agmtBootstrapBindMethod' && this.state.agmtBootstrapBindMethod !== this.state._agmtBootstrapBindMethod) ||
+                    (attr !== 'agmtBootstrapProtocol' && this.state.agmtBootstrapProtocol !== this.state._agmtBootstrapProtocol)) {
+                    all_good = true;
+                }
+            }
+            if ((attr === 'agmtStripAttrs' && !listsEqual(value, this.state._agmtStripAttrs)) ||
+                (attr === 'agmtFracAttrs' && !listsEqual(value, this.state._agmtFracAttrs)) ||
+                (attr === 'agmtFracInitAttrs' && !listsEqual(value, this.state._agmtFracInitAttrs))) {
+                all_good = true;
+            } else if (attr !== 'dummy' && value !== this.state['_' + attr]) {
+                all_good = true;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            errObj,
+            agmtSaveOK: all_good,
+            agmtBindMethod: modalData.agmtBindMethod,
+            agmtBindMethodOptions: modalData.agmtBindMethodOptions,
+            agmtBootstrapBindMethod: modalData.agmtBootstrapBindMethod,
+            agmtBootstrapBindMethodOptions: modalData.agmtBootstrapBindMethodOptions,
+            [e.target.toggle]: false
+        });
     }
 
-    handleTAFracAttrChangeEdit (values) {
-        // TypeAhead handling
-        let e = {
-            target: {
-                name: 'agmt-modal-edit',
-                id: 'agmtFracAttrs',
-                value: values,
-                type: 'input',
-            }
-        };
-        this.handleChange(e);
+    handleTASelectChange (e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        let valueErr = false;
+        const errObj = this.state.errObj;
+        if (value === "") {
+            valueErr = true;
+        }
+        errObj[attr] = valueErr;
+
+        // We handle strings and arrays here, need to find a better way to differentiate.
+        if (attr.endsWith('Attrs')) {
+            this.setState({
+                [attr]: Array.isArray(value) ? value : [],
+                errObj,
+                [e.target.toggle]: false
+            });
+        } else {
+            this.setState({
+                [attr]: value,
+                errObj,
+                [e.target.toggle]: false
+            });
+        }
     }
 
-    handleTAFracInitAttrChangeEdit (values) {
-        // TypeAhead handling
-        let e = {
-            target: {
-                name: 'agmt-modal-edit',
-                id: 'agmtFracInitAttrs',
-                value: values,
-                type: 'input',
-            }
-        };
-        this.handleChange(e);
+    onTAStripAttrChangeEdit (selection) {
+        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+        const newStripAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtStripAttrs: newStripAttrs,
+            isStripAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
-    handleTAStripAttrChange (values) {
-        // TypeAhead handling
-        let e = {
+    onTAFracAttrChangeEdit (selection) {
+        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+        const newFracAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracAttrs: newFracAttrs,
+            isExcludeAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
+    }
+
+    onTAFracInitAttrChangeEdit (selection) {
+        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+        const newFracInitAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracInitAttrs: newFracInitAttrs,
+            isExcludeInitAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
+    }
+
+    onTAStripAttrChange (values) {
+        const e = {
             target: {
                 name: 'agmt-modal',
                 id: 'agmtStripAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isStripAttrsCreateOpen',
             }
         };
-        this.handleChange(e);
+        this.handleTASelectChange(e);
     }
 
-    handleTAFracAttrChange (values) {
-        // TypeAhead handling
-        let e = {
+    onTAFracAttrChange (values) {
+        const e = {
             target: {
                 name: 'agmt-modal',
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrsCreateOpen',
             }
         };
-        this.handleChange(e);
+        this.handleTASelectChange(e);
     }
 
-    handleTAFracInitAttrChange (values) {
-        // TypeAhead handling
-        let e = {
+    onTAFracInitAttrChange (values) {
+        const e = {
             target: {
                 name: 'agmt-modal',
                 id: 'agmtFracInitAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeInitAttrsCreateOpen',
             }
         };
-        this.handleChange(e);
+        this.handleTASelectChange(e);
     }
+
+    onSelectToggle = (_event, isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    };
+
+    onSelectClear = (toggleId, collection) => {
+        this.setState({
+            [toggleId]: false,
+            [collection]: []
+        });
+    };
 
     showConfirmDeleteAgmt (agmtName) {
         this.setState({
-            agmtName: agmtName,
+            agmtName,
             showConfirmDeleteAgmt: true,
             modalChecked: false,
             modalSpinning: false,
@@ -608,7 +810,7 @@ export class ReplAgmts extends React.Component {
 
     showConfirmInitAgmt (agmtName) {
         this.setState({
-            agmtName: agmtName,
+            agmtName,
             showConfirmInitAgmt: true,
             modalChecked: false,
             modalSpinning: false,
@@ -623,27 +825,27 @@ export class ReplAgmts extends React.Component {
         });
     }
 
-    showCreateAgmtModal () {
+    handleShowCreateAgmtModal () {
         this.setState({
             showCreateAgmtModal: true,
             agmtName: "",
             agmtHost: "",
-            agmtPort: "",
-            agmtProtocol: "LDAP",
+            agmtPort: "636",
+            agmtProtocol: "LDAPS",
             agmtBindMethod: "SIMPLE",
-            agmtBindDN: "",
+            agmtBindDN: "cn=replication manager,cn=config",
             agmtBindPW: "",
             agmtBindPWConfirm: "",
             agmtBootstrap: false,
-            agmtBootstrapProtocol: "LDAP",
+            agmtBootstrapProtocol: "LDAPS",
             agmtBootstrapBindMethod: "SIMPLE",
-            agmtBootstrapBindDN: "",
+            agmtBootstrapBindDN: "cn=replication manager,cn=config",
             agmtBootstrapBindPW: "",
             agmtBootstrapBindPWConfirm: "",
             agmtStripAttrs: [],
             agmtFracAttrs: [],
             agmtFracInitAttrs: [],
-            agmtSync: true,
+            agmtSync: false,
             agmtSyncMon: true,
             agmtSyncTue: true,
             agmtSyncWed: true,
@@ -651,22 +853,11 @@ export class ReplAgmts extends React.Component {
             agmtSyncFri: true,
             agmtSyncSat: true,
             agmtSyncSun: true,
-            agmtStartTime: "00:00",
-            agmtEndTime: "23:59",
+            agmtStartTime: "0000",
+            agmtEndTime: "2359",
             agmtInit: "noinit",
             agmtSaveOK: false,
-            modalScheduleMsg: "",
-            errObj: {
-                // Marks all the fields as required
-                agmtName: true,
-                agmtHost: true,
-                agmtPort: true,
-                agmtBindDN: true,
-                agmtBindPW: true,
-                agmtBindPWConfirm: true,
-                agmtStartTime: false,
-                agmtEndTime: false,
-            }
+            errObj: {},
         });
     }
 
@@ -684,14 +875,14 @@ export class ReplAgmts extends React.Component {
 
     showEditAgmt (agmtName) {
         // Search for the agmt to get all the details
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'get', agmtName, '--suffix=' + this.props.suffix,
         ];
 
         log_cmd('showEditAgmt', 'Edit replication agreement', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let agmtName = "";
@@ -704,14 +895,14 @@ export class ReplAgmts extends React.Component {
                     let agmtBindPWConfirm = "";
                     let agmtBootstrap = false;
                     let agmtBootstrapProtocol = "";
-                    let agmtBootstrapBindMethod = "";
+                    let agmtBootstrapBindMethod = "SIMPLE";
                     let agmtBootstrapBindDN = "";
                     let agmtBootstrapBindPW = "";
                     let agmtBootstrapBindPWConfirm = "";
                     let agmtStripAttrs = [];
                     let agmtFracAttrs = [];
                     let agmtFracInitAttrs = [];
-                    let agmtSync = true;
+                    let agmtSync = false;
                     let agmtSyncMon = false;
                     let agmtSyncTue = false;
                     let agmtSyncWed = false;
@@ -719,67 +910,67 @@ export class ReplAgmts extends React.Component {
                     let agmtSyncFri = false;
                     let agmtSyncSat = false;
                     let agmtSyncSun = false;
-                    let agmtStartTime = "";
-                    let agmtEndTime = "";
-                    for (let attr in config['attrs']) {
-                        let val = config['attrs'][attr][0];
-                        if (attr == "cn") {
+                    let agmtStartTime = "0000";
+                    let agmtEndTime = "2359";
+                    for (const attr in config.attrs) {
+                        const val = config.attrs[attr][0];
+                        if (attr === "cn") {
                             agmtName = val;
                         }
-                        if (attr == "nsds5replicahost") {
+                        if (attr === "nsds5replicahost") {
                             agmtHost = val;
                         }
-                        if (attr == "nsds5replicaport") {
+                        if (attr === "nsds5replicaport") {
                             agmtPort = val;
                         }
-                        if (attr == "nsds5replicatransportinfo") {
+                        if (attr === "nsds5replicatransportinfo") {
                             agmtProtocol = val;
                         }
-                        if (attr == "nsds5replicabindmethod") {
+                        if (attr === "nsds5replicabindmethod") {
                             agmtBindMethod = val.toUpperCase();
                         }
-                        if (attr == "nsds5replicabinddn") {
+                        if (attr === "nsds5replicabinddn") {
                             agmtBindDN = val;
                         }
-                        if (attr == "nsds5replicacredentials") {
+                        if (attr === "nsds5replicacredentials") {
                             agmtBindPW = val;
                             agmtBindPWConfirm = val;
                         }
-                        if (attr == "nsds5replicabootstraptransportinfo") {
+                        if (attr === "nsds5replicabootstraptransportinfo") {
                             agmtBootstrapProtocol = val;
                         }
-                        if (attr == "nsds5replicabootstrapbindmethod") {
+                        if (attr === "nsds5replicabootstrapbindmethod") {
                             agmtBootstrapBindMethod = val.toUpperCase();
                         }
-                        if (attr == "nsds5replicabootstrapbinddn") {
+                        if (attr === "nsds5replicabootstrapbinddn") {
                             agmtBootstrapBindDN = val;
                             agmtBootstrap = true;
                         }
-                        if (attr == "nsds5replicabootstrapcredentials") {
+                        if (attr === "nsds5replicabootstrapcredentials") {
                             agmtBootstrapBindPW = val;
                             agmtBootstrapBindPWConfirm = val;
                         }
-                        if (attr == "nsds5replicatedattributelist") {
-                            let attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
+                        if (attr === "nsds5replicatedattributelist") {
+                            const attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
                             agmtFracAttrs = attrs.split(' ');
                         }
-                        if (attr == "nsds5replicatedattributelisttotal") {
-                            let attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
+                        if (attr === "nsds5replicatedattributelisttotal") {
+                            const attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
                             agmtFracInitAttrs = attrs.split(' ');
                         }
-                        if (attr == "nsds5replicastripattrs") {
+                        if (attr === "nsds5replicastripattrs") {
                             agmtStripAttrs = val.split(' ');
                         }
-                        if (attr == "nsds5replicaupdateschedule") {
-                            agmtSync = false;
+                        if (attr === "nsds5replicaupdateschedule") {
+                            agmtSync = true;
                             // Parse schedule
-                            let parts = val.split(' ');
-                            let times = parts[0].split('-');
-                            let days = parts[1];
+                            const parts = val.split(' ');
+                            const times = parts[0].split('-');
+                            const days = parts[1];
 
                             // Do the times
-                            agmtStartTime = times[0].substring(0, 2) + ":" + times[0].substring(2, 4);
-                            agmtEndTime = times[1].substring(0, 2) + ":" + times[1].substring(2, 4);
+                            agmtStartTime = times[0];
+                            agmtEndTime = times[1];
 
                             // Do the days
                             if (days.includes("0")) {
@@ -808,33 +999,33 @@ export class ReplAgmts extends React.Component {
                     if (this._mounted) {
                         this.setState({
                             showEditAgmtModal: true,
-                            agmtName: agmtName,
-                            agmtHost: agmtHost,
-                            agmtPort: agmtPort,
-                            agmtProtocol: agmtProtocol,
-                            agmtBindMethod: agmtBindMethod,
-                            agmtBindDN: agmtBindDN,
-                            agmtBindPW: agmtBindPW,
-                            agmtBindPWConfirm: agmtBindPWConfirm,
-                            agmtBootstrap: agmtBootstrap,
-                            agmtBootstrapProtocol: agmtBootstrapProtocol,
-                            agmtBootstrapBindMethod: agmtBootstrapBindMethod,
-                            agmtBootstrapBindDN: agmtBootstrapBindDN,
-                            agmtBootstrapBindPW: agmtBootstrapBindPW,
-                            agmtBootstrapBindPWConfirm: agmtBootstrapBindPWConfirm,
-                            agmtStripAttrs: agmtStripAttrs,
-                            agmtFracAttrs: agmtFracAttrs,
-                            agmtFracInitAttrs: agmtFracInitAttrs,
-                            agmtSync: agmtSync,
-                            agmtSyncMon: agmtSyncMon,
-                            agmtSyncTue: agmtSyncTue,
-                            agmtSyncWed: agmtSyncWed,
-                            agmtSyncThu: agmtSyncThu,
-                            agmtSyncFri: agmtSyncFri,
-                            agmtSyncSat: agmtSyncSat,
-                            agmtSyncSun: agmtSyncSun,
-                            agmtStartTime: agmtStartTime,
-                            agmtEndTime: agmtEndTime,
+                            agmtName,
+                            agmtHost,
+                            agmtPort,
+                            agmtProtocol,
+                            agmtBindMethod,
+                            agmtBindDN,
+                            agmtBindPW,
+                            agmtBindPWConfirm,
+                            agmtBootstrap,
+                            agmtBootstrapProtocol,
+                            agmtBootstrapBindMethod,
+                            agmtBootstrapBindDN,
+                            agmtBootstrapBindPW,
+                            agmtBootstrapBindPWConfirm,
+                            agmtStripAttrs,
+                            agmtFracAttrs,
+                            agmtFracInitAttrs,
+                            agmtSync,
+                            agmtSyncMon,
+                            agmtSyncTue,
+                            agmtSyncWed,
+                            agmtSyncThu,
+                            agmtSyncFri,
+                            agmtSyncSat,
+                            agmtSyncSun,
+                            agmtStartTime,
+                            agmtEndTime,
                             agmtSaveOK: false,
                             modalMsg: "",
                             errObj: {},
@@ -870,22 +1061,24 @@ export class ReplAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get agreement information for: "${agmtName}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg)
                     );
                 });
     }
 
     saveAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];
+        let passwd = "";
+        let bootstrap_passwd = "";
 
         // Handle Schedule
-        if (!this.state.agmtSync) {
+        if (this.state.agmtSync) {
             let agmt_days = "";
             if (this.state.agmtSyncSun) {
                 agmt_days += "0";
@@ -909,59 +1102,73 @@ export class ReplAgmts extends React.Component {
                 agmt_days += "6";
             }
             cmd.push('--schedule=' + this.state.agmtStartTime.replace(':', '') + "-" + this.state.agmtEndTime.replace(':', '') + " " + agmt_days);
-        } else if (this.state.agmtSync != this.state._agmtSync && this.state.agmtSync) {
+        } else if (this.state.agmtSync !== this.state._agmtSync && !this.state.agmtSync) {
             // We disabled custom scheduleRow
             cmd.push('--schedule=');
         }
-        if (this.state.agmtBindMethod != this.state._agmtBindMethod) {
+        if (this.state.agmtBindMethod !== this.state._agmtBindMethod) {
             cmd.push('--bind-method=' + this.state.agmtBindMethod);
         }
-        if (this.state.agmtProtocol != this.state._agmtProtocol) {
+        if (this.state.agmtProtocol !== this.state._agmtProtocol) {
             cmd.push('--conn-protocol=' + this.state.agmtProtocol);
         }
-        if (this.state.agmtBindPW != this.state._agmtBindPW) {
-            cmd.push('--bind-passwd=' + this.state.agmtBindPW);
+        if (this.state.agmtBindPW !== this.state._agmtBindPW) {
+            passwd = this.state.agmtBindPW;
         }
-        if (this.state.agmtBindDN != this.state._agmtBindDN) {
+        if (this.state.agmtBindDN !== this.state._agmtBindDN) {
             cmd.push('--bind-dn=' + this.state.agmtBindDN);
         }
-        if (this.state.agmtFracAttrs != this.state._agmtFracAttrs) {
+        if (this.state.agmtFracAttrs !== this.state._agmtFracAttrs) {
             cmd.push('--frac-list=' + this.state.agmtFracAttrs.join(' '));
         }
-        if (this.state.agmtFracInitAttrs != this.state._agmtFracInitAttrs) {
+        if (this.state.agmtFracInitAttrs !== this.state._agmtFracInitAttrs) {
             cmd.push('--frac-list-total=' + this.state.agmtFracInitAttrs.join(' '));
         }
-        if (this.state.agmtStripAttrs != this.state._agmtStripAttrs) {
+        if (this.state.agmtStripAttrs !== this.state._agmtStripAttrs) {
             cmd.push('--strip-list=' + this.state.agmtStripAttrs.join(' '));
         }
-        if (this.state.agmtHost != this.state._agmtHost) {
+        if (this.state.agmtHost !== this.state._agmtHost) {
             cmd.push('--host=' + this.state.agmtHost);
         }
-        if (this.state.agmtPort != this.state._agmtPort) {
+        if (this.state.agmtPort !== this.state._agmtPort) {
             cmd.push('--port=' + this.state.agmtPort);
         }
         if (this.state.agmtBootstrap) {
-            if (this.state.agmtBootstrapBindMethod != this.state._agmtBootstrapBindMethod) {
+            if (this.state.agmtBootstrapBindMethod !== this.state._agmtBootstrapBindMethod) {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
             }
-            if (this.state.agmtBootstrapProtocol != this.state._agmtBootstrapProtocol) {
+            if (this.state.agmtBootstrapProtocol !== this.state._agmtBootstrapProtocol) {
                 cmd.push('--bootstrap-conn-protocol=' + this.state.agmtBootstrapProtocol);
             }
-            if (this.state.agmtBootstrapBindPW != this.state._agmtBootstrapBindPW) {
-                cmd.push('--bootstrap-bind-passwd=' + this.state.agmtBootstrapBindPW);
+            if (this.state.agmtBootstrapBindPW !== this.state._agmtBootstrapBindPW) {
+                bootstrap_passwd = this.state.agmtBootstrapBindPW;
             }
-            if (this.state.agmtBootstrapBindDN != this.state._agmtBootstrapBindDN) {
+            if (this.state.agmtBootstrapBindDN !== this.state._agmtBootstrapBindDN) {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
         }
 
         this.setState({
-            savingAgmt: true
+            savingAgmt: true,
         });
-        log_cmd('saveAgmt', 'update replication agreement', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
+
+        // Update args with password file
+        if (passwd !== "") {
+            // Add password file arg
+            cmd.push("--bind-passwd-prompt");
+        }
+        if (bootstrap_passwd !== "") {
+            // Add bootstrap password file arg
+            cmd.push("--bootstrap-bind-passwd-prompt");
+        }
+
+        log_cmd('saveAgmt', 'edit agmt', cmd);
+
+        let buffer = "";
+        let error = null;
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
+        proc
+                .done(data => {
                     this.props.reload(this.props.suffix);
                     if (this._mounted) {
                         this.setState({
@@ -971,52 +1178,73 @@ export class ReplAgmts extends React.Component {
                     }
                     this.props.addNotification(
                         'success',
-                        'Successfully updated replication agreement'
+                        _("Successfully updated replication agreement")
                     );
                 })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
+                .fail(() => {
+                    const errMsg = getApiErrorMessage(error);
                     this.props.addNotification(
                         "error",
-                        `Failed to update replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to update replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         savingAgmt: false
                     });
+                })
+                .stream(data => {
+                    try {
+                        // If data is JSON then it's an error
+                        JSON.parse(data);
+                        error = data; // we'll parse this later in fail()
+                        return;
+                    } catch (e) {
+                        // Ok not an JSON error proceed as normal
+                    }
+                    buffer += data;
+                    const lines = buffer.split("\n");
+                    const last_line = lines[lines.length - 1].toLowerCase();
+                    if (bootstrap_passwd !== "") {
+                        proc.input(bootstrap_passwd + "\n", true);
+                    } else {
+                        proc.input(passwd + "\n", true);
+                    }
                 });
     }
 
     pokeAgmt (agmtName) {
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'poke', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('pokeAgmt', 'send updates now', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, "err": "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully poked replication agreement'
+                        _("Successfully poked replication agreement")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        `Failed to poke replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to poke replication agreement - $0"), errMsg)
                     );
                 });
     }
 
     initAgmt (agmtName) {
-        let init_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        this.setState({
+            modalSpinning: true
+        });
+        const init_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'init', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('initAgmt', 'Initialize agreement', init_cmd);
         cockpit
-                .spawn(init_cmd, { superuser: true, "err": "message" })
+                .spawn(init_cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    var agmtIntervalCount = this.state.agmtInitCounter + 1;
-                    var intervals = this.state.agmtInitIntervals;
+                    const agmtIntervalCount = this.state.agmtInitCounter + 1;
+                    const intervals = this.state.agmtInitIntervals;
                     this.props.reload(this.props.suffix);
                     intervals[agmtIntervalCount] = setInterval(this.watchAgmtInit, 2000, this.state.agmtName, agmtIntervalCount);
                     if (this._mounted) {
@@ -1028,10 +1256,10 @@ export class ReplAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        `Failed to initialize replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to initialize replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmInitAgmt: false
@@ -1040,15 +1268,19 @@ export class ReplAgmts extends React.Component {
     }
 
     confirmToggle (agmtName, state) {
-        if (state == 'Enabled') {
+        if (state === 'Enabled') {
             this.setState({
-                agmtName: agmtName,
-                showConfirmDisableAgmt: true
+                agmtName,
+                showConfirmDisableAgmt: true,
+                modalChecked: false,
+                modalSpinning: false,
             });
         } else {
             this.setState({
-                agmtName: agmtName,
-                showConfirmEnableAgmt: true
+                agmtName,
+                showConfirmEnableAgmt: true,
+                modalChecked: false,
+                modalSpinning: false,
             });
         }
     }
@@ -1065,93 +1297,103 @@ export class ReplAgmts extends React.Component {
         });
     }
 
-    enableAgmt (agmtName) {
+    enableAgmt () {
         // Enable/disable agmt
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-            'repl-agmt', 'enable', agmtName, '--suffix=' + this.props.suffix];
+        this.setState({
+            modalSpinning: true
+        });
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+            'repl-agmt', 'enable', this.state.agmtName, '--suffix=' + this.props.suffix];
         log_cmd('enableAgmt', 'enable agmt', cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully enabled replication agreement');
+                        _("Successfully enabled replication agreement"));
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to enabled replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to enabled replication agreement - $0"), errMsg)
                     );
                 });
     }
 
-    disableAgmt (agmtName) {
+    disableAgmt () {
         // Enable/disable agmt
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-            'repl-agmt', 'disable', agmtName, '--suffix=' + this.props.suffix];
+        this.setState({
+            modalSpinning: true
+        });
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+            'repl-agmt', 'disable', this.state.agmtName, '--suffix=' + this.props.suffix];
         log_cmd('disableAgmt', 'Disable agmt', cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully disabled replication agreement');
+                        _("Successfully disabled replication agreement"));
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to disable replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to disable replication agreement - $0"), errMsg)
                     );
                 });
     }
 
     deleteAgmt () {
         this.setState({
-            deleteSpinning: true
+            modalSpinning: true
         });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'delete', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('deleteAgmt', 'Delete agmt', cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully deleted replication agreement');
+                        _("Successfully deleted replication agreement"));
                     this.setState({
-                        showDeleteConfirm: false,
-                        deleteSpinning: false
+                        showConfirmDeleteAgmt: false,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete replication agreement - $0"), errMsg)
                     );
                     this.setState({
-                        showDeleteConfirm: false,
-                        deleteSpinning: false
+                        showConfirmDeleteAgmt: false,
                     });
                 });
     }
 
     createAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'create', this.state.agmtName, '--suffix=' + this.props.suffix,
             '--host=' + this.state.agmtHost, '--port=' + this.state.agmtPort,
             '--bind-method=' + this.state.agmtBindMethod, '--conn-protocol=' + this.state.agmtProtocol,
-            '--bind-dn=' + this.state.agmtBindDN, '--bind-passwd=' + this.state.agmtBindPW
+            '--bind-dn=' + this.state.agmtBindDN
         ];
+        let passwd = "";
+        let bootstrap_passwd = "";
+
+        if (this.state.agmtBindPW !== "") {
+            passwd = this.state.agmtBindPW;
+        }
 
         // Handle Schedule
-        if (!this.state.agmtSync) {
+        if (this.state.agmtSync) {
             let agmt_days = "";
             if (this.state.agmtSyncSun) {
                 agmt_days += "0";
@@ -1182,23 +1424,24 @@ export class ReplAgmts extends React.Component {
             cmd.push('--frac-list=' + this.state.agmtFracAttrs.join(' '));
         }
         if (this.state.agmtFracInitAttrs.length > 0) {
-            cmd.push('--frac-list-total=' + this.state.agmtFracAttrs.join(' '));
+            cmd.push('--frac-list-total=' + this.state.agmtFracInitAttrs.join(' '));
         }
         if (this.state.agmtStripAttrs.length > 0) {
             cmd.push('--strip-list=' + this.state.agmtStripAttrs.join(' '));
         }
 
+        // Handle bootstrap settings
         if (this.state.agmtBootstrap) {
-            if (this.state.agmtBootstrapBindDN != "") {
+            if (this.state.agmtBootstrapBindDN !== "") {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
-            if (this.state.agmtBootstrapBindDNPW != "") {
-                cmd.push('--bootstrap-bind-passwd=' + this.state.agmtBootstrapBindDNPW);
+            if (this.state.agmtBootstrapBindPW !== "") {
+                bootstrap_passwd = this.state.agmtBootstrapBindPW;
             }
-            if (this.state.agmtBootstrapBindMethod != "") {
+            if (this.state.agmtBootstrapBindMethod !== "") {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
             }
-            if (this.state.agmtBootstrapProtocol != "") {
+            if (this.state.agmtBootstrapProtocol !== "") {
                 cmd.push('--bootstrap-conn-protocol=' + this.state.agmtBootstrapProtocol);
             }
         }
@@ -1206,10 +1449,24 @@ export class ReplAgmts extends React.Component {
         this.setState({
             savingAgmt: true
         });
-        log_cmd('createAgmt', 'Create replication agreement', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
+
+        // Update args with password prompt
+        if (passwd !== "") {
+            // Add password prompt arg
+            cmd.push("--bind-passwd-prompt");
+        }
+        if (bootstrap_passwd !== "") {
+            // Add bootstrap password prompt arg
+            cmd.push("--bootstrap-bind-passwd-prompt");
+        }
+
+        log_cmd('createAgmt', 'Create agmt', cmd);
+
+        let buffer = "";
+        let error = null;
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
+        proc
+                .done(data => {
                     this.props.reload(this.props.suffix);
                     if (this._mounted) {
                         this.setState({
@@ -1219,77 +1476,148 @@ export class ReplAgmts extends React.Component {
                     }
                     this.props.addNotification(
                         'success',
-                        'Successfully created replication agreement'
+                        _("Successfully created replication agreement")
                     );
-                    if (this.state.agmtInit == 'online-init') {
+                    if (this.state.agmtInit === 'online-init') {
                         this.initAgmt(this.state.agmtName);
                     }
                 })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
+                .fail(() => {
+                    const errMsg = getApiErrorMessage(error);
                     this.props.addNotification(
                         "error",
-                        `Failed to create replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to create replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         savingAgmt: false
                     });
+                })
+                .stream(data => {
+                    try {
+                        // If data is JSON then it's an error
+                        JSON.parse(data);
+                        error = data; // we'll parse this later in fail()
+                        return;
+                    } catch (e) {
+                        // Ok not an JSON error proceed as normal
+                    }
+                    buffer += data;
+                    const lines = buffer.split("\n");
+                    const last_line = lines[lines.length - 1].toLowerCase();
+                    if (bootstrap_passwd !== "") {
+                        proc.input(bootstrap_passwd + "\n", true);
+                    } else {
+                        proc.input(passwd + "\n", true);
+                    }
                 });
     }
 
     watchAgmtInit(agmtName, idx) {
         // Watch the init, then clear the interval index
-        let status_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const status_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'init-status', '--suffix=' + this.props.suffix, agmtName];
         log_cmd('watchAgmtInit', 'Get initialization status for agmt', status_cmd);
         cockpit
-                .spawn(status_cmd, {superuser: true, "err": "message"})
+                .spawn(status_cmd, { superuser: "require", err: "message" })
                 .done(data => {
-                    let init_status = JSON.parse(data);
+                    const init_status = JSON.parse(data);
                     if (init_status.startsWith('Agreement successfully initialized') ||
                         init_status.startsWith('Agreement initialization failed')) {
                         // Either way we're done, stop watching the status
                         clearInterval(this.state.agmtInitIntervals[idx]);
+                        this.props.reload(this.props.suffix);
                     }
-                    this.props.reload(this.props.suffix);
                 });
+    }
+
+    onSort(_event, index, direction) {
+        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    onSearchChange(event, value) {
+        let rows = [];
+        const val = value.toLowerCase();
+
+        for (const row of this.props.rows) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1) {
+                // Not a match, skip it
+                continue;
+            }
+            rows.push([row[0], row[1], row[2], row[3], row[4], row[5]]);
+        }
+        if (val === "") {
+            // reset rows
+            rows = JSON.parse(JSON.stringify(this.props.rows));
+        }
+        this.setState({
+            rows,
+            value,
+            page: 1,
+        });
     }
 
     render() {
         return (
-            <div className="ds-margin-right">
+            <div className="ds-margin-right ds-margin-bottom-md">
                 <ReplAgmtTable
-                    rows={this.props.rows}
+                    key={this.state.rows}
+                    rows={this.state.rows}
                     edit={this.showEditAgmt}
                     poke={this.pokeAgmt}
                     init={this.showConfirmInitAgmt}
                     enable={this.confirmToggle}
                     delete={this.showConfirmDeleteAgmt}
+                    page={this.state.page}
+                    handleSort={this.onSort}
+                    sortBy={this.state.sortBy}
+                    handleSearch={this.onSearchChange}
+                    value={this.state.value}
                 />
                 <div className="ds-margin-top ds-container ds-inline">
                     <Button
-                        bsStyle="primary"
-                        onClick={this.showCreateAgmtModal}
+                        variant="primary"
+                        onClick={this.handleShowCreateAgmtModal}
                     >
-                        Create Agreement
+                        {_("Create Agreement")}
                     </Button>
                     <Button
                         className="ds-left-margin"
-                        bsStyle="default"
+                        variant="secondary"
                         onClick={() => {
                             this.props.reload(this.props.suffix);
                         }}
                     >
-                        Refresh Agreements
+                        {_("Refresh Agreements")}
                     </Button>
                 </div>
                 <ReplAgmtModal
+                    key={this.state.showCreateAgmtModal ? "create1" : "create0"}
                     showModal={this.state.showCreateAgmtModal}
                     closeHandler={this.closeCreateAgmtModal}
-                    handleChange={this.handleChange}
-                    handleStripChange={this.handleTAStripAttrChange}
-                    handleFracChange={this.handleTAFracAttrChange}
-                    handleFracInitChange={this.handleTAFracInitAttrChange}
+                    handleChange={this.onCreateChange}
+                    handleTimeChange={this.onTimeChange}
+                    handleStripChange={this.onTAStripAttrChange}
+                    handleFracChange={this.onTAFracAttrChange}
+                    handleFracInitChange={this.onTAFracInitAttrChange}
+                    onExcludeAttrsToggle={this.handleExcludeAttrsCreateToggle}
+                    onExcludeAttrsClear={this.handleExcludeAttrsCreateClear}
+                    onExcludeAttrsInitToggle={this.handleExcludeAttrsInitCreateToggle}
+                    onExcludeAttrsInitClear={this.handleExcludeAttrsInitCreateClear}
+                    onStripAttrsToggle={this.onStripAttrsCreateToggle}
+                    onStripAttrsClear={this.handleStripAttrsCreateClear}
+                    isExcludeAttrsOpen={this.state.isExcludeAttrsCreateOpen}
+                    isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsCreateOpen}
+                    isStripAttrsOpen={this.state.isStripAttrsCreateOpen}
                     saveHandler={this.createAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
@@ -1300,12 +1628,14 @@ export class ReplAgmts extends React.Component {
                     agmtBindPWConfirm={this.state.agmtBindPWConfirm}
                     agmtProtocol={this.state.agmtProtocol}
                     agmtBindMethod={this.state.agmtBindMethod}
+                    agmtBindMethodOptions={this.state.agmtBindMethodOptions}
                     agmtBootstrap={this.state.agmtBootstrap}
                     agmtBootstrapBindDN={this.state.agmtBootstrapBindDN}
                     agmtBootstrapBindPW={this.state.agmtBootstrapBindPW}
                     agmtBootstrapBindPWConfirm={this.state.agmtBootstrapBindPWConfirm}
                     agmtBootstrapProtocol={this.state.agmtBootstrapProtocol}
                     agmtBootstrapBindMethod={this.state.agmtBootstrapBindMethod}
+                    agmtBootstrapBindMethodOptions={this.state.agmtBootstrapBindMethodOptions}
                     agmtStripAttrs={this.state.agmtStripAttrs}
                     agmtFracAttrs={this.state.agmtFracAttrs}
                     agmtFracInitAttrs={this.state.agmtFracInitAttrs}
@@ -1319,19 +1649,29 @@ export class ReplAgmts extends React.Component {
                     agmtSyncSun={this.state.agmtSyncSun}
                     agmtStartTime={this.state.agmtStartTime}
                     agmtEndTime={this.state.agmtEndTime}
+                    agmtInit={this.state.agmtInit}
                     availAttrs={this.props.attrs}
                     error={this.state.errObj}
-                    errorMsg={this.state.modalMsg}
-                    errorScheduleMsg={this.state.modalScheduleMsg}
                     saveOK={this.state.agmtSaveOK}
                 />
                 <ReplAgmtModal
+                    key={this.state.showEditAgmtModal ? "edit1" : "edit0"}
                     showModal={this.state.showEditAgmtModal}
                     closeHandler={this.closeEditAgmtModal}
-                    handleChange={this.handleChange}
-                    handleStripChange={this.handleTAStripAttrChangeEdit}
-                    handleFracChange={this.handleTAFracAttrChangeEdit}
-                    handleFracInitChange={this.handleTAFracInitAttrChangeEdit}
+                    handleChange={this.onEditChange}
+                    handleTimeChange={this.onTimeChange}
+                    handleStripChange={this.onTAStripAttrChangeEdit}
+                    handleFracChange={this.onTAFracAttrChangeEdit}
+                    handleFracInitChange={this.onTAFracInitAttrChangeEdit}
+                    onExcludeAttrsToggle={this.handleExcludeAttrsEditToggle}
+                    onExcludeAttrsClear={this.handleExcludeAttrsEditClear}
+                    onExcludeAttrsInitToggle={this.handleExcludeAttrsInitEditToggle}
+                    onExcludeAttrsInitClear={this.handleExcludeAttrsInitEditClear}
+                    onStripAttrsToggle={this.onStripAttrsEditToggle}
+                    onStripAttrsClear={this.handleStripAttrsEditClear}
+                    isExcludeAttrsOpen={this.state.isExcludeAttrsEditOpen}
+                    isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsEditOpen}
+                    isStripAttrsOpen={this.state.isStripAttrsEditOpen}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
@@ -1342,12 +1682,14 @@ export class ReplAgmts extends React.Component {
                     agmtBindPWConfirm={this.state.agmtBindPWConfirm}
                     agmtProtocol={this.state.agmtProtocol}
                     agmtBindMethod={this.state.agmtBindMethod}
+                    agmtBindMethodOptions={this.state.agmtBindMethodOptions}
                     agmtBootstrap={this.state.agmtBootstrap}
                     agmtBootstrapBindDN={this.state.agmtBootstrapBindDN}
                     agmtBootstrapBindPW={this.state.agmtBootstrapBindPW}
                     agmtBootstrapBindPWConfirm={this.state.agmtBootstrapBindPWConfirm}
                     agmtBootstrapProtocol={this.state.agmtBootstrapProtocol}
                     agmtBootstrapBindMethod={this.state.agmtBootstrapBindMethod}
+                    agmtBootstrapBindMethodOptions={this.state.agmtBootstrapBindMethodOptions}
                     agmtStripAttrs={this.state.agmtStripAttrs}
                     agmtFracAttrs={this.state.agmtFracAttrs}
                     agmtFracInitAttrs={this.state.agmtFracInitAttrs}
@@ -1361,54 +1703,63 @@ export class ReplAgmts extends React.Component {
                     agmtSyncSun={this.state.agmtSyncSun}
                     agmtStartTime={this.state.agmtStartTime}
                     agmtEndTime={this.state.agmtEndTime}
+                    agmtInit={this.state.agmtInit}
                     availAttrs={this.props.attrs}
                     error={this.state.errObj}
-                    errorMsg={this.state.modalMsg}
-                    errorScheduleMsg={this.state.modalScheduleMsg}
                     saveOK={this.state.agmtSaveOK}
                     edit
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteAgmt}
                     closeHandler={this.closeConfirmDeleteAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Replication Agreement"
-                    mMsg="Are you sure you want to delete this replication agreement?"
-                    mSpinningMsg="Deleting Replication Agreement ..."
-                    mBtnName="Delete Agreement"
+                    mTitle={_("Delete Replication Agreement")}
+                    mMsg={_("Are you sure you want to delete this replication agreement?")}
+                    mSpinningMsg={_("Deleting Replication Agreement ...")}
+                    mBtnName={_("Delete Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmInitAgmt}
                     closeHandler={this.closeConfirmInitAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.initAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Initialize Replication Agreement"
-                    mMsg="Are you sure you want to initialize this replication agreement?"
-                    mSpinningMsg="Initializing Replication Agreement ..."
-                    mBtnName="Initialize Agreement"
+                    mTitle={_("Initialize Replication Agreement")}
+                    mMsg={_("Are you sure you want to initialize this replication agreement?")}
+                    mSpinningMsg={_("Initializing Replication Agreement ...")}
+                    mBtnName={_("Initialize Agreement")}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmEnableAgmt}
                     closeHandler={this.closeConfirmEnableAgmt}
-                    actionFunc={this.enableAgmt}
-                    actionParam={this.state.agmtName}
-                    msg="Are you sure you want to enable this replication agreement?"
-                    msgContent={this.state.agmtName}
+                    handleChange={this.onModalChange}
+                    actionHandler={this.enableAgmt}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.agmtName}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Enable Replication Agreement")}
+                    mMsg={_("Are you sure you want to enable this replication agreement?")}
+                    mSpinningMsg={_("Enabling ...")}
+                    mBtnName={_("Enable Agreement")}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmDisableAgmt}
                     closeHandler={this.closeConfirmDisableAgmt}
-                    actionFunc={this.disableAgmt}
-                    actionParam={this.state.agmtName}
-                    msg="Are you sure you want to disable this replication agreement?"
-                    msgContent={this.state.agmtName}
+                    handleChange={this.onModalChange}
+                    actionHandler={this.disableAgmt}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.agmtName}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Disable Replication Agreement")}
+                    mMsg={_("Are you sure you want to disable this replication agreement?")}
+                    mSpinningMsg={_("Disabling ...")}
+                    mBtnName={_("Disable Agreement")}
                 />
             </div>
         );
@@ -1427,6 +1778,5 @@ ReplAgmts.defaultProps = {
     serverId: "",
     suffix: "",
     rows: [],
-    addNotification: noop,
     attrs: [],
 };

@@ -15,6 +15,7 @@
  *
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -57,8 +58,15 @@
  * it's still better than ssha512.
  */
 #define PBKDF2_MINIMUM 2048
+#define PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR "nsslapd-pwdPBKDF2AcceptMaxIterations"
 
-static uint32_t PBKDF2_ITERATIONS = 8192;
+static uint32_t pbkdf2Iterations = 8192;
+static uint32_t pbkdf2AcceptMaxIterations = PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT;
+
+/* Rejections of out-of-range iteration counts are logged at most once per interval */
+#define PBKDF2_REJECT_LOG_INTERVAL 300
+static uint64_t pbkdf2RejectLastLogTime = 0;
+static uint64_t pbkdf2RejectSuppressed = 0;
 
 static const char *schemeName = PBKDF2_SHA256_SCHEME_NAME;
 static const uint32_t schemeNameLength = PBKDF2_SHA256_NAME_LEN;
@@ -91,10 +99,11 @@ pbkdf2_sha256_extract(char *hash_in, SECItem *salt, uint32_t *iterations)
 SECStatus
 pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, uint32_t iterations)
 {
-    SECItem *result = NULL;
     SECAlgorithmID *algid = NULL;
     PK11SlotInfo *slot = NULL;
     PK11SymKey *symkey = NULL;
+    SECItem *wrapKeyData = NULL;
+    SECStatus rv = SECFailure;
 
     /* We assume that NSS is already started. */
     algid = PK11_CreatePBEV2AlgorithmID(SEC_OID_PKCS5_PBKDF2, SEC_OID_HMAC_SHA256, SEC_OID_HMAC_SHA256, hash_out_len, iterations, salt);
@@ -104,7 +113,6 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
         slot = PK11_GetBestSlotMultiple(mechanism_array, 2, NULL);
         if (slot != NULL) {
             symkey = PK11_PBEKeyGen(slot, algid, pwd, PR_FALSE, NULL);
-            PK11_FreeSlot(slot);
             if (symkey == NULL) {
                 /* We try to get the Error here but NSS has two or more error interfaces, and sometimes it uses none of them. */
                 int32_t status = PORT_GetError();
@@ -123,18 +131,60 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
         return SECFailure;
     }
 
-    if (PK11_ExtractKeyValue(symkey) == SECSuccess) {
-        result = PK11_GetKeyData(symkey);
-        if (result != NULL && result->len <= hash_out_len) {
-            memcpy(hash_out, result->data, result->len);
-            PK11_FreeSymKey(symkey);
+    /*
+     * First, we need to generate a wrapped key for PK11_Decrypt call:
+     * slot is the same slot we used in PK11_PBEKeyGen()
+     * 256 bits / 8 bit per byte
+     */
+    PK11SymKey *wrapKey = PK11_KeyGen(slot, CKM_AES_ECB, NULL, 256/8, NULL);
+    PK11_FreeSlot(slot);
+    if (wrapKey == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to generate a wrapped key.\n");
+        return SECFailure;
+	}
+
+    wrapKeyData = (SECItem *)PORT_Alloc(sizeof(SECItem));
+    /* Align the wrapped key with 32 bytes. */
+    wrapKeyData->len = (PK11_GetKeyLength(symkey) + 31) & ~31;
+    /* Allocate the aligned space for pkc5PBE key plus AESKey block */
+    wrapKeyData->data = (unsigned char *)slapi_ch_calloc(wrapKeyData->len, sizeof(unsigned char));
+
+    /* Get symkey wrapped with wrapKey - required for PK11_Decrypt call */
+    rv = PK11_WrapSymKey(CKM_AES_ECB, NULL, wrapKey, symkey, wrapKeyData);
+    if (rv != SECSuccess) {
+        PK11_FreeSymKey(symkey);
+        PK11_FreeSymKey(wrapKey);
+        SECITEM_FreeItem(wrapKeyData, PR_TRUE);
+        slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to wrap the symkey. (%d)\n", rv);
+        return SECFailure;
+    }
+
+    /* Allocate the space for our result */
+    void *result = (char *)slapi_ch_calloc(wrapKeyData->len, sizeof(char));
+    unsigned int result_len = 0;
+
+    /* User wrapKey to decrypt the wrapped contents.
+     * result is the hash that we need;
+     * result_len is the actual lengh of the data;
+     * has_out_len is the maximum (the space we allocted for hash_out)
+     */
+    rv = PK11_Decrypt(wrapKey, CKM_AES_ECB, NULL, result, &result_len, hash_out_len, wrapKeyData->data, wrapKeyData->len);
+    PK11_FreeSymKey(symkey);
+    PK11_FreeSymKey(wrapKey);
+    SECITEM_FreeItem(wrapKeyData, PR_TRUE);
+
+    if (rv == SECSuccess) {
+        if (result != NULL && result_len <= hash_out_len) {
+            memcpy(hash_out, result, result_len);
+            slapi_ch_free((void **)&result);
         } else {
-            PK11_FreeSymKey(symkey);
-            slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to retrieve (get) hash output.\n");
+            slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to retrieve (get) hash output.\n");
+            slapi_ch_free((void **)&result);
             return SECFailure;
         }
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to extract hash output.\n");
+        slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to extract hash output. (%d)\n", rv);
+        slapi_ch_free((void **)&result);
         return SECFailure;
     }
 
@@ -165,8 +215,10 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
     /*
      * Preload the salt and iterations to the output.
      * memcpy the iterations to the hash_out
-     * We use ntohl on this value to make sure it's correct endianess.
+     * We use htonl on this value to make sure it's correct endianess.
      */
+    uint32_t rounds = iterations;
+
     iterations = htonl(iterations);
     memcpy(hash, &iterations, PBKDF2_ITERATIONS_LENGTH);
     /* memcpy the salt to the hash_out */
@@ -176,7 +228,7 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
      *                      This offset is to make the hash function put the values
      *                      In the correct part of the memory.
      */
-    if (pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, PBKDF2_ITERATIONS) != SECSuccess) {
+    if (pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, rounds) != SECSuccess) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Could not generate pbkdf2_sha256_hash!\n");
         slapi_ch_free_string(&enc);
         return NULL;
@@ -194,7 +246,42 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
 char *
 pbkdf2_sha256_pw_enc(const char *pwd)
 {
-    return pbkdf2_sha256_pw_enc_rounds(pwd, PBKDF2_ITERATIONS);
+    return pbkdf2_sha256_pw_enc_rounds(pwd, pbkdf2Iterations);
+}
+
+static void
+pbkdf2_sha256_log_rejected_iterations(uint32_t iterations)
+{
+    uint64_t now = (uint64_t)slapi_current_rel_time_t();
+    uint64_t last = slapi_atomic_load_64(&pbkdf2RejectLastLogTime, __ATOMIC_RELAXED);
+
+    if (last != 0 && (now - last) < PBKDF2_REJECT_LOG_INTERVAL) {
+        slapi_atomic_incr_64(&pbkdf2RejectSuppressed, __ATOMIC_RELAXED);
+        return;
+    }
+    slapi_atomic_store_64(&pbkdf2RejectLastLogTime, now, __ATOMIC_RELAXED);
+    uint64_t suppressed = slapi_atomic_load_64(&pbkdf2RejectSuppressed, __ATOMIC_RELAXED);
+    slapi_atomic_store_64(&pbkdf2RejectSuppressed, 0, __ATOMIC_RELAXED);
+
+    if (iterations > pbkdf2AcceptMaxIterations) {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                      "Rejected a password hash with iteration count %" PRIu32
+                      " above the accepted maximum %" PRIu32 ". If these hashes are legitimate, raise "
+                      PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR
+                      " ('dsconf <instance> plugin pwstorage-scheme pbkdf2-sha256-legacy set-accept-max-iterations') and restart the server\n",
+                      iterations, pbkdf2AcceptMaxIterations);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                      "Rejected a password hash with iteration count %" PRIu32
+                      " below the supported minimum %" PRIu32 "\n",
+                      iterations, PBKDF2_MINIMUM);
+    }
+
+    if (suppressed > 0) {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                      "%" PRIu64 " additional out-of-range iteration rejections were suppressed in the last %" PRIu64 " seconds\n",
+                      suppressed, now - last);
+    }
 }
 
 int32_t
@@ -204,6 +291,7 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
     char dbhash[PBKDF2_TOTAL_LENGTH] = {0};
     char userhash[PBKDF2_HASH_LENGTH] = {0};
     int32_t dbpwd_len = strlen(dbpwd);
+    PRUint32 hash_len = 0;
     SECItem saltItem;
     SECItem passItem;
     uint32_t iterations = 0;
@@ -213,13 +301,28 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
     passItem.data = (unsigned char *)userpwd;
     passItem.len = strlen(userpwd);
 
+    hash_len = pwdstorage_base64_decode_len(dbpwd, dbpwd_len);
+
+    /* Check if the hash length is valid */
+    if (hash_len != PBKDF2_TOTAL_LENGTH) {
+        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to base64 decode dbpwd value. (hashed value has invalid length)\n");
+        return result;
+    }
+
     /* Decode the DBpwd to bytes from b64 */
     if (PL_Base64Decode(dbpwd, dbpwd_len, dbhash) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to base64 decode dbpwd value\n");
         return result;
     }
+
     /* extract the fields */
     pbkdf2_sha256_extract(dbhash, &saltItem, &iterations);
+
+    /* Check if the iteration count is within range */
+    if (iterations < PBKDF2_MINIMUM || iterations > pbkdf2AcceptMaxIterations) {
+        pbkdf2_sha256_log_rejected_iterations(iterations);
+        return result;
+    }
 
     /* Now send the userpw to the hash function, with the salt + iter. */
     if (pbkdf2_sha256_hash(userhash, PBKDF2_HASH_LENGTH, &passItem, &saltItem, iterations) != SECSuccess) {
@@ -307,16 +410,57 @@ pbkdf2_sha256_calculate_iterations(uint64_t time_nsec)
 }
 
 
-int
-pbkdf2_sha256_start(Slapi_PBlock *pb __attribute__((unused)))
+static uint32_t
+pbkdf2_sha256_read_accept_max_iterations(Slapi_PBlock *pb, uint32_t default_max)
 {
-    /* Run the time generator */
+    Slapi_Entry *entry = NULL;
+    uint32_t accept_max = default_max;
+
+    /* Check config entry for accept max iterations */
+    slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &entry);
+    if (entry != NULL && slapi_entry_attr_exists(entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR)) {
+        int64_t configured = slapi_entry_attr_get_longlong(entry, PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR);
+
+        if (configured < PBKDF2_MINIMUM || configured > INT_MAX) {
+            slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName,
+                          "Invalid %s value %" PRId64 ", must be between %" PRIu32
+                          " and %d; using the default %" PRIu32 "\n",
+                          PBKDF2_ACCEPT_MAX_ITERATIONS_ATTR, configured,
+                          PBKDF2_MINIMUM, INT_MAX, default_max);
+        } else {
+            accept_max = (uint32_t)configured;
+        }
+    }
+
+    return accept_max;
+}
+
+void
+pbkdf2_sha256_set_accept_max_iterations(uint32_t accept_max)
+{
+    pbkdf2AcceptMaxIterations = accept_max;
+}
+
+int
+pbkdf2_sha256_start(Slapi_PBlock *pb)
+{
     uint64_t time_nsec = pbkdf2_sha256_benchmark_iterations();
-    /* Calculate the iterations */
-    /* set it globally */
-    PBKDF2_ITERATIONS = pbkdf2_sha256_calculate_iterations(time_nsec);
-    /* Make a note of it. */
-    slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName, "Based on CPU performance, chose %" PRIu32 " rounds\n", PBKDF2_ITERATIONS);
+    uint32_t benched_iterations = pbkdf2_sha256_calculate_iterations(time_nsec);
+
+    pbkdf2AcceptMaxIterations = pbkdf2_sha256_read_accept_max_iterations(pb, PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT);
+    slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
+                  "PBKDF2 accept max iterations set to %" PRIu32 "\n", pbkdf2AcceptMaxIterations);
+
+    pbkdf2Iterations = benched_iterations;
+    if (pbkdf2Iterations > pbkdf2AcceptMaxIterations) {
+        pbkdf2Iterations = pbkdf2AcceptMaxIterations;
+        slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
+                      "Benchmark chose %" PRIu32 " rounds; capping at the configured accept max %" PRIu32 "\n",
+                      benched_iterations, pbkdf2AcceptMaxIterations);
+    }
+    slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName,
+                  "Based on CPU performance, chose %" PRIu32 " rounds\n", pbkdf2Iterations);
+
     return 0;
 }
 

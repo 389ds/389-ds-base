@@ -23,15 +23,16 @@
 /* Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn ); */
 static int set_retry_cnt(Slapi_PBlock *pb, int count);
 static int set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time);
+static int set_tpr_usecount(Slapi_PBlock *pb, int count);
 
 /*
- * update_pw_retry() is called when bind operation fails
- * with LDAP_INVALID_CREDENTIALS (in backend bind.c ).
- * It checks to see if the retry count can be reset,
- * increments retry count, and then check if need to lock the acount.
+ * update_pw_retry() is called when bind operation fails with
+ * LDAP_INVALID_CREDENTIALS (in backend bind.c).  It checks to see if the retry
+ * count can be reset, increments retry count, and then check if need to lock
+ * the account.
  * To have a global password policy, these mods should be chained to the
- * master, and not applied locally. If they are applied locally, they should
- * not get replicated from master...
+ * supplier, and not applied locally. If they are applied locally, they should
+ * not get replicated from the supplier...
  */
 
 int
@@ -87,9 +88,44 @@ update_pw_retry(Slapi_PBlock *pb)
         }
     }
     slapi_entry_free(e);
-    return rc; /* success */
+    return rc;
 }
 
+/*
+ * update_tpr_pw_usecount() is called during a bind operation.
+ * The bind may later succeeds or fails, this function just record
+ * an additional access to TPR userpassword
+ * Returns
+ *   LDAP_CONSTRAINT_VIOLATION if pwdTPRUseCount overpass TPR maxuse
+ *   0 else
+ */
+int
+update_tpr_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count)
+{
+    int rc = 0;
+
+    if (e == NULL) {
+        return (1);
+    }
+
+    if (slapi_entry_attr_hasvalue(e, "pwdTPRReset", "TRUE")) {
+        /* This entry contains a OneTimePassword userpassword
+         * as the bind failed, increase the passwordTPRRetryCount
+         * and return a failure if the retryCount exceed the limit
+         * set in the password policy
+         */
+        if (use_count >= 0) {
+            passwdPolicy *pwpolicy = new_passwdPolicy(pb, slapi_entry_get_ndn(e));
+            slapi_log_err(SLAPI_LOG_PWDPOLICY,
+                          PWDPOLICY_DEBUG,
+                          "Update pwdTPRUseCount=%d: Entry (%s) Policy (%s)\n",
+                          use_count, slapi_entry_get_ndn(e),
+                          pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+            rc = set_tpr_usecount(pb, use_count);
+        }
+    }
+    return rc;
+}
 static int
 set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time)
 {
@@ -121,6 +157,49 @@ set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time)
     return rc;
 }
 
+/* update pwdTPRUseCount=count of the target entry
+ * Returns
+ *   LDAP_CONSTRAINT_VIOLATION if pwdTPRUseCount overpass TPR maxuse
+ *   0 else
+ */
+int
+set_tpr_usecount_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
+{
+    char retry_cnt[16] = {0}; /* 1-65535 */
+    const char *dn = NULL;
+    Slapi_DN *sdn = NULL;
+    passwdPolicy *pwpolicy = NULL;
+    int rc = 0;
+
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    dn = slapi_sdn_get_dn(sdn);
+    pwpolicy = new_passwdPolicy(pb, dn);
+
+    if (smods) {
+        sprintf(retry_cnt, "%d", count);
+        slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "pwdTPRUseCount", retry_cnt);
+        slapi_log_err(SLAPI_LOG_PWDPOLICY,
+                      PWDPOLICY_DEBUG,
+                      "Unsuccessful bind, increase pwdTPRUseCount = %d (max %d): Entry (%s) Policy (%s)\n",
+                      count, pwpolicy->pw_tpr_maxuse,
+                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+        /* return a failure if it reaches the retry limit */
+        if (count > pwpolicy->pw_tpr_maxuse) {
+            slapi_log_err(SLAPI_LOG_INFO,
+                          "set_tpr_usecount_mods",
+                          "Unsuccessful bind, LDAP_CONSTRAINT_VIOLATION pwdTPRUseCount "
+                          "%d > %d: Entry (%s) Policy (%s)\n",
+                          count,
+                          pwpolicy->pw_tpr_maxuse,
+                          dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+            rc = LDAP_CONSTRAINT_VIOLATION;
+        }
+    }
+    /* covscan false positive: new_passwdPolicy anchor the policy in the pblock */
+    /* coverity[leaked_storage] */
+    return rc;
+}
+
 int
 set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 {
@@ -144,7 +223,14 @@ set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
             /* Remove lock_account function to perform all mods at once */
             /* lock_account ( pb ); */
             /* reach the retry limit, lock the account  */
-            if (pwpolicy->pw_unlock == 0) {
+            /*
+             * we check if pw_lockduration == 0 here which is to maintain compat
+             * with openldap ppolicy. In ppolicy 0 means "wait for the admin to unlock"
+             * the same as our pw_unlock == 0.
+             * But generally a pw_lockduration of 0 doesn't really make sense anyway, so
+             * it's probably better to err on the side of caution.
+             */
+            if (pwpolicy->pw_unlock == 0 || pwpolicy->pw_lockduration == 0) {
                 /* lock until admin reset password */
                 unlock_time = NO_TIME;
             } else {
@@ -169,6 +255,26 @@ set_retry_cnt(Slapi_PBlock *pb, int count)
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_mods_init(&smods, 0);
     rc = set_retry_cnt_mods(pb, &smods, count);
+    pw_apply_mods(sdn, &smods);
+    slapi_mods_done(&smods);
+    return rc;
+}
+
+/* update pwdTPRUseCount=count of the target entry
+ * Returns
+ *   LDAP_CONSTRAINT_VIOLATION if pwdTPRUseCount overpass TPR maxuse
+ *   0 else
+ */
+static int
+set_tpr_usecount(Slapi_PBlock *pb, int count)
+{
+    Slapi_DN *sdn = NULL;
+    Slapi_Mods smods;
+    int rc = 0;
+
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_mods_init(&smods, 0);
+    rc = set_tpr_usecount_mods(pb, &smods, count);
     pw_apply_mods(sdn, &smods);
     slapi_mods_done(&smods);
     return rc;

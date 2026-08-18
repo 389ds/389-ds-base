@@ -26,8 +26,12 @@ class SimpleParser(LDIFParser):
         self.entries.append((dn, entry))
 
 
-def ldif_parse(path, rpath):
-    with open(os.path.join(path, rpath), 'r') as f:
+def ldif_parse(path, rpath=None):
+    if rpath is None:
+        jpath = path
+    else:
+        jpath = os.path.join(path, rpath)
+    with open(jpath, 'r') as f:
         sp = SimpleParser(f)
         sp.parse()
         return sp.entries
@@ -47,6 +51,20 @@ class olOverlayType(Enum):
     MEMBEROF = 1
     REFINT = 2
     UNIQUE = 3
+    PPOLICY = 4
+
+def olOverlayType_from_str(instr):
+    instr = instr.upper().strip()
+    if instr == "MEMBEROF":
+        return olOverlayType.MEMBEROF
+    elif instr == "REFINT":
+        return olOverlayType.REFINT
+    elif instr == "UNIQUE":
+        return olOverlayType.UNIQUE
+    elif instr == "PPOLICY":
+        return olOverlayType.PPOLICY
+    else:
+        return olOverlayType.UNKNOWN
 
 
 class olOverlay(object):
@@ -64,7 +82,7 @@ class olOverlay(object):
         self.classes = ensure_list_str(self.config[1]['objectClass'])
         self.log.debug(f"{self.name} {self.classes}")
 
-        if 'olcMemberOf' in self.classes:
+        if 'olcMemberOf' in self.classes or 'olcMemberOfConfig' in self.classes:
             self.otype = olOverlayType.MEMBEROF
             #
         elif 'olcRefintConfig' in self.classes:
@@ -79,6 +97,8 @@ class olOverlay(object):
                 attr.split('?')[1]
                 for attr in ensure_list_str(self.config[1]['olcUniqueURI'])
             ])
+        elif 'olcPPolicyConfig' in self.classes:
+            self.otype = olOverlayType.PPOLICY
         else:
             self.otype = olOverlayType.UNKNOWN
             # Should we stash extra details?
@@ -93,24 +113,34 @@ class olDatabase(object):
         self.config = entries.pop()
         self.log.debug(f"{self.config}")
 
+        self.monitoring_database = "monitor" in (self.config[1]['olcDatabase'][0]).decode().lower()
+
+        if self.monitoring_database:
+            return
+
         # olcSuffix, olcDbIndex, entryUUID
         self.suffix = ensure_str(self.config[1]['olcSuffix'][0])
         self.idx = name.split('}', 1)[0].split('{', 1)[1]
         self.uuid = ensure_str(self.config[1]['entryUUID'][0])
 
-        self.index = [
-            tuple(ensure_str(x).split(' '))
-            for x in self.config[1]['olcDbIndex']
-        ]
+        self.index = []
+        for x in self.config[1]['olcDbIndex']:
+            (attr, idx_types) = ensure_str(x).split(' ', 1)
+            attr = attr.strip()
+            for idx_type in idx_types.split(','):
+                self.index.append((attr, idx_type.strip()))
 
         self.log.debug(f"settings -> {self.suffix}, {self.idx}, {self.uuid}, {self.index}")
 
-
         overlay_path = os.path.join(path, name)
-        self.overlays = [
-            olOverlay(overlay_path, x, log)
-            for x in sorted(os.listdir(overlay_path))
-        ]
+
+        self.overlays = []
+        if os.path.isdir(overlay_path):
+            self.overlays = [
+                olOverlay(overlay_path, x, log)
+                for x in sorted(os.listdir(overlay_path))
+            ]
+
 
 # See https://www.python-ldap.org/en/latest/reference/ldap-schema.html
 class olAttribute(ldap.schema.models.AttributeType):
@@ -229,16 +259,14 @@ obsolete {self.obsolete} -> {ds_obj.obsolete}""")
         return False
 
 class olSchema(object):
-    def __init__(self, path, log):
+    def __init__(self, schemas, log):
         self.log = log
-        self.log.debug(f"olSchema path -> {path}")
-        schemas = sorted(os.listdir(path))
         self.log.debug(f"olSchemas -> {schemas}")
 
         self.raw_schema = []
 
         for schema in schemas:
-            entries = ldif_parse(path, schema)
+            entries = ldif_parse(schema)
             assert len(entries) == 1
             self.raw_schema.append(entries.pop())
         # self.log.debug(f"raw_schema -> {self.raw_schema}")
@@ -268,8 +296,14 @@ class olConfig(object):
         self.config_entry = config_entries.pop()
         self.log.debug(self.config_entry)
 
+        schema_path = os.path.join(path, 'cn=config/cn=schema/')
+        self.log.debug(f"olConfig schema path -> {schema_path}")
+        schemas = [
+            os.path.join(schema_path, x)
+            for x in sorted(os.listdir(schema_path))
+        ]
         # Parse all the child values.
-        self.schema = olSchema(os.path.join(path, 'cn=config/cn=schema/'), self.log)
+        self.schema = olSchema(schemas, self.log)
 
         dbs = sorted([
             os.path.split(x)[1].replace('.ldif', '')
@@ -282,6 +316,13 @@ class olConfig(object):
             olDatabase(os.path.join(path, f'cn=config/'), db, self.log)
             for db in dbs
         ]
+
+        self.databases = [
+            db
+            for db in self.databases
+            if not db.monitoring_database
+        ]
+
         self.log.info('Completed OpenLDAP Configuration Parsing.')
 
 

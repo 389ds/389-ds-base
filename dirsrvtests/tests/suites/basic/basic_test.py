@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,19 +9,35 @@
 
 from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccount, UserAccounts
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from lib389.dseutils import get_ldapurl_from_serverid
+from test389.topologies import topology_st
 from lib389.dbgen import dbgen_users
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DN_DM, PASSWORD, PW_DM
+from lib389._constants import DN_DM, PASSWORD, PW_DM, ReplicaRole
 from lib389.paths import Paths
 from lib389.idm.directorymanager import DirectoryManager
-from lib389.config import LDBMConfig
+from lib389.config import LDBMConfig, CertmapLegacy
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
+from ....conftest import get_rpm_version
+from lib389._mapped_object import DSLdapObjects
+from lib389.replica import Replicas, Changelog
+from lib389.backend import Backends, BackendSuffixView
+from lib389.idm.domain import Domain
+from lib389.nss_ssl import NssSsl
+from lib389._constants import *
+from lib389 import DirSrv
+from lib389.instance.setup import SetupDs
+from lib389.instance.options import General2Base, Slapd2Base
+import os
+import random
+import ldap
+import time
+import subprocess
 
 
 pytestmark = pytest.mark.tier0
@@ -29,6 +45,7 @@ pytestmark = pytest.mark.tier0
 default_paths = Paths()
 
 log = logging.getLogger(__name__)
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 
 # Globals
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
@@ -44,6 +61,203 @@ ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
                          'vendorName',
                          'vendorVersion')
 
+# This MAX_FDS value left about 22 connections available with bdb
+# (should have more connections with lmdb)
+MAX_FDS = 150
+
+default_paths = Paths()
+
+log = logging.getLogger(__name__)
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+
+
+class CustomSetup():
+    DEFAULT_GENERAL = { 'config_version': 2,
+                        'full_machine_name': 'localhost.localdomain',
+                        'strict_host_checking': False,
+                        # Not setting 'systemd' because it is not used.
+                        # (that is the global default.inf setting that matters)
+                      }
+    DEFAULT_SLAPD = { 'root_password': PW_DM,
+                      'defaults': INSTALL_LATEST_CONFIG,
+                    }
+    DEFAULT_BACKENDS = [ {
+                            'cn': 'userroot',
+                            'nsslapd-suffix': DEFAULT_SUFFIX,
+                            'sample_entries': 'yes',
+                            BACKEND_SAMPLE_ENTRIES: INSTALL_LATEST_CONFIG,
+                       }, ]
+
+    WRAPPER_FORMAT = '''#!/bin/sh
+{wrapper_options}
+exec {nsslapd} -D {cfgdir} -i {pidfile}
+'''
+
+
+    class CustomDirSrv(DirSrv):
+        def __init__(self, verbose=False, external_log=log):
+            super().__init__(verbose=verbose, external_log=external_log)
+            self.wrapper = None       # placeholder for the wrapper file name
+
+        def _reset_systemd(self):
+            self.systemd_override = False
+
+        def status(self):
+            self._reset_systemd()
+            return super().status()
+
+        def start(self, timeout=120, *args):
+            if self.status():
+                return
+            tmp_env = os.environ
+            # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+            if "PYTHONPATH" in tmp_env:
+                del tmp_env["PYTHONPATH"]
+            try:
+                subprocess.check_call([
+                    '/usr/bin/sh',
+                    self.wrapper
+                ], env=tmp_env, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                log.fatal("%s failed!  Error (%s) %s" % (self.wrapper, e.returncode, e.output))
+                raise e from None
+            for count in range(timeout):
+                if self.status():
+                    return
+                time.sleep(1)
+            raise TimeoutError('Failed to start ns-slpad')
+
+        def stop(self, timeout=120):
+            self._reset_systemd()
+            super().stop(timeout=timeout)
+
+    def _search_be(self, belist, beinfo):
+        for be in belist:
+            if be['cn'] == beinfo['cn']:
+                return be
+        return None
+
+    def __init__(self, serverid, general=None, slapd=None, backends=None, log=log):
+        verbose = log.level > logging.DEBUG
+        self.log = log
+        self.serverid = serverid
+        self.verbose = verbose
+        self.wrapper = f'/tmp/ds_{serverid}_wrapper.sh'
+        if serverid.startswith('slapd-'):
+            self.instname = server.id
+        else:
+            self.instname = 'slapd-'+serverid
+        self.ldapi = None
+        self.pid_file = None
+        self.inst = None
+
+        # Lets prepare the options
+        general_options = General2Base(log)
+        for d in (CustomSetup.DEFAULT_GENERAL, general):
+            if d:
+                for key,val in d.items():
+                    general_options.set(key,val)
+        log.debug('[general]: %s' % general_options._options)
+        self.general = general_options
+
+        slapd_options = Slapd2Base(self.log)
+        slapd_options.set('instance_name', serverid)
+        for d in (CustomSetup.DEFAULT_SLAPD, slapd):
+            if d:
+                for key,val in d.items():
+                    slapd_options.set(key,val)
+        log.debug('[slapd]: %s' % slapd_options._options)
+        self.slapd = slapd_options
+
+        backend_options = []
+        for backend_list in (CustomSetup.DEFAULT_BACKENDS, backends):
+            if not backend_list:
+                continue
+            for backend in backend_list:
+                target_be = CustomSetup._search_be(self, backend_options, backend)
+                if not target_be:
+                    target_be = {}
+                    backend_options.append(target_be)
+                for key,val in backend.items():
+                    target_be[key] = val
+        log.debug('[backends]: %s' % backend_options)
+        self.backends = backend_options
+
+    def _to_dirsrv_args(self):
+        args = {}
+        slapd = self.slapd.collect()
+        general = self.general.collect()
+        args["SER_HOST"] = general['full_machine_name']
+        args["SER_PORT"] = slapd['port']
+        args["SER_SECURE_PORT"] = slapd['secure_port']
+        args["SER_SERVERID_PROP"] = self.serverid
+        return args
+
+    def create_instance(self):
+        sds = SetupDs(verbose=self.verbose, dryrun=False, log=self.log)
+        self.general.verify()
+        general = self.general.collect()
+        self.slapd.verify()
+        slapd = self.slapd.collect()
+        sds.create_from_args(general, slapd, self.backends, None)
+        self.ldapi = get_ldapurl_from_serverid(self.serverid)[0]
+        args = self._to_dirsrv_args()
+        log.debug('DirSrv.allocate args = %s' % str(args))
+        log.debug('ldapi = %s' % str(self.ldapi))
+        root_dn = slapd['root_dn']
+        root_password = slapd['root_password']
+        inst = DirSrv(verbose=self.verbose, external_log=self.log)
+        inst.local_simple_allocate(self.serverid, ldapuri=self.ldapi, binddn=root_dn, password=root_password)
+        self.pid_file = inst.pid_file()
+        # inst.setup_ldapi()
+        log.debug('DirSrv = %s' % str(inst.__dict__))
+        inst.open()
+        inst.stop()
+        inst = CustomSetup.CustomDirSrv(verbose=self.verbose, external_log=self.log)
+        inst.local_simple_allocate(self.serverid, ldapuri=self.ldapi, binddn=root_dn, password=root_password)
+        self.inst = inst
+        return inst
+
+    def create_wrapper(self, maxfds=None):
+        self.inst.wrapper = self.wrapper
+        slapd = self.slapd.collect()
+        sbin_dir = slapd['sbin_dir']
+        config_dir = slapd['config_dir']
+        fmtvalues = {
+            'nsslapd': f'{sbin_dir}/ns-slapd',
+            'cfgdir': config_dir.format(instance_name=self.instname),
+            'pidfile': self.pid_file,
+            'wrapper_options': ''
+        }
+        if maxfds:
+            fmtvalues['wrapper_options']=f'ulimit -n {maxfds}\nulimit -H -n {maxfds}'
+        with open(self.wrapper, 'w') as f:
+            f.write(CustomSetup.WRAPPER_FORMAT.format(**fmtvalues))
+
+    def cleanup(self):
+        self.inst.stop()
+        self.inst.delete()
+        if os.path.exists(self.wrapper):
+            os.remove(self.wrapper)
+
+
+@pytest.fixture(scope="function")
+def _reset_attr(request, topology_st):
+    """ Reset nsslapd-close-on-failed-bind attr to the default (off) """
+
+    def fin():
+        dm = DirectoryManager(topology_st.standalone)
+        try:
+            dm_conn = dm.bind()
+            dm_conn.config.replace('nsslapd-close-on-failed-bind', 'off')
+            assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'off'
+        except ldap.LDAPError as e:
+            log.error('Failure reseting attr: ' + str(e))
+            assert False
+        topology_st.standalone.restart()
+
+    request.addfinalizer(fin)
+
 
 @pytest.fixture(scope="module")
 def import_example_ldif(topology_st):
@@ -58,6 +272,19 @@ def import_example_ldif(topology_st):
     import_task = ImportTask(topology_st.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
     import_task.wait()
+
+
+def check_db_sanity(topology_st):
+    try:
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  '(uid=scarter)')
+        if entries is None:
+            log.fatal('Unable to find user uid=scarter. DB or indexes are probably corrupted !')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('test_basic_acl: Search suffix failed: ' + e.args[0]['desc'])
+        assert False
 
 
 @pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
@@ -93,6 +320,47 @@ def rootdse_attr(topology_st, request):
     request.addfinalizer(fin)
 
     return rootdse_attr_name
+
+
+def change_conf_attr(topology_st, suffix, attr_name, attr_value):
+    """Change configuration attribute in the given suffix.
+
+    Returns previous attribute value.
+    """
+
+    entry = DSLdapObject(topology_st.standalone, suffix)
+
+    attr_value_bck = entry.get_attr_val_bytes(attr_name)
+    log.info('Set %s to %s. Previous value - %s. Modified suffix - %s.' % (
+        attr_name, attr_value, attr_value_bck, suffix))
+    if attr_value is None:
+        entry.remove_all(attr_name)
+    else:
+        entry.replace(attr_name, attr_value)
+    return attr_value_bck
+
+
+@pytest.fixture(scope="function")
+def ldapagent_config(topology_st, request):
+    """Creates agent.conf for snmp agent
+    """
+
+    var_dir = topology_st.standalone.get_local_state_dir()
+    config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
+    config = f"""agentx-supplier {var_dir}/agentx/supplier
+agent-logdir {var_dir}/log/dirsrv
+server slapd-{topology_st.standalone.serverid}
+"""
+
+    with open(config_file, 'w') as agent_config_file:
+        agent_config_file.write(config)
+
+    def fin():
+        os.remove(config_file)
+
+    request.addfinalizer(fin)
+
+    return config_file
 
 
 def test_basic_ops(topology_st, import_example_ldif):
@@ -223,8 +491,75 @@ def test_basic_ops(topology_st, import_example_ldif):
     except ldap.LDAPError as e:
         log.error('Failed to delete test entry3: ' + e.args[0]['desc'])
         assert False
+    check_db_sanity(topology_st)
     log.info('test_basic_ops: PASSED')
 
+def test_basic_search_asynch(topology_st, request):
+    """
+    Tests asynchronous searches generate string 'notes=B'
+    and 'notes=N' in access logs
+
+    :id: 1b761421-d2bb-487b-813e-2278123fd13c
+    :parametrized: no
+    :setup: Standalone instance, create test user to search with filter (uid=*).
+
+    :steps:
+        1. Create a test user
+        2. trigger async searches
+        3. Verify access logs contains 'notes=B' up to 10 attempts
+        4. Verify access logs contains 'notes=N' up to 10 attempts
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+
+    """
+
+    log.info('Running test_basic_search_asynch...')
+
+    search_filter = "(uid=*)"
+    topology_st.standalone.restart()
+    topology_st.standalone.config.set("nsslapd-accesslog-logbuffering", "off")
+    topology_st.standalone.config.set("nsslapd-maxthreadsperconn", "3")
+
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None)
+        user = users.create_test_user()
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    for attempt in range(10):
+        msgids = []
+        for i in range(5):
+            searchid = topology_st.standalone.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+            msgids.append(searchid)
+
+        for msgid in msgids:
+            rtype, rdata = topology_st.standalone.result(msgid)
+
+        # verify if some operations got blocked
+        error_lines = topology_st.standalone.ds_access_log.match('.*notes=.*B.* details.*')
+        if len(error_lines) > 0:
+            log.info('test_basic_search_asynch: found "notes=B" after %d attempt(s)' % (attempt + 1))
+            break
+
+    assert attempt < 10
+
+    # verify if some operations got flagged Not synchronous
+    error_lines = topology_st.standalone.ds_access_log.match('.*notes=.*N.* details.*')
+    assert len(error_lines) > 0
+
+    def fin():
+        user.delete()
+        topology_st.standalone.config.set("nsslapd-accesslog-logbuffering", "on")
+        topology_st.standalone.config.set("nsslapd-maxthreadsperconn", "5")
+
+    request.addfinalizer(fin)
+
+    log.info('test_basic_search_asynch: PASSED')
 
 def test_basic_import_export(topology_st, import_example_ldif):
     """Test online and offline LDIF import & export
@@ -254,7 +589,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     #
     # Test online/offline LDIF imports
     #
-    topology_st.standalone.start()
+    topology_st.standalone.restart()
     # topology_st.standalone.config.set('nsslapd-errorlog-level', '1')
 
     # Generate a test ldif (50k entries)
@@ -263,18 +598,16 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_ldif = ldif_dir + '/basic_import.ldif'
     dbgen_users(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
 
-
     # Online
     log.info("Importing LDIF online...")
     import_task = ImportTask(topology_st.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
 
     # Wait a bit till the task is created and available for searching
-    time.sleep(0.5)
+    time.sleep(1)
 
     # Good as place as any to quick test the task has some expected attributes
-    if ds_is_newer('1.4.1.2'):
-        assert import_task.present('nstaskcreated')
+    assert import_task.present('nstaskcreated')
     assert import_task.present('nstasklog')
     assert import_task.present('nstaskcurrentitem')
     assert import_task.present('nstasktotalitems')
@@ -324,6 +657,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
     import_task.wait()
 
+    check_db_sanity(topology_st)
     log.info('test_basic_import_export: PASSED')
 
 
@@ -336,20 +670,27 @@ def test_basic_backup(topology_st, import_example_ldif):
 
     :steps:
          1. Test online backup using db2bak.
-         2. Test online restore using bak2db.
-         3. Test offline backup using db2bak.
-         4. Test offline restore using bak2db.
+         2. Test config files are backed up
+         3. Test online restore using bak2db.
+         4. Test offline backup using db2bak.
+         5. Test config files are backed up
+         6. Test offline restore using bak2db.
 
     :expectedresults:
          1. Online backup should PASS.
-         2. Online restore should PASS.
-         3. Offline backup should PASS.
-         4. Offline restore should PASS.
+         2. Config files were backed up
+         3. Online restore should PASS.
+         4. Offline backup should PASS.
+         5. Config files were backed up
+         6. Offline restore should PASS.
     """
 
     log.info('Running test_basic_backup...')
 
-    backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test'
+    topology_st.standalone.restart()
+
+    backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test_online'
+    log.info(f'Backup directory is {backup_dir}')
 
     # Test online backup
     try:
@@ -358,6 +699,12 @@ def test_basic_backup(topology_st, import_example_ldif):
     except ValueError:
         log.fatal('test_basic_backup: Online backup failed')
         assert False
+
+    # Test config files were backed up
+    assert os.path.isfile(backup_dir + "/config_files/dse.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/schema/99user.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/certmap.conf")
+    assert os.path.isfile(backup_dir + "/config_files/cert9.db")
 
     # Test online restore
     try:
@@ -368,10 +715,17 @@ def test_basic_backup(topology_st, import_example_ldif):
         assert False
 
     # Test offline backup
+    backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test_offline'
     topology_st.standalone.stop()
     if not topology_st.standalone.db2bak(backup_dir):
         log.fatal('test_basic_backup: Offline backup failed')
         assert False
+
+    # Test config files wre backed up
+    assert os.path.isfile(backup_dir + "/config_files/dse.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/schema/99user.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/certmap.conf")
+    assert os.path.isfile(backup_dir + "/config_files/cert9.db")
 
     # Test offline restore
     if not topology_st.standalone.bak2db(backup_dir):
@@ -379,10 +733,11 @@ def test_basic_backup(topology_st, import_example_ldif):
         assert False
     topology_st.standalone.start()
 
+    check_db_sanity(topology_st)
     log.info('test_basic_backup: PASSED')
 
 
-def test_basic_db2index(topology_st, import_example_ldif):
+def test_basic_db2index(topology_st):
     """Assert db2index can operate correctly.
 
     :id: 191fc0fd-9722-46b5-a7c3-e8760effe119
@@ -390,16 +745,76 @@ def test_basic_db2index(topology_st, import_example_ldif):
     :setup: Standalone instance
 
     :steps:
-        1: call db2index
+        1: Call db2index with a single index attribute
+        2: Call db2index with multiple index attributes
+        3: Call db2index with no index attributes
 
     :expectedresults:
-        1: Index succeeds.
+        1: Index succeeds for single index attribute
+        2: Index succeeds for multiple index attributes
+        3: Index succeeds for all backend indexes which have been obtained from dseldif
 
     """
-    topology_st.standalone.stop()
-    topology_st.standalone.db2index()
-    topology_st.standalone.db2index(suffixes=[DEFAULT_SUFFIX], attrs=['uid'])
+
+    # Error log message to confirm a reindex
+    if get_default_db_lib() == "mdb":
+        dbprefix = "dbmdb"
+    else:
+        dbprefix = "bdb"
+    info_message = f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing attribute: '
+
+    log.info('Start the server')
     topology_st.standalone.start()
+    check_db_sanity(topology_st)
+
+    log.info('Offline reindex, stopping the server')
+    topology_st.standalone.stop()
+
+    log.info('Reindex with a single index attribute')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=['uid'])
+    assert topology_st.standalone.searchErrorsLog(info_message + 'uid')
+
+    log.info('Restart the server to clear the logs')
+    topology_st.standalone.start()
+    check_db_sanity(topology_st)
+    topology_st.standalone.stop()
+
+    log.info('Reindex with multiple attributes')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=['cn','aci','givenname'])
+    assert topology_st.standalone.searchErrorsLog(info_message + 'cn')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'aci')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'givenname')
+
+    log.info('Restart the server to clear the logs')
+    topology_st.standalone.start()
+    check_db_sanity(topology_st)
+    topology_st.standalone.stop()
+
+    log.info('Start the server and get all indexes for specified backend')
+    topology_st.standalone.start()
+    check_db_sanity(topology_st)
+    dse_ldif = DSEldif(topology_st.standalone)
+    indexes = dse_ldif.get_indexes(DEFAULT_BENAME)
+    numIndexes = len(indexes)
+    assert numIndexes > 0
+
+    log.info('Stop the server and reindex with all backend indexes')
+    topology_st.standalone.stop()
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=indexes)
+    log.info('Checking the server logs for %d backend indexes INFO' % numIndexes)
+    for indexNum, index in enumerate(indexes):
+        if index in ["entryrdn", "ancestorid"]:
+            assert topology_st.standalone.searchErrorsLog(
+                f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing: {index}')
+        else:
+            assert topology_st.standalone.searchErrorsLog(
+                f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing attribute: {index}')
+
+    assert indexNum+1 == numIndexes
+
+    topology_st.standalone.start()
+    check_db_sanity(topology_st)
+    log.info('test_basic_db2index: PASSED')
 
 
 def test_basic_acl(topology_st, import_example_ldif):
@@ -607,6 +1022,80 @@ def test_basic_searches(topology_st, import_example_ldif):
     log.info('test_basic_searches: PASSED')
 
 
+@pytest.mark.parametrize('limit,resp',
+                         ((('200'), 'PASS'),
+                         (('50'), ldap.ADMINLIMIT_EXCEEDED)))
+def test_basic_search_lookthroughlimit(topology_st, limit, resp, import_example_ldif):
+    """
+    Tests normal search with lookthroughlimit set high and low.
+
+    :id: b5119970-6c9f-41b7-9649-de9233226fec
+    :parametrized: yes
+    :setup: Standalone instance, add example.ldif to the database, search filter (uid=*).
+
+    :steps:
+        1. Import ldif user file.
+        2. Change lookthroughlimit to 200.
+        3. Bind to server as low priv user
+        4. Run search 1 with "high" lookthroughlimit.
+        5. Change lookthroughlimit to 50.
+        6. Run search 2 with "low" lookthroughlimit.
+        7. Delete user from DB.
+        8. Reset lookthroughlimit to original.
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success, first search should complete with no error.
+        5. Success
+        6. Success, second search should return ldap.ADMINLIMIT_EXCEEDED error.
+        7. Success
+        8. Success
+
+    """
+
+    log.info('Running test_basic_search_lookthroughlimit...')
+
+    search_filter = "(uid=*)"
+
+    ltl_orig = change_conf_attr(topology_st, 'cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-lookthroughlimit', limit)
+
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None)
+        user = users.create_test_user()
+        user.replace('userPassword', PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    try:
+        conn = UserAccount(topology_st.standalone, user.dn).bind(PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to bind test user: error ' + e.args[0]['desc'])
+        assert False
+
+    try:
+        if resp == ldap.ADMINLIMIT_EXCEEDED:
+            with pytest.raises(ldap.ADMINLIMIT_EXCEEDED):
+                searchid = conn.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+                rtype, rdata = conn.result(searchid)
+        else:
+            searchid = conn.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+            rtype, rdata = conn.result(searchid)
+            assert(len(rdata) == 151) #151 entries in the imported ldif file using "(uid=*)"
+    except ldap.LDAPError as e:
+        log.fatal('Failed to perform search: error ' + e.args[0]['desc'])
+        assert False
+
+    finally:
+        #Cleanup
+        change_conf_attr(topology_st, 'cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-lookthroughlimit', ltl_orig)
+        user.delete()
+
+    log.info('test_basic_search_lookthroughlimit: PASSED')
+
+
 @pytest.fixture(scope="module")
 def add_test_entry(topology_st, request):
     # Add test entry
@@ -679,65 +1168,37 @@ def test_basic_referrals(topology_st, import_example_ldif):
     """
 
     log.info('Running test_basic_referrals...')
-    SUFFIX_CONFIG = 'cn="dc=example,dc=com",cn=mapping tree,cn=config'
-    #
-    # Set the referral, and the backend state
-    #
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG,
-                                        [(ldap.MOD_REPLACE,
-                                          'nsslapd-referral',
-                                          b'ldap://localhost.localdomain:389/o%3dnetscaperoot')])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set referral: error ' + e.args[0]['desc'])
-        assert False
+    backends = Backends(topology_st.standalone)
+    backend = backends.list()[0]
+    bev = BackendSuffixView(topology_st.standalone, backend)
+    bev.set('nsslapd-referral', 'ldap://localhost.localdomain:389/o%3dnetscaperoot')
+    bev.set('nsslapd-state', 'referral')
 
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_REPLACE,
-                                                         'nsslapd-state', b'Referral')])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set backend state: error '
-                  + e.args[0]['desc'])
-        assert False
+    log.info('Checking that the settings were applied...')
+    assert bev.get_attr_val_utf8('nsslapd-referral') == 'ldap://localhost.localdomain:389/o%3dnetscaperoot'
+    assert bev.get_attr_val_utf8('nsslapd-state') == 'referral'
 
-    #
-    # Test that a referral error is returned
-    #
+    log.info('Testing that a referral error is returned...')
+    log.info('When bound as directory manager')
     topology_st.standalone.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
-    try:
+    with pytest.raises(ldap.REFERRAL):
         topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=top')
-    except ldap.REFERRAL:
-        pass
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Search failed: ' + e.args[0]['desc'])
-        assert False
+    log.info('When anonymous')
+    ldc = ldap.initialize(f'ldap://localhost:{topology_st.standalone.port}')
+    ldc.set_option(ldap.OPT_TIMEOUT, 5)
+    ldc.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
+    with pytest.raises(ldap.REFERRAL):
+        ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=top')
+    ldc.unbind()
 
-    #
     # Make sure server can restart in referral mode
-    #
+    log.info('Restarting the server...')
     topology_st.standalone.restart(timeout=10)
 
-    #
-    # Cleanup
-    #
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_REPLACE,
-                                                         'nsslapd-state', b'Backend')])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set backend state: error '
-                  + e.args[0]['desc'])
-        assert False
-
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_DELETE,
-                                                         'nsslapd-referral', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to delete referral: error '
-                  + e.args[0]['desc'])
-        assert False
+    log.info('Cleaning up...')
+    bev.set('nsslapd-state', 'backend')
+    bev.remove_all('nsslapd-referral')
     topology_st.standalone.set_option(ldap.OPT_REFERRALS, 1)
-
-    log.info('test_basic_referrals: PASSED')
 
 
 def test_basic_systemctl(topology_st, import_example_ldif):
@@ -819,7 +1280,7 @@ def test_basic_systemctl(topology_st, import_example_ldif):
     log.info('test_basic_systemctl: PASSED')
 
 
-def test_basic_ldapagent(topology_st, import_example_ldif):
+def test_basic_ldapagent(topology_st, import_example_ldif, ldapagent_config):
     """Tests that the ldap agent starts
 
     :id: da1d1846-8fc4-4b8c-8e53-4c9c16eff1ba
@@ -837,20 +1298,14 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
 
     log.info('Running test_basic_ldapagent...')
 
-    var_dir = topology_st.standalone.get_local_state_dir()
-
-    config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
-
-    agent_config_file = open(config_file, 'w')
-    agent_config_file.write('agentx-master ' + var_dir + '/agentx/master\n')
-    agent_config_file.write('agent-logdir ' + var_dir + '/log/dirsrv\n')
-    agent_config_file.write('server slapd-' + topology_st.standalone.serverid + '\n')
-    agent_config_file.close()
+    if not os.path.exists(os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent')):
+        pytest.skip("ldap-agent is not present")
 
     # Remember, this is *forking*
-    check_output([os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), config_file])
+    check_output([os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), ldapagent_config])
     # First kill any previous agents ....
-    pidpath = os.path.join(var_dir, 'run/ldap-agent.pid')
+    run_dir = topology_st.standalone.get_run_dir()
+    pidpath = os.path.join(run_dir, 'ldap-agent.pid')
     pid = None
     with open(pidpath, 'r') as pf:
         pid = pf.readlines()[0].strip()
@@ -895,7 +1350,8 @@ def test_basic_dse_survives_kill9(topology_st, import_example_ldif):
     log.info('dse.ldif was not corrupted, and the server was restarted')
 
     log.info('test_basic_dse: PASSED')
-    # Give the server time to startup, in some conditions this can be racey without systemd notification. Only affects this one test though...
+    # Give the server time to startup, in some conditions this can be racey without systemd notification.
+    # Only affects this one test though...
     time.sleep(10)
 
 
@@ -996,8 +1452,6 @@ def test_basic_anonymous_search(topology_st, create_users):
         assert len(entries) != 0
 
 
-@pytest.mark.ds604
-@pytest.mark.bz915801
 def test_search_original_type(topology_st, create_users):
     """Test ldapsearch returning original attributes
        using nsslapd-search-return-original-type-switch
@@ -1033,7 +1487,6 @@ def test_search_original_type(topology_st, create_users):
     assert "objectclass overflow" not in entries[0].getAttrs()
 
 
-@pytest.mark.bz192901
 def test_search_ou(topology_st):
     """Test that DS should not return an entry that does not match the filter
 
@@ -1059,8 +1512,96 @@ def test_search_ou(topology_st):
     assert len(entries) == 0
 
 
-@pytest.mark.bz1044135
-@pytest.mark.ds47319
+def test_bind_invalid_entry(topology_st):
+    """Test the failing bind does not return information about the entry
+
+    :id: 5cd9b083-eea6-426b-84ca-83c26fc49a6f
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1: bind as non existing entry
+        2: check that bind info does not report 'No such entry'
+    :expectedresults:
+        1: pass
+        2: pass
+    """
+
+    topology_st.standalone.restart()
+    INVALID_ENTRY="cn=foooo,%s" % DEFAULT_SUFFIX
+    try:
+        topology_st.standalone.simple_bind_s(INVALID_ENTRY, PASSWORD)
+    except ldap.LDAPError as e:
+        log.info('test_bind_invalid_entry: Failed to bind as %s (expected)' % INVALID_ENTRY)
+        log.info('exception description: ' + e.args[0]['desc'])
+        if 'info' in e.args[0]:
+            log.info('exception info: ' + e.args[0]['info'])
+        assert e.args[0]['desc'] == 'Invalid credentials'
+        assert 'info' not in e.args[0]
+        pass
+
+    log.info('test_bind_invalid_entry: PASSED')
+
+    # reset credentials
+    topology_st.standalone.simple_bind_s(DN_DM, PW_DM)
+
+
+def test_bind_entry_missing_passwd(topology_st):
+    """
+    :id: af209149-8fb8-48cb-93ea-3e82dd7119d2
+    :setup: Standalone Instance
+    :steps:
+        1. Bind as database entry that does not have userpassword set
+        2. Bind as database entry that does not exist
+        3. Bind as cn=config entry that does not have userpassword set
+        4. Bind as cn=config entry that does not exist
+    :expectedresults:
+        1. Fails with error 49
+        2. Fails with error 49
+        3. Fails with error 49
+        4. Fails with error 49
+    """
+    user = UserAccount(topology_st.standalone, DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the suffix root entry which does not have a userpassword
+        user.bind("some_password")
+
+    user = UserAccount(topology_st.standalone, "cn=not here," + DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the entry which does not exist
+        user.bind("some_password")
+
+    # Test cn=config since it has its own code path
+    user = UserAccount(topology_st.standalone, "cn=config")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the config entry which does not have a userpassword
+        user.bind("some_password")
+
+    user = UserAccount(topology_st.standalone, "cn=does not exist,cn=config")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as an entry under cn=config that does not exist
+        user.bind("some_password")
+
+
+def test_bind_with_no_dn(topology_st):
+    """
+    :id: fedb831e-811e-11f1-8bfa-c85309d5c3e3
+    :setup: Standalone Instance
+    :steps:
+        1. Bind with no DN and no password
+        2. Bind with no DN and some password
+    :expectedresults:
+        1. Success
+        2. Fails with error 48
+    """
+    ldc = ldap.initialize(f'ldap://localhost:{topology_st.standalone.port}')
+    ldc.set_option(ldap.OPT_TIMEOUT, 5)
+    ldc.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
+    ldc.bind_s(None, None)
+    with pytest.raises(ldap.INAPPROPRIATE_AUTH):
+        ldc.bind_s(None, "Some password")
+    ldc.unbind()                   
+
+
 def test_connection_buffer_size(topology_st):
     """Test connection buffer size adjustable with different values(valid values and invalid)
 
@@ -1084,7 +1625,6 @@ def test_connection_buffer_size(topology_st):
             topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
 
 
-@pytest.mark.bz1637439
 def test_critical_msg_on_empty_range_idl(topology_st):
     """Doing a range index lookup should not report a critical message even if IDL is empty
 
@@ -1157,8 +1697,32 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
 
-@pytest.mark.bz1647099
-@pytest.mark.ds50026
+@pytest.mark.parametrize("case,value", [('positive', ['cn','','']),
+                                        ("positive", ['cn', '', '', '', '', '', '', '', '', '', '']),
+                                        ("negative", ['cn', '', '', '', '', '', '', '', '', '', '', ''])])
+def test_attr_description_limit(topology_st, case, value):
+    """Test that up to 10 empty attributeDescription is allowed
+
+    :id: 5afd3dcd-1028-428d-822d-a489ecf4b67e
+    :customerscenario: True
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Check that 2 empty values are allowed
+        2. Check that 10 empty values are allowed
+        3. Check that more than 10 empty values are allowed
+    :expectedresults:
+        1. Should succeed
+        2. Should succeed
+        3. Should fail
+    """
+    if case == 'positive':
+        DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
+    else:
+        with pytest.raises(ldap.PROTOCOL_ERROR):
+            DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
+
+
 def test_ldbm_modification_audit_log(topology_st):
     """When updating LDBM config attributes, those attributes/values are not listed
     in the audit log
@@ -1203,11 +1767,302 @@ def test_ldbm_modification_audit_log(topology_st):
         assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
 
-@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
-                    reason="This test is only required if perl is enabled, and requires root.")
+def test_suffix_case(topology_st):
+    """Test that the suffix case is preserved when creating a new backend
+
+    :id: 4eff15be-6cde-4312-b492-c88941876bda
+    :setup: Standalone Instance
+    :steps:
+        1. Create backend with uppercase characters
+        2. Create root node entry
+        3. Search should return suffix with upper case characters
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    # Start with a clean slate
+    topology_st.standalone.restart()
+
+    TEST_SUFFIX = 'dc=UPPER_CASE'
+
+    backends = Backends(topology_st.standalone)
+    backends.create(properties={'nsslapd-suffix': TEST_SUFFIX,
+                                'name': 'upperCaseRoot',
+                                'sample_entries': '001004002'})
+
+    domain = Domain(topology_st.standalone, TEST_SUFFIX)
+    assert domain.dn == TEST_SUFFIX
+
+
+def test_bind_disconnect_invalid_entry(topology_st, _reset_attr):
+    """Test close connection on failed bind with invalid entry
+
+    :id: b378543e-32dc-432a-9756-ce318d6d654b
+    :setup: Standalone instance
+    :steps:
+        1. create/get user
+        2. bind and search as user
+        3. enable nsslapd-close-on-failed-bind attr
+        4. bind as non existing entry to trigger connection closure
+        5. verify connection has been closed and server is still running
+        6. cleanup
+    :expectedresults:
+        1. success
+        2. success
+        3. nsslapd-close-on-failed-bind attr set to on
+        4. returns INVALID_CREDENTIALS, triggering connection closure
+        5. success
+        6. success
+    """
+
+    INVALID_ENTRY="cn=foooo,%s" % DEFAULT_SUFFIX
+    inst = topology_st.standalone
+
+    dm = DirectoryManager(inst)
+
+    # create/get user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    try:
+        user = users.create_test_user()
+        user.set("userPassword", PW_DM)
+    except ldap.ALREADY_EXISTS:
+        user = users.get('test_user_1000')
+
+    # verify user can bind and search
+    try:
+        inst.simple_bind_s(user.dn, PW_DM)
+    except ldap.LDAPError as e:
+        log.error('Failed to bind {}'.format(user.dn))
+        raise e
+    try:
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    except ldap.LDAPError as e:
+        log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
+        raise e
+
+    # enable and verify attr
+    try:
+        dm_conn = dm.bind()
+        dm_conn.config.replace('nsslapd-close-on-failed-bind', 'on')
+        assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'on'
+    except ldap.LDAPError as e:
+        log.error('Failed to replace nsslapd-close-on-failed-bind attr')
+        raise e
+
+    # bind as non existing entry which triggers connection close
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.simple_bind_s(INVALID_ENTRY, PW_DM)
+
+    # verify the connection is closed but the server is still running
+    assert (inst.status())
+    with pytest.raises(ldap.SERVER_DOWN):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    try:
+        dm_conn = dm.bind()
+    except ldap.LDAPError as e:
+        log.error('DM bind failed')
+        raise e
+
+
+def test_bind_disconnect_cert_map_failed(topology_st, _reset_attr):
+    """Test close connection on failed bind with a failed cert mapping
+
+    :id: 0ac60f76-1fd9-4080-a82b-21807e6bc292
+    :setup: Standalone Instance
+    :steps:
+        1. enable TLS
+        2. create/get a user
+        3. get details of ssca key and cert
+        4. create 2 user certificates, one good, one bad
+        5. configure certmap
+        6. check that EXTERNAL is listed in supported mechns.
+        7. bind with good cert
+        8. bind with bad cert
+        9. enable nsslapd-close-on-failed-bind attr
+        10. bind with bad cert
+        11. verify connection has been closed and server is still running
+        12. cleanup
+    :expectedresults:
+        1. success
+        2. success
+        3. success
+        4. success
+        5. success
+        6. success
+        7. success
+        8. generates INVALID_CREDENTIALS exception
+        9. success
+        10. generates INVALID_CREDENTIALS exception, triggering connection closure
+        11. success
+        12. success
+    """
+
+    RDN_TEST_USER = 'test_user_1000'
+    RDN_TEST_USER_WRONG = 'test_user_wrong'
+    inst = topology_st.standalone
+
+    inst.enable_tls()
+    dm = DirectoryManager(inst)
+
+    # create/get user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    try:
+        user = users.create_test_user()
+        user.set("userPassword", PW_DM)
+    except ldap.ALREADY_EXISTS:
+        user = users.get(RDN_TEST_USER)
+
+    ssca_dir = inst.get_ssca_dir()
+    ssca = NssSsl(dbpath=ssca_dir)
+
+    ssca.create_rsa_user(RDN_TEST_USER)
+    ssca.create_rsa_user(RDN_TEST_USER_WRONG)
+
+    # Get the details of where the key and crt are.
+    tls_locs = ssca.get_rsa_user(RDN_TEST_USER)
+    tls_locs_wrong = ssca.get_rsa_user(RDN_TEST_USER_WRONG)
+
+    user.enroll_certificate(tls_locs['crt_der_path'])
+
+    # Turn on the certmap.
+    cm = CertmapLegacy(inst)
+    certmaps = cm.list()
+    certmaps['default']['DNComps'] = ''
+    certmaps['default']['FilterComps'] = ['cn']
+    certmaps['default']['VerifyCert'] = 'off'
+    cm.set(certmaps)
+
+    # Check that EXTERNAL is listed in supported mechns.
+    assert(inst.rootdse.supports_sasl_external())
+
+    # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
+    # here, it breaks on auth. see lib389/__init__.py
+    inst.restart(post_open=False)
+
+    # bind with good cert
+    try:
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs['key'], usercert=tls_locs['crt'])
+    except ldap.LDAPError as e:
+        log.error('Bind with good cert failed')
+        raise e
+
+    inst.restart()
+
+    # bind with bad cert
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
+
+    # enable and verify attr
+    try:
+        dm_conn = dm.bind()
+        dm_conn.config.replace('nsslapd-close-on-failed-bind', 'on')
+        assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'on'
+    except ldap.LDAPError as e:
+        log.error('Failed to replace nsslapd-close-on-failed-bind attr')
+        raise e
+
+    # bind with bad cert
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
+
+    # check the connection is closed but the server is still running
+    assert (inst.status())
+    with pytest.raises(ldap.SERVER_DOWN):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    try:
+        dm_conn = dm.bind()
+    except ldap.LDAPError as e:
+        log.error('DM bind failed')
+        raise e
+
+
+def test_bind_disconnect_account_lockout(topology_st, _reset_attr):
+    """Test close connection on failed bind with user account lockout
+
+    :id: 12e56d79-ce57-4574-a80a-d3b6d1d74d8f
+    :setup: Standalone Instance
+    :steps:
+        1. configure account lockout
+        2. create/get a user
+        3. bind and search as user
+        4. force account lock out
+        5. enable nsslapd-close-on-failed-bind attr
+        6. attempt user bind
+        7. verify connection has been closed and server is still running
+        8. cleanup
+    :expectedresults:
+        1. success
+        2. success
+        3. success
+        4. generates CONSTRAINT_VIOLATION exception
+        5. success
+        6. generates CONSTRAINT_VIOLATION exception, triggering connection closure
+        7. success
+        8. success
+    """
+
+    inst = topology_st.standalone
+    dm = DirectoryManager(inst)
+    inst.config.set('passwordlockout', 'on')
+    inst.config.set('passwordMaxFailure', '2')
+
+    # create/get user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    try:
+        user = users.create_test_user()
+        user.set("userPassword", PW_DM)
+    except ldap.ALREADY_EXISTS:
+        user = users.get('test_user_1000')
+
+    # verify user bind and search
+    try:
+        inst.simple_bind_s(user.dn, PW_DM)
+    except ldap.LDAPError as e:
+        log.error('Failed to bind {}'.format(user.dn))
+        raise e
+    try:
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    except ldap.LDAPError as e:
+        log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
+        raise e
+
+    # Force entry to get locked out
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.simple_bind_s(user.dn, 'whateverlike')
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.simple_bind_s(user.dn, 'whateverlike')
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        # Should fail with good or bad password
+        inst.simple_bind_s(user.dn, PW_DM)
+
+    # enable and verify attr
+    try:
+        dm_conn = dm.bind()
+        dm_conn.config.replace('nsslapd-close-on-failed-bind', 'on')
+        assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'on'
+    except ldap.LDAPError as e:
+        log.error('Failed to replace nsslapd-close-on-failed-bind attr')
+        raise e
+
+    # Should fail with good or bad password
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        inst.simple_bind_s(user.dn, PW_DM)
+
+    # check the connection is closed but the server is still running
+    assert (inst.status())
+    with pytest.raises(ldap.SERVER_DOWN):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    try:
+        dm_conn = dm.bind()
+    except ldap.LDAPError as e:
+        log.error('DM bind failed')
+        raise e
+
+
 def test_dscreate(request):
-    """Test that dscreate works, we need this for now until setup-ds.pl is
-    fully discontinued.
+    """Test that dscreate works
 
     :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb9
     :setup: None
@@ -1272,6 +2127,133 @@ sample_entries = yes
     request.addfinalizer(fin)
 
 
+def test_dscreate_with_replication(request):
+    """Test dscreate works with replication shortcuts
+
+    :id: 8391ffc4-5158-4141-9312-0f47ae56f1ed
+    :setup: Standalone Instance
+    :steps:
+        1. Create instance and prepare DirSrv object
+        2. Check replication is enabled
+        3. Check repl role
+        4. Check rid
+        5. Check bind dn
+        6. Changelog trimming settings
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    template_file = "/tmp/dssetup.inf"
+    template_text = """[general]
+config_version = 2
+# This invalid hostname ...
+full_machine_name = localhost.localdomain
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
+
+[slapd]
+instance_name = dscreate_repl
+root_dn = cn=directory manager
+root_password = someLongPassword_123
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
+[backend-userroot]
+suffix = dc=example,dc=com
+sample_entries = yes
+enable_replication = True
+replica_binddn = cn=replication manager,cn=config
+replica_bindpw = password
+replica_id = 111
+replica_role = supplier
+changelog_max_age = 8d
+changelog_max_entries = 200000
+"""
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+    try:
+        subprocess.check_call([
+            'dscreate',
+            'from-file',
+            template_file
+        ], env=tmp_env)
+    except subprocess.CalledProcessError as e:
+        log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
+        assert False
+
+    def fin():
+        os.remove(template_file)
+        try:
+            subprocess.check_call(['dsctl', 'dscreate_repl', 'remove', '--do-it'])
+        except subprocess.CalledProcessError as e:
+            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
+
+    request.addfinalizer(fin)
+
+    # Prepare Dirsrv instance
+    from lib389 import DirSrv
+    container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
+    if container_result.returncode == 0:
+        ds_instance = DirSrv(False, containerised=True)
+    else:
+        ds_instance = DirSrv(False)
+    args = {
+        SER_HOST: "localhost.localdomain",
+        SER_PORT: 38999,
+        SER_SECURE_PORT: 63699,
+        SER_SERVERID_PROP: 'dscreate_repl',
+        SER_ROOT_DN: 'cn=directory manager',
+        SER_ROOT_PW: 'someLongPassword_123',
+        SER_LDAPI_ENABLED: 'on',
+        SER_LDAPI_AUTOBIND: 'on'
+    }
+    ds_instance.allocate(args)
+    ds_instance.start(timeout=60)
+
+    dse_ldif = DSEldif(ds_instance, serverid="dscreate_repl")
+    socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
+    ldapiuri=f"ldapi://{socket_path[0].replace('/', '%2f')}"
+    ds_instance.open(uri=ldapiuri)
+
+    # Check replication is enabled
+    replicas = Replicas(ds_instance)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    assert replica
+
+    # Check role
+    assert replica.get_role() == ReplicaRole.SUPPLIER
+
+    # Check rid
+    assert replica.get_rid() == '111'
+
+    # Check bind dn is in config
+    assert replica.get_attr_val_utf8('nsDS5ReplicaBindDN') == 'cn=replication manager,cn=config'
+
+    # Check repl manager entry was created
+    repl_mgr = UserAccount(ds_instance, 'cn=replication manager,cn=config')
+    assert repl_mgr.exists()
+
+    # Changelog trimming settings
+    cl = Changelog(ds_instance, DEFAULT_SUFFIX)
+    assert cl.get_attr_val_utf8('nsslapd-changelogmaxage') == '8d'
+    assert cl.get_attr_val_utf8('nsslapd-changelogmaxentries') == '200000'
+
+
 @pytest.fixture(scope="function")
 def dscreate_long_instance(request):
     template_file = "/tmp/dssetup.inf"
@@ -1319,8 +2301,7 @@ sample_entries = yes
         assert False
 
     inst = DirSrv(verbose=True, external_log=log)
-    dse_ldif = DSEldif(inst,
-                       serverid=longname_serverid)
+    dse_ldif = DSEldif(inst, serverid=longname_serverid)
 
     socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
     inst.local_simple_allocate(
@@ -1355,8 +2336,6 @@ sample_entries = yes
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1748016
-@pytest.mark.ds50581
 def test_dscreate_ldapi(dscreate_long_instance):
     """Test that an instance with a long name can
     handle ldapi connection using a long socket name
@@ -1377,8 +2356,6 @@ def test_dscreate_ldapi(dscreate_long_instance):
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1715406
-@pytest.mark.ds50923
 def test_dscreate_multiple_dashes_name(dscreate_long_instance):
     """Test that an instance with a multiple dashes in the name
     can be removed with dsctl --remove-all
@@ -1447,12 +2424,11 @@ suffix = {request.param}
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1807419
-@pytest.mark.ds50928
 def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
     """Test that dscreate works with different RDN attributes as suffix
 
     :id: 77ed6300-6a2f-4e79-a862-1f1105f1e3ef
+    :customerscenario: True
     :parametrized: yes
     :setup: None
     :steps:
@@ -1476,6 +2452,100 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
             assert False
         else:
             assert True
+
+
+@pytest.fixture(scope="module")
+def dscreate_custom_instance(request):
+    topo = CustomSetup('custom')
+
+    def fin():
+        topo.cleanup()
+
+    request.addfinalizer(fin)
+    topo.create_instance()
+    # Return CustomSetup object associated with
+    #  a stopped instance named "custom"
+    return topo
+
+    obj.create_wrapper(maxfds=150)
+    log.info("Starting wrapper")
+    inst.start()
+    log.info("Server is started.")
+    log.info("Open connection")
+    inst.open()
+
+
+@pytest.fixture(scope="module", params=set(range(1,5)))
+def dscreate_with_numlistener(request, dscreate_custom_instance):
+    numlisteners = request.param
+    dscreate_custom_instance.create_wrapper(maxfds=MAX_FDS)
+    inst = dscreate_custom_instance.inst
+    inst.stop()
+    dse_ldif = DSEldif(inst)
+    dse_ldif.replace('cn=config', 'nsslapd-numlisteners', str(numlisteners))
+    inst.start()
+    inst.open()
+    return inst
+
+@pytest.mark.skipif(ds_is_older('2.2.0.0'),
+                    reason="This test is only required with multiple listener support.")
+def test_conn_limits(dscreate_with_numlistener):
+    """Check the connections limits for various number of listeners.
+
+    :id: 7be2eb5c-4d8f-11ee-ae3d-482ae39447e5
+    :parametrized: yes
+    :setup: Setup an instance then set nsslapd-numlisteners and maximum file descriptors
+    :steps:
+        1. Loops on:
+             Open new connection and perform search until timeout expires
+        2. Close one of the previously open connections
+        3. Loops MAX_FDS times on:
+              - opening a new connection
+              - perform a search
+              - close the connection
+        4. Close all open connections
+        5. Remove the instance
+    :expectedresults:
+        1. Should get a timeout (because the server has no more any connections)
+        2. Should success
+        3. Should success (otherwise issue #5924 has probably been hit)
+        4. Should success
+        5. Should success
+    """
+    inst = dscreate_with_numlistener
+
+    conns = []
+    timeout_occured = False
+    for i in range(MAX_FDS):
+        try:
+            ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+            ldc.set_option(ldap.OPT_TIMEOUT, 5)
+            ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
+            conns.append(ldc)
+        except ldap.TIMEOUT:
+            timeout_occured = True
+            break
+    # Should not be able to open MAX_FDS connections (some file descriptor are
+    #  reserved (for example for the listening socket )
+    assert timeout_occured
+
+    conn = random.choice(conns)
+    conn.unbind()
+    conns.remove(conn)
+
+    # Should loop enough time so trigger issue #5924 if it is not fixed.
+    for i in range(MAX_FDS):
+        ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+        # Set a timeout long enough so that the test fails if server is unresponsive
+        ldc.set_option(ldap.OPT_TIMEOUT, 60)
+        ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
+        ldc.unbind()
+
+    # Close all open connections
+    for c in conns:
+        c.unbind()
+
+    # Step 6 is done in teardown phase by dscreate_instance finalizer
 
 
 if __name__ == '__main__':

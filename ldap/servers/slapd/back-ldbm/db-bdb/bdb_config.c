@@ -15,12 +15,14 @@
 #include "bdb_layer.h"
 
 /* Forward declarations */
-static int parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
-static void split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods);
+static int bdb_parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
+static void bdb_split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods);
 
 /* Forward callback declarations */
 int bdb_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 int bdb_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+
+static dblayer_private bdb_fake_priv;   /* A copy of the callback array used by bdb_be() */
 
 static int
 _bdb_log_version(bdb_config *priv)
@@ -33,6 +35,20 @@ _bdb_log_version(bdb_config *priv)
     priv->bdb_lib_version = DBLAYER_LIB_VERSION_POST_24;
     slapi_log_err(SLAPI_LOG_TRACE, "_dblayer_check_version", "version check: %s (%d.%d)\n", string, major, minor);
     return ret;
+}
+
+backend *bdb_be(void)
+{
+    static backend be = {0};
+    static struct slapdplugin plg = {0};
+    static struct ldbminfo li = {0};
+
+    if (be.be_database == NULL) {
+        be.be_database = &plg;
+        plg.plg_private = &li;
+        li.li_dblayer_private = &bdb_fake_priv;
+    }
+    return &be;
 }
 
 int bdb_init(struct ldbminfo *li, config_info *config_array)
@@ -56,28 +72,28 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
 
     dblayer_private *priv = li->li_dblayer_private;
     priv->dblayer_start_fn = &bdb_start;
-    priv->dblayer_close_fn = &bdb_close; 
+    priv->dblayer_close_fn = &bdb_close;
     priv->dblayer_instance_start_fn = &bdb_instance_start;
-    priv->dblayer_backup_fn = &bdb_backup; 
-    priv->dblayer_verify_fn = &bdb_verify; 
-    priv->dblayer_db_size_fn = &bdb_db_size; 
-    priv->dblayer_ldif2db_fn = &bdb_ldif2db; 
-    priv->dblayer_db2ldif_fn = &bdb_db2ldif; 
-    priv->dblayer_db2index_fn = &bdb_db2index; 
-    priv->dblayer_cleanup_fn = &bdb_cleanup; 
-    priv->dblayer_upgradedn_fn = &bdb_upgradednformat; 
-    priv->dblayer_upgradedb_fn = &bdb_upgradedb; 
+    priv->dblayer_backup_fn = &bdb_backup;
+    priv->dblayer_verify_fn = &bdb_verify;
+    priv->dblayer_db_size_fn = &bdb_db_size;
+    priv->dblayer_ldif2db_fn = &bdb_ldif2db;
+    priv->dblayer_db2ldif_fn = &bdb_db2ldif;
+    priv->dblayer_db2index_fn = &bdb_db2index;
+    priv->dblayer_cleanup_fn = &bdb_cleanup;
+    priv->dblayer_upgradedn_fn = &bdb_upgradednformat;
+    priv->dblayer_upgradedb_fn = &bdb_upgradedb;
     priv->dblayer_restore_fn = &bdb_restore;
-    priv->dblayer_txn_begin_fn = &bdb_txn_begin; 
-    priv->dblayer_txn_commit_fn = &bdb_txn_commit; 
-    priv->dblayer_txn_abort_fn = &bdb_txn_abort; 
+    priv->dblayer_txn_begin_fn = &bdb_txn_begin;
+    priv->dblayer_txn_commit_fn = &bdb_txn_commit;
+    priv->dblayer_txn_abort_fn = &bdb_txn_abort;
     priv->dblayer_get_info_fn = &bdb_get_info;
     priv->dblayer_set_info_fn = &bdb_set_info;
-    priv->dblayer_back_ctrl_fn = &bdb_back_ctrl; 
-    priv->dblayer_get_db_fn = &bdb_get_db; 
+    priv->dblayer_back_ctrl_fn = &bdb_back_ctrl;
+    priv->dblayer_get_db_fn = &bdb_get_db;
     priv->dblayer_rm_db_file_fn = &bdb_rm_db_file;
     priv->dblayer_delete_db_fn = &bdb_delete_db;
-    priv->dblayer_import_fn = &bdb_import_main;
+    priv->dblayer_import_fn = &bdb_public_bdb_import_main;
     priv->dblayer_load_dse_fn = &bdb_config_load_dse_info;
     priv->dblayer_config_get_fn = &bdb_public_config_get;
     priv->dblayer_config_set_fn = &bdb_public_config_set;
@@ -91,6 +107,38 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->instance_register_monitor_fn = &bdb_instance_register_monitor;
     priv->instance_search_callback_fn = &bdb_instance_search_callback;
     priv->dblayer_auto_tune_fn = &bdb_start_autotune;
+    priv->dblayer_get_db_filename_fn = &bdb_public_get_db_filename;
+    priv->dblayer_bulk_free_fn = &bdb_public_bulk_free;
+    priv->dblayer_bulk_nextdata_fn = &bdb_public_bulk_nextdata;
+    priv->dblayer_bulk_nextrecord_fn = &bdb_public_bulk_nextrecord;
+    priv->dblayer_bulk_init_fn = &bdb_public_bulk_init;
+    priv->dblayer_bulk_start_fn = &bdb_public_bulk_start;
+    priv->dblayer_cursor_bulkop_fn = &bdb_public_cursor_bulkop;
+    priv->dblayer_cursor_op_fn = &bdb_public_cursor_op;
+    priv->dblayer_db_op_fn = &bdb_public_db_op;
+    priv->dblayer_new_cursor_fn = &bdb_public_new_cursor;
+    priv->dblayer_value_free_fn = &bdb_public_value_free;
+    priv->dblayer_value_init_fn = &bdb_public_value_init;
+    priv->dblayer_set_dup_cmp_fn = &bdb_public_set_dup_cmp_fn;
+    priv->dblayer_dbi_txn_begin_fn = &bdb_dbi_txn_begin;
+    priv->dblayer_dbi_txn_commit_fn = &bdb_dbi_txn_commit;
+    priv->dblayer_dbi_txn_abort_fn = &bdb_dbi_txn_abort;
+    priv->dblayer_get_entries_count_fn = &bdb_get_entries_count;
+    priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
+    priv->dblayer_private_open_fn = &bdb_public_private_open;
+    priv->dblayer_private_close_fn = &bdb_public_private_close;
+    priv->ldbm_back_wire_import_fn = &bdb_ldbm_back_wire_import;
+    priv->dblayer_restore_file_init_fn = &bdb_restore_file_init;
+    priv->dblayer_restore_file_update_fn = &bdb_restore_file_update;
+    priv->dblayer_import_file_check_fn = &bdb_import_file_check;
+    priv->dblayer_list_dbs_fn = &bdb_list_dbs;
+    priv->dblayer_in_import_fn = &bdb_public_in_import;
+    priv->dblayer_get_db_suffix_fn = &bdb_public_get_db_suffix;
+    priv->dblayer_compact_fn = &bdb_public_dblayer_compact;
+    priv->dblayer_dbi_db_remove_fn = &bdb_public_delete_db;
+    priv->dblayer_cursor_iterate_fn = &bdb_dblayer_cursor_iterate;
+
+    bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;
 }
 
@@ -191,10 +239,105 @@ bdb_config_db_lock_set(void *arg, void *value, char *errorbuf, int phase, int ap
 }
 
 static void *
-bdb_config_dbcachesize_get(void *arg)
+bdb_config_db_lock_monitoring_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
+    return (void *)((intptr_t)(li->li_new_dblock_monitoring));
+}
+
+static int
+bdb_config_db_lock_monitoring_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int32_t)((intptr_t)value);
+
+    if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            li->li_new_dblock_monitoring = val;
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_monitoring_set",
+                          "New nsslapd-db-lock-monitoring value will not take affect until the server is restarted\n");
+        } else {
+            li->li_new_dblock_monitoring = val;
+            li->li_dblock_monitoring = val;
+        }
+    }
+
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_pause_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(slapi_atomic_load_32((int32_t *)&(li->li_dblock_monitoring_pause), __ATOMIC_RELAXED)));
+}
+
+static int
+bdb_config_db_lock_pause_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
+
+    if (val == 0) {
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_pause_set",
+                      "%s was set to '0'. The default value will be used (%s)\n",
+                      CONFIG_DB_LOCKS_PAUSE, DEFAULT_DBLOCK_PAUSE_STR);
+        val = DEFAULT_DBLOCK_PAUSE;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32((int32_t *)&(li->li_dblock_monitoring_pause), val, __ATOMIC_RELAXED);
+    }
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_threshold_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(li->li_new_dblock_threshold));
+}
+
+static int
+bdb_config_db_lock_threshold_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
+
+    if (val < 70 || val > 95) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                              CONFIG_DB_LOCKS_THRESHOLD, val);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_lock_threshold_set",
+                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95\n",
+                      CONFIG_DB_LOCKS_THRESHOLD, val);
+        retval = LDAP_OPERATIONS_ERROR;
+        return retval;
+    }
+
+    if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            li->li_new_dblock_threshold = val;
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_threshold_set",
+                          "New nsslapd-db-lock-monitoring-threshold value will not take affect until the server is restarted\n");
+        } else {
+            li->li_new_dblock_threshold = val;
+            li->li_dblock_threshold = val;
+        }
+    }
+    return retval;
+}
+
+static void *
+bdb_config_dbcachesize_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     return (void *)((uintptr_t)li->li_new_dbcachesize);
 }
 
@@ -577,6 +720,110 @@ bdb_config_db_compactdb_interval_set(void *arg,
 
     if (apply) {
         BDB_CONFIG(li)->bdb_compactdb_interval = val;
+    }
+
+    return retval;
+}
+
+static void *
+bdb_config_db_compactdb_time_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    return (void *)slapi_ch_strdup(BDB_CONFIG(li)->bdb_compactdb_time);
+}
+
+static int
+bdb_config_db_compactdb_time_set(void *arg,
+                                 void *value,
+                                 char *errorbuf __attribute__((unused)),
+                                 int phase __attribute__((unused)),
+                                 int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    char *val = slapi_ch_strdup((char *)value);
+    char *endp = NULL;
+    char *hour_str = NULL;
+    char *min_str = NULL;
+    char *default_time = "23:59";
+    int32_t hour, min;
+    int retval = LDAP_SUCCESS;
+    errno = 0;
+
+    if (strstr(val, ":")) {
+        /* Get the hour and minute */
+        hour_str = ldap_utf8strtok_r(val, ":", &min_str);
+
+        /* Validate hour */
+        hour = strtoll(hour_str, &endp, 10);
+        if (*endp != '\0' || errno == ERANGE || hour < 0 || hour > 23 || strlen(hour_str) != 2) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Invalid hour set (%s), must be a two digit number between 00 and 23",
+                    hour_str);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_compactdb_interval_set",
+                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+                    "Using default of 23:59\n", hour_str);
+            retval = LDAP_OPERATIONS_ERROR;
+            goto done;
+        }
+
+        /* Validate minute */
+        min = strtoll(min_str, &endp, 10);
+        if (*endp != '\0' || errno == ERANGE || min < 0 || min > 59 || strlen(min_str) != 2) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Invalid minute set (%s), must be a two digit number between 00 and 59",
+                    hour_str);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_compactdb_interval_set",
+                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+                    "Using default of 23:59\n", min_str);
+            retval = LDAP_OPERATIONS_ERROR;
+            goto done;
+        }
+    } else {
+        /* Wrong format */
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid setting (%s), must have a time format of HH:MM", val);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_compactdb_interval_set",
+                "Invalid setting (%s), must have a time format of HH:MM\n", val);
+        retval = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
+
+done:
+    if (apply) {
+        slapi_ch_free((void **)&(BDB_CONFIG(li)->bdb_compactdb_time));
+        if (retval) {
+            /* Something went wrong, use the default */
+            BDB_CONFIG(li)->bdb_compactdb_time = slapi_ch_strdup(default_time);
+        } else {
+            BDB_CONFIG(li)->bdb_compactdb_time = slapi_ch_strdup((char *)value);
+        }
+    }
+    slapi_ch_free_string(&val);
+
+    return retval;
+}
+
+static void *
+bdb_config_db_compactdb_starttime_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(BDB_CONFIG(li)->bdb_compactdb_starttime));
+}
+
+static int32_t
+bdb_config_db_compactdb_starttime_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int32_t retval = LDAP_SUCCESS;
+    uint64_t val = (uint64_t)((uintptr_t)value);
+
+    if (apply) {
+        BDB_CONFIG(li)->bdb_compactdb_starttime = val;
     }
 
     return retval;
@@ -1181,7 +1428,7 @@ bdb_config_import_cachesize_set(void *arg,
 static void *
 bdb_config_index_buffer_size_get(void *arg __attribute__((unused)))
 {
-    return (void *)import_get_index_buffer_size();
+    return (void *)bdb_import_get_index_buffer_size();
 }
 
 static int
@@ -1192,7 +1439,7 @@ bdb_config_index_buffer_size_set(void *arg __attribute__((unused)),
                                   int apply)
 {
     if (apply) {
-        import_configure_index_buffer_size((size_t)value);
+        bdb_import_configure_index_buffer_size((size_t)value);
     }
     return LDAP_SUCCESS;
 }
@@ -1377,6 +1624,8 @@ static config_info bdb_config_param[] = {
     {CONFIG_DB_TRANSACTION_WAIT, CONFIG_TYPE_ONOFF, "off", &bdb_config_db_transaction_wait_get, &bdb_config_db_transaction_wait_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &bdb_config_db_checkpoint_interval_get, &bdb_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000" /*30days*/, &bdb_config_db_compactdb_interval_get, &bdb_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_TIME, CONFIG_TYPE_STRING, "23:59", &bdb_config_db_compactdb_time_get, &bdb_config_db_compactdb_time_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_STARTTIME, CONFIG_TYPE_UINT64, "0" , &bdb_config_db_compactdb_starttime_get, &bdb_config_db_compactdb_starttime_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &bdb_get_batch_transactions, &bdb_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_min_sleep, &bdb_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_max_sleep, &bdb_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
@@ -1409,6 +1658,9 @@ static config_info bdb_config_param[] = {
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &bdb_config_serial_lock_get, &bdb_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &bdb_config_legacy_errcode_get, &bdb_config_legacy_errcode_set, 0},
     {CONFIG_DB_DEADLOCK_POLICY, CONFIG_TYPE_INT, STRINGIFYDEFINE(DB_LOCK_YOUNGEST), &bdb_config_db_deadlock_policy_get, &bdb_config_db_deadlock_policy_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_MONITORING, CONFIG_TYPE_ONOFF, "on", &bdb_config_db_lock_monitoring_get, &bdb_config_db_lock_monitoring_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_THRESHOLD, CONFIG_TYPE_INT, "90", &bdb_config_db_lock_threshold_get, &bdb_config_db_lock_threshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_PAUSE, CONFIG_TYPE_INT, DEFAULT_DBLOCK_PAUSE_STR, &bdb_config_db_lock_pause_get, &bdb_config_db_lock_pause_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
@@ -1491,7 +1743,7 @@ bdb_config_upgrade_dse_info(struct ldbminfo *li)
     slapi_entry_add_string(bdb_config, SLAPI_ATTR_OBJECTCLASS, "extensibleobject");
 
     slapi_mods_init(&smods, 1);
-    split_bdb_config_entry(li, entries[0], bdb_config, bdb_config_param, &smods);
+    bdb_split_bdb_config_entry(li, entries[0], bdb_config, bdb_config_param, &smods);
     add_pb = slapi_pblock_new();
     slapi_pblock_init(add_pb);
 
@@ -1584,7 +1836,7 @@ retry:
             rval = 1;
             goto bail;
         }
-        if (0 != parse_bdb_config_entry(li, entries[0], bdb_config_param)) {
+        if (0 != bdb_parse_bdb_config_entry(li, entries[0], bdb_config_param)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_config_load_dse_info", "Error parsing the bdb config DSE entry\n");
             rval = 1;
             goto bail;
@@ -1639,7 +1891,7 @@ retry:
     }
 
     /* NOTE (LK): still needs to investigate and clarify the monitoring split between db layers.
-     * Now still using ldbm functions 
+     * Now still using ldbm functions
      */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", bdb_monitor_search,
@@ -1680,7 +1932,8 @@ bdb_deny_config(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 int
-bdb_instance_register_monitor(ldbm_instance *inst) {
+bdb_instance_register_monitor(ldbm_instance *inst)
+{
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
 
@@ -1710,7 +1963,8 @@ bdb_instance_register_monitor(ldbm_instance *inst) {
 }
 
 void
-bdb_instance_unregister_monitor(ldbm_instance *inst) {
+bdb_instance_unregister_monitor(ldbm_instance *inst)
+{
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
 
@@ -1883,14 +2137,17 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         bdb_config_get(arg, config, buf);
         if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                  "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
+                                  "value [%s] for attribute %s does not match existing value [%s].\n",
+                                  bval->bv_val, attr_name, buf);
+            slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__,
+                          "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             return LDAP_NO_SUCH_ATTRIBUTE;
         }
     }
 
     switch (config->config_type) {
     case CONFIG_TYPE_INT:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1922,7 +2179,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_INT_OCTAL:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             int_val = (int)strtol(config->config_default_value, NULL, 8);
         } else {
             int_val = (int)strtol((char *)bval->bv_val, NULL, 8);
@@ -1930,7 +2187,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_LONG:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1964,7 +2221,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         retval = config->config_set_fn(arg, (void *)long_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_SIZE_T:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1993,7 +2250,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
 
 
     case CONFIG_TYPE_UINT64:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -2019,14 +2276,14 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         retval = config->config_set_fn(arg, (void *)sz_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_STRING:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             retval = config->config_set_fn(arg, config->config_default_value, err_buf, phase, apply_mod);
         } else {
             retval = config->config_set_fn(arg, bval->bv_val, err_buf, phase, apply_mod);
         }
         break;
     case CONFIG_TYPE_ONOFF:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             int_val = !strcasecmp(config->config_default_value, "on");
         } else {
             int_val = !strcasecmp((char *)bval->bv_val, "on");
@@ -2053,7 +2310,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
 }
 
 static void
-split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods)
+bdb_split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods)
 {
     Slapi_Attr *attr = NULL;
 
@@ -2078,7 +2335,7 @@ split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry
 }
 
 static int
-parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
+bdb_parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
 {
     Slapi_Attr *attr = NULL;
 
@@ -2098,7 +2355,7 @@ parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_
         bval = (struct berval *)slapi_value_get_berval(sval);
 
         if (bdb_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            slapi_log_err(SLAPI_LOG_ERR, "parse_bdb_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_parse_bdb_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
             return 1;
         }
     }
@@ -2107,7 +2364,7 @@ parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_
 
 /* helper for deleting mods (we do not want to be applied) from the mods array */
 static void
-mod_free(LDAPMod *mod)
+bdb_mod_free(LDAPMod *mod)
 {
     ber_bvecfree(mod->mod_bvalues);
     slapi_ch_free((void **)&(mod->mod_type));
@@ -2182,7 +2439,7 @@ bdb_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Sla
                                  ((li->li_flags & LI_FORCE_MOD_CONFIG) ? CONFIG_PHASE_INTERNAL : CONFIG_PHASE_RUNNING),
                                  apply_mod, mods[i]->mod_op);
             if (apply_mod) {
-                mod_free(mods[i]);
+                bdb_mod_free(mods[i]);
                 mods[i] = NULL;
             }
         }
@@ -2270,6 +2527,14 @@ bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mo
     return rc;
 }
 
+/* Callback function for libdb to spit error info into our log */
+void
+bdb_log_print(const DB_ENV *dbenv __attribute__((unused)), const char *prefix __attribute__((unused)), const char *buffer)
+{
+    /* We ignore the prefix since we know who we are anyway */
+    slapi_log_err(SLAPI_LOG_ERR, "libdb", "%s\n", (char *)(buffer ? buffer : "(NULL)"));
+}
+
 void
 bdb_set_env_debugging(DB_ENV *pEnv, bdb_config *conf)
 {
@@ -2280,6 +2545,6 @@ bdb_set_env_debugging(DB_ENV *pEnv, bdb_config *conf)
         pEnv->set_verbose(pEnv, DB_VERB_WAITSFOR, 1); /* 1 means on */
     }
     if (conf->bdb_debug) {
-        pEnv->set_errcall(pEnv, dblayer_log_print);
+        pEnv->set_errcall(pEnv, bdb_log_print);
     }
 }

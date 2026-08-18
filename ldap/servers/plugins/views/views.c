@@ -1139,6 +1139,7 @@ views_dn_views_cb(Slapi_Entry *e, void *callback_data)
             if (attrType && !strcasecmp(attrType, VIEW_FILTER_ATTR)) {
                 if (!slapi_attr_get_bervals_copy(dnAttr, &dnVals)) {
                     /* add filter */
+                    slapi_ch_free_string(&pView->viewfilter);
                     pView->viewfilter = slapi_ch_strdup(dnVals[0]->bv_val);
                 }
 
@@ -1352,7 +1353,7 @@ views_update_views_cache(Slapi_Entry *e, char *dn __attribute__((unused)), int m
          * update all child filters
          * re-index
          */
-        if (modtype == LDAP_CHANGETYPE_DELETE) {
+        if ((modtype == LDAP_CHANGETYPE_DELETE) && (theView != NULL)) {
 
             if (theCache.view_count - 1) {
                 /* detach view */
@@ -1678,6 +1679,7 @@ view_search_rewrite_callback(Slapi_PBlock *pb)
 #endif
 
     /* make it happen */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, outFilter);
 
     ret = -2;
@@ -1715,5 +1717,6 @@ views_cache_backend_state_change(void *handle __attribute__((unused)), char *be_
 static void
 views_cache_act_on_change_thread(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("views-cache");
     views_cache_create();
 }

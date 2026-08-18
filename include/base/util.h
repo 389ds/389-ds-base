@@ -39,7 +39,7 @@ NSPR_BEGIN_EXTERN_C
 NSAPI_PUBLIC int INTutil_itoa(int i, char *a);
 
 NSAPI_PUBLIC
-int INTutil_vsprintf(char *s, register const char *fmt, va_list args);
+int INTutil_vsprintf(char *s, const char *fmt, va_list args);
 
 NSAPI_PUBLIC int INTutil_sprintf(char *s, const char *fmt, ...)
 #ifdef __GNUC__
@@ -48,7 +48,7 @@ NSAPI_PUBLIC int INTutil_sprintf(char *s, const char *fmt, ...)
     ;
 #endif
 
-NSAPI_PUBLIC int INTutil_vsnprintf(char *s, int n, register const char *fmt, va_list args);
+NSAPI_PUBLIC int INTutil_vsnprintf(char *s, int n, const char *fmt, va_list args);
 
 NSAPI_PUBLIC int INTutil_snprintf(char *s, int n, const char *fmt, ...)
 #ifdef __GNUC__

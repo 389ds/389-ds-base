@@ -30,9 +30,9 @@ static Slapi_ComponentId *test_repl_session_plugin_id = NULL;
  * Replication Session Callbacks
  */
 /*
- * This is called on a master when a replication agreement is
+ * This is called on a sender when a replication agreement is
  * initialized at startup.  A cookie can be allocated at this
- * time which is passed to other callbacks on the master side.
+ * time which is passed to other callbacks on the sender side.
  */
 static void *
 test_repl_session_plugin_agmt_init_cb(const Slapi_DN *repl_subtree)
@@ -54,7 +54,7 @@ test_repl_session_plugin_agmt_init_cb(const Slapi_DN *repl_subtree)
 }
 
 /*
- * This is called on a master when we are about to acquire a
+ * This is called on a sender when we are about to acquire a
  * replica.  This callback can allocate some extra data to
  * be sent to the replica in the start replication request.
  * This memory will be free'd by the replication plug-in
@@ -63,7 +63,7 @@ test_repl_session_plugin_agmt_init_cb(const Slapi_DN *repl_subtree)
  * from the same replication session plug-in.
  *
  * Returning non-0 will abort the replication session.  This
- * results in the master going into incremental backoff mode.
+ * results in the sender going into incremental backoff mode.
  */
 static int
 test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtree, int is_total, char **data_guid, struct berval **data)
@@ -91,15 +91,15 @@ test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtr
 
 /*
  * This is called on a replica when we are about to reply to
- * a start replication request from a master.  This callback
- * can allocate some extra data to be sent to the master in
+ * a start replication request from a sender.  This callback
+ * can allocate some extra data to be sent to the sender in
  * the start replication response.  This memory will be free'd
  * by the replication plug-in after it is sent.  A guid string
  * must be set that is to be used by the receiving side to ensure
  * that the data is from the same replication session plug-in.
  *
  * Returning non-0 will abort the replication session.  This
- * results in the master going into incremental backoff mode.
+ * results in the sender going into incremental backoff mode.
  */
 static int
 test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total, char **data_guid, struct berval **data)
@@ -110,7 +110,7 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
                   "test_repl_session_plugin_reply_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
                   repl_subtree, is_total ? "TRUE" : "FALSE");
 
-    /* allocate some data to be sent to the master */
+    /* allocate some data to be sent to the sender */
     *data_guid = slapi_ch_smprintf("test-reply-guid");
     *data = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
     (*data)->bv_val = slapi_ch_smprintf("test-reply-data");
@@ -124,7 +124,7 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
 }
 
 /*
- * This is called on a master when it receives a reply to a
+ * This is called on a sender when it receives a reply to a
  * start replication extop that we sent to a replica.  Any
  * extra data sent by a replication session callback on the
  * replica will be set here as the data parameter.  The data_guid
@@ -135,7 +135,7 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
  * will take care of freeing this memory.
  *
  * Returning non-0 will abort the replication session.  This
- * results in the master going into incremental backoff mode.
+ * results in the sender going into incremental backoff mode.
  */
 static int
 test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subtree, int is_total, const char *data_guid, const struct berval *data)
@@ -160,8 +160,8 @@ test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subt
 
 /*
  * This is called on a replica when it receives a start replication
- * extended operation from a master.  If the replication session
- * plug-in on the master sent any extra data, it will be set here
+ * extended operation from a sender.  If the replication session
+ * plug-in on the sender sent any extra data, it will be set here
  * as the data parameter.  The data_guid should be checked first to
  * ensure that the sending side is using the same replication session
  * plug-in before making any assumptions about the contents of the
@@ -169,7 +169,7 @@ test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subt
  * replication plug-in will take care of freeing this memory.
  *
  * Returning non-0 will abort the replication session.  This
- * results in the master going into incremental backoff mode.
+ * results in the sender going into incremental backoff mode.
  */
 static int
 test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total, const char *data_guid, const struct berval *data)
@@ -180,7 +180,7 @@ test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total,
                   "test_repl_session_plugin_recv_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
                   repl_subtree, is_total ? "TRUE" : "FALSE");
 
-    /* log any extra data that was sent from the master */
+    /* log any extra data that was sent from the sender */
     if (data_guid && data) {
         slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
                       "test_repl_session_plugin_recv_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
@@ -191,7 +191,7 @@ test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total,
 }
 
 /*
- * This is called on a master when a replication agreement is
+ * This is called on a sender when a replication agreement is
  * destroyed.  Any cookie allocated when the agreement was initialized
  * should be free'd here.
  */
@@ -297,5 +297,5 @@ nsslapd-plugininitfunc: test_repl_session_plugin_init
 nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
-nsslapd-plugin-depends-on-named: Multimaster Replication Plugin
+nsslapd-plugin-depends-on-named: Multisupplier Replication Plugin
 */

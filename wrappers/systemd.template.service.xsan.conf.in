@@ -5,7 +5,7 @@ Description=@capbrand@ Directory Server with @SANITIZER@ %i.
 
 [Service]
 # We can't symbolize here, as llvm symbolize crashes when it goes near systemd.
-Environment=ASAN_OPTIONS=log_path=/run/@package_name@/ns-slapd-%i.asan:print_stacktrace=1
+Environment=ASAN_OPTIONS=log_path=/run/@package_name@/ns-slapd-%i.asan:print_stacktrace=1:fast_unwind_on_malloc=0
 Environment=TSAN_OPTIONS=log_path=/run/@package_name@/ns-slapd-%i.tsan:print_stacktrace=1:second_deadlock_stack=1:history_size=7
 Environment=MSAN_OPTIONS=log_path=/run/@package_name@/ns-slapd-%i.msan:print_stacktrace=1
 Environment=UBSAN_OPTIONS=log_path=/run/@package_name@/ns-slapd-%i.ubsan:print_stacktrace=1

@@ -9,7 +9,7 @@
 #include "sync.h"
 #include "slap.h"  /* for LDAP_TAG_SK_REVERSE */
 
-static struct berval *create_syncinfo_value(int type, const char *cookie, const char **uuids);
+static struct berval *create_syncinfo_value(int type, const char *cookie, struct berval **uuids);
 static char *sync_cookie_get_server_info(Slapi_PBlock *pb);
 static char *sync_cookie_get_client_info(Slapi_PBlock *pb);
 
@@ -79,6 +79,39 @@ sync_parse_control_value(struct berval *psbvp, ber_int_t *mode, int *reload, cha
 }
 
 char *
+sync_entryuuid2uuid(const char *entryuuid)
+{
+    char *uuid;
+    char u[17] = {0};
+
+    u[0] = slapi_str_to_u8(entryuuid);
+    u[1] = slapi_str_to_u8(entryuuid + 2);
+    u[2] = slapi_str_to_u8(entryuuid + 4);
+    u[3] = slapi_str_to_u8(entryuuid + 6);
+
+    u[4] = slapi_str_to_u8(entryuuid + 9);
+    u[5] = slapi_str_to_u8(entryuuid + 11);
+
+    u[6] = slapi_str_to_u8(entryuuid + 14);
+    u[7] = slapi_str_to_u8(entryuuid + 16);
+
+    u[8] = slapi_str_to_u8(entryuuid + 19);
+    u[9] = slapi_str_to_u8(entryuuid + 21);
+
+    u[10] = slapi_str_to_u8(entryuuid + 24);
+    u[11] = slapi_str_to_u8(entryuuid + 26);
+    u[12] = slapi_str_to_u8(entryuuid + 28);
+    u[13] = slapi_str_to_u8(entryuuid + 30);
+    u[14] = slapi_str_to_u8(entryuuid + 32);
+    u[15] = slapi_str_to_u8(entryuuid + 34);
+
+    uuid = slapi_ch_malloc(sizeof(u));
+    memcpy(uuid, u, sizeof(u));
+
+    return (uuid);
+}
+
+char *
 sync_nsuniqueid2uuid(const char *nsuniqueid)
 {
     char *uuid;
@@ -126,14 +159,14 @@ sync_nsuniqueid2uuid(const char *nsuniqueid)
  *
  */
 int
-sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie)
+sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie, PRBool openldap_compat)
 {
     int rc;
     BerElement *ber;
     struct berval *bvp;
     char *uuid;
-    Slapi_Attr *attr;
-    Slapi_Value *val;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *val = NULL;
 
     if (type == LDAP_SYNC_NONE || ctrlp == NULL || (ber = der_alloc()) == NULL) {
         return (LDAP_OPERATIONS_ERROR);
@@ -141,9 +174,34 @@ sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Co
 
     *ctrlp = NULL;
 
-    slapi_entry_attr_find(e, SLAPI_ATTR_UNIQUEID, &attr);
-    slapi_attr_first_value(attr, &val);
-    uuid = sync_nsuniqueid2uuid(slapi_value_get_string(val));
+    if (openldap_compat) {
+        slapi_entry_attr_find(e, SLAPI_ATTR_ENTRYUUID, &attr);
+        if (!attr) {
+            /*
+             * We can't proceed from here. We are in openldap mode, but some entries don't
+             * have their UUID. This means that the tree could be corrupted on the openldap
+             * server, so we have to stop now.
+             */
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_create_state_control - Some entries are missing entryUUID. Unable to proceed. You may need to re-run the entryuuid fixup\n");
+            return (LDAP_OPERATIONS_ERROR);
+        }
+        slapi_attr_first_value(attr, &val);
+        uuid = sync_entryuuid2uuid(slapi_value_get_string(val));
+    } else {
+        slapi_entry_attr_find(e, SLAPI_ATTR_UNIQUEID, &attr);
+        slapi_attr_first_value(attr, &val);
+        if ((attr == NULL) || (val == NULL)) {
+            /* It may happen with entries in special backends
+             * such like cn=config, cn=shema, cn=monitor...
+             */
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_create_state_control - Entries are missing nsuniqueid. Unable to proceed.\n");
+            return (LDAP_OPERATIONS_ERROR);
+        }
+        uuid = sync_nsuniqueid2uuid(slapi_value_get_string(val));
+    }
+
     if ((rc = ber_printf(ber, "{eo", type, uuid, 16)) != -1) {
         if (cookie) {
             char *cookiestr = sync_cookie2str(cookie);
@@ -252,14 +310,14 @@ sync_cookie2str(Sync_Cookie *cookie)
 }
 
 int
-sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, char **uuids)
+sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, struct berval **uuids)
 {
     int rc;
     struct berval *syncInfo;
     LDAPControl *ctrlp = NULL;
     char *cookiestr = sync_cookie2str(cookie);
 
-    syncInfo = create_syncinfo_value(tag, cookiestr, (const char **)uuids);
+    syncInfo = create_syncinfo_value(tag, cookiestr, uuids);
 
     rc = slapi_send_ldap_intermediate(pb, &ctrlp, LDAP_SYNC_INFO, syncInfo);
     slapi_ch_free((void **)&cookiestr);
@@ -275,7 +333,7 @@ sync_result_msg(Slapi_PBlock *pb, Sync_Cookie *cookie)
 
     LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
 
-    if (cookie->openldap_compat) {
+    if (cookie && cookie->openldap_compat) {
         sync_create_sync_done_control(&ctrl[0], 1, cookiestr);
     } else {
         sync_create_sync_done_control(&ctrl[0], 0, cookiestr);
@@ -298,7 +356,7 @@ sync_result_err(Slapi_PBlock *pb, int err, char *msg)
 }
 
 static struct berval *
-create_syncinfo_value(int type, const char *cookie, const char **uuids)
+create_syncinfo_value(int type, const char *cookie, struct berval **uuids)
 {
     BerElement *ber;
     struct berval *bvp = NULL;
@@ -338,7 +396,7 @@ create_syncinfo_value(int type, const char *cookie, const char **uuids)
             ber_printf(ber, "s", cookie);
         }
         if (uuids) {
-            ber_printf(ber, "b[v]", 1, uuids);
+            ber_printf(ber, "b[V]", 1, uuids);
         }
         ber_printf(ber, "}");
         break;
@@ -574,7 +632,7 @@ sync_cookie_create(Slapi_PBlock *pb, Sync_Cookie *client_cookie)
             sc->cookie_client_signature = slapi_ch_strdup(client_cookie->cookie_client_signature);
             sc->cookie_server_signature = NULL;
         } else {
-            sc->openldap_compat = false;
+            sc->openldap_compat = PR_FALSE;
             sc->cookie_server_signature = sync_cookie_get_server_info(pb);
             sc->cookie_client_signature = sync_cookie_get_client_info(pb);
         }
@@ -608,7 +666,7 @@ sync_cookie_update(Sync_Cookie *sc, Slapi_Entry *ec)
 }
 
 Sync_Cookie *
-sync_cookie_parse(char *cookie, bool *cookie_refresh)
+sync_cookie_parse(char *cookie, PRBool *cookie_refresh, PRBool *allow_openldap_compat)
 {
     char *p = NULL;
     char *q = NULL;
@@ -616,7 +674,7 @@ sync_cookie_parse(char *cookie, bool *cookie_refresh)
 
     /* This is an rfc compliant initial refresh request */
     if (cookie == NULL || *cookie == '\0') {
-        *cookie_refresh = 1;
+        *cookie_refresh = PR_TRUE;
         return NULL;
     }
 
@@ -625,16 +683,21 @@ sync_cookie_parse(char *cookie, bool *cookie_refresh)
 
     sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
     if (strncmp(cookie, "rid=", 4) == 0) {
+        if (*allow_openldap_compat != PR_TRUE) {
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_parse - An openldap sync request was made, but " SYNC_ALLOW_OPENLDAP_COMPAT " is false\n");
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_parse - To enable this run 'dsconf <instance> plugin contentsync set --allow-openldap on'\n");
+            goto error_return;
+        }
         /*
          * We are in openldap mode.
          * The cookies are:
          * rid=123,csn=20200525051329.534174Z#000000#000#000000
          */
-        sc->openldap_compat = true;
+        sc->openldap_compat = PR_TRUE;
         p = strchr(q, ',');
         if (p == NULL) {
             /* No CSN following the rid, must be an init request. */
-            *cookie_refresh = 1;
+            *cookie_refresh = PR_TRUE;
             /* We need to keep the client rid though */
             sc->cookie_client_signature = slapi_ch_strdup(q);
             /* server sig and change info do not need to be set. */
@@ -712,6 +775,8 @@ sync_cookie_parse(char *cookie, bool *cookie_refresh)
             } else {
                 goto error_return;
             }
+        } else {
+            goto error_return;
         }
     }
     return (sc);
@@ -805,6 +870,8 @@ sync_pblock_copy(Slapi_PBlock *src)
     Slapi_Operation *operation;
     Slapi_Operation *operation_new;
     Slapi_Connection *connection;
+    Slapi_Backend *be = NULL;
+    LDAPControl **ctrls = NULL;
     int *scope;
     int *deref;
     int *filter_normalized;
@@ -816,11 +883,13 @@ sync_pblock_copy(Slapi_PBlock *src)
     int *sizelimit;
     int *timelimit;
     struct slapdplugin *pi;
+    char *requestor_dn = NULL;
     ber_int_t msgid;
     ber_tag_t tag;
 
     slapi_pblock_get(src, SLAPI_OPERATION, &operation);
     slapi_pblock_get(src, SLAPI_CONNECTION, &connection);
+    slapi_pblock_get(src, SLAPI_BACKEND, &be);
     slapi_pblock_get(src, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_get(src, SLAPI_SEARCH_DEREF, &deref);
     slapi_pblock_get(src, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized);
@@ -829,9 +898,12 @@ sync_pblock_copy(Slapi_PBlock *src)
     slapi_pblock_get(src, SLAPI_SEARCH_REQATTRS, &reqattrs);
     slapi_pblock_get(src, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
     slapi_pblock_get(src, SLAPI_REQUESTOR_ISROOT, &isroot);
+    slapi_pblock_get(src, SLAPI_REQUESTOR_DN, &requestor_dn);
     slapi_pblock_get(src, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
     slapi_pblock_get(src, SLAPI_SEARCH_TIMELIMIT, &timelimit);
+    slapi_pblock_get(src, SLAPI_REQCONTROLS, &ctrls);
     slapi_pblock_get(src, SLAPI_PLUGIN, &pi);
+
 
     Slapi_PBlock *dest = slapi_pblock_new();
     operation_new = slapi_operation_new(0);
@@ -839,8 +911,10 @@ sync_pblock_copy(Slapi_PBlock *src)
     slapi_operation_set_msgid(operation_new, msgid);
     tag = slapi_operation_get_tag(operation);
     slapi_operation_set_tag(operation_new, tag);
+    operation_new->o_extension = factory_create_extension(get_operation_object_type(), operation_new, connection);
     slapi_pblock_set(dest, SLAPI_OPERATION, operation_new);
     slapi_pblock_set(dest, SLAPI_CONNECTION, connection);
+    slapi_pblock_set(dest, SLAPI_BACKEND, be);
     slapi_pblock_set(dest, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_set(dest, SLAPI_SEARCH_DEREF, &deref);
     slapi_pblock_set(dest, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized);
@@ -851,8 +925,10 @@ sync_pblock_copy(Slapi_PBlock *src)
     slapi_pblock_set(dest, SLAPI_SEARCH_REQATTRS, reqattrs_dup);
     slapi_pblock_set(dest, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
     slapi_pblock_set(dest, SLAPI_REQUESTOR_ISROOT, &isroot);
+    slapi_pblock_set(dest, SLAPI_REQUESTOR_DN, requestor_dn);
     slapi_pblock_set(dest, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
     slapi_pblock_set(dest, SLAPI_SEARCH_TIMELIMIT, &timelimit);
+    slapi_pblock_set(dest, SLAPI_REQCONTROLS, ctrls);
     slapi_pblock_set(dest, SLAPI_PLUGIN, pi);
 
     return dest;

@@ -9,6 +9,7 @@ olcSuffix: dc=example,dc=com
 olcRootDN: cn=Manager,dc=example,dc=com
 olcRootPW:: c2VjcmV0
 olcDbIndex: objectClass eq
+olcDbIndex: uid eq,pres,sub
 structuralObjectClass: olcMdbConfig
 entryUUID: 401a528e-eaf5-1039-8667-dbfbf2f5e6dd
 creatorsName: cn=config

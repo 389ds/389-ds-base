@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -38,7 +38,7 @@ static char *critical_plugins[] = {"cn=ldbm database,cn=plugins,cn=config",
                                    "cn=ACL Plugin,cn=plugins,cn=config",
                                    "cn=ACL preoperation,cn=plugins,cn=config",
                                    "cn=chaining database,cn=plugins,cn=config",
-                                   "cn=Multimaster Replication Plugin,cn=plugins,cn=config",
+                                   "cn=Multisupplier Replication Plugin,cn=plugins,cn=config",
                                    NULL};
 
 /* Forward Declarations */
@@ -663,7 +663,7 @@ slapi_send_ldap_intermediate(Slapi_PBlock *pb, LDAPControl **ectrls, char *respo
 int
 slapi_send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock *, Slapi_Entry *, LDAPControl **, char **, int32_t) = NULL;
     slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ENTRY_FN, (void *)&fn);
     if (NULL == fn) {
         return -1;
@@ -698,7 +698,7 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
     int err;
     char *matched;
     char *text;
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, int32_t, char*, char*, int32_t, struct berval **) = NULL;
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
     slapi_pblock_get(pb, SLAPI_RESULT_TEXT, &text);
@@ -708,17 +708,12 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
     if (NULL != fn) {
         (*fn)(pb, err, matched, text, 0, NULL);
     }
-
-    slapi_pblock_set(pb, SLAPI_RESULT_TEXT, NULL);
-    slapi_pblock_set(pb, SLAPI_RESULT_MATCHED, NULL);
-    slapi_ch_free((void **)&matched);
-    slapi_ch_free((void **)&text);
 }
 
 void
 slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, int32_t, char*, char*, int32_t, struct berval **) = NULL;
     Slapi_Operation *operation;
     long op_type;
 
@@ -756,7 +751,7 @@ slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int
 int
 slapi_send_ldap_referral(Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs, struct berval ***urls)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, Slapi_Entry*, struct berval **, struct berval ***) = NULL;
     slapi_pblock_get(pb, SLAPI_PLUGIN_DB_REFERRAL_FN, (void *)&fn);
     if (NULL == fn) {
         return -1;
@@ -1736,7 +1731,6 @@ plugin_dependency_startall(int argc, char **argv, char *errmsg __attribute__((un
                     */
 
                     /* Add this plugin to the shutdown list */
-
                     global_plugin_shutdown_order[shutdown_index] = config[plugin_index];
                     shutdown_index--;
                     global_plugins_started++;
@@ -1848,6 +1842,28 @@ plugin_dependency_closeall(void)
                 slapi_pblock_destroy(pb);
             }
             plugins_closed++;
+        }
+        index++;
+    }
+}
+
+/* Call the pre close functions of all the plugins */
+void
+plugin_pre_closeall(void)
+{
+    Slapi_PBlock *pb = NULL;
+    int plugins_pre_closed = 0;
+    int index = 0;
+
+    while (plugins_pre_closed < global_plugins_started) {
+        if (global_plugin_shutdown_order[index].name) {
+            if (!global_plugin_shutdown_order[index].removed) {
+                pb = slapi_pblock_new();
+                plugin_call_one(global_plugin_shutdown_order[index].plugin,
+                                SLAPI_PLUGIN_PRE_CLOSE_FN, pb);
+                slapi_pblock_destroy(pb);
+            }
+            plugins_pre_closed++;
         }
         index++;
     }
@@ -1970,7 +1986,7 @@ plugin_call_func(struct slapdplugin *list, int operation, Slapi_PBlock *pb, int 
     int count = 0;
 
     for (; list != NULL; list = list->plg_next) {
-        IFP func = NULL;
+        int32_t (*func)(Slapi_PBlock *) = NULL;
 
         slapi_pblock_set(pb, SLAPI_PLUGIN, list);
         set_db_default_result_handlers(pb); /* JCM: What's this do? Is it needed here? */
@@ -2003,6 +2019,7 @@ plugin_call_func(struct slapdplugin *list, int operation, Slapi_PBlock *pb, int 
                 slapi_plugin_op_finished(list);
                 if (SLAPI_PLUGIN_PREOPERATION == list->plg_type ||
                     SLAPI_PLUGIN_INTERNAL_PREOPERATION == list->plg_type ||
+                    SLAPI_PLUGIN_PREEXTOPERATION == list->plg_type ||
                     SLAPI_PLUGIN_START_FN == operation) {
                     /*
                      * We bail out of plugin processing for preop plugins
@@ -2052,12 +2069,14 @@ slapi_berval_cmp(const struct berval *L, const struct berval *R) /* JCM - This d
 {
     int result = 0;
 
-    if (L == NULL && R != NULL) {
-        return 1;
-    } else if (L != NULL && R == NULL) {
+    if (!L || !L->bv_val) {
+        if (!R || !R->bv_val) {
+            return 0;
+        }
         return -1;
-    } else if (L == NULL && R == NULL) {
-        return 0;
+    }
+    if (!R || !R->bv_val) {
+        return 1;
     }
     if (L->bv_len < R->bv_len) {
         result = memcmp(L->bv_val, R->bv_val, L->bv_len);
@@ -2681,6 +2700,36 @@ plugin_free(struct slapdplugin *plugin)
     slapi_ch_free((void **)&plugin);
 }
 
+/*
+ * Check if a plugin is critical or not.
+ * The plugins not critical are statically listed either
+ * with their name or with the plugin path
+ *  - GOST_YESCRYPT (name)
+ *  - entryuuid (name)
+ *  - libpwdchan (rust
+ * Returns:
+ *   1 - critical
+ *   0 - non critical
+ */
+static int
+plugin_load_critical(struct slapdplugin *plugin)
+{
+    char *non_critical_plugin_name[] = {"GOST_YESCRYPT", "entryuuid", NULL };
+    char *non_critical_plugin_libpath[] = {"libpwdchan-plugin", NULL};
+    for (int32_t i = 0; non_critical_plugin_name[i]; i++) {
+        if (strcasecmp(plugin->plg_name, non_critical_plugin_name[i]) == 0) {
+            /* this plugin in *not* critical */
+            return 0;
+        }
+    }
+    for (int32_t i = 0; non_critical_plugin_libpath[i]; i++) {
+        if (strcasecmp(plugin->plg_libpath, non_critical_plugin_libpath[i]) == 0) {
+            /* this plugin in *not* critical */
+            return 0;
+        }
+    }
+    return 1;
+}
 /***********************************
 This is the main entry point for plugin configuration.  The plugin_entry argument
 should already contain the necessary fields required to initialize the plugin and
@@ -2869,27 +2918,55 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
             goto PLUGIN_CLEANUP;
         } else {
             plugin->plg_libpath = value; /* plugin owns value's memory now, don't free */
+            /* Is this plugins shared object in the removed list? */
+            if (upgrade_plugin_removed(plugin->plg_libpath)) {
+                slapi_log_err(SLAPI_LOG_INFO, "plugin_setup",
+                        "Disabling plugin library %s, which is marked for removal ...\n", value);
+                /* Disable it. */
+                enabled = 0;
+            }
         }
 
-        loadNow = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_NOW);
-        loadGlobal = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_GLOBAL);
-
         /*
-         * load the plugin's init function
+         * Enabled at this point is either true from the initial value, or false from the
+         * removed list. The true enable status as configured is determined later, but the
+         * syms are always loaded even if disabled. We have to use this check here because
+         * if the plug is in the removed set, it may not exist on disk so we can dlopn it.
          */
-        if ((initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
-                                                                     plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
-                                                                     loadNow, loadGlobal)) == NULL) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to load plugin's init function.");
-            status = -1;
-            goto PLUGIN_CLEANUP;
+        if (enabled) {
+            loadNow = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_NOW);
+            loadGlobal = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_GLOBAL);
+
+            /* Upgrade the replication plugin name */
+            upgrade_repl_plugin_name(plugin_entry, plugin);
+
+            /*
+             * load the plugin's init function
+             */
+            initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
+                                                                         plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
+                                                                         loadNow, loadGlobal);
+            if (initfunc == NULL) {
+                /* failure to load that plugin or find its initfunct, let's fail only if it is critical */
+                if (plugin_load_critical(plugin)) {
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to load plugin's init function.");
+                    status = -1;
+                    goto PLUGIN_CLEANUP;
+                } else {
+                    /* This plugin is not critical, just ignore it and continue */
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "plugin_setup", "\"%s\" plugin in library \"%s\" not initialized and ignored\n",
+                                  plugin->plg_name, plugin->plg_libpath);
+                    enabled = 0;
+                }
+            }
         }
     }
 
     if (!status && group) /* uses group's config; see plugin_get_config */
     {
-        struct slapi_componentid *cid = (struct slapi_componentid *)group;
-        plugin->plg_group = (struct slapdplugin *)cid->sci_plugin;
+        struct slapi_componentid *group_cid = (struct slapi_componentid *)group;
+        plugin->plg_group = (struct slapdplugin *)group_cid->sci_plugin;
     } else if (!status) /* using own config */
     {
         plugin_config_init(&(plugin->plg_conf));
@@ -2952,11 +3029,18 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, configdir);
 
     /* see if the plugin is enabled or not */
-    if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
-        !strcasecmp(value, "off")) {
-        enabled = 0;
-    } else {
-        enabled = 1;
+    /*
+     * By default enabled is 1, so if all is good, this allows us to check the enabled
+     * status. But if plg_libpath was in the removed list, enabled is 0, so we now don't
+     * check the enabled attr here as we are force-disabling the plugin.
+     */
+    if (enabled) {
+        if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
+            !strcasecmp(value, "off")) {
+            enabled = 0;
+        } else {
+            enabled = 1;
+        }
     }
 
     slapi_pblock_set(pb, SLAPI_PLUGIN_ENABLED, &enabled);
@@ -3471,9 +3555,10 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
 done:
 
     if (!removed && rc == 0) {
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: could not find plugin "
-                                                           "in the global list.");
-        slapi_log_err(SLAPI_LOG_ERR, "plugin_delete", "Did not find plugin (%s) in the global list.\n",
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Plugin delete failed: could not find plugin in the global list.");
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "plugin_delete", "Did not find plugin (%s) in the global list.\n",
                       slapi_entry_get_dn_const(plugin_entry));
         rc = -1;
     }
@@ -3562,6 +3647,7 @@ plugin_invoke_plugin_pb(struct slapdplugin *plugin, int operation, Slapi_PBlock 
     if (operation == SLAPI_PLUGIN_START_FN ||
         operation == SLAPI_PLUGIN_POSTSTART_FN ||
         operation == SLAPI_PLUGIN_CLOSE_FN ||
+        operation == SLAPI_PLUGIN_PRE_CLOSE_FN ||
         operation == SLAPI_PLUGIN_CLEANUP_FN ||
         operation == SLAPI_PLUGIN_BE_PRE_CLOSE_FN ||
         operation == SLAPI_PLUGIN_BE_POST_OPEN_FN ||
@@ -3571,7 +3657,7 @@ plugin_invoke_plugin_pb(struct slapdplugin *plugin, int operation, Slapi_PBlock 
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     if (pb_op == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "plugin_invoke_plugin_pb", "pb_op is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "plugin_invoke_plugin_pb", "pb_op is NULL\n");
         PR_ASSERT(0);
         return PR_FALSE;
     }

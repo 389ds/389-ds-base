@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -26,6 +26,8 @@
 #define CONFIG_FILTER "(objectclass=nsds5replicationagreement)"
 #define WINDOWS_CONFIG_FILTER "(objectclass=nsdsWindowsreplicationagreement)"
 #define GLOBAL_CONFIG_FILTER "(|" CONFIG_FILTER WINDOWS_CONFIG_FILTER " )"
+#define AGMT_OK 0
+#define AGMT_ERROR -1
 
 
 PRCallOnceType once = {0};
@@ -123,24 +125,29 @@ agmtlist_agmt_exists(const Repl_Agmt *ra)
     return exists;
 }
 
-
 /*
  * Note: when we add the new object, we have a reference to it. We hold
  * on to this reference until the agreement is deleted (or until the
  * server is shut down).
+ * Return AGMT_OK on success
+ * Return AGMT_ERROR on generic error
  */
-int
-add_new_agreement(Slapi_Entry *e)
+static int
+add_new_agreement(Slapi_Entry *e, char **err_buffer)
 {
-    int rc = 0;
+    int rc = AGMT_OK;
     Repl_Agmt *ra = agmt_new_from_entry(e);
     Slapi_DN *replarea_sdn = NULL;
     Replica *replica = NULL;
     Object *ro = NULL;
+    char *agmt_hostname = NULL;
+    char *err_str = NULL;
+    char *server_err_str = NULL;
+    int agmt_port = 0;
 
     /* tell search result handler callback this entry was not sent */
     if (ra == NULL)
-        return 1;
+        return AGMT_ERROR;
 
     ro = object_new((void *)ra, agmt_delete);
     objset_add_obj(agmt_set, ro);
@@ -149,13 +156,43 @@ add_new_agreement(Slapi_Entry *e)
     /* get the replica for this agreement */
     replarea_sdn = agmt_get_replarea(ra);
     if (!replarea_sdn) {
-        return 1;
+        *err_buffer = slapi_ch_smprintf("problem getting the replica suffix for the agreement");
+        return AGMT_ERROR;
     }
     replica = replica_get_replica_from_dn(replarea_sdn);
     slapi_sdn_free(&replarea_sdn);
 
-    rc = replica_start_agreement(replica, ra);
+    agmt_hostname = agmt_get_hostname(ra);
+    agmt_port = agmt_get_port(ra);
 
+    if (replica && slapi_is_local_host(agmt_hostname, &err_str, &server_err_str) &&
+        (agmt_port == replica_get_port(replica) || agmt_port == replica_get_secure_port(replica)) )
+    {
+        /* You can not create an agreement that points to the local server */
+        *err_buffer = slapi_ch_smprintf("agreement hostname points to the local server instance: %s",
+                                        agmt_hostname);
+        slapi_ch_free_string(&agmt_hostname);
+        return AGMT_ERROR;
+    }
+
+    /* Log warnings if there is an issue checking the agreement or local hostname */
+    if (err_str) {
+        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "add_new_agreement - "
+                      "(%s) problem with the agreement hostname (%s) - %s",
+                      slapi_entry_get_dn(e), agmt_hostname, err_str);
+    }
+    if (server_err_str) {
+        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "add_new_agreement - "
+                      "(%s) problem checking the server's hostname - %s",
+                      slapi_entry_get_dn(e), server_err_str);
+    }
+    slapi_ch_free_string(&agmt_hostname);
+
+    /* All good, start the agreement */
+    rc = replica_start_agreement(replica, ra);
+    if (rc != 0) {
+        *err_buffer = slapi_ch_strdup("Problem starting the agreement");
+    }
     return rc;
 }
 
@@ -170,12 +207,12 @@ id_extended_agreement(Repl_Agmt *agmt __attribute__((unused)), LDAPMod **mods, S
     slapi_entry_attr_find(e, "objectclass", &sattr);
     if (sattr) {
         Slapi_Value *sval = NULL;
-        const char *val = NULL;
+        const char *oc_val = NULL;
         for (i = slapi_attr_first_value(sattr, &sval);
              i >= 0; i = slapi_attr_next_value(sattr, i, &sval)) {
-            val = slapi_value_get_string(sval);
-            if ((0 == strcasecmp(val, "top")) ||
-                (0 == strcasecmp(val, "nsds5replicationAgreement"))) {
+        	oc_val = slapi_value_get_string(sval);
+            if ((0 == strcasecmp(oc_val, "top")) ||
+                (0 == strcasecmp(oc_val, "nsds5replicationAgreement"))) {
                 continue;
             } else {
                 /* the entry has an additional objectclass, accept mods */
@@ -216,19 +253,29 @@ agmtlist_add_callback(Slapi_PBlock *pb,
                       Slapi_Entry *e,
                       Slapi_Entry *entryAfter __attribute__((unused)),
                       int *returncode,
-                      char *returntext __attribute__((unused)),
+                      char *returntext,
                       void *arg __attribute__((unused)))
 {
+    char buff[SLAPI_DSE_RETURNTEXT_SIZE];
+    char *err_buff = NULL;
+    char *errortext = returntext ? returntext : buff;
     int rc;
+
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "agmt_add: begin\n");
 
-    rc = add_new_agreement(e);
-    if (0 != rc) {
+    rc = add_new_agreement(e, &err_buff);
+    if (AGMT_OK != rc) {
         Slapi_DN *sdn = NULL;
         slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_add_callback - "
-                                                       "Can't start agreement \"%s\"\n",
-                      slapi_sdn_get_dn(sdn));
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmtlist_add_callback - (%s) %s\n",
+                      slapi_sdn_get_dn(sdn),
+                      err_buff ? err_buff : "Unknown error adding agreement");
+        if (err_buff) {
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "%s", err_buff);
+            slapi_ch_free_string(&err_buff);
+        }
+
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -264,7 +311,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
 
     if (operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
-        (identity == repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION))) {
+        (identity == repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION))) {
         goto done;
     }
 
@@ -558,8 +605,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
             }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                "nsds5debugreplicatimeout")) {
-            char *val = (char *)slapi_entry_attr_get_ref(e, "nsds5debugreplicatimeout");
-            repl5_set_debug_timeout(val);
+            char *timeout_val = (char *)slapi_entry_attr_get_ref(e, "nsds5debugreplicatimeout");
+            repl5_set_debug_timeout(timeout_val);
         } else if (slapi_attr_is_last_mod(mods[i]->mod_type) ||
                    strcasecmp(mods[i]->mod_type, "description") == 0) {
             /* ignore modifier's name and timestamp attributes and the description. */
@@ -704,19 +751,21 @@ static int
 handle_agmt_search(Slapi_Entry *e, void *callback_data)
 {
     int *agmtcount = (int *)callback_data;
+    char *err_buff = NULL;
     int rc;
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                   "handle_agmt_search - Found replication agreement named \"%s\".\n",
                   slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
-    rc = add_new_agreement(e);
-    if (0 == rc) {
+    rc = add_new_agreement(e, &err_buff);
+    if (rc == AGMT_OK) {
         (*agmtcount)++;
     } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "handle_agmt_search - "
-                                                        "The replication agreement named \"%s\" could not be correctly parsed. No "
-                                                        "replication will occur with this replica.\n",
-                      slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
+                      "The replication agreement named \"%s\" could not be correctly parsed. No "
+                      "replication will occur with this replica. Error: %s\n",
+                      slapi_sdn_get_dn(slapi_entry_get_sdn(e)), err_buff);
+        slapi_ch_free_string(&err_buff);
     }
 
     return rc;
@@ -754,7 +803,7 @@ agmtlist_config_init()
     slapi_search_internal_set_pb(pb, AGMT_CONFIG_BASE, LDAP_SCOPE_SUBTREE,
                                  GLOBAL_CONFIG_FILTER, NULL /* attrs */, 0 /* attrsonly */,
                                  NULL, /* controls */ NULL /* uniqueid */,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* actions */);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* actions */);
     slapi_search_internal_callback_pb(pb,
                                       (void *)&agmtcount /* callback data */,
                                       NULL /* result_callback */,
@@ -777,11 +826,16 @@ agmtlist_shutdown()
     Object *ro;
     Object *next_ro;
 
+    if (agmt_set == NULL) {
+        return;
+    }
+
     ro = objset_first_obj(agmt_set);
     while (NULL != ro) {
         ra = (Repl_Agmt *)object_get_data(ro);
         agmt_stop(ra);
         agmt_update_consumer_ruv(ra);
+        agmt_update_init_status(ra);
         next_ro = objset_next_obj(agmt_set, ro);
         /* Object ro was released in objset_next_obj,
          * but the address ro can be still used to remove ro from objset. */

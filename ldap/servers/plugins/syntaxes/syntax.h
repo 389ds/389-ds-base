@@ -104,21 +104,22 @@ struct mr_plugin_def
     Slapi_PluginDesc mr_plg_desc;         /* for SLAPI_PLUGIN_DESCRIPTION */
     const char **mr_names;                /* list of oid and names, NULL terminated SLAPI_PLUGIN_MR_NAMES */
     /* these are optional for new style mr plugins */
-    IFP mr_filter_create;  /* old style factory function SLAPI_PLUGIN_MR_FILTER_CREATE_FN */
-    IFP mr_indexer_create; /* old style factory function SLAPI_PLUGIN_MR_INDEXER_CREATE_FN */
+    int32_t (*mr_filter_create)(Slapi_PBlock *);  /* old style factory function SLAPI_PLUGIN_MR_FILTER_CREATE_FN */
+    int32_t (*mr_indexer_create)(Slapi_PBlock *); /* old style factory function SLAPI_PLUGIN_MR_INDEXER_CREATE_FN */
     /* new style syntax plugin functions */
     /* not all functions will apply to all matching rule types */
     /* e.g. a SUBSTR rule will not have a filter_ava func */
-    IFP mr_filter_ava;         /* SLAPI_PLUGIN_MR_FILTER_AVA */
-    IFP mr_filter_sub;         /* SLAPI_PLUGIN_MR_FILTER_SUB */
-    IFP mr_values2keys;        /* SLAPI_PLUGIN_MR_VALUES2KEYS */
-    IFP mr_assertion2keys_ava; /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA */
-    IFP mr_assertion2keys_sub; /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB */
-    IFP mr_compare;            /* SLAPI_PLUGIN_MR_COMPARE - only for ORDERING */
-    VFPV mr_normalize;
+    int32_t (*mr_filter_ava)(Slapi_PBlock *, struct berval *, Slapi_Value **, int32_t, Slapi_Value **); /* SLAPI_PLUGIN_MR_FILTER_AVA */
+    int32_t (*mr_filter_sub)(Slapi_PBlock *, char *, char **, char *, Slapi_Value **); /* SLAPI_PLUGIN_MR_FILTER_SUB */
+    int32_t (*mr_values2keys)(Slapi_PBlock *, Slapi_Value **, Slapi_Value ***, int32_t);  /* SLAPI_PLUGIN_MR_VALUES2KEYS */
+    int32_t (*mr_assertion2keys_ava)(Slapi_PBlock *, Slapi_Value *, Slapi_Value ***, int32_t);
+    int32_t (*mr_assertion2keys_sub)(Slapi_PBlock *, char *, char **, char *, Slapi_Value ***); /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB */
+    int32_t (*mr_compare)(struct berval *, struct berval *); /* SLAPI_PLUGIN_MR_COMPARE - only for ORDERING */
+    void (*mr_normalize)(Slapi_PBlock *, char *, int32_t, char **);
 };
 
-int syntax_register_matching_rule_plugins(struct mr_plugin_def mr_plugin_table[], size_t mr_plugin_table_size, IFP matching_rule_plugin_init);
+int syntax_register_matching_rule_plugins(struct mr_plugin_def mr_plugin_table[], size_t mr_plugin_table_size,
+                                          int32_t (*matching_rule_plugin_init)(Slapi_PBlock *));
 int syntax_matching_rule_plugin_init(Slapi_PBlock *pb, struct mr_plugin_def mr_plugin_table[], size_t mr_plugin_table_size);
 
 #endif

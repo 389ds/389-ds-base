@@ -1,23 +1,27 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
     Checkbox,
-    Col,
-    ControlLabel,
     Form,
-    FormControl,
-    Icon,
-    Nav,
-    NavItem,
-    Row,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    NumberInput,
     Spinner,
-    TabContainer,
-    TabContent,
-    noop,
-    TabPane,
-} from "patternfly-react";
+    Switch,
+    Tab,
+    Tabs,
+    TabTitleText,
+    TextInput,
+    Text,
+    TextContent,
+    TextVariants,
+    TimePicker,
+} from "@patternfly/react-core";
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -33,6 +37,16 @@ const rotation_attrs = [
     'nsslapd-auditfaillog-logrotationtimeunit',
     'nsslapd-auditfaillog-maxlogsize',
     'nsslapd-auditfaillog-maxlogsperdir',
+    'nsslapd-auditfaillog-compress'
+];
+
+const rotation_attrs_no_time = [
+    'nsslapd-auditfaillog-logrotationsync-enabled',
+    'nsslapd-auditfaillog-logrotationtime',
+    'nsslapd-auditfaillog-logrotationtimeunit',
+    'nsslapd-auditfaillog-maxlogsize',
+    'nsslapd-auditfaillog-maxlogsperdir',
+    'nsslapd-auditfaillog-compress'
 ];
 
 const exp_attrs = [
@@ -42,24 +56,56 @@ const exp_attrs = [
     'nsslapd-auditfaillog-logminfreediskspace',
 ];
 
+const _ = cockpit.gettext;
+
 export class ServerAuditFailLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             loading: false,
             loaded: false,
-            activeKey: 1,
+            activeTabKey: 0,
             saveSettingsDisabled: true,
             saveRotationDisabled: true,
             saveExpDisabled: true,
             attrs: this.props.attrs,
         };
 
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
         this.handleChange = this.handleChange.bind(this);
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
+        this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
+        this.onMinusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        };
+        this.onConfigChange = (event, id, min, max, nav_tab) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
+            this.setState({
+                [id]: newValue
+            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
+        };
+        this.onPlusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        };
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     componentDidMount() {
@@ -71,46 +117,87 @@ export class ServerAuditFailLog extends React.Component {
         }
     }
 
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
-    }
-
-    handleChange(e, nav_tab) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+    validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
-        if (nav_tab == "settings") {
+        if (nav_tab === "settings") {
             config_attrs = settings_attrs;
             disableBtnName = "saveSettingsDisabled";
-        } else if (nav_tab == "rotation") {
-            config_attrs = rotation_attrs;
+        } else if (nav_tab === "rotation") {
             disableBtnName = "saveRotationDisabled";
+            config_attrs = rotation_attrs;
         } else {
             config_attrs = exp_attrs;
             disableBtnName = "saveExpDisabled";
         }
 
         // Check if a setting was changed, if so enable the save button
-        for (let config_attr of config_attrs) {
-            if (attr == config_attr && this.state['_' + config_attr] != value) {
+        for (const config_attr of config_attrs) {
+            if (attr === config_attr && this.state['_' + config_attr].toString() !== value.toString()) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
         // Now check for differences in values that we did not touch
-        for (let config_attr of config_attrs) {
-            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+        for (const config_attr of config_attrs) {
+            console.log('testlog' + config_attr);
+            if (attr !== config_attr && this.state['_' + config_attr].toString() !== this.state[config_attr].toString()) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
         this.setState({
+            [disableBtnName]: disableSaveBtn
+        });
+    }
+
+    handleChange(e, nav_tab) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
             [attr]: value,
-            [disableBtnName]: disableSaveBtn,
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) });
+    }
+
+    handleSwitchChange(value) {
+        // log compression
+        this.setState({
+            'nsslapd-auditfaillog-compress': value
+        }, () => {
+            this.validateSaveBtn('rotation', 'nsslapd-auditfaillog-compress', value);
+        });
+    }
+
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
+        let disableSaveBtn = true;
+
+        if (hour.length === 2 && hour[0] === "0") {
+            hour = hour[1];
+        }
+        if (min.length === 2 && min[0] === "0") {
+            min = min[1];
+        }
+
+        // Start doing the Save button checking
+        for (const config_attr of rotation_attrs_no_time) {
+            if (this.state[config_attr] !== this.state['_' + config_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+        if (hour !== this.state['_nsslapd-auditfaillog-logrotationsynchour'] ||
+            min !== this.state['_nsslapd-auditfaillog-logrotationsyncmin']) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            'nsslapd-auditfaillog-logrotationsynchour': hour,
+            'nsslapd-auditfaillog-logrotationsyncmin': min,
+            saveRotationDisabled: disableSaveBtn,
         });
     }
 
@@ -120,20 +207,21 @@ export class ServerAuditFailLog extends React.Component {
         });
 
         let config_attrs = [];
-        if (nav_tab == "settings") {
+        if (nav_tab === "settings") {
             config_attrs = settings_attrs;
-        } else if (nav_tab == "rotation") {
+        } else if (nav_tab === "rotation") {
             config_attrs = rotation_attrs;
         } else {
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
-        for (let attr of config_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+        for (const attr of config_attrs) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -146,49 +234,59 @@ export class ServerAuditFailLog extends React.Component {
             }
         }
 
-        log_cmd("saveConfig", "Saving audit log settings", cmd);
+        if (cmd.length === 5) {
+            // Nothing to save, just return
+            return;
+        }
+
+        log_cmd("saveConfig", "Saving audit fail log settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    this.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.props.reload();
+                    this.refreshConfig(1);
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Audit Failure Log settings"
+                        _("Successfully updated Audit Fail Log settings")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    const errMsg = getApiErrorMessage(err);
+                    this.props.reload();
+                    this.refreshConfig(1);
                     this.props.addNotification(
                         "error",
-                        `Error saving Audit Failure Log settings - ${errMsg.desc}`
+                        cockpit.format(_("Error saving Audit Fail Log settings - $0"), errMsg)
                     );
                 });
     }
 
-    reloadConfig() {
-        this.setState({
-            loading: true,
-        });
-        let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
-        ];
-        log_cmd("loadConfig", "load Audit Failure Log configuration", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
-                    let enabled = false;
+    refreshConfig(loading) {
+        if (!loading) {
+            this.setState({
+                loading: true,
+                loaded: false,
+            });
+        }
 
-                    if (attrs['nsslapd-auditfaillog-logging-enabled'][0] == "on") {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
+        log_cmd("refreshConfig", "load Audit Fail Log configuration", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    let enabled = false;
+                    let compressed = false;
+
+                    if (attrs['nsslapd-auditfaillog-logging-enabled'][0] === "on") {
                         enabled = true;
+                    }
+                    if (attrs['nsslapd-auditfaillog-compress'][0] === "on") {
+                        compressed = true;
                     }
 
                     this.setState(() => (
@@ -199,376 +297,437 @@ export class ServerAuditFailLog extends React.Component {
                             saveRotationDisabled: true,
                             saveExpDisabled: true,
                             'nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-                            'nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+                            'nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
                             'nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
                             'nsslapd-auditfaillog-logging-enabled': enabled,
-                            'nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-                            'nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+                            'nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+                            'nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
                             'nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-                            'nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-                            'nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-                            'nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+                            'nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+                            'nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+                            'nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
                             'nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-                            'nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-                            'nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+                            'nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+                            'nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
+                            'nsslapd-auditfaillog-compress': compressed,
                             // Record original values
                             '_nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-                            '_nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+                            '_nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
                             '_nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
                             '_nsslapd-auditfaillog-logging-enabled': enabled,
-                            '_nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-                            '_nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+                            '_nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+                            '_nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
                             '_nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-                            '_nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-                            '_nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-                            '_nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+                            '_nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+                            '_nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+                            '_nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
                             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-                            '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-                            '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+                            '_nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+                            '_nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
+                            '_nsslapd-auditfaillog-compress': compressed,
                         })
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading Audit Failure Log configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading Audit Fail Log configuration - $0"), errMsg)
                     );
                     this.setState({
                         loading: false,
+                        loaded: true,
                     });
                 });
     }
 
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         let enabled = false;
+        let compressed = false;
 
-        if (attrs['nsslapd-auditfaillog-logging-enabled'][0] == "on") {
+        this.setState({
+            loading: true
+        });
+
+        if (attrs['nsslapd-auditfaillog-logging-enabled'][0] === "on") {
             enabled = true;
+        }
+        if (attrs['nsslapd-auditfaillog-compress'][0] === "on") {
+            compressed = true;
         }
 
         this.setState({
+            loading: false,
             loaded: true,
             saveSettingsDisabled: true,
             saveRotationDisabled: true,
             saveExpDisabled: true,
             'nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-            'nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+            'nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
             'nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
             'nsslapd-auditfaillog-logging-enabled': enabled,
-            'nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-            'nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+            'nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+            'nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
             'nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-            'nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-            'nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-            'nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+            'nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+            'nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+            'nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
             'nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-            'nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-            'nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
-            // Record original values
+            'nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+            'nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
+            'nsslapd-auditfaillog-compress': compressed,
+            // Record original values,
             '_nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
-            '_nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
+            '_nsslapd-auditfaillog-logexpirationtime': parseInt(attrs['nsslapd-auditfaillog-logexpirationtime'][0]),
             '_nsslapd-auditfaillog-logexpirationtimeunit': attrs['nsslapd-auditfaillog-logexpirationtimeunit'][0],
             '_nsslapd-auditfaillog-logging-enabled': enabled,
-            '_nsslapd-auditfaillog-logmaxdiskspace': attrs['nsslapd-auditfaillog-logmaxdiskspace'][0],
-            '_nsslapd-auditfaillog-logminfreediskspace': attrs['nsslapd-auditfaillog-logminfreediskspace'][0],
+            '_nsslapd-auditfaillog-logmaxdiskspace': parseInt(attrs['nsslapd-auditfaillog-logmaxdiskspace'][0]),
+            '_nsslapd-auditfaillog-logminfreediskspace': parseInt(attrs['nsslapd-auditfaillog-logminfreediskspace'][0]),
             '_nsslapd-auditfaillog-logrotationsync-enabled': attrs['nsslapd-auditfaillog-logrotationsync-enabled'][0],
-            '_nsslapd-auditfaillog-logrotationsynchour': attrs['nsslapd-auditfaillog-logrotationsynchour'][0],
-            '_nsslapd-auditfaillog-logrotationsyncmin': attrs['nsslapd-auditfaillog-logrotationsyncmin'][0],
-            '_nsslapd-auditfaillog-logrotationtime': attrs['nsslapd-auditfaillog-logrotationtime'][0],
+            '_nsslapd-auditfaillog-logrotationsynchour': parseInt(attrs['nsslapd-auditfaillog-logrotationsynchour'][0]),
+            '_nsslapd-auditfaillog-logrotationsyncmin': parseInt(attrs['nsslapd-auditfaillog-logrotationsyncmin'][0]),
+            '_nsslapd-auditfaillog-logrotationtime': parseInt(attrs['nsslapd-auditfaillog-logrotationtime'][0]),
             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
-            '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
-            '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+            '_nsslapd-auditfaillog-maxlogsize': parseInt(attrs['nsslapd-auditfaillog-maxlogsize'][0]),
+            '_nsslapd-auditfaillog-maxlogsperdir': parseInt(attrs['nsslapd-auditfaillog-maxlogsperdir'][0]),
+            '_nsslapd-auditfaillog-compress': compressed,
         }, this.props.enableTree);
     }
 
     render() {
-        let body =
-            <div className="ds-margin-top-lg">
-                <TabContainer id="auditfail-log-settings" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div className="ds-margin-top">
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Settings'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: 'Rotation Policy'}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: 'Deletion Policy'}} />
-                            </NavItem>
-                        </Nav>
+        let saveSettingsName = _("Save Log Settings");
+        let saveRotationName = _("Save Rotation Settings");
+        let saveDeletionName = _("Save Deletion Settings");
+        const extraPrimaryProps = {};
+        let rotationTime = "";
+        let hour = this.state['nsslapd-auditfaillog-logrotationsynchour'] ? this.state['nsslapd-auditfaillog-logrotationsynchour'] : "00";
+        let min = this.state['nsslapd-auditfaillog-logrotationsyncmin'] ? this.state['nsslapd-auditfaillog-logrotationsyncmin'] : "00";
 
-                        <TabContent className="ds-margin-top-lg">
-                            <TabPane eventKey={1}>
-                                <Form>
-                                    <Row className="ds-margin-top" title="Enable access logging (nsslapd-auditfaillog-logging-enabled).">
-                                        <Col sm={3}>
-                                            <Checkbox
-                                                id="nsslapd-auditfaillog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-auditfaillog-logging-enabled']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "settings");
-                                                }}
-                                            >
-                                                Enable Audit Failure Logging
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    <div className="ds-margin-left">
-                                        <Row className="ds-margin-top" title="Enable access logging (nsslapd-auditfaillog).">
-                                            <Col componentClass={ControlLabel} sm={3}>
-                                                Audit Failure Log Location
-                                            </Col>
-                                            <Col sm={6}>
-                                                <FormControl
-                                                    id="nsslapd-auditfaillog"
-                                                    type="text"
-                                                    value={this.state['nsslapd-auditfaillog']}
-                                                    onChange={(e) => {
-                                                        this.handleChange(e, "settings");
-                                                    }}
-                                                />
-                                            </Col>
-                                        </Row>
-                                    </div>
-                                    <Button
-                                        disabled={this.state.saveSettingsDisabled}
-                                        bsStyle="primary"
-                                        className="ds-margin-top-med"
-                                        onClick={() => {
-                                            this.saveConfig("settings");
+        if (this.state.loading) {
+            saveSettingsName = _("Saving settings ...");
+            saveRotationName = _("Saving settings ...");
+            saveDeletionName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
+        }
+
+        // Adjust time string for TimePicket
+        if (hour.length === 1) {
+            hour = "0" + hour;
+        }
+        if (min.length === 1) {
+            min = "0" + min;
+        }
+        rotationTime = hour + ":" + min;
+
+        let body = (
+            <div className="ds-margin-top-lg ds-left-margin">
+                <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
+                        <Checkbox
+                            className="ds-margin-top-xlg ds-left-margin"
+                            id="nsslapd-auditfaillog-logging-enabled"
+                            isChecked={this.state['nsslapd-auditfaillog-logging-enabled']}
+                            onChange={(e, checked) => {
+                                this.handleChange(e, "settings");
+                            }}
+                            title={_("Enable audit fail logging (nsslapd-auditfaillog-logging-enabled).")}
+                            label={_("Enable Audit Fail Logging")}
+                        />
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
+                            <Grid
+                                title={_("Enable audit fail logging (nsslapd-auditfaillog).")}
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Audit Fail Log Location")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-auditfaillog']}
+                                        type="text"
+                                        id="nsslapd-auditfaillog"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-auditfaillog"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
                                         }}
-                                    >
-                                        Save Settings
-                                    </Button>
-                                </Form>
-                            </TabPane>
-                        </TabContent>
-
-                        <TabContent className="ds-margin-top-lg">
-                            <TabPane eventKey={2}>
-                                <Form horizontal>
-                                    <Row className="ds-margin-top-xlg" title="The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Maximum Number Of Logs
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-maxlogsperdir"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-auditfaillog-maxlogsperdir']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top-lg" title="The maximum size of each log file in megabytes (nsslapd-auditfaillog-maxlogsize).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Maximum Log Size (in MB)
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-maxlogsize"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-auditfaillog-maxlogsize']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <hr />
-                                    <Row className="ds-margin-top" title="Rotate the log based this number of time units (nsslapd-auditfaillog-logrotationtime).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Create New Log Every...
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-logrotationtime"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-auditfaillog-logrotationtime']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                        <Col sm={2}>
-                                            <select
-                                                className="btn btn-default dropdown"
-                                                id="nsslapd-auditfaillog-logrotationtimeunit"
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                                value={this.state['nsslapd-auditfaillog-logrotationtimeunit']}
-                                            >
-                                                <option>minute</option>
-                                                <option>hour</option>
-                                                <option>day</option>
-                                                <option>week</option>
-                                                <option>month</option>
-                                            </select>
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The hour whenthe log should be rotated (nsslapd-auditfaillog-logrotationsynchour).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Hour
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-logrotationsynchour"
-                                                type="number"
-                                                min="0"
-                                                max="23"
-                                                value={this.state['nsslapd-auditfaillog-logrotationsynchour']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The minute within the hour to rotate the log (nsslapd-auditfaillog-logrotationsyncmin).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Minute
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-logrotationsyncmin"
-                                                type="number"
-                                                min="0"
-                                                max="59"
-                                                value={this.state['nsslapd-auditfaillog-logrotationsyncmin']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Button
-                                        disabled={this.state.saveRotationDisabled}
-                                        bsStyle="primary"
-                                        className="ds-margin-top-med"
-                                        onClick={() => {
-                                            this.saveConfig("rotation");
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </Form>
+                        <Button
+                            key="save settings"
+                            isDisabled={this.state.saveSettingsDisabled || this.state.loading}
+                            variant="primary"
+                            className="ds-margin-top-xlg"
+                            onClick={() => {
+                                this.saveConfig("settings");
+                            }}
+                            isLoading={this.state.loading}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveSettingsName}
+                        </Button>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
+                            <Grid
+                                className="ds-margin-top"
+                                title={_("The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir).")}
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Maximum Number Of Logs")}
+                                </GridItem>
+                                <GridItem span={3}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-maxlogsperdir']}
+                                        min={1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-maxlogsperdir", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-maxlogsperdir", 1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-maxlogsperdir", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("The maximum size of each log file in megabytes (nsslapd-auditfaillog-maxlogsize).")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Maximum Log Size (in MB)")}
+                                </GridItem>
+                                <GridItem span={3}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-maxlogsize']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-maxlogsize", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-maxlogsize", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-maxlogsize", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <hr />
+                            <Grid title={_("Rotate the log based this number of time units (nsslapd-auditfaillog-logrotationtime).")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Create New Log Every ...")}
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-logrotationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-auditfaillog-logrotationtimeunit"
+                                        value={this.state['nsslapd-auditfaillog-logrotationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "rotation");
                                         }}
+                                        aria-label="log rotation time unit select"
                                     >
-                                        Save Rotation Settings
-                                    </Button>
-                                </Form>
-                            </TabPane>
-                        </TabContent>
+                                        <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                        <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("The time when the log should be rotated (nsslapd-auditfaillog-logrotationsynchour, nsslapd-auditfaillog-logrotationsyncmin).")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Time Of Day")}
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <TimePicker
+                                        time={rotationTime}
+                                        onChange={this.handleTimeChange}
+                                        is24Hour
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("Compress (gzip) the log after it's rotated.")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Compress Rotated Logs")}
+                                </GridItem>
+                                <GridItem className="ds-label" span={8}>
+                                    <Switch
+                                        id="nsslapd-auditfaillog-compress"
+                                        isChecked={this.state['nsslapd-auditfaillog-compress']}
+                                        onChange={(_event, value) => this.handleSwitchChange(value)}
+                                        aria-label="nsslapd-auditfaillog-compress"
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </Form>
+                        <Button
+                            key="save rot settings"
+                            isDisabled={this.state.saveRotationDisabled || this.state.loading}
+                            variant="primary"
+                            className="ds-margin-top-xlg ds-left-margin"
+                            onClick={() => {
+                                this.saveConfig("rotation");
+                            }}
+                            isLoading={this.state.loading}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveRotationName}
+                        </Button>
+                    </Tab>
 
-                        <TabContent className="ds-margin-top-lg">
-                            <TabPane eventKey={3}>
-                                <Form horizontal>
-                                    <Row className="ds-margin-top-xlg" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Total Log Archive Exceeds (in MB)
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-logmaxdiskspace"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-auditfaillog-logmaxdiskspace']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Free Disk Space (in MB)
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-logminfreediskspace"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-auditfaillog-logminfreediskspace']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Log File is Older Than...
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-auditfaillog-logexpirationtime"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-auditfaillog-logexpirationtime']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            />
-                                        </Col>
-                                        <Col sm={2}>
-                                            <select
-                                                className="btn btn-default dropdown"
-                                                id="nsslapd-auditfaillog-logexpirationtimeunit"
-                                                value={this.state['nsslapd-auditfaillog-logexpirationtimeunit']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            >
-                                                <option>day</option>
-                                                <option>week</option>
-                                                <option>month</option>
-                                            </select>
-                                        </Col>
-                                    </Row>
-                                    <Button
-                                        disabled={this.state.saveExpDisabled}
-                                        bsStyle="primary"
-                                        className="ds-margin-top-med"
-                                        onClick={() => {
-                                            this.saveConfig("exp");
+                    <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
+                            <Grid
+                                className="ds-margin-top"
+                                title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace).")}
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Log Archive Exceeds (in MB)")}
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-logmaxdiskspace']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logmaxdiskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logmaxdiskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logmaxdiskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title={_("The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace).")}
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Free Disk Space (in MB)")}
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-logminfreediskspace']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logminfreediskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logminfreediskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logminfreediskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title={_("Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime).")}
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Log File is Older Than ...")}
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditfaillog-logexpirationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-auditfaillog-logexpirationtimeunit"
+                                        value={this.state['nsslapd-auditfaillog-logexpirationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "exp");
                                         }}
+                                        aria-label="log expiration time unit select"
                                     >
-                                        Save Deletion Settings
-                                    </Button>
-                                </Form>
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
-            </div>;
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                        </Form>
+                        <Button
+                            key="save del settings"
+                            isDisabled={this.state.saveExpDisabled || this.state.loading}
+                            variant="primary"
+                            className="ds-margin-top-xlg ds-left-margin"
+                            onClick={() => {
+                                this.saveConfig("exp");
+                            }}
+                            isLoading={this.state.loading}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveDeletionName}
+                        </Button>
+                    </Tab>
+                </Tabs>
+            </div>
+        );
 
-        if (this.state.loading || !this.state.loaded) {
-            body = <Spinner loading size="md" />;
+        if (!this.state.loaded) {
+            body = (
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>{_("Loading Audit Fail Log Settings ...")}</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
+                </div>
+            );
         }
 
         return (
-            <div id="server-auditfaillog-page">
-                <Row>
-                    <Col sm={5}>
-                        <ControlLabel className="ds-suffix-header ds-margin-top-lg">
-                            Audit Failure Log Settings
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh the Access Log settings"
-                                onClick={this.reloadConfig}
-                                disabled={this.state.loading}
-                            />
-                        </ControlLabel>
-                    </Col>
-                </Row>
+            <div id="server-auditfaillog-page" className={this.state.loading ? "ds-disabled" : ""}>
+                <Grid>
+                    <GridItem span={12}>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                {_("Audit Fail Log Settings")}
+                                <Button
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
+                                    onClick={() => {
+                                        this.refreshConfig();
+                                    }}
+                                >
+                                    <SyncAltIcon />
+                                </Button>
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                </Grid>
                 {body}
             </div>
         );
@@ -584,7 +743,6 @@ ServerAuditFailLog.propTypes = {
 };
 
 ServerAuditFailLog.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };

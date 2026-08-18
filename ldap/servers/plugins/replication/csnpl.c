@@ -311,7 +311,7 @@ csnplCommit(CSNPL *csnpl, const CSN *csn)
     data = (csnpldata *)llistGet(csnpl->csnList, csn_str);
     if (data == NULL) {
         /*
-         * In the scenario "4.x master -> 6.x legacy-consumer -> 6.x consumer"
+         * In the scenario "4.x supplier -> 6.x legacy-consumer -> 6.x consumer"
          * csn will have rid=65535. Hence 6.x consumer will get here trying
          * to commit r->min_csn_pl because its rid matches that in the csn.
          * However, r->min_csn_pl is always empty for a dedicated consumer.

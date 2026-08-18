@@ -522,7 +522,7 @@ idl_set_intersect(IDListSet *idl_set, backend *be)
      *
      * NOTE: This is still not optimised yet!
      */
-    if (idl_set->complement_head != NULL && result_list->b_nids > 0) {
+    if (idl_set->complement_head != NULL) {
         IDList *new_result_list = NULL;
         IDList *next_idl = NULL;
         IDList *idl = idl_set->complement_head;

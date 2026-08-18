@@ -1,16 +1,25 @@
 import React from "react";
 import cockpit from "cockpit";
 import {
-    Button,
-    Row,
-    Col,
-    ControlLabel,
-    Spinner,
-    noop,
-} from "patternfly-react";
-import { log_cmd } from "../../lib/tools.jsx";
+	Button,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	FormHelperText,
+	Grid,
+	GridItem,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { log_cmd, getApiErrorMessage } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
+
+const _ = cockpit.gettext;
 
 export class Ciphers extends React.Component {
     constructor(props) {
@@ -22,37 +31,67 @@ export class Ciphers extends React.Component {
             prefs: this.props.cipherPref,
             saving: false,
             availableCiphers: this.props.supportedCiphers,
+            // Select Typeahead
+            isAllowCipherOpen: false,
+            isDenyCipherOpen: false,
+            disableSaveBtn: true,
+        };
+
+        // Allow Ciphers
+        this.handleAllowCipherToggle = (_event, isAllowCipherOpen) => {
+            this.setState({
+                isAllowCipherOpen
+            });
+        };
+        this.handleAllowCipherClear = () => {
+            this.setState({
+                allowCiphers: [],
+                isAllowCipherOpen: false
+            });
+        };
+
+        this.handleDenyCipherToggle = (_event, isDenyCipherOpen) => {
+            this.setState({
+                isDenyCipherOpen
+            });
+        };
+        this.handleDenyCipherClear = () => {
+            this.setState({
+                denyCiphers: [],
+                isDenyCipherOpen: false
+            });
         };
 
         this.handlePrefChange = this.handlePrefChange.bind(this);
         this.saveCipherPref = this.saveCipherPref.bind(this);
-        this.handleCipherChange = this.handleCipherChange.bind(this);
+        this.handleAllowCipherChange = this.handleAllowCipherChange.bind(this);
+        this.handleDenyCipherChange = this.handleDenyCipherChange.bind(this);
     }
 
     componentDidMount () {
         let cipherPref = "default";
-        let allowedCiphers = [];
-        let deniedCiphers = [];
-        let availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
+        const allowedCiphers = [];
+        const deniedCiphers = [];
+        const availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
 
         // Parse SSL cipher attributes (nsSSL3Ciphers)
-        if (this.props.cipherPref != "") {
+        if (this.props.cipherPref !== "") {
             let rawCiphers = this.props.cipherPref.split(",");
 
             // First check the first element as it has special meaning
-            if (rawCiphers[0].toLowerCase() == "default") {
+            if (rawCiphers[0].toLowerCase() === "default") {
                 rawCiphers.shift();
-            } else if (rawCiphers[0].toLowerCase() == "+all") {
+            } else if (rawCiphers[0].toLowerCase() === "+all") {
                 cipherPref = "+all";
                 rawCiphers.shift();
-            } else if (rawCiphers[0].toLowerCase() == "-all") {
+            } else if (rawCiphers[0].toLowerCase() === "-all") {
                 cipherPref = "-all";
                 rawCiphers.shift();
             }
 
             // Process the remaining ciphers
             rawCiphers = rawCiphers.map(function(x) { return x.toUpperCase() });
-            for (let cipher of rawCiphers) {
+            for (const cipher of rawCiphers) {
                 if (cipher.startsWith("+")) {
                     allowedCiphers.push(cipher.substring(1));
                 } else if (cipher.startsWith("-")) {
@@ -60,30 +99,46 @@ export class Ciphers extends React.Component {
                 }
             }
 
-            // Now modify the available list
-            for (let i = 0; i < availableCiphers.length; i++) {
-                for (let ii = 0; ii < allowedCiphers.length; ii++) {
-                    if (availableCiphers[i] === allowedCiphers[ii]) {
-                        availableCiphers.splice(i, 1);
-                        i--;
-                        break;
+            // Remove all enabled ciphers from the list of available ciphers
+            for (const enabled_cipher of this.props.enabledCiphers) {
+                if (availableCiphers.includes(enabled_cipher)) {
+                    // Remove val from availableCiphers
+                    const index = availableCiphers.indexOf(enabled_cipher);
+                    if (index > -1) {
+                        availableCiphers.splice(index, 1);
                     }
                 }
-                for (let ii = 0; ii < deniedCiphers.length; ii++) {
-                    if (availableCiphers[i] === deniedCiphers[ii]) {
-                        availableCiphers.splice(i, 1);
-                        i--;
-                        break;
+            }
+            // Remove allowed ciphers from the list of available ciphers
+            for (const allow_cipher of allowedCiphers) {
+                if (availableCiphers.includes(allow_cipher)) {
+                    // Remove val from availableCiphers
+                    const index = availableCiphers.indexOf(allow_cipher);
+                    if (index > -1) {
+                        availableCiphers.splice(index, 1);
+                    }
+                }
+            }
+            // Remove denied ciphers from the list of available ciphers
+            for (const deny_cipher of deniedCiphers) {
+                if (availableCiphers.includes(deny_cipher)) {
+                    // Remove val from availableCiphers
+                    const index = availableCiphers.indexOf(deny_cipher);
+                    if (index > -1) {
+                        availableCiphers.splice(index, 1);
                     }
                 }
             }
         }
 
         this.setState({
-            cipherPref: cipherPref,
+            cipherPref,
+            _cipherPref: cipherPref,
             allowCiphers: allowedCiphers,
+            _allowCiphers: [...allowedCiphers],
             denyCiphers: deniedCiphers,
-            availableCiphers: availableCiphers,
+            _denyCiphers: [...deniedCiphers],
+            availableCiphers,
         });
     }
 
@@ -93,11 +148,13 @@ export class Ciphers extends React.Component {
             saving: true
         });
         let prefs = this.state.cipherPref;
-        for (let cipher of this.state.allowCiphers) {
-            prefs += ",+" + cipher;
-        }
-        for (let cipher of this.state.denyCiphers) {
-            prefs += ",-" + cipher;
+        if (this.state.cipherPref !== "default") {
+            for (const cipher of this.state.allowCiphers) {
+                prefs += ",+" + cipher;
+            }
+            for (const cipher of this.state.denyCiphers) {
+                prefs += ",-" + cipher;
+            }
         }
 
         const cmd = [
@@ -106,191 +163,266 @@ export class Ciphers extends React.Component {
         ];
         log_cmd("saveCipherPref", "Saving cipher preferences", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully set cipher preferences.`
+                        _("Successfully set cipher preferences.")
                     );
                     this.props.addNotification(
                         "warning",
-                        `You must restart the Directory Server for these changes to take effect.`
+                        _("You must restart the Directory Server for these changes to take effect.")
                     );
                     this.setState({
                         saving: false,
+                        disableSaveBtn: true,
                     });
+                    this.props.reload();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
+                    const errMsg = getApiErrorMessage(err);
+                    let msg = errMsg;
                     if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
+                        msg = errMsg + " - " + errMsg.info;
                     }
                     this.props.addNotification(
                         "error",
-                        `Error setting cipher preferences - ${msg}`
+                        cockpit.format(_("Error setting cipher preferences - $0"), msg)
                     );
                     this.setState({
                         saving: false,
+                        disableSaveBtn: true,
                     });
                 });
     }
 
-    handlePrefChange (e) {
+    handlePrefChange (val) {
+        let disableSaveBtn = true;
+
+        if (JSON.stringify(this.state.allowCiphers) !== JSON.stringify(this.state._allowCiphers) ||
+            JSON.stringify(this.state.denyCiphers) !== JSON.stringify(this.state._denyCiphers)) {
+            disableSaveBtn = false;
+        }
+        if (this.state._cipherPref !== val) {
+            disableSaveBtn = false;
+        }
+
         this.setState({
-            cipherPref: e.target.value,
+            cipherPref: val,
+            disableSaveBtn,
         });
     }
 
-    handleCipherChange (type, values) {
-        let availableCiphers = this.state.availableCiphers.slice(0); // Copy array
-        for (let i = 0; i < availableCiphers.length; i++) {
-            for (let ci = 0; ci < values.length; ci++) {
-                if (availableCiphers[i] === values[ci]) {
-                    availableCiphers.splice(i, 1);
-                    i--;
-                    break;
-                }
-            }
+    handleAllowCipherChange(e, selection) {
+        let disableSaveBtn = true;
+        const newAllowCiphers = Array.isArray(selection) ? selection : [];
+
+        // Rebuild available ciphers list based on what's selected
+        const allCiphers = [...this.props.cipherPref];
+        const availableCiphers = allCiphers.filter(cipher =>
+            !newAllowCiphers.includes(cipher) && !this.state.denyCiphers.includes(cipher)
+        ).sort();
+
+        if (this.state.cipherPref !== this.state._cipherPref) {
+            disableSaveBtn = false;
         }
-        if (type == "allow") {
-            this.setState({
-                allowCiphers: values,
-                availableCiphers: availableCiphers
-            });
-        } else {
-            this.setState({
-                denyCiphers: values,
-                availableCiphers: availableCiphers
-            });
+
+        if (JSON.stringify(this.state._allowCiphers) !== JSON.stringify(newAllowCiphers)) {
+            disableSaveBtn = false;
         }
+
+        this.setState({
+            allowCiphers: newAllowCiphers,
+            isAllowCipherOpen: false,
+            availableCiphers,
+            disableSaveBtn,
+        });
+    }
+
+    handleDenyCipherChange(e, selection) {
+        let disableSaveBtn = true;
+        const newDenyCiphers = Array.isArray(selection) ? selection : [];
+
+        // Rebuild available ciphers list based on what's selected
+        const allCiphers = [...this.props.cipherPref];
+        const availableCiphers = allCiphers.filter(cipher =>
+            !this.state.allowCiphers.includes(cipher) && !newDenyCiphers.includes(cipher)
+        ).sort();
+
+        if (this.state.cipherPref !== this.state._cipherPref) {
+            disableSaveBtn = false;
+        }
+
+        if (JSON.stringify(this.state._denyCiphers) !== JSON.stringify(newDenyCiphers)) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            denyCiphers: newDenyCiphers,
+            isDenyCipherOpen: false,
+            availableCiphers,
+            disableSaveBtn,
+        });
     }
 
     render () {
-        let supportedCiphers = [];
-        let enabledCiphers = [];
+        const supportedCiphers = [];
+        const enabledCiphers = [];
         let cipherPage;
+        let saveBtnName = _("Save Settings");
+        const extraPrimaryProps = {};
+        if (this.state.saving) {
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
+        }
 
-        for (let cipher of this.props.supportedCiphers) {
+        for (const cipher of this.props.supportedCiphers) {
             if (!this.props.enabledCiphers.includes(cipher)) {
                 // This cipher is not currently enabled, so list it as available
                 supportedCiphers.push(cipher);
             }
         }
-        for (let cipher of this.props.enabledCiphers) {
+        for (const cipher of this.props.enabledCiphers) {
             enabledCiphers.push(cipher);
         }
         let supportedList = supportedCiphers.map((name) =>
-            <option key={name}>{name}</option>
+            <SimpleListItem key={name}>{name}</SimpleListItem>
         );
+        if (supportedList.length === 0) {
+            supportedList = "";
+        }
         let enabledList = enabledCiphers.map((name) =>
-            <option key={name}>{name}</option>
+            <SimpleListItem key={name}>{name}</SimpleListItem>
         );
-
-        let eCiphers = '<h4>Enabled Ciphers <font size="2">(' + enabledList.length + ')</font></h4>';
-        let sCiphers = '<h4>Other Available Ciphers <font size="2">(' + supportedList.length + ')</font><h4>';
+        if (enabledList.length === 0) {
+            enabledList = "";
+        }
 
         if (this.state.saving) {
-            cipherPage =
+            cipherPage = (
                 <div className="ds-center ds-margin-top-lg">
-                    <h4>Saving cipher preferences ...</h4>
-                    <Spinner loading size="md" />
-                </div>;
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            {_("Saving Cipher Preferences ...")}
+                        </Text>
+                    </TextContent>
+                    <Spinner size="lg" />
+                </div>
+            );
         } else {
-            cipherPage =
-                <div>
-                    <div className="ds-container">
-                        <div className='ds-inline'>
-                            <div dangerouslySetInnerHTML={{__html: eCiphers}} />
-                            <div>
-                                <select
-                                    className="ds-cipher-width"
-                                    size="16"
-                                    title="The current ciphers the server is accepting.  This is only updated after a server restart"
+            cipherPage = (
+                <div className="ds-indent">
+                    <Form className="ds-margin-top-lg" isHorizontal>
+                        <Grid>
+                            <GridItem span={5} title={_("The current ciphers the server is accepting.  This list is only updated after a server restart.")}>
+                                <TextContent>
+                                    <Text component={TextVariants.h3}>
+                                        {_("Enabled Ciphers")} <font size="2">({enabledList.length})</font>
+                                    </Text>
+                                </TextContent>
+                                <hr />
+                                <div className="ds-box">
+                                    <SimpleList aria-label={_("enabled cipher list")}>
+                                        {enabledList}
+                                    </SimpleList>
+                                </div>
+                            </GridItem>
+                            <GridItem span={2} />
+                            <GridItem span={5} title={_("The current ciphers the server supports")}>
+                                <TextContent>
+                                    <Text component={TextVariants.h3}>
+                                        {_("Supported Ciphers")} <font size="2">({supportedList.length})</font>
+                                    </Text>
+                                </TextContent>
+                                <hr />
+                                <div className="ds-box">
+                                    <SimpleList aria-label="supported cipher list">
+                                        {supportedList}
+                                    </SimpleList>
+                                </div>
+                            </GridItem>
+                        </Grid>
+                        <hr />
+                        <Grid>
+                            <GridItem className="ds-label" span={2}>
+                                {_("Cipher Suite")}
+                            </GridItem>
+                            <GridItem span={10}>
+                                <FormSelect
+                                    id="cipherPref"
+                                    value={this.state.cipherPref}
+                                    onChange={(_event, val) => this.handlePrefChange(val)}
+                                    aria-label="pref select"
                                 >
-                                    {enabledList}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="ds-divider-lrg" />
-                        <div className='ds-inline'>
-                            <div>
-                                <div dangerouslySetInnerHTML={{__html: sCiphers}} />
-                            </div>
-                            <div>
-                                <select className="ds-cipher-width" size="16">
-                                    {supportedList}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <hr />
-                    <Row>
-                        <Col componentClass={ControlLabel} sm={3}>
-                            Cipher Suite
-                        </Col>
-                        <Col sm={9}>
-                            <select
-                                id="cipherPref"
-                                onChange={this.handlePrefChange}
-                                defaultValue={this.state.cipherPref}
-                            >
-                                <option title="default" value="default" key="default">Default Ciphers</option>
-                                <option title="+all" value="+all" key="all">All Ciphers</option>
-                                <option title="-all" value="-all" key="none">No Ciphers</option>
-                            </select>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={3}>
-                            Allow Specific Ciphers
-                        </Col>
-                        <Col sm={9}>
-                            <Typeahead
-                                multiple
-                                onChange={value => {
-                                    this.handleCipherChange("allow", value);
-                                }}
-                                selected={this.state.allowCiphers}
-                                options={this.state.availableCiphers}
-                                newSelectionPrefix="Add a cipher: "
-                                placeholder="Type a cipher..."
-                                id="allowCipher"
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={3}>
-                            Deny Specific Ciphers
-                        </Col>
-                        <Col sm={9}>
-                            <Typeahead
-                                multiple
-                                onChange={value => {
-                                    this.handleCipherChange("deny", value);
-                                }}
-                                selected={this.state.denyCiphers}
-                                options={this.state.availableCiphers}
-                                newSelectionPrefix="Add a cipher: "
-                                placeholder="Type a cipher..."
-                                id="denyCipher"
-                            />
-                        </Col>
-                    </Row>
+                                    <FormSelectOption key="1" value="default" label={_("Default Ciphers")} />
+                                    <FormSelectOption key="2" value="+all" label={_("All Ciphers")} />
+                                    <FormSelectOption key="3" value="-all" label={_("No Ciphers")} />
+                                </FormSelect>
+                                <FormHelperText >
+                                    {_("Default cipher suite is chosen. It enables the default ciphers advertised by NSS except weak ciphers.")}{(this.state.allowCiphers.length !== 0 || this.state.denyCiphers.length !== 0) ? _(" Any data in the 'Allow Specific Ciphers' and 'Deny Specific Ciphers' fields will be cleaned after the restart.") : ""}
+                                </FormHelperText>
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2}>
+                                {_("Allow Specific Ciphers")}
+                            </GridItem>
+                            <GridItem span={10}>
+                                <TypeaheadSelect
+                                    selected={this.state.allowCiphers}
+                                    onSelect={this.handleAllowCipherChange}
+                                    onClear={this.handleAllowCipherClear}
+                                    options={this.state.availableCiphers}
+                                    isOpen={this.state.isAllowCipherOpen}
+                                    onToggle={this.handleAllowCipherToggle}
+                                    placeholder={_("Type a cipher...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type a cipher")}
+                                    isMulti={true}
+                                    isDisabled={this.state.cipherPref === "default"}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2}>
+                                {_("Deny Specific Ciphers")}
+                            </GridItem>
+                            <GridItem span={10}>
+                                <TypeaheadSelect
+                                    selected={this.state.denyCiphers}
+                                    onSelect={this.handleDenyCipherChange}
+                                    onClear={this.handleDenyCipherClear}
+                                    options={this.state.availableCiphers}
+                                    isOpen={this.state.isDenyCipherOpen}
+                                    onToggle={this.handleDenyCipherToggle}
+                                    placeholder={_("Type a cipher...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type a cipher")}
+                                    isMulti={true}
+                                    isDisabled={this.state.cipherPref === "default"}
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                     <Button
-                        bsStyle="primary"
-                        className="ds-margin-top-lg"
+                        variant="primary"
+                        className="ds-margin-top-xlg"
                         onClick={() => {
                             this.saveCipherPref();
                         }}
+                        isDisabled={this.state.disableSaveBtn || this.state.saving}
+                        isLoading={this.state.saving}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Save Cipher Preferences
+                        {saveBtnName}
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (
-            <div className="container-fluid">
+            <div className={this.state.saving ? "ds-disabled" : ""}>
                 {cipherPage}
             </div>
         );
@@ -312,7 +444,6 @@ Ciphers.defaultProps = {
     supportedCiphers: [],
     enabledCiphers: [],
     cipherPref: "",
-    addNotification: noop,
 };
 
 export default Ciphers;

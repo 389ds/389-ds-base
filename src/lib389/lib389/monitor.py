@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,10 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 
 import copy
+import ldap
+import psutil
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObject
-from lib389.utils import (ds_is_older)
+from lib389.utils import (ds_is_older, get_mount_point, get_disk_space)
 from lib389.lint import DSDSLE0001
+from lib389.backend import DatabaseConfig
 
 
 class Monitor(DSLdapObject):
@@ -53,6 +56,25 @@ class Monitor(DSLdapObject):
         maxthreadsperconnhits = self.get_attr_vals_utf8('maxthreadsperconnhits')
         return (threads, currentconnectionsatmaxthreads, maxthreadsperconnhits)
 
+    def get_work_queue(self):
+        """Get work queue related attributes value for cn=monitor
+
+        :returns: Values of currentworkqueue, maxworkqueue,
+                  currentbusyworkers, maxbusyworkers attributes of cn=monitor
+        """
+        currentworkqueue = self.get_attr_vals_utf8('currentworkqueue')
+        maxworkqueue = self.get_attr_vals_utf8('maxworkqueue')
+        currentbusyworkers = self.get_attr_vals_utf8('currentbusyworkers')
+        maxbusyworkers = self.get_attr_vals_utf8('maxbusyworkers')
+        return (currentworkqueue, maxworkqueue, currentbusyworkers, maxbusyworkers)
+
+    def get_thread_pool_workers(self):
+        """Get sanitized per-worker thread pool status values from cn=monitor
+
+        :returns: Values of threadpoolworker attribute of cn=monitor
+        """
+        return self.get_attr_vals_utf8('threadpoolworker')
+
     def get_backends(self):
         """Get backends related attributes value for cn=monitor
 
@@ -85,8 +107,93 @@ class Monitor(DSLdapObject):
         starttime = self.get_attr_vals_utf8('starttime')
         return (dtablesize, readwaiters, entriessent, bytessent, currenttime, starttime)
 
-    def get_status(self, use_json=False):
-        return self.get_attrs_vals_utf8([
+    def get_resource_stats(self):
+        """
+        Get CPU and memory stats
+        """
+        stats = {}
+        try:
+            pid = self._instance.get_pid()
+        except Exception:
+            pid = None
+        total_mem = psutil.virtual_memory()[0]
+
+        # Always include total system memory
+        stats['total_mem'] = [str(total_mem)]
+
+        # Process-specific stats - only if process is running (pid is not None)
+        if pid is not None:
+            try:
+                p = psutil.Process(pid)
+                memory_stats = p.memory_full_info()
+
+                # Get memory & CPU stats
+                stats['rss'] = [str(memory_stats[0])]
+                stats['vms'] = [str(memory_stats[1])]
+                stats['swap'] = [str(memory_stats[9])]
+                stats['mem_rss_percent'] = [str(round(p.memory_percent("rss")))]
+                stats['mem_vms_percent'] = [str(round(p.memory_percent("vms")))]
+                stats['mem_swap_percent'] = [str(round(p.memory_percent("swap")))]
+                stats['total_threads'] = [str(p.num_threads())]
+                stats['cpu_usage'] = [str(round(p.cpu_percent(interval=0.1)))]
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Process exists in PID file but is not accessible or doesn't exist
+                pid = None
+
+        # If no valid PID, provide zero values for process stats
+        if pid is None:
+            stats['rss'] = ['0']
+            stats['vms'] = ['0']
+            stats['swap'] = ['0']
+            stats['mem_rss_percent'] = ['0']
+            stats['mem_vms_percent'] = ['0']
+            stats['mem_swap_percent'] = ['0']
+            stats['total_threads'] = ['0']
+            stats['cpu_usage'] = ['0']
+            stats['server_status'] = ['PID unavailable']
+        else:
+            stats['server_status'] = ['Server running']
+
+        # Connections to DS
+        if self._instance.port == "0":
+            port = "ignore"
+        else:
+            port = str(self._instance.port)
+        if self._instance.sslport == "0":
+            sslport = "ignore"
+        else:
+            sslport = str(self._instance.sslport)
+
+        conn_count = 0
+        conn_established_count = 0
+        conn_close_wait_count = 0
+        conn_time_wait_count = 0
+        conns = psutil.net_connections()
+        for conn in conns:
+            if len(conn[4]) > 0:
+                conn_port = str(conn[4][1])
+                if conn_port in (port, sslport):
+                    if conn[5] == 'TIME_WAIT':
+                        conn_time_wait_count += 1
+                    if conn[5] == 'CLOSE_WAIT':
+                        conn_close_wait_count += 1
+                    if conn[5] == 'ESTABLISHED':
+                        conn_established_count += 1
+                    conn_count += 1
+
+        stats['connection_count'] = [str(conn_count)]
+        stats['connection_established_count'] = [str(conn_established_count)]
+        stats['connection_close_wait_count'] = [str(conn_close_wait_count)]
+        stats['connection_time_wait_count'] = [str(conn_time_wait_count)]
+
+        return stats
+
+    def get_status(self, just_resources=False, use_json=False, ):
+        stats = self.get_resource_stats()
+        if just_resources:
+            return stats
+
+        status = self.get_attrs_vals_utf8([
             'version',
             'threads',
             'connection',
@@ -103,7 +210,15 @@ class Monitor(DSLdapObject):
             'currenttime',
             'starttime',
             'nbackends',
+            'currentworkqueue',
+            'maxworkqueue',
+            'currentbusyworkers',
+            'maxbusyworkers',
+            'threadpoolworker',
         ])
+        status.update(stats)
+
+        return status
 
 
 class MonitorLDBM(DSLdapObject):
@@ -112,67 +227,64 @@ class MonitorLDBM(DSLdapObject):
         :type instance: lib389.DirSrv
         :param dn: not used
     """
+    DB_KEYS = {
+        DB_IMPL_BDB: [
+            'dbcachehits', 'dbcachetries', 'dbcachehitratio',
+            'dbcachepagein', 'dbcachepageout', 'dbcacheroevict',
+            'dbcacherwevict'
+        ],
+        DB_IMPL_MDB: [
+            'normalizeddncachetries', 'normalizeddncachehits',
+            'normalizeddncachemisses', 'normalizeddncachehitratio',
+            'normalizeddncacheevictions', 'currentnormalizeddncachesize',
+            'maxnormalizeddncachesize', 'currentnormalizeddncachecount',
+            'normalizeddncachethreadsize', 'normalizeddncachethreadslots'
+        ]
+    }
+    DB_MONITOR_KEYS = {
+        DB_IMPL_BDB: [
+            'nsslapd-db-abort-rate', 'nsslapd-db-active-txns', 'nsslapd-db-cache-hit',
+            'nsslapd-db-cache-try', 'nsslapd-db-cache-region-wait-rate',
+            'nsslapd-db-cache-size-bytes', 'nsslapd-db-clean-pages', 'nsslapd-db-commit-rate',
+            'nsslapd-db-deadlock-rate', 'nsslapd-db-dirty-pages', 'nsslapd-db-hash-buckets',
+            'nsslapd-db-hash-elements-examine-rate', 'nsslapd-db-hash-search-rate',
+            'nsslapd-db-lock-conflicts', 'nsslapd-db-lock-region-wait-rate',
+            'nsslapd-db-lock-request-rate', 'nsslapd-db-lockers', 'nsslapd-db-configured-locks',
+            'nsslapd-db-current-locks', 'nsslapd-db-max-locks', 'nsslapd-db-current-lock-objects',
+            'nsslapd-db-max-lock-objects', 'nsslapd-db-log-bytes-since-checkpoint',
+            'nsslapd-db-log-region-wait-rate', 'nsslapd-db-log-write-rate',
+            'nsslapd-db-longest-chain-length', 'nsslapd-db-page-create-rate',
+            'nsslapd-db-page-read-rate', 'nsslapd-db-page-ro-evict-rate',
+            'nsslapd-db-page-rw-evict-rate', 'nsslapd-db-page-trickle-rate',
+            'nsslapd-db-page-write-rate', 'nsslapd-db-pages-in-use',
+            'nsslapd-db-txn-region-wait-rate', 'nsslapd-db-mp-pagesize'
+        ],
+        DB_IMPL_MDB: [
+            'dbenvmapmaxsize', 'dbenvmapsize', 'dbenvlastpageno',
+            'dbenvlasttxnid', 'dbenvmaxreaders', 'dbenvnumreaders',
+            'dbenvnumdbis', 'waitingrwtxn', 'activerwtxn',
+            'abortrwtxn', 'commitrwtxn', 'granttimerwtxn',
+            'lifetimerwtxn', 'waitingrotxn', 'activerotxn',
+            'abortrotxn', 'commitrotxn', 'granttimerotxn',
+            'lifetimerotxn'
+        ]
+    }
+
     def __init__(self, instance, dn=None):
         super(MonitorLDBM, self).__init__(instance=instance)
         self._dn = DN_MONITOR_LDBM
         self._db_mon = MonitorDatabase(instance)
-        self._backend_keys = [
-            'dbcachehits',
-            'dbcachetries',
-            'dbcachehitratio',
-            'dbcachepagein',
-            'dbcachepageout',
-            'dbcacheroevict',
-            'dbcacherwevict',
-        ]
-        self._db_mon_keys = [
-            'nsslapd-db-abort-rate',
-            'nsslapd-db-active-txns',
-            'nsslapd-db-cache-hit',
-            'nsslapd-db-cache-try',
-            'nsslapd-db-cache-region-wait-rate',
-            'nsslapd-db-cache-size-bytes',
-            'nsslapd-db-clean-pages',
-            'nsslapd-db-commit-rate',
-            'nsslapd-db-deadlock-rate',
-            'nsslapd-db-dirty-pages',
-            'nsslapd-db-hash-buckets',
-            'nsslapd-db-hash-elements-examine-rate',
-            'nsslapd-db-hash-search-rate',
-            'nsslapd-db-lock-conflicts',
-            'nsslapd-db-lock-region-wait-rate',
-            'nsslapd-db-lock-request-rate',
-            'nsslapd-db-lockers',
-            'nsslapd-db-configured-locks',
-            'nsslapd-db-current-locks',
-            'nsslapd-db-max-locks',
-            'nsslapd-db-current-lock-objects',
-            'nsslapd-db-max-lock-objects',
-            'nsslapd-db-log-bytes-since-checkpoint',
-            'nsslapd-db-log-region-wait-rate',
-            'nsslapd-db-log-write-rate',
-            'nsslapd-db-longest-chain-length',
-            'nsslapd-db-page-create-rate',
-            'nsslapd-db-page-read-rate',
-            'nsslapd-db-page-ro-evict-rate',
-            'nsslapd-db-page-rw-evict-rate',
-            'nsslapd-db-page-trickle-rate',
-            'nsslapd-db-page-write-rate',
-            'nsslapd-db-pages-in-use',
-            'nsslapd-db-txn-region-wait-rate',
-        ]
-        if not ds_is_older("1.4.0", instance=instance):
+        self.inst_db_impl = self._instance.get_db_lib()
+        self._backend_keys = list(self.DB_KEYS.get(self.inst_db_impl, []))
+        self._db_mon_keys = list(self.DB_MONITOR_KEYS.get(self.inst_db_impl, []))
+
+        if self.inst_db_impl == DB_IMPL_BDB and not ds_is_older("1.4.0", instance=instance):
             self._backend_keys.extend([
-                'normalizeddncachetries',
-                'normalizeddncachehits',
-                'normalizeddncachemisses',
-                'normalizeddncachehitratio',
-                'normalizeddncacheevictions',
-                'currentnormalizeddncachesize',
-                'maxnormalizeddncachesize',
-                'currentnormalizeddncachecount',
-                'normalizeddncachethreadsize',
-                'normalizeddncachethreadslots'
+                'normalizeddncachetries', 'normalizeddncachehits',
+                'normalizeddncachemisses', 'normalizeddncachehitratio',
+                'normalizeddncacheevictions', 'currentnormalizeddncachesize',
+                'maxnormalizeddncachesize', 'currentnormalizeddncachecount',
+                'normalizeddncachethreadsize', 'normalizeddncachethreadslots'
             ])
 
     def get_status(self, use_json=False):
@@ -182,7 +294,7 @@ class MonitorLDBM(DSLdapObject):
 
 
 class MonitorDatabase(DSLdapObject):
-    """An object that helps reading the global libdb(bdb) statistics.
+    """An object that helps reading the global libdb(bdb) or libdb(mdb) statistics.
         :param instance: An instance
         :type instance: lib389.DirSrv
         :param dn: not used
@@ -190,44 +302,77 @@ class MonitorDatabase(DSLdapObject):
     def __init__(self, instance, dn=None):
         super(MonitorDatabase, self).__init__(instance=instance)
         self._dn = DN_MONITOR_DATABASE
-        self._backend_keys = [
-            'nsslapd-db-abort-rate',
-            'nsslapd-db-active-txns',
-            'nsslapd-db-cache-hit',
-            'nsslapd-db-cache-try',
-            'nsslapd-db-cache-region-wait-rate',
-            'nsslapd-db-cache-size-bytes',
-            'nsslapd-db-clean-pages',
-            'nsslapd-db-commit-rate',
-            'nsslapd-db-deadlock-rate',
-            'nsslapd-db-dirty-pages',
-            'nsslapd-db-hash-buckets',
-            'nsslapd-db-hash-elements-examine-rate',
-            'nsslapd-db-hash-search-rate',
-            'nsslapd-db-lock-conflicts',
-            'nsslapd-db-lock-region-wait-rate',
-            'nsslapd-db-lock-request-rate',
-            'nsslapd-db-lockers',
-            'nsslapd-db-configured-locks',
-            'nsslapd-db-current-locks',
-            'nsslapd-db-max-locks',
-            'nsslapd-db-current-lock-objects',
-            'nsslapd-db-max-lock-objects',
-            'nsslapd-db-log-bytes-since-checkpoint',
-            'nsslapd-db-log-region-wait-rate',
-            'nsslapd-db-log-write-rate',
-            'nsslapd-db-longest-chain-length',
-            'nsslapd-db-page-create-rate',
-            'nsslapd-db-page-read-rate',
-            'nsslapd-db-page-ro-evict-rate',
-            'nsslapd-db-page-rw-evict-rate',
-            'nsslapd-db-page-trickle-rate',
-            'nsslapd-db-page-write-rate',
-            'nsslapd-db-pages-in-use',
-            'nsslapd-db-txn-region-wait-rate',
-       ]
+        self._backend_keys = None
+
+    def __init2(self):
+        # Determine the key when really accessing the object with get_status
+        # because config attrbute and connectio are not yet set in DirSrv
+        # when __init is called
+        db_lib = self._instance.get_db_lib()
+        if db_lib == "bdb":
+            self._backend_keys = [
+                'nsslapd-db-abort-rate',
+                'nsslapd-db-active-txns',
+                'nsslapd-db-cache-hit',
+                'nsslapd-db-cache-try',
+                'nsslapd-db-cache-region-wait-rate',
+                'nsslapd-db-cache-size-bytes',
+                'nsslapd-db-clean-pages',
+                'nsslapd-db-commit-rate',
+                'nsslapd-db-deadlock-rate',
+                'nsslapd-db-dirty-pages',
+                'nsslapd-db-hash-buckets',
+                'nsslapd-db-hash-elements-examine-rate',
+                'nsslapd-db-hash-search-rate',
+                'nsslapd-db-lock-conflicts',
+                'nsslapd-db-lock-region-wait-rate',
+                'nsslapd-db-lock-request-rate',
+                'nsslapd-db-lockers',
+                'nsslapd-db-configured-locks',
+                'nsslapd-db-current-locks',
+                'nsslapd-db-max-locks',
+                'nsslapd-db-current-lock-objects',
+                'nsslapd-db-max-lock-objects',
+                'nsslapd-db-log-bytes-since-checkpoint',
+                'nsslapd-db-log-region-wait-rate',
+                'nsslapd-db-log-write-rate',
+                'nsslapd-db-longest-chain-length',
+                'nsslapd-db-page-create-rate',
+                'nsslapd-db-page-read-rate',
+                'nsslapd-db-page-ro-evict-rate',
+                'nsslapd-db-page-rw-evict-rate',
+                'nsslapd-db-page-trickle-rate',
+                'nsslapd-db-page-write-rate',
+                'nsslapd-db-pages-in-use',
+                'nsslapd-db-txn-region-wait-rate',
+           ]
+        if db_lib == "mdb":
+            self._backend_keys = [
+                'dbenvmapmaxsize',
+                'dbenvmapsize',
+                'dbenvlastpageno',
+                'dbenvlasttxnid',
+                'dbenvmaxreaders',
+                'dbenvnumreaders',
+                'dbenvnumdbis',
+                'waitingrwtxn',
+                'activerwtxn',
+                'abortrwtxn',
+                'commitrwtxn',
+                'granttimerwtxn',
+                'lifetimerwtxn',
+                'waitingrotxn',
+                'activerotxn',
+                'abortrotxn',
+                'commitrotxn',
+                'granttimerotxn',
+                'lifetimerotxn',
+           ]
+
 
     def get_status(self, use_json=False):
+        if not self._backend_keys:
+            self.__init2()
         return self.get_attrs_vals_utf8(self._backend_keys)
 
 
@@ -238,35 +383,57 @@ class MonitorBackend(DSLdapObject):
 
     def __init__(self, instance, dn=None):
         super(MonitorBackend, self).__init__(instance=instance, dn=dn)
-        self._backend_keys = [
-            'readonly',
-            'entrycachehits',
-            'entrycachetries',
-            'entrycachehitratio',
-            'currententrycachesize',
-            'maxentrycachesize',
-            'currententrycachecount',
-            'maxentrycachecount',
-            'dncachehits',
-            'dncachetries',
-            'dncachehitratio',
-            'currentdncachesize',
-            'maxdncachesize',
-            'currentdncachecount',
-            'maxdncachecount',
-        ]
-        if ds_is_older("1.4.0"):
-            self._backend_keys.extend([
-                'normalizeddncachetries',
-                'normalizeddncachehits',
-                'normalizeddncachemisses',
-                'normalizeddncachehitratio',
-                'currentnormalizeddncachesize',
-                'maxnormalizeddncachesize',
-                'currentnormalizeddncachecount'
-            ])
+        self._backend_keys = None
+
+    def __init2(self):
+        # Determine the key when really accessing the object with get_status
+        # because config attrbute and connectio are not yet set in DirSrv
+        # when __init is called
+        db_lib = self._instance.get_db_lib()
+        if db_lib == "bdb":
+            self._backend_keys = [
+                'readonly',
+                'entrycachehits',
+                'entrycachetries',
+                'entrycachehitratio',
+                'currententrycachesize',
+                'maxentrycachesize',
+                'currententrycachecount',
+                'maxentrycachecount',
+                'dncachehits',
+                'dncachetries',
+                'dncachehitratio',
+                'currentdncachesize',
+                'maxdncachesize',
+                'currentdncachecount',
+                'maxdncachecount',
+            ]
+            if ds_is_older("1.4.0", instance=self._instance):
+                self._backend_keys.extend([
+                    'normalizeddncachetries',
+                    'normalizeddncachehits',
+                    'normalizeddncachemisses',
+                    'normalizeddncachehitratio',
+                    'currentnormalizeddncachesize',
+                    'maxnormalizeddncachesize',
+                    'currentnormalizeddncachecount'
+                ])
+        if db_lib == "mdb":
+            self._backend_keys = [
+                'readonly',
+                'entrycachehits',
+                'entrycachetries',
+                'entrycachehitratio',
+                'currententrycachesize',
+                'maxentrycachesize',
+                'currententrycachecount',
+                'maxentrycachecount',
+            ]
+
 
     def get_status(self, use_json=False):
+        if not self._backend_keys:
+            self.__init2()
         result = {}
         all_attrs = self.get_all_attrs_utf8()
         for attr in self._backend_keys:
@@ -274,7 +441,11 @@ class MonitorBackend(DSLdapObject):
 
         # Now gather all the dbfile* attributes
         for attr, val in all_attrs.items():
+            # For bdb
             if attr.startswith('dbfile'):
+                result[attr] = val
+            # For lmdb
+            if attr.startswith('dbi'):
                 result[attr] = val
 
         return result
@@ -341,11 +512,9 @@ class MonitorSNMP(DSLdapObject):
             'bytessent',
             'entriesreturned',
             'referralsreturned',
-            'masterentries',
             'copyentries',
             'cacheentries',
             'cachehits',
-            'slavehits'
         ]
 
     def get_status(self, use_json=False):
@@ -364,19 +533,71 @@ class MonitorDiskSpace(DSLdapObject):
         return 'monitor-disk-space'
 
     def _lint_disk_space(self):
-        partitions = self.get_attr_vals_utf8_l("dsDisk")
-        for partition in partitions:
-            parts = partition.split()
-            percent = parts[4].split('=')[1].strip('"')
-            if int(percent) >= 90:
-                # this partition is over 90% full, not good
-                report = copy.deepcopy(DSDSLE0001)
-                report['detail'] = report['detail'].replace('PARTITION', parts[0].split('=')[1].strip('"'))
-                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                report['check'] = f'monitor-disk-space:disk_space'
-                yield report
+        threshold = 90
+        if self._instance.status():
+            partitions = self.get_attr_vals_utf8_l("dsDisk")
+            for partition in partitions:
+                parts = partition.split()
+                percent = parts[4].split('=')[1].strip('"')
+                if int(percent) >= threshold:
+                    # this partition is over 90% full, not good
+                    report = copy.deepcopy(DSDSLE0001)
+                    report['detail'] = report['detail'].replace('PARTITION', parts[0].split('=')[1].strip('"'))
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    report['check'] = f'monitor-disk-space:disk_space'
+                    yield report
+        else:
+            mounts = []
+            paths = [self._instance.ds_paths.access_log,
+                     self._instance.ds_paths.error_log,
+                     self._instance.ds_paths.audit_log,
+                     self._instance.ds_paths.security_log,
+                     self._instance.ds_paths.config_dir,
+                     self._instance.ds_paths.schema_dir,
+                     self._instance.ds_paths.ldif_dir,
+                     self._instance.ds_paths.inst_dir,
+                     self._instance.ds_paths.db_dir]
+
+            for path in paths:
+                mount_point = get_mount_point(path)
+                if mount_point not in mounts:
+                    mounts.append(mount_point)
+
+            for mount in mounts:
+                disk_space = get_disk_space(mount)
+                if disk_space['percent'] >= threshold:
+                    # this partition is over 90% full, not good
+                    report = copy.deepcopy(DSDSLE0001)
+                    report['detail'] = report['detail'].replace('PARTITION', mount)
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    report['check'] = f'monitor-disk-space:disk_space'
+                    yield report
 
     def get_disks(self):
         """Get an information about partitions which contains a Directory Server data"""
 
         return self.get_attr_vals_utf8_l("dsDisk")
+
+
+class MonitorMemberOf(DSLdapObject):
+    """A class for representing the "cn=MemberOf Plugin,cn=monitor" entry"""
+    def __init__(self, instance, dn=None):
+        super(MonitorMemberOf, self).__init__(instance=instance, dn=dn)
+        self._dn = DN_MONITOR_MEMBEROF
+        self._deferred_memberof_keys = [
+            'CurrentTasks',
+            'TotalAdded',
+            'TotalRemoved',
+            'TotalPending',
+            'CompletionRate',
+            'ThreadStatus',
+            'QueueUtilisation',
+        ]
+        self._protected = False
+
+    def get_status(self, use_json=False):
+        try:
+            return self.get_attrs_vals_utf8(self._deferred_memberof_keys)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("MemberOf monitoring not available (deferred processing disabled)")
+

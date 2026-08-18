@@ -15,7 +15,7 @@ import os
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 from lib389.idm.account import Accounts
 from lib389.nss_ssl import NssSsl
@@ -32,7 +32,7 @@ def test_positive(topo):
         :steps:
             1. Create entries with userCertificate field.
             2. Try to search/filter them with userCertificate field.
-        :expected results:
+        :expectedresults:
             1. Pass
             2. Pass
     """
@@ -57,11 +57,11 @@ def test_positive(topo):
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter("(userCertificate;binary=*)")
     user1_cert = users_people.list()[0].get_attr_val("userCertificate;binary")
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(
-        f'(userCertificate;binary={search_filter_escape_bytes(user1_cert)})')[0].dn == \
+        f'(userCertificate;binary={search_filter_escape_bytes(user1_cert)})')[0].dn.lower() == \
            'uid=test_user_1,ou=people,dc=example,dc=com'
     user2_cert = users_people.list()[1].get_attr_val("userCertificate;binary")
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(
-        f'(userCertificate;binary={search_filter_escape_bytes(user2_cert)})')[0].dn == \
+        f'(userCertificate;binary={search_filter_escape_bytes(user2_cert)})')[0].dn.lower() == \
            'uid=test_user_2,ou=people,dc=example,dc=com'
 
 

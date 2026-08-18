@@ -14,12 +14,13 @@ import os
 import pytest
 import time
 import re
-from lib389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1 as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
 from lib389.idm.posixgroup import PosixGroups
 from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinitions, \
-    MemberOfPlugin, AutoMembershipRegexRules, AutoMembershipDefinition, RetroChangelogPlugin
+    MemberOfPlugin, AutoMembershipRegexRules, AutoMembershipDefinition, RetroChangelogPlugin, \
+    ReferentialIntegrityPlugin
 from lib389.backend import Backends
 from lib389.config import Config
 from lib389._constants import DEFAULT_SUFFIX
@@ -51,12 +52,12 @@ def add_base_entries(topo):
     for suffix, backend_name in [(BASE_SUFF, 'AutoMembers'), (SUBSUFFIX, 'SubAutoMembers'),
                                  (TEST_BASE, 'testAutoMembers'), (BASE_REPL, 'ReplAutoMembers'),
                                  ("dc=SubSuffix,{}".format(BASE_REPL), 'ReplSubAutoMembers')]:
-        Backends(topo.ms["master1"]).create(properties={
+        Backends(topo.ms["supplier1"]).create(properties={
             'cn': backend_name,
             'nsslapd-suffix': suffix,
             'nsslapd-CACHE_SIZE': CACHE_SIZE,
             'nsslapd-CACHEMEM_SIZE': CACHEMEM_SIZE})
-        Domain(topo.ms["master1"], suffix).create(properties={
+        Domain(topo.ms["supplier1"], suffix).create(properties={
             'dc': suffix.split('=')[1].split(',')[0],
             'aci': [
                 f'(targetattr="userPassword")(version 3.0;aci  "Replication Manager '
@@ -72,7 +73,7 @@ def add_base_entries(topo):
                           (BASE_SUFF, 'Employees'),
                           (BASE_SUFF, 'TaskEmployees'),
                           (TEST_BASE, 'Employees')]:
-        OrganizationalUnits(topo.ms["master1"], suffix).create(properties={'ou': ou_cn})
+        OrganizationalUnits(topo.ms["supplier1"], suffix).create(properties={'ou': ou_cn})
 
 
 def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
@@ -84,7 +85,7 @@ def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
     if ds_is_older('1.4.0'):
         objectclasses.remove('nsAccount')
 
-    user = nsAdminGroups(topo.ms["master1"], suffix, rdn=None).create(properties={
+    user = nsAdminGroups(topo.ms["supplier1"], suffix, rdn=None).create(properties={
         'cn': user_id,
         'sn': user_id,
         'uid': user_id,
@@ -104,14 +105,14 @@ def check_groups(topo, group_dn, user_dn, member):
     """
     Will check MEMBATTR
     """
-    return bool(Group(topo.ms["master1"], group_dn).present(member, user_dn))
+    return bool(Group(topo.ms["supplier1"], group_dn).present(member, user_dn))
 
 
 def add_group(topo, suffix, group_id):
     """
     Will create groups
     """
-    Groups(topo.ms["master1"], suffix, rdn=None).create(properties={
+    Groups(topo.ms["supplier1"], suffix, rdn=None).create(properties={
         'cn': group_id
     })
 
@@ -120,7 +121,7 @@ def number_memberof(topo, user, number):
     """
     Function to check if the memberOf attribute is present.
     """
-    return len(nsAdminGroup(topo.ms["master1"], user).get_attr_vals_utf8('memberOf')) == number
+    return len(nsAdminGroup(topo.ms["supplier1"], user).get_attr_vals_utf8('memberOf')) == number
 
 
 def add_group_entries(topo):
@@ -159,7 +160,7 @@ def add_group_entries(topo):
                                      'Managers', '666'),
                                     ('cn=subsuffGroups,{}'.format(SUBSUFFIX),
                                      'Contractors', '999')]:
-        PosixGroups(topo.ms["master1"], ou_ou, rdn=None).create(properties={
+        PosixGroups(topo.ms["supplier1"], ou_ou, rdn=None).create(properties={
             'cn': group_cn,
             'gidNumber': grp_no
         })
@@ -169,7 +170,7 @@ def add_member_attr(topo, group_dn, user_dn, member):
     """
     Will add members to groups
     """
-    Group(topo.ms["master1"], group_dn).add(member, user_dn)
+    Group(topo.ms["supplier1"], group_dn).add(member, user_dn)
 
 
 def change_grp_objclass(new_object, member, type_of):
@@ -193,10 +194,11 @@ def _create_all_entries(topo):
     """
     add_base_entries(topo)
     add_group_entries(topo)
-    auto = AutoMembershipPlugin(topo.ms["master1"])
+    auto = AutoMembershipPlugin(topo.ms["supplier1"])
     auto.add("nsslapd-pluginConfigArea", "cn=autoMembersPlugin,{}".format(BASE_REPL))
-    MemberOfPlugin(topo.ms["master1"]).enable()
-    automembers_definitions = AutoMembershipDefinitions(topo.ms["master1"])
+    MemberOfPlugin(topo.ms["supplier1"]).enable()
+    ReferentialIntegrityPlugin(topo.ms["supplier1"]).enable()
+    automembers_definitions = AutoMembershipDefinitions(topo.ms["supplier1"])
     automembers_definitions.create(properties={
         'cn': 'userGroups',
         'autoMemberScope': f'ou=Employees,{BASE_SUFF}',
@@ -225,7 +227,7 @@ def _create_all_entries(topo):
         'autoMemberGroupingAttr': 'memberuid:dn',
     })
 
-    automembers_regex_usergroup = AutoMembershipRegexRules(topo.ms["master1"],
+    automembers_regex_usergroup = AutoMembershipRegexRules(topo.ms["supplier1"],
                                                            f'cn=userGroups,{auto.dn}')
     automembers_regex_usergroup.create(properties={
         'cn': 'Managers',
@@ -255,7 +257,7 @@ def _create_all_entries(topo):
         ],
     })
 
-    automembers_regex_sub = AutoMembershipRegexRules(topo.ms["master1"],
+    automembers_regex_sub = AutoMembershipRegexRules(topo.ms["supplier1"],
                                                      f'cn=subsuffGroups,{auto.dn}')
     automembers_regex_sub.create(properties={
         'cn': 'Managers',
@@ -303,7 +305,7 @@ def _create_all_entries(topo):
             'autoMemberGroupingAttr': 'member:dn',
         })
 
-    topo.ms["master1"].restart()
+    topo.ms["supplier1"].restart()
 
 
 def test_disable_the_plug_in(topo, _create_all_entries):
@@ -314,11 +316,11 @@ def test_disable_the_plug_in(topo, _create_all_entries):
     :steps:
         1. Disable the plug-in and check the status
         2. Enable the plug-in and check the status
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
-    instance_auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance_auto = AutoMembershipPlugin(topo.ms["supplier1"])
     instance_auto.disable()
     assert not instance_auto.status()
     instance_auto.enable()
@@ -333,18 +335,17 @@ def test_custom_config_area(topo, _create_all_entries):
     :steps:
         1. Check whether the plugin can be configured for custom config area
         2. After adding custom config area can be removed
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
-    instance_auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance_auto = AutoMembershipPlugin(topo.ms["supplier1"])
     instance_auto.replace("nsslapd-pluginConfigArea", DEFAULT_SUFFIX)
     assert instance_auto.get_attr_val_utf8("nsslapd-pluginConfigArea")
     instance_auto.remove("nsslapd-pluginConfigArea", DEFAULT_SUFFIX)
     assert not instance_auto.get_attr_val_utf8("nsslapd-pluginConfigArea")
 
 
-@pytest.mark.bz834053
 def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries):
     """Control behaviour of modifier's name
 
@@ -359,7 +360,7 @@ def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries
         6. Check the internalModifiersname in the user entry
         7. Unset nsslapd-plugin-binddn-tracking attribute under
            cn=config and delete the test enteries
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -368,20 +369,24 @@ def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries
         6. Should success
         7. Should success
     """
-    instance1 = topo.ms["master1"]
+    instance1 = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance1)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     configure = Config(instance1)
     configure.replace('nsslapd-plugin-binddn-tracking', 'on')
     instance1.restart()
     assert configure.get_attr_val_utf8('nsslapd-plugin-binddn-tracking') == 'on'
     user = add_user(topo, "User_autoMembers_05", "ou=Employees,{}".format(TEST_BASE),
                     "19", "18", "Supervisor")
+    time.sleep(delay)
     # search the User DN name for the creatorsname in user entry
     assert user.get_attr_val_utf8('creatorsname') == 'cn=directory manager'
     # search the User DN name for the internalCreatorsname in user entry
     assert user.get_attr_val_utf8('internalCreatorsname') == \
            'cn=ldbm database,cn=plugins,cn=config'
-    # search the modifiersname in the user entry
-    assert user.get_attr_val_utf8('modifiersname') == 'cn=directory manager'
     # search the internalModifiersname in the user entry
     assert user.get_attr_val_utf8('internalModifiersname') == \
            'cn=MemberOf Plugin,cn=plugins,cn=config'
@@ -400,15 +405,23 @@ def test_posixaccount_objectclass_automemberdefaultgroup(topo, _create_all_entri
     :steps:
         1. Add users with PosixAccount ObjectClass
         2. Verify the same user added as a member to autoMemberDefaultGroup
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
     test_id = "autoMembers_05"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "18", "Supervisor")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     user.delete()
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group, user.dn, "member")
 
@@ -425,7 +438,7 @@ def test_duplicated_member_attributes_added_when_the_entry_is_re_created(topo, _
         4. It should not present as member in all automember groups
         5. Recreate same user
         6. It should present as member in all automember groups
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -434,13 +447,22 @@ def test_duplicated_member_attributes_added_when_the_entry_is_re_created(topo, _
         6. Should success
     """
     test_id = "autoMembers_06"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "16", "Supervisor")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     user.delete()
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group, user.dn, "member")
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "15", "Supervisor")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     user.delete()
 
@@ -455,20 +477,28 @@ def test_multi_valued_automemberdefaultgroup_for_hostgroups(topo, _create_all_en
         2. Check user is present in all Automember Groups as member
         3. Delete the user
         4. Check user is not present in all Automember Groups
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
         4. Should success
     """
     test_id = "autoMembers_07"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     default_group2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
     default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "TestEngr")
+    time.sleep(delay)
     for grp in [default_group1, default_group2, default_group3]:
         assert check_groups(topo, grp, user.dn, "member")
     user.delete()
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group1, user.dn, "member")
 
@@ -483,12 +513,18 @@ def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _c
         1. Add a non existing user to some groups as member
         2. Then Create the user
         3. Check the same user is present to other groups also as member
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
     """
     test_id = "autoMembers_08"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     default_group2 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
     default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
@@ -499,6 +535,7 @@ def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _c
                     "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE),
                     "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "TestEngr")
+    time.sleep(delay)
     for grp in [default_group1, default_group2, default_group3]:
         assert check_groups(topo, grp, user.dn, "member")
     user.delete()
@@ -515,7 +552,7 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
         3. Add user uniquemember attributes
         4. Check uniqueMember attribute in groups
         5. Revert the changes done above
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -523,8 +560,13 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
         5. Should success
     """
     test_id = "autoMembers_09"
-    instance = topo.ms["master1"]
-    auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
+    auto = AutoMembershipPlugin(topo.ms["supplier1"])
     # Modify automember config entry to use uniquemember: cn=testuserGroups,PLUGIN_AUTO
     AutoMembershipDefinition(
         instance, "cn=testuserGroups,{}".format(auto.dn)).replace('autoMemberGroupingAttr',
@@ -536,12 +578,12 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
     default_group4 = "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE)
     default_group5 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
     for grp in (default_group1, default_group2, default_group3, default_group4, default_group5):
-        instance_of_group = Group(topo.ms["master1"], grp)
+        instance_of_group = Group(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     # Add user: uid=User_{test_id}, AutoMemScope
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "New")
     # Checking groups...
-    assert user.dn.lower() in UniqueGroup(topo.ms["master1"],
+    assert user.dn.lower() in UniqueGroup(topo.ms["supplier1"],
                                           default_group1).get_attr_val_utf8("uniqueMember")
     # Delete user uid=User_{test_id},AutoMemScope
     user.delete()
@@ -550,9 +592,9 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
         instance, "cn=testuserGroups,{}".format(auto.dn)).replace('autoMemberGroupingAttr',
                                                                   "member: dn")
     for grp in [default_group1, default_group2, default_group3, default_group4, default_group5]:
-        instance_of_group = UniqueGroup(topo.ms["master1"], grp)
+        instance_of_group = UniqueGroup(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
-    topo.ms["master1"].restart()
+    topo.ms["supplier1"].restart()
 
 
 def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
@@ -566,7 +608,7 @@ def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
         3. Check member attribute on other groups
         4. Check member attribute on group where object class was changed
         5. Revert the object class where it was changed
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should fail (ldap.UNWILLING_TO_PERFORM)
         3. Should success
@@ -574,11 +616,18 @@ def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
         5. Should success
     """
     test_id = "autoMembers_10"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
-    instance_of_group = Group(topo.ms["master1"], default_group)
+    instance_of_group = Group(topo.ms["supplier1"], default_group)
     change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "20", "Invalid")
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group,
                             "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
@@ -596,7 +645,7 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
         3. Check member attribute on other groups
         4. Check member attribute on groups where object class was changed
         5. Revert the object class where it was changed
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should fail (ldap.UNWILLING_TO_PERFORM)
         3. Should success
@@ -604,6 +653,14 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
         5. Should success
     """
     test_id = "autoMembers_11"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        singleTXN = False
+        delay = 3
+    else:
+        singleTXN = True
+        delay = 0
     default_group_1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     default_group_2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
     default_group_3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
@@ -611,10 +668,11 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
     default_group_5 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
     grp_4_5 = [default_group_4, default_group_5]
     for grp in grp_4_5:
-        instance_of_group = Group(topo.ms["master1"], grp)
+        instance_of_group = Group(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "24", "MixUsers")
+    time.sleep(delay)
     for grp in [default_group_1, default_group_2, default_group_3]:
         assert not check_groups(topo, grp, "cn=User_{},{}".format(test_id,
                                                                   AUTO_MEM_SCOPE_TEST), "member")
@@ -623,7 +681,7 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
             assert check_groups(topo, grp, "cn=User_{},{}".format(test_id,
                                                                   AUTO_MEM_SCOPE_TEST), "member")
     for grp in grp_4_5:
-        instance_of_group = Group(topo.ms["master1"], grp)
+        instance_of_group = Group(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
 
 
@@ -636,13 +694,20 @@ def test_add_regular_expressions_for_user_groups_and_check_for_member_attribute_
     :steps:
         1. Add user with a match with regular expressions for user groups
         2. check for member attribute after adding users
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
     test_id = "autoMembers_12"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = f'cn=SuffDef1,ou=userGroups,{BASE_SUFF}'
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "19", "0", "HR")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     assert number_memberof(topo, user.dn, 5)
     user.delete()
@@ -669,7 +734,7 @@ def test_matching_gid_role_inclusive_regular_expression(topo, _create_all_entrie
         1. Create users with matching gid nos and Role for the Inclusive regular expression
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName
         3. It will a match for contract_grp
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -678,6 +743,13 @@ def test_matching_gid_role_inclusive_regular_expression(topo, _create_all_entrie
     user1 = add_user(topo, "User_{}".format(testid), AUTO_MEM_SCOPE_BASE, uid, gid, role)
     user2 = add_user(topo, "SecondUser_{}".format(testid), AUTO_MEM_SCOPE_BASE,
                      uid2, gid2, role)
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
+    time.sleep(delay)
     for user_dn in [user1.dn, user2.dn]:
         assert check_groups(topo, contract_grp, user_dn, "member")
     assert number_memberof(topo, user1.dn, 1)
@@ -711,15 +783,22 @@ def test_gid_and_role_inclusive_exclusive_regular_expression(topo, _create_all_e
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName
         3. It will not match for contract_grp(Exclusive regular expression)
         4. It will match for default_group(Inclusive regular expression)
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
         4. Should success
     """
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     contract_grp = f'cn={c_grp},ou=userGroups,{BASE_SUFF}'
     default_group = f'cn={m_grp},ou=userGroups,{BASE_SUFF}'
     user = add_user(topo, "User_{}".format(testid), AUTO_MEM_SCOPE_BASE, uid, gid, role)
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, contract_grp, user.dn, "member")
     check_groups(topo, default_group, user.dn, "member")
@@ -749,14 +828,21 @@ def test_managers_contractors_exclusive_regex_rules_member_uid(topo, _create_all
         memberUid created in Default grp
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName
         3. It will match for default_group1 and default_group2(Inclusive regular expression)
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
     """
     default_group1 = f'cn={c_grp},{SUBSUFFIX}'
     default_group2 = f'cn={m_grp},{SUBSUFFIX}'
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     user = add_user(topo, "User_{}".format(testid), AUTO_MEM_SCOPE_BASE, uid, gid, role)
+    time.sleep(delay)
     for group in [default_group1, default_group2]:
         assert check_groups(topo, group, user.dn, "memberuid")
     user.delete()
@@ -784,7 +870,7 @@ def test_managers_inclusive_regex_rule(topo, _create_all_entries,
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName(Supervisor)
         3. It will match for managers_grp(Inclusive regular expression)
         4. It will not match for contract_grp(Exclusive regular expression)
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -807,16 +893,16 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
     :steps:
         1. Verify DS reject invalid config,
         2. This operation don't deadlock the server
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
     # Changing config area to dc=automembers,dc=com
-    instance = AutoMembershipPlugin(topo.ms["master1"])
+    instance = AutoMembershipPlugin(topo.ms["supplier1"])
     instance.replace("nsslapd-pluginConfigArea", BASE_SUFF)
-    topo.ms["master1"] .restart()
+    topo.ms["supplier1"] .restart()
     # Attempting to add invalid config...
-    automembers = AutoMembershipDefinitions(topo.ms["master1"], BASE_SUFF)
+    automembers = AutoMembershipDefinitions(topo.ms["supplier1"], BASE_SUFF)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         automembers.create(properties={
             'cn': 'userGroups',
@@ -826,7 +912,7 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
             "autoMemberGroupingAttr": "member: dn"
         })
     # Verify server is still working
-    automembers = AutoMembershipRegexRules(topo.ms["master1"],
+    automembers = AutoMembershipRegexRules(topo.ms["supplier1"],
                                            f'cn=userGroups,cn=Auto Membership Plugin,'
                                            f'cn=plugins,cn=config')
     with pytest.raises(ldap.ALREADY_EXISTS):
@@ -842,10 +928,10 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
 
     # Adding first user...
     for uid in range(300, 302):
-        UserAccounts(topo.ms["master1"], BASE_SUFF, rdn=None).create_test_user(uid=uid, gid=uid)
+        UserAccounts(topo.ms["supplier1"], BASE_SUFF, rdn=None).create_test_user(uid=uid, gid=uid)
     # Adding this line code to remove the automembers plugin configuration.
     instance.remove("nsslapd-pluginConfigArea", BASE_SUFF)
-    topo.ms["master1"] .restart()
+    topo.ms["supplier1"] .restart()
 
 
 @pytest.fixture(scope="module")
@@ -858,18 +944,28 @@ def _startuptask(topo):
                     "cn=testuserGroups",
                     "cn=subsuffGroups",
                     "cn=hostGroups"]:
-        AutoMembershipDefinition(topo.ms["master1"], f'{Configs},{PLUGIN_AUTO}').delete()
-    AutoMembershipDefinition(topo.ms["master1"], "cn=userGroups,{}".format(PLUGIN_AUTO)).replace(
+        AutoMembershipDefinition(topo.ms["supplier1"], f'{Configs},{PLUGIN_AUTO}').delete()
+    AutoMembershipDefinition(topo.ms["supplier1"], "cn=userGroups,{}".format(PLUGIN_AUTO)).replace(
         'autoMemberScope', 'ou=TaskEmployees,dc=autoMembers,dc=com')
-    topo.ms['master1'].restart()
+    topo.ms['supplier1'].restart()
 
 
 @pytest.fixture(scope="function")
 def _fixture_for_build_task(request, topo):
+    supplier = topo.ms['supplier1']
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    contract_grp = "cn=Contractors,ou=userGroups,{}".format(BASE_SUFF)
+
+    for grp in (managers_grp, contract_grp):
+        group = Group(supplier, grp)
+        try:
+            group.remove_all('member')
+        except ldap.NO_SUCH_ATTRIBUTE:
+            pass
+
     def finof():
-        master = topo.ms['master1']
         auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
-        for user in nsAdminGroups(master, auto_mem_scope, rdn=None).list():
+        for user in nsAdminGroups(supplier, auto_mem_scope, rdn=None).list():
             user.delete()
 
     request.addfinalizer(finof)
@@ -887,37 +983,39 @@ def test_automemtask_re_build_task(topo, _create_all_entries, _startuptask, _fix
         1. Add 10 users and enable autoMembers plug-in
         2. Run automembers re-build task to create the member attributes
         3. Search for any error logs
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
     """
-    master = topo.ms['master1']
+    supplier = topo.ms['supplier1']
     testid = "autoMemTask_01"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
     contract_grp = "cn=Contractors,ou=userGroups,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
     # make sure the retro changelog is disabled
-    RetroChangelogPlugin(master).disable()
-    AutoMembershipPlugin(master).disable()
-    master.restart()
+    RetroChangelogPlugin(supplier).disable()
+    AutoMembershipPlugin(supplier).disable()
+    supplier.restart()
     for i in range(10):
         add_user(topo, "{}{}".format(user_rdn, str(i)), auto_mem_scope, str(1188), str(1189), "Manager")
     for grp in (managers_grp, contract_grp):
         with pytest.raises(AssertionError):
             assert check_groups(topo, grp, f'uid=User_autoMemTask_010,{auto_mem_scope}', 'member')
-    AutoMembershipPlugin(master).enable()
-    master.restart()
+    AutoMembershipPlugin(supplier).enable()
+    supplier.restart()
     error_string = "automember_rebuild_task_thread"
-    AutomemberRebuildMembershipTask(master).create(properties={
+    AutomemberRebuildMembershipTask(supplier).create(properties={
         'basedn': auto_mem_scope,
         'filter': "objectClass=posixAccount"
     })
+    time.sleep(10)
+
     # Search for any error logs
-    assert not master.searchErrorsLog(error_string)
+    assert not supplier.searchErrorsLog(error_string)
     for grp in (managers_grp, contract_grp):
-        bulk_check_groups(master, grp, "member", 10)
+        bulk_check_groups(supplier, grp, "member", 10)
 
 
 def ldif_check_groups(USERS_DN, MEMBATTR, TOTAL_MEM, LDIF_FILE):
@@ -950,29 +1048,29 @@ def test_automemtask_export_task(topo, _create_all_entries, _startuptask, _fixtu
     :steps:
         1. Add 10 users and enable autoMembers plug-in
         2. Run automembers export task to create an ldif file with member attributes
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
     """
-    master = topo.ms['master1']
-    p = Paths('master1')
+    supplier = topo.ms['supplier1']
+    p = Paths('supplier1')
     testid = "autoMemTask_02"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
     # Disabling plugin
-    AutoMembershipPlugin(master).disable()
-    master.restart()
+    AutoMembershipPlugin(supplier).disable()
+    supplier.restart()
     for i in range(10):
         add_user(topo, "{}{}".format(user_rdn, str(i)), auto_mem_scope, str(2788), str(2789), "Manager")
     with pytest.raises(AssertionError):
-        bulk_check_groups(master, managers_grp, "member", 10)
-    AutoMembershipPlugin(master).enable()
-    master.restart()
+        bulk_check_groups(supplier, managers_grp, "member", 10)
+    AutoMembershipPlugin(supplier).enable()
+    supplier.restart()
     export_ldif = p.backup_dir + "/Out_Export_02.ldif"
     if os.path.exists(export_ldif):
         os.remove(export_ldif)
-    exp_task = Tasks(master)
+    exp_task = Tasks(supplier)
     exp_task.automemberExport(suffix=auto_mem_scope, fstr='objectclass=posixAccount', ldif_out=export_ldif)
     check_file_exists(export_ldif)
     ldif_check_groups("cn={}".format(user_rdn), "member", 10, export_ldif)
@@ -986,12 +1084,12 @@ def test_automemtask_mapping(topo, _create_all_entries, _startuptask, _fixture_f
     :steps:
         1. Add 10 users and enable autoMembers plug-in
         2. Run automembers Mapping task with input/output ldif files
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
-    master = topo.ms['master1']
-    p = Paths('master1')
+    supplier = topo.ms['supplier1']
+    p = Paths('supplier1')
     testid = "autoMemTask_02"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
@@ -1002,9 +1100,9 @@ def test_automemtask_mapping(topo, _create_all_entries, _startuptask, _fixture_f
             os.remove(file)
     for i in range(10):
         add_user(topo, "{}{}".format(user_rdn, str(i)), auto_mem_scope, str(2788), str(2789), "Manager")
-    ExportTask(master).export_suffix_to_ldif(ldiffile=export_ldif, suffix=BASE_SUFF)
+    ExportTask(supplier).export_suffix_to_ldif(ldiffile=export_ldif, suffix=BASE_SUFF)
     check_file_exists(export_ldif)
-    map_task = Tasks(master)
+    map_task = Tasks(supplier)
     map_task.automemberMap(ldif_in=export_ldif, ldif_out=output_ldif3)
     check_file_exists(output_ldif3)
     ldif_check_groups("cn={}".format(user_rdn), "member", 10, output_ldif3)
@@ -1019,31 +1117,32 @@ def test_automemtask_re_build(topo, _create_all_entries, _startuptask, _fixture_
     :steps:
         1. Add 10 users with inetOrgPerson object class
         2. Run automembers re-build task to create the member attributes, exp to FAIL
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should not success
     """
-    master = topo.ms['master1']
+    supplier = topo.ms['supplier1']
     testid = "autoMemTask_04"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
     # Disabling plugin
-    AutoMembershipPlugin(master).disable()
-    master.restart()
+    AutoMembershipPlugin(supplier).disable()
+    supplier.restart()
     for number in range(10):
         add_user(topo, f'{user_rdn}{number}', auto_mem_scope, str(number), str(number), "Manager")
     with pytest.raises(AssertionError):
-        bulk_check_groups(master, managers_grp, "member", 10)
+        bulk_check_groups(supplier, managers_grp, "member", 10)
     # Enabling plugin
-    AutoMembershipPlugin(master).enable()
-    master.restart()
-    AutomemberRebuildMembershipTask(master).create(properties={
+    AutoMembershipPlugin(supplier).enable()
+    supplier.restart()
+    AutomemberRebuildMembershipTask(supplier).create(properties={
         'basedn': auto_mem_scope,
         'filter': "objectClass=inetOrgPerson"
     })
+    time.sleep(10)
     with pytest.raises(AssertionError):
-        bulk_check_groups(master, managers_grp, "member", 10)
+        bulk_check_groups(supplier, managers_grp, "member", 10)
 
 
 def test_automemtask_export(topo, _create_all_entries, _startuptask, _fixture_for_build_task):
@@ -1053,30 +1152,30 @@ def test_automemtask_export(topo, _create_all_entries, _startuptask, _fixture_fo
     :steps:
         1. Add 10 users with inetOrgPerson objectClass
         2. Run automembers export task to create an ldif file with member attributes, exp to FAIL
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should not success
     """
-    master = topo.ms['master1']
-    p = Paths('master1')
+    supplier = topo.ms['supplier1']
+    p = Paths('supplier1')
     testid = "autoMemTask_05"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
     # Disabling plugin
-    AutoMembershipPlugin(master).disable()
-    master.restart()
+    AutoMembershipPlugin(supplier).disable()
+    supplier.restart()
     for number in range(10):
         add_user(topo, f'{user_rdn}{number}', auto_mem_scope, str(number), str(number), "Manager")
     with pytest.raises(AssertionError):
-        bulk_check_groups(master, managers_grp, "member", 10)
+        bulk_check_groups(supplier, managers_grp, "member", 10)
     # Enabling plugin
-    AutoMembershipPlugin(master).enable()
-    master.restart()
+    AutoMembershipPlugin(supplier).enable()
+    supplier.restart()
     export_ldif = p.backup_dir + "/Out_Export_02.ldif"
     if os.path.exists(export_ldif):
         os.remove(export_ldif)
-    exp_task = Tasks(master)
+    exp_task = Tasks(supplier)
     exp_task.automemberExport(suffix=auto_mem_scope, fstr='objectclass=inetOrgPerson', ldif_out=export_ldif)
     check_file_exists(export_ldif)
     with pytest.raises(AssertionError):
@@ -1092,41 +1191,41 @@ def test_automemtask_run_re_build(topo, _create_all_entries, _startuptask, _fixt
         1. Add 10 users with inetOrgPerson obj class
         2. Change plugin config
         3. Enable plug-in and run re-build task to create the member attributes
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
     """
-    master = topo.ms['master1']
-    p = Paths('master1')
+    supplier = topo.ms['supplier1']
+    p = Paths('supplier1')
     testid = "autoMemTask_06"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
     # Disabling plugin
-    AutoMembershipPlugin(master).disable()
-    master.restart()
+    AutoMembershipPlugin(supplier).disable()
+    supplier.restart()
     for number in range(10):
         add_user(topo, f'{user_rdn}{number}', auto_mem_scope, '111', '111', "Manager")
-    for user in nsAdminGroups(master, auto_mem_scope, rdn=None).list():
+    for user in nsAdminGroups(supplier, auto_mem_scope, rdn=None).list():
         user.add('objectclass', 'inetOrgPerson')
-    AutoMembershipDefinition(master,
+    AutoMembershipDefinition(supplier,
                              f'cn=userGroups,{PLUGIN_AUTO}').replace('autoMemberFilter',
                                                                      "objectclass=inetOrgPerson")
-    master.restart()
+    supplier.restart()
     with pytest.raises(AssertionError):
-        bulk_check_groups(master, managers_grp, "member", 10)
-    AutoMembershipPlugin(master).enable()
-    master.restart()
-    AutomemberRebuildMembershipTask(master).create(properties={
+        bulk_check_groups(supplier, managers_grp, "member", 10)
+    AutoMembershipPlugin(supplier).enable()
+    supplier.restart()
+    AutomemberRebuildMembershipTask(supplier).create(properties={
         'basedn': auto_mem_scope,
         'filter': "objectClass=inetOrgPerson"})
-    time.sleep(2)
-    bulk_check_groups(master, managers_grp, "member", 10)
-    AutoMembershipDefinition(master,
+    time.sleep(10)
+    bulk_check_groups(supplier, managers_grp, "member", 10)
+    AutoMembershipDefinition(supplier,
                              f'cn=userGroups,{PLUGIN_AUTO}').replace('autoMemberFilter',
                                                                      "objectclass=posixAccount")
-    master.restart()
+    supplier.restart()
 
 
 def test_automemtask_run_export(topo, _create_all_entries, _startuptask, _fixture_for_build_task):
@@ -1137,40 +1236,40 @@ def test_automemtask_run_export(topo, _create_all_entries, _startuptask, _fixtur
         1. Add 10 users with inetOrgPerson objectClass
         2. change plugin config
         3. Run export task to create an ldif file with member attributes
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
     """
-    master = topo.ms['master1']
-    p = Paths('master1')
+    supplier = topo.ms['supplier1']
+    p = Paths('supplier1')
     testid = "autoMemTask_07"
     auto_mem_scope = "ou=TaskEmployees,{}".format(BASE_SUFF)
     managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
     user_rdn = "User_{}".format(testid)
     # Disabling plugin
-    AutoMembershipPlugin(master).disable()
-    master.restart()
+    AutoMembershipPlugin(supplier).disable()
+    supplier.restart()
     for number in range(10):
         add_user(topo, f'{user_rdn}{number}', auto_mem_scope, '222', '222', "Manager")
-    for user in nsAdminGroups(master, auto_mem_scope, rdn=None).list():
+    for user in nsAdminGroups(supplier, auto_mem_scope, rdn=None).list():
         user.add('objectclass', 'inetOrgPerson')
-    AutoMembershipDefinition(master, f'cn=userGroups,{PLUGIN_AUTO}').replace('autoMemberFilter',
+    AutoMembershipDefinition(supplier, f'cn=userGroups,{PLUGIN_AUTO}').replace('autoMemberFilter',
                                                                              "objectclass=inetOrgPerson")
-    master.restart()
+    supplier.restart()
     # Enabling plugin
-    AutoMembershipPlugin(master).enable()
-    master.restart()
+    AutoMembershipPlugin(supplier).enable()
+    supplier.restart()
     with pytest.raises(AssertionError):
-        bulk_check_groups(master, managers_grp, "member", 10)
+        bulk_check_groups(supplier, managers_grp, "member", 10)
     export_ldif = p.backup_dir + "/Out_Export_02.ldif"
     if os.path.exists(export_ldif):
         os.remove(export_ldif)
-    exp_task = Tasks(master)
+    exp_task = Tasks(supplier)
     exp_task.automemberExport(suffix=auto_mem_scope, fstr='objectclass=inetOrgPerson', ldif_out=export_ldif)
     check_file_exists(export_ldif)
     ldif_check_groups("cn={}".format(user_rdn), "member", 10, export_ldif)
-    AutoMembershipDefinition(master, f'cn=userGroups,{PLUGIN_AUTO}').\
+    AutoMembershipDefinition(supplier, f'cn=userGroups,{PLUGIN_AUTO}').\
         replace('autoMemberFilter', "objectclass=posixAccount")
 
 

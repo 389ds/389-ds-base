@@ -56,7 +56,7 @@ do_modrdn(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, "do_modrdn", "=>\n");
 
     /* count the modrdn request */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsModifyRDNOps);
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     ber = operation->o_ber;
@@ -235,7 +235,7 @@ free_and_return:
 }
 
 /* This function is used to issue internal modrdn operation
-   This is an old style API. Its use is discoraged because it is not extendable and
+   This is an old style API. Its use is discouraged because it is not extendable and
    because it does not allow to check whether plugin has right to access part of the
    tree it is trying to modify. Use slapi_modrdn_internal_pb instead */
 Slapi_PBlock *
@@ -465,36 +465,63 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
      * and - if applicable - log reason of any error to the errors log
      */
     if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
+        int32_t log_format = config_get_accesslog_log_format();
+        slapd_log_pblock logpb = {0};
+
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.target_dn = dn;
+        logpb.newrdn = newrdn;
+        logpb.newsup = newsuperior;
+        logpb.deleteoldrdn = deloldrdn ? PR_TRUE : PR_FALSE;
+        logpb.authzid = proxydn;
+
         if (proxydn) {
             proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
         if (!internal_op) {
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
-                             pb_conn->c_connid,
-                             operation->o_opid,
-                             dn,
-                             newrdn ? newrdn : "(null)",
-                             newsuperior ? newsuperior : "(null)",
-                             proxystr ? proxystr : "");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_access_modrdn(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                 "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+                                 pb_conn->c_connid,
+                                 operation->o_opid,
+                                 dn,
+                                 newrdn ? newrdn : "(null)",
+                                 newsuperior ? newsuperior : "(null)",
+                                 proxystr ? proxystr : "");
+            }
+
         } else {
             uint64_t connid;
             int32_t op_id;
             int32_t op_internal_id;
             int32_t op_nested_count;
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
-            slapi_log_access(LDAP_DEBUG_ARGS,
-                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
-                                         "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
-                             connid,
-                             op_id,
-                             op_internal_id,
-                             op_nested_count,
-                             dn,
-                             newrdn ? newrdn : "(null)",
-                             newsuperior ? newsuperior : "(null)",
-                             proxystr ? proxystr : "");
+            time_t start_time;
+
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
+                logpb.op_internal_id = op_internal_id;
+                logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
+                slapd_log_access_modrdn(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_ARGS,
+                                 connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
+                                             "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 dn,
+                                 newrdn ? newrdn : "(null)",
+                                 newsuperior ? newsuperior : "(null)",
+                                 proxystr ? proxystr : "");
+            }
         }
     }
 
@@ -540,13 +567,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
                       "Syntax check of newSuperior failed\n");
         if (!internal_op) {
             slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-                          "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
+                          "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")\n",
                           pb_conn->c_connid,
                           operation->o_opid,
                           newsuperior ? newsuperior : "(null)");
         } else {
             slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-                          "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
+                          "conn=%s op=%d MODRDN invalid new superior (\"%s\")\n",
                           LOG_INTERNAL_OP_CON_ID,
                           LOG_INTERNAL_OP_OP_ID,
                           newsuperior ? newsuperior : "(null)");
@@ -678,16 +705,20 @@ free_and_return_nolock : {
     slapi_ch_free_string(&newdn);
 
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
+    slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
     slapi_entry_free(ecopy);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     slapi_entry_free(pse);
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     ldap_mods_free(mods, 1);
+    slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
 
     slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &s);
     slapi_ch_free((void **)&s);
+    slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, NULL);
 }
 }
 

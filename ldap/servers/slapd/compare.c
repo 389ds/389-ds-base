@@ -44,6 +44,7 @@ do_compare(Slapi_PBlock *pb)
     Slapi_DN sdn;
     Slapi_Entry *referral = NULL;
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+    int32_t log_format = config_get_accesslog_log_format();
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_compare", "=>\n");
 
@@ -52,6 +53,11 @@ do_compare(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    /* Set the time we actually started the operation */
+    if (pb_op) {
+        slapi_operation_set_time_started(pb_op);
+    }
     if (pb_op == NULL || pb_conn == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "do_compare", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
                       pb_conn, pb_op);
@@ -62,7 +68,7 @@ do_compare(Slapi_PBlock *pb)
     ber = pb_op->o_ber;
 
     /* count the compare request */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsCompareOps);
 
     /*
      * Parse the compare request.  It looks like this:
@@ -120,12 +126,21 @@ do_compare(Slapi_PBlock *pb)
     /* target spec is used to decide which plugins are applicable for the operation */
     operation_set_target_spec(pb_op, &sdn);
 
-    slapi_log_err(SLAPI_LOG_ARGS, "do_compare: dn (%s) attr (%s)\n",
-                  rawdn, ava.ava_type, 0);
+    slapi_log_err(SLAPI_LOG_ARGS, "do_compare", "dn (%s) attr (%s)\n",
+                  rawdn, ava.ava_type);
 
-    slapi_log_access(LDAP_DEBUG_STATS,
-                     "conn=%" PRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
-                     pb_conn->c_connid, pb_op->o_opid, dn, ava.ava_type);
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock logpb = {0};
+
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.target_dn = dn;
+        logpb.cmp_attr = ava.ava_type;
+        slapd_log_access_cmp(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS,
+                         "conn=%" PRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
+                         pb_conn->c_connid, pb_op->o_opid, dn, ava.ava_type);
+    }
 
     /*
      * We could be serving multiple database backends.  Select the

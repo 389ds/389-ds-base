@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -116,7 +116,6 @@ cb_update_controls(Slapi_PBlock *pb,
 
     int cCount = 0;
     int dCount = 0;
-    int i;
     char *proxyDN = NULL;
     LDAPControl **reqControls = NULL;
     LDAPControl **ctrls = NULL;
@@ -129,6 +128,7 @@ cb_update_controls(Slapi_PBlock *pb,
     int addauth = (ctrl_flags & CB_UPDATE_CONTROLS_ADDAUTH);
     int isabandon = (ctrl_flags & CB_UPDATE_CONTROLS_ISABANDON);
     int op_type = 0;
+    size_t i;
 
     *controls = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &op_type);
@@ -216,8 +216,6 @@ cb_update_controls(Slapi_PBlock *pb,
             /* Add to the control list later */
 
         } else {
-
-            int i;
             for (i = 0; cbb->config.forward_ctrls != NULL && cbb->config.forward_ctrls[i] != NULL; ++i) {
                 if (strcmp(cbb->config.forward_ctrls[i], reqControls[cCount]->ldctl_oid) == 0) {
                     break;

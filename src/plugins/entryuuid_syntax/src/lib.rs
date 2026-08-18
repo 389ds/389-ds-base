@@ -50,7 +50,7 @@ impl SlapiSyntaxPlugin1 for EntryUuidSyntax {
         bval_filter: &BerValRef,
         vals: &ValueArrayRef,
     ) -> Result<bool, PluginError> {
-        let u = match bval_filter.try_into() {
+        let u: Uuid = match bval_filter.try_into() {
             Ok(u) => u,
             Err(_e) => return Ok(false),
         };

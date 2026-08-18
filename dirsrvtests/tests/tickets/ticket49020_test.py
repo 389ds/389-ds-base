@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import time
 import ldap
 import logging
@@ -8,7 +16,7 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m3 as T
+from test389.topologies import topology_m3 as T
 import socket
 
 # Skip on older versions
@@ -24,9 +32,9 @@ log = logging.getLogger(__name__)
 
 
 def test_ticket49020(T):
-    A = T.ms['master1']
-    B = T.ms['master2']
-    C = T.ms['master3']
+    A = T.ms['supplier1']
+    B = T.ms['supplier2']
+    C = T.ms['supplier3']
 
     A.enableReplLogging()
     B.enableReplLogging()
@@ -44,7 +52,7 @@ def test_ticket49020(T):
     A.add_s(Entry((dn, {'objectclass': "top person".split(),
                         'sn': name,'cn': name})))
 
-    A.agreement.init(DEFAULT_SUFFIX, socket.gethostname(), PORT_MASTER_3)
+    A.agreement.init(DEFAULT_SUFFIX, socket.gethostname(), PORT_SUPPLIER_3)
     time.sleep(5)
     for i in range(1,11):
         name = "userY{}".format(i)

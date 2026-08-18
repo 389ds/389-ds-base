@@ -1,17 +1,41 @@
 #[macro_export]
-macro_rules! log_error {
-    ($level:expr, $($arg:tt)*) => ({
+#[cfg(not(feature = "test_log_direct"))]
+macro_rules! log_error_ext {
+    ($level:expr, $source:expr, $($arg:tt)*) => ({
         use std::fmt;
         match log_error(
             $level,
-            format!("{}:{}", file!(), line!()),
+            $source.to_string(),
             format!("{}\n", fmt::format(format_args!($($arg)*)))
         ) {
             Ok(_) => {},
             Err(e) => {
-                eprintln!("A logging error occured {}, {} -> {:?}", file!(), line!(), e);
+                eprintln!("A logging error occurred {}, {} -> {:?}", file!(), line!(), e);
             }
         };
+    })
+}
+
+#[macro_export]
+#[cfg(feature = "test_log_direct")]
+macro_rules! log_error_ext {
+    ($level:expr, $source:expr, $($arg:tt)*) => ({
+        use std::fmt;
+        eprintln!("{} -> {}", $source, fmt::format(format_args!($($arg)*)));
+    })
+}
+
+#[macro_export]
+macro_rules! log_error {
+    ($level:expr, $($arg:tt)*) => ({
+        log_error_ext!($level, format!("{}:{}", file!(), line!()), $($arg)*)
+    })
+}
+
+#[macro_export]
+macro_rules! log_error_fn {
+    ($level:expr, $funcname:expr, $($arg:tt)*) => ({
+        log_error_ext!($level, $funcname, $($arg)*)
     })
 }
 
@@ -20,12 +44,13 @@ macro_rules! slapi_r_plugin_hooks {
     ($mod_ident:ident, $hooks_ident:ident) => (
         paste::item! {
             use libc;
+            use std::ffi::{CString, CStr};
 
-            static mut PLUGINID: *const libc::c_void = std::ptr::null();
+            static mut [<$mod_ident _PLUGINID>]: *const libc::c_void = std::ptr::null();
 
             pub(crate) fn plugin_id() -> PluginIdRef {
                 PluginIdRef {
-                    raw_pid: unsafe { PLUGINID }
+                    raw_pid: unsafe { [<$mod_ident _PLUGINID>] }
                 }
             }
 
@@ -41,7 +66,7 @@ macro_rules! slapi_r_plugin_hooks {
 
                 // Setup the plugin id.
                 unsafe {
-                    PLUGINID = pb.get_plugin_identity();
+                    [<$mod_ident _PLUGINID>] = pb.get_plugin_identity();
                 }
 
                 if $hooks_ident::has_betxn_pre_modify() {
@@ -56,6 +81,25 @@ macro_rules! slapi_r_plugin_hooks {
                         0 => {},
                         e => return e,
                     };
+                }
+
+                if $hooks_ident::has_pwd_storage() {
+                    // SLAPI_PLUGIN_DESCRIPTION pbkdf2_sha256_pdesc
+                    match pb.register_pwd_storage_encrypt_fn([<$mod_ident _plugin_pwd_storage_encrypt_fn>]) {
+                        0 => {},
+                        e => return e,
+                    };
+                    match pb.register_pwd_storage_compare_fn([<$mod_ident _plugin_pwd_storage_compare_fn>]) {
+                        0 => {},
+                        e => return e,
+                    };
+                    let scheme_name = CString::new($hooks_ident::pwd_scheme_name()).expect("invalid password scheme name");
+                    // DS strdups this for us, so it owns it now.
+                    match pb.register_pwd_storage_scheme_name(scheme_name.as_ptr()) {
+                        0 => {},
+                        e => return e,
+                    };
+
                 }
 
                 // set the start fn
@@ -234,6 +278,78 @@ macro_rules! slapi_r_plugin_hooks {
                 // Simply block until the task refcount drops to 0.
                 let task = TaskRef::new(raw_task);
                 task.block();
+            }
+
+            pub extern "C" fn [<$mod_ident _plugin_pwd_storage_encrypt_fn>](
+                cleartext: *const c_char,
+            ) -> *const c_char {
+                let cleartext = unsafe { CStr::from_ptr(cleartext) };
+                let clear_str = match cleartext.to_str() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log_error!(ErrorLevel::Error, "{}_plugin_pwd_storage_encrypt_fn => error -> {:?}", stringify!($mod_ident), e);
+                        return std::ptr::null();
+                    }
+                };
+                match $hooks_ident::pwd_storage_encrypt(clear_str)
+                    // do some conversions.
+                    .and_then(|s| {
+                        // DS needs to own the returned value, so we have to alloc it for ds.
+                        CString::new(s)
+                            .map_err(|e| {
+                                PluginError::GenericFailure
+                            })
+                            .map(|cs| {
+                                unsafe { libc::strdup(cs.as_ptr()) }
+                            })
+                    })
+                {
+                    Ok(s_ptr) => {
+                        s_ptr
+                    }
+                    Err(e) => {
+                        log_error!(ErrorLevel::Error, "{}_plugin_pwd_storage_encrypt_fn => error -> {:?}", stringify!($mod_ident), e);
+                        std::ptr::null()
+                    }
+                }
+            }
+
+            pub extern "C" fn [<$mod_ident _plugin_pwd_storage_compare_fn>](
+                cleartext: *const c_char,
+                encrypted: *const c_char,
+            ) -> i32 {
+                // 1 is failure, 0 success.
+                let cleartext = unsafe { CStr::from_ptr(cleartext) };
+                let clear_str = match cleartext.to_str() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log_error!(ErrorLevel::Error, "{}_plugin_pwd_storage_compare_fn => error -> {:?}", stringify!($mod_ident), e);
+                        return 1;
+                    }
+                };
+
+                let encrypted = unsafe { CStr::from_ptr(encrypted) };
+                let enc_str = match encrypted.to_str() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log_error!(ErrorLevel::Error, "{}_plugin_pwd_storage_compare_fn => error -> {:?}", stringify!($mod_ident), e);
+                        return 1;
+                    }
+                };
+
+                match $hooks_ident::pwd_storage_compare(clear_str, enc_str) {
+                    Ok(r) => {
+                        if r {
+                            0
+                        } else {
+                            1
+                        }
+                    }
+                    Err(e) => {
+                        log_error!(ErrorLevel::Error, "{}_plugin_pwd_storage_compare_fn => error -> {:?}", stringify!($mod_ident), e);
+                        1
+                    }
+                }
             }
 
         } // end paste

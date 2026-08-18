@@ -7,7 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldif
-import six
 from lib389._entry import Entry
 from lib389.utils import normalizeDN
 
@@ -30,12 +29,12 @@ class LDIFConn(ldif.LDIFParser):
         self.dndict = {}  # maps dn to Entry
         self.dnlist = []  # contains entries in order read
         myfile = input_file
-        if isinstance(input_file, six.string_types):
+        if isinstance(input_file, str):
             myfile = open(input_file, "r")
         ldif.LDIFParser.__init__(self, myfile, ignored_attr_types,
                                  max_entries, process_url_schemes)
         self.parse()
-        if isinstance(input_file, six.string_types):
+        if isinstance(input_file, str):
             myfile.close()
 
     def handle(self, dn, entry):

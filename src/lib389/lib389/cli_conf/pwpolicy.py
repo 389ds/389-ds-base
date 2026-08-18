@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,7 +11,9 @@ import ldap
 from lib389.backend import Backends
 from lib389.utils import ensure_str
 from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
+from lib389.password_plugins import PasswordPlugins
 from lib389.idm.account import Account
+from lib389.cli_base import CustomHelpFormatter
 
 
 def _args_to_attrs(args, arg_to_attr):
@@ -41,7 +43,7 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         targetdn = 'cn=config'
         policydn = targetdn
         basedn = targetdn
-        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy_local'])
+        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy-local'])
         all_attrs = inst.config.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     else:
@@ -51,13 +53,13 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         all_attrs = policy.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     if use_json:
-        print(json.dumps({
-            "dn": ensure_str(policydn),
-            "targetdn": targetdn,
-            "type": "entry",
-            "pwp_type": policy_type,
-            "basedn": basedn,
-            "attrs": attrs}, indent=4))
+        log.info(json.dumps({
+                 "dn": ensure_str(policydn),
+                 "targetdn": targetdn,
+                 "type": "entry",
+                 "pwp_type": policy_type,
+                 "basedn": basedn,
+                 "attrs": attrs}, indent=4))
     else:
         if "global" in policy_type.lower():
             response = "Global Password Policy: cn=config\n------------------------------------\n"
@@ -69,12 +71,37 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
             else:
                 value = value[0]
             response += "{}: {}\n".format(key, value)
-        print(response)
+        log.info(response)
+
+
+def _log_policy_result(log, entry, use_json=None):
+    """
+    Logs the result of creating/updating a password policy
+    in json or text format.
+    """
+    status = entry.ensure_status
+    if status == entry.ENSURE_UNCHANGED:
+        message = 'Password policy is already up to date'
+        ensure = "UNCHANGED"
+    elif status == entry.ENSURE_UPDATED:
+        message = 'Successfully updated password policy'
+        ensure = "UPDATED"
+    elif status == entry.ENSURE_ADDED:
+        message = 'Successfully created new password policy'
+        ensure = "ADDED"
+    else:
+        message = "Unknown password policy operation"
+        ensure = "UNKNOWN"
+
+    if use_json:
+        log.info(json.dumps({"ensure_status": ensure, "message": message}, indent=4))
+    else:
+        log.info(message)
 
 
 def list_policies(inst, basedn, log, args):
     log = log.getChild('list_policies')
-    
+
     if args.DN is None:
         # list all the password policies for all the backends
         targetdns = []
@@ -89,23 +116,44 @@ def list_policies(inst, basedn, log, args):
     else:
         result = ""
 
+    seen_dns = set()
     for targetdn in targetdns:
         # Verify target dn exists before getting started
         user_entry = Account(inst, targetdn)
         if not user_entry.exists():
             raise ValueError('The target entry dn does not exist')
-    
+
         # User pwpolicy entry is under the container that is under the parent,
         # so we need to go one level up
         pwp_entries = PwPolicyEntries(inst, targetdn)
         pwp_manager = PwPolicyManager(inst)
         attr_list = list(pwp_manager.arg_to_attr.values())
-    
+
         for pwp_entry in pwp_entries.list():
-            dn_comps = ldap.dn.explode_dn(pwp_entry.get_attr_val_utf8_l('cn'))
-            dn_comps.pop(0)
-            entrydn = ",".join(dn_comps)
-            policy_type = _get_policy_type(inst, entrydn)
+            # Filter duplicates because subtree search on parent suffix also returns
+            # policies from sub suffixes
+            if pwp_entry.dn in seen_dns:
+                continue
+            seen_dns.add(pwp_entry.dn)
+            # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
+            # We need to strip them as python-ldap doesn't expect them
+            dn_comps_str = pwp_entry.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
+            try:
+                dn_comps = ldap.dn.explode_dn(dn_comps_str)
+                dn_comps.pop(0)
+                entrydn = ",".join(dn_comps)
+                policy_type = _get_policy_type(inst, entrydn)
+            except ldap.DECODING_ERROR:
+                # This is some kind of custom password policy, the UI relies on
+                # on type being "Unknown policy type" in this.unknownPolicyType
+                policy_type = "Unknown policy type"
+                entrydn = "Unknown target"
+                if not args.json:
+                    # If not JSON then set a custom response, otherwise the
+                    # JSON result is sufficient
+                    result += "%s (%s)\n" % (pwp_entry.dn, policy_type.lower())
+                    continue
+
             all_attrs = pwp_entry.get_attrs_vals_utf8(attr_list)
             attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
             if args.json:
@@ -122,9 +170,9 @@ def list_policies(inst, basedn, log, args):
                 result += "%s (%s)\n" % (entrydn, policy_type.lower())
 
     if args.json:
-        print(json.dumps(result, indent=4))
+        log.info(json.dumps(result, indent=4))
     else:
-        print(result)
+        log.info(result)
 
 
 def get_local_policy(inst, basedn, log, args):
@@ -142,18 +190,16 @@ def create_subtree_policy(inst, basedn, log, args):
     # Gather the attributes
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_subtree_policy(args.DN[0], attrs)
-
-    print('Successfully created subtree password policy')
+    pwp_entry = pwp_manager.create_subtree_policy(args.DN[0], attrs)
+    _log_policy_result(log, pwp_entry, args.json)
 
 
 def create_user_policy(inst, basedn, log, args):
     log = log.getChild('create_user_policy')
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_user_policy(args.DN[0], attrs)
-
-    print('Successfully created user password policy')
+    pwp_entry = pwp_manager.create_user_policy(args.DN[0], attrs)
+    _log_policy_result(log, pwp_entry, args.json)
 
 
 def set_global_policy(inst, basedn, log, args):
@@ -161,8 +207,7 @@ def set_global_policy(inst, basedn, log, args):
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.set_global_policy(attrs)
-
-    print('Successfully updated global password policy')
+    log.info('Successfully updated global password policy')
 
 
 def set_local_policy(inst, basedn, log, args):
@@ -181,7 +226,7 @@ def set_local_policy(inst, basedn, log, args):
     else:
         raise ValueError("There are no password policies to set")
 
-    print('Successfully updated %s' % policy_type.lower())
+    log.info('Successfully updated %s' % policy_type.lower())
 
 
 def del_local_policy(inst, basedn, log, args):
@@ -190,36 +235,79 @@ def del_local_policy(inst, basedn, log, args):
     policy_type = _get_policy_type(inst, targetdn)
     pwp_manager = PwPolicyManager(inst)
     pwp_manager.delete_local_policy(targetdn)
-    print('Successfully deleted %s' % policy_type.lower())
+    log.info('Successfully deleted %s' % policy_type.lower())
+
+
+def list_schemes(inst, basedn, log, args):
+    schemes = PasswordPlugins(inst).list()
+    scheme_list = []
+    for scheme in schemes:
+        scheme_list.append(scheme.get_attr_val_utf8('cn'))
+
+    if args.json:
+        result = {'type': 'list', 'items': scheme_list}
+        log.info(json.dumps(result, indent=4))
+    else:
+        for scheme in scheme_list:
+            log.info(scheme)
+
+
+def fixup_shadow_last_change(inst, basedn, log, args):
+    """Create the fixup shadow attributes task (shadowLastChange) and wait for it."""
+    log = log.getChild('fixup_shadow_last_change')
+    from lib389.tasks import ShadowFixupTask
+
+    if not args.watch:
+        log.info('Adding shadowLastChange fixup task for suffix "%s"%s ...',
+                 args.suffix, ' (force)' if args.force else '')
+
+    fixup_task = ShadowFixupTask(inst)
+    fixup_task.create(args.suffix, force=args.force)
+    if args.watch:
+        fixup_task.watch()
+    else:
+        fixup_task.wait()
+    result = fixup_task.get_exit_code()
+    warning = fixup_task.get_task_warn()
+
+    if result != 0:
+        raise ValueError(f'shadowLastChange fixup task {fixup_task.dn} exited with code {result}')
+    if warning:
+        log.warning('shadowLastChange fixup task completed with warning code %s', warning)
+
+    log.info('ShadowLastChange fixup task completed successfully')
 
 
 def create_parser(subparsers):
     # Create our two parsers for local and global policies
-    globalpwp_parser = subparsers.add_parser('pwpolicy', help='Get and set the global password policy settings')
-    localpwp_parser = subparsers.add_parser('localpwp', help='Manage local (user/subtree) password policies')
+    globalpwp_parser = subparsers.add_parser('pwpolicy', help='Manage the global password policy settings', formatter_class=CustomHelpFormatter)
+    localpwp_parser = subparsers.add_parser('localpwp', help='Manage the local user and subtree password policies', formatter_class=CustomHelpFormatter)
 
     ############################################
     # Local password policies
     ############################################
     local_subcommands = localpwp_parser.add_subparsers(help='Local password policy')
     # List all the local policies
-    list_parser = local_subcommands.add_parser('list', help='List all the local password policies')
+    list_parser = local_subcommands.add_parser('list', help='List all the local password policies', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list_policies)
     list_parser.add_argument('DN', nargs='?', help='Suffix to search for local password policies')
     # Get a local policy
-    get_parser = local_subcommands.add_parser('get', help='Get local password policy entry')
+    get_parser = local_subcommands.add_parser('get', help='Get local password policy entry', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get_local_policy)
     get_parser.add_argument('DN', nargs=1, help='Get the local policy for this entry DN')
     # The "set" arguments...
-    set_parser = local_subcommands.add_parser('set', help='Set an attribute in a local password policy')
+    set_parser = local_subcommands.add_parser('set', help='Set an attribute in a local password policy', formatter_class=CustomHelpFormatter)
     set_parser.set_defaults(func=set_local_policy)
     # General settings
     set_parser.add_argument('--pwdscheme', help="The password storage scheme")
     set_parser.add_argument('--pwdchange', help="Allow users to change their passwords")
-    set_parser.add_argument('--pwdmustchange', help="User must change their passwrod after it is reset by an Administrator")
+    set_parser.add_argument('--pwdmustchange', help="Users must change their password after it was reset by an administrator")
     set_parser.add_argument('--pwdhistory', help="To enable password history set this to \"on\", otherwise \"off\"")
-    set_parser.add_argument('--pwdhistorycount', help="The number of password to keep in history")
+    set_parser.add_argument('--pwdhistorycount', help="The number of passwords to keep in history")
     set_parser.add_argument('--pwdadmin', help="The DN of an entry or a group of account that can bypass password policy constraints")
+    set_parser.add_argument('--pwdadminskipupdates',
+                            help="Set to \"on\" if the Password Admin's password update should not trigger updates to the password state attributes (passwordExpirationtime, passwordHistory, etc).")
+
     set_parser.add_argument('--pwdtrack', help="Set to \"on\" to track the time the password was last changed")
     set_parser.add_argument('--pwdwarning', help="Send an expiring warning if password expires within this time (in seconds)")
     # Expiration settings
@@ -235,7 +323,7 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdmaxfailures', help="The maximum number of allowed failed password attempts before the account gets locked")
     set_parser.add_argument('--pwdresetfailcount', help="The number of seconds to wait before reducing the failed login count on an account")
     # Syntax settings
-    set_parser.add_argument('--pwdchecksyntax', help="Set to \"on\" to Enable password syntax checking")
+    set_parser.add_argument('--pwdchecksyntax', help="Set to \"on\" to enable password syntax checking")
     set_parser.add_argument('--pwdminlen', help="The minimum number of characters required in a password")
     set_parser.add_argument('--pwdmindigits', help="The minimum number of digit/number characters in a password")
     set_parser.add_argument('--pwdminalphas', help="The minimum number of alpha characters required in a password")
@@ -252,22 +340,24 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdmintokenlen', help="Sets the smallest attribute value length that is used for trivial/user words checking.  This also impacts \"--pwduserattrs\"")
     set_parser.add_argument('--pwdbadwords', help="A space-separated list of words that can not be in a password")
     set_parser.add_argument('--pwduserattrs', help="A space-separated list of attributes whose values can not appear in the password (See \"--pwdmintokenlen\")")
-    set_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
     set_parser.add_argument('--pwddictcheck', help="Set to \"on\" to enforce CrackLib dictionary checking")
     set_parser.add_argument('--pwddictpath', help="Filesystem path to specific/custom CrackLib dictionary files")
+    set_parser.add_argument('--pwptprmaxuse', help="Number of times a reset password can be used for authentication")
+    set_parser.add_argument('--pwptprdelayexpireat', help="Number of seconds after which a reset password expires")
+    set_parser.add_argument('--pwptprdelayvalidfrom', help="Number of seconds to wait before using a reset password to authenticated")
     # delete local password policy
-    del_parser = local_subcommands.add_parser('remove', help='Remove a local password policy')
+    del_parser = local_subcommands.add_parser('remove', help='Remove a local password policy', formatter_class=CustomHelpFormatter)
     del_parser.set_defaults(func=del_local_policy)
     del_parser.add_argument('DN', nargs=1, help='Remove local policy for this entry DN')
     #
     # create USER local password policy
     #
-    add_user_parser = local_subcommands.add_parser('adduser', add_help=False, parents=[set_parser], help='Add new user password policy')
+    add_user_parser = local_subcommands.add_parser('adduser', add_help=False, parents=[set_parser], help='Add new user password policy', formatter_class=CustomHelpFormatter)
     add_user_parser.set_defaults(func=create_user_policy)
     #
     # create SUBTREE local password policy
     #
-    add_subtree_parser = local_subcommands.add_parser('addsubtree', add_help=False, parents=[set_parser], help='Add new subtree password policy')
+    add_subtree_parser = local_subcommands.add_parser('addsubtree', add_help=False, parents=[set_parser], help='Add new subtree password policy', formatter_class=CustomHelpFormatter)
     add_subtree_parser.set_defaults(func=create_subtree_policy)
 
     ###########################################
@@ -275,18 +365,36 @@ def create_parser(subparsers):
     ###########################################
     global_subcommands = globalpwp_parser.add_subparsers(help='Global password policy')
     # Get policy
-    get_global_parser = global_subcommands.add_parser('get', help='Get the global password policy entry')
+    get_global_parser = global_subcommands.add_parser('get', help='Get the global password policy entry', formatter_class=CustomHelpFormatter)
     get_global_parser.set_defaults(func=get_global_policy)
     # Set policy
     set_global_parser = global_subcommands.add_parser('set', add_help=False, parents=[set_parser],
                                                       help='Set an attribute in a global password policy')
     set_global_parser.set_defaults(func=set_global_policy)
     set_global_parser.add_argument('--pwdlocal', help="Set to \"on\" to enable fine-grained (subtree/user-level) password policies")
-    set_global_parser.add_argument('--pwdisglobal', help="Set to \"on\" to enable password policy state attributesto be replicated")
+    set_global_parser.add_argument('--pwdisglobal', help="Set to \"on\" to enable password policy state attributes to be replicated")
     set_global_parser.add_argument('--pwdallowhash', help="Set to \"on\" to allow adding prehashed passwords")
+    set_global_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
+    # list password storage schemes
+    list_scehmes_parser = global_subcommands.add_parser('list-schemes', help='Get a list of the current password storage schemes', formatter_class=CustomHelpFormatter)
+    list_scehmes_parser.set_defaults(func=list_schemes)
+    # Fix up shadowLastChange on ShadowAccount entries under a suffix
+    fixup_shadow_parser = global_subcommands.add_parser(
+        'fixup-shadow',
+        help='Create a task to set shadowLastChange on ShadowAccount entries',
+        formatter_class=CustomHelpFormatter)
+    fixup_shadow_parser.set_defaults(func=fixup_shadow_last_change)
+    fixup_shadow_parser.add_argument(
+        'suffix', help='LDAP suffix to search (subtree) for objectClass ShadowAccount')
+    fixup_shadow_parser.add_argument(
+        '--force', action='store_true',
+        help='Update all users under the suffix regardless if shadowLastChange is set.')
+    fixup_shadow_parser.add_argument(
+        '--watch', action='store_true',
+        help='Watch the task\'s status and wait for it to finish.')
 
     #############################################
-    # Wrap it up.  Now that we copied all the parent arugments to the subparsers,
+    # Wrap it up.  Now that we copied all the parent arguments to the subparsers,
     # and the DN argument needed only by the local policies
     #############################################
     set_parser.add_argument('DN', nargs=1, help='Set the local policy for this entry DN')

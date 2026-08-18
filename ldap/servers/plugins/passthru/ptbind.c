@@ -33,6 +33,8 @@ passthru_simple_bind_once_s(PassThruServer *srvr, const char *dn, struct berval 
  * are only interested in recovering silently when the remote server is up
  * but decided to close our connection, we retry without pausing between
  * attempts.
+ *
+ * Note that errmsgp must be freed by the caller.
  */
 int
 passthru_simple_bind_s(Slapi_PBlock *pb, PassThruServer *srvr, int tries, const char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop, char **matcheddnp, char **errmsgp, struct berval ***refurlsp, LDAPControl ***resctrlsp)

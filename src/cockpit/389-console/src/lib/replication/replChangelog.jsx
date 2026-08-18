@@ -1,20 +1,25 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
-    Col,
-    ControlLabel,
     Checkbox,
     Form,
-    FormControl,
-    noop,
-    Row,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    NumberInput,
     Spinner,
-} from "patternfly-react";
-import { Tooltip } from '@patternfly/react-core';
-import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+    Text,
+    TextContent,
+    TextVariants,
+    Tooltip,
+} from '@patternfly/react-core';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+
+const _ = cockpit.gettext;
 
 export class Changelog extends React.Component {
     constructor (props) {
@@ -23,45 +28,98 @@ export class Changelog extends React.Component {
             loading: false,
             errObj: {},
             showConfirmDelete: false,
-            saveOK: false,
+            saveBtnDisabled: true,
             // Changelog settings
-            clMaxEntries: this.props.clMaxEntries,
-            clMaxAge: this.props.clMaxAge.slice(0, -1),
-            clMaxAgeUnit: this.props.clMaxAge.slice(-1).toLowerCase(),
-            clTrimInt: this.props.clTrimInt,
+            clMaxEntries: Number(this.props.clMaxEntries) === 0 ? -1 : Number(this.props.clMaxEntries),
+            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 || this.props.clMaxAge === "-1" ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            clMaxAgeUnit: this.props.clMaxAge !== "" && this.props.clMaxAge !== "-1" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            clTrimInt: Number(this.props.clTrimInt) === 0 ? -1 : Number(this.props.clTrimInt),
             clEncrypt: this.props.clEncrypt,
             // Preserve original settings
-            _clMaxEntries: this.props.clMaxEntries,
-            _clMaxAge: this.props.clMaxAge.slice(0, -1),
-            _clMaxAgeUnit: this.props.clMaxAge.slice(-1).toLowerCase(),
-            _clTrimInt: this.props.clTrimInt,
+            _clMaxEntries: Number(this.props.clMaxEntries) === 0 ? -1 : Number(this.props.clMaxEntries),
+            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 || this.props.clMaxAge === "-1" ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            _clMaxAgeUnit: this.props.clMaxAge !== "" && this.props.clMaxAge !== "-1" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            _clTrimInt: Number(this.props.clTrimInt) === 0 ? -1 : Number(this.props.clTrimInt),
             _clEncrypt: this.props.clEncrypt,
         };
 
+        this.minValue = -1;
+        this.maxValue = 20000000;
+
+        this.onMinus = (id) => {
+            if (id === "clMaxAge" && this.state.clMaxAge === 1) {
+                // Skip zero and go right to the miniumum
+                this.setState({
+                    [id]: this.minValue,
+                }, () => { this.validateSaveBtn() });
+            } else {
+                if (this.state[id] === this.minValue) {
+                    return;
+                }
+                this.setState({
+                    [id]: Number(this.state[id]) - 1
+                }, () => { this.validateSaveBtn() });
+            }
+        };
+
+        this.onChange = (event, id) => {
+            if (id === "clMaxAge" && event.target.value === "0") {
+                // We do not allow zero for the max age
+                return;
+            }
+            const newValue = isNaN(event.target.value) || event.target.value === "" ? -1 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < this.minValue ? this.minValue : newValue
+            }, () => { this.validateSaveBtn() });
+        };
+
+        this.onPlus = (id) => {
+            if (id === "clMaxAge" && this.state.clMaxAge === -1) {
+                // Skip zero and go right to 1
+                this.setState({
+                    [id]: 1
+                }, () => { this.validateSaveBtn() });
+            } else {
+                if (this.state[id] === this.maxValue) {
+                    return;
+                }
+                this.setState({
+                    [id]: Number(this.state[id]) + 1
+                }, () => { this.validateSaveBtn() });
+            }
+        };
+
         this.handleChange = this.handleChange.bind(this);
-        this.saveSettings = this.saveSettings.bind(this);
+        this.handleSaveSettings = this.handleSaveSettings.bind(this);
     }
 
-    saveSettings () {
-        let cmd = [
+    handleSaveSettings () {
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set-changelog', '--suffix', this.props.suffix
         ];
+        let requires_restart = false;
         let msg = "Successfully updated changelog configuration.";
 
-        if (this.state.clMaxEntries != this.state._clMaxEntries) {
+        if (this.state.clMaxEntries !== this.state._clMaxEntries) {
             cmd.push("--max-entries=" + this.state.clMaxEntries);
         }
-        if (this.state.clMaxAge != this.state._clMaxAge || this.state.clMaxAgeUnit != this.state._clMaxAgeUnit) {
-            cmd.push("--max-age=" + this.state.clMaxAge + this.state.clMaxAgeUnit);
+        if (this.state.clMaxAge !== this.state._clMaxAge || this.state.clMaxAgeUnit !== this.state._clMaxAgeUnit) {
+            if (this.state.clMaxAge === -1) {
+                // For -1 we do not include the unit
+                cmd.push("--max-age=" + this.state.clMaxAge);
+            } else {
+                cmd.push("--max-age=" + this.state.clMaxAge + this.state.clMaxAgeUnit);
+            }
         }
-        if (this.state.clTrimInt != this.state._clTrimInt) {
+        if (this.state.clTrimInt !== this.state._clTrimInt) {
             cmd.push("--trim-interval=" + this.state.clTrimInt);
         }
-        if (this.state.clEncrypt != this.state._clEncrypt) {
+        if (this.state.clEncrypt !== this.state._clEncrypt) {
             if (this.state.clEncrypt) {
                 cmd.push("--encrypt");
-                msg += "  This requires a server restart to take effect";
+                msg += _("  This requires a server restart to take effect");
+                requires_restart = true;
             } else {
                 cmd.push("--disable-encrypt");
             }
@@ -71,221 +129,241 @@ export class Changelog extends React.Component {
                 // Start the spinner
                 saving: true
             });
-            log_cmd("saveSettings", "Applying replication changelog changes", cmd);
+            log_cmd("handleSaveSettings", "Applying replication changelog changes", cmd);
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.reloadChangelog();
                         this.props.addNotification(
-                            "success",
+                            requires_restart ? "warning" : "success",
                             msg
                         );
                         this.setState({
                             saving: false,
-                            saveOK: false,
+                            saveBtnDisabled: true,
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.reloadChangelog();
                         this.setState({
                             saving: false
                         });
-                        let msg = errMsg.desc;
+                        let msg = errMsg;
                         if ('info' in errMsg) {
-                            msg = errMsg.desc + " - " + errMsg.info;
+                            msg = errMsg + " - " + errMsg.info;
                         }
                         this.props.addNotification(
                             "error",
-                            `Error updating changelog configuration - ${msg}`
+                            cockpit.format(_("Error updating changelog configuration - $0"), msg)
                         );
                     });
         }
     }
 
-    handleChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        let all_good = false;
-        let attr = e.target.id;
+    validateSaveBtn() {
+        let saveBtnDisabled = true;
 
-        errObj[e.target.id] = valueErr;
-        if ((attr != 'clMaxEntries' && this.state.clMaxEntries != this.state._clMaxEntries) ||
-            (attr != 'clMaxAge' && this.state.clMaxAge != this.state._clMaxAge) ||
-            (attr != 'clMaxAgeUnit' && this.state.clMaxAgeUnit != this.state._clMaxAgeUnit) ||
-            (attr != 'clTrimInt' && this.state.clTrimInt != this.state._clTrimInt) ||
-            (attr != 'clEncrypt' && this.state.clEncrypt != this.state._clEncrypt)) {
-            all_good = true;
-        }
-        if (attr == 'clMaxEntries' && value != this.state._clMaxEntries) {
-            all_good = true;
-        }
-        if (attr == 'clMaxAge' && value != this.state._clMaxAge) {
-            all_good = true;
-        }
-        if (attr == 'clMaxAgeUnit' && value != this.state._clMaxAgeUnit) {
-            all_good = true;
-        }
-        if (attr == 'clTrimInt' && value != this.state._clTrimInt) {
-            all_good = true;
-        }
-        if (attr == 'clEncrypt' && value != this.state._clEncrypt) {
-            all_good = true;
+        if (this.state.clMaxEntries !== this.state._clMaxEntries ||
+            this.state.clMaxAge !== this.state._clMaxAge ||
+            this.state.clMaxAgeUnit !== this.state._clMaxAgeUnit ||
+            this.state.clTrimInt !== this.state._clTrimInt ||
+            this.state.clEncrypt !== this.state._clEncrypt) {
+            saveBtnDisabled = false;
         }
 
         this.setState({
-            [e.target.id]: value,
-            errObj: errObj,
-            saveOK: all_good,
+            saveBtnDisabled,
         });
     }
 
-    clMapMaxAgeUnit(unit) {
-        // Max teh unit tothe
+    handleChange(str, e) {
+        // Update the state, then validate the values/save btn
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
+            [attr]: value,
+        }, () => { this.validateSaveBtn() });
     }
 
     reloadChangelog () {
         this.setState({
             loading: true,
         });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'get-changelog', '--suffix', this.props.suffix];
         log_cmd("reloadChangelog", "Load the replication changelog info", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let clMaxEntries = "";
                     let clMaxAge = "";
-                    let clMaxAgeUnit = "";
+                    let clMaxAgeUnit = "s";
                     let clTrimInt = "";
                     let clEncrypt = false;
-                    for (let attr in config['attrs']) {
-                        let val = config['attrs'][attr][0];
-                        if (attr == "nsslapd-changelogmaxentries") {
+                    for (const attr in config.attrs) {
+                        const val = config.attrs[attr][0];
+                        if (attr === "nsslapd-changelogmaxentries") {
                             clMaxEntries = val;
-                        } else if (attr == "nsslapd-changelogmaxage") {
-                            clMaxAge = val.slice(0, -1);
-                            clMaxAgeUnit = val.slice(-1).toLowerCase();
-                        } else if (attr == "nsslapd-changelogtrim-interval") {
+                        } else if (attr === "nsslapd-changelogmaxage") {
+                            if (val !== "-1") {
+                                clMaxAge = val.slice(0, -1);
+                                clMaxAgeUnit = val.slice(-1).toLowerCase();
+                            } else {
+                                clMaxAge = val;
+                                clMaxAgeUnit = "s";
+                            }
+                        } else if (attr === "nsslapd-changelogtrim-interval") {
                             clTrimInt = val;
-                        } else if (attr == "nsslapd-encryptionalgorithm") {
+                        } else if (attr === "nsslapd-encryptionalgorithm") {
                             clEncrypt = true;
                         }
                     }
                     this.setState({
-                        clMaxEntries: clMaxEntries,
-                        clMaxAge: clMaxAge,
-                        clMaxAgeUnit: clMaxAgeUnit,
-                        clTrimInt: clTrimInt,
-                        clEncrypt: clEncrypt,
-                        _clMaxEntries: clMaxEntries,
-                        _clMaxAge: clMaxAge,
-                        _clTrimInt: clTrimInt,
+                        clMaxEntries: Number(clMaxEntries) === 0 ? -1 : Number(clMaxEntries),
+                        clMaxAge: Number(clMaxAge) === 0 ? -1 : Number(clMaxAge),
+                        clMaxAgeUnit,
+                        clTrimInt: Number(clTrimInt) === 0 ? -1 : Number(clTrimInt),
+                        clEncrypt,
+                        // Preserve original settings
+                        _clMaxEntries: Number(clMaxEntries) === 0 ? -1 : Number(clMaxEntries),
+                        _clMaxAge: Number(clMaxAge) === 0 ? -1 : Number(clMaxAge),
+                        _clMaxAgeUnit: clMaxAgeUnit,
+                        _clTrimInt: Number(clTrimInt) === 0 ? -1 : Number(clTrimInt),
                         _clEncrypt: clEncrypt,
-                        saveOK: false,
+                        saveBtnDisabled: true,
                         loading: false,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to reload changelog for "${this.props.suffix}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to reload changelog for \"$0\" - $1"), this.props.suffix, errMsg)
                     );
                     this.setState({
                         loading: false,
+                        saveBtnDisabled: true,
                     });
                 });
     }
 
     render() {
         let clPage;
+        let saveBtnName = _("Save Settings");
+        const extraPrimaryProps = {};
+
         if (this.state.saving) {
-            clPage =
-                <div className="ds-margin-top-xlg ds-center">
-                    <h4>Saving changelog configuration ...</h4>
-                    <Spinner className="ds-margin-top-lg" loading size="md" />
-                </div>;
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         } else if (this.loading) {
-            clPage =
-                <div className="ds-margin-top ds-center">
-                    <h4>Loading changelog configuration ...</h4>
-                    <Spinner className="ds-margin-top-lg" loading size="md" />
-                </div>;
+            clPage = (
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            {_("Loading Changelog Configuration ...")}
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="md" />
+                </div>
+            );
         } else {
-            clPage =
-                <div>
-                    <Form horizontal>
-                        <Row className="ds-margin-top-xlg" title="Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Changelog Maximum Entries
-                            </Col>
-                            <Col sm={4}>
-                                <FormControl
-                                    id="clMaxEntries"
-                                    type="number"
+            clPage = (
+                <div className="ds-margin-top-lg">
+                    <Form isHorizontal>
+                        <Grid
+                            title={_("Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries).")}
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                {_("Changelog Maximum Entries")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <NumberInput
                                     value={this.state.clMaxEntries}
-                                    onChange={this.handleChange}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinus("clMaxEntries") }}
+                                    onChange={(e) => { this.onChange(e, "clMaxEntries") }}
+                                    onPlus={() => { this.onPlus("clMaxEntries") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Changelog trimming parameter.  This set the maximum age of a changelog entry (nsslapd-changelogmaxage).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Changelog Maximum Age
-                            </Col>
-                            <Col sm={2}>
-                                <FormControl
-                                    id="clMaxAge"
-                                    type="number"
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title={_("Changelog trimming parameter.  This set the maximum age of a changelog entry (nsslapd-changelogmaxage).")}
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                {_("Changelog Maximum Age")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <NumberInput
                                     value={this.state.clMaxAge}
-                                    onChange={this.handleChange}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinus("clMaxAge") }}
+                                    onChange={(e) => { this.onChange(e, "clMaxAge") }}
+                                    onPlus={() => { this.onPlus("clMaxAge") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
-                            </Col>
-                            <Col sm={2}>
-                                <select
-                                    className="btn btn-default dropdown"
+                            </GridItem>
+                            <GridItem className="ds-margin-left" span={3}>
+                                <FormSelect
+                                    className="ds-margin-left"
                                     id="clMaxAgeUnit"
-                                    onChange={this.handleChange}
                                     value={this.state.clMaxAgeUnit}
+                                    onChange={(e, str) => this.handleChange(str, e)}
+                                    aria-label="FormSelect Input"
+                                    isDisabled={this.state.clMaxAge < 1}
                                 >
-                                    <option value="s">Seconds</option>
-                                    <option value="m">Minutes</option>
-                                    <option value="h">Hours</option>
-                                    <option value="d">Days</option>
-                                    <option value="w">Weeks</option>
-                                </select>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Changelog Trimming Interval
-                            </Col>
-                            <Col sm={4}>
-                                <FormControl
-                                    id="clTrimInt"
-                                    type="number"
+                                    <FormSelectOption key="s" value="s" label={_("Seconds")} />
+                                    <FormSelectOption key="m" value="m" label={_("Minutes")} />
+                                    <FormSelectOption key="h" value="h" label={_("Hours")} />
+                                    <FormSelectOption key="d" value="d" label={_("Days")} />
+                                    <FormSelectOption key="w" value="w" label={_("Weeks")} />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title={_("The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval).")}
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                {_("Changelog Trimming Interval")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <NumberInput
                                     value={this.state.clTrimInt}
-                                    onChange={this.handleChange}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinus("clTrimInt") }}
+                                    onChange={(e) => { this.onChange(e, "clTrimInt") }}
+                                    onPlus={() => { this.onPlus("clTrimInt") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Changelog Encryption
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={3}>
+                                {_("Changelog Encryption")}
                                 <Tooltip
                                     id='CLtooltip'
                                     position="bottom"
                                     content={
                                         <div>
-                                            Changelog encryption requires that the server must already be
-                                            configured for security/TLS.  This setting also requires
-                                            that you export and import the changelog which must be done
-                                            while the database is in read-only mode.  So first put the
-                                            database into read-only mode, then export the changelog, enable
-                                            changelog encryption, restart the server, import the changelog,
-                                            and finally unset the database read-only mode.
+                                            {_("Changelog encryption requires that the server must already be configured for security/TLS.  This setting also requires that you export and import the changelog which must be done while the database is in read-only mode.  So first put the database into read-only mode, then export the changelog, enable changelog encryption, restart the server, import the changelog, and finally unset the database read-only mode.")}
                                         </div>
                                     }
                                 >
@@ -293,32 +371,33 @@ export class Changelog extends React.Component {
                                         className="ds-left-margin"
                                     />
                                 </Tooltip>
-                            </Col>
-                            <Col sm={1}>
+                            </GridItem>
+                            <GridItem span={9}>
                                 <Checkbox
                                     id="clEncrypt"
-                                    checked={this.state.clEncrypt}
-                                    onChange={this.handleChange}
+                                    isChecked={this.state.clEncrypt}
+                                    onChange={(e, str) => this.handleChange(str, e)}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top-lg">
-                            <Col sm={2}>
-                                <Button
-                                    bsStyle="primary"
-                                    onClick={this.saveSettings}
-                                    disabled={!this.state.saveOK}
-                                >
-                                    Save
-                                </Button>
-                            </Col>
-                        </Row>
+                            </GridItem>
+                        </Grid>
                     </Form>
-                </div>;
+                    <Button
+                        className="ds-margin-top-xlg"
+                        variant="primary"
+                        onClick={this.handleSaveSettings}
+                        isDisabled={this.state.saveBtnDisabled || this.state.saving}
+                        isLoading={this.state.saving}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
+                    </Button>
+                </div>
+            );
         }
 
         return (
-            <div>
+            <div className={this.state.saving ? "ds-disabled" : ""}>
                 {clPage}
             </div>
         );
@@ -341,6 +420,5 @@ Changelog.defaultProps = {
     clMaxAge: "",
     clTrimInt: "",
     clEncrypt: false,
-    addNotification: noop,
     suffix: "",
 };

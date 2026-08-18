@@ -1,22 +1,38 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.59)
+AC_PREREQ([2.69])
 AC_INIT([dirsrv],[1.0],[http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
 # include the version information
 . $srcdir/VERSION.sh
 AC_MSG_NOTICE(This is configure for $PACKAGE_TARNAME $PACKAGE_VERSION)
-AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$PACKAGE_VERSION", [package version])
-AC_DEFINE_UNQUOTED([DS_PACKAGE_TARNAME], "$PACKAGE_TARNAME", [package tarball name])
-AC_DEFINE_UNQUOTED([DS_PACKAGE_BUGREPORT], "$PACKAGE_BUGREPORT", [package bug report url])
-AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_STRING", [package string])
+
+# Validate lib389 version matches main project version
+AC_MSG_CHECKING([lib389 version sync])
+lib389_pyproject="$srcdir/src/lib389/pyproject.toml"
+if test -f "$lib389_pyproject"; then
+    lib389_version=$(grep -E '^version\s*=' "$lib389_pyproject" | sed 's/.*"\(.*\)".*/\1/')
+    if test "x$lib389_version" != "x$RPM_VERSION"; then
+        AC_MSG_RESULT([MISMATCH])
+        AC_MSG_ERROR([
+lib389 version mismatch detected!
+  Main project version (VERSION.sh): $RPM_VERSION
+  lib389 version (pyproject.toml):   $lib389_version
+
+To fix this, run:
+  cd $srcdir/src/lib389 && python3 validate_version.py --update
+
+lib389 version MUST match the main project version before release.
+])
+    else
+        AC_MSG_RESULT([ok ($lib389_version)])
+    fi
+else
+    AC_MSG_RESULT([MISSING])
+    AC_MSG_ERROR([lib389 pyproject.toml not found at $lib389_pyproject - source tree is incomplete])
+fi
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define tar-pax])
-# define these for automake distdir
-VERSION=$PACKAGE_VERSION
-PACKAGE=$PACKAGE_TARNAME
-AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
-AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE", [package tar name])
 AC_SUBST([RPM_VERSION])
 AC_SUBST([RPM_RELEASE])
 AC_SUBST([VERSION_PREREL])
@@ -33,23 +49,21 @@ AC_PROG_CXX
 AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_AS
-AC_PROG_CC_STDC
 PKG_PROG_PKG_CONFIG
 
 # disable static libs by default - we only use a couple
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Checks for header files.
 AC_HEADER_DIRENT
-AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h])
-
+AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h sys/epoll.h sys/timerfd.h])
 # These are *required* headers without option.
 AC_CHECK_HEADERS([inttypes.h], [], AC_MSG_ERROR([unable to locate required header inttypes.h]))
 AC_CHECK_HEADERS([crack.h], [], AC_MSG_ERROR([unable to locate required header crack.h]))
-
+AC_CHECK_HEADERS([lmdb.h], [], AC_MSG_ERROR([unable to locate required header lmdb.h]))
+AC_CHECK_HEADERS([json-c/json.h], [], AC_MSG_ERROR([unable to locate required header json-c/json.h]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
@@ -58,7 +72,6 @@ AC_HEADER_STDBOOL
 AC_TYPE_UID_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
 AC_STRUCT_TM
 
 # Checks for library functions.
@@ -71,7 +84,18 @@ AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_MMAP
-AC_TYPE_SIGNAL
+AC_DIAGNOSE([obsolete],[your code may safely assume C89 semantics that RETSIGTYPE is void.
+Remove this warning and the `AC_CACHE_CHECK' when you adjust the code.])dnl
+AC_CACHE_CHECK([return type of signal handlers],[ac_cv_type_signal],[AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([#include <sys/types.h>
+#include <signal.h>
+],
+		 [return *(signal (0, 0)) (0) == 1;])],
+		   [ac_cv_type_signal=int],
+		   [ac_cv_type_signal=void])])
+AC_DEFINE_UNQUOTED([RETSIGTYPE],[$ac_cv_type_signal],[Define as the return type of signal handlers
+		    (`int' or `void').])
+
 AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
@@ -95,23 +119,14 @@ AS_IF([test "$enable_rust_offline" = yes],
     [rust_vendor_sources="replace-with = \"vendored-sources\""],
     [rust_vendor_sources=""])
 AC_SUBST([rust_vendor_sources])
-
-AC_MSG_CHECKING(for --enable-rust)
-AC_ARG_ENABLE(rust, AS_HELP_STRING([--enable-rust], [Enable rust language features (default: no)]),
-              [], [ enable_rust=no ])
-AC_MSG_RESULT($enable_rust)
-if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
+if test "$enable_rust_offline" = yes; then
     AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
     AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
-    # Since fernet uses the openssl lib.
-    PKG_CHECK_MODULES([OPENSSL], [openssl])
 
     AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
     ])
 fi
-AC_SUBST([enable_rust])
-AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
 
 # Optional cockpit support (enabled by default)
 AC_MSG_CHECKING(for --enable-cockpit)
@@ -122,6 +137,11 @@ AC_SUBST([enable_cockpit])
 AC_SUBST(ENABLE_COCKPIT)
 AM_CONDITIONAL([ENABLE_COCKPIT],[test "$enable_cockpit" = yes])
 
+AC_DEFINE_UNQUOTED([DS_PACKAGE_TARNAME], "$PACKAGE_TARNAME", [package tarball name])
+AC_DEFINE_UNQUOTED([DS_PACKAGE_BUGREPORT], "$PACKAGE_BUGREPORT", [package bug report url])
+# define these for automake distdir
+PACKAGE=$PACKAGE_TARNAME
+AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE", [package tar name])
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
@@ -129,11 +149,16 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
 AC_MSG_RESULT($enable_debug)
 if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
-  debug_cflags="-g3 -O0 -rdynamic"
-  debug_cxxflags="-g3 -O0 -rdynamic"
+  debug_cflags="-g3 -ggdb -gdwarf-4 -O0"
+  debug_cxxflags="-g3 -ggdb -gdwarf-4 -O0"
   debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
   cargo_defs=""
   rust_target_dir="debug"
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$VERSION_MAJOR.$VERSION_MINOR.$VERSION_MAINT DEVELOPER BUILD", [package version])
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_TARNAME DEVELOPER BUILD", [package string])
+  # define these for automake distdir
+  VERSION="DEBUG"
+  AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
 else
   debug_defs=""
   # set the default safe CFLAGS that would be set by AC_PROG_CC otherwise
@@ -142,6 +167,11 @@ else
   debug_rust_defs="-C debuginfo=2"
   cargo_defs="--release"
   rust_target_dir="release"
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$PACKAGE_VERSION", [package version])
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_TARNAME $PACKAGE_VERSION", [package string])
+  # define these for automake distdir
+  VERSION=$PACKAGE_VERSION
+  AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
 fi
 AC_SUBST([debug_defs])
 AC_SUBST([debug_cflags])
@@ -156,7 +186,7 @@ AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc/clang address sa
               [], [ enable_asan=no ])
 AC_MSG_RESULT($enable_asan)
 if test "$enable_asan" = yes ; then
-  asan_cflags="-fsanitize=address -fno-omit-frame-pointer -lasan"
+  asan_cflags="-fsanitize=address -fno-omit-frame-pointer"
   asan_rust_defs="-Z sanitizer=address"
 else
   asan_cflags=""
@@ -219,6 +249,11 @@ AC_ARG_ENABLE(clang, AS_HELP_STRING([--enable-clang], [Enable clang (default: no
 AC_MSG_RESULT($enable_clang)
 AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
 
+AC_MSG_CHECKING(for --enable-cfi)
+AC_ARG_ENABLE(cfi, AS_HELP_STRING([--enable-cfi], [Enable control flow integrity - requires --enable-clang (default: no)]),
+              [], [ enable_cfi=no ])
+AC_MSG_RESULT($enable_cfi)
+AM_CONDITIONAL(CFI_ENABLE,test "$enable_cfi" = "yes" -a "$enable_clang" = "yes")
 
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
 AC_MSG_CHECKING(for --enable-gcc-security)
@@ -242,7 +277,7 @@ AC_ARG_ENABLE(profiling, AS_HELP_STRING([--enable-profiling], [Enable gcov profi
               [], [ enable_profiling=no ])
 AC_MSG_RESULT($enable_profiling)
 if test "$enable_profiling" = yes ; then
-  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -O0"
+  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -ggdb -gdwarf-4  -O0"
   profiling_links="-lgcov --coverage"
 else
   profiling_defs=""
@@ -251,16 +286,19 @@ fi
 AC_SUBST([profiling_defs])
 AC_SUBST([profiling_links])
 
-AC_MSG_CHECKING(for --enable-systemtap)
-AC_ARG_ENABLE(systemtap, AS_HELP_STRING([--enable-systemtap], [Enable systemtap probe features (default: no)]),
-              [], [ enable_systemtap=no ])
-AC_MSG_RESULT($enable_systemtap)
-if test "$enable_systemtap" = yes ; then
-  systemtap_defs="-DSYSTEMTAP"
+AC_MSG_CHECKING(for --enable-usdt)
+AC_ARG_ENABLE(usdt, AS_HELP_STRING([--enable-usdt], [Enable USDT (User-level Statically Defined Tracing) probes, consumed by bpftrace, SystemTap, dtrace, perf (default: no)]),
+              [], [ enable_usdt=no ])
+AC_MSG_RESULT($enable_usdt)
+if test "$enable_usdt" = yes ; then
+  AC_CHECK_HEADER([sys/sdt.h], [],
+    [AC_MSG_ERROR([USDT support requires <sys/sdt.h>. Install systemtap-sdt-devel (Fedora/RHEL) or systemtap-sdt-dev (Debian/Ubuntu).])])
+  usdt_defs="-DUSDT"
 else
-  systemtap_defs=""
+  usdt_defs=""
 fi
-AC_SUBST([systemtap_defs])
+AC_SUBST([usdt_defs])
+AM_CONDITIONAL([USDT], [test "$enable_usdt" = yes])
 
 
 # these enables are for optional or experimental features
@@ -352,19 +390,7 @@ else
 fi
 AM_CONDITIONAL(enable_bitwise,test "$enable_bitwise" = "yes")
 
-if test -z "$enable_presence" ; then
-   enable_presence=no # if not set on cmdline, set default
-fi
-AC_MSG_CHECKING(for --enable-presence)
-AC_ARG_ENABLE(presence,
-        AS_HELP_STRING([--enable-presence],
-                       [enable the presence plugin (default: no)]))
-if test "$enable_presence" = yes ; then
-  AC_MSG_RESULT(yes)
-  AC_DEFINE([ENABLE_PRESENCE], [1], [enable the presence plugin])
-else
-  AC_MSG_RESULT(no)
-fi
+# Can never be enabled.
 AM_CONDITIONAL(enable_presence,test "$enable_presence" = "yes")
 
 if test -z "$enable_acctpolicy" ; then
@@ -397,6 +423,23 @@ else
 fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
 
+if test -z "$enable_epoll" ; then
+  enable_epoll=no
+fi
+
+AC_MSG_CHECKING(for --enable-epoll)
+AC_ARG_ENABLE(epoll,
+  AS_HELP_STRING([--enable-epoll],
+                 [enable support for epoll (default: yes)]))
+if test "$enable_epoll" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_EPOLL], [1], [enable support for epoll])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AM_CONDITIONAL(enable_epoll, test "$enable_epoll" = "yes")
+
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
@@ -409,7 +452,14 @@ fi
 
 m4_include(m4/fhs.m4)
 
-localrundir='/run'
+# /run directory path
+AC_ARG_WITH([localrundir],
+            AS_HELP_STRING([--with-localrundir=DIR],
+                           [Runtime data directory]),
+            [localrundir=$with_localrundir],
+            [localrundir="/run"])
+AC_SUBST([localrundir])
+
 cockpitdir=/389-console
 
 # installation paths - by default, we store everything
@@ -536,6 +586,28 @@ else
   with_pythonexec=/usr/bin/python3
 fi
 
+dblib=".libs/libdb-5.3-389ds.so"
+AC_MSG_CHECKING(for --with-bundle-libdb)
+AC_ARG_WITH([bundle-libdb],
+   AS_HELP_STRING([--with-bundle-libdb=PATH],
+                  [Directory containing $dblib and db.h (if not using system libdb package)])
+)
+if test -n "$with_bundle_libdb"; then
+  if test  "$with_bundle_libdb" = no ; then
+    with_bundle_libdb=no
+  elif ! test -f "$with_bundle_libdb/db.h" ; then
+      AC_MSG_ERROR([Directory specified with --with-bundle-libdb=fullpath should contains db.h])
+  elif ! test -f "$with_bundle_libdb/$dblib" ; then
+      AC_MSG_ERROR([Directory specified with --with-bundle-libdb=fullpath should contains $dblib])
+  else
+    AC_MSG_RESULT([$with_bundle_libdb])
+  fi
+else
+  with_bundle_libdb=no
+fi
+AM_CONDITIONAL([BUNDLE_LIBDB],[test "$with_bundle_libdb" != no])
+
+
 AC_SUBST(prefixdir)
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
@@ -563,7 +635,7 @@ AC_ARG_WITH(instconfigdir,
                        [Base directory for instance specific writable configuration directories (default $sysconfdir/$PACKAGE_NAME)]),
 [
   if test $withval = yes ; then
-     AC_ERROR([Please specify a full path with --with-instconfigdir])
+     AC_MSG_ERROR(Please specify a full path with --with-instconfigdir)
   fi
   instconfigdir="$withval"
   AC_MSG_RESULT($withval)
@@ -596,18 +668,6 @@ AC_ARG_WITH(initddir,
 ])
 
 AM_CONDITIONAL([INITDDIR], [test -n "$with_initddir" -a "$with_initddir" != "no"])
-# on most platforms, we will just use perl from PATH
-# On some platforms, we cannot.  Why not just use any old
-# perl?  Because of perldap.  We use a perldap that is
-# compiled to either 32bit or 64bit, so we must use a native
-# perl binary compiled with the same bitsize.  On Solaris
-# and HP-UX, /usr/bin/perl is 32 bit, so we cannot use
-# those with our 64 bit compiled product.
-if test -n "$with_perldir"; then
-  perlexec="$with_perldir/perl"
-else
-  perlexec='/usr/bin/env perl'
-fi
 
 # This will let us change over the python version easier in the future.
 if test -n "$with_pythonexec"; then
@@ -642,10 +702,6 @@ case $host in
       x86_64-*-linux*)
         AC_DEFINE([CPU_x86_64], [1], [cpu type x86_64])
 
-        # This turns on and off LFDS inside of libsds
-        # wibrown -- 2017-02-21 disabled temporarily
-        # with_atomic_queue="yes"
-        # AC_DEFINE([ATOMIC_QUEUE_OPERATIONS], [1], [enabling atomic queue operations])
         ;;
       aarch64-*-linux*)
         AC_DEFINE([CPU_arm], [], [cpu type arm])
@@ -691,7 +747,6 @@ case $host in
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
     # assume 64 bit
-    perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     initconfigdir="/$PACKAGE_NAME/config"
     # HPUX doesn't use /etc for this
@@ -709,7 +764,6 @@ case $host in
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
     # assume 64 bit
     initconfigdir="/$PACKAGE_NAME/config"
-    perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     # HPUX doesn't use /etc for this
     initdir=/init.d
@@ -791,7 +845,6 @@ fi
 
 # sysv init scripts not used when systemd is used
 AC_SUBST(initdir)
-AC_SUBST(perlexec)
 AC_SUBST(pythonexec)
 AC_SUBST(sttyexec)
 
@@ -809,15 +862,12 @@ fi
 AC_SUBST(initconfigdir)
 
 # Conditionals for makefile.am
-AM_CONDITIONAL([ATOMIC_QUEUE_OPERATIONS], [test "$with_atomic_queue" = "yes"])
 AM_CONDITIONAL([HPUX],[test "$platform" = "hpux"])
 AM_CONDITIONAL([SOLARIS],[test "$platform" = "solaris"])
 AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])
 AM_CONDITIONAL([SPARC],[test "x$TARGET" = xSPARC])
 
 # Check for library dependencies
-PKG_CHECK_MODULES([EVENT], [libevent])
-
 if $PKG_CONFIG --exists nspr; then
     PKG_CHECK_MODULES([NSPR], [nspr])
 else
@@ -833,12 +883,30 @@ else
 fi
 AC_SUBST(nss_libdir)
 
+PKG_CHECK_MODULES([OPENSSL], [openssl])
+
+AC_MSG_CHECKING(whether to enable HIBP password breach checking)
+AC_ARG_ENABLE(hibp, AS_HELP_STRING([--enable-hibp], [Enable HIBP password breach checking (default: no)]),
+              [], [enable_hibp=no])
+if test "x$enable_hibp" = "xyes"; then
+    AC_MSG_RESULT(yes)
+    PKG_CHECK_MODULES([CURL], [libcurl >= 7.61])
+    AC_DEFINE([ENABLE_HIBP], [1], [Enable HIBP password breach checking])
+else
+    AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL([ENABLE_HIBP], [test "x$enable_hibp" = "xyes"])
+
 m4_include(m4/openldap.m4)
-m4_include(m4/db.m4)
+if test $with_bundle_libdb = no; then
+    m4_include(m4/db.m4)
+else
+    m4_include(m4/bundle_libdb.m4)
+fi
 
 PKG_CHECK_MODULES([SASL], [libsasl2])
 
-PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
+PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2 icu-uc >= 60.2])
 
 m4_include(m4/netsnmp.m4)
 
@@ -850,18 +918,19 @@ if test "$krb5_vendor" = "MIT"; then
     LIBS="$KERBEROS_LIBS"
     AC_CHECK_FUNCS([krb5_cc_new_unique])
     LIBS="$save_LIBS"
-elif test "$krb5_vendor" = "Heimdal"; then
-    AC_DEFINE(HAVE_HEIMDAL_KERBEROS, 1, [Define if you have Heimdal Kerberos])
 fi
 
-if $PKG_CONFIG --exists pcre; then
-    PKG_CHECK_MODULES([PCRE], [pcre])
-    pcre_libdir=`$PKG_CONFIG --libs-only-L pcre | sed -e s/-L// | sed -e s/\ .*$//`
-else
-    PKG_CHECK_MODULES([PCRE], [libpcre])
-    pcre_libdir=`$PKG_CONFIG --libs-only-L libpcre | sed -e s/-L// | sed -e s/\ .*$//`
-fi
-AC_SUBST(pcre_libdir)
+PKG_CHECK_MODULES(
+    [PCRE],
+    [libpcre2-8],
+    [
+        AC_DEFINE(
+            [PCRE2_CODE_UNIT_WIDTH],
+            8,
+            [Define libpcre2 unit size]
+        )
+    ]
+)
 
 m4_include(m4/selinux.m4)
 m4_include(m4/systemd.m4)
@@ -884,13 +953,30 @@ AC_SUBST(PACKAGE_BASE_VERSION)
 
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 
+# check for --with-libldap-r
+AC_MSG_CHECKING(for --with-libldap-r)
+AC_ARG_WITH(libldap-r, AS_HELP_STRING([--with-libldap-r],[Use lldap_r shared library (default: if OpenLDAP version is less than 2.5, then lldap_r will be used, else - lldap)]),
+[
+  if test "$withval" = "no"; then
+    AC_MSG_RESULT(no)
+  else
+    with_libldap_r=yes
+    AC_MSG_RESULT(yes)
+    AC_SUBST(with_libldap_r)
+  fi
+],
+OPENLDAP_VERSION=`ldapsearch -VV 2>&1 | sed -n '/ldapsearch/ s/.*ldapsearch \([[[0-9]]]\+\.[[[0-9]]]\+\.[[[0-9]]]\+\) .*/\1/p'`
+AX_COMPARE_VERSION([$OPENLDAP_VERSION], [lt], [2.5], [ with_libldap_r=yes ], [ with_libldap_r=no ])
+AC_MSG_RESULT($with_libldap_r))
+
+AM_CONDITIONAL([WITH_LIBLDAP_R],[test "$with_libldap_r" = yes])
+
 # write out paths for binary components
 AC_SUBST(ldaplib)
 AC_SUBST(ldaplib_defs)
 AC_SUBST(ldaptool_bindir)
 AC_SUBST(ldaptool_opts)
 AC_SUBST(plainldif_opts)
-AC_SUBST(localrundir)
 
 AC_SUBST(brand)
 AC_SUBST(capbrand)
@@ -912,7 +998,7 @@ AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/libsds.pc src/pkgconfig/s
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
 
-AC_CONFIG_FILES([.cargo/config])
+AC_CONFIG_FILES([.cargo/config.toml])
 
 AC_OUTPUT
 

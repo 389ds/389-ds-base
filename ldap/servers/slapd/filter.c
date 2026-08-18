@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <assert.h>
 #include "slap.h"
 #include "slapi-plugin.h"
 
@@ -29,7 +30,6 @@ static int get_extensible_filter(BerElement *ber, mr_filter_t *);
 static int get_filter_internal(Connection *conn, BerElement *ber, struct slapi_filter **filt, char **fstr, int maxdepth, int curdepth, int *subentry_dont_rewrite, int *has_tombstone_filter, int *has_ruv_filter);
 static int tombstone_check_filter(Slapi_Filter *f);
 static int ruv_check_filter(Slapi_Filter *f);
-static void filter_optimize(Slapi_Filter *f);
 
 
 /*
@@ -78,7 +78,12 @@ get_filter(Connection *conn, BerElement *ber, int scope, struct slapi_filter **f
                       slapi_filter_to_string(*filt, logbuf, logbufsize));
     }
 
-    filter_optimize(*filt);
+    /*
+     * Filter optimise has been moved to the onelevel/subtree candidate dispatch.
+     * this is because they inject referrals or other business, that we can optimise
+     * and improve.
+     */
+    /* filter_optimize(*filt); */
 
     if (NULL != logbuf) {
         slapi_log_err(SLAPI_LOG_DEBUG, "get_filter", " after optimize: %s\n",
@@ -647,8 +652,14 @@ get_extensible_filter(BerElement *ber, mr_filter_t *mrf)
         }
     }
 
-    if ((tag != LBER_ERROR) && (len != -1)) {
-        goto parsing_error;
+    if (tag == LBER_ERROR) {
+        if (len == -1) {
+            /* means that the ber sequence ended without  LBER_END_OF_SEQORSET tag
+             * and it is considered as valid to ensure compatibility with open ldap.
+             */
+        } else {
+            goto parsing_error;
+        }
     }
 
     slapi_log_err(SLAPI_LOG_FILTER, "get_extensible_filter", "<= %i\n", rc);
@@ -867,19 +878,22 @@ slapi_filter_join_ex(int ftype, struct slapi_filter *f1, struct slapi_filter *f2
         if (add_to->f_list->f_choice == LDAP_FILTER_NOT) {
             add_this->f_next = add_to->f_list;
             add_to->f_list = add_this;
-            filter_compute_hash(add_to);
-            return_this = add_to;
         } else {
             /* find end of list, add the filter */
             for (fjoin = add_to->f_list; fjoin != NULL; fjoin = fjoin->f_next) {
                 if (fjoin->f_next == NULL) {
                     fjoin->f_next = add_this;
-                    filter_compute_hash(add_to);
-                    return_this = add_to;
                     break;
                 }
             }
         }
+        /*
+         * Make sure we sync the filter flags. The origin filters may have flags
+         * we still need on the outer layer!
+         */
+        add_to->f_flags |= add_this->f_flags;
+        filter_compute_hash(add_to);
+        return_this = add_to;
     } else {
         fjoin = (struct slapi_filter *)slapi_ch_calloc(1, sizeof(struct slapi_filter));
         fjoin->f_choice = ftype;
@@ -892,6 +906,8 @@ slapi_filter_join_ex(int ftype, struct slapi_filter *f1, struct slapi_filter *f2
             fjoin->f_list = f1;
             f1->f_next = f2;
         }
+        /* Make sure any flags that were set move to the outer parent */
+        fjoin->f_flags |= f1->f_flags | f2->f_flags;
         filter_compute_hash(fjoin);
         return_this = fjoin;
     }
@@ -1014,6 +1030,81 @@ slapi_filter_get_subfilt(
     *final = f->f_sub_final;
 
     return (0);
+}
+
+/*
+ * The function does not know how to free all the parts
+ * which will be overwritten (i.e. slapi_free_the_filter_bits),
+ * so the caller must take care of that.
+ * But it must do so AFTER calling slapi_filter_replace_ex to
+ * avoid getting invalid filter if slapi_filter_replace_ex fails.
+ */
+int
+slapi_filter_replace_ex(Slapi_Filter *f, char *s)
+{
+    Slapi_Filter *newf = NULL;
+    Slapi_Filter *temp = NULL;
+    char *buf = slapi_ch_strdup(s);
+
+    newf = slapi_str2filter(buf);
+    slapi_ch_free((void **)&buf);
+
+    if (NULL == newf) {
+        return -1;
+    }
+
+    /* Now take the parts of newf and put them in f */
+    /* An easy way to do this is to preserve the "next" ptr */
+    temp = f->f_next;
+    *f = *newf;
+    f->f_next = temp;
+    /* Free the new filter husk */
+    slapi_ch_free((void **)&newf);
+    return 0;
+}
+
+/*
+ * Free the parts of a filter we're about to overwrite
+ * moved from ldbm_attr.c
+ */
+void
+slapi_filter_free_bits(Slapi_Filter *f)
+{
+    /* We need to free: */
+    switch (f->f_choice) {
+    case LDAP_FILTER_EQUALITY:
+    case LDAP_FILTER_GE:
+    case LDAP_FILTER_LE:
+    case LDAP_FILTER_APPROX:
+        ava_done(&f->f_ava);
+        break;
+
+    case LDAP_FILTER_PRESENT:
+        if (f->f_type != NULL) {
+            slapi_ch_free((void **)&(f->f_type));
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
+/*
+ * it replaces the bits of the Slapi_Filter with the ones taken from strfilter
+ */
+int
+slapi_filter_replace_strfilter(Slapi_Filter *f, char *strfilter)
+{
+    /* slapi_filter_replace_ex may fail and we cannot
+     * free filter bits before calling it.
+     */
+    Slapi_Filter save_f = *f;
+    int ret = slapi_filter_replace_ex(f, strfilter);
+    if (ret == 0) {
+        slapi_filter_free_bits(&save_f);
+    }
+    return ret;
 }
 
 static void
@@ -1378,6 +1469,7 @@ slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t 
             buf += strlen(buf);
 
             if (1 < *bufsize) {
+                assert(buf);  /* For gcc analyzer */
                 sprintf(buf, ")");
                 (*bufsize)--;
             }
@@ -1391,7 +1483,7 @@ slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t 
         if (size < *bufsize) {
             sprintf(buf, "(%s%s%s%s%s%.*s)", f->f_mr_type, f->f_mr_dnAttrs ? ":dn" : "",
                     f->f_mr_oid ? ":" : "", f->f_mr_oid ? f->f_mr_oid : "",
-                                            operator,(int) f->f_mr_value.bv_len, f->f_mr_value.bv_val);
+                    operator,(int) f->f_mr_value.bv_len, f->f_mr_value.bv_val);
             *bufsize -= size;
         }
         break;
@@ -1536,49 +1628,203 @@ ruv_check_filter(Slapi_Filter *f)
     return 0; /* Not a RUV filter */
 }
 
+/*
+ * To help filter optimise we break out the list manipulation
+ * code.
+ */
 
-/* filter_optimize
+static void
+filter_prioritise_element(Slapi_Filter **list, Slapi_Filter **head, Slapi_Filter **tail, Slapi_Filter **f_prev, Slapi_Filter **f_cur) {
+    if (*f_prev != NULL) {
+        (*f_prev)->f_next = (*f_cur)->f_next;
+    } else if (*list == *f_cur) {
+        *list = (*f_cur)->f_next;
+    }
+
+    if (*head == NULL) {
+        *head = *f_cur;
+        *tail = *f_cur;
+        (*f_cur)->f_next = NULL;
+    } else {
+        (*f_cur)->f_next = *head;
+        *head = *f_cur;
+    }
+}
+
+static void
+filter_merge_subfilter(Slapi_Filter **list, Slapi_Filter **f_prev, Slapi_Filter **f_cur, Slapi_Filter **f_next)   {
+
+    /* First, graft in the new item between f_cur and f_cur -> f_next */
+    Slapi_Filter *remainder = (*f_cur)->f_next;
+    (*f_cur)->f_next = (*f_cur)->f_list;
+    /* Go to the end of the newly grafted list, and put in our remainder. */
+    Slapi_Filter *f_cur_tail = *f_cur;
+    while (f_cur_tail->f_next != NULL) {
+        f_cur_tail = f_cur_tail->f_next;
+    }
+    f_cur_tail->f_next = remainder;
+
+    /* Now indicate to the caller what the next element is. */
+    *f_next = (*f_cur)->f_next;
+
+    /* Now that we have grafted our list in, cut out f_cur */
+    if (*f_prev != NULL) {
+        (*f_prev)->f_next = *f_next;
+    } else if (*list == *f_cur) {
+        *list = *f_next;
+    }
+
+    /* Finally free the f_cur (and/or) */
+    slapi_filter_free(*f_cur, 0);
+}
+
+/* slapi_filter_optimise_inner
  * ---------------
- * takes a filter and optimizes it for fast evaluation
- * currently this merely ensures that any AND or OR
- * does not start with a NOT sub-filter if possible
+ * takes a filter and optimises it for fast evaluation
+ *
+ * Optimisations are:
+ * * In OR conditions move substrings early to promote fail-fast of unindexed types
+ * * In AND conditions move eq types (that are not objectClass) early to promote triggering threshold shortcut
+ * * In OR conditions, merge all direct child OR conditions into the list. (|(|(a)(b))) == (|(a)(b))
+ * * in AND conditions, merge all direct child AND conditions into the list. (&(&(a)(b))) == (&(a)(b))
+ *
+ * In the case of the OR and AND merges, we remove the inner filter because the outer one may have flags set.
+ *
+ * In the future this could be backend dependent.
  */
 static void
-filter_optimize(Slapi_Filter *f)
+slapi_filter_optimise_inner(Slapi_Filter *f, uint16_t limit)
 {
-    if (!f)
+    /*
+     * Today tombstone searches RELY on filter ordering
+     * and a filter test threshold quirk. We need to avoid
+     * touching these cases!!!
+     */
+
+    if (f == NULL || (f->f_flags & SLAPI_FILTER_TOMBSTONE) != 0 || limit == 0) {
         return;
+    }
+
+    /*
+     * Prevent too much recursion - we don't mind if this fans out, we only
+     * need to prevent stack depth being reached on huge queries.
+     */
+    limit = limit - 1;
 
     switch (f->f_choice) {
     case LDAP_FILTER_AND:
-    case LDAP_FILTER_OR: {
-        /* first optimize children */
-        filter_optimize(f->f_list);
+        /* Move all equality searches to the head. */
+        /* Merge any direct descendant AND queries into us */
+        {
+            Slapi_Filter *f_prev = NULL;
+            Slapi_Filter *f_cur = NULL;
+            Slapi_Filter *f_next = NULL;
 
-        /* optimize this */
-        if (f->f_list->f_choice == LDAP_FILTER_NOT) {
-            Slapi_Filter *f_prev = 0;
-            Slapi_Filter *f_child = 0;
+            Slapi_Filter *f_op_head = NULL;
+            Slapi_Filter *f_op_tail = NULL;
 
-            /* grab a non not filter to place at start */
-            for (f_child = f->f_list; f_child != 0; f_child = f_child->f_next) {
-                if (f_child->f_choice != LDAP_FILTER_NOT) {
-                    /* we have a winner, do swap */
-                    if (f_prev)
-                        f_prev->f_next = f_child->f_next;
-                    f_child->f_next = f->f_list;
-                    f->f_list = f_child;
+            f_cur = f->f_list;
+            while(f_cur != NULL) {
+
+                switch(f_cur->f_choice) {
+                case LDAP_FILTER_AND:
+                    filter_merge_subfilter(&(f->f_list), &f_prev, &f_cur, &f_next);
+                    f_cur = f_next;
+                    break;
+                case LDAP_FILTER_EQUALITY:
+                    if (strcasecmp(f_cur->f_avtype, "objectclass") != 0) {
+                        f_next = f_cur->f_next;
+                        /* Cut it out */
+                        filter_prioritise_element(&(f->f_list), &f_op_head, &f_op_tail, &f_prev, &f_cur);
+                        /* Don't change previous, because we remove this f_cur */
+                        f_cur = f_next;
+                        break;
+                    } else {
+                        /* Move along */
+                        f_prev = f_cur;
+                        f_cur = f_cur->f_next;
+                    }
+                    break;
+                default:
+                    /* Move along */
+                    f_prev = f_cur;
+                    f_cur = f_cur->f_next;
                     break;
                 }
+            }
 
-                f_prev = f_child;
+            if (f_op_head != NULL) {
+                f_op_tail->f_next = f->f_list;
+                f->f_list = f_op_head;
             }
         }
-    }
+        /* finally optimize children */
+        slapi_filter_optimise_inner(f->f_list, limit);
+
+        break;
+
+    case LDAP_FILTER_OR:
+        /* Move all substring searches to the head. */
+        {
+            Slapi_Filter *f_prev = NULL;
+            Slapi_Filter *f_cur = NULL;
+            Slapi_Filter *f_next = NULL;
+
+            Slapi_Filter *f_op_head = NULL;
+            Slapi_Filter *f_op_tail = NULL;
+
+            f_cur = f->f_list;
+            while(f_cur != NULL) {
+
+                switch(f_cur->f_choice) {
+                case LDAP_FILTER_OR:
+                    filter_merge_subfilter(&(f->f_list), &f_prev, &f_cur, &f_next);
+                    f_cur = f_next;
+                    break;
+                case LDAP_FILTER_APPROX:
+                case LDAP_FILTER_GE:
+                case LDAP_FILTER_LE:
+                case LDAP_FILTER_SUBSTRINGS:
+                    f_next = f_cur->f_next;
+                    /* Cut it out */
+                    filter_prioritise_element(&(f->f_list), &f_op_head, &f_op_tail, &f_prev, &f_cur);
+                    /* Don't change previous, because we remove this f_cur */
+                    f_cur = f_next;
+                    break;
+                default:
+                    /* Move along */
+                    f_prev = f_cur;
+                    f_cur = f_cur->f_next;
+                    break;
+                }
+            }
+            if (f_op_head != NULL) {
+                f_op_tail->f_next = f->f_list;
+                f->f_list = f_op_head;
+            }
+        }
+        /* finally optimize children */
+        slapi_filter_optimise_inner(f->f_list, limit);
+
+        break;
+
     default:
-        filter_optimize(f->f_next);
+        slapi_filter_optimise_inner(f->f_next, limit);
         break;
     }
+}
+
+/*
+ * How deep we are willing to go to optimise your query - lets be real
+ * if your query has 256 elements or more in it, you are already beyond
+ * our ability to improve your query performance.
+ */
+#define FILTER_OPTIMISE_DEPTH_LIMIT 256
+
+void
+slapi_filter_optimise(Slapi_Filter *f)
+{
+    slapi_filter_optimise_inner(f, FILTER_OPTIMISE_DEPTH_LIMIT);
 }
 
 

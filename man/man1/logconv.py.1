@@ -1,0 +1,136 @@
+.TH LOGCONV.PY 1 "January 22, 2025"
+.SH NAME
+logconv.py \- Analyzes Directory Server access log files
+
+.SH SYNOPSIS
+.B logconv.py 
+[\fI\-h\fR] [\fI\-v\fR] [\fI\-V\fR] [\fI\-s SIZE_LIMIT\fR] [\fI\-d ROOT_DN\fR] [\fI\-B BIND_DN\fR] 
+[\fI\-X EXCLUDE_IP\fR] [\fI\-S START_TIME\fR] [\fI\-E END_TIME\fR]
+[\fI\-m SEC_STATS_FILENAME\fR] [\fI\-M MIN_STATS_FILENAME\fR] [\fI access log(s)\fR]
+.PP
+
+.SH DESCRIPTION
+Analyzes Directory Server access log files for specific information defined on the command
+line.
+
+.SH OPTIONS
+.TP
+.B \fB\-h, \-\-help\fR 
+help/usage.
+.TP
+.B \fB\-v, \-\-version\fR 
+Display log analyzer version.
+.TP
+.B \fB\-V, \-\-verbose\fR 
+Enable verbose mode for detailed statistic processing.
+.TP
+.B \fB\-s, \-\-sizeLimit\fR SIZE_LIMIT
+Number of results to return per category.
+.br
+DEFAULT: 20
+.TP
+.B \fB\-d, \-\-rootDN\fR ROOT_DN
+Directory Managers DN.
+.br
+DEFAULT: "cn=Directory Manager"
+.TP
+.B \fB\-B, \-\-bind\fR BIND_DN
+Generates an activity report based specified bind DN.
+.br
+Options: <ALL | ANONYMOUS | "Actual bind DN">
+.TP
+.B \fB\-X, \-\-excludeIP\fR EXCLUDE_IP
+IP address to exclude from analysis, could be used to exclude load balancers.
+.br
+To specify multiple IP addresses you could use: -X 192.168.1.1 -X 10.1.2.1
+.TP
+.B \fB\-S, \-\-startTime\fR START_TIME
+Time to begin analysing logfile from.
+.br
+Copy and paste a timestamp from the access logs:
+.br
+"[04/Jun/2024:10:31:20.014629085 +0200]"
+.br
+       or
+.br
+Use common log format:
+.br
+"[04/Jun/2024:10:31:20 +0200]"'
+.TP
+.B \fB\-E, \-\-endTime\fR END_TIME
+Time to stop analysing logfile.
+.br
+Copy and paste a timestamp from the access logs:
+.br
+"[04/Jun/2024:11:30:05.435779416 +0200]"
+.br
+       or
+.br
+Use common log format:
+.br
+"[04/Jun/2024:11:30:05 +0200]"
+.TP
+.B \fB\-m, \-\-reportFileSecs\fR SEC_STATS_FILENAME
+Capture operation stats at second intervals and write to csv file.
+.TP
+.B \fB\-M, \-\-reportFileMins\fR MIN_STATS_FILENAME
+Capture operation stats at minute intervals and write to csv file.
+.TP
+.B \fB\-j, \-\-recommends\fR 
+Provide some preformance recommendations post analysis.
+
+.SH USAGE
+Examples:
+.IP
+Analyze logs in verbose mode
+.br
+logconv.py \fB\-V\fR /var/log/dirsrv/slapd-host/access*
+.IP
+Limit results to 10 entries per category
+.br
+logconv.py --sizeLimit 10 /var/log/dirsrv/slapd-host/access*
+.IP
+Specify a custom root DN
+.br
+logconv.py \fB\--rootDN\fR "cn=custom manager" /var/log/dirsrv/slapd-host/access*
+.IP
+Generate a report for anonymous binds
+.br
+logconv.py \fB\-B\fR ANONYMOUS /var/log/dirsrv/slapd-host/access*
+.IP
+Exclude specific IP address(s) from log analysis
+.br
+logconv.py \fB\-X\fR 192.168.1.1 \fB\--exclude_ip\fR 11.22.33.44 /var/log/dirsrv/slapd-host/access*
+.IP
+Analyze logs within a specific time range
+.br
+logconv.py \fB-S\fR "[04/Jun/2024:10:31:20.014629085 +0200]" \fB--endTime\fR "[04/Jun/2024:11:30:05 +0200]" /var/log/dirsrv/slapd-host/access*
+.IP
+Generate performance stats at second intervals
+.br
+logconv.py \fB-m\fR log-second-stats.csv /var/log/dirsrv/slapd-host/access*
+.IP
+Generate performance stats at minute intervals
+.br
+logconv.py \fB-M\fR log-minute-stats.csv  /var/log/dirsrv/slapd-host/access*
+.IP
+Display recommendations post log analysis
+.br
+logconv.py \fB-j\fR /var/log/dirsrv/slapd-host/access*
+
+.SH AUTHOR
+logconv.py was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to https://github.com/389ds/389-ds-base/issues/new
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2025 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

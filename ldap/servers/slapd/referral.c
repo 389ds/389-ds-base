@@ -384,7 +384,7 @@ dn_is_below(const char *dn_norm, const char *ancestor_norm)
 /*
  * This function is useful to discover the source of data and provide
  * this as a referral. It is also useful if someone simply wants
- * to know if a dn is mastered somewhere else.
+ * to know if a dn is originated somewhere else.
  *
  * For a given dn, traverse the referral list and look for the copiedFrom
  * attribute. If such an attribute is found get the server hostname

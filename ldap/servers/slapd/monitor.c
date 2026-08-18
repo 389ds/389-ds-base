@@ -30,6 +30,7 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "fe.h"
+#include "threadpool_stats.h"
 
 int32_t
 monitor_info(Slapi_PBlock *pb __attribute__((unused)),
@@ -61,12 +62,13 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
     attrlist_replace(&e->e_attrs, "threads", vals);
 
     connection_table_as_entry(the_connection_table, e);
+    tp_stats_as_entry(e);
 
-    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, slapi_counter_get_value(ops_initiated));
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, g_get_num_ops_initiated());
     val.bv_val = buf;
     attrlist_replace(&e->e_attrs, "opsinitiated", vals);
 
-    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, slapi_counter_get_value(ops_completed));
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, g_get_num_ops_completed());
     val.bv_val = buf;
     attrlist_replace(&e->e_attrs, "opscompleted", vals);
 
@@ -116,6 +118,22 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
 
     slapi_ch_free((void **)&cookie);
 
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_work_q_size());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "currentworkqueue", vals);
+
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_work_q_size_max());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "maxworkqueue", vals);
+
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_busy_worker_count());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "currentbusyworkers", vals);
+
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRId32, get_max_busy_worker_count());
+    val.bv_val = buf;
+    attrlist_replace(&e->e_attrs, "maxbusyworkers", vals);
+
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
 }
@@ -131,7 +149,6 @@ monitor_disk_info (Slapi_PBlock *pb __attribute__((unused)),
 {
     int32_t rc = LDAP_SUCCESS;
     char **dirs = NULL;
-    char buf[BUFSIZ];
     struct berval val;
     struct berval *vals[2];
     uint64_t total_space;
@@ -143,15 +160,13 @@ monitor_disk_info (Slapi_PBlock *pb __attribute__((unused)),
 
     disk_mon_get_dirs(&dirs);
 
-    for (uint16_t i = 0; dirs && dirs[i]; i++) {
+    for (size_t i = 0; dirs && dirs[i]; i++) {
+    	char buf[BUFSIZ] = {0};
         rc = disk_get_info(dirs[i], &total_space, &avail_space, &used_space);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_WARNING, "monitor_disk_info",
-                          "Unable to get 'cn=disk space,cn=monitor' stats for %s\n", dirs[i]);
-        } else {
+        if (rc == 0 && total_space > 0 && used_space > 0) {
             val.bv_len = snprintf(buf, sizeof(buf),
-                                  "partition=\"%s\" size=\"%" PRIu64 "\" used=\"%" PRIu64 "\" available=\"%" PRIu64 "\" use%%=\"%" PRIu64 "\"",
-                                  dirs[i], total_space, used_space, avail_space, used_space * 100 / total_space);
+                    "partition=\"%s\" size=\"%" PRIu64 "\" used=\"%" PRIu64 "\" available=\"%" PRIu64 "\" use%%=\"%" PRIu64 "\"",
+                    dirs[i], total_space, used_space, avail_space, used_space * 100 / total_space);
             val.bv_val = buf;
             attrlist_merge(&e->e_attrs, "dsDisk", vals);
         }

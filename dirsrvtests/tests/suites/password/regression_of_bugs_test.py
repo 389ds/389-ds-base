@@ -10,7 +10,7 @@
 
 import os
 import pytest
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389._constants import DEFAULT_SUFFIX, DN_DM
 from lib389.config import Config
@@ -69,7 +69,10 @@ def _create_pwp(topo, instance):
         ('passwordresetfailurecount', '600'),
         ('passwordunlock', 'on'),
         ('passwordStorageScheme', 'CLEAR'),
-        ('passwordwarning', '86400')
+        ('passwordwarning', '86400'),
+        ('passwordTPRMaxUse', '-1'),
+        ('passwordTPRDelayExpireAt', '-1'),
+        ('passwordTPRDelayValidFrom', '-1')
     ]:
         pwadm_locpol.add(attribute, value)
     return pwadm_locpol
@@ -103,7 +106,6 @@ def _add_user(request, topo):
     request.addfinalizer(fin)
 
 
-@pytest.mark.bz1044164
 def test_local_password_policy(topo, _add_user):
     """Regression test for bz1044164 part 1.
 
@@ -118,7 +120,7 @@ def test_local_password_policy(topo, _add_user):
         6. Add another generic user but do not include the password (userpassword)
         7. Use admin user to perform a password update on generic user
         8. We don't need this ACI anymore. Delete it
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -154,7 +156,6 @@ def test_local_password_policy(topo, _add_user):
                          f'passwords";allow (write)(userdn = "ldap:///{user.dn}");)')
 
 
-@pytest.mark.bz1118006
 def test_passwordexpirationtime_attribute(topo, _add_user):
     """Regression test for bz1118006.
 
@@ -162,7 +163,7 @@ def test_passwordexpirationtime_attribute(topo, _add_user):
     :setup: Standalone
     :steps:
         1. Check that the passwordExpirationTime attribute is set to the epoch date
-    :expected results:
+    :expectedresults:
         1. Success
     """
     Config(topo.standalone).replace('passwordMustChange', 'on')
@@ -177,8 +178,6 @@ def test_passwordexpirationtime_attribute(topo, _add_user):
     time.sleep(1)
 
 
-@pytest.mark.bz1118007
-@pytest.mark.bz1044164
 def test_admin_group_to_modify_password(topo, _add_user):
     """Regression test for bz1044164 part 2.
 
@@ -215,7 +214,7 @@ def test_admin_group_to_modify_password(topo, _add_user):
         28. Change admins
         29. Change user's password by ex-admin user
         30. Change admin user's password by ex-admin user
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -414,7 +413,6 @@ def test_admin_group_to_modify_password(topo, _add_user):
                                 f'uid=pwadm_admin_1,{DEFAULT_SUFFIX}')
 
 
-@pytest.mark.bz834060
 def test_password_max_failure_should_lockout_password(topo):
     """Regression test for bz834060.
 
@@ -426,7 +424,7 @@ def test_password_max_failure_should_lockout_password(topo):
         3. Set maximum number of login tries to 3
         4. Turn off passwordLegacyPolicy
         5. Turn off local password policy, so that global is applied
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -449,7 +447,6 @@ def test_password_max_failure_should_lockout_password(topo):
     config.replace('nsslapd-pwpolicy-local', 'on')
 
 
-@pytest.mark.bz834063
 def test_pwd_update_time_attribute(topo):
     """Regression test for bz834063
 
@@ -469,7 +466,7 @@ def test_pwd_update_time_attribute(topo):
             check passwordUpdateTime should be changed
         11. Try setting Invalid value for passwordTrackUpdateTime
         12. Try setting Invalid value for pwdupdatetime
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -534,7 +531,7 @@ def test_password_track_update_time(topo):
         9. Check current pwdUpdateTime
         10. Set passwordTrackUpdateTime to ON and modify test entry's pwd,
             check passwordUpdateTime should be changed
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -594,7 +591,6 @@ def test_password_track_update_time(topo):
     assert last_login_time_user2 != last_login_time_user2_last
 
 
-@pytest.mark.bz834063
 def test_signal_11(topo):
     """ns-slapd instance crashed with signal 11 SIGSEGV
 
@@ -603,7 +599,7 @@ def test_signal_11(topo):
     :steps:
         1. Adding new user
         2. Modifying user passwod of uid=bz973583
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
     """

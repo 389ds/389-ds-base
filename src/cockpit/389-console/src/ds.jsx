@@ -6,41 +6,80 @@ import { Monitor } from "./monitor.jsx";
 import { Schema } from "./schema.jsx";
 import { Replication } from "./replication.jsx";
 import { Server } from "./server.jsx";
-import { DoubleConfirmModal, NotificationController } from "./lib/notifications.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
-import { log_cmd } from "./lib/tools.jsx";
+import { LDAPEditor } from "./LDAPEditor.jsx";
+import { getApiErrorMessage, log_cmd } from "./lib/tools.jsx";
 import {
-    Nav,
-    NavItem,
-    DropdownButton,
-    MenuItem,
-    TabContainer,
-    TabContent,
-    TabPane,
-    ProgressBar,
-    Spinner,
-    Button
-} from "patternfly-react";
+	Alert,
+	AlertGroup,
+	AlertActionCloseButton,
+	AlertVariant,
+	Button,
+	Grid,
+	GridItem,
+	FormSelect,
+	FormSelectOption,
+	PageSectionVariants,
+	Progress,
+	ProgressMeasureLocation,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import {
+	Dropdown,
+	DropdownToggle,
+	DropdownItem,
+	DropdownPosition,
+	DropdownSeparator
+} from '@patternfly/react-core/deprecated';
+import { CaretDownIcon } from '@patternfly/react-icons/dist/esm/icons/caret-down-icon';
+
+const _ = cockpit.gettext;
 
 const staticStates = {
     noPackage: (
-        <h3>
-            There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing
-            to manage...
-        </h3>
+        <TextContent>
+            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                {_("There is no ")}<b>{_("389-ds-base")}</b>
+                {_(" package installed on this system. Sorry there is nothing to manage...")}
+            </Text>
+        </TextContent>
     ),
-    noInsts: <h3>There are no Directory Server instances to manage</h3>,
+    noInsts: (
+        <TextContent>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
+                {_("There are no Directory Server instances to manage")}
+            </Text>
+        </TextContent>
+    ),
     notRunning: (
-        <h3>
-            This server instance is not running, either start it from the <b>Actions</b> dropdown
-            menu, or choose a different instance
-        </h3>
+        <TextContent>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
+                {_("This server instance is not running, either start it from the ")}
+                <b>{_("Actions")}</b>
+                {_(" dropdown menu, or choose a different instance")}
+            </Text>
+        </TextContent>
     ),
     notConnecting: (
-        <h3>
-            This server instance is running, but we can not connect to it. Check LDAPI is properly
-            configured on this instance.
-        </h3>
+        <TextContent>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
+                {_("This server instance is running, but we can not connect to it. Check LDAPI is properly configured on this instance.")}
+            </Text>
+        </TextContent>
+    ),
+    ldapiIssue: (
+        <TextContent>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
+                {_("Problem accessing required server configuration. Check LDAPI is properly configured on this instance.")}
+            </Text>
+        </TextContent>
     )
 };
 
@@ -58,10 +97,13 @@ export class DSInstance extends React.Component {
             instList: [],
             backupRows: [],
             notifications: [],
-            activeKey: 1,
+            activeTabKey: 1,
+            createKey: 0,
             wasActiveList: [],
             progressValue: 0,
             loadingOperate: false,
+            dropdownIsOpen: false,
+            variant: PageSectionVariants.default,
 
             showDeleteConfirm: false,
             modalSpinning: false,
@@ -72,8 +114,51 @@ export class DSInstance extends React.Component {
             showCreateInstanceModal: false
         };
 
+        // Dropdown tasks
+        this.handleToggle = (_event, dropdownIsOpen) => {
+            this.setState({
+                dropdownIsOpen
+            });
+        };
+
+        this.handleDropdown = event => {
+            this.setState({
+                dropdownIsOpen: !this.state.dropdownIsOpen
+            });
+            this.onFocus();
+        };
+
+        this.onFocus = () => {
+            const element = document.getElementById('ds-dropdown');
+            element.focus();
+        };
+
+        this.handleNavSelect = (event, tabIndex) => {
+            const { wasActiveList } = this.state;
+            if (!wasActiveList.includes(tabIndex)) {
+                const newList = wasActiveList.concat(tabIndex);
+                this.setState({
+                    wasActiveList: newList,
+                    activeTabKey: tabIndex
+                });
+            } else {
+                this.setState({
+                    activeTabKey: tabIndex
+                });
+            }
+        };
+
+        this.setPageSectionVariant = isLight => {
+            const variant = isLight
+                ? PageSectionVariants.light
+                : PageSectionVariants.default;
+            this.setState({
+                variant,
+            });
+        };
+
         this.handleServerIdChange = this.handleServerIdChange.bind(this);
-        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.onFieldChange = this.onFieldChange.bind(this);
         this.addNotification = this.addNotification.bind(this);
         this.removeNotification = this.removeNotification.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
@@ -91,6 +176,25 @@ export class DSInstance extends React.Component {
         this.removeInstance = this.removeInstance.bind(this);
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
+    }
+
+    addNotification(variant, title) {
+        const key = new Date().getTime();
+        if (variant === "error" || variant === "danger") {
+            variant = "danger";
+            // To print exceptions reported by lib389, it looks best in pre tags
+            title = <pre>{title}</pre>;
+        }
+
+        this.setState({
+            notifications: [...this.state.notifications, { title, variant, key }]
+        });
+    }
+
+    removeNotification(key) {
+        this.setState({
+            notifications: [...this.state.notifications.filter(el => el.key !== key)]
+        });
     }
 
     updateProgress(value) {
@@ -113,67 +217,121 @@ export class DSInstance extends React.Component {
 
     setServerId(serverId, action) {
         // First we need to check if the instance is alive and well
-        let cmd = ["dsctl", "-j", serverId, "status"];
+        const cmd = ["dsctl", "-j", serverId, "status"];
         log_cmd("setServerId", "Test if instance is running ", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(status_data => {
-                    let status_json = JSON.parse(status_data);
+                    const status_json = JSON.parse(status_data);
                     if (status_json.running) {
                         this.updateProgress(25);
-                        let cmd = [
-                            "dsconf",
-                            "-j",
-                            "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
-                            "backend",
-                            "suffix",
-                            "list",
-                            "--suffix"
+
+                        const cfg_cmd = [
+                            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
+                            "config", "get"
                         ];
-                        log_cmd("setServerId", "Test if instance is alive ", cmd);
+                        log_cmd("setServerId", "Load server configuration", cfg_cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
-                                .done(_ => {
-                                    this.updateProgress(25);
-                                    this.setState(
-                                        {
-                                            serverId: serverId,
-                                            wasActiveList: [this.state.activeKey]
-                                        },
-                                        () => {
-                                            this.loadBackups();
-                                        }
-                                    );
-                                    if (action === "restart") {
-                                        this.setState(
-                                            {
-                                                serverId: "",
-                                                wasActiveList: []
+                                .spawn(cfg_cmd, { superuser: "require", err: "message" })
+                                .done(content => {
+                                    const config = JSON.parse(content);
+                                    const attrs = config.attrs;
+                                    if (Object.keys(attrs).length === 0) {
+                                        // Could not load config, access control issue (LDAPI misconfigured)
+                                        this.setState({
+                                            pageLoadingState: {
+                                                state: "ldapiIssue",
+                                                jsx: staticStates.ldapiIssue,
+                                                loading: "ldapiError"
                                             },
-                                            () => {
-                                                this.setState({
-                                                    serverId: serverId,
-                                                    wasActiveList: [this.state.activeKey]
-                                                });
-                                            }
-                                        );
+                                            serverId,
+                                            wasActiveList: []
+                                        });
+                                        return;
                                     }
+
+                                    const cmd = [
+                                        "dsconf",
+                                        "-j",
+                                        "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
+                                        "backend",
+                                        "suffix",
+                                        "list",
+                                        "--suffix"
+                                    ];
+                                    log_cmd("setServerId", "Test if instance is alive ", cmd);
+                                    cockpit
+                                            .spawn(cmd, { superuser: "require", err: "message" })
+                                            .done(() => {
+                                                this.updateProgress(25);
+                                                this.setState(
+                                                    {
+                                                        serverId,
+                                                        wasActiveList: [this.state.activeTabKey]
+                                                    },
+                                                    () => {
+                                                        this.loadBackups(true);
+                                                    }
+                                                );
+                                                if (action === "restart") {
+                                                    this.setState(
+                                                        {
+                                                            serverId: "",
+                                                            wasActiveList: []
+                                                        },
+                                                        () => {
+                                                            this.setState({
+                                                                serverId,
+                                                                wasActiveList: [this.state.activeTabKey]
+                                                            });
+                                                        }
+                                                    );
+                                                }
+                                            })
+                                            .fail(err => {
+                                                const errMsg = getApiErrorMessage(err);
+                                                console.log("setServerId failed: ", errMsg);
+                                                this.setState(
+                                                    {
+                                                        pageLoadingState: {
+                                                            state: "notConnecting",
+                                                            jsx: staticStates.notConnecting
+                                                        }
+                                                    },
+                                                    () => {
+                                                        this.setState(
+                                                            {
+                                                                serverId,
+                                                                wasActiveList: []
+                                                            },
+                                                            () => {
+                                                                this.loadBackups(true);
+                                                            }
+                                                        );
+                                                    }
+                                                );
+                                            });
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
-                                    console.log("setServerId failed: ", errMsg.desc);
+                                    const errMsg = getApiErrorMessage(err);
+                                    console.log("setServerId failed: ", errMsg);
                                     this.setState(
                                         {
                                             pageLoadingState: {
                                                 state: "notConnecting",
-                                                jsx: staticStates["notConnecting"]
+                                                jsx: staticStates.notConnecting
                                             }
                                         },
                                         () => {
-                                            this.setState({
-                                                serverId: serverId,
-                                                wasActiveList: []
-                                            });
+                                            this.setState(
+                                                {
+                                                    serverId,
+                                                    wasActiveList: []
+                                                },
+                                                () => {
+                                                    this.loadBackups(true);
+                                                }
+                                            );
                                         }
                                     );
                                 });
@@ -182,33 +340,40 @@ export class DSInstance extends React.Component {
                             {
                                 pageLoadingState: {
                                     state: "notRunning",
-                                    jsx: staticStates["notRunning"]
+                                    jsx: staticStates.notRunning
                                 }
                             },
                             () => {
-                                this.setState({
-                                    serverId: serverId,
-                                    wasActiveList: []
-                                });
+                                this.setState(
+                                    {
+                                        serverId,
+                                        wasActiveList: []
+                                    }
+                                );
                             }
                         );
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    console.log("setServerId failed: ", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("setServerId failed: ", errMsg);
                     this.setState(
                         {
                             pageLoadingState: {
                                 state: "notConnecting",
-                                jsx: staticStates["notConnecting"]
+                                jsx: staticStates.notConnecting
                             }
                         },
                         () => {
-                            this.setState({
-                                serverId: serverId,
-                                wasActiveList: []
-                            });
+                            this.setState(
+                                {
+                                    serverId,
+                                    wasActiveList: []
+                                },
+                                () => {
+                                    this.loadBackups(true);
+                                }
+                            );
                         }
                     );
                 });
@@ -228,19 +393,24 @@ export class DSInstance extends React.Component {
                 wasActiveList: []
             },
             () => {
-                let cmd = ["dsctl", "-l", "-j"];
+                const cmd = ["dsctl", "-l", "-j"];
                 log_cmd(
                     "loadInstanceList",
                     "Load the instance list select",
                     cmd
                 );
                 cockpit
-                        .spawn(cmd, { superuser: true })
+                        .spawn(cmd, { superuser: "require" })
                         .done(data => {
                             this.updateProgress(25);
-                            let myObject = JSON.parse(data);
+                            const myObject = JSON.parse(data);
+                            const options = [];
+                            for (const inst of myObject.insts) {
+                                options.push({ value: inst.replace("slapd-", ""), label: inst, disabled: false });
+                            }
+
                             this.setState({
-                                instList: myObject.insts,
+                                instList: options,
                                 loadingOperate: false
                             });
                             // Set default value for the inst select
@@ -257,7 +427,7 @@ export class DSInstance extends React.Component {
                                         serverId: "",
                                         pageLoadingState: {
                                             state: "noInsts",
-                                            jsx: staticStates["noInsts"]
+                                            jsx: staticStates.noInsts
                                         }
                                     });
                                 }
@@ -270,7 +440,7 @@ export class DSInstance extends React.Component {
                                 loadingOperate: false,
                                 pageLoadingState: {
                                     state: "noInsts",
-                                    jsx: staticStates["noInsts"]
+                                    jsx: staticStates.noInsts
                                 }
                             });
                         });
@@ -278,74 +448,59 @@ export class DSInstance extends React.Component {
         );
     }
 
-    loadBackups() {
+    loadBackups(initializing) {
         let cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackups", "Load Backups", cmd);
-        cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
-            this.updateProgress(25);
-            const config = JSON.parse(content);
-            let rows = [];
-            for (let row of config.items) {
-                rows.push({ name: row[0], date: [row[1]], size: [row[2]] });
-            }
-            // Get the server version from the monitor
-            cmd = ["dsconf", "-j", this.state.serverId, "monitor", "server"];
-            log_cmd("loadBackups", "Get the server version", cmd);
-            cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
-                let monitor = JSON.parse(content);
-                this.setState({
-                    backupRows: rows,
-                    version: monitor.attrs['version'][0],
+        cockpit.spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    this.updateProgress(25);
+                    const config = JSON.parse(content);
+                    const rows = [];
+                    for (const row of config.items) {
+                        rows.push([row[0], row[1], row[2]]);
+                    }
+                    // Get the server version from the monitor
+                    cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
+                    log_cmd("loadBackups", "Get the server version", cmd);
+                    cockpit
+                            .spawn(cmd, { superuser: "require", err: "message" }).done(content => {
+                                const monitor = JSON.parse(content);
+                                this.setState({
+                                    backupRows: rows,
+                                    version: monitor.attrs.version[0],
+                                });
+                            })
+                            .fail(_ => {
+                                this.setState({
+                                    backupRows: rows,
+                                });
+                            });
+                })
+                .fail(err => {
+                    this.updateProgress(25);
+                    const errMsg = getApiErrorMessage(err);
+                    if (!initializing) {
+                        // Don't log an error when first initializing the UI
+                        this.addNotification(
+                            "error",
+                            cockpit.format(_("Load Backups operation failed - $0"), errMsg)
+                        );
+                    }
+                    this.setState({
+                        backupRows: [],
+                    });
                 });
-            });
-        });
     }
 
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
-    }
-
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
-        const { wasActiveList } = this.state;
-        if (!wasActiveList.includes(key)) {
-            let newList = wasActiveList.concat(key);
-            this.setState({
-                wasActiveList: newList
-            });
-        }
-    }
-
-    handleServerIdChange(e) {
+    handleServerIdChange(_event, e) {
         this.setState({
             pageLoadingState: { state: "loading", jsx: "" },
             progressValue: 25
         });
-        this.loadInstanceList(e.target.value);
+        this.loadInstanceList(e);
     }
 
-    handleFieldChange(e) {
+    onFieldChange(e) {
         let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         if (e.target.type === "number") {
             if (e.target.value) {
@@ -360,52 +515,91 @@ export class DSInstance extends React.Component {
     }
 
     removeInstance() {
-        this.operateInstance();
-        this.closeDeleteConfirm();
-    }
-
-    operateInstance(e) {
         this.setState({
             loadingOperate: true
         });
 
-        let action = "remove";
-        if (e !== undefined) {
-            action = e.target.id.split("-")[0];
-        }
-
-        let cmd = ["dsctl", "-j", this.state.serverId, action];
-        if (action === "remove") {
-            cmd = [...cmd, "--do-it"];
-        }
-        log_cmd("operateInstance", `Do ${action} the instance`, cmd);
+        const cmd = ["dsctl", "-j", this.state.serverId, "remove", "--do-it"];
+        log_cmd("removeInstance", `Remove the instance`, cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(_ => {
-                    if (action === "remove") {
-                        this.loadInstanceList();
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(() => {
+                    this.loadInstanceList();
+                    this.addNotification("success", _("Instance was successfully removed"));
+                })
+                .fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    this.loadInstanceList();
+                    this.addNotification(
+                        "error",
+                        cockpit.format(_("Error during instance remove operation - $0"), errMsg)
+                    );
+                });
+        this.closeDeleteConfirm();
+    }
+
+    operateInstance(action) {
+        this.setState({
+            loadingOperate: true
+        });
+
+        const cmdStatus = ["dsctl", "-j", this.state.serverId, "status"];
+        log_cmd("operateInstance", `Check instance status`, cmdStatus);
+        cockpit
+                .spawn(cmdStatus, { superuser: "require", err: "message" })
+                .done(status_data => {
+                    const status_json = JSON.parse(status_data);
+                    if (status_json.running && action === "start") {
+                        this.addNotification("success", _("Instance is already running"));
+                        this.setState({
+                            loadingOperate: false
+                        });
+                    } else if (!status_json.running && action === "stop") {
+                        this.addNotification("success", _("Instance is already stopped"));
+                        this.setState({
+                            loadingOperate: false,
+                            pageLoadingState: {
+                                state: "notRunning",
+                                jsx: staticStates.notRunning
+                            }
+                        });
                     } else {
-                        this.loadInstanceList(this.state.serverId, action);
-                    }
-                    if (action === "remove") {
-                        this.addNotification("success", "Instance was successfully removed");
-                    } else {
-                        this.addNotification("success", `Instance was successfully ${action}ed`);
+                        const cmd = ["dsctl", "-j", this.state.serverId, action];
+                        log_cmd("operateInstance", `Do ${action} the instance`, cmd);
+                        cockpit
+                                .spawn(cmd, { superuser: "require", err: "message" })
+                                .done(() => {
+                                    this.loadInstanceList(this.state.serverId, action);
+                                    if (action === "stop") {
+                                        action = "stopp"; // Fixes typo in notification
+                                    }
+                                    this.addNotification("success", cockpit.format(_("Instance was successfully $0"), action + "ed"));
+                                })
+                                .fail(err => {
+                                    const errMsg = getApiErrorMessage(err);
+                                    this.addNotification(
+                                        "error",
+                                        cockpit.format(_("Error during instance $0 operation - $1"), action, errMsg)
+                                    );
+                                    this.loadInstanceList(this.state.serverId, action);
+                                });
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.addNotification(
                         "error",
-                        `Error during instance ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during instance check status operation - $0"), errMsg)
                     );
                     this.loadInstanceList(this.state.serverId, action);
                 });
     }
 
     openCreateInstanceModal() {
+        const key = this.state.createKey + 1;
         this.setState({
-            showCreateInstanceModal: true
+            showCreateInstanceModal: true,
+            createKey: key
         });
     }
 
@@ -462,20 +656,56 @@ export class DSInstance extends React.Component {
             progressValue,
             notifications,
             pageLoadingState,
-            loadingOperate
+            loadingOperate,
+            dropdownIsOpen,
+            activeTabKey
         } = this.state;
+
+        const dropdownItems = [
+            <DropdownItem id="start-ds" key="start" component="button" onClick={() => (this.operateInstance("start"))}>
+                {_("Start Instance")}
+            </DropdownItem>,
+            <DropdownItem id="stop-ds" key="stop" component="button" onClick={() => (this.operateInstance("stop"))}>
+                {_("Stop Instance")}
+            </DropdownItem>,
+            <DropdownItem id="restart-ds" key="restart" component="button" onClick={() => (this.operateInstance("restart"))}>
+                {_("Restart Instance")}
+            </DropdownItem>,
+            <DropdownItem id="manage-backup-ds" key="backups" component="button" onClick={() => (this.openManageBackupsModal())}>
+                {_("Manage Backups")}
+            </DropdownItem>,
+            <DropdownItem id="reload-schema-ds" key="reload" component="button" onClick={() => (this.openSchemaReloadModal())}>
+                {_("Reload Schema Files")}
+            </DropdownItem>,
+            <DropdownSeparator key="separator" />,
+            <DropdownItem id="remove-ds" key="remove" component="button" onClick={() => (this.showDeleteConfirm())}>
+                {_("Remove This Instance")}
+            </DropdownItem>,
+            <DropdownItem id="create-ds" key="create" component="button" onClick={() => (this.openCreateInstanceModal())}>
+                {_("Create New Instance")}
+            </DropdownItem>
+        ];
 
         let mainContent = "";
         if (pageLoadingState.state === "loading") {
             mainContent = (
                 <div id="loading-instances" className="all-pages ds-center">
                     <div id="loading-page" className="ds-center ds-loading">
-                        <h4 id="loading-msg">Loading Directory Server Configuration...</h4>
+                        <TextContent>
+                            <Text id="loading-msg" component={TextVariants.h3}>
+                                {_("Loading Directory Server Configuration ...")}
+                            </Text>
+                        </TextContent>
                         <p className="ds-margin-top-lg">
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>
-                        <div className="progress ds-margin-top-lg">
-                            <ProgressBar active now={progressValue} label={`${progressValue}%`} />
+                        <div className="ds-margin-top-lg">
+                            <Progress
+                                value={progressValue}
+                                label={`${progressValue}%`}
+                                measureLocation={ProgressMeasureLocation.inside}
+                                aria-label="Directory Server Configuration loading progress"
+                            />
                         </div>
                     </div>
                 </div>
@@ -484,13 +714,13 @@ export class DSInstance extends React.Component {
             mainContent = (
                 <div id="noInsts" className="all-pages ds-center">
                     {pageLoadingState.jsx}
-                    <p>
+                    <p className="ds-margin-top-xlg">
                         <Button
                             id="no-inst-create-btn"
-                            bsStyle="primary"
-                            onClick={this.openCreateInstanceModal}
+                            variant="primary"
+                            onClick={() => (this.openCreateInstanceModal())}
                         >
-                            Create New Instance
+                            {_("Create New Instance")}
                         </Button>
                     </p>
                 </div>
@@ -505,190 +735,161 @@ export class DSInstance extends React.Component {
 
         let operateSpinner = "";
         if (loadingOperate) {
-            operateSpinner = <Spinner className="ds-operate-spinner" loading inline size="md" />;
+            operateSpinner = <Spinner className="ds-operate-spinner" size="md" />;
+        }
+
+        let serverDropdown = "";
+
+        if (pageLoadingState.state !== "loading" &&
+            pageLoadingState.state !== "noInsts" &&
+            pageLoadingState.state !== "noPackage") {
+            serverDropdown = (
+                <Grid className="ds-logo" hidden={pageLoadingState.state === "loading"}>
+                    <GridItem span={10}>
+                        <TextContent className="ds-logo-style" title={this.state.version}>
+                            <Text id="main-banner" component={TextVariants.h1}>
+                                <div className="ds-server-action">
+                                    <FormSelect
+                                        title={_("Directory Server instance list")}
+                                        value={serverId}
+                                        id="serverId"
+                                        onChange={this.handleServerIdChange}
+                                        aria-label="FormSelect Input"
+                                        className="ds-instance-select"
+                                    >
+                                        {instList.map((option, index) => (
+                                            <FormSelectOption
+                                                isDisabled={option.disabled}
+                                                key={index}
+                                                value={option.value.replace("slapd-", "")}
+                                                label={option.label}
+                                            />
+                                        ))}
+                                    </FormSelect>
+                                </div>
+                                {operateSpinner}
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Dropdown
+                            id="ds-action"
+                            className="ds-float-right ds-margin-top ds-margin-right"
+                            position={DropdownPosition.right}
+                            onSelect={this.handleDropdown}
+                            toggle={
+                                <DropdownToggle
+                                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
+                                    toggleIndicator={CaretDownIcon}
+                                    variant="primary"
+                                    id="ds-dropdown"
+                                >
+                                    {_("Actions")}
+                                </DropdownToggle>
+                            }
+                            isOpen={dropdownIsOpen}
+                            dropdownItems={dropdownItems}
+                        />
+                    </GridItem>
+                </Grid>
+            );
+        }
+
+        let mainPage = <div>{mainContent}</div>;
+        if (serverId !== "" && (pageLoadingState.state === "success" || pageLoadingState.state === "loading")) {
+            mainPage = (
+                <div className="ds-margin-top">
+                    <div hidden={pageLoadingState.state === "loading" || pageLoadingState.state === "notRunning"}>
+                        <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={1} title={<TabTitleText><b>{_("Server")}</b></TabTitleText>}>
+                                <Server
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    version={this.state.version}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={2} title={<TabTitleText><b>{_("Database")}</b></TabTitleText>}>
+                                <Database
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={3} title={<TabTitleText><b>{_("Replication")}</b></TabTitleText>}>
+                                <Replication
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={4} title={<TabTitleText><b>{_("Schema")}</b></TabTitleText>}>
+                                <Schema
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={5} title={<TabTitleText><b>{_("Plugins")}</b></TabTitleText>}>
+                                <Plugins
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={6} title={<TabTitleText><b>{_("Monitoring")}</b></TabTitleText>}>
+                                <Monitor
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={7} title={<TabTitleText><b>{_("LDAP Browser")}</b></TabTitleText>}>
+                                <LDAPEditor
+                                    key="ldap-editor"
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    setPageSectionVariant={this.setPageSectionVariant}
+                                />
+                            </Tab>
+                        </Tabs>
+                    </div>
+                    <div hidden={pageLoadingState.state !== "loading"}>{mainContent}</div>
+                </div>
+            );
         }
 
         return (
-            <div>
-                <NotificationController
-                    notifications={notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
-                {pageLoadingState.state !== "loading" &&
-                pageLoadingState.state !== "noInsts" &&
-                pageLoadingState.state !== "noPackage" ? (
-                    <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
-                        <h2 className="ds-logo-style" id="main-banner" title={this.state.version}>
-                            <div className="dropdown ds-server-action">
-                                <select
-                                    className="btn btn-default dropdown"
-                                    title="Directory Server Instance List"
-                                    id="serverId"
-                                    value={serverId}
-                                    onChange={this.handleServerIdChange}
-                                >
-                                    {Object.entries(instList).map(([_, inst]) => (
-                                        <option key={inst} value={inst.replace("slapd-", "")}>
-                                            {inst}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            {operateSpinner}
-                            <div className="dropdown ds-float-right">
-                                <DropdownButton
-                                    pullRight
-                                    id="ds-action"
-                                    className="ds-action-button"
-                                    bsStyle="primary"
-                                    title="Actions"
-                                >
-                                    <MenuItem
-                                        id="start-ds"
-                                        eventKey="1"
-                                        onClick={this.operateInstance}
-                                    >
-                                        Start Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="stop-ds"
-                                        eventKey="2"
-                                        onClick={this.operateInstance}
-                                    >
-                                        Stop Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="restart-ds"
-                                        eventKey="3"
-                                        onClick={this.operateInstance}
-                                    >
-                                        Restart Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="manage-backup-ds"
-                                        eventKey="4"
-                                        onClick={this.openManageBackupsModal}
-                                    >
-                                        Manage Backups
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="reload-schema-ds"
-                                        eventKey="5"
-                                        onClick={this.openSchemaReloadModal}
-                                    >
-                                        Reload Schema Files
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="remove-ds"
-                                        eventKey="6"
-                                        onClick={this.showDeleteConfirm}
-                                    >
-                                        Remove Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="create-ds"
-                                        eventKey="7"
-                                        onClick={this.openCreateInstanceModal}
-                                    >
-                                        Create Instance
-                                    </MenuItem>
-                                </DropdownButton>
-                            </div>
-                        </h2>
-                    </div>
-                ) : (
-                    <div />
-                )}
-                {serverId !== "" &&
-                (pageLoadingState.state === "success" || pageLoadingState.state === "loading") ? (
-                    <div className="ds-margin-top-xlg">
-                        <div hidden={pageLoadingState.state === "loading"}>
-                            <TabContainer
-                                id="basic-tabs-pf"
-                                onSelect={this.handleNavSelect}
-                                activeKey={this.state.activeKey}
-                            >
-                                <div>
-                                    <Nav className="nav nav-tabs nav-tabs-pf collapse navbar-collapse navbar-collapse-5 ds-nav navbar navbar-default">
-                                        <NavItem className="ds-tab-main" eventKey={1}>
-                                            Server Settings
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={2}>
-                                            Database
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={3}>
-                                            Replication
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={4}>
-                                            Schema
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={5}>
-                                            Plugins
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={6}>
-                                            Monitoring
-                                        </NavItem>
-                                    </Nav>
-                                    <TabContent>
-                                        <TabPane eventKey={1}>
-                                            <Server
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                version={this.state.version}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={2}>
-                                            <Database
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={3}>
-                                            <Replication
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={4}>
-                                            <Schema
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={5}>
-                                            <Plugins
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={6}>
-                                            <Monitor
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                    </TabContent>
-                                </div>
-                            </TabContainer>
-                        </div>
-                        <div hidden={pageLoadingState.state !== "loading"}>{mainContent}</div>
-                    </div>
-                ) : (
-                    <div>{mainContent}</div>
-                )}
+            <div className={loadingOperate ? "ds-disabled" : ""}>
+                <AlertGroup isToast>
+                    {notifications.map(({ key, variant, title }) => (
+                        <Alert
+                            isLiveRegion
+                            variant={AlertVariant[variant]}
+                            title={title}
+                            actionClose={
+                                <AlertActionCloseButton
+                                    title={title}
+                                    variantLabel={`${variant} alert`}
+                                    onClose={() => this.removeNotification(key)}
+                                />
+                            }
+                            timeout
+                            key={key}
+                        />
+                    ))}
+                </AlertGroup>
+                {serverDropdown}
+                {mainPage}
                 <CreateInstanceModal
+                    key={this.state.createKey}
                     showModal={this.state.showCreateInstanceModal}
                     closeHandler={this.closeCreateInstanceModal}
                     addNotification={this.addNotification}
@@ -706,22 +907,22 @@ export class DSInstance extends React.Component {
                     serverId={this.state.serverId}
                     showModal={this.state.showManageBackupsModal}
                     closeHandler={this.closeManageBackupsModal}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.onFieldChange}
                     backups={this.state.backupRows}
                     reload={this.loadBackups}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.onFieldChange}
                     actionHandler={this.removeInstance}
                     spinning={this.state.modalSpinning}
                     item={this.state.serverId}
                     checked={this.state.modalChecked}
-                    mTitle="Remove Instance"
-                    mMsg="Are you really sure you want to delete this instance?"
-                    mSpinningMsg="Removing Instance..."
-                    mBtnName="Remove Instance"
+                    mTitle={_("Remove Instance")}
+                    mMsg={_("Are you really sure you want to delete this instance?")}
+                    mSpinningMsg={_("Removing Instance...")}
+                    mBtnName={_("Remove Instance")}
                 />
             </div>
         );

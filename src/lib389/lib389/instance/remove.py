@@ -10,7 +10,15 @@ import os
 import shutil
 import subprocess
 from lib389.nss_ssl import NssSsl
-from lib389.utils import selinux_label_port, assert_c, ensure_str, ensure_list_str
+from lib389.utils import (
+    assert_c,
+    ensure_list_str,
+    ensure_str,
+    selinux_clean_files_label,
+    selinux_clean_ports_label,
+    selinux_label_file,
+    selinux_label_port,
+)
 
 
 ######################## WARNING #############################
@@ -52,9 +60,9 @@ def remove_ds_instance(dirsrv, force=False):
     remove_paths['ldif_dir'] = dirsrv.ds_paths.ldif_dir
     remove_paths['lock_dir'] = dirsrv.ds_paths.lock_dir
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir
-    # remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
     remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
     remove_paths['etc_sysconfig'] = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
+    remove_paths['ldapi'] = dirsrv.ds_paths.ldapi
 
     tmpfiles_d_path = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
 
@@ -73,15 +81,11 @@ def remove_ds_instance(dirsrv, force=False):
 
     # Stop the instance (if running) and now we know it really does exist
     # and hopefully have permission to access it ...
-    _log.debug("Stopping instance %s" % dirsrv.serverid)
-    dirsrv.stop()
+    if dirsrv.status():
+        _log.debug("Stopping instance %s" % dirsrv.serverid)
+        dirsrv.stop()
 
     _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
-
-    # Stop the instance (if running) and now we know it really does exist
-    # and hopefully have permission to access it ...
-    _log.debug("Stopping instance %s" % dirsrv.serverid)
-    dirsrv.stop()
 
     ### ANY NEW REMOVAL ACTION MUST BE BELOW THIS LINE!!!
 
@@ -94,6 +98,12 @@ def remove_ds_instance(dirsrv, force=False):
 
     # Remove parent (/var/lib/dirsrv/slapd-INST)
     shutil.rmtree(remove_paths['db_dir'].replace('db', ''), ignore_errors=True)
+
+    # Remove /run/slapd-isntance
+    try:
+        os.remove(f'/run/slapd-{dirsrv.serverid}.socket')
+    except OSError as e:
+        _log.debug("Failed to remove socket file: " + str(e))
 
     # We can not assume we have systemd ...
     if dirsrv.ds_paths.with_systemd:
@@ -113,7 +123,7 @@ def remove_ds_instance(dirsrv, force=False):
         except OSError as e:
             _log.debug("Failed to remove tmpfile: " + str(e))
 
-    # Nor can we assume we have selinux. Try docker sometime ;)
+    # Nor can we assume we have SELinux.
     if dirsrv.ds_paths.with_selinux:
         # Remove selinux port label
         _log.debug("Removing the port labels")
@@ -124,10 +134,17 @@ def remove_ds_instance(dirsrv, force=False):
             selinux_label_port(dirsrv.sslport, remove_label=True)
 
     # If this was the last instance, remove the ssca instance
+    # and all ds related SELinux customizations
     insts = dirsrv.list(all=True)
     if len(insts) == 0:
         ssca = NssSsl(dbpath=dirsrv.get_ssca_dir())
         ssca.remove_db()
+        selinux_clean_ports_label()
+        if dirsrv.ds_paths.prefix != '/usr':
+            selinux_clean_files_label(all=True)
+    else:
+        if dirsrv.ds_paths.prefix != '/usr':
+            selinux_clean_files_label()
 
     ### ANY NEW REMOVAL ACTIONS MUST BE ABOVE THIS LINE!!!
 
@@ -143,6 +160,7 @@ def remove_ds_instance(dirsrv, force=False):
         shutil.rmtree(config_dir_rm)
 
     assert_c(not os.path.exists(config_dir_rm))
+    selinux_label_file(config_dir_rm, None)
 
     # That's it, everything before this MUST have suceeded, so now we can move the
     # config dir (containing dse.ldif, the marker) out of the way.

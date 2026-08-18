@@ -9,20 +9,25 @@
 """
 
 import ldap
+import logging
 import os
 import pytest
 
-from lib389._constants import DEFAULT_SUFFIX, PW_DM
+from lib389._constants import DEFAULT_SUFFIX, PW_DM, DN_DM, ReplicaRole
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389._mapped_object import DSLdapObject
 from lib389.idm.account import Accounts, Anonymous
 from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits
 from lib389.idm.group import Group, Groups
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo, create_topology
 from lib389.idm.domain import Domain
 from lib389.plugins import ACLPlugin
+from lib389.tasks import ImportTask
 
 pytestmark = pytest.mark.tier1
+
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
 
 PEOPLE = "ou=PEOPLE,{}".format(DEFAULT_SUFFIX)
 DYNGROUP = "cn=DYNGROUP,{}".format(PEOPLE)
@@ -124,7 +129,6 @@ def test_accept_aci_in_addition_to_acl(topo, clean, aci_of_user):
         i.delete()
 
 
-@pytest.mark.bz334451
 def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
     """bug 334451 : more then 40 acl will crash slapd
     superseded by Bug 772778 - acl cache overflown problem with > 200 acis
@@ -156,7 +160,6 @@ def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
     for i in uas.list():
         i.delete()
 
-@pytest.mark.bz345643
 def test_search_access_should_not_include_read_access(topo, clean, aci_of_user):
     """bug 345643
     Misc Test 4 search access should not include read access
@@ -285,7 +288,6 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user, request):
         i.delete()
 
 
-@pytest.mark.bz326000
 def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
     """Non-regression test for BUG 326000: MemberURL needs to be normalized
 
@@ -331,7 +333,6 @@ def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
     for i in uas.list():
         i.delete()
 
-@pytest.mark.bz624370
 def test_greater_than_200_acls_can_be_created(topo, clean, aci_of_user):
     """Misc 10, check that greater than 200 ACLs can be created. Bug 624370
 
@@ -363,7 +364,6 @@ def test_greater_than_200_acls_can_be_created(topo, clean, aci_of_user):
         i.delete()
 
 
-@pytest.mark.bz624453
 def test_server_bahaves_properly_with_very_long_attribute_names(topo, clean, aci_of_user):
     """Make sure the server bahaves properly with very long attribute names. Bug 624453.
 
@@ -408,14 +408,163 @@ def test_do_bind_as_201_distinct_users(topo, clean, aci_of_user):
         user = uas.create_test_user(uid=i, gid=i)
         user.set('userPassword', PW_DM)
 
-    for i in range(len(uas.list())):
-        uas.list()[i].bind(PW_DM)
+    users = uas.list()
+    for user in users:
+        user.bind(PW_DM)
 
     ACLPlugin(topo.standalone).replace("nsslapd-aclpb-max-selected-acls", '220')
     topo.standalone.restart()
 
-    for i in range(len(uas.list())):
-        uas.list()[i].bind(PW_DM)
+    users = uas.list()
+    for user in users:
+        user.bind(PW_DM)
+
+
+def test_info_disclosure(request, topo):
+    """Test that a search returns 32 when base entry does not exist
+
+    :id: f6dec4c2-65a3-41e4-a4c0-146196863333
+    :setup: Standalone Instance
+    :steps:
+        1. Add aci
+        2. Add test user
+        3. Bind as user and search for non-existent entry
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Error 32 is returned
+    """
+
+    ACI_TARGET = "(targetattr = \"*\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Read/Search permission for all users\"; allow (read,search)"
+    ACI_SUBJECT = "(userdn=\"ldap:///all\");)"
+    ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+
+    # Get current ACi's so we can restore them when we are done
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    preserved_acis = suffix.get_attr_vals_utf8('aci')
+
+    def finofaci():
+        domain = Domain(topo.standalone, DEFAULT_SUFFIX)
+        try:
+            domain.remove_all('aci')
+            domain.replace_values('aci', preserved_acis)
+        except:
+            pass
+    request.addfinalizer(finofaci)
+
+    # Remove aci's
+    suffix.remove_all('aci')
+
+    # Add test user
+    USER_DN = "uid=test,ou=people," + DEFAULT_SUFFIX
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    users.create(properties={
+        'uid': 'test',
+        'cn': 'test',
+        'sn': 'test',
+        'uidNumber': '1000',
+        'gidNumber': '2000',
+        'homeDirectory': '/home/test',
+        'userPassword': PW_DM
+    })
+
+    # bind as user
+    conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+
+    # Search fo existing base DN
+    test = Domain(conn, DEFAULT_SUFFIX)
+    assert len(test.get_attr_vals_utf8_l('dc')) == 0
+
+    # Search for a non existent bases
+    subtree = Domain(conn, "ou=does_not_exist," + DEFAULT_SUFFIX)
+    assert len(subtree.get_attr_vals_utf8_l('objectclass')) == 0
+
+    subtree = Domain(conn, "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX)
+    assert len(subtree.get_attr_vals_utf8_l('objectclass')) == 0
+
+    # Try ONE level search instead of BASE
+    assert len(Accounts(conn, "ou=does_not_exist," + DEFAULT_SUFFIX).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL)) == 0
+
+    # add aci
+    suffix.add('aci', ACI)
+
+    # Search for a non existent entry which should raise an exception
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+        subtree = Domain(conn, "ou=does_not_exist," + DEFAULT_SUFFIX)
+        subtree.get_attr_vals_utf8_l('objectclass')
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+        subtree = Domain(conn, "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX)
+        subtree.get_attr_vals_utf8_l('objectclass')
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+        DN = "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX
+        Accounts(conn, DN).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL, strict=True)
+
+
+@pytest.fixture(scope="function")
+def topo_fn(request):
+    """Function-scoped standalone instance that is removed after each test"""
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
+
+    def fin():
+        if topology.standalone.exists():
+            topology.standalone.delete()
+    request.addfinalizer(fin)
+
+    return topology
+
+
+def test_delete_aci_with_invalid_syntax(topo_fn, request):
+    """Verify that an ACI with invalid syntax can be deleted after being imported
+
+    :id: 7f3e8a9b-4c2d-4e5f-9a1b-2c3d4e5f6a7b
+    :setup: Standalone Instance
+    :steps:
+        1. Import an LDIF containing an ACI with invalid syntax
+        2. Attempt to delete the invalid ACI
+    :expectedresults:
+        1. Import should succeed
+        2. Delete operation should succeed without error
+    """
+    inst = topo_fn.standalone
+
+    invalid_aci = ('(targetattr ="fffff")(version 3.0;acl "Directory Administrators Group";'
+                   'allow (all) (groupdn = "ldap:///cn=Directory Administrators, dc=example,dc=com");)')
+    valid_aci = ('(targetattr!="userPassword")(version 3.0; acl "Enable anonymous access"; '
+                 'allow (read, search, compare) userdn="ldap:///anyone";)')
+
+    log.info("Create LDIF file with invalid ACI")
+    ldif_file = f'{inst.get_ldif_dir()}/invalid_aci_test.ldif'
+    with open(ldif_file, 'w') as f:
+        f.write(f"dn: {DEFAULT_SUFFIX}\n")
+        f.write("objectClass: top\n")
+        f.write("objectClass: domain\n")
+        f.write("dc: example\n")
+        f.write(f"aci: {valid_aci}\n")
+        f.write(f"aci: {invalid_aci}\n")
+    os.chmod(ldif_file, 0o777)
+
+    def fin():
+        if os.path.exists(ldif_file):
+            os.remove(ldif_file)
+    request.addfinalizer(fin)
+
+    log.info("Import LDIF with invalid ACI")
+    import_task = ImportTask(inst)
+    import_task.import_suffix_from_ldif(ldiffile=ldif_file, suffix=DEFAULT_SUFFIX)
+    import_task.wait()
+    assert import_task.get_exit_code() == 0, f"Import failed with exit code: {import_task.get_exit_code()}"
+
+    log.info("Delete the invalid ACI")
+    suffix = Domain(inst, DEFAULT_SUFFIX)
+    suffix.remove('aci', invalid_aci)
+
+    log.info("Verify the invalid ACI was removed")
+    assert invalid_aci not in suffix.get_attr_vals_utf8('aci')
+
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

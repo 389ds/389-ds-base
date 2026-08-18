@@ -58,7 +58,7 @@ void connection_post_shutdown_cleanup(void);
  */
 void connection_abandon_operations(Connection *conn);
 int connection_activity(Connection *conn, int maxthreads);
-void init_op_threads(void);
+void init_op_threads(int32_t threadnumber);
 int connection_new_private(Connection *conn);
 void connection_remove_operation(Connection *conn, Operation *op);
 void connection_remove_operation_ext(Slapi_PBlock *pb, Connection *conn, Operation *op);
@@ -80,24 +80,28 @@ int connection_call_io_layer_callbacks(Connection *c);
 struct connection_table
 {
     int size;
+    int list_size;   /* Size of each connection table list. */
+    int list_num;    /* Number of connection table lists. */
+    int *num_active; /* list_num size buffer to track the number of connections on each connection table list. */
     /* An array of connections, file descriptors, and a mapping between them. */
-    Connection *c;
+    Connection **c;
     /* An array of free connections awaiting allocation. */;
     Connection **c_freelist;
     size_t conn_next_offset;
-    size_t conn_free_offset;
-    struct POLL_STRUCT *fd;
-    int n_tcps; /* standard socket start index in fd */
-    int n_tcpe; /* standard socket last ( +1 ) index in fd */
-    int s_tcps; /* ssl socket start index in fd */
-    int s_tcpe; /* ssl socket last ( +1 ) in fd */
-#if defined(ENABLE_LDAPI)
-    int i_unixs; /* unix socket start index in fd */
-    int i_unixe; /* unix socket last ( +1 ) in fd */
-#endif           /* ENABLE_LDAPI */
+    struct POLL_STRUCT **fd;
+#ifdef ENABLE_EPOLL
+    int *epoll_fd;  /* epoll file descriptor for each connection table list */
+#endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
+
+typedef struct signal_pipe
+{
+    PRFileDesc *signalpipe[2];
+    int readsignalpipe;
+    int writesignalpipe;
+} signal_pipe;
 
 extern Connection_Table *the_connection_table; /* JCM - Exported from globals.c for daemon.c, monitor.c, puke, gag, etc */
 
@@ -110,15 +114,16 @@ int connection_table_move_connection_out_of_active_list(Connection_Table *ct, Co
 void connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connection *c);
 void connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e);
 void connection_table_dump_activity_to_errors_log(Connection_Table *ct);
-Connection *connection_table_get_first_active_connection(Connection_Table *ct);
+Connection *connection_table_get_first_active_connection(Connection_Table *ct, size_t listnum);
 Connection *connection_table_get_next_active_connection(Connection_Table *ct, Connection *c);
 typedef int (*Connection_Table_Iterate_Function)(Connection *c, void *arg);
 int connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Connection_Table_Iterate_Function f);
+int connection_table_get_list(Connection_Table *ct);
 
 /*
  * daemon.c
  */
-int signal_listner(void);
+int signal_listner(int listnum);
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_sockets_ports_free(daemon_ports_t *ports_info);
 void slapd_daemon(daemon_ports_t *ports);
@@ -127,7 +132,6 @@ int slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr);
 int daemon_register_reslimits(void);
 PRFileDesc *get_ssl_listener_fd(void);
 int configure_pr_socket(PRFileDesc **pr_socket, int secure, int local);
-void configure_ns_socket(int *ns);
 
 /*
  * sasl_io.c
@@ -164,5 +168,13 @@ int sasl_map_init(void);
 int sasl_map_done(void);
 void sasl_map_read_lock(void);
 void sasl_map_read_unlock(void);
+
+/*
+ * operation.c
+ */
+void fgot_set(struct op *op, fgot_id_t fgot_id, struct timespec *t);
+void fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2);
+void fgot_start(struct op *op, fgot_id_t fgot_id);
+void fgot_end(struct op *op, fgot_id_t fgot_id);
 
 #endif

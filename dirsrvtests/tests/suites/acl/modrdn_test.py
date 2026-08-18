@@ -12,7 +12,7 @@ from lib389.idm.user import UserAccount
 from lib389.idm.account import Anonymous
 from lib389.idm.group import Group, UniqueGroup
 from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 
 pytestmark = pytest.mark.tier1
@@ -200,7 +200,6 @@ def test_write_access_to_naming_atributes_two(topo, _add_user, aci_of_user, requ
     UserAccount(topo.standalone, SAM_DAMMY_MODRDN).delete()
 
 
-@pytest.mark.bz950351
 def test_access_aci_list_contains_any_deny_rule(topo, _add_user, aci_of_user):
     """RHDS denies MODRDN access if ACI list contains any DENY rule
     Bug description: If you create a deny ACI for some or more attributes there is incorrect behaviour

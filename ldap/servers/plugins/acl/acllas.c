@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -258,8 +258,9 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
     rv = ACL_GetAttribute(errp, DS_PROP_ACLPB, (void **)&aclpb, subject, resource, auth_info, global_auth);
     if (rv != LAS_EVAL_TRUE || (NULL == aclpb)) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-                      "DS_LASIpGetter:Unable to get the ACLPB(%d)\n", rv);
+                      "DS_LASIpGetter: Unable to get the ACLPB(%d)\n", rv);
         return LAS_EVAL_FAIL;
     }
 
@@ -334,6 +335,7 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
                           subject, resource, auth_info, global_auth);
     if (rv != LAS_EVAL_TRUE || (NULL == aclpb)) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "DS_LASDnsGetter - Unable to get the ACLPB(%d)\n", rv);
         return LAS_EVAL_FAIL;
@@ -362,7 +364,6 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
         char buf[PR_NETDB_BUF_SIZE];
 
         if (slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR, &client_praddr) != 0) {
-
             slapi_log_err(SLAPI_LOG_ERR, plugin_name, "DS_LASDnsGetter - Could not get client IP.\n");
             return (LAS_EVAL_FAIL);
         }
@@ -377,12 +378,41 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
                 (*dnsList)->bv_len = strlen((*dnsList)->bv_val);
                 slapi_pblock_set(aclpb->aclpb_pblock, SLAPI_CLIENT_DNS, &dnsList);
             }
+        } else {
+            char *errtext = NULL;
+            PRInt32 errlen;
+            char ip_str[1024] = {0};
+            PR_NetAddrToString(&client_praddr, ip_str, 1024);
+            errlen = PR_GetErrorTextLength();
+            if (errlen > 0) {
+                errtext = slapi_ch_malloc(errlen + 1);
+                if (PR_GetErrorText(errtext) > 0) {
+                    slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - "
+                                  "Failed to resolve IP address (%s) error %d: %s\n",
+                                  ip_str, PR_GetError(), errtext);
+                }
+                slapi_ch_free_string(&errtext);
+            } else {
+                slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - "
+                              "Failed to resolve IP address (%s) error %d\n",
+                              ip_str, PR_GetError());
+            }
         }
         slapi_ch_free((void **)&hp);
     }
 
-    if (NULL == dnsName)
+    if (NULL == dnsName) {
+        char ip_str[1024] = {0};
+        PR_NetAddrToString(&client_praddr, ip_str, 1024);
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                "DS_LASDnsGetter - Could not get host name from client IP (%s).\n", ip_str);
         return LAS_EVAL_FAIL;
+    } else {
+        char ip_str[1024] = {0};
+        PR_NetAddrToString(&client_praddr, ip_str, 1024);
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                "DS_LASDnsGetter - Got host name (%s) from client IP (%s).\n", dnsName, ip_str);
+    }
 
     rv = PListInitProp(subject, 0, ACL_ATTR_DNS, dnsName, NULL);
     if (rv < 0) {
@@ -393,6 +423,7 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
     slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - DNS name: %s\n", dnsName);
     return LAS_EVAL_TRUE;
 }
+
 /***************************************************************************/
 /* New LASes                                   */
 /*                                        */
@@ -1239,12 +1270,6 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *a
         numOflevels = 1;
     }
 
-    /* No attribute name specified--it's a syntax error and so undefined */
-    if (attrName == NULL) {
-        slapi_ch_free((void **)&s_attrName);
-        return LAS_EVAL_FAIL;
-    }
-
     slapi_log_err(SLAPI_LOG_ACL, plugin_name, "Attr:%s\n", attrName);
     matched = ACL_FALSE;
     for (i = 0; i < numOflevels; i++) {
@@ -1445,6 +1470,12 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
     ** determine the result.
     **
     */
+
+    /* No attribute name specified--it's a syntax error and so undefined */
+    if (attr_pattern == NULL) {
+        return LAS_EVAL_FAIL;
+    }
+
     s_attrName = attrName = slapi_ch_strdup(attr_pattern);
 
     /* ignore leading/trailing whitespace */
@@ -1504,26 +1535,20 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
         numOflevels = 1;
     }
 
-    /* No attribute name specified--it's a syntax error and so undefined */
-    if (attrName == NULL) {
-        slapi_ch_free((void **)&s_attrName);
-        return LAS_EVAL_FAIL;
-    }
-
     slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASLdapUrlAttrEval - Attr:%s\n", attrName);
     matched = ACL_FALSE;
     for (i = 0; i < numOflevels; i++) {
         if (levels[i] == 0) { /* parent[0] or the target itself */
             Slapi_Value *sval = NULL;
             const struct berval *attrVal;
-            Slapi_Attr *attrs;
-            int i;
+            Slapi_Attr *target_attrs;
+            int ii = 0;
 
             /* Get the attr from the resouce entry */
             if (0 == slapi_entry_attr_find(lasinfo.resourceEntry,
-                                           attrName, &attrs)) {
-                i = slapi_attr_first_value(attrs, &sval);
-                if (i == -1) {
+                                           attrName, &target_attrs)) {
+                ii = slapi_attr_first_value(target_attrs, &sval);
+                if (ii == -1) {
                     /* Attr val not there
                      * so it's value cannot equal other one */
                     matched = ACL_FALSE;
@@ -1541,7 +1566,7 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
                                                    lasinfo.clientDn,
                                                    attrVal->bv_val);
                 if (matched != ACL_TRUE)
-                    i = slapi_attr_next_value(attrs, i, &sval);
+                    ii = slapi_attr_next_value(target_attrs, ii, &sval);
                 if (matched == ACL_DONT_KNOW) {
                     got_undefined = 1;
                 }
@@ -1867,16 +1892,16 @@ struct eval_info
 
 #ifdef FOR_DEBUGGING
 static void
-dump_member_info(struct eval_info *info, struct member_info *minfo, char *buf)
+dump_member_info(struct eval_info *info, struct member_info *minfo, char *buf, size_t buflen)
 {
     if (minfo) {
         if (minfo->parentId >= 0) {
             dump_member_info(info, minfo->parentId, buf);
         } else {
-            strcat(buf, "<nil>");
+            strlcat(buf, "<nil>", buflen);
         }
-        strcat(buf, "->");
-        strcat(buf, minfo->member);
+        strlcat(buf, "->", buflen);
+        strlcat(buf, minfo->member, buflen);
     }
 }
 
@@ -1900,7 +1925,7 @@ dump_eval_info(char *caller, struct eval_info *info, int idx)
             for (i = 0; i <= info->lu_idx; i++) {
                 len = strlen(buf);
                 sprintf(&buf[len], "\n  [%d]: ", i);
-                dump_member_info(info, info->memberInfo[i], buf);
+                dump_member_info(info, info->memberInfo[i], buf, sizeof buf);
             }
         slapi_log_err(SLAPI_LOG_DEBUG, plugin_name, "\n======== candidate member info in eval_info ========%s\n\n", buf);
     } else {
@@ -1920,7 +1945,7 @@ dump_eval_info(char *caller, struct eval_info *info, int idx)
             sprintf(&(buf[len]), "%d\n", info->result);
             break;
         }
-        dump_member_info(info, info->memberInfo[idx], buf);
+        dump_member_info(info, info->memberInfo[idx], buf, sizeof buf);
     }
 }
 #endif
@@ -1956,7 +1981,7 @@ acllas__user_ismember_of_group(struct acl_pblock *aclpb,
 
     char *attrs[5];
     char *currDN;
-    int i, j;
+    int i;
     int result = ACL_FALSE;
     struct eval_info info = {0};
     int nesting_level;
@@ -2147,7 +2172,6 @@ eval_another_member:
         */
         while (1) {
             int evalNext = 0;
-            int j;
             if (info.c_idx > info.lu_idx) {
                 /* That means we have crossed the limit. We
                 ** may end of in this situation if we
@@ -2162,7 +2186,7 @@ eval_another_member:
             if ((NULL == groupMember) || ((currDN = groupMember->member) != NULL))
                 break;
 
-            for (j = 0; j < info.c_idx; j++) {
+            for (size_t j = 0; j < info.c_idx; j++) {
                 groupMember = info.memberInfo[j];
                 if (groupMember->member &&
                     (slapi_utf8casecmp((ACLUCHP)currDN, (ACLUCHP)groupMember->member) == 0)) {
@@ -2225,7 +2249,7 @@ free_and_return:
             int already_cached = 0;
 
             parentGroup = (groupMember->parentId < 0) ? NULL : info.memberInfo[groupMember->parentId];
-            for (j = 0; j < u_group->aclug_numof_member_group; j++) {
+            for (size_t j = 0; j < u_group->aclug_numof_member_group; j++) {
                 if (slapi_utf8casecmp((ACLUCHP)groupMember->member,
                                       (ACLUCHP)u_group->aclug_member_groups[j]) == 0) {
                     already_cached = 1;
@@ -2270,7 +2294,7 @@ free_and_return:
             int already_cached = 0;
 
             parentGroup = (groupMember->parentId < 0) ? NULL : info.memberInfo[groupMember->parentId];
-            for (j = 0; j < u_group->aclug_numof_notmember_group; j++) {
+            for (size_t j = 0; j < u_group->aclug_numof_notmember_group; j++) {
                 if (slapi_utf8casecmp((ACLUCHP)groupMember->member,
                                       (ACLUCHP)u_group->aclug_notmember_groups[j]) == 0) {
                     already_cached = 1;
@@ -3329,7 +3353,6 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *att
     int matched = ACL_FALSE;
     char *p;
     lasInfo lasinfo;
-    int got_undefined = 0;
 
     if (0 != (rc = __acllas_setup(errp, attr_name, comparator, 0, /* Don't allow range comparators */
                                   attr_pattern, cachable, LAS_cookie,
@@ -3435,11 +3458,11 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *att
      * and got_undefined says whether a logical term evaluated to ACL_DONT_KNOW.
      *
      */
-    if (matched == ACL_TRUE || !got_undefined) {
+    if (matched == ACL_TRUE) {
         if (comparator == CMP_OP_EQ) {
-            rc = (matched == ACL_TRUE ? LAS_EVAL_TRUE : LAS_EVAL_FALSE);
+            rc = LAS_EVAL_TRUE;
         } else {
-            rc = (matched == ACL_TRUE ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+            rc = LAS_EVAL_FALSE;
         }
     } else {
         rc = LAS_EVAL_FAIL;
@@ -3722,6 +3745,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
 
     if (rc != LAS_EVAL_TRUE) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the clientdn attribute(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3741,6 +3765,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
     if ((rc = PListFindValue(subject, DS_ATTR_ENTRY,
                              (void **)&linfo->resourceEntry, NULL)) < 0) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the Slapi_Entry attr(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3751,6 +3776,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
                           subject, resource, auth_info, global_auth);
     if (rc != LAS_EVAL_TRUE) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the ACLPB(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3774,6 +3800,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
     if ((rc = PListFindValue(subject, DS_ATTR_AUTHTYPE,
                              (void **)&linfo->authType, NULL)) < 0) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the auth type(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3783,6 +3810,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
     if ((rc = PListFindValue(subject, DS_ATTR_SSF,
                              (void **)&linfo->ssf, NULL)) < 0) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the ssf(%d)\n", lasName, rc);
     }
@@ -4044,6 +4072,9 @@ aclutil_evaluate_macro(char *rule, lasInfo *lasinfo, acl_eval_types evalType)
     */
 
     candidate_list = acllas_replace_dn_macro(rule, matched_val, lasinfo);
+    if (candidate_list == NULL) {
+        return matched;
+    }
 
     sptr = candidate_list;
     while (*sptr != NULL && !matched) {
@@ -4284,6 +4315,8 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
              * list which replaces the old one.
              */
             l = acl_strstr(&str[0], ")");
+            /* coverity false positive: l + 2 will always be positive */
+            /* coverity[integer_overflow] */
             macro_str = slapi_ch_malloc(l + 2);
             strncpy(macro_str, &str[0], l + 1);
             macro_str[l + 1] = '\0';
@@ -4299,17 +4332,18 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
 
             str++; /* skip the . */
             l = acl_strstr(&str[0], ")");
-            if (l == -1){
+            if (l == -1) {
                 slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                               "acllas_replace_attr_macro - Invalid macro str \"%s\".", str);
                 slapi_ch_free_string(&macro_str);
                 charray_free(working_list);
                 return NULL;
             }
+            /* coverity false positive: l + 1 will always be positive */
+            /* coverity[integer_overflow] */
             macro_attr_name = slapi_ch_malloc(l + 1);
             strncpy(macro_attr_name, &str[0], l);
             macro_attr_name[l] = '\0';
-
 
             slapi_entry_attr_find(e, macro_attr_name, &attr);
             if (NULL == attr) {

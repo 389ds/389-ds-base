@@ -86,7 +86,7 @@ impl PblockRef {
         match unsafe { slapi_pblock_get(self.raw_pb, req_type as i32, value_ptr) } {
             0 => Ok(value),
             e => {
-                log_error!(ErrorLevel::Error, "enable to get from pblock -> {:?}", e);
+                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {:?}", e);
                 Err(())
             }
         }
@@ -98,7 +98,7 @@ impl PblockRef {
         match unsafe { slapi_pblock_get(self.raw_pb, req_type as i32, value_ptr) } {
             0 => Ok(value),
             e => {
-                log_error!(ErrorLevel::Error, "enable to get from pblock -> {:?}", e);
+                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {:?}", e);
                 Err(())
             }
         }
@@ -258,6 +258,38 @@ impl PblockRef {
         self.set_pb_char_arr_ptr(PblockType::MRNames, arr_ptr)
     }
 
+    pub fn register_pwd_storage_encrypt_fn(
+        &mut self,
+        ptr: extern "C" fn(*const c_char) -> *const c_char,
+    ) -> i32 {
+        let value_ptr: *const libc::c_void = ptr as *const libc::c_void;
+        unsafe {
+            slapi_pblock_set(
+                self.raw_pb,
+                PluginFnType::PwdStorageEncrypt as i32,
+                value_ptr,
+            )
+        }
+    }
+
+    pub fn register_pwd_storage_compare_fn(
+        &mut self,
+        ptr: extern "C" fn(*const c_char, *const c_char) -> i32,
+    ) -> i32 {
+        let value_ptr: *const libc::c_void = ptr as *const libc::c_void;
+        unsafe {
+            slapi_pblock_set(
+                self.raw_pb,
+                PluginFnType::PwdStorageCompare as i32,
+                value_ptr,
+            )
+        }
+    }
+
+    pub fn register_pwd_storage_scheme_name(&mut self, ptr: *const c_char) -> i32 {
+        self.set_pb_char_ptr(PblockType::PwdStorageSchemeName, ptr)
+    }
+
     pub fn get_op_add_entryref(&mut self) -> Result<EntryRef, ()> {
         self.get_value_ptr(PblockType::AddEntry)
             .map(|ptr| EntryRef::new(ptr))
@@ -278,5 +310,14 @@ impl PblockRef {
 
     pub fn get_op_result(&mut self) -> i32 {
         self.get_value_i32(PblockType::OpResult).unwrap_or(-1)
+    }
+
+    pub fn get_is_replicated_operation(&mut self) -> bool {
+        let i = self
+            .get_value_i32(PblockType::IsReplicationOperation)
+            .unwrap_or(0);
+        // Because rust returns the result of the last evaluation, we can
+        // just return if not equal 0.
+        i != 0
     }
 }

@@ -141,6 +141,13 @@ decode_path(char *inCipher, char **outPlain, char *path, int mech, char *algid)
     *outPlain = NULL;
     err = 1;
 
+    if (mech == DES_MECH) {
+        slapi_log_err(SLAPI_LOG_NOTICE, "decode_path",
+                "Decoding DES reversible password, DES is no longer a supported algorithm, "
+                "please use AES reversible password encryption.\n");
+
+    }
+
     if (genKey(&context, path, mech, arena, algid) == SVRCORE_Success) {
         /* it seems that there is memory leak in that function: bug 400170 */
         base = ATOB_AsciiToData(inCipher, (unsigned int *)&len);

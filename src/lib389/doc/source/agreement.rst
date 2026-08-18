@@ -5,18 +5,18 @@ Usage example
 --------------
 ::
 
-    master = topology.ms["master1"]
+    supplier = topology.ms["supplier1"]
     consumer = topology.ms["consumer1"]
     # Create
-    repl_agreement = master.agreement.create(suffix=DEFAULT_SUFFIX,
-                                             host=consumer.host,
-                                             port=consumer.port)
+    repl_agreement = supplier.agreement.create(suffix=DEFAULT_SUFFIX,
+                                               host=consumer.host,
+                                               port=consumer.port)
     # List
-    ents = master.agreement.list(suffix=DEFAULT_SUFFIX,
-                                 consumer_host=consumer.host,
-                                 consumer_port=consumer.port)
+    ents = supplier.agreement.list(suffix=DEFAULT_SUFFIX,
+                                   consumer_host=consumer.host,
+                                   consumer_port=consumer.port)
     # Delete
-    ents = master1.agreement.delete(suffix=DEFAULT_SUFFIX)
+    ents = supplier.agreement.delete(suffix=DEFAULT_SUFFIX)
 
 
 Module documentation

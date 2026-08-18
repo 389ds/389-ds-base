@@ -9,9 +9,10 @@
 import logging
 import pytest
 import time, ldap, re, os
+from lib389.config import Config
 from lib389.schema import Schema
 from lib389.utils import ensure_bytes
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 from lib389._mapped_object import DSLdapObjects
 from lib389.idm.user import UserAccounts
@@ -103,7 +104,7 @@ def test_schema_operation(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( MoZiLLaaTTRiBuTe )" +
                               " X-ORIGIN 'user defined' )')\n")
-
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -132,7 +133,7 @@ def test_schema_operation(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' "+
                               "SUP top MUST ( objectclass $ cn ) MAY ( MOZILLAATTRIBUTE ) "+
                               "X-ORIGIN 'user defined' )')\n")
-
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -195,6 +196,7 @@ def test_valid_schema(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7.8 NAME 'TestObject' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( givenName $ " +
                               "sn $ ValidAttribute ) X-ORIGIN 'user defined' )')\n")
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -245,6 +247,7 @@ def test_invalid_schema(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7 NAME 'MoZiLLaOBJeCT' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( givenName $ " +
                               "sn $ MozillaAttribute ) X-ORIGIN 'user defined' )')\n")
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -261,6 +264,7 @@ def test_invalid_schema(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.70 NAME 'MoZiLLaOBJeCT' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( givenName $ " +
                               "cn $ MoZiLLaATTRiBuTe ) X-ORIGIN 'user defined' )')\n")
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -281,6 +285,30 @@ def test_invalid_schema(topo):
         assert False
     else:
         log.info("The invalid schema is not present on the server")
+
+
+def test_schema_reload_schemamod_off(topo):
+    """Schema reload fails with error 53 when nsslapd-schemamod is off.
+
+    :id: 59684513-ccf7-42a0-8819-0ba147c0bbaf
+    :setup: Standalone instance
+    :steps:
+        1. Set nsslapd-schemamod to off under cn=config
+        2. Attempt to run a schema reload task
+        3. Restore nsslapd-schemamod to on
+    :expectedresults:
+        1. The configuration attribute is set successfully
+        2. Schema reload is rejected with LDAP_UNWILLING_TO_PERFORM (53)
+        3. Schema modification is re-enabled
+    """
+    config = Config(topo.standalone)
+    config.replace('nsslapd-schemamod', 'off')
+    try:
+        schema = Schema(topo.standalone)
+        with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+            schema.reload(schema_dir=topo.standalone.schemadir)
+    finally:
+        config.replace('nsslapd-schemamod', 'on')
 
 
 if __name__ == '__main__':

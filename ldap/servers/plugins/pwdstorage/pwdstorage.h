@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -54,6 +54,7 @@
 #define SALTED_MD5_NAME_LEN       4
 #define PBKDF2_SHA256_SCHEME_NAME "PBKDF2_SHA256"
 #define PBKDF2_SHA256_NAME_LEN    13
+#define GOST_YESCRYPT_SCHEME_NAME "GOST_YESCRYPT"
 
 
 SECStatus sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID);
@@ -79,11 +80,16 @@ char *crypt_pw_enc(const char *pwd);
 char *crypt_pw_md5_enc(const char *pwd);
 char *crypt_pw_sha256_enc(const char *pwd);
 char *crypt_pw_sha512_enc(const char *pwd);
+char *crypt_pw_yescrypt_enc(const char *pwd);
 int ns_mta_md5_pw_cmp(const char *userpwd, const char *dbpwd);
 int md5_pw_cmp(const char *userpwd, const char *dbpwd);
 char *md5_pw_enc(const char *pwd);
 int smd5_pw_cmp(const char *userpwd, const char *dbpwd);
 char *smd5_pw_enc(const char *pwd);
+int gost_yescrypt_pw_cmp(const char *userpwd, const char *dbpwd);
+char *gost_yescrypt_pw_enc(const char *pwd);
+
+#define PBKDF2_ACCEPT_MAX_ITERATIONS_DEFAULT 50000
 
 int pbkdf2_sha256_start(Slapi_PBlock *pb);
 int pbkdf2_sha256_close(Slapi_PBlock *pb);
@@ -92,8 +98,9 @@ char *pbkdf2_sha256_pw_enc(const char *pwd);
 int pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd);
 
 /* For testing pbkdf2 only */
-uint64_t pbkdf2_sha256_benchmark_iterations();
+uint64_t pbkdf2_sha256_benchmark_iterations(void);
 PRUint32 pbkdf2_sha256_calculate_iterations(uint64_t time_nsec);
+void pbkdf2_sha256_set_accept_max_iterations(uint32_t accept_max);
 
 /* Utility functions */
 PRUint32 pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen);

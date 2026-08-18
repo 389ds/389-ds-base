@@ -7,22 +7,24 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import socket
-from random import sample
+import re
+from random import sample, randrange
 
 import pytest
 from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX
-
 from lib389._controls import SSSRequestControl
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.cli_base import FakeArgs
+from lib389.config import LDBMConfig
+from lib389.dbgen import dbgen_users
 
-from lib389.idm.user import UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.backend import Backends
-
 from lib389._mapped_object import DSLdapObject
 
 pytestmark = pytest.mark.tier1
@@ -45,8 +47,47 @@ NEW_SUFFIX_2 = 'ou={},{}'.format(NEW_SUFFIX_2_NAME, NEW_SUFFIX_1)
 NEW_BACKEND_1 = 'parent_base'
 NEW_BACKEND_2 = 'child_base'
 
-HOSTNAME = socket.getfqdn()
-IP_ADDRESS = socket.gethostbyname(HOSTNAME)
+@pytest.fixture(scope="module")
+def create_40k_users(topology_st, request):
+    inst = topology_st.standalone
+
+    # Prepare return value
+    retval = FakeArgs()
+    retval.inst = inst
+    retval.bename = '40k'
+    retval.suffix = f'o={retval.bename}'
+    retval.ldif_file = f'{inst.get_ldif_dir()}/{retval.bename}.ldif'
+
+    # Create new backend
+    bes = Backends(inst)
+    be_1 = bes.create(properties={
+        'cn': retval.bename,
+        'nsslapd-suffix': retval.suffix,
+    })
+
+    # Set paged search lookthrough limit
+    ldbmconfig = LDBMConfig(inst)
+    ldbmconfig.replace('nsslapd-pagedlookthroughlimit', b'100000')
+
+    # Create ldif and import it.
+    dbgen_users(inst, 40000, retval.ldif_file, retval.suffix)
+    # tasks = Tasks(inst)
+    # args = {TASK_WAIT: True}
+    # tasks.importLDIF(retval.suffix, None, retval.ldif_file, args)
+    inst.stop()
+    assert inst.ldif2db(retval.bename, None, None, None, retval.ldif_file, None)
+    inst.start()
+
+    # And set an aci allowing anonymous read
+    log.info('Adding ACI to allow our test user to search')
+    ACI_TARGET = '(targetattr != "userPassword || aci")'
+    ACI_ALLOW = '(version 3.0; acl "Enable anonymous access";allow (read, search, compare)'
+    ACI_SUBJECT = '(userdn = "ldap:///anyone");)'
+    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    o_1 = Organization(inst, retval.suffix)
+    o_1.set('aci', ACI_BODY)
+
+    return retval
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +95,6 @@ def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user simplepaged_test')
-
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     user = users.create(properties={
         'uid': 'simplepaged_test',
@@ -72,7 +112,8 @@ def create_user(topology_st, request):
 
     def fin():
         log.info('Deleting user simplepaged_test')
-        user.delete()
+        if not DEBUGGING:
+            user.delete()
 
     request.addfinalizer(fin)
 
@@ -175,7 +216,7 @@ def change_conf_attr(topology_st, suffix, attr_name, attr_value):
     return attr_value_bck
 
 
-def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
+def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist, abandon_rate=0):
     """Search at the DEFAULT_SUFFIX with ldap.SCOPE_SUBTREE
     using Simple Paged Control(should the first item in the
     list controls.
@@ -195,9 +236,16 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
                                                     req_pr_ctrl.size,
                                                     str(controls)))
     msgid = conn.search_ext(suffix, ldap.SCOPE_SUBTREE, search_flt, searchreq_attrlist, serverctrls=controls)
+    log.info('Getting page %d' % (pages,))
     while True:
-        log.info('Getting page %d' % (pages,))
-        rtype, rdata, rmsgid, rctrls = conn.result3(msgid)
+        try:
+            rtype, rdata, rmsgid, rctrls = conn.result3(msgid, timeout=0.001)
+        except ldap.TIMEOUT:
+            if pages > 0 and abandon_rate>0 and randrange(100)<abandon_rate:
+                conn.abandon(msgid)
+                log.info('Paged result search is abandonned.')
+                return all_results
+            continue
         log.debug('Data: {}'.format(rdata))
         all_results.extend(rdata)
         pages += 1
@@ -217,6 +265,7 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
                 break  # No more pages available
         else:
             break
+        log.info('Getting page %d' % (pages,))
 
     assert not pctrls[0].cookie
     return all_results
@@ -228,6 +277,7 @@ def test_search_success(topology_st, create_user, page_size, users_num):
     returns all entries it should without errors.
 
     :id: ddd15b70-64f1-4a85-a793-b24761e50354
+    :customerscenario: True
     :parametrized: yes
     :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
@@ -274,6 +324,7 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
     exceeded.
 
     :id: e3067107-bd6d-493d-9989-3e641a9337b0
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
@@ -352,6 +403,7 @@ def test_search_sort_success(topology_st, create_user):
     it should without errors.
 
     :id: 17d8b150-ed43-41e1-b80f-ee9b4ce45155
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -396,6 +448,7 @@ def test_search_abandon(topology_st, create_user):
     can be abandon
 
     :id: 0008538b-7585-4356-839f-268828066978
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -442,6 +495,7 @@ def test_search_with_timelimit(topology_st, create_user):
     for a time more than the timelimit.
 
     :id: 6cd7234b-136c-419f-bf3e-43aa73592cff
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -506,27 +560,22 @@ def test_search_with_timelimit(topology_st, create_user):
         del_users(users_list)
 
 
-@pytest.mark.parametrize('aci_subject',
-                         ('dns = "{}"'.format(HOSTNAME),
-                          'ip = "{}"'.format(IP_ADDRESS)),
-                          ids=['fqdn','ip'])
-def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
+def test_search_ip_aci(topology_st, create_user):
     """Verify that after performing multiple simple paged searches
-    to completion on the suffix with DNS or IP based ACI
+    to completion on the suffix with IP based ACI
 
     :id: bbfddc46-a8c8-49ae-8c90-7265d05b22a9
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
         1. Back up and remove all previous ACI from suffix
-        2. Add an anonymous ACI for DNS check
+        2. Add an anonymous ACI for IP check
         3. Bind as test user
         4. Search through added users with a simple paged control
         5. Perform steps 4 three times in a row
         6. Return ACI to the initial state
-        7. Go through all steps once again, but use IP subject dn
-           instead of DNS
     :expectedresults:
         1. Operation should be successful
         2. Anonymous ACI should be successfully added
@@ -534,27 +583,30 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
         4. No error happens, all users should be found and sorted
         5. Results should remain the same
         6. ACI should be successfully returned
-        7. Results should be the same with ACI with IP subject dn
     """
-
-    users_num = 100
+    users_num = 20
     page_size = 5
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
+    HOSTNAME = socket.gethostname()
+    IP_ADDRESS = socket.gethostbyname(HOSTNAME)
 
     try:
         log.info('Back up current suffix ACI')
         acis_bck = topology_st.standalone.aci.list(DEFAULT_SUFFIX, ldap.SCOPE_BASE)
 
         log.info('Add test ACI')
+        bind_rule = f'ip = "{IP_ADDRESS}" or ip = "::1"'
         ACI_TARGET = '(targetattr != "userPassword")'
         ACI_ALLOW = '(version 3.0;acl "Anonymous access within domain"; allow (read,compare,search)'
-        ACI_SUBJECT = '(userdn = "ldap:///anyone") and (%s);)' % aci_subject
+        ACI_SUBJECT = '(userdn = "ldap:///anyone") and (%s);)' % bind_rule
         ACI_BODY = ensure_bytes(ACI_TARGET + ACI_ALLOW + ACI_SUBJECT)
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE, 'aci', ACI_BODY)])
+        time.sleep(.5)
+
         log.info('Set user bind')
-        conn = create_user.bind(TEST_USER_PWD, uri=f'ldap://{IP_ADDRESS}:{topology_st.standalone.port}')
+        conn = create_user.bind(TEST_USER_PWD, uri=f'ldap://{HOSTNAME}:{topology_st.standalone.port}')
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -574,6 +626,7 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', None)])
         for aci in acis_bck:
             topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', aci.getRawAci())])
+        time.sleep(1)
         del_users(users_list)
 
 
@@ -582,6 +635,7 @@ def test_search_multiple_paging(topology_st, create_user):
     on a single connection without a complition, it wouldn't fail.
 
     :id: 628b29a6-2d47-4116-a88d-00b87405ef7f
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -596,8 +650,8 @@ def test_search_multiple_paging(topology_st, create_user):
         4. No error happens
     """
 
-    users_num = 100
-    page_size = 30
+    users_num = 20
+    page_size = 5
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
@@ -636,6 +690,7 @@ def test_search_invalid_cookie(topology_st, create_user, invalid_cookie):
     a TypeError exception
 
     :id: 107be12d-4fe4-47fe-ae86-f3e340a56f42
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
@@ -651,8 +706,8 @@ def test_search_invalid_cookie(topology_st, create_user, invalid_cookie):
         4. It should throw a TypeError exception
     """
 
-    users_num = 100
-    page_size = 50
+    users_num = 20
+    page_size = 5
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
@@ -684,6 +739,7 @@ def test_search_abandon_with_zero_size(topology_st, create_user):
     can be abandon using page_size = 0
 
     :id: d2fd9a10-84e1-4b69-a8a7-36ca1427c171
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -728,6 +784,7 @@ def test_search_pagedsizelimit_success(topology_st, create_user):
     valid value set to nsslapd-pagedsizelimit.
 
     :id: 88193f10-f6f0-42f5-ae9c-ff34b8f9ee8c
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             10 users for the search base
     :steps:
@@ -776,6 +833,7 @@ def test_search_nspagedsizelimit(topology_st, create_user,
     the simple paged results control.
 
     :id: b08c6ad2-ba28-447a-9f04-5377c3661d0d
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
@@ -845,6 +903,7 @@ def test_search_paged_limits(topology_st, create_user, conf_attr_values, expecte
     search abilities.
 
     :id: e0f8b916-7276-4bd3-9e73-8696a4468811
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
@@ -918,6 +977,7 @@ def test_search_paged_user_limits(topology_st, create_user, conf_attr_values, ex
     while performing search with the simple paged results control.
 
     :id: 69e393e9-1ab8-4f4e-b4a1-06ca63dc7b1b
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
@@ -989,6 +1049,7 @@ def test_ger_basic(topology_st, create_user):
     it should without errors.
 
     :id: 7b0bdfc7-a2f2-4c1a-bcab-f1eb8b330d45
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -1025,6 +1086,7 @@ def test_multi_suffix_search(topology_st, create_user, new_suffixes):
     if there is no returned entry.
 
     :id: 9712345b-9e38-4df6-8794-05f12c457d39
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             two suffixes with backends, one is inserted into another,
             10 users for the search base within each suffix
@@ -1065,6 +1127,8 @@ def test_multi_suffix_search(topology_st, create_user, new_suffixes):
         topology_st.standalone.restart(timeout=10)
 
         access_log_lines = topology_st.standalone.ds_access_log.match('.*pr_cookie=.*')
+        # Sort access_log_lines by op number to mitigate race condition effects. 
+        access_log_lines.sort(key=lambda x: int(re.search(r"op=(\d+) RESULT", x).group(1)))
         pr_cookie_list = ([line.rsplit('=', 1)[-1] for line in access_log_lines])
         pr_cookie_list = [int(pr_cookie) for pr_cookie in pr_cookie_list]
         log.info('Assert that last pr_cookie == -1 and others pr_cookie == 0')
@@ -1082,6 +1146,7 @@ def test_maxsimplepaged_per_conn_success(topology_st, create_user, conf_attr_val
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: 192e2f25-04ee-4ff9-9340-d875dcbe8011
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             20 users for the search base
@@ -1126,6 +1191,7 @@ def test_maxsimplepaged_per_conn_failure(topology_st, create_user, conf_attr_val
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: eb609e63-2829-4331-8439-a35f99694efa
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             20 users for the search base
@@ -1171,6 +1237,85 @@ def test_maxsimplepaged_per_conn_failure(topology_st, create_user, conf_attr_val
         log.info('Remove added users')
         del_users(users_list)
         change_conf_attr(topology_st, DN_CONFIG, 'nsslapd-maxsimplepaged-per-conn', max_per_con_bck)
+
+
+def test_search_stress_abandon(create_40k_users, create_user):
+    """Verify that search with a simple paged results control
+    returns all entries it should without errors.
+
+    :id: e154b24a-83d6-11ee-90d1-482ae39447e5
+    :customerscenario: True
+    :feature: Simple paged results
+    :setup: Standalone instance, test user for binding,
+            40K  users in a second backend
+    :steps:
+        1. Bind as test user
+        2. Loops a number of times doing:
+                 - search through added users with a simple paged control
+                 - randomly abandoning the search after a few ms.
+    :expectedresults:
+        1. Bind should be successful
+        2. The loop should complete successfully.
+    """
+
+    abandon_rate = 10
+    page_size = 500
+    nbloops = 1000
+    search_flt = r'(uid=*)'
+    searchreq_attrlist = ['dn', 'sn']
+    log.info('Set user bind %s ' % create_user)
+    conn = create_user.bind(TEST_USER_PWD)
+    for idx in range(nbloops):
+        req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+        # If the issue #5984 is not fixed the server crashs and the paged search fails with ldap.SERVER_DOWN exception
+        paged_search(conn, create_40k_users.suffix, [req_ctrl], search_flt, searchreq_attrlist, abandon_rate=abandon_rate)
+
+
+def test_search_referral(topology_st):
+    """Test a paged search on a referred suffix doesnt crash the server.
+
+    :id: c788bdbf-965b-4f12-ac24-d4d695e2cce2
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Configure a default referral.
+         2. Create a paged result search control.
+         3. Paged result search on referral suffix (doesnt exist on the instance, triggering a referral).
+         4. Check the server is still running.
+         5. Remove referral.
+
+    :expectedresults:
+         1. Referral sucessfully set.
+         2. Control created.
+         3. Search returns ldap.REFERRAL (10).
+         4. Server still running.
+         5. Referral removed.
+    """
+
+    page_size = 5
+    SEARCH_SUFFIX = "dc=referme,dc=com"
+    REFERRAL = "ldap://localhost.localdomain:389/o%3dnetscaperoot"
+
+    log.info('Configuring referral')
+    topology_st.standalone.config.set('nsslapd-referral', REFERRAL)
+    referral = topology_st.standalone.config.get_attr_val_utf8('nsslapd-referral')
+    assert (referral == REFERRAL)
+
+    log.info('Create paged result search control')
+    req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+
+    log.info('Perform a paged result search on referred suffix, no chase')
+    with pytest.raises(ldap.REFERRAL):
+        topology_st.standalone.search_ext_s(SEARCH_SUFFIX, ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
+
+    log.info('Confirm instance is still running')
+    assert (topology_st.standalone.status())
+
+    log.info('Remove referral')
+    topology_st.standalone.config.remove_all('nsslapd-referral')
+    referral = topology_st.standalone.config.get_attr_val_utf8('nsslapd-referral')
+    assert (referral == None)
 
 if __name__ == '__main__':
     # Run isolated

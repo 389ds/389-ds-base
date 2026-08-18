@@ -807,7 +807,7 @@ slapi_mod_dump(LDAPMod *mod, int n)
                 bufp = buf;
                 slapi_ldif_put_type_and_value_with_options(&bufp, mod->mod_type, mod->mod_bvalues[i]->bv_val, mod->mod_bvalues[i]->bv_len, 0);
                 *bufp = '\0';
-                slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump", "smod %d - value: %s", n, buf);
+                slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump", "smod %d - value: %s\n", n, buf);
                 slapi_ch_free((void **)&buf);
             }
         }

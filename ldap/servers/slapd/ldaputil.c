@@ -63,14 +63,6 @@
 #include "prinrval.h"
 #include "snmp_collator.h"
 
-#ifdef HAVE_HEIMDAL_KERBEROS
-#include <com_err.h>
-#endif
-
-#ifndef MAX_KEYTAB_NAME_LEN
-#define MAX_KEYTAB_NAME_LEN 1100
-#endif
-
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
 static PRCallOnceType ol_init_callOnce = {0, 0, 0};
 static PRLock *ol_init_lock = NULL;
@@ -155,7 +147,6 @@ convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto
         if (!PL_strncmp(start, "://", 3)) {
             *start = '\0';
             proto = my_copy;
-            start += 3;
         } else {
             slapi_log_err(SLAPI_LOG_ERR, "convert_to_openldap_uri",
                           "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
@@ -165,9 +156,8 @@ convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto
         slapi_log_err(SLAPI_LOG_ERR, "convert_to_openldap_uri",
                       "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
         goto end;
-    } else {
-        start = my_copy; /* just assume it's not a uri */
     }
+    /* else just assume it's not a uri */
 
     for (s = ldap_utf8strtok_r(my_copy, brkstr, &iter); s != NULL; s = ldap_utf8strtok_r(NULL, brkstr, &iter)) {
         /* strtok will grab the '/' at the end of the uri, if any,  so terminate parsing there */
@@ -260,11 +250,11 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
        replace all but the last colon with %3A
        Go to the 3rd '/' or to the end of the string (convert only the host:port part) */
     if (url) {
-        char *p = strstr(url, "://");
+        const char *p = strstr(url, "://");
         if (p) {
             int foundspace = 0;
             int coloncount = 0;
-            char *lastcolon = NULL;
+            const char *lastcolon = NULL;
 
             p += 3;
             for (; *p && (*p != '/'); p++) {
@@ -283,7 +273,7 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
                 urlescaped = slapi_ch_calloc(strlen(url) * 3, sizeof(char));
                 dest = urlescaped;
                 /* copy the scheme */
-                src = strstr(url, "://");
+                src = (char *)strstr(url, "://");
                 src += 3;
                 memcpy(dest, url, src - url);
                 dest += (src - url);
@@ -375,6 +365,8 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
 
 #include <sasl/sasl.h>
 
+
+/* Warning: caller must free s (if not NULL) */
 int
 slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s)
 {
@@ -389,6 +381,9 @@ slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s)
         ldap_get_option(ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, s);
 #else
         ldap_get_option(ld, LDAP_OPT_ERROR_STRING, s);
+        if (*s) {
+            *s = slapi_ch_strdup(*s);
+        }
 #endif
     }
     return rc;
@@ -513,6 +508,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     int ssl_strength = 0;
     int rc = 0;
     const char *cacert = NULL;
+    char *errmsg = NULL;
 
     /* certdir is used to setup outgoing secure connection (openldap)
      * It refers to the place where PEM files have been extracted
@@ -531,19 +527,25 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         ssl_strength = LDAP_OPT_X_TLS_NEVER;
     }
 
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength);
+    if (rc != LDAP_SUCCESS) {
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
+                      "failed: unable to set REQUIRE_CERT option to %d: %d (%s) %s\n",
+                      ssl_strength, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+        slapi_ch_free_string(&errmsg);
     }
     if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
         cacert = slapi_get_cacertfile();
         if (cacert) {
             /* CA Cert PEM file exists.  Set the path to openldap option. */
             rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cacert);
-            if (rc) {
+            if (rc != LDAP_SUCCESS) {
+                rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
                 slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                              "Could not set CA cert path [%s]: %d:%s\n",
-                              cacert, rc, ldap_err2string(rc));
+                              "Could not set CA cert path [%s]: %d (%s) %s\n",
+                              cacert, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+                slapi_ch_free_string(&errmsg);
             }
         }
     }
@@ -557,33 +559,46 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         }
         /* Sets the CRL evaluation strategy. */
         rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
-        if (rc) {
+        if (rc != LDAP_SUCCESS) {
+            rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                    "Could not set CRLCHECK [%d]: %d:%s\n",
-                    crlcheck, rc, ldap_err2string(rc));
+                    "Could not set CRLCHECK [%d]: %d (%s) %s\n",
+                    crlcheck, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         }
     }
     /* tell it where our cert db/file is */
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir);
+    if (rc != LDAP_SUCCESS) {
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set CACERTDIR option to %s\n", certdir);
+                      "failed: unable to set CACERTDIR option to %s: %d (%s) %s\n",
+                      certdir, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+        slapi_ch_free_string(&errmsg);
     }
     slapi_ch_free_string(&certdir);
 #if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
     getSSLVersionRangeOL(&optval, NULL);
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval);
+    if (rc != LDAP_SUCCESS) {
         char *minstr = NULL;
         (void)getSSLVersionRange(&minstr, NULL);
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set minimum TLS protocol level to %s\n", minstr);
+                      "failed: unable to set minimum TLS protocol level to %s: %d (%s) %s\n",
+                      minstr, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&minstr);
+        slapi_ch_free_string(&errmsg);
     }
 #endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
     if (clientauth) {
         rc = slapd_SSL_client_auth(ld);
-        if (rc) {
+        if (rc != LDAP_SUCCESS) {
+            rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication - %d\n", rc);
+                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication: %d (%s) %s\n",
+                          rc, ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         }
     }
 
@@ -591,9 +606,13 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
        all of the parameters set above into that TLS handle context - note
        that optval is zero, meaning create a context for a client */
     optval = 0;
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval);
+    if (rc != LDAP_SUCCESS) {
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to create new TLS context - %d\n", rc);
+                      "failed: unable to create new TLS context: %d (%s) %s\n",
+                      rc, ldap_err2string(rc), errmsg ? errmsg : "");
+        slapi_ch_free_string(&errmsg);
     }
 
     return rc;
@@ -689,7 +708,6 @@ slapi_ldap_init_ext(
         if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
             slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                           "Could not perform internal ol_init init\n");
-            rc = -1;
             goto done;
         }
 
@@ -715,7 +733,6 @@ slapi_ldap_init_ext(
             slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                           "Could not perform internal ol_init init\n");
             slapi_ch_free_string(&makeurl);
-            rc = -1;
             goto done;
         }
 
@@ -1288,7 +1305,7 @@ slapi_add_auth_response_control(Slapi_PBlock *pb, const char *binddn)
 
     if (slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &arctrl) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "slapi_add_auth_response_control",
-                      "Unable to add authentication response control");
+                      "Unable to add authentication response control\n");
     }
 
     if (NULL != dnbuf_dynamic) {
@@ -1307,15 +1324,6 @@ typedef struct
     char *passwd;
     char *realm;
 } ldapSaslInteractVals;
-
-#ifdef HAVE_KRB5
-static void set_krb5_creds(
-    const char *authid,
-    const char *username,
-    const char *passwd,
-    const char *realm,
-    ldapSaslInteractVals *vals);
-#endif
 
 static void *
 ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid, const char *username, const char *passwd, const char *realm)
@@ -1373,12 +1381,6 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid, cons
             vals->realm = slapi_ch_strdup("");
         }
     }
-
-#ifdef HAVE_KRB5
-    if (mech && !strcmp(mech, "GSSAPI")) {
-        set_krb5_creds(authid, username, passwd, realm, vals);
-    }
-#endif /* HAVE_KRB5 */
 
     return vals;
 }
@@ -1517,6 +1519,7 @@ slapd_ldap_sasl_interactive_bind(
                           mech ? mech : "SIMPLE",
                           rc, ldap_err2string(rc), errmsg,
                           errno, slapd_system_strerror(errno));
+            slapi_ch_free_string(&errmsg);
             if (can_retry_bind(ld, mech, bindid, creds, rc, errmsg)) {
                 ; /* pass through to retry one time */
             } else {
@@ -1533,563 +1536,6 @@ slapd_ldap_sasl_interactive_bind(
 
 #ifdef HAVE_KRB5
 #include <krb5.h>
-
-/* for some reason this is not in the public API?
-   but it is documented e.g. man kinit */
-#ifndef KRB5_ENV_CCNAME
-#define KRB5_ENV_CCNAME "KRB5CCNAME"
-#endif
-
-static void
-show_one_credential(int authtracelevel,
-                    krb5_context ctx,
-                    krb5_creds *cred)
-{
-    char *logname = "show_one_credential";
-    krb5_error_code rc;
-    char *name = NULL, *sname = NULL;
-#ifdef HAVE_HEIMDAL_KERBEROS
-    krb5_timestamp startts, endts, renewts;
-#else
-    char startts[BUFSIZ], endts[BUFSIZ], renewts[BUFSIZ];
-#endif
-
-    if ((rc = krb5_unparse_name(ctx, cred->client, &name))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get client name from credential: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-    if ((rc = krb5_unparse_name(ctx, cred->server, &sname))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get server name from credential: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-    if (!cred->times.starttime) {
-        cred->times.starttime = cred->times.authtime;
-    }
-#ifdef HAVE_HEIMDAL_KERBEROS
-    slapi_log_error(authtracelevel, logname,
-                    "\tKerberos credential: client [%s] server [%s] "
-                    "start time [%s] end time [%s] renew time [%s] "
-                    "flags [0x%x]\n",
-                    name, sname, ctime(&startts), ctime(&endts),
-                    ctime(&renewts), (uint32_t)cred->flags.i);
-#else
-    krb5_timestamp_to_sfstring((krb5_timestamp)cred->times.starttime,
-                               startts, sizeof(startts), NULL);
-    krb5_timestamp_to_sfstring((krb5_timestamp)cred->times.endtime,
-                               endts, sizeof(endts), NULL);
-    krb5_timestamp_to_sfstring((krb5_timestamp)cred->times.renew_till,
-                               renewts, sizeof(renewts), NULL);
-
-    slapi_log_err(authtracelevel, logname,
-                  "\tKerberos credential: client [%s] server [%s] "
-                  "start time [%s] end time [%s] renew time [%s] "
-                  "flags [0x%x]\n",
-                  name, sname, startts, endts,
-                  renewts, (uint32_t)cred->ticket_flags);
-#endif
-
-cleanup:
-    krb5_free_unparsed_name(ctx, name);
-    krb5_free_unparsed_name(ctx, sname);
-
-    return;
-}
-
-/*
- * Call this after storing the credentials in the cache
- */
-static void
-show_cached_credentials(int authtracelevel,
-                        krb5_context ctx,
-                        krb5_ccache cc,
-                        krb5_principal princ)
-{
-    char *logname = "show_cached_credentials";
-    krb5_error_code rc = 0;
-    krb5_creds creds;
-    krb5_cc_cursor cur;
-    char *princ_name = NULL;
-
-    if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get principal name from principal: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    slapi_log_err(authtracelevel, logname,
-                  "Ticket cache: %s:%s\nDefault principal: %s\n\n",
-                  krb5_cc_get_type(ctx, cc),
-                  krb5_cc_get_name(ctx, cc), princ_name);
-
-    if ((rc = krb5_cc_start_seq_get(ctx, cc, &cur))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get cursor to iterate cached credentials: "
-                      "%d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    while (!(rc = krb5_cc_next_cred(ctx, cc, &cur, &creds))) {
-        show_one_credential(authtracelevel, ctx, &creds);
-        krb5_free_cred_contents(ctx, &creds);
-    }
-    if (rc == KRB5_CC_END) {
-        if ((rc = krb5_cc_end_seq_get(ctx, cc, &cur))) {
-            slapi_log_err(SLAPI_LOG_ERR, logname,
-                          "Could not close cached credentials cursor: "
-                          "%d (%s)\n",
-                          rc, error_message(rc));
-            goto cleanup;
-        }
-    }
-
-cleanup:
-    krb5_free_unparsed_name(ctx, princ_name);
-
-    return;
-}
-
-static int
-looks_like_a_princ_name(const char *name)
-{
-    /* a valid principal name will be a non-empty string
-       that doesn't have a = in it (which will likely be
-       a bind DN) */
-    return (name && *name && !strchr(name, '='));
-}
-
-static int
-credentials_are_valid(
-    krb5_context ctx,
-    krb5_ccache cc,
-    krb5_principal princ,
-    const char *princ_name,
-    int *rc)
-{
-    char *logname = "credentials_are_valid";
-    int myrc = 0;
-    krb5_creds mcreds = {0}; /* match these values */
-    krb5_creds creds = {0};  /* returned creds */
-    char *tgs_princ_name = NULL;
-    krb5_timestamp currenttime;
-    int authtracelevel = SLAPI_LOG_SHELL; /* special auth tracing */
-    int realm_len;
-    char *realm_str;
-    int time_buffer = 30; /* seconds - go ahead and renew if creds are
-                             about to expire  */
-
-    *rc = 0;
-    if (!cc) {
-        /* ok - no error */
-        goto cleanup;
-    }
-
-/* have to construct the tgs server principal in
-       order to set mcreds.server required in order
-       to use krb5_cc_retrieve_creds() */
-/* get default realm first */
-#ifdef HAVE_HEIMDAL_KERBEROS
-    realm_str = krb5_principal_get_realm(ctx, princ);
-    realm_len = krb5_realm_length(realm_str);
-#else
-    realm_len = krb5_princ_realm(ctx, princ)->length;
-    realm_str = krb5_princ_realm(ctx, princ)->data;
-#endif
-    tgs_princ_name = slapi_ch_smprintf("%s/%*s@%*s", KRB5_TGS_NAME,
-                                       realm_len, realm_str,
-                                       realm_len, realm_str);
-
-    if ((*rc = krb5_parse_name(ctx, tgs_princ_name, &mcreds.server))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could parse principal [%s]: %d (%s)\n",
-                      tgs_princ_name, *rc, error_message(*rc));
-        goto cleanup;
-    }
-
-    mcreds.client = princ;
-    if ((*rc = krb5_cc_retrieve_cred(ctx, cc, 0, &mcreds, &creds))) {
-        if (*rc == KRB5_CC_NOTFOUND) {
-            /* ok - no creds for this princ in the cache */
-            *rc = 0;
-        }
-        goto cleanup;
-    }
-
-    /* have the creds - now look at the timestamp */
-    if ((*rc = krb5_timeofday(ctx, &currenttime))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get current time: %d (%s)\n",
-                      *rc, error_message(*rc));
-        goto cleanup;
-    }
-
-    if (currenttime > (creds.times.endtime + time_buffer)) {
-        slapi_log_err(authtracelevel, logname,
-                      "Credentials for [%s] have expired or will soon "
-                      "expire - now [%d] endtime [%d]\n",
-                      princ_name,
-                      currenttime, creds.times.endtime);
-        goto cleanup;
-    }
-
-    myrc = 1; /* credentials are valid */
-cleanup:
-    krb5_free_cred_contents(ctx, &creds);
-    slapi_ch_free_string(&tgs_princ_name);
-    if (mcreds.server) {
-        krb5_free_principal(ctx, mcreds.server);
-    }
-
-    return myrc;
-}
-
-
-/*
- * This implementation assumes that we want to use the
- * keytab from the default keytab env. var KRB5_KTNAME
- * as.  This code is very similar to kinit -k -t.  We
- * get a krb context, get the default keytab, get
- * the credentials from the keytab, authenticate with
- * those credentials, create a ccache, store the
- * credentials in the ccache, and set the ccache
- * env var to point to those credentials.
- */
-static void
-set_krb5_creds(
-    const char *authid __attribute__((unused)),
-    const char *username,
-    const char *passwd __attribute__((unused)),
-    const char *realm __attribute__((unused)),
-    ldapSaslInteractVals *vals)
-{
-    char *logname = "set_krb5_creds";
-    const char *cc_type = "MEMORY"; /* keep cred cache in memory */
-    krb5_context ctx = NULL;
-    krb5_ccache cc = NULL;
-    krb5_principal princ = NULL;
-    char *princ_name = NULL;
-    krb5_error_code rc = 0;
-    krb5_creds creds = {0};
-    krb5_keytab kt = NULL;
-    char *cc_name = NULL;
-    char ktname[MAX_KEYTAB_NAME_LEN];
-    static char cc_env_name[1024 + 32]; /* size from ccdefname.c */
-    int new_ccache = 0;
-    int authtracelevel = SLAPI_LOG_SHELL; /* special auth tracing
-                                             not sure what shell was
-                                             used for, does not
-                                             appear to be used
-                                             currently */
-
-    /* initialize the kerberos context */
-    if ((rc = krb5_init_context(&ctx))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not init Kerberos context: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* see if there is already a ccache, and see if there are
-       creds in the ccache */
-    /* grab the default ccache - note: this does not open the cache */
-    if ((rc = krb5_cc_default(ctx, &cc))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get default Kerberos ccache: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* use this cache - construct the full cache name */
-    cc_name = slapi_ch_smprintf("%s:%s", krb5_cc_get_type(ctx, cc),
-                                krb5_cc_get_name(ctx, cc));
-
-    /* grab the principal from the ccache - will fail if there
-       is no ccache */
-    if ((rc = krb5_cc_get_principal(ctx, cc, &princ))) {
-        if (KRB5_FCC_NOFILE == rc) { /* no cache - ok */
-            slapi_log_err(authtracelevel, logname,
-                          "The default credentials cache [%s] not found: "
-                          "will create a new one.\n",
-                          cc_name);
-            /* close the cache - we will create a new one below */
-            krb5_cc_close(ctx, cc);
-            cc = NULL;
-            slapi_ch_free_string(&cc_name);
-            /* fall through to the keytab auth code below */
-        } else { /* fatal */
-            slapi_log_err(SLAPI_LOG_ERR, logname,
-                          "Could not open default Kerberos ccache [%s]: "
-                          "%d (%s)\n",
-                          cc_name, rc, error_message(rc));
-            goto cleanup;
-        }
-    } else { /* have a valid ccache && found principal */
-        if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
-            slapi_log_err(SLAPI_LOG_ERR, logname,
-                          "Unable to get name of principal from ccache [%s]: "
-                          "%d (%s)\n",
-                          cc_name, rc, error_message(rc));
-            goto cleanup;
-        }
-        slapi_log_err(authtracelevel, logname,
-                      "Using principal [%s] from ccache [%s]\n",
-                      princ_name, cc_name);
-    }
-
-    /* if this is not our type of ccache, there is nothing more we can
-       do - just punt and let sasl/gssapi take it's course - this
-       usually means there has been an external kinit e.g. in the
-       start up script, and it is the responsibility of the script to
-       renew those credentials or face lots of sasl/gssapi failures
-       This means, however, that the caller MUST MAKE SURE THERE IS NO
-       DEFAULT CCACHE FILE or the server will attempt to use it (and
-       likely fail) - THERE MUST BE NO DEFAULT CCACHE FILE IF YOU WANT
-       THE SERVER TO AUTHENTICATE WITH THE KEYTAB
-       NOTE: cc types are case sensitive and always upper case */
-    if (cc && strcmp(cc_type, krb5_cc_get_type(ctx, cc))) {
-        static int errmsgcounter = 0;
-        int loglevel = SLAPI_LOG_ERR;
-        if (errmsgcounter) {
-            loglevel = authtracelevel;
-        }
-        /* make sure we log this message once, in case the user has
-           done something unintended, we want to make sure they know
-           about it.  However, if the user knows what he/she is doing,
-           by using an external ccache file, they probably don't want
-           to be notified with an error every time. */
-        slapi_log_err(loglevel, logname,
-                      "The server will use the external SASL/GSSAPI "
-                      "credentials cache [%s:%s].  If you want the "
-                      "server to automatically authenticate with its "
-                      "keytab, you must remove this cache.  If you "
-                      "did not intend to use this cache, you will likely "
-                      "see many SASL/GSSAPI authentication failures.\n",
-                      krb5_cc_get_type(ctx, cc), krb5_cc_get_name(ctx, cc));
-        errmsgcounter++;
-        goto cleanup;
-    }
-
-    /* need to figure out which principal to use
-       1) use the one from the ccache
-       2) use username
-       3) construct one in the form ldap/fqdn@REALM
-    */
-    if (!princ && looks_like_a_princ_name(username) &&
-        (rc = krb5_parse_name(ctx, username, &princ))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not convert [%s] into a kerberos "
-                      "principal: %d (%s)\n",
-                      username,
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    if (getenv("HACK_PRINCIPAL_NAME") &&
-        (rc = krb5_parse_name(ctx, getenv("HACK_PRINCIPAL_NAME"), &princ))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not convert [%s] into a kerberos "
-                      "principal: %d (%s)\n",
-                      getenv("HACK_PRINCIPAL_NAME"),
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* if still no principal, construct one */
-    if (!princ) {
-        char *hostname = config_get_localhost();
-        if ((rc = krb5_sname_to_principal(ctx, hostname, "ldap",
-                                          KRB5_NT_SRV_HST, &princ))) {
-            slapi_log_err(SLAPI_LOG_ERR, logname,
-                          "Could not construct ldap service "
-                          "principal from hostname [%s]: %d (%s)\n",
-                          hostname ? hostname : "NULL", rc, error_message(rc));
-        }
-        slapi_ch_free_string(&hostname);
-        if (rc) {
-            goto cleanup;
-        }
-    }
-
-    slapi_ch_free_string(&princ_name);
-    if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Unable to get name of principal: "
-                      "%d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    slapi_log_err(authtracelevel, logname,
-                  "Using principal named [%s]\n", princ_name);
-
-    /* grab the credentials from the ccache, if any -
-       if the credentials are still valid, we do not have
-       to authenticate again */
-    if (credentials_are_valid(ctx, cc, princ, princ_name, &rc)) {
-        slapi_log_err(authtracelevel, logname,
-                      "Credentials for principal [%s] are still "
-                      "valid - no auth is necessary.\n",
-                      princ_name);
-        goto cleanup;
-    } else if (rc) { /* some error other than "there are no credentials" */
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Unable to verify cached credentials for "
-                      "principal [%s]: %d (%s)\n",
-                      princ_name,
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* find our default keytab */
-    if ((rc = krb5_kt_default(ctx, &kt))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Unable to get default keytab: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* get name of keytab for debugging purposes */
-    if ((rc = krb5_kt_get_name(ctx, kt, ktname, sizeof(ktname)))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Unable to get name of default keytab: %d (%s)\n",
-                      rc, error_message(rc));
-        goto cleanup;
-    }
-
-    slapi_log_err(authtracelevel, logname,
-                  "Using keytab named [%s]\n", ktname);
-
-    /* now do the actual kerberos authentication using
-       the keytab, and get the creds */
-    rc = krb5_get_init_creds_keytab(ctx, &creds, princ, kt,
-                                    0, NULL, NULL);
-    if (rc) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not get initial credentials for principal [%s] "
-                      "in keytab [%s]: %d (%s)\n",
-                      princ_name, ktname, rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* completely done with the keytab now, close it */
-    krb5_kt_close(ctx, kt);
-    kt = NULL; /* no double free */
-
-    /* we now have the creds and the principal to which the
-       creds belong - use or allocate a new memory based
-       cache to hold the creds */
-    if (!cc_name) {
-#if HAVE_KRB5_CC_NEW_UNIQUE
-        /* krb5_cc_new_unique is a new convenience function which
-           generates a new unique name and returns a memory
-           cache with that name */
-        if ((rc = krb5_cc_new_unique(ctx, cc_type, NULL, &cc))) {
-            slapi_log_err(SLAPI_LOG_ERR, logname,
-                          "Could not create new unique memory ccache: "
-                          "%d (%s)\n",
-                          rc, error_message(rc));
-            goto cleanup;
-        }
-        cc_name = slapi_ch_smprintf("%s:%s", cc_type,
-                                    krb5_cc_get_name(ctx, cc));
-#else
-        /* store the cache in memory - krb5_init_context uses malloc
-           to create the ctx, so the address should be unique enough
-           for our purposes */
-        if (!(cc_name = slapi_ch_smprintf("%s:%p", cc_type, ctx))) {
-            slapi_log_err(SLAPI_LOG_ERR, logname,
-                          "Could create Kerberos memory ccache: "
-                          "out of memory\n");
-            rc = 1;
-            goto cleanup;
-        }
-#endif
-        slapi_log_err(authtracelevel, logname,
-                      "Generated new memory ccache [%s]\n", cc_name);
-        new_ccache = 1; /* need to set this in env. */
-    } else {
-        slapi_log_err(authtracelevel, logname,
-                      "Using existing ccache [%s]\n", cc_name);
-    }
-
-    /* krb5_cc_resolve is basically like an init -
-       this creates the cache structure, and creates a slot
-       for the cache in the static linked list in memory, if
-       there is not already a slot -
-       see cc_memory.c for details
-       cc could already have been created by new_unique above
-    */
-    if (!cc && (rc = krb5_cc_resolve(ctx, cc_name, &cc))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not create ccache [%s]: %d (%s)\n",
-                      cc_name, rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* wipe out previous contents of cache for this principal, if any */
-    if ((rc = krb5_cc_initialize(ctx, cc, princ))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not initialize ccache [%s] for the new "
-                      "credentials for principal [%s]: %d (%s)\n",
-                      cc_name, princ_name, rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* store the credentials in the cache */
-    if ((rc = krb5_cc_store_cred(ctx, cc, &creds))) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not store the credentials in the "
-                      "ccache [%s] for principal [%s]: %d (%s)\n",
-                      cc_name, princ_name, rc, error_message(rc));
-        goto cleanup;
-    }
-
-    /* now, do a "klist" to show the credential information, and log it */
-    show_cached_credentials(authtracelevel, ctx, cc, princ);
-
-    /* set the CC env var to the value of the cc cache name */
-    /* since we can't pass krb5 context up and out of here
-       and down through the ldap sasl layer, we set this
-       env var so that calls to krb5_cc_default_name will
-       use this */
-    if (new_ccache) {
-        PR_snprintf(cc_env_name, sizeof(cc_env_name),
-                    "%s=%s", KRB5_ENV_CCNAME, cc_name);
-        PR_SetEnv(cc_env_name);
-        slapi_log_err(authtracelevel, logname,
-                      "Set new env for ccache: [%s]\n",
-                      cc_env_name);
-    }
-
-cleanup:
-    /* use NULL as username and authid */
-    slapi_ch_free_string(&vals->username);
-    slapi_ch_free_string(&vals->authid);
-
-    krb5_free_unparsed_name(ctx, princ_name);
-    if (kt) { /* NULL not allowed */
-        krb5_kt_close(ctx, kt);
-    }
-    if (creds.client == princ) {
-        creds.client = NULL;
-    }
-    krb5_free_cred_contents(ctx, &creds);
-    slapi_ch_free_string(&cc_name);
-    krb5_free_principal(ctx, princ);
-    if (cc) {
-        krb5_cc_close(ctx, cc);
-    }
-    if (ctx) { /* cannot pass NULL to free context */
-        krb5_free_context(ctx);
-    }
-
-    return;
-}
 
 static void
 clear_krb5_ccache(void)
@@ -2164,6 +1610,7 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
         plen = 1;
         switch (*p) {
         case '\\':
+            /* coverity[overrun-local] */
             if (*++p == '\0')
                 p--;
             else
@@ -2289,16 +1736,48 @@ mozldap_ldap_explode_rdn(const char *rdn, const int notypes)
 }
 
 int
-slapi_is_ipv6_addr(const char *hostname)
+slapi_is_ipv4_addr(const char *ipAddress)
 {
     PRNetAddr addr;
 
-    if (PR_StringToNetAddr(hostname, &addr) == PR_SUCCESS &&
+    if (PR_StringToNetAddr(ipAddress, &addr) == PR_SUCCESS &&
+        PR_IsNetAddrType(&addr, PR_IpAddrV4Mapped) &&
+        addr.raw.family == PR_AF_INET) {
+        return 1;
+    }
+    return 0;
+}
+
+int
+slapi_is_ipv6_addr(const char *ipAddress)
+{
+    PRNetAddr addr;
+
+    if (PR_StringToNetAddr(ipAddress, &addr) == PR_SUCCESS &&
         !PR_IsNetAddrType(&addr, PR_IpAddrV4Mapped) &&
         addr.raw.family == PR_AF_INET6) {
         return 1;
     }
     return 0;
+}
+
+/* For debug purpose */
+void
+slapi_log_prnetaddr(const PRNetAddr *addr) {
+    char ip_str[INET6_ADDRSTRLEN] = {0};
+    uint16_t port = 0;
+
+    if (addr->inet.family == PR_AF_INET) {
+        PR_NetAddrToString(addr, ip_str, sizeof(ip_str));
+        port = PR_ntohs(addr->inet.port);
+        slapi_log_error(SLAPI_LOG_ERR, "slapi_log_prnetaddr", "IPv4: %s:%u\n", ip_str, port);
+    } else if (addr->raw.family == PR_AF_INET6) {
+        PR_NetAddrToString(addr, ip_str, sizeof(ip_str));
+        port = PR_ntohs(addr->ipv6.port);
+        slapi_log_error(SLAPI_LOG_ERR, "slapi_log_prnetaddr", "IPv6: %s:%u\n", ip_str, port);
+    } else {
+        slapi_log_error(SLAPI_LOG_ERR, "slapi_log_prnetaddr", "Unknown address family\n");
+    }
 }
 
 /*

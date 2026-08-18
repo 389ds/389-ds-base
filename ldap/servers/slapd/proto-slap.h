@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -13,6 +13,7 @@
 
 #ifndef _PROTO_SLAP
 #define _PROTO_SLAP
+
 
 /*
  * Forward structure declarations
@@ -107,9 +108,11 @@ struct asyntaxinfo *attr_syntax_get_by_name_locking_optional(const char *name, P
 struct asyntaxinfo *attr_syntax_get_global_at(void);
 struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 void attr_syntax_swap_ht(void);
+int attr_syntax_init_tmp(void);
+void attr_syntax_destroy_tmp(void);
 /*
- * Call attr_syntax_return() when you are done using a value returned
- * by attr_syntax_get_by_oid() or attr_syntax_get_by_name().
+ * Call attr_syntax_return(void) when you are done using a value returned
+ * by attr_syntax_get_by_oid(void) or attr_syntax_get_by_name(void).
  */
 void attr_syntax_return(struct asyntaxinfo *asi);
 void attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock);
@@ -139,6 +142,7 @@ int valuearray_first_value(Slapi_Value **va, Slapi_Value **v);
 
 void valuearrayfast_init(struct valuearrayfast *vaf, Slapi_Value **va);
 void valuearrayfast_done(struct valuearrayfast *vaf);
+const Slapi_Value **slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *attrname);
 
 /* Valueset functions */
 
@@ -243,6 +247,7 @@ int config_set_SSL3ciphers(const char *attrname, char *value, char *errorbuf, in
 int config_set_localhost(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_listenhost(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_securelistenhost(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char *errorbuf, int apply);
 int config_set_ldapi_filename(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ldapi_switch(const char *attrname, char *value, char *errorbuf, int apply);
@@ -252,11 +257,13 @@ int config_set_ldapi_map_entries(const char *attrname, char *value, char *errorb
 int config_set_ldapi_uidnumber_type(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ldapi_gidnumber_type(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ldapi_search_base_dn(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_ldapi_mapping_base_dn(const char *attrname, char *value, char *errorbuf, int apply);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 int config_set_ldapi_auto_dn_suffix(const char *attrname, char *value, char *errorbuf, int apply);
 #endif
 int config_set_anon_limits_dn(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_slapi_counters(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_thread_pool_stats(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_srvtab(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sizelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pagedsizelimit(const char *attrname, char *value, char *errorbuf, int apply);
@@ -264,6 +271,7 @@ int config_set_lastmod(const char *attrname, char *value, char *errorbuf, int ap
 int config_set_nagle(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesscontrol(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_moddn_aci(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_targetfilter_cache(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_security(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_readonly(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_schemacheck(const char *attrname, char *value, char *errorbuf, int apply);
@@ -290,10 +298,13 @@ int config_set_defaultreferral(const char *attrname, struct berval **value, char
 int config_set_timelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_errorlog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog_level(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_statlog_level(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_securitylog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_userat(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_securitylog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_errorlog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_change(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_must_change(const char *attrname, char *value, char *errorbuf, int apply);
@@ -309,6 +320,10 @@ char **config_get_pw_user_attrs_array(void);
 int32_t config_set_pw_user_attrs(const char *attrname, char *value, char *errorbuf, int apply);
 char **config_get_pw_bad_words_array(void);
 int32_t config_set_pw_bad_words(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_breach_check(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_breach_url(const char *attrname, char *value, char *errorbuf, int apply);
+char *config_get_pw_breach_url(void);
+int32_t config_set_pw_breach_timeout(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_max_seq_sets(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_max_seq(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_max_class_repeats(const char *attrname, char *value, char *errorbuf, int apply);
@@ -335,17 +350,21 @@ int config_set_pw_maxfailure(const char *attrname, char *value, char *errorbuf, 
 int config_set_pw_unlock(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_lockduration(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_resetfailurecount(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_pw_tpr_maxuse(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_pw_tpr_delay_expire_at(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_pw_tpr_delay_valid_from(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_is_global_policy(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_is_legacy_policy(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_track_last_update_time(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_gracelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_admin_dn(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_admin_skip_info(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_send_expiring(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_useroc(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_return_exact_case(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_result_tweak(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, int apply);
-int config_set_conntablesize(const char *attrname, char *url, char *errorbuf, int apply);
+int config_set_num_listeners(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_maxbersize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_versionstring(const char *attrname, char *versionstring, char *errorbuf, int apply);
@@ -367,12 +386,16 @@ int config_set_rewrite_rfc1274(const char *attrname, char *value, char *errorbuf
 int config_set_outbound_ldap_io_timeout(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_unauth_binds_switch(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_require_secure_binds(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_close_on_failed_bind(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_anon_access_switch(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_localssf(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_minssf(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_minssf_exclude_rootdse(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_validate_cert_switch(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_securitylogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_errorlogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_entryusn_global(const char *attrname, char *value, char *errorbuf, int apply);
@@ -384,7 +407,15 @@ int config_set_disk_threshold(const char *attrname, char *value, char *errorbuf,
 int config_set_disk_grace_period(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_logging_critical(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_accesslog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_accesslog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_errorlog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_errorlog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_unhashed_pw_switch(const char *attrname, char *value, char *errorbuf, int apply);
@@ -402,14 +433,10 @@ int32_t config_set_maxdescriptors(const char *attrname, char *value, char *error
 int config_set_localuser(const char *attrname, char *value, char *errorbuf, int apply);
 
 int config_set_maxsimplepaged_per_conn(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_maxcontrolsperop(const char *attrname, char *value, char *errorbuf, int apply);
 
+int log_external_libs_debug_set_log_fn(void);
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
-
-#ifdef HAVE_CLOCK_GETTIME
-int config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply);
-void log_enable_hr_timestamps(void);
-void log_disable_hr_timestamps(void);
-#endif
 
 int config_get_SSLclientAuth(void);
 int config_get_ssl_check_hostname(void);
@@ -418,6 +445,7 @@ char *config_get_SSL3ciphers(void);
 char *config_get_localhost(void);
 char *config_get_listenhost(void);
 char *config_get_securelistenhost(void);
+struct berval **config_get_haproxy_trusted_ip(void);
 char *config_get_ldapi_filename(void);
 int config_get_ldapi_switch(void);
 int config_get_ldapi_bind_switch(void);
@@ -426,11 +454,13 @@ int config_get_ldapi_map_entries(void);
 char *config_get_ldapi_uidnumber_type(void);
 char *config_get_ldapi_gidnumber_type(void);
 char *config_get_ldapi_search_base_dn(void);
+char *config_get_ldapi_mapping_base_dn(void);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 char *config_get_ldapi_auto_dn_suffix(void);
 #endif
 char *config_get_anon_limits_dn(void);
 int config_get_slapi_counters(void);
+int32_t config_get_thread_pool_stats(void);
 char *config_get_srvtab(void);
 int config_get_sizelimit(void);
 int config_get_pagedsizelimit(void);
@@ -458,6 +488,7 @@ int config_get_pw_exp(void);
 int config_get_pw_unlock(void);
 int config_get_pw_lockout(void);
 int config_get_pw_gracelimit(void);
+int32_t config_get_pwpolicy_local(void);
 int config_get_pwpolicy_inherit_global(void);
 int config_get_lastmod(void);
 int config_get_nagle(void);
@@ -465,6 +496,7 @@ int config_get_accesscontrol(void);
 int config_get_return_exact_case(void);
 int config_get_result_tweak(void);
 int config_get_moddn_aci(void);
+int32_t config_get_targetfilter_cache(void);
 int config_get_security(void);
 int config_get_schemacheck(void);
 int config_get_syntaxcheck(void);
@@ -492,6 +524,7 @@ int config_get_timelimit(void);
 char *config_get_pw_admin_dn(void);
 char *config_get_useroc(void);
 char *config_get_accesslog(void);
+char *config_get_securitylog(void);
 char *config_get_errorlog(void);
 char *config_get_auditlog(void);
 char *config_get_auditfaillog(void);
@@ -500,10 +533,19 @@ long long config_get_pw_minage(void);
 long long config_get_pw_warning(void);
 int config_get_errorlog_level(void);
 int config_get_accesslog_level(void);
+int config_get_statlog_level(void);
+int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
+char *config_get_auditlog_display_attrs(void);
+int config_get_auditlog_log_format(void);
+char *config_get_auditlog_time_format(void);
+int config_get_accesslog_log_format(void);
+char *config_get_accesslog_time_format(void);
+int config_get_errorlog_log_format(void);
+char *config_get_errorlog_time_format(void);
 char *config_get_referral_mode(void);
-int config_get_conntablesize(void);
+int config_get_num_listeners(void);
 int config_check_referral_mode(void);
 ber_len_t config_get_maxbersize(void);
 int32_t config_get_maxsasliosize(void);
@@ -522,6 +564,7 @@ char *config_get_rundir(void);
 char *config_get_saslpath(void);
 char **config_get_errorlog_list(void);
 char **config_get_accesslog_list(void);
+char **config_get_securitylog_list(void);
 char **config_get_auditlog_list(void);
 char **config_get_auditfaillog_list(void);
 int config_get_attrname_exceptions(void);
@@ -530,6 +573,7 @@ int config_get_rewrite_rfc1274(void);
 int config_get_outbound_ldap_io_timeout(void);
 int config_get_unauth_binds_switch(void);
 int config_get_require_secure_binds(void);
+int config_get_close_on_failed_bind(void);
 int config_get_anon_access_switch(void);
 int config_get_localssf(void);
 int config_get_minssf(void);
@@ -544,6 +588,8 @@ void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled(void);
+int config_get_securitylog_logging_enabled(void);
+int config_get_external_libs_debug_enabled(void);
 int config_get_disk_monitoring(void);
 int config_get_disk_threshold_readonly(void);
 uint64_t config_get_disk_threshold(void);
@@ -595,19 +641,38 @@ int config_get_malloc_mmap_threshold(void);
 #endif
 
 int config_get_maxsimplepaged_per_conn(void);
+int config_get_maxcontrolsperop(void);
 int config_get_extract_pem(void);
 
 int32_t config_get_enable_upgrade_hash(void);
 int32_t config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_scheme_list_no_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
 
 
-int32_t config_get_enable_ldapssotoken();
+int32_t config_get_enable_ldapssotoken(void);
 int32_t config_set_enable_ldapssotoken(const char *attrname, char *value, char *errorbuf, int apply);
-char * config_get_ldapssotoken_secret();
+char * config_get_ldapssotoken_secret(void);
 int32_t config_set_ldapssotoken_secret(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_ldapssotoken_ttl(const char *attrname, char *value, char *errorbuf, int apply);
-int32_t config_get_ldapssotoken_ttl();
+int32_t config_get_ldapssotoken_ttl(void);
 
+int32_t config_get_referral_check_period(void);
+int32_t config_set_referral_check_period(const char *attrname, char *value, char *errorbuf, int apply);
+
+int32_t config_get_return_orig_dn(void);
+int32_t config_set_return_orig_dn(const char *attrname, char *value, char *errorbuf, int apply);
+
+int config_set_tcp_fin_timeout(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_tcp_fin_timeout(void);
+int config_set_tcp_keepalive_time(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_tcp_keepalive_time(void);
+
+int32_t config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply);
+char * config_get_fgot(void);
+
+int config_set_ignored_criticality_list(const char *attrname, char *value, char *errorbuf, int apply);
+char **config_get_ignored_criticality_list(void);
+bool config_is_control_criticality_ignored(const char *oid);
 
 int is_abspath(const char *);
 char *rel2abspath(char *);
@@ -632,6 +697,13 @@ int get_ldapmessage_controls(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***c
 int get_ldapmessage_controls_ext(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***controls, int ignore_criticality);
 int write_controls(BerElement *ber, LDAPControl **ctrls);
 void add_control(LDAPControl ***ctrlsp, LDAPControl *newctrl);
+void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, bool *isCritical);
+
+/*
+ * daemon.c
+ */
+int validate_num_config_reservedescriptors(void) ;
+void set_cert_refresh_asked(bool val);
 
 
 /*
@@ -787,7 +859,7 @@ int lock_fclose(FILE *fp, FILE *lfp);
 #define LDAP_DEBUG_TIMING     0x00020000  /*    131072 */
 #define LDAP_DEBUG_ACLSUMMARY 0x00040000  /*    262144 */
 #define LDAP_DEBUG_BACKLDBM   0x00080000  /*    524288 */
-#define LDAP_DEBUG_NUNCSTANS  0x00100000  /*   1048576 */
+#define LDAP_DEBUG_PWDPOLICY  0x00100000  /*   1048576 */
 #define LDAP_DEBUG_EMERG      0x00200000  /*   2097152 */
 #define LDAP_DEBUG_ALERT      0x00400000  /*   4194304 */
 #define LDAP_DEBUG_CRIT       0x00800000  /*   8388608 */
@@ -797,25 +869,30 @@ int lock_fclose(FILE *fp, FILE *lfp);
 #define LDAP_DEBUG_INFO       0x08000000  /* 134217728 */
 #define LDAP_DEBUG_DEBUG      0x10000000  /* 268435456 */
 #define LDAP_DEBUG_ALL_LEVELS 0xFFFFFF
+
+#define LDAP_STAT_READ_INDEX  0x00000001  /*         1 */
+#define LDAP_STAT_THREAD_POOL 0x00000002  /*         2 */
+
 extern int slapd_ldap_debug;
 
 int loglevel_is_set(int level);
-int slapd_log_error_proc(int sev_level, char *subsystem, char *fmt, ...);
-
-int slapi_log_access(int level, char *fmt, ...)
+int slapd_log_error_proc(int sev_level, const char *subsystem, const char *fmt, ...);
+int slapi_log_stat(int loglevel, const char *fmt, ...);
+int slapi_log_access(int level, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 2, 3)));
 #else
     ;
 #endif
-int slapd_log_audit(char *buffer, int buf_len, int sourcelog);
-int slapd_log_audit_internal(char *buffer, int buf_len, int *state);
-int slapd_log_auditfail(char *buffer, int buf_len);
-int slapd_log_auditfail_internal(char *buffer, int buf_len);
-void log_access_flush(void);
-
+int slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg);
+int slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode error, const char *msg);
+int slapd_log_audit(char *buffer, PRBool json);
+int slapd_log_auditfail(char *buffer, PRBool json);
+int32_t slapd_log_access_json(char *buffer);
+void logs_flush(void);
 
 int access_log_openf(char *pathname, int locked);
+int security_log_openf(char *pathname, int locked);
 int error_log_openf(char *pathname, int locked);
 int audit_log_openf(char *pathname, int locked);
 int auditfail_log_openf(char *pathname, int locked);
@@ -826,7 +903,6 @@ char *g_get_access_log(void);
 char *g_get_error_log(void);
 char *g_get_audit_log(void);
 char *g_get_auditfail_log(void);
-void g_set_accesslog_level(int val);
 
 int log_set_mode(const char *attrname, char *mode_str, int logtype, char *errorbuf, int apply);
 int log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char *errorbuf, int apply);
@@ -842,10 +918,12 @@ int log_set_expirationtime(const char *attrname, char *exptime_str, int logtype,
 int log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, char *errorbuf, int apply);
 char **log_get_loglist(int logtype);
 int log_update_accesslogdir(char *pathname, int apply);
+int log_update_securitylogdir(char *pathname, int apply);
 int log_update_errorlogdir(char *pathname, int apply);
 int log_update_auditlogdir(char *pathname, int apply);
 int log_update_auditfaillogdir(char *pathname, int apply);
 int log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
+int log_set_compression(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 int check_log_max_size(
     char *maxdiskspace_str,
     char *mlogsize_str,
@@ -854,9 +932,12 @@ int check_log_max_size(
     char *returntext,
     int logtype);
 
-
 void g_set_accesslog_level(int val);
+void g_set_statlog_level(int val);
+void g_set_securitylog_level(int val);
 void log__delete_rotated_logs(void);
+void log__error_emergency(const char *errstr, int reopen, int locked);
+void slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb);
 
 /*
  * util.c
@@ -866,6 +947,9 @@ int strarray2str(char **a, char *buf, size_t buflen, int include_quotes);
 int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
 int slapd_comp_path(char *p0, char *p1);
 void replace_char(char *name, char c, char c2);
+char *split_string_at_delim(char *str, char delim);
+char *tokenize_string(char **str, const char *delim);
+void slapd_cert_not_found_error_help(char *cert_name);
 
 
 /*
@@ -917,7 +1001,8 @@ void operation_set_target_spec_str(Slapi_Operation *op, const char *target_spec)
 unsigned long operation_get_abandoned_op(const Slapi_Operation *op);
 void operation_set_abandoned_op(Slapi_Operation *op, unsigned long abndoned_op);
 void operation_set_type(Slapi_Operation *op, unsigned long type);
-
+LDAPControl **operation_get_req_controls(const Operation *o);
+LDAPControl **operation_get_result_controls(const Operation *o);
 
 /*
  * plugin.c
@@ -930,6 +1015,7 @@ int plugin_call_exop_plugins(Slapi_PBlock *pb, struct slapdplugin *p);
 Slapi_Backend *plugin_extended_op_getbackend(Slapi_PBlock *pb, struct slapdplugin *p);
 const char *plugin_extended_op_oid2string(const char *oid);
 void plugin_closeall(int close_backends, int close_globals);
+void plugin_pre_closeall(void);
 void plugin_dependency_freeall(void);
 void plugin_startall(int argc, char **argv, char **plugin_list);
 void plugin_get_plugin_dependencies(char *plugin_name, char ***names);
@@ -1006,6 +1092,7 @@ int add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e);
  * pw_retry.c
  */
 int update_pw_retry(Slapi_PBlock *pb);
+int update_tpr_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count);
 void pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods);
 void pw_set_componentID(struct slapi_componentid *cid);
 struct slapi_componentid *pw_get_componentID(void);
@@ -1029,12 +1116,15 @@ void reslimit_cleanup(void);
 /*
  * result.c
  */
-void g_set_num_entries_sent(Slapi_Counter *counter);
+PRUint64 g_get_num_ops_initiated(void);
+PRUint64 g_get_num_ops_completed(void);
 PRUint64 g_get_num_entries_sent(void);
-void g_set_num_bytes_sent(Slapi_Counter *counter);
 PRUint64 g_get_num_bytes_sent(void);
 void g_set_default_referral(struct berval **ldap_url);
 struct berval **g_get_default_referral(void);
+void g_set_haproxy_trusted_ip(struct berval **ipaddress);
+struct berval **g_get_haproxy_trusted_ip(void);
+haproxy_trusted_entry_t *g_get_haproxy_trusted_ip_parsed(size_t *count_out);
 void disconnect_server(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error);
 int send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly);
 void send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls);
@@ -1053,7 +1143,7 @@ void g_decrement_current_conn_count(void);
 void g_set_current_conn_count_mutex(PRLock *plock);
 PRLock *g_get_current_conn_count_mutex(void);
 int encode_attr(Slapi_PBlock *pb, BerElement *ber, Slapi_Entry *e, Slapi_Attr *a, int attrsonly, char *type);
-
+void get_notes_info(unsigned int notes, char **note, char **details); /* access json logging */
 
 /*
  * schema.c
@@ -1066,13 +1156,13 @@ int read_schema_dse(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *ent
 void oc_lock_read(void);
 void oc_lock_write(void);
 void oc_unlock(void);
-/* Note: callers of g_get_global_oc_nolock() must hold a read or write lock */
+/* Note: callers of g_get_global_oc_nolock(void) must hold a read or write lock */
 struct objclass *g_get_global_oc_nolock(void);
-/* Note: callers of g_set_global_oc_nolock() must hold a write lock */
+/* Note: callers of g_set_global_oc_nolock(void) must hold a write lock */
 void g_set_global_oc_nolock(struct objclass *newglobaloc);
-/* Note: callers of g_get_global_schema_csn() must hold a read lock */
+/* Note: callers of g_get_global_schema_csn(void) must hold a read lock */
 const CSN *g_get_global_schema_csn(void);
-/* Note: callers of g_set_global_schema_csn() must hold a write lock. */
+/* Note: callers of g_set_global_schema_csn(void) must hold a write lock. */
 /* csn is consumed. */
 void g_set_global_schema_csn(CSN *csn);
 void slapi_schema_expand_objectclasses(Slapi_Entry *e);
@@ -1091,7 +1181,7 @@ void supplier_learn_new_definitions(struct berval **objectclasses, struct berval
  */
 void normalize_oc(void);
 void normalize_oc_nolock(void);
-/* Note: callers of oc_update_inheritance_nolock() must hold a write lock */
+/* Note: callers of oc_update_inheritance_nolock(void) must hold a write lock */
 void oc_update_inheritance_nolock(struct objclass *oc);
 
 /*
@@ -1103,14 +1193,16 @@ void do_search(Slapi_PBlock *pb);
 /*
  * ssl.c
  */
-char *check_private_certdir();
+char *check_private_certdir(void);
 int slapd_nss_init(int init_ssl, int config_available);
 int slapd_ssl_init(void);
+void slapd_ssl_destroy(void);
 int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
 int slapd_security_library_is_initialized(void);
 int slapd_ssl_listener_is_initialized(void);
 int slapd_SSL_client_auth(LDAP *ld);
 SECKEYPrivateKey *slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg);
+void refresh_certs(daemon_ports_t *ports);
 
 /*
  * security_wrappers.c
@@ -1203,6 +1295,7 @@ time_t poll_current_time(void);
 char *format_localTime(time_t from);
 int format_localTime_log(time_t t, int initsize, char *buf, int *bufsize);
 int format_localTime_hr_log(time_t t, long nsec, int initsize, char *buf, int *bufsize);
+int32_t format_localTime_hr_json_log(struct timespec *ts, char *buf, int *bufsize, char *format);
 time_t parse_localTime(char *from);
 
 #ifndef HAVE_TIME_R
@@ -1253,6 +1346,13 @@ int c_get_shutdown(void);
 int g_get_global_lastmod(void);
 /* Ref_Array *g_get_global_referrals(void); */
 struct snmp_vars_t *g_get_global_snmp_vars(void);
+void alloc_global_snmp_vars(void);
+void alloc_per_thread_snmp_vars(int32_t maxthread);
+void thread_private_snmp_vars_set_idx(int32_t idx);
+struct snmp_vars_t *g_get_per_thread_snmp_vars(void);
+struct snmp_vars_t *g_get_first_thread_snmp_vars(int *cookie);
+struct snmp_vars_t *g_get_next_thread_snmp_vars(int *cookie);
+void init_thread_private_snmp_vars(void);
 void FrontendConfig_init(void);
 int g_get_slapd_security_on(void);
 char *config_get_versionstring(void);
@@ -1311,11 +1411,11 @@ void g_set_global_mrl(struct matchingRuleList *newglobalmrl);
 /*
  * generation.c
  */
+void free_server_dataversion(void);
 
 /*
  * factory.c
  */
-
 int factory_register_type(const char *name, size_t offset);
 void *factory_create_extension(int type, void *object, void *parent);
 void factory_destroy_extension(int type, void *object, void *parent, void **extension);
@@ -1323,7 +1423,6 @@ void factory_destroy_extension(int type, void *object, void *parent, void **exte
 /*
  * auditlog.c
  */
-
 void write_audit_log_entry(Slapi_PBlock *pb);
 void auditlog_hide_unhashed_pw(void);
 void auditlog_expose_unhashed_pw(void);
@@ -1335,9 +1434,14 @@ void auditfaillog_expose_unhashed_pw(void);
 /*
  * eventq.c
  */
+void eq_init_rel(void);
+void eq_start_rel(void);
+void eq_stop_rel(void);
+/* Deprecated eventq that uses REALTIME clock instead of MONOTONIC */
 void eq_init(void);
 void eq_start(void);
 void eq_stop(void);
+
 
 /*
  * uniqueidgen.c
@@ -1448,12 +1552,8 @@ void subentry_create_filter(Slapi_Filter **filter);
  * vattr.c
  */
 void vattr_init(void);
-void vattr_global_lock_create(void);
-void vattr_rdlock();
-void vattr_rd_unlock();
-void vattr_wrlock();
-void vattr_wr_unlock();
 void vattr_cleanup(void);
+void vattr_check(void);
 
 /*
  * slapd_plhash.c - supplement to NSPR plhash
@@ -1479,12 +1579,18 @@ int connection_release_nolock_ext(Connection *conn, int release_only);
 int connection_is_free(Connection *conn, int user_lock);
 int connection_is_active_nolock(Connection *conn);
 ber_slen_t openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len);
+int32_t connection_has_psearch(Connection *c);
+void free_worker_thread_indexes(void);
+int32_t get_work_q_size(void);
+int32_t get_work_q_size_max(void);
+int32_t get_busy_worker_count(void);
+int32_t get_max_busy_worker_count(void);
 
 /*
  * saslbind.c
  */
 int ids_sasl_init(void);
-char **ids_sasl_listmech(Slapi_PBlock *pb);
+char **ids_sasl_listmech(Slapi_PBlock *pb, PRBool get_all_mechs);
 void ids_sasl_check_bind(Slapi_PBlock *pb);
 void ids_sasl_server_new(Connection *conn);
 int slapd_ldap_sasl_interactive_bind(
@@ -1506,9 +1612,7 @@ int sasl_io_setup(Connection *c);
  * daemon.c
  */
 void handle_closed_connection(Connection *);
-#ifndef LINUX
-void slapd_do_nothing(int);
-#endif
+void slapd_lsan_check(void);
 void slapd_wait4child(int);
 void disk_mon_get_dirs(char ***list);
 int32_t disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space);
@@ -1525,23 +1629,28 @@ int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s
 /*
  * pagedresults.c
  */
+void pageresult_lock_init(void);
+void pageresult_lock_cleanup(void);
+pthread_mutex_t *pageresult_lock_get_addr(Connection *conn);
 int pagedresults_parse_control_value(Slapi_PBlock *pb, struct berval *psbvp, ber_int_t *pagesize, int *index, Slapi_Backend *be);
 void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, ber_int_t estimate, int curr_search_count, int index);
 Slapi_Backend *pagedresults_get_current_be(Connection *conn, int index);
-int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock);
-void *pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int index);
-int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int locked, int index);
-int pagedresults_get_search_result_count(Connection *conn, Operation *op, int index);
-int pagedresults_set_search_result_count(Connection *conn, Operation *op, int cnt, int index);
+int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, bool locked);
+void *pagedresults_get_search_result(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, bool locked, int index);
+int pagedresults_get_search_result_count(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_set_search_result_count(Connection *conn, Operation *op, int cnt, bool locked, int index);
 int pagedresults_get_search_result_set_size_estimate(Connection *conn,
                                                      Operation *op,
+                                                     bool locked,
                                                      int index);
 int pagedresults_set_search_result_set_size_estimate(Connection *conn,
                                                      Operation *op,
                                                      int cnt,
+                                                     bool locked,
                                                      int index);
-int pagedresults_get_with_sort(Connection *conn, Operation *op, int index);
-int pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, int index);
+int pagedresults_get_with_sort(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, bool locked, int index);
 int pagedresults_get_unindexed(Connection *conn, Operation *op, int index);
 int pagedresults_set_unindexed(Connection *conn, Operation *op, int index);
 int pagedresults_get_sort_result_code(Connection *conn, Operation *op, int index);
@@ -1553,19 +1662,28 @@ int pagedresults_cleanup(Connection *conn, int needlock);
 int pagedresults_is_timedout_nolock(Connection *conn);
 int pagedresults_reset_timedout_nolock(Connection *conn);
 int pagedresults_in_use_nolock(Connection *conn);
-int pagedresults_free_one(Connection *conn, Operation *op, int index);
-int pagedresults_free_one_msgid_nolock(Connection *conn, ber_int_t msgid);
+int pagedresults_free_one(Connection *conn, Operation *op, bool locked, int index);
+int pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, bool locked);
 int op_is_pagedresults(Operation *op);
 int pagedresults_cleanup_all(Connection *conn, int needlock);
 void op_set_pagedresults(Operation *op);
-void pagedresults_lock(Connection *conn, int index);
-void pagedresults_unlock(Connection *conn, int index);
-int pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int index);
-int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked);
+int pagedresults_is_abandoned_or_notavailable(Connection *conn, bool locked, int index);
+int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, bool locked);
 
 /*
  * sort.c
  */
 int sort_make_sort_response_control(Slapi_PBlock *pb, int code, char *error_type);
+
+/*
+ * subentries.c
+ */
+int subentries_parse_request_control(struct berval *subentries_spec_ber);
+
+/*
+ * dyncerts.c
+ */
+Slapi_Backend *dyncert_init_be(void);
+void dyncerts_register_socket(int sock, PRFileDesc *pr_sock);
 
 #endif /* _PROTO_SLAP */

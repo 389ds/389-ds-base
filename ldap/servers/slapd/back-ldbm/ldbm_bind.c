@@ -76,8 +76,8 @@ ldbm_back_bind(Slapi_PBlock *pb)
     case LDAP_AUTH_SIMPLE: {
         Slapi_Value cv;
         if (slapi_entry_attr_find(e->ep_entry, "userpassword", &attr) != 0) {
-            slapi_send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
-                                   NULL, 0, NULL);
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Entry does not have userpassword set");
+            slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
             CACHE_RETURN(&inst->inst_cache, &e);
             rc = SLAPI_BIND_FAIL;
             goto bail;

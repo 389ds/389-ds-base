@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -51,7 +51,7 @@ DBGEN_POSITIONS = [
 
 DBGEN_TITLE_LEVELS = [
 "Senior",
-"Master",
+"Principal",
 "Associate",
 "Junior",
 "Chief",
@@ -83,6 +83,7 @@ objectClass: person
 objectClass: organizationalPerson
 objectClass: inetOrgPerson
 objectclass: inetUser
+objectclass: posixAccount
 cn: {CN}
 sn: {LAST}
 uid: {UID}
@@ -103,6 +104,9 @@ l: {LOCATION}
 ou: {OU}
 mail: {UID}@example.com
 mail: {UIDNUMBER}@example.com
+uidNumber: {UIDNUMBER}
+gidNumber: {UIDNUMBER}
+homeDirectory: /home/{UID}
 postalAddress: 518, Dept #851, Room#{OU}
 title: {TITLE}
 usercertificate;binary:: MIIBvjCCASegAwIBAgIBAjANBgkqhkiG9w0BAQQFADAnMQ8wDQYD
@@ -220,6 +224,9 @@ def dbgen_users(instance, number, ldif_file, suffix, generic=False, entry_name="
     """
     Generate an LDIF of randomly named entries
     """
+    # Lets insure that integer parameters are not string
+    number=int(number)
+    startIdx=int(startIdx)
     familyname_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-FamilyNames')
     givename_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-GivenNames')
     familynames = []

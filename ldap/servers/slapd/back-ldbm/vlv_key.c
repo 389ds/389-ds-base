@@ -28,7 +28,7 @@ vlv_key_new()
 {
     struct vlv_key *p = (struct vlv_key *)slapi_ch_malloc(sizeof(struct vlv_key));
     p->keymem = 64;
-    memset(&p->key, 0, sizeof(DBT));
+    memset(&p->key, 0, sizeof(dbi_val_t));
     p->key.data = slapi_ch_malloc(p->keymem);
     p->key.size = 0;
     return p;

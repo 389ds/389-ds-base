@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,8 +8,10 @@
 # --- END COPYRIGHT BLOCK ---
 
 from json import dumps as dump_json
-from lib389.cli_base import _get_arg
+from lib389.cli_base import _get_arg, CustomHelpFormatter
 from lib389.schema import Schema, AttributeUsage, ObjectclassKind
+from lib389.migrate.openldap.config import olSchema
+from lib389.migrate.plan import Migration
 
 
 def _validate_dual_args(enable_arg, disable_arg):
@@ -28,7 +31,8 @@ def list_all(inst, basedn, log, args):
     if args is not None and args.json:
         json = True
 
-    objectclass_elems = schema.get_objectclasses(json=json)
+    objectclass_elems = schema.get_objectclasses(include_sup=args.include_oc_sup,
+                                                 json=json)
     attributetype_elems = schema.get_attributetypes(json=json)
     matchingrule_elems = schema.get_matchingrules(json=json)
 
@@ -64,7 +68,7 @@ def list_objectclasses(inst, basedn, log, args):
     log = log.getChild('list_objectclasses')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(dump_json(schema.get_objectclasses(json=True), indent=4))
+        print(dump_json(schema.get_objectclasses(include_sup=args.include_sup, json=True), indent=4))
     else:
         for oc in schema.get_objectclasses():
             print(oc)
@@ -105,7 +109,7 @@ def query_objectclass(inst, basedn, log, args):
     schema = Schema(inst)
     # Need the query type
     oc = _get_arg(args.name, msg="Enter objectclass to query")
-    result = schema.query_objectclass(oc, json=args.json)
+    result = schema.query_objectclass(oc, include_sup=args.include_sup, json=args.json)
     if args.json:
         print(dump_json(result, indent=4))
     else:
@@ -187,7 +191,7 @@ def reload_schema(inst, basedn, log, args):
     print('Attempting to add task entry... This will fail if Schema Reload plug-in is not enabled.')
     task = schema.reload(args.schemadir)
     if args.wait:
-        task.wait()
+        task.wait(timeout=args.timeout)
         rc = task.get_exit_code()
         if rc == 0:
             print("Schema reload task ({}) successfully finished.".format(task.dn))
@@ -202,7 +206,7 @@ def validate_syntax(inst, basedn, log, args):
     schema = Schema(inst)
     log.info('Attempting to add task entry...')
     validate_task = schema.validate_syntax(args.DN, args.filter)
-    validate_task.wait()
+    validate_task.wait(timeout=args.timeout)
     exitcode = validate_task.get_exit_code()
     if exitcode != 0:
         log.error(f'Validate syntax task for {args.DN} has failed. Please, check logs')
@@ -217,8 +221,21 @@ def get_syntaxes(inst, basedn, log, args):
     if args.json:
         print(dump_json(result, indent=4))
     else:
-        for id, name in result.items():
-            print("%s (%s)", name, id)
+        for oid, name in result.items():
+            print(f"{name} ({oid})")
+
+
+def import_openldap_schema_file(inst, basedn, log, args):
+    log = log.getChild('import_openldap_schema_file')
+    log.debug(f"Parsing {args.schema_file} ...")
+    olschema = olSchema([args.schema_file], log)
+    migration = Migration(inst, olschema)
+    if args.confirm:
+        migration.execute_plan(log)
+        log.info("🎉 Schema migration complete!")
+    else:
+        migration.display_plan_review(log)
+        log.info("No actions taken. To apply migration plan, use '--confirm'")
 
 
 def _get_parameters(args, type):
@@ -307,79 +324,96 @@ def _add_parser_args(parser, type):
         parser.add_argument('--usage',
                             help='The flag indicates how the attribute type is to be used. Choose from the list: '
                                  'userApplications (default), directoryOperation, distributedOperation, dSAOperation')
-        parser.add_argument('--sup', nargs='+', help='The list of NAMEs or OIDs of attribute types'
-                                                     'this attribute type is derived from')
+        parser.add_argument('--sup', nargs=1, help='The NAME or OID of attribute type this attribute type is derived from')
     elif type == 'objectclasses':
         parser.add_argument('--must', nargs='+', help='NAMEs or OIDs of all attributes an entry of the object must have')
         parser.add_argument('--may', nargs='+', help='NAMEs or OIDs of additional attributes an entry of the object may have')
         parser.add_argument('--kind', help='Kind of an object. STRUCTURAL (default), ABSTRACT, AUXILIARY')
-        parser.add_argument('--sup', nargs='+', help='NAMEs or OIDs of object classes this object is derived from')
+        parser.add_argument('--sup', nargs='+', help='NAME or OIDs of object classes this object is derived from')
     else:
         raise ValueError("Wrong parser type: %s" % type)
 
 
 def create_parser(subparsers):
-    schema_parser = subparsers.add_parser('schema', help='Query and manipulate schema')
+    schema_parser = subparsers.add_parser('schema', help='Manage the directory schema', formatter_class=CustomHelpFormatter)
 
     schema_subcommands = schema_parser.add_subparsers(help='schema')
-    schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system')
+    schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system', formatter_class=CustomHelpFormatter)
     schema_list_parser.set_defaults(func=list_all)
+    schema_list_parser.add_argument('--include-oc-sup', action='store_true',
+                                    default=False,
+                                    help="Include the superior objectclasses' \"may\" and \"must\" attributes")
 
-    attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system')
+    attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system', formatter_class=CustomHelpFormatter)
     attributetypes_subcommands = attributetypes_parser.add_subparsers(help='schema')
-    at_get_syntaxes_parser = attributetypes_subcommands.add_parser('get_syntaxes', help='List all available attribute type syntaxes')
+    at_get_syntaxes_parser = attributetypes_subcommands.add_parser('get_syntaxes', help='List all available attribute type syntaxes', formatter_class=CustomHelpFormatter)
     at_get_syntaxes_parser.set_defaults(func=get_syntaxes)
-    at_list_parser = attributetypes_subcommands.add_parser('list', help='List available attribute types on this system')
+    at_list_parser = attributetypes_subcommands.add_parser('list', help='List available attribute types on this system', formatter_class=CustomHelpFormatter)
     at_list_parser.set_defaults(func=list_attributetypes)
-    at_query_parser = attributetypes_subcommands.add_parser('query', help='Query an attribute to determine object classes that may or must take it')
+    at_query_parser = attributetypes_subcommands.add_parser('query', help='Query an attribute to determine object classes that may or must take it', formatter_class=CustomHelpFormatter)
     at_query_parser.set_defaults(func=query_attributetype)
     at_query_parser.add_argument('name', nargs='?', help='Attribute type to query')
-    at_add_parser = attributetypes_subcommands.add_parser('add', help='Add an attribute type to this system')
+    at_add_parser = attributetypes_subcommands.add_parser('add', help='Add an attribute type to this system', formatter_class=CustomHelpFormatter)
     at_add_parser.set_defaults(func=add_attributetype)
     _add_parser_args(at_add_parser, 'attributetypes')
     at_add_parser.add_argument('--syntax', required=True, help='OID of the LDAP syntax assigned to the attribute')
-    at_edit_parser = attributetypes_subcommands.add_parser('replace', help='Replace an attribute type on this system')
+    at_edit_parser = attributetypes_subcommands.add_parser('replace', help='Replace an attribute type on this system', formatter_class=CustomHelpFormatter)
     at_edit_parser.set_defaults(func=edit_attributetype)
     _add_parser_args(at_edit_parser, 'attributetypes')
     at_edit_parser.add_argument('--syntax', help='OID of the LDAP syntax assigned to the attribute')
-    at_remove_parser = attributetypes_subcommands.add_parser('remove', help='Remove an attribute type on this system')
+    at_remove_parser = attributetypes_subcommands.add_parser('remove', help='Remove an attribute type on this system', formatter_class=CustomHelpFormatter)
     at_remove_parser.set_defaults(func=remove_attributetype)
     at_remove_parser.add_argument('name', help='NAME of the object')
 
-    objectclasses_parser = schema_subcommands.add_parser('objectclasses', help='Work with objectClasses on this system')
+    objectclasses_parser = schema_subcommands.add_parser('objectclasses', help='Work with objectClasses on this system', formatter_class=CustomHelpFormatter)
     objectclasses_subcommands = objectclasses_parser.add_subparsers(help='schema')
-    oc_list_parser = objectclasses_subcommands.add_parser('list', help='List available objectClasses on this system')
+    oc_list_parser = objectclasses_subcommands.add_parser('list', help='List available objectClasses on this system', formatter_class=CustomHelpFormatter)
     oc_list_parser.set_defaults(func=list_objectclasses)
-    oc_query_parser = objectclasses_subcommands.add_parser('query', help='Query an objectClass')
+    oc_list_parser.add_argument('--include-sup', action='store_true', default=False, help="Include the superior objectclasses' \"may\" and \"must\" attributes")
+    oc_query_parser = objectclasses_subcommands.add_parser('query', help='Query an objectClass', formatter_class=CustomHelpFormatter)
     oc_query_parser.set_defaults(func=query_objectclass)
     oc_query_parser.add_argument('name', nargs='?', help='ObjectClass to query')
-    oc_add_parser = objectclasses_subcommands.add_parser('add', help='Add an objectClass to this system')
+    oc_query_parser.add_argument('--include-sup', action='store_true', default=False, help="Include the superior objectclasses' \"may\" and \"must\" attributes")
+    oc_add_parser = objectclasses_subcommands.add_parser('add', help='Add an objectClass to this system', formatter_class=CustomHelpFormatter)
     oc_add_parser.set_defaults(func=add_objectclass)
     _add_parser_args(oc_add_parser, 'objectclasses')
-    oc_edit_parser = objectclasses_subcommands.add_parser('replace', help='Replace an objectClass on this system')
+    oc_edit_parser = objectclasses_subcommands.add_parser('replace', help='Replace an objectClass on this system', formatter_class=CustomHelpFormatter)
     oc_edit_parser.set_defaults(func=edit_objectclass)
     _add_parser_args(oc_edit_parser, 'objectclasses')
-    oc_remove_parser = objectclasses_subcommands.add_parser('remove', help='Remove an objectClass on this system')
+    oc_remove_parser = objectclasses_subcommands.add_parser('remove', help='Remove an objectClass on this system', formatter_class=CustomHelpFormatter)
     oc_remove_parser.set_defaults(func=remove_objectclass)
     oc_remove_parser.add_argument('name', help='NAME of the object')
 
-    matchingrules_parser = schema_subcommands.add_parser('matchingrules', help='Work with matching rules on this system')
+    matchingrules_parser = schema_subcommands.add_parser('matchingrules', help='Work with matching rules on this system', formatter_class=CustomHelpFormatter)
     matchingrules_subcommands = matchingrules_parser.add_subparsers(help='schema')
-    mr_list_parser = matchingrules_subcommands.add_parser('list', help='List available matching rules on this system')
+    mr_list_parser = matchingrules_subcommands.add_parser('list', help='List available matching rules on this system', formatter_class=CustomHelpFormatter)
     mr_list_parser.set_defaults(func=list_matchingrules)
-    mr_query_parser = matchingrules_subcommands.add_parser('query', help='Query a matching rule')
+    mr_query_parser = matchingrules_subcommands.add_parser('query', help='Query a matching rule', formatter_class=CustomHelpFormatter)
     mr_query_parser.set_defaults(func=query_matchingrule)
     mr_query_parser.add_argument('name', nargs='?', help='Matching rule to query')
 
-    reload_parser = schema_subcommands.add_parser('reload', help='Dynamically reload schema while server is running')
+    reload_parser = schema_subcommands.add_parser('reload', help='Dynamically reload schema while server is running', formatter_class=CustomHelpFormatter)
     reload_parser.set_defaults(func=reload_schema)
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
     reload_parser.add_argument('--wait', action='store_true', default=False, help="Wait for the reload task to complete")
+    reload_parser.add_argument('--timeout', default=120, type=int,
+                               help="Set a timeout to wait for the reload task.  Default is 120 seconds")
 
     validate_parser = schema_subcommands.add_parser('validate-syntax',
-                                                    help='Run a task to check every modification to attributes to make sure '
-                                                         'that the new value has the required syntax for that attribute type')
+                                                    help='Run a task to check that all attributes in an entry have the correct syntax')
     validate_parser.set_defaults(func=validate_syntax)
     validate_parser.add_argument('DN', help="Base DN that contains entries to validate")
     validate_parser.add_argument('-f', '--filter', help='Filter for entries to validate.\n'
                                                         'If omitted, all entries with filter "(objectclass=*)" are validated')
+    validate_parser.add_argument('--timeout', default=120, type=int,
+                                 help="Set a timeout to wait for the validation task.  Default is 120 seconds")
+
+    import_oldap_schema_parser = schema_subcommands.add_parser('import-openldap-file',
+                                                               help='Import an openldap formatted dynamic schema ldifs. '
+                                                                    'These will contain values like olcAttributeTypes and olcObjectClasses.')
+    import_oldap_schema_parser.set_defaults(func=import_openldap_schema_file)
+    import_oldap_schema_parser.add_argument('schema_file', help="Path to the openldap dynamic schema ldif to import")
+    import_oldap_schema_parser.add_argument('--confirm',
+                                            default=False, action='store_true',
+                                            help="Confirm that you want to apply these schema migration actions to the "
+                                                 "389-ds instance. By default no actions are taken.")

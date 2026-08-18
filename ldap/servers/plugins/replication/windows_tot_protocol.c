@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,7 +15,7 @@
 /* windows_tot_protocol.c */
 /*
 
- The tot_protocol object implements the DS 5.0 multi-master total update
+ The tot_protocol object implements the DS 5.0 multi-supplier total update
  replication protocol, used to (re)populate a replica.
 
 */
@@ -89,7 +89,7 @@ _windows_tot_send_entry(const Repl_Agmt *ra, callback_data *cbp, const Slapi_DN 
     /* Perform a subtree search for any ntuser or ntgroup entries underneath the
     * suffix defined in the sync agreement. */
     slapi_search_internal_set_pb(pb, dn, scope, filter, attrs, 0, server_controls, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
 
     slapi_search_internal_callback_pb(pb, cbp /* callback data */,
                                       get_result /* result callback */,
@@ -162,7 +162,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
     agmt_set_update_in_progress(prp->agmt, PR_TRUE);
 
-    slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_tot_run - Beginning total update of replica "
+    slapi_log_err(SLAPI_LOG_INFO, windows_repl_plugin_name, "windows_tot_run - Beginning total update of replica "
                                                            "\"%s\".\n",
                   agmt_get_long_name(prp->agmt));
 
@@ -223,7 +223,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
                       agmt_get_long_name(prp->agmt), rc);
         agmt_set_last_init_status(prp->agmt, 0, 0, rc, "Total update aborted");
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_tot_run - Finished total update of replica "
+        slapi_log_err(SLAPI_LOG_INFO, windows_repl_plugin_name, "windows_tot_run - Finished total update of replica "
                                                                "\"%s\". Sent %lu entries.\n",
                       agmt_get_long_name(prp->agmt), cb_data.num_entries);
         agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
@@ -326,6 +326,7 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
 {
     windows_tot_private *rip = NULL;
     Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
+    pthread_condattr_t cattr;
 
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> Windows_Tot_Protocol_new\n");
 
@@ -339,12 +340,19 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_closed = windows_tot_noop;
     prp->replica = prot_get_replica(rp);
     prp->update_now = windows_tot_noop;
-    if ((prp->lock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(prp->lock), NULL) != 0) {
         goto loser;
     }
-    if ((prp->cvar = PR_NewCondVar(prp->lock)) == NULL) {
+    if (pthread_condattr_init(&cattr) != 0) {
         goto loser;
     }
+    if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0) {
+        goto loser;
+    }
+    if (pthread_cond_init(&(prp->cvar), &cattr) != 0) {
+        goto loser;
+    }
+    pthread_condattr_destroy(&cattr);
     prp->stopped = 1;
     prp->terminate = 0;
     prp->eventbits = 0;
@@ -372,15 +380,9 @@ windows_tot_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stopped = 1;
         (*prpp)->stop(*prpp);
     }
-    /* Then, delete all resources used by the protocol */
-    if ((*prpp)->lock) {
-        PR_DestroyLock((*prpp)->lock);
-        (*prpp)->lock = NULL;
-    }
-    if ((*prpp)->cvar) {
-        PR_DestroyCondVar((*prpp)->cvar);
-        (*prpp)->cvar = NULL;
-    }
+    /* Then, release all resources used by the protocol */
+    pthread_mutex_destroy(&((*prpp)->lock));
+    pthread_cond_destroy(&(*prpp)->cvar);
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
 

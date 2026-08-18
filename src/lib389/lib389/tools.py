@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,6 +19,7 @@ import time
 import shutil
 import subprocess
 import tarfile
+import urllib
 import re
 import glob
 import pwd
@@ -32,23 +33,12 @@ from lib389.paths import Paths
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import (
-    update_newhost_with_fqdn,
-    get_server_user,
-    formatInfData,
-    getserverroot,
-    getdefaultsuffix,
     ensure_bytes,
     ensure_str,
-    ds_is_older,)
-
+    ds_is_older,
+)
 
 __all__ = ['DirSrvTools']
-try:
-    from subprocess import Popen, PIPE, STDOUT
-    HASPOPEN = True
-except ImportError:
-    import popen2
-    HASPOPEN = False
 
 _ds_paths = Paths()
 
@@ -102,16 +92,11 @@ class DirSrvTools(object):
         env['NETSITE_ROOT'] = sroot
         env['CONTENT_LENGTH'] = str(length)
         progdir = os.path.dirname(prog)
-        if HASPOPEN:
-            pipe = Popen(prog, cwd=progdir, env=env,
-                         stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-            child_stdin = pipe.stdin
-            child_stdout = pipe.stdout
-        else:
-            saveenv = os.environ
-            os.environ = env
-            child_stdout, child_stdin = popen2.popen2(prog)
-            os.environ = saveenv
+        pipe = subprocess.Popen(prog, cwd=progdir, env=env,
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        child_stdin = pipe.stdin
+        child_stdout = pipe.stdout
         child_stdin.write(content)
         child_stdin.close()
         for line in child_stdout:
@@ -122,10 +107,9 @@ class DirSrvTools(object):
                 exitCode = ary[1].strip()
                 break
         child_stdout.close()
-        if HASPOPEN:
-            osCode = pipe.wait()
-            print("%s returned NMC code %s and OS code %s" %
-                  (prog, exitCode, osCode))
+        osCode = pipe.wait()
+        print("%s returned NMC code %s and OS code %s" %
+              (prog, exitCode, osCode))
         return exitCode
 
     @staticmethod
@@ -256,7 +240,7 @@ class DirSrvTools(object):
             dirsrv.dbdir: directory where is stored the database
                           (e.g. /var/lib/dirsrv/slapd-standalone/db)
             dirsrv.changelogdir: directory where is stored the changelog
-                                (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
+                                (e.g. /var/lib/dirsrv/slapd-supplier/changelogdb)
         """
 
         # First check it if already exists a backup file
@@ -305,6 +289,7 @@ class DirSrvTools(object):
         name = "backup_%s.tar.gz" % (time.strftime("%m%d%Y_%H%M%S"))
         backup_file = os.path.join(backup_dir, name)
         tar = tarfile.open(backup_file, "w:gz")
+        tar.extraction_filter = (lambda member, path: member)
 
         for name in listFilesToBackup:
             if os.path.isfile(name):
@@ -363,6 +348,7 @@ class DirSrvTools(object):
         os.chdir(dirsrv.prefix)
 
         tar = tarfile.open(backup_file)
+        tar.extraction_filter = (lambda member, path: member)
         for member in tar.getmembers():
             if os.path.isfile(member.name):
                 #
@@ -412,7 +398,7 @@ class DirSrvTools(object):
         certdir = e_config.getValue('nsslapd-certdir')
         # have to stop the server before replacing any security files
         DirSrvTools.stop(dirsrv)
-        # allow secport for selinux
+        # allow secport for SELinux
         if secport != 636:
             try:
                 log.debug("Configuring SELinux on port: %s", str(secport))
@@ -459,14 +445,10 @@ class DirSrvTools(object):
             cmd.extend(['-l', '/dev/null'])
         cmd.extend(['-s', '-f', '-'])
         log.debug("running: %s " % cmd)
-        if HASPOPEN:
-            pipe = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-            child_stdin = pipe.stdin
-            child_stdout = pipe.stdout
-        else:
-            pipe = popen2.Popen4(cmd)
-            child_stdin = pipe.tochild
-            child_stdout = pipe.fromchild
+        pipe = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        child_stdin = pipe.stdin
+        child_stdout = pipe.stdout
         child_stdin.write(ensure_bytes(content))
         child_stdin.close()
         if verbose:
@@ -492,7 +474,7 @@ class DirSrvTools(object):
         """run the remove instance command"""
         prog = os.path.join(_ds_paths.sbin_dir, 'dsctl')
         try:
-            cmd = "%s slapd-%s remove --do-it" % (prog, self.serverid)
+            cmd = "%s slapd-%s remove --do-it" % (prog, dirsrv.serverid)
             log.info('Running: {}'.format(" ".join(cmd)))
             subprocess.check_call(cmd)
         except subprocess.CalledProcessError as e:
@@ -513,7 +495,8 @@ class DirSrvTools(object):
                 instance.prefix
                 instance.backup
         '''
-        instance = lib389.DirSrv(verbose=True)
+        from lib389 import DirSrv
+        instance = DirSrv(verbose=True)
         instance.allocate(args)
 
         return instance

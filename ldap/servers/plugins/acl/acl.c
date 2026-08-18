@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -67,6 +67,9 @@ static void print_access_control_summary(char *source,
                                          const char *edn,
                                          aclResultReason_t *acl_reason);
 static int check_rdn_access(Slapi_PBlock *pb, Slapi_Entry *e, const char *newrdn, int access);
+static struct targetfilter_cached_result *targetfilter_cache_lookup(struct acl_pblock *aclpb, char *filter, PRBool filter_valid);
+static void targetfilter_cache_add(struct acl_pblock *aclpb, char *filter, int result, PRBool filter_valid);
+
 
 
 /*
@@ -176,6 +179,70 @@ check_rdn_access(Slapi_PBlock *pb, Slapi_Entry *e, const char *dn, int access)
     return (retCode);
 }
 
+/* Retrieves, in the targetfilter cache (list), this
+ * filter in case it was already evaluated
+ *
+ * filter: key to retrieve the evaluation in the cache
+ * filter_valid: PR_FALSE means that the filter key is truncated, PR_TRUE else
+ */
+static struct targetfilter_cached_result *
+targetfilter_cache_lookup(struct acl_pblock *aclpb, char *filter, PRBool filter_valid)
+{
+    struct targetfilter_cached_result *results;
+    if (! aclpb->targetfilter_cache_enabled) {
+        /* targetfilter cache is disabled */
+        return NULL;
+    }
+    if (filter == NULL) {
+        return NULL;
+    }
+    for(results = aclpb->aclpb_curr_entry_targetfilters; results; results = results->next) {
+        if (strcmp(results->filter, filter) == 0) {
+            return results;
+        }
+    }
+
+    return NULL;
+}
+
+/* Free all evaluations cached for this current entry */
+void
+targetfilter_cache_free(struct acl_pblock *aclpb)
+{
+    struct targetfilter_cached_result *results, *next;
+    if (aclpb == NULL) {
+        return;
+    }
+    for(results = aclpb->aclpb_curr_entry_targetfilters; results;) {
+        next = results->next;
+        slapi_ch_free_string(&results->filter);
+        slapi_ch_free((void **) &results);
+        results = next;
+    }
+    aclpb->aclpb_curr_entry_targetfilters = NULL;
+}
+
+/* add a new targetfilter evaluation into the cache (per entry)
+ * ATM just use a linked list of evaluation
+ *
+ * filter: key to retrieve the evaluation in the cache
+ * result: result of the evaluation
+ * filter_valid: PR_FALSE means that the filter key is truncated, PR_TRUE else
+ */
+static void
+targetfilter_cache_add(struct acl_pblock *aclpb, char *filter, int result, PRBool filter_valid)
+{
+    struct targetfilter_cached_result *results;
+    if (! filter_valid || ! aclpb->targetfilter_cache_enabled) {
+        /* targetfilter cache is disabled or filter is truncated */
+        return;
+    }
+    results = (struct targetfilter_cached_result *) slapi_ch_calloc(1, (sizeof(struct targetfilter_cached_result)));
+    results->filter = slapi_ch_strdup(filter);
+    results->next = aclpb->aclpb_curr_entry_targetfilters;
+    results->matching_result = result;
+    aclpb->aclpb_curr_entry_targetfilters = results;
+}
 /***************************************************************************
 *
 * acl_access_allowed
@@ -496,6 +563,7 @@ acl_access_allowed(
 
         /* Keep the ptr to the current entry */
         aclpb->aclpb_curr_entry = (Slapi_Entry *)e;
+        targetfilter_cache_free(aclpb);
 
         /* Get the attr info */
         deallocate_attrEval = acl__get_attrEval(aclpb, attr);
@@ -1655,16 +1723,19 @@ acl_modified(Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
                 group_change = 1;
                 if (optype == SLAPI_OPERATION_MODIFY) {
                     Slapi_Attr *a = NULL;
-                    int rv;
-                    rv = slapi_entry_attr_find(e, "uniqueMember", &a);
-                    if (rv != 0)
+                    int rc;
+                    rc = slapi_entry_attr_find(e, "uniqueMember", &a);
+                    if (rc != 0) {
                         break;
-                    rv = slapi_entry_attr_find(e, "Member", &a);
-                    if (rv != 0)
+                    }
+                    rc = slapi_entry_attr_find(e, "Member", &a);
+                    if (rc != 0) {
                         break;
-                    rv = slapi_entry_attr_find(e, "MemberURL", &a);
-                    if (rv != 0)
+                    }
+                    rc = slapi_entry_attr_find(e, "MemberURL", &a);
+                    if (rc != 0) {
                         break;
+                    }
                     /* That means we are not changing the member
                     ** list, so it's okay to let go this
                     ** change
@@ -1924,7 +1995,7 @@ acl_modified(Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 *    None.
 *
 **************************************************************************/
-static int
+int
 acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 {
     aci_t *aci;
@@ -2111,10 +2182,11 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
     aci_right = aci->aci_access;
     res_right = aclpb->aclpb_access;
     if (!(aci_right & res_right)) {
-        /* If we are looking for read/search and the acl has read/search
-        ** then go further because if targets match we may keep that
-        ** acl in  the entry cache list.
-        */
+        /*
+         * If we are looking for read/search and the acl has read/search
+         * then go further because if targets match we may keep that
+         * acl in the entry cache list.
+         */
         if (!((res_right & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ)) &&
               (aci_right & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ)))) {
             matches = ACL_FALSE;
@@ -2122,30 +2194,29 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
         }
     }
 
-
-    /* first Let's see if the entry is under the subtree where the
-    ** ACL resides. We can't let somebody affect a target beyond the
-    ** scope of where the ACL resides
-    ** Example: ACL is located in "ou=engineering, o=ace industry, c=us
-    ** but if the target is "o=ace industry, c=us", then we are in trouble.
-    **
-    ** If the aci is in the rootdse and the entry is not, then we do not
-    ** match--ie. acis in the rootdse do NOT apply below...for the moment.
-    **
-    */
+    /*
+     * First Let's see if the entry is under the subtree where the
+     * ACL resides. We can't let somebody affect a target beyond the
+     * scope of where the ACL resides
+     * Example: ACL is located in "ou=engineering, o=ace industry, c=us
+     * but if the target is "o=ace industry, c=us", then we are in trouble.
+     *
+     * If the aci is in the rootdse and the entry is not, then we do not
+     * match--ie. acis in the rootdse do NOT apply below...for the moment.
+     */
     res_ndn = slapi_sdn_get_ndn(aclpb->aclpb_curr_entry_sdn);
     aci_ndn = slapi_sdn_get_ndn(aci->aci_sdn);
-    if (!slapi_sdn_issuffix(aclpb->aclpb_curr_entry_sdn, aci->aci_sdn) || (!slapi_is_rootdse(res_ndn) && slapi_is_rootdse(aci_ndn))) {
-
-        /* cant' poke around */
+    if (!slapi_sdn_issuffix(aclpb->aclpb_curr_entry_sdn, aci->aci_sdn) ||
+        (!slapi_is_rootdse(res_ndn) && slapi_is_rootdse(aci_ndn)))
+    {
+        /* can't poke around */
         matches = ACL_FALSE;
         goto acl__resource_match_aci_EXIT;
     }
 
     /*
-    ** We have a single ACI which we need to find if it applies to
-    ** the resource or not.
-    */
+     * We have a single ACI which we need to find if it applies to the resource or not.
+     */
     if ((aci->aci_type & ACI_TARGET_DN) && (aclpb->aclpb_curr_entry_sdn)) {
         char *avaType;
         struct berval *avaValue;
@@ -2173,25 +2244,23 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
         char *avaType;
         struct berval *avaValue;
         char logbuf[1024];
-
-        /* We are evaluating the moddn permission.
-                 * The aci contains target_to and target_from
-                 *
-                 * target_to filter must be checked against the resource ndn that was stored in
-                 * aclpb->aclpb_curr_entry_sdn
-                 *
-                 * target_from filter must be check against the entry ndn that is in aclpb->aclpb_moddn_source_sdn
-                 * (sdn was stored in the pblock)
-                 */
+        /*
+         * We are evaluating the moddn permission.
+         * The aci contains target_to and target_from
+         *
+         * target_to filter must be checked against the resource ndn that was stored in
+         * aclpb->aclpb_curr_entry_sdn
+         *
+         * target_from filter must be check against the entry ndn that is in aclpb->aclpb_moddn_source_sdn
+         * (sdn was stored in the pblock)
+         */
         if (aci->target_to) {
             f = aci->target_to;
             dn_matched = ACL_TRUE;
 
             /* Now check if the filter is a simple or substring filter */
             if (aci->aci_type & ACI_TARGET_MODDN_TO_PATTERN) {
-                /* This is a filter with substring
-                     * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
-                     */
+                /* This is a filter with substring e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com */
                 slapi_log_err(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_to substring: %s\n",
                               slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
                 if ((rv = acl_match_substring(f, (char *)res_ndn, 0 /* match suffix */)) != ACL_TRUE) {
@@ -2204,9 +2273,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                     }
                 }
             } else {
-                /* This is a filter without substring
-                     * e.g. ldap:///cn=accounts,dc=example,dc=com
-                     */
+                /* This is a filter without substring  e.g. ldap:///cn=accounts,dc=example,dc=com */
                 slapi_log_err(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_to: %s\n",
                               slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
                 slapi_filter_get_ava(f, &avaType, &avaValue);
@@ -2230,8 +2297,8 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
             /* Now check if the filter is a simple or substring filter */
             if (aci->aci_type & ACI_TARGET_MODDN_FROM_PATTERN) {
                 /* This is a filter with substring
-                         * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
-                         */
+                 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
+                 */
                 slapi_log_err(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_from substring: %s\n",
                               slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
                 if ((rv = acl_match_substring(f, (char *)slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), 0 /* match suffix */)) != ACL_TRUE) {
@@ -2243,11 +2310,8 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                         goto acl__resource_match_aci_EXIT;
                     }
                 }
-
             } else {
-                /* This is a filter without substring
-                         * e.g. ldap:///cn=accounts,dc=example,dc=com
-                         */
+                /* This is a filter without substring  e.g. ldap:///cn=accounts,dc=example,dc=com */
                 slapi_log_err(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_from: %s\n",
                               slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
                 if (!slapi_dn_issuffix(slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), avaValue->bv_val)) {
@@ -2269,10 +2333,8 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
     }
 
     if (aci->aci_type & ACI_TARGET_PATTERN) {
-
         f = aci->target;
         dn_matched = ACL_TRUE;
-
         if ((rv = acl_match_substring(f, (char *)res_ndn, 0 /* match suffux */)) != ACL_TRUE) {
             dn_matched = ACL_FALSE;
             if (rv == ACL_ERR) {
@@ -2296,7 +2358,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
 
     /*
      * Is it a (target="ldap://cn=*,($dn),o=sun.com") kind of thing.
-    */
+     */
     if (aci->aci_type & ACI_TARGET_MACRO_DN) {
         /*
          * See if the ($dn) component matches the string and
@@ -2306,8 +2368,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
          * entry is the same one don't recalculate it--
          * this flag only works for search right now, could
          * also optimise for mods by making it work for mods.
-        */
-
+         */
         if ((aclpb->aclpb_res_type & ACLPB_NEW_ENTRY) == 0) {
             /*
              * Here same entry so just look up the matched value,
@@ -2356,8 +2417,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                  * If there is already an entry for this aci in this
                  * aclpb then remove it--it's an old value for a
                  * different entry.
-                */
-
+                 */
                 acl_ht_add_and_freeOld(aclpb->aclpb_macro_ht,
                                        (PLHashNumber)aci->aci_index,
                                        matched_val);
@@ -2381,30 +2441,27 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
     }
 
     /*
-    ** Here, if there's a targetfilter field, see if it matches.
-    **
-    ** The commented out code below was an erroneous attempt to skip
-    ** this test.  It is wrong because: 1. you need to store
-    ** whether the last test matched or not (you cannot just assume it did)
-    ** and 2. It may not be the same aci, so the previous matched
-    ** value is a function of the aci.
-    ** May be interesting to build such a cache...but no evidence for
-    ** for that right now. See Bug 383424.
-    **
-    **
-    **   && ((aclpb->aclpb_state & ACLPB_SEARCH_BASED_ON_LIST) ||
-    **    (aclpb->aclpb_res_type & ACLPB_NEW_ENTRY))
-    */
+     * Here, if there's a targetfilter field, see if it matches.
+     *
+     * The commented out code below was an erroneous attempt to skip
+     * this test.  It is wrong because: 1. you need to store
+     * whether the last test matched or not (you cannot just assume it did)
+     * and 2. It may not be the same aci, so the previous matched
+     * value is a function of the aci.
+     * May be interesting to build such a cache...but no evidence for
+     * for that right now. See Bug 383424.
+     *
+     *
+     *   && ((aclpb->aclpb_state & ACLPB_SEARCH_BASED_ON_LIST) ||
+     *    (aclpb->aclpb_res_type & ACLPB_NEW_ENTRY))
+     */
     if (aci->aci_type & ACI_TARGET_FILTER) {
         int filter_matched = ACL_TRUE;
-
         /*
          * Check for macros.
          * For targetfilter we need to fake the lasinfo structure--it's
          * created "naturally" for subjects but not targets.
-        */
-
-
+         */
         if (aci->aci_type & ACI_TARGET_FILTER_MACRO_DN) {
 
             lasInfo *lasinfo = NULL;
@@ -2419,12 +2476,68 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                                                     ACL_EVAL_TARGET_FILTER);
             slapi_ch_free((void **)&lasinfo);
         } else {
+            Slapi_DN *sdn;
+            char* attr_evaluated = "None";
+            char logbuf[2048] = {0};
+            char *redzone = "the redzone";
+            int32_t redzone_idx;
+            char *filterstr; /* key to retrieve/add targetfilter value in the cache */
+            PRBool valid_filter;
+            struct targetfilter_cached_result *previous_filter_test;
 
+            /* only usefull for debug purpose */
+            if (aclpb->aclpb_curr_attrEval && aclpb->aclpb_curr_attrEval->attrEval_name) {
+                attr_evaluated = aclpb->aclpb_curr_attrEval->attrEval_name;
+            }
+            sdn = slapi_entry_get_sdn(aclpb->aclpb_curr_entry);
 
-            if (slapi_vattr_filter_test(NULL, aclpb->aclpb_curr_entry,
-                                        aci->targetFilter,
-                                        0 /*don't do acess chk*/) != 0) {
-                filter_matched = ACL_FALSE;
+            /* The key for the cache is the string representation of the original filter
+             * If the string can not fit into the provided buffer (overwrite redzone)
+             * then the filter is said invalid (for the cache) and it will be evaluated
+             */
+            redzone_idx = sizeof(logbuf) - 1 - strlen(redzone);
+            strcpy(&logbuf[redzone_idx], redzone);
+            filterstr = slapi_filter_to_string(aci->targetFilter, logbuf, sizeof(logbuf));
+
+            /* if the redzone was overwritten that means filterstr is truncated and not valid */
+            valid_filter = (strcmp(&logbuf[redzone_idx], redzone) == 0);
+            if (!valid_filter) {
+                strcpy(&logbuf[50], "...");
+                slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "targetfilter too large (can not be cache) %s\n", logbuf);
+            }
+
+            previous_filter_test = targetfilter_cache_lookup(aclpb, filterstr, valid_filter);
+            if (previous_filter_test) {
+                /* The filter was already evaluated against that same entry */
+                if (previous_filter_test->matching_result == 0) {
+                    slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "cached result for entry %s did NOT match %s (%s)\n",
+                            slapi_sdn_get_ndn(sdn),
+                            filterstr,
+                            attr_evaluated);
+                    filter_matched = ACL_FALSE;
+                } else {
+                    slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "cached result for entry %s did match %s (%s)\n",
+                            slapi_sdn_get_ndn(sdn),
+                            filterstr,
+                            attr_evaluated);
+                }
+            } else {
+                /* The filter has not already been evaluated against that entry
+                 * evaluate it and cache the result
+                 */
+                if (slapi_vattr_filter_test(NULL, aclpb->aclpb_curr_entry,
+                        aci->targetFilter,
+                        0 /*don't do access check*/) != 0) {
+                    filter_matched = ACL_FALSE;
+                    targetfilter_cache_add(aclpb, filterstr, 0, valid_filter); /* does not match */
+                } else {
+                    targetfilter_cache_add(aclpb, filterstr, 1, valid_filter); /* does match */
+                }
+                slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "entry %s %s match %s (%s)\n",
+                        slapi_sdn_get_ndn(sdn),
+                        filter_matched == ACL_FALSE ? "does not" : "does",
+                        filterstr,
+                        attr_evaluated);
             }
         }
 
@@ -2450,7 +2563,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
      * Check to see if we need to evaluate any targetattrfilters.
      * They look as follows:
      * (targetattrfilters="add=sn:(sn=rob) && gn:(gn!=byrne),
-     *                       del=sn:(sn=rob) && gn:(gn=byrne)")
+     *                     del=sn:(sn=rob) && gn:(gn=byrne)")
      *
      * For ADD/DELETE:
      * If theres's a targetattrfilter then each add/del filter
@@ -2458,28 +2571,24 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
      * by each value of the attribute in the entry.
      *
      * For MODIFY:
-     *    If there's a targetattrfilter then the add/del filter
+     * If there's a targetattrfilter then the add/del filter
      * must be satisfied by the attribute to be added/deleted.
      * (MODIFY acl is evaluated one value at a time).
      *
      *
-    */
-
+     */
     if (((aclpb->aclpb_access & SLAPI_ACL_ADD) &&
          (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) ||
         ((aclpb->aclpb_access & SLAPI_ACL_DELETE) &&
-         (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS))) {
-
+         (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)))
+    {
         Targetattrfilter **attrFilterArray = NULL;
-
         Targetattrfilter *attrFilter = NULL;
-
-        Slapi_Attr *attr_ptr = NULL;
+        Slapi_Attr *target_attr_ptr = NULL;
         Slapi_Value *sval;
         const struct berval *attrVal;
         int k;
         int done;
-
 
         if ((aclpb->aclpb_access & SLAPI_ACL_ADD) &&
             (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) {
@@ -2497,64 +2606,56 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
 
         while (attrFilterArray && attrFilterArray[num_attrs] && attr_matched) {
             attrFilter = attrFilterArray[num_attrs];
-
             /*
-                 * If this filter applies to an attribute in the entry,
-                 * apply it to the entry.
-                 * Otherwise just ignore it.
-                 *
-                */
-
+             * If this filter applies to an attribute in the entry,
+             * apply it to the entry.
+             * Otherwise just ignore it.
+             */
             if (slapi_entry_attr_find(aclpb->aclpb_curr_entry,
                                       attrFilter->attr_str,
-                                      &attr_ptr) == 0) {
-
+                                      &target_attr_ptr) == 0) {
                 /*
-                     * This is an applicable filter.
-                     *  The filter is to be appplied to the entry being added
-                     * or deleted.
-                     * The filter needs to be satisfied by _each_ occurence
-                     * of the attribute in the entry--otherwise you
-                     * could satisfy the filter and then put loads of other
-                     * values in on the back of it.
-                     */
-
+                 * This is an applicable filter.
+                 * The filter is to be applied to the entry being added or deleted.
+                 * The filter needs to be satisfied by _each_ occurrence of the
+                 * attribute in the entry--otherwise you could satisfy the filter
+                 * and then put loads of other values in on the back of it.
+                 */
                 sval = NULL;
                 attrVal = NULL;
-                k = slapi_attr_first_value(attr_ptr, &sval);
+                k = slapi_attr_first_value(target_attr_ptr, &sval);
                 done = 0;
                 while (k != -1 && !done) {
                     attrVal = slapi_value_get_berval(sval);
 
                     if (acl__make_filter_test_entry(&aclpb->aclpb_filter_test_entry,
                                                     attrFilter->attr_str,
-                                                    (struct berval *)attrVal) == LDAP_SUCCESS) {
-
+                                                    (struct berval *)attrVal) == LDAP_SUCCESS)
+                    {
                         attr_matched = acl__test_filter(aclpb->aclpb_filter_test_entry,
                                                         attrFilter->filter,
-                                                        1 /* Do filter sense evaluation below */
-                                                        );
+                                                        1 /* Do filter sense evaluation below */);
                         done = !attr_matched;
                         slapi_entry_free(aclpb->aclpb_filter_test_entry);
                     }
 
-                    k = slapi_attr_next_value(attr_ptr, k, &sval);
+                    k = slapi_attr_next_value(target_attr_ptr, k, &sval);
                 } /* while */
 
                 /*
-                     * Here, we applied an applicable filter to the entry.
-                     * So if attr_matched is ACL_TRUE then every value
-                     * of the attribute in the entry satisfied the filter.
-                     * Otherwise, attr_matched is ACL_FALSE and not every
-                     * value satisfied the filter, so we will teminate the
-                     * scan of the filter list.
-                     */
+                 * Here, we applied an applicable filter to the entry.
+                 * So if attr_matched is ACL_TRUE then every value
+                 * of the attribute in the entry satisfied the filter.
+                 * Otherwise, attr_matched is ACL_FALSE and not every
+                 * value satisfied the filter, so we will terminate the
+                 * scan of the filter list.
+                 */
             }
 
             num_attrs++;
         } /* while */
 
-/*
+        /*
          * Here, we've applied all the applicable filters to the entry.
          * Each one must have been satisfied by all the values of the attribute.
          * The result of this is stored in attr_matched.
@@ -2585,7 +2686,8 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
     } else if (((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
                 (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) ||
                ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL) &&
-                (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS))) {
+                (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)))
+    {
         /*
          * Here, it's a modify add/del and we have attr filters.
          * So, we need to scan the add/del filter list to find the filter
@@ -2629,11 +2731,10 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
          * Otherwise, ignore the targetattrfilters.
          */
         if (found) {
-
             if (acl__make_filter_test_entry(&aclpb->aclpb_filter_test_entry,
                                             aclpb->aclpb_curr_attrEval->attrEval_name,
-                                            aclpb->aclpb_curr_attrVal) == LDAP_SUCCESS) {
-
+                                            aclpb->aclpb_curr_attrVal) == LDAP_SUCCESS)
+            {
                 attr_matched = acl__test_filter(aclpb->aclpb_filter_test_entry,
                                                 attrFilter->filter,
                                                 1 /* Do filter sense evaluation below */
@@ -2651,20 +2752,21 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
              * Here this attribute appeared and was matched in a
              * targetattrfilters list, so record this fact so we do
              * not have to scan the targetattr list for the attribute.
-            */
+             */
 
             attr_matched_in_targetattrfilters = 1;
         }
     } /* targetvaluefilters */
 
 
-    /* There are 3 cases  by which acis are selected.
-    ** 1) By scanning the whole list and picking based on the resource.
-    ** 2) By picking a subset of the list which will be used for the whole
-    **    acl evaluation.
-    ** 3) A finer granularity, i.e, a selected list of acls which will be
-    ** used for only that entry's evaluation.
-    */
+    /*
+     * There are 3 cases  by which acis are selected.
+     * 1) By scanning the whole list and picking based on the resource.
+     * 2) By picking a subset of the list which will be used for the whole
+     *    acl evaluation.
+     * 3) A finer granularity, i.e, a selected list of acls which will be
+     * used for only that entry's evaluation.
+     */
     if (!(skip_attrEval) && (aclpb->aclpb_state & ACLPB_SEARCH_BASED_ON_ENTRY_LIST) &&
         (res_right & SLAPI_ACL_SEARCH) &&
         ((aci->aci_access & SLAPI_ACL_READ) || (aci->aci_access & SLAPI_ACL_SEARCH))) {
@@ -2679,7 +2781,6 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
             aclpb->aclpb_handles_index[kk] = -1;
         }
     }
-
 
     /* If we are suppose to skip attr eval, then let's skip it */
     if ((aclpb->aclpb_access & SLAPI_ACL_SEARCH) && (!skip_attrEval) &&
@@ -2697,9 +2798,10 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
         goto acl__resource_match_aci_EXIT;
     }
 
-    /* We need to check again because we don't want to select this handle
-    ** if the right doesn't match for now.
-    */
+    /*
+     * We need to check again because we don't want to select this handle
+     * if the right doesn't match for now.
+     */
     if (!(aci_right & res_right)) {
         matches = ACL_FALSE;
         goto acl__resource_match_aci_EXIT;
@@ -2718,20 +2820,16 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
      * rbyrneXXX if we had a proper permission for modrdn eg SLAPI_ACL_MODRDN
      * then we would not need this crappy way of telling it was a MODRDN
      * request ie. SLAPI_ACL_WRITE && !(c_attrEval).
-    */
-
+     */
     c_attrEval = aclpb->aclpb_curr_attrEval;
 
     /*
      * If we've already matched on targattrfilter then do not
      * bother to look at the attrlist.
-    */
-
+     */
     if (!attr_matched_in_targetattrfilters) {
-
         /* match target attr */
-        if ((c_attrEval) &&
-            (aci->aci_type & ACI_TARGET_ATTR)) {
+        if ((c_attrEval) && (aci->aci_type & ACI_TARGET_ATTR)) {
             /* there is a target ATTR */
             Targetattr **attrArray = aci->targetAttr;
             Targetattr *attr = NULL;
@@ -2773,46 +2871,43 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                 matches = (attr_matched ? ACL_TRUE : ACL_FALSE);
             }
 
-
             aclpb->aclpb_state &= ~ACLPB_ATTR_STAR_MATCHED;
             /* figure out how it matched, i.e star matched */
-            if (matches && star_matched && num_attrs == 1 &&
-                !(aclpb->aclpb_state & ACLPB_FOUND_ATTR_RULE))
+            if (matches && star_matched && num_attrs == 1 && !(aclpb->aclpb_state & ACLPB_FOUND_ATTR_RULE)) {
                 aclpb->aclpb_state |= ACLPB_ATTR_STAR_MATCHED;
-            else {
+            } else {
                 /* we are here means that there is a specific
-                ** attr in the rule for this resource.
-                ** We need to avoid this case
-                ** Rule 1: (targetattr = "uid")
-                ** Rule 2: (targetattr = "*")
-                ** we cannot use STAR optimization
-                */
+                 * attr in the rule for this resource.
+                 * We need to avoid this case
+                 * Rule 1: (targetattr = "uid")
+                 * Rule 2: (targetattr = "*")
+                 * we cannot use STAR optimization
+                 */
                 aclpb->aclpb_state |= ACLPB_FOUND_ATTR_RULE;
                 aclpb->aclpb_state &= ~ACLPB_ATTR_STAR_MATCHED;
             }
-        } else if ((c_attrEval) ||
-                   (aci->aci_type & ACI_TARGET_ATTR)) {
+        } else if ((c_attrEval) || (aci->aci_type & ACI_TARGET_ATTR)) {
             if ((aci_right & ACL_RIGHTS_TARGETATTR_NOT_NEEDED) &&
                 (aclpb->aclpb_access & ACL_RIGHTS_TARGETATTR_NOT_NEEDED)) {
                 /*
-            ** Targetattr rule doesn't  make any sense
-            ** in this case. So select this rule
-            ** default: matches = ACL_TRUE;
-            */
+                 * Targetattr rule doesn't make any sense
+                 * in this case. So select this rule
+                 * default: matches = ACL_TRUE;
+                 */
                 ;
-            } else if (aci_right & SLAPI_ACL_WRITE &&
+            } else if ((aci_right & SLAPI_ACL_WRITE) &&
                        (aci->aci_type & ACI_TARGET_ATTR) &&
                        !(c_attrEval) &&
                        (aci->aci_type & ACI_HAS_ALLOW_RULE)) {
                 /* We need to handle modrdn operation.  Modrdn doesn't
-            ** change any attrs but changes the RDN and so (attr=NULL).
-            ** Here we found an acl which has a targetattr but
-            ** the resource doesn't need one. In that case, we should
-            ** consider this acl.
-            ** the opposite is true if it is a deny rule, only a deny without
-            ** any targetattr should deny modrdn
-            ** default: matches = ACL_TRUE;
-            */
+                 * change any attrs but changes the RDN and so (attr=NULL).
+                 * Here we found an acl which has a targetattr but
+                 * the resource doesn't need one. In that case, we should
+                 * consider this acl.
+                 * the opposite is true if it is a deny rule, only a deny without
+                 * any targetattr should deny modrdn
+                 * default: matches = ACL_TRUE;
+                 */
                 ;
             } else {
                 matches = ACL_FALSE;
@@ -2821,16 +2916,16 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
     } /* !attr_matched_in_targetattrfilters */
 
     /*
-    ** Here we are testing if we find a entry test rule (which should
-    ** be rare). In that case, just remember it. An entry test rule
-    ** doesn't have "(targetattr)".
-    */
+     * Here we are testing if we find a entry test rule (which should
+     * be rare). In that case, just remember it. An entry test rule
+     * doesn't have "(targetattr)".
+     */
     if ((aclpb->aclpb_state & ACLPB_EVALUATING_FIRST_ATTR) &&
         (!(aci->aci_type & ACI_TARGET_ATTR))) {
         aclpb->aclpb_state |= ACLPB_FOUND_A_ENTRY_TEST_RULE;
     }
 
-/*
+    /*
      * Generic exit point for this routine:
      * matches is ACL_TRUE if the aci matches the target of the resource,
      * ACL_FALSE othrewise.
@@ -2853,6 +2948,7 @@ acl__resource_match_aci_EXIT:
 
     return (matches);
 }
+
 /* Macro to determine if the cached result is valid or not. */
 #define ACL_CACHED_RESULT_VALID(result)          \
     (((result & ACLPB_CACHE_READ_RES_ALLOW) &&   \
@@ -2892,7 +2988,7 @@ acl__resource_match_aci_EXIT:
 *    None.
 *
 **************************************************************************/
-static int
+int
 acl__TestRights(Acl_PBlock *aclpb, int access, const char **right, const char **map_generic, aclResultReason_t *result_reason)
 {
     ACLEvalHandle_t *acleval;
@@ -3557,7 +3653,7 @@ static int
 acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
 {
 
-    int i, rc;
+    int rc;
     aclEvalContext *c_evalContext;
 
     if (!(access & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ)))
@@ -3574,17 +3670,15 @@ acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
     }
 
     if (attr == NULL) {
-        int eval_read = 0;
         /*
         **  Do I have access to at least one attribute, then I have
         ** access to the  entry.
         */
-        for (i = 0; i < c_evalContext->acle_numof_attrs; i++) {
+        for (size_t i = 0; i < c_evalContext->acle_numof_attrs; i++) {
             AclAttrEval *a_eval = &c_evalContext->acle_attrEval[i];
 
             if ((access & SLAPI_ACL_READ) && a_eval->attrEval_r_status &&
                 a_eval->attrEval_r_status < ACL_ATTREVAL_DETERMINISTIC) {
-                eval_read++;
                 if (a_eval->attrEval_r_status & ACL_ATTREVAL_SUCCESS)
                     return LDAP_SUCCESS;
                 /* rbyrne: recompute if we have to.
@@ -3616,7 +3710,7 @@ acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
         return (ACL_ERR);
     }
 
-    for (i = 0; i < c_evalContext->acle_numof_attrs; i++) {
+    for (size_t i = 0; i < c_evalContext->acle_numof_attrs; i++) {
         AclAttrEval *a_eval = &c_evalContext->acle_attrEval[i];
 
         if (a_eval == NULL)
@@ -4074,7 +4168,6 @@ acl_skip_access_check(Slapi_PBlock *pb, Slapi_Entry *e __attribute__((unused)), 
 {
     int rv, isRoot, accessCheckDisabled;
     void *conn = NULL;
-    Slapi_Backend *be;
     struct acl_pblock *aclpb = NULL;
 
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isRoot);
@@ -4099,15 +4192,6 @@ acl_skip_access_check(Slapi_PBlock *pb, Slapi_Entry *e __attribute__((unused)), 
         if  ( slapi_is_rootdse ( edn ) ) return ACL_TRUE;
     }
     */
-
-    /* GB : when referrals are directly set in the mappin tree
-     * we can reach this code without a backend in the pblock
-     * in such a case, allow access for now
-     * we may want to reconsider this is NULL DSE implementation happens
-     */
-    rv = slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    if (be == NULL)
-        return ACL_TRUE;
 
     rv = slapi_pblock_get(pb, SLAPI_PLUGIN_DB_NO_ACL, &accessCheckDisabled);
     if (rv != -1 && accessCheckDisabled)

@@ -17,9 +17,10 @@ from lib389.idm.nscontainer import nsContainers
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.replica import ReplicationManager
+from lib389.replica import ReplicationManager, Replicas
 from lib389.agreement import Agreements
 from lib389.plugins import MemberOfPlugin
+from lib389.dirsrv_log import DirsrvErrorLog
 
 pytestmark = pytest.mark.tier1
 
@@ -114,7 +115,7 @@ def _test_base(topology):
     audit log, error log for replica and access log for internal
     """
 
-    M1 = topology.ms["master1"]
+    M1 = topology.ms["supplier1"]
 
     conts = nsContainers(M1, SUFFIX)
     base_m2 = conts.ensure_state(properties={'cn': 'test_container'})
@@ -129,17 +130,37 @@ def _test_base(topology):
     return base_m2
 
 
+def _dump_logs(topology):
+    """ Logs instances error logs"""
+    for inst in topology:
+        errlog = DirsrvErrorLog(inst)
+        log.info(f'{inst.serverid} errorlog:')
+        for l in errlog.readlines():
+            log.info(l.strip())
+
+
 def _delete_test_base(inst, base_m2_dn):
     """Delete test container with entries and entry conflicts"""
 
-    ents = inst.search_s(base_m2_dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+    try:
+        ents = inst.search_s(base_m2_dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+        for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
+            log.debug("Delete entry children {}".format(ent.dn))
+            try:
+                inst.delete_ext_s(ent.dn)
+            except ldap.NO_SUCH_OBJECT:  # For the case with objectclass: glue entries
+                pass
+    except ldap.NO_SUCH_OBJECT:  # Subtree is already removed.
+        pass
 
-    for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
-        log.debug("Delete entry children {}".format(ent.dn))
-        try:
-            inst.delete_ext_s(ent.dn)
-        except ldap.NO_SUCH_OBJECT:  # For the case with objectclass: glue entries
-            pass
+
+def _resume_agmts(inst):
+    """Resume all agreements in the instance"""
+
+    replicas = Replicas(inst)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    for agreement in replica.get_agreements().list():
+        agreement.resume()
 
 
 @pytest.fixture
@@ -148,7 +169,17 @@ def base_m2(topology_m2, request):
 
     def fin():
         if not DEBUGGING:
-            _delete_test_base(topology_m2.ms["master1"], tb.dn)
+            _delete_test_base(topology_m2.ms["supplier1"], tb.dn)
+            _delete_test_base(topology_m2.ms["supplier2"], tb.dn)
+            # Replication may break while deleting the container because naming
+            # conflict entries still exists on the other side
+            # Note IMHO there a bug in the entryrdn handling of replicated delete operation
+            # ( children naming conflict or glue entries older than the parent delete operation should
+            #   should be deleted when the parent is deleted )
+            # So let restarts the agmt once everything is deleted.
+            topology_m2.pause_all_replicas()
+            topology_m2.resume_all_replicas()
+
     request.addfinalizer(fin)
 
     return tb
@@ -160,18 +191,18 @@ def base_m3(topology_m3, request):
 
     def fin():
         if not DEBUGGING:
-            _delete_test_base(topology_m3.ms["master1"], tb.dn)
+            _delete_test_base(topology_m3.ms["supplier1"], tb.dn)
     request.addfinalizer(fin)
 
     return tb
 
 
-class TestTwoMasters:
+class TestTwoSuppliers:
     def test_add_modrdn(self, topology_m2, base_m2):
         """Check that conflict properly resolved for create - modrdn operations
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908ebb
-        :setup: Two master replication, test container for entries, enable plugin logging,
+        :setup: Two supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Add five users to m1 and wait for replication to happen
@@ -183,7 +214,7 @@ class TestTwoMasters:
             7. Rename an entry on m1 and rename on m2. Use different entries
                but rename them to the same entry
             8. Resume replication
-            9. Check that the entries on both masters are the same and replication is working
+            9. Check that the entries on both suppliers are the same and replication is working
         :expectedresults:
             1. It should pass
             2. It should pass
@@ -195,8 +226,8 @@ class TestTwoMasters:
             8. It should pass
         """
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
         test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
         test_users_m2 = UserAccounts(M2, base_m2.dn, rdn=None)
         repl = ReplicationManager(SUFFIX)
@@ -241,7 +272,8 @@ class TestTwoMasters:
         which involve add, modify, modrdn and delete
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908eb1
-        :setup: Two master replication, test container for entries, enable plugin logging,
+        :customerscenario: True
+        :setup: Two supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Add ten users to m1 and wait for replication to happen
@@ -250,11 +282,11 @@ class TestTwoMasters:
             4. Test add-mod on m1 and add on m2
             5. Test add-modrdn on m1 and add on m2
             6. Test multiple add, modrdn
-            7. Test Add-del on both masters
+            7. Test Add-del on both suppliers
             8. Test modrdn-modrdn
             9. Test modrdn-del
             10. Resume replication
-            11. Check that the entries on both masters are the same and replication is working
+            11. Check that the entries on both suppliers are the same and replication is working
         :expectedresults:
             1. It should pass
             2. It should pass
@@ -269,8 +301,8 @@ class TestTwoMasters:
             11. It should pass
         """
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
 
         test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
         test_users_m2 = UserAccounts(M2, base_m2.dn, rdn=None)
@@ -338,7 +370,7 @@ class TestTwoMasters:
         _create_user(test_users_m1, user_num, sleep=True)
         _modify_user(test_users_m2, user_num, sleep=True)
 
-        log.info("Add - del on both masters")
+        log.info("Add - del on both suppliers")
         user_num += 1
         _create_user(test_users_m1, user_num)
         _delete_user(test_users_m1, user_num, sleep=True)
@@ -362,7 +394,6 @@ class TestTwoMasters:
         topology_m2.resume_all_replicas()
 
         repl.test_replication_topology(topology_m2)
-        time.sleep(30)
 
         user_dns_m1 = [user.dn for user in test_users_m1.list()]
         user_dns_m2 = [user.dn for user in test_users_m2.list()]
@@ -373,7 +404,7 @@ class TestTwoMasters:
         with memberOf and groups
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908eb3
-        :setup: Two master replication, test container for entries, enable plugin logging,
+        :setup: Two supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Enable memberOf plugin
@@ -385,7 +416,7 @@ class TestTwoMasters:
             7. Create a group on m2 and m1, delete from m1
             8. Create two different groups on m2
             9. Resume replication
-            10. Check that the entries on both masters are the same and replication is working
+            10. Check that the entries on both suppliers are the same and replication is working
         :expectedresults:
             1. It should pass
             2. It should pass
@@ -401,8 +432,8 @@ class TestTwoMasters:
 
         pytest.xfail("Issue 49591 - work in progress")
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
         test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
         test_groups_m1 = Groups(M1, base_m2.dn, rdn=None)
         test_groups_m2 = Groups(M2, base_m2.dn, rdn=None)
@@ -468,17 +499,17 @@ class TestTwoMasters:
         with managed entries
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908eb4
-        :setup: Two master replication, test container for entries, enable plugin logging,
+        :setup: Two supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Create ou=managed_users and ou=managed_groups under test container
             2. Configure managed entries plugin and add a template to test container
             3. Add a user to m1 and wait for replication to happen
             4. Pause replication
-            5. Create a user on m1 and m2 with a same group ID on both master
-            6. Create a user on m1 and m2 with a different group ID on both master
+            5. Create a user on m1 and m2 with a same group ID on both supplier
+            6. Create a user on m1 and m2 with a different group ID on both supplier
             7. Resume replication
-            8. Check that the entries on both masters are the same and replication is working
+            8. Check that the entries on both suppliers are the same and replication is working
         :expectedresults:
             1. It should pass
             2. It should pass
@@ -492,8 +523,8 @@ class TestTwoMasters:
 
         pytest.xfail("Issue 49591 - work in progress")
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
         repl = ReplicationManager(SUFFIX)
 
         ous = OrganizationalUnits(M1, DEFAULT_SUFFIX)
@@ -547,23 +578,23 @@ class TestTwoMasters:
         with nested entries with children
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908eb5
-        :setup: Two master replication, test container for entries, enable plugin logging,
+        :setup: Two supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Add 15 containers to m1 and wait for replication to happen
             2. Pause replication
-            3. Create parent-child on master2 and master1
-            4. Create parent-child on master1 and master2
-            5. Create parent-child on master1 and master2 different child rdn
-            6. Create parent-child on master1 and delete parent on master2
-            7. Create parent on master1, delete it and parent-child on master2, delete them
-            8. Create parent on master1, delete it and parent-two children on master2
-            9. Create parent-two children on master1 and parent-child on master2, delete them
+            3. Create parent-child on supplier2 and supplier1
+            4. Create parent-child on supplier1 and supplier2
+            5. Create parent-child on supplier1 and supplier2 different child rdn
+            6. Create parent-child on supplier1 and delete parent on supplier2
+            7. Create parent on supplier1, delete it and parent-child on supplier2, delete them
+            8. Create parent on supplier1, delete it and parent-two children on supplier2
+            9. Create parent-two children on supplier1 and parent-child on supplier2, delete them
             10. Create three subsets inside existing container entry, applying only part of changes on m2
             11. Create more combinations of the subset with parent-child on m1 and parent on m2
             12. Delete container on m1, modify user1 on m1, create parent on m2 and modify user2 on m2
             13. Resume replication
-            14. Check that the entries on both masters are the same and replication is working
+            14. Check that the entries on both suppliers are the same and replication is working
         :expectedresults:
             1. It should pass
             2. It should pass
@@ -583,8 +614,8 @@ class TestTwoMasters:
 
         pytest.xfail("Issue 49591 - work in progress")
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
         repl = ReplicationManager(SUFFIX)
         test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
         test_users_m2 = UserAccounts(M2, base_m2.dn, rdn=None)
@@ -600,25 +631,25 @@ class TestTwoMasters:
 
         topology_m2.pause_all_replicas()
 
-        log.info("Create parent-child on master2 and master1")
+        log.info("Create parent-child on supplier2 and supplier1")
         _create_container(M2, base_m2.dn, 'p0', sleep=True)
         cont_p = _create_container(M1, base_m2.dn, 'p0', sleep=True)
         _create_container(M1, cont_p.dn, 'c0', sleep=True)
         _create_container(M2, cont_p.dn, 'c0', sleep=True)
 
-        log.info("Create parent-child on master1 and master2")
+        log.info("Create parent-child on supplier1 and supplier2")
         cont_p = _create_container(M1, base_m2.dn, 'p1', sleep=True)
         _create_container(M2, base_m2.dn, 'p1', sleep=True)
         _create_container(M1, cont_p.dn, 'c1', sleep=True)
         _create_container(M2, cont_p.dn, 'c1', sleep=True)
 
-        log.info("Create parent-child on master1 and master2 different child rdn")
+        log.info("Create parent-child on supplier1 and supplier2 different child rdn")
         cont_p = _create_container(M1, base_m2.dn, 'p2', sleep=True)
         _create_container(M2, base_m2.dn, 'p2', sleep=True)
         _create_container(M1, cont_p.dn, 'c2', sleep=True)
         _create_container(M2, cont_p.dn, 'c3', sleep=True)
 
-        log.info("Create parent-child on master1 and delete parent on master2")
+        log.info("Create parent-child on supplier1 and delete parent on supplier2")
         cont_num = 0
         cont_p_m1 = _create_container(M1, cont_list[cont_num].dn, 'p0', sleep=True)
         cont_p_m2 = _create_container(M2, cont_list[cont_num].dn, 'p0', sleep=True)
@@ -631,7 +662,7 @@ class TestTwoMasters:
         _create_container(M1, cont_p_m1.dn, 'c0', sleep=True)
         _delete_container(cont_p_m2, sleep=True)
 
-        log.info("Create parent on master1, delete it and parent-child on master2, delete them")
+        log.info("Create parent on supplier1, delete it and parent-child on supplier2, delete them")
         cont_num += 1
         cont_p_m1 = _create_container(M1, cont_list[cont_num].dn, 'p0')
         _delete_container(cont_p_m1, sleep=True)
@@ -650,7 +681,7 @@ class TestTwoMasters:
         cont_p_m1 = _create_container(M1, cont_list[cont_num].dn, 'p0')
         _delete_container(cont_p_m1)
 
-        log.info("Create parent on master1, delete it and parent-two children on master2")
+        log.info("Create parent on supplier1, delete it and parent-two children on supplier2")
         cont_num += 1
         cont_p_m1 = _create_container(M1, cont_list[cont_num].dn, 'p0')
         _delete_container(cont_p_m1, sleep=True)
@@ -667,7 +698,7 @@ class TestTwoMasters:
         cont_p_m1 = _create_container(M1, cont_list[cont_num].dn, 'p0')
         _delete_container(cont_p_m1, sleep=True)
 
-        log.info("Create parent-two children on master1 and parent-child on master2, delete them")
+        log.info("Create parent-two children on supplier1 and parent-child on supplier2, delete them")
         cont_num += 1
         cont_p_m2 = _create_container(M2, cont_list[cont_num].dn, 'p0')
         cont_c_m2 = _create_container(M2, cont_p_m2.dn, 'c0')
@@ -747,7 +778,7 @@ class TestTwoMasters:
 
         conts_dns = {}
         for num in range(1, 3):
-            inst = topology_m2.ms["master{}".format(num)]
+            inst = topology_m2.ms["supplier{}".format(num)]
             conts_dns[inst.serverid] = []
             conts = nsContainers(inst, base_m2.dn)
             for cont in conts.list():
@@ -769,7 +800,7 @@ class TestTwoMasters:
            MODRDN and MOD_REPL its RDN values are the same on both servers
 
         :id: 225b3522-8ed7-4256-96f9-5fab9b7044a5
-        :setup: Two master replication,
+        :setup: Two supplier replication,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Create a test entry uid=user_test_1000,...
@@ -793,19 +824,24 @@ class TestTwoMasters:
             9. It should pass
         """
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
+        repl = ReplicationManager(SUFFIX)
 
         # add a test user
         test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
         user_1 = test_users_m1.create_test_user(uid=1000)
         test_users_m2 = UserAccount(M2, user_1.dn)
         # Waiting fo the user to be replicated
-        for i in range(0,4):
+        for i in range(0,60):
             time.sleep(1)
             if test_users_m2.exists():
                 break
-        assert(test_users_m2.exists())
+        try:
+            assert(test_users_m2.exists())
+        except AssertionError as e:
+            _dump_logs(topology_m2)
+            raise e from None
 
         # Stop replication agreements
         topology_m2.pause_all_replicas()
@@ -824,7 +860,7 @@ class TestTwoMasters:
 
         # resume replication agreements
         topology_m2.resume_all_replicas()
-        time.sleep(5)
+        repl.test_replication_topology(topology_m2)
 
         # check that on M1, the entry 'uid' has two values 'foo1' and 'foo2'
         final_dn = re.sub('^.*1000,', 'uid=foo2,', original_dn)
@@ -853,7 +889,7 @@ class TestTwoMasters:
            MODRDN and MOD_REPL its RDN values are the same on both servers
 
         :id: c38ae613-5d1e-47cf-b051-c7284e64b817
-        :setup: Two master replication, test container for entries, enable plugin logging,
+        :setup: Two supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Create a test entry uid=user_test_1000,...
@@ -877,8 +913,9 @@ class TestTwoMasters:
             9. It should pass
         """
 
-        M1 = topology_m2.ms["master1"]
-        M2 = topology_m2.ms["master2"]
+        M1 = topology_m2.ms["supplier1"]
+        M2 = topology_m2.ms["supplier2"]
+        repl = ReplicationManager(SUFFIX)
 
         # add a test user with a dummy 'uid' extra value because modrdn removes
         # uid that conflict with 'account' objectclass
@@ -889,11 +926,15 @@ class TestTwoMasters:
         test_users_m2 = UserAccount(M2, user_1.dn)
 
         # Waiting fo the user to be replicated
-        for i in range(0,4):
+        for i in range(0,60):
             time.sleep(1)
             if test_users_m2.exists():
                 break
-        assert(test_users_m2.exists())
+        try:
+            assert(test_users_m2.exists())
+        except AssertionError as e:
+            _dump_logs(topology_m2)
+            raise e from None
 
         # Stop replication agreements
         topology_m2.pause_all_replicas()
@@ -912,7 +953,7 @@ class TestTwoMasters:
 
         # resume replication agreements
         topology_m2.resume_all_replicas()
-        time.sleep(5)
+        repl.test_replication_topology(topology_m2)
 
         # check that on M1, the entry 'employeenumber' has value 'foo1'
         final_dn = re.sub('^.*1000,', 'employeenumber=foo2,', original_dn)
@@ -936,13 +977,13 @@ class TestTwoMasters:
             log.info("Check M2.uid %s is also on M1" % val)
             assert(val in final_user_m1.get_attr_vals_utf8('employeenumber'))
 
-class TestThreeMasters:
+class TestThreeSuppliers:
     def test_nested_entries(self, topology_m3, base_m3):
         """Check that conflict properly resolved for operations
         with nested entries with children
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908eb6
-        :setup: Three master replication, test container for entries, enable plugin logging,
+        :setup: Three supplier replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:
             1. Add 15 containers to m1 and wait for replication to happen
@@ -953,7 +994,7 @@ class TestThreeMasters:
                on m2 - delete one parent and create a child
             6. Test a few more parent-child combinations with three instances
             7. Resume replication
-            8. Check that the entries on both masters are the same and replication is working
+            8. Check that the entries on both suppliers are the same and replication is working
         :expectedresults:
             1. It should pass
             2. It should pass
@@ -967,9 +1008,9 @@ class TestThreeMasters:
 
         pytest.xfail("Issue 49591 - work in progress")
 
-        M1 = topology_m3.ms["master1"]
-        M2 = topology_m3.ms["master2"]
-        M3 = topology_m3.ms["master3"]
+        M1 = topology_m3.ms["supplier1"]
+        M2 = topology_m3.ms["supplier2"]
+        M3 = topology_m3.ms["supplier3"]
         repl = ReplicationManager(SUFFIX)
 
         cont_list = []
@@ -1030,7 +1071,7 @@ class TestThreeMasters:
 
         conts_dns = {}
         for num in range(1, 4):
-            inst = topology_m3.ms["master{}".format(num)]
+            inst = topology_m3.ms["supplier{}".format(num)]
             conts_dns[inst.serverid] = []
             conts = nsContainers(inst, base_m3.dn)
             for cont in conts.list():

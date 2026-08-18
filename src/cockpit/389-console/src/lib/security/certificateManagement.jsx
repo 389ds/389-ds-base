@@ -1,223 +1,847 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Nav,
-    NavItem,
-    TabContainer,
-    TabContent,
-    TabPane,
     Button,
     Spinner,
-    noop
-} from "patternfly-react";
+    Tab,
+    Tabs,
+    TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../../lib/notifications.jsx";
 import {
-    CertTable
+    CertTable,
+    CSRTable,
+    KeyTable,
 } from "./securityTables.jsx";
 import {
     EditCertModal,
     SecurityAddCertModal,
     SecurityAddCACertModal,
+    SecurityAddCSRModal,
+    SecurityViewCSRModal,
+    ExportCertModal,
 } from "./securityModals.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../../lib/tools.jsx";
+import { getApiErrorMessage, log_cmd, replaceFileContent } from "../../lib/tools.jsx";
+
+const _ = cockpit.gettext;
 
 export class CertificateManagement extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            activeKey: 1,
+            activeTabKey: 0,
             ServerCerts: this.props.ServerCerts,
             CACerts: this.props.CACerts,
+            ServerCSRs: this.props.ServerCSRs,
+            ServerKeys: this.props.ServerKeys,
+            certNicknames: this.props.certNicknames,
+            CACertNicknames: this.props.CACertNicknames,
+            tableKey: 0,
             showEditModal: false,
             showAddModal: false,
-            modalSpinner: false,
+            showAddCAModal: false,
+            showAddCSRModal: false,
+            showViewCSRModal: false,
+            modalSpinning: false,
             showConfirmDelete: false,
+            showCSRConfirmDelete: false,
+            showKeyConfirmDelete: false,
+            showExportModal: false,
             certName: "",
             certFile: "",
+            csrContent: "",
+            csrName: "",
+            csrAltNames: [],
+            csrIsSelectOpen: false,
+            csrSubject: "",
+            csrSubjectCommonName: "",
+            csrSubjectOrg: "",
+            csrSubjectOrgUnit: "",
+            csrSubjectLocality: "",
+            csrSubjectState: "",
+            csrSubjectCountry: "",
+            csrSubjectEmail: "",
+            keyID: "",
             flags: "",
+            _flags: "",
             errObj: {},
             isCACert: false,
             showConfirmCAChange: false,
             loading: false,
-            modalSpinning: false,
             modalChecked: false,
+            disableSaveBtn: true,
+            exportNickname: "",
+            exportDERFormat: false,
+            exportFileName: "",
+            certRadioFile: false,
+            certRadioSelect: false,
+            certRadioUpload: true,
+            availCertNames: [],
+            selectCertName: "",
+            isSelectCertOpen: false,
+            // Upload PEM file
+            uploadValue: "",
+            uploadFileName: "",
+            uploadIsLoading: false,
+            uploadIsRejected: false,
+            // PKCS#12 Password options
+            pkcs12PinMethod: "noPassword",
+            pkcs12PinFile: "",
+            pkcs12PinText: "",
+            forceCertAdd: false,
         };
 
-        this.handleNavSelect = this.handleNavSelect.bind(this);
-        this.addCACert = this.addCACert.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        // File Upload functions
+        this.onFileInputChange = (e, file) => {
+            this.setState({
+                uploadFile: file.name
+            });
+        };
+        this.onTextOrDataChange = (e, value) => {
+            this.setState({
+                uploadValue: value.trim()
+            }, () => this.validateCertText());
+        };
+        this.onFileReadStarted = () => {
+            this.setState({
+                uploadIsLoading: true
+            });
+        };
+        this.onFileReadFinished = () => {
+            this.setState({
+                uploadIsLoading: false
+            });
+        };
+        this.onClear = () => {
+            this.setState({
+                uploadValue: "",
+                uploadFileName: "",
+                uploadIsRejected: false,
+            });
+        };
+        this.handleFileRejected = () => {
+            this.setState({
+                uploadIsRejected: true,
+            });
+        };
+
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
+        this.sortFlags = (str) => {
+            const flags = str.split('');
+            const sorted_flags = flags.sort();
+            return sorted_flags.join('');
+        };
+
+        this.onCertSelect = (value) => {
+            this.setState({
+                selectCertName: value,
+            });
+        };
+
+        this.csrOnSelect = (e, selection) => {
+            this.setState({
+                csrAltNames: Array.isArray(selection) ? selection : [],
+            });
+        };
+
+        this.csrOnToggle = isOpen => {
+            this.setState({
+                csrIsSelectOpen: isOpen,
+            });
+        };
+
+        this.onChange = this.onChange.bind(this);
+        this.onCSRChange = this.onCSRChange.bind(this);
         this.addCert = this.addCert.bind(this);
         this.showAddModal = this.showAddModal.bind(this);
-        this.closeAddModal = this.closeAddModal.bind(this);
         this.showAddCAModal = this.showAddCAModal.bind(this);
+        this.closeAddModal = this.closeAddModal.bind(this);
         this.closeAddCAModal = this.closeAddCAModal.bind(this);
+        this.showAddCSRModal = this.showAddCSRModal.bind(this);
+        this.closeAddCSRModal = this.closeAddCSRModal.bind(this);
+        this.showViewCSRModal = this.showViewCSRModal.bind(this);
+        this.closeViewCSRModal = this.closeViewCSRModal.bind(this);
         this.showEditModal = this.showEditModal.bind(this);
         this.closeEditModal = this.closeEditModal.bind(this);
         this.showEditCAModal = this.showEditCAModal.bind(this);
-        this.handleFlagChange = this.handleFlagChange.bind(this);
+        this.onFlagChange = this.onFlagChange.bind(this);
         this.editCert = this.editCert.bind(this);
         this.doEditCert = this.doEditCert.bind(this);
         this.closeConfirmCAChange = this.closeConfirmCAChange.bind(this);
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
+        this.showCSRDeleteConfirm = this.showCSRDeleteConfirm.bind(this);
+        this.showKeyDeleteConfirm = this.showKeyDeleteConfirm.bind(this);
         this.delCert = this.delCert.bind(this);
+        this.addCSR = this.addCSR.bind(this);
+        this.delCSR = this.delCSR.bind(this);
+        this.showCSR = this.showCSR.bind(this);
+        this.delKey = this.delKey.bind(this);
         this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
+        this.closeCSRConfirmDelete = this.closeCSRConfirmDelete.bind(this);
+        this.closeKeyConfirmDelete = this.closeKeyConfirmDelete.bind(this);
         this.reloadCerts = this.reloadCerts.bind(this);
         this.reloadCACerts = this.reloadCACerts.bind(this);
+        this.reloadCSRs = this.reloadCSRs.bind(this);
+        this.reloadOrphanKeys = this.reloadOrphanKeys.bind(this);
+        this.buildSubject = this.buildSubject.bind(this);
+        this.showExportModal = this.showExportModal.bind(this);
+        this.closeExportModal = this.closeExportModal.bind(this);
+        this.exportCert = this.exportCert.bind(this);
+        this.onRadioChange = this.onRadioChange.bind(this);
+        this.validateCertText = this.validateCertText.bind(this);
+        this.getCertFiles = this.getCertFiles.bind(this);
+        // PKCS#12 Password handlers
+        this.onPkcs12PinMethodChange = this.onPkcs12PinMethodChange.bind(this);
+        this.onPkcs12PinFileChange = this.onPkcs12PinFileChange.bind(this);
+        this.onPkcs12PinTextChange = this.onPkcs12PinTextChange.bind(this);
+        this.onForceCertAddChange = this.onForceCertAddChange.bind(this);
     }
 
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
+    componentDidMount () {
+        this.getCertFiles();
     }
 
     showAddModal () {
         this.setState({
             showAddModal: true,
-            errObj: {certName: true, certFile: true}
+            certFile: "",
+            certName: "",
+            uploadFile: "",
+            uploadValue: "",
+            uploadIsRejected: false,
+            uploadIsLoading: false,
+            certRadioFile: false,
+            certRadioSelect: false,
+            certRadioUpload: true,
+            isSelectCertOpen: false,
+            modalSpinning: false,
+            pkcs12PinMethod: "noPassword",
+            pkcs12PinFile: "",
+            pkcs12PinText: "",
+            forceCertAdd: false,
         });
     }
 
     closeAddModal () {
         this.setState({
             showAddModal: false,
-            certName: "",
-            certFile: "",
+            pkcs12PinMethod: "noPassword",
+            pkcs12PinFile: "",
+            pkcs12PinText: "",
+            forceCertAdd: false,
         });
     }
 
     showAddCAModal () {
         this.setState({
             showAddCAModal: true,
-            errObj: {certName: true, certFile: true}
+            certFile: "",
+            certName: "",
+            uploadFile: "",
+            uploadValue: "",
+            uploadIsRejected: false,
+            uploadIsLoading: false,
+            certRadioFile: false,
+            certRadioSelect: false,
+            certRadioUpload: true,
+            isSelectCertOpen: false,
+            modalSpinning: false,
+            pkcs12PinMethod: "noPassword",
+            pkcs12PinFile: "",
+            pkcs12PinText: "",
+            forceCertAdd: false,
         });
     }
 
     closeAddCAModal () {
         this.setState({
             showAddCAModal: false,
-            certName: "",
-            certFile: "",
+            pkcs12PinMethod: "noPassword",
+            pkcs12PinFile: "",
+            pkcs12PinText: "",
+            forceCertAdd: false,
         });
     }
 
-    addCert () {
-        if (this.state.certName == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing certificate nickname`
-            );
-            return;
-        } else if (this.state.certFile == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing certificate file name`
-            );
-            return;
-        }
+    onRadioChange(e, _) {
+        // Handle the add cert options
+        let certRadioFile = false;
+        let certRadioSelect = false;
+        let certRadioUpload = false;
 
+        if (e.target.id === "certRadioFile") {
+            certRadioFile = true;
+        } else if (e.target.id === "certRadioSelect") {
+            certRadioSelect = true;
+        } else if (e.target.id === "certRadioUpload") {
+            certRadioUpload = true;
+        }
         this.setState({
-            modalSpinner: true,
-            loading: true,
+            certRadioFile,
+            certRadioSelect,
+            certRadioUpload
         });
+    }
+
+    onPkcs12PinMethodChange(e, _) {
+        // Handle PKCS#12 password method selection
+        let pkcs12PinMethod = "";
+        if (e.target.id === "pkcs12PinRadioStdin") {
+            pkcs12PinMethod = "stdin";
+        } else if (e.target.id === "pkcs12PinRadioFile") {
+            pkcs12PinMethod = "file";
+        } else if (e.target.id === "noPasswordRadio") {
+            pkcs12PinMethod = "noPassword";
+        }
+        // Clear other password fields when method changes
+        this.setState({
+            pkcs12PinMethod,
+            pkcs12PinFile: "",
+            pkcs12PinText: "",
+        });
+    }
+
+    onPkcs12PinFileChange(value) {
+        this.setState({
+            pkcs12PinFile: value
+        });
+    }
+
+    onPkcs12PinTextChange(value) {
+        this.setState({
+            pkcs12PinText: value
+        });
+    }
+
+    onForceCertAddChange(checked) {
+        this.setState({
+            forceCertAdd: checked
+        });
+    }
+
+    showAddCSRModal () {
+        this.setState({
+            showAddCSRModal: true,
+            csrSubject: "",
+            csrName: "",
+            csrSubjectCommonName: "",
+            csrSubjectOrg: "",
+            csrSubjectOrgUnit: "",
+            csrSubjectLocality: "",
+            csrSubjectState: "",
+            csrSubjectCountry: "",
+            csrSubjectEmail: "",
+            csrAltNames: [],
+            errObj: { csrName: true, csrSubjectCommonName: true },
+        });
+    }
+
+    closeAddCSRModal () {
+        this.setState({
+            showAddCSRModal: false,
+            csrSubject: "",
+            csrName: "",
+            csrSubjectCommonName: "",
+            csrSubjectOrg: "",
+            csrSubjectOrgUnit: "",
+            csrSubjectLocality: "",
+            csrSubjectState: "",
+            csrSubjectCountry: "",
+            csrSubjectEmail: "",
+        });
+    }
+
+    showViewCSRModal (name) {
+        this.showCSR(name);
+        this.setState({
+            showViewCSRModal: true,
+            csrName: name,
+            errObj: { csrName: true },
+        });
+    }
+
+    closeViewCSRModal () {
+        this.setState({
+            showViewCSRModal: false,
+        });
+    }
+
+    showExportModal (nickname) {
+        this.setState({
+            showExportModal: true,
+            exportNickname: nickname,
+            exportDERFormat: false,
+            exportFileName: "",
+        });
+    }
+
+    closeExportModal () {
+        this.setState({
+            showExportModal: false,
+            exportNickname: "",
+        });
+    }
+
+    exportCert () {
+        this.setState({
+            modalSpinning: true,
+        });
+
+        // Handle file name extension
+        let exportFileName = this.state.exportFileName;
+        if (this.state.exportDERFormat && !exportFileName.toLowerCase().endsWith(".crt")) {
+            // DER
+            exportFileName += ".crt";
+        }
+        if (!this.state.exportDERFormat && !exportFileName.toLowerCase().endsWith(".pem")) {
+            // pem
+            exportFileName += ".pem";
+        }
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "security", "certificate", "add", "--name=" + this.state.certName, "--file=" + this.state.certFile
+            "security", "export-cert", this.state.exportNickname, "--output-file=" + exportFileName
         ];
-        log_cmd("addCert", "Adding server cert", cmd);
+        if (this.state.exportDERFormat) {
+            cmd.push("--binary-format");
+        }
+        log_cmd("exportCert", "Exporting certificate", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
+                    this.getCertFiles();
                     this.reloadCACerts();
                     this.setState({
-                        showAddModal: false,
-                        certFile: '',
-                        certName: '',
-                        modalSpinner: false
+                        showExportModal: false,
+                        exportNickname: '',
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully added certificate`
+                        cockpit.format(_("Successfully exported certificate as: $0"), exportFileName)
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
-                        modalSpinner: false,
-                        loading: false,
+                        showExportModal: false,
+                        exportNickname: '',
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "error",
-                        `Error adding certificate - ${msg}`
+                        cockpit.format(_("Error exporting certificate - $0"), msg)
                     );
                 });
     }
 
-    addCACert () {
-        if (this.state.certName == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing certificate nickname`
-            );
-            return;
-        } else if (this.state.certFile == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing certificate file name`
-            );
-            return;
-        }
-
-        this.setState({
-            modalSpinner: true,
-            loading: true,
-        });
+    deleteTmpCert (filename) {
         const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "security", "ca-certificate", "add", "--name=" + this.state.certName, "--file=" + this.state.certFile
+            'rm',
+            filename
         ];
-        log_cmd("addCACert", "Adding CA certificate", cmd);
+
+        log_cmd("deleteTmpCert", "deleting tmp cert file", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(() => {
-                    this.reloadCACerts();
-                    this.setState({
-                        showAddCAModal: false,
-                        certFile: '',
-                        certName: '',
-                        modalSpinner: false,
-                    });
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .fail((err) => {
                     this.props.addNotification(
-                        "success",
-                        `Successfully added certificate`
-                    );
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
-                    this.setState({
-                        modalSpinner: false,
-                        loading: false,
-                    });
-                    this.props.addNotification(
-                        "error",
-                        `Error adding certificate - ${msg}`
+                        "warning",
+                        cockpit.format(_("Error deleting tmp certificate - $0"), err)
                     );
                 });
     }
 
-    showDeleteConfirm(dataRow) {
+    getCertFiles () {
+        const cmd = [
+            // '/bin/sh', '-c',
+            'find',
+            this.props.certDir,
+            '-type',
+            'f',
+            '-name',
+            '*.pem',
+            '-o',
+            '-name',
+            '*.crt',
+        ];
+        log_cmd("getCertFiles", "creating tmp cert file for importing", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done((certs_raw) => {
+                    const certs = certs_raw.split(/\r?\n/);
+                    const certNames = [];
+                    for (let i = 0, count = 0; i < certs.length; i++) {
+                        if (certs[i] !== "") {
+                            certNames[count] = certs[i].replace(this.props.certDir + "/", "");
+                            count++;
+                        }
+                    }
+                    certNames.sort();
+
+                    let selectCertName = "";
+                    if (certNames.length > 0) {
+                        selectCertName = certNames[0];
+                    }
+                    this.setState({
+                        availCertNames: certNames,
+                        selectCertName,
+                    });
+                })
+                .fail(err => {
+                    console.log("Failed to get cert file names: ", err);
+                });
+    }
+
+    addCert (isCACert) {
+        this.setState({
+            modalSpinning: true,
+            loading: true,
+        });
+
+        let certType = "certificate";
+        if (isCACert) {
+            certType = "ca-certificate";
+        }
+
+        if (this.state.certRadioUpload && this.state.uploadValue) {
+            // Certificate was copied and pasted.  Need to create a tmp file for import
+            const certFile = this.props.certDir + "/tmp-cert-" + Date.now() + ".tmp";
+            const certText = this.state.uploadValue.endsWith("\n")
+                ? this.state.uploadValue
+                : this.state.uploadValue + "\n";
+
+            log_cmd("addCert", "Creating tmp cert file for importing", [certFile]);
+            replaceFileContent(certFile, certText)
+                    .done(() => {
+                        const cmd = [
+                            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                            "security", certType, "add", "--name=" + this.state.certName, "--file=" + certFile
+                        ];
+
+                        // Add PKCS#12 password options
+                        if (this.state.pkcs12PinMethod === "file" && this.state.pkcs12PinFile !== "") {
+                            cmd.push("--pkcs12-pin-path=" + this.state.pkcs12PinFile);
+                        } else if (this.state.pkcs12PinMethod === "stdin") {
+                            cmd.push("--pkcs12-pin-stdin");
+                        }
+
+                        // Add force flag
+                        if (this.state.forceCertAdd) {
+                            cmd.push("--do-it");
+                        }
+
+                        log_cmd("addCert", "Adding cert (tmp): ", cmd);
+
+                        // Handle stdin method with PTY spawn
+                        if (this.state.pkcs12PinMethod === "stdin") {
+                            let buffer = "";
+                            const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
+                            proc
+                                    .done(() => {
+                                        this.deleteTmpCert(certFile);
+                                        this.reloadCACerts();
+                                        this.setState({
+                                            showAddModal: false,
+                                            modalSpinning: false,
+                                            loading: false,
+                                        });
+                                        this.reloadOrphanKeys();
+                                        this.props.addNotification(
+                                            "success",
+                                            _("Successfully added certificate")
+                                        );
+                                        this.closeAddCAModal();
+                                        this.closeAddModal();
+                                    })
+                                    .fail(err => {
+                                        const msg = buffer
+                                            ? getApiErrorMessage(buffer)
+                                            : getApiErrorMessage(err);
+                                        this.deleteTmpCert(certFile);
+                                        this.closeAddCAModal();
+                                        this.closeAddModal();
+                                        this.setState({
+                                            modalSpinning: false,
+                                            loading: false,
+                                        });
+                                        this.props.addNotification(
+                                            "error",
+                                            cockpit.format(_("Error adding certificate - $0"), msg)
+                                        );
+                                    })
+                                    .stream(data => {
+                                        buffer += data;
+                                        const lines = buffer.split("\n");
+                                        const last_line = lines[lines.length - 1].toLowerCase();
+                                        if (last_line.includes("password") || last_line.includes("pin")) {
+                                            proc.input(this.state.pkcs12PinText + "\n", true);
+                                        }
+                                    });
+                        } else {
+                            cockpit
+                                    .spawn(cmd, { superuser: "require", err: "message" })
+                                    .done(() => {
+                                        this.deleteTmpCert(certFile);
+                                        this.reloadCACerts();
+                                        this.setState({
+                                            showAddModal: false,
+                                            modalSpinning: false,
+                                            loading: false,
+                                        });
+                                        this.reloadOrphanKeys();
+                                        this.props.addNotification(
+                                            "success",
+                                            _("Successfully added certificate")
+                                        );
+                                        this.closeAddCAModal();
+                                        this.closeAddModal();
+                                    })
+                                    .fail(err => {
+                                        const msg = getApiErrorMessage(err);
+                                        this.deleteTmpCert(certFile);
+                                        this.closeAddCAModal();
+                                        this.closeAddModal();
+                                        this.setState({
+                                            modalSpinning: false,
+                                            loading: false,
+                                        });
+                                        this.props.addNotification(
+                                            "error",
+                                            cockpit.format(_("Error adding certificate - $0"), msg)
+                                        );
+                                    });
+                        }
+                    })
+                    .fail(err => {
+                        this.setState({
+                            modalSpinning: false,
+                            loading: false,
+                        });
+                        this.props.addNotification(
+                            "error",
+                            cockpit.format(_("Failed to create temporary certificate file: $0"), err)
+                        );
+                    });
+        } else {
+            // Import existing file into NSS db
+            const cmd = [
+                "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                "security", certType, "add", "--name=" + this.state.certName
+            ];
+
+            if (this.state.certRadioFile) {
+                cmd.push("--file=" + this.state.certFile);
+            } else {
+                // certRadioSelect
+                cmd.push("--file=" + this.props.certDir + "/" + this.state.selectCertName);
+            }
+
+            // Add PKCS#12 password options
+            if (this.state.pkcs12PinMethod === "file" && this.state.pkcs12PinFile !== "") {
+                cmd.push("--pkcs12-pin-path=" + this.state.pkcs12PinFile);
+            } else if (this.state.pkcs12PinMethod === "stdin") {
+                cmd.push("--pkcs12-pin-stdin");
+            }
+
+            // Add force flag
+            if (this.state.forceCertAdd) {
+                cmd.push("--do-it");
+            }
+
+            log_cmd("addCert", "Adding cert: ", cmd);
+
+            // Handle stdin method with PTY spawn
+            if (this.state.pkcs12PinMethod === "stdin") {
+                let buffer = "";
+                const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
+                proc
+                        .done(() => {
+                            this.reloadCACerts();
+                            this.closeAddCAModal();
+                            this.closeAddModal();
+                            this.setState({
+                                showAddModal: false,
+                                certFile: '',
+                                certName: '',
+                                modalSpinning: false
+                            });
+                            this.reloadOrphanKeys();
+                            this.props.addNotification(
+                                "success",
+                                _("Successfully added certificate")
+                            );
+                        })
+                        .fail(err => {
+                            const msg = buffer
+                                ? getApiErrorMessage(buffer)
+                                : getApiErrorMessage(err);
+                            this.closeAddCAModal();
+                            this.closeAddModal();
+                            this.setState({
+                                modalSpinning: false,
+                                loading: false,
+                            });
+                            this.props.addNotification(
+                                "error",
+                                cockpit.format(_("Error adding certificate - $0"), msg)
+                            );
+                        })
+                        .stream(data => {
+                            buffer += data;
+                            const lines = buffer.split("\n");
+                            const last_line = lines[lines.length - 1].toLowerCase();
+                            if (last_line.includes("password") || last_line.includes("pin")) {
+                                proc.input(this.state.pkcs12PinText + "\n", true);
+                            }
+                        });
+            } else {
+                cockpit
+                        .spawn(cmd, { superuser: "require", err: "message" })
+                        .done(() => {
+                            this.reloadCACerts();
+                            this.closeAddCAModal();
+                            this.closeAddModal();
+                            this.setState({
+                                showAddModal: false,
+                                certFile: '',
+                                certName: '',
+                                modalSpinning: false
+                            });
+                            this.reloadOrphanKeys();
+                            this.props.addNotification(
+                                "success",
+                                _("Successfully added certificate")
+                            );
+                        })
+                        .fail(err => {
+                            const msg = getApiErrorMessage(err);
+                            this.closeAddCAModal();
+                            this.closeAddModal();
+                            this.setState({
+                                modalSpinning: false,
+                                loading: false,
+                            });
+                            this.props.addNotification(
+                                "error",
+                                cockpit.format(_("Error adding certificate - $0"), msg)
+                            );
+                        });
+            }
+        }
+    }
+
+    addCSR () {
+        this.setState({
+            modalSpinning: true,
+            loading: true,
+        });
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "csr", "req", "--name=" + this.state.csrName, "--subject=" + this.state.csrSubject
+        ];
+        for (const altname of this.state.csrAltNames) {
+            cmd.push(altname);
+        }
+
+        log_cmd("addCSR", "Creating CSR", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(() => {
+                    this.reloadCSRs();
+                    this.setState({
+                        showAddCSRModal: false,
+                        csrSubject: '',
+                        csrName: '',
+                        modalSpinning: false,
+                    });
+                    this.props.addNotification(
+                        "success",
+                        _("Successfully created CSR")
+                    );
+                })
+                .fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    if (errMsg.includes('certutil -s: improperly formatted name:')) {
+                        this.props.addNotification(
+                            "error",
+                            _("Error Improperly formatted subject")
+                        );
+                    } else {
+                        this.props.addNotification(
+                            "error",
+                            cockpit.format(_("Error creating CSR - $0"), errMsg)
+                        );
+                    }
+                    this.setState({
+                        modalSpinning: false,
+                        loading: false,
+                    });
+                });
+    }
+
+    showCSR (name) {
+        if (name === "") {
+            this.props.addNotification(
+                "warning",
+                _("Missing CSR Name")
+            );
+            return;
+        }
+
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "csr", "get", name
+        ];
+
+        log_cmd("showCSR", "Displaying CSR", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    this.setState({
+                        csrContent: content,
+                        showViewCSRModal: true,
+                    });
+                })
+                .fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error displaying CSR - $0"), errMsg)
+                    );
+                });
+    }
+
+    showDeleteConfirm(nickname) {
         this.setState({
             showConfirmDelete: true,
-            certName: dataRow.nickname[0],
+            certName: nickname,
+            modalSpinning: false,
+            modalChecked: false,
+        });
+    }
+
+    showCSRDeleteConfirm(name) {
+        this.setState({
+            showCSRConfirmDelete: true,
+            csrName: name,
+            modalSpinning: false,
+            modalChecked: false,
+        });
+    }
+
+    showKeyDeleteConfirm(key_id) {
+        this.setState({
+            showKeyConfirmDelete: true,
+            keyID: key_id,
             modalSpinning: false,
             modalChecked: false,
         });
@@ -225,7 +849,7 @@ export class CertificateManagement extends React.Component {
 
     delCert () {
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true
         });
         const cmd = [
@@ -234,42 +858,116 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("delCert", "Deleting certificate", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadCACerts();
                     this.setState({
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         showConfirmDelete: false,
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully deleted certificate`
+                        _("Successfully deleted certificate")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        `Error deleting certificate - ${msg}`
+                        cockpit.format(_("Error deleting certificate - $0"), msg)
                     );
                 });
     }
 
-    showEditModal (rowData) {
+    delCSR (name) {
+        this.setState({
+            modalSpinning: true,
+            loading: true
+        });
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "csr", "del", this.state.csrName
+        ];
+        log_cmd("delCSR", "Deleting CSR", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(() => {
+                    this.reloadCSRs();
+                    this.setState({
+                        csrName: '',
+                        csrSubject: '',
+                        modalSpinning: false,
+                        showCSRConfirmDelete: false,
+                    });
+                    this.props.addNotification(
+                        "success",
+                        _("Successfully deleted CSR")
+                    );
+                })
+                .fail(err => {
+                    const msg = getApiErrorMessage(err);
+                    this.setState({
+                        csrName: '',
+                        csrSubject: '',
+                        modalSpinning: false,
+                        loading: false,
+                    });
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error deleting CSR - $0"), msg)
+                    );
+                });
+    }
+
+    delKey (name) {
+        this.setState({
+            modalSpinning: true,
+            loading: true
+        });
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "key", "del", this.state.keyID
+        ];
+        log_cmd("delKey", "Deleting key", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(() => {
+                    this.reloadOrphanKeys();
+                    this.setState({
+                        keyID: '',
+                        modalSpinning: false,
+                        showKeyConfirmDelete: false,
+                    });
+                    this.props.addNotification(
+                        "success",
+                        _("Successfully deleted key")
+                    );
+                })
+                .fail(err => {
+                    const msg = getApiErrorMessage(err);
+                    this.setState({
+                        keyID: '',
+                        modalSpinning: false,
+                        loading: false,
+                    });
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error deleting key - $0"), msg)
+                    );
+                });
+    }
+
+    showEditModal (name, flags) {
         this.setState({
             showEditModal: true,
-            certName: rowData.nickname[0],
-            flags: rowData.flags[0],
+            certName: name,
+            flags,
             isCACert: false,
         });
     }
@@ -281,11 +979,12 @@ export class CertificateManagement extends React.Component {
         });
     }
 
-    showEditCAModal (rowData) {
+    showEditCAModal (nickname, flags) {
         this.setState({
             showEditModal: true,
-            certName: rowData.nickname[0],
-            flags: rowData.flags[0],
+            certName: nickname,
+            flags,
+            _flags: flags,
             isCACert: true,
         });
     }
@@ -318,7 +1017,7 @@ export class CertificateManagement extends React.Component {
 
     doEditCert () {
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -327,104 +1026,199 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("doEditCert", "Editing trust flags", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.reloadCACerts();
                     this.setState({
                         showEditModal: false,
                         flags: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully changed certificate's trust flags`
+                        _("Successfully changed certificate's trust flags")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.setState({
                         showEditModal: false,
                         flags: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        `Error setting trust flags - ${msg}`
+                        cockpit.format(_("Error setting trust flags - $0"), msg)
                     );
                 });
     }
 
-    handleChange (e) {
+    validateCertText () {
+        const value = this.state.uploadValue;
+        if (!value.startsWith("-----BEGIN CERTIFICATE-----") ||
+            !value.endsWith("-----END CERTIFICATE-----")) {
+            this.setState({
+                badCertText: true
+            });
+        } else {
+            this.setState({
+                badCertText: false
+            });
+        }
+    }
+
+    onChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
-    handleFlagChange (e) {
+    onCSRChange (e) {
+        const value = e.target.value;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
+        let valueErr = false;
+
+        if (value === "") {
+            valueErr = true;
+        }
+        errObj[e.target.id] = valueErr;
+        this.setState({
+            [attr]: value,
+            errObj
+        }, this.buildSubject);
+    }
+
+
+    buildSubject () {
+        let subject = "";
+        const csrSubjectCN = this.state.csrSubjectCommonName;
+        const csrSubjectO = this.state.csrSubjectOrg;
+        const csrSubjectOU = this.state.csrSubjectOrgUnit;
+        const csrSubjectL = this.state.csrSubjectLocality;
+        const csrSubjectST = this.state.csrSubjectState;
+        const csrSubjectC = this.state.csrSubjectCountry;
+        const csrSubjectE = this.state.csrSubjectEmail;
+
+        // Construct CSR subject string from state fields
+        if (csrSubjectCN.length !== 0) {
+            subject = 'CN=' + csrSubjectCN;
+        }
+        if (csrSubjectO.length !== 0) {
+            subject += ',O=' + csrSubjectO;
+        }
+        if (csrSubjectOU.length !== 0) {
+            subject += ',OU=' + csrSubjectOU;
+        }
+        if (csrSubjectL.length !== 0) {
+            subject += ',L=' + csrSubjectL;
+        }
+        if (csrSubjectST.length !== 0) {
+            subject += ',ST=' + csrSubjectST;
+        }
+        // It would be nice to validate country code, certutil will complain if it isnt valid...
+        if (csrSubjectC.length !== 0) {
+            subject += ',C=' + csrSubjectC;
+        }
+        if (csrSubjectE.length !== 0) {
+            subject += ',E=' + csrSubjectE;
+        }
+
+        // Update subject state
+        this.setState({
+            csrSubject: subject
+        });
+    }
+
+    onFlagChange (e) {
         const checked = e.target.checked;
         const id = e.target.id;
-        let flags = this.state.flags;
+        const flags = this.state.flags;
         let SSLFlags = '';
         let EmailFlags = '';
         let OSFlags = '';
+        let newFlags = "";
+        let disableSaveBtn = true;
         [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
 
         if (id.endsWith('SSL')) {
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         SSLFlags += trustFlag;
                     } else {
                         SSLFlags = SSLFlags.replace(trustFlag, '');
                     }
+                    SSLFlags = this.sortFlags(SSLFlags);
                 }
             }
         } else if (id.endsWith('Email')) {
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         EmailFlags += trustFlag;
                     } else {
                         EmailFlags = EmailFlags.replace(trustFlag, '');
                     }
+                    EmailFlags = this.sortFlags(EmailFlags);
                 }
             }
         } else {
             // Object Signing (OS)
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         OSFlags += trustFlag;
                     } else {
                         OSFlags = OSFlags.replace(trustFlag, '');
                     }
+                    OSFlags = this.sortFlags(OSFlags);
                 }
             }
         }
+
+        newFlags = SSLFlags + "," + EmailFlags + "," + OSFlags;
+
+        if (newFlags !== this.state._flags) {
+            disableSaveBtn = false;
+        }
         this.setState({
-            flags: SSLFlags + "," + EmailFlags + "," + OSFlags
+            flags: newFlags,
+            disableSaveBtn
         });
     }
 
     closeConfirmDelete () {
         this.setState({
             showConfirmDelete: false,
+            modalSpinning: false,
+            modalChecked: false,
+        });
+    }
+
+    closeCSRConfirmDelete () {
+        this.setState({
+            showCSRConfirmDelete: false,
+            modalSpinning: false,
+            modalChecked: false,
+        });
+    }
+
+    closeKeyConfirmDelete () {
+        this.setState({
+            showKeyConfirmDelete: false,
             modalSpinning: false,
             modalChecked: false,
         });
@@ -437,28 +1231,90 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("reloadCerts", "Load certificates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
-                    let certNames = [];
-                    for (let cert of certs) {
-                        certNames.push(cert.attrs['nickname']);
+                    const key = this.state.tableKey + 1;
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
                     }
                     this.setState({
                         ServerCerts: certs,
                         loading: false,
-                    });
+                        tableKey: key,
+                        showConfirmCAChange: false,
+                        certNicknames: certNames,
+                    }, this.getCertFiles);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading server certificates - ${msg}`
+                        cockpit.format(_("Error loading server certificates - $0"), msg)
                     );
+                });
+    }
+
+    reloadCSRs () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "csr", "list",
+        ];
+        log_cmd("reloadCSRs", "Reload CSRs", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    const csrs = JSON.parse(content);
+                    const key = this.state.tableKey + 1;
+                    this.setState({
+                        ServerCSRs: csrs,
+                        loading: false,
+                        tableKey: key,
+                        showConfirmCSRChange: false
+                    }, this.reloadOrphanKeys);
+                })
+                .fail(err => {
+                    const msg = getApiErrorMessage(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading CSRs - $0"), msg)
+                    );
+                });
+    }
+
+    reloadOrphanKeys () {
+        // Set loaded: true
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "key", "list", "--orphan"
+        ];
+        log_cmd("reloadOrphanKeys", "Reload Orphan Keys", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    const keys = JSON.parse(content);
+                    const key = this.state.tableKey + 1;
+                    this.setState(() => (
+                        {
+                            ServerKeys: keys,
+                            loading: false,
+                            tableKey: key,
+                        })
+                    );
+                })
+                .fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    if (!errMsg.includes('certutil: no keys found')) {
+                        this.props.addNotification(
+                            "error",
+                            cockpit.format(_("Error loading Orphan Keys - $0"), errMsg)
+                        );
+                    }
+                    this.setState({
+                        loading: false,
+                        ServerKeys: []
+                    });
                 });
     }
 
@@ -469,151 +1325,281 @@ export class CertificateManagement extends React.Component {
         ];
         log_cmd("reloadCACerts", "Load certificates", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    let certs = JSON.parse(content);
+                    const certs = JSON.parse(content);
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
+                    }
                     this.setState({
                         CACerts: certs,
-                        loading: false
+                        loading: false,
+                        CACertNicknames: certNames,
                     }, this.reloadCerts);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const msg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading CA certificates - ${msg}`
+                        cockpit.format(_("Error loading CA certificates - $0"), msg)
                     );
                 });
     }
 
     render () {
-        let CATitle = 'Trusted Certificate Authorites <font size="2">(' + this.state.CACerts.length + ')</font>';
-        let ServerTitle = 'TLS Certificates <font size="2">(' + this.state.ServerCerts.length + ')</font>';
-
         let certificatePage = '';
 
         if (this.state.loading) {
-            certificatePage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
-                    <h4>Loading certificates ...</h4>
-                    <Spinner loading size="md" />
-                </div>;
+            certificatePage = (
+                <div className="ds-loading-spinner ds-center ds-margin-top-xlg">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            {_("Loading Certificates ...")}
+                        </Text>
+                    </TextContent>
+                    <Spinner size="lg" />
+                </div>
+            );
         } else {
-            certificatePage =
-                <div className="container-fluid">
-                    <div className="ds-tab-table">
-                        <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                            <div>
-                                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                    <NavItem eventKey={1}>
-                                        <div dangerouslySetInnerHTML={{__html: CATitle}} />
-                                    </NavItem>
-                                    <NavItem eventKey={2}>
-                                        <div dangerouslySetInnerHTML={{__html: ServerTitle}} />
-                                    </NavItem>
-                                </Nav>
-                                <TabContent>
-                                    <TabPane eventKey={1}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertTable
-                                                certs={this.state.CACerts}
-                                                key={this.state.CACerts}
-                                                editCert={this.showEditCAModal}
-                                                delCert={this.showDeleteConfirm}
-                                            />
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={() => {
-                                                    this.showAddCAModal();
-                                                }}
-                                            >
-                                                Add CA Certificate
-                                            </Button>
-                                        </div>
-                                    </TabPane>
-                                    <TabPane eventKey={2}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertTable
-                                                certs={this.state.ServerCerts}
-                                                key={this.state.ServerCerts}
-                                                editCert={this.showEditModal}
-                                                delCert={this.showDeleteConfirm}
-                                            />
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={() => {
-                                                    this.showAddModal();
-                                                }}
-                                            >
-                                                Add Server Certificate
-                                            </Button>
-                                        </div>
-                                    </TabPane>
-                                </TabContent>
-                            </div>
-                        </TabContainer>
-                    </div>
-                </div>;
+            certificatePage = (
+                <Tabs isBox isSecondary className="ds-margin-top-xlg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Trusted Certificate Authorities")} <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <CertTable
+                                certs={this.state.CACerts}
+                                key={this.state.tableKey}
+                                editCert={this.showEditCAModal}
+                                exportCert={this.showExportModal}
+                                delCert={this.showDeleteConfirm}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-lg"
+                                onClick={() => {
+                                    this.showAddCAModal();
+                                }}
+                            >
+                                {_("Add CA Certificate")}
+                            </Button>
+                        </div>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>{_("TLS Certificates")} <font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <CertTable
+                                certs={this.state.ServerCerts}
+                                key={this.state.tableKey}
+                                editCert={this.showEditModal}
+                                exportCert={this.showExportModal}
+                                delCert={this.showDeleteConfirm}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-lg"
+                                onClick={() => {
+                                    this.showAddModal();
+                                }}
+                            >
+                                {_("Add Server Certificate")}
+                            </Button>
+                        </div>
+                    </Tab>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Certificate Signing Requests")} <font size="2">({this.state.ServerCSRs.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <CSRTable
+                                ServerCSRs={this.state.ServerCSRs}
+                                key={this.state.tableKey}
+                                delCSR={this.showCSRDeleteConfirm}
+                                viewCSR={this.showViewCSRModal}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-lg"
+                                onClick={() => {
+                                    this.showAddCSRModal();
+                                }}
+                            >
+                                {_("Create Certificate Signing Request")}
+                            </Button>
+                        </div>
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText> {_("Orphan Keys")} <font size="2">({this.state.ServerKeys.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <KeyTable
+                                ServerKeys={this.state.ServerKeys}
+                                key={this.state.tableKey}
+                                delKey={this.showKeyDeleteConfirm}
+                            />
+                        </div>
+                    </Tab>
+                </Tabs>
+            );
         }
+
         return (
             <div>
                 {certificatePage}
+                <ExportCertModal
+                    showModal={this.state.showExportModal}
+                    closeHandler={this.closeExportModal}
+                    handleChange={this.onChange}
+                    saveHandler={this.exportCert}
+                    nickName={this.state.exportNickname}
+                    binaryFormat={this.state.exportDERFormat}
+                    fileName={this.state.exportFileName}
+                    certDir={this.props.certDir}
+                    spinning={this.state.modalSpinning}
+                />
                 <EditCertModal
                     showModal={this.state.showEditModal}
                     closeHandler={this.closeEditModal}
-                    handleChange={this.handleFlagChange}
+                    handleChange={this.onFlagChange}
                     saveHandler={this.editCert}
                     flags={this.state.flags}
-                    spinning={this.state.modalSpinner}
+                    disableSaveBtn={this.state.disableSaveBtn}
+                    spinning={this.state.modalSpinning}
                 />
                 <SecurityAddCertModal
+                    key={"addCert-" + this.state.showAddModal}
                     showModal={this.state.showAddModal}
                     closeHandler={this.closeAddModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.addCert}
-                    spinning={this.state.modalSpinner}
-                    error={this.state.errObj}
+                    spinning={this.state.modalSpinning}
+                    certFile={this.state.certFile}
+                    certName={this.state.certName}
+                    certNames={this.state.availCertNames}
+                    certNicknames={this.state.certNicknames}
+                    CACertNicknames={this.state.CACertNicknames}
+                    selectCertName={this.state.selectCertName}
+                    isSelectCertOpen={this.state.isSelectCertOpen}
+                    handleCertSelect={this.onCertSelect}
+                    certRadioFile={this.state.certRadioFile}
+                    certRadioSelect={this.state.certRadioSelect}
+                    certRadioUpload={this.state.certRadioUpload}
+                    handleRadioChange={this.onRadioChange}
+                    badCertText={this.state.badCertText}
+                    uploadValue={this.state.uploadValue}
+                    uploadFileName={this.state.uploadFileName}
+                    uploadIsLoading={this.state.uploadIsLoading}
+                    uploadIsRejected={this.state.uploadIsRejected}
+                    handleFileInputChange={this.onFileInputChange}
+                    handleTextOrDataChange={this.onTextOrDataChange}
+                    handleFileReadStarted={this.onFileReadStarted}
+                    handleFileReadFinished={this.onFileReadFinished}
+                    handleClear={this.onClear}
+                    handleFileRejected={this.handleFileRejected}
+                    pkcs12PinMethod={this.state.pkcs12PinMethod}
+                    pkcs12PinFile={this.state.pkcs12PinFile}
+                    pkcs12PinText={this.state.pkcs12PinText}
+                    forceCertAdd={this.state.forceCertAdd}
+                    handlePkcs12PinMethodChange={this.onPkcs12PinMethodChange}
+                    handlePkcs12PinFileChange={this.onPkcs12PinFileChange}
+                    handlePkcs12PinTextChange={this.onPkcs12PinTextChange}
+                    handleForceCertAddChange={this.onForceCertAddChange}
                 />
                 <SecurityAddCACertModal
                     showModal={this.state.showAddCAModal}
                     closeHandler={this.closeAddCAModal}
-                    handleChange={this.handleChange}
-                    saveHandler={this.addCACert}
-                    spinning={this.state.modalSpinner}
+                    handleChange={this.onChange}
+                    saveHandler={this.addCert}
+                    spinning={this.state.modalSpinning}
+                    certFile={this.state.certFile}
+                    certName={this.state.certName}
+                    certNames={this.state.availCertNames}
+                    certNicknames={this.state.certNicknames}
+                    CACertNicknames={this.state.CACertNicknames}
+                    selectCertName={this.state.selectCertName}
+                    isSelectCertOpen={this.state.isSelectCertOpen}
+                    handleCertSelect={this.onCertSelect}
+                    certRadioFile={this.state.certRadioFile}
+                    certRadioSelect={this.state.certRadioSelect}
+                    certRadioUpload={this.state.certRadioUpload}
+                    handleRadioChange={this.onRadioChange}
+                    badCertText={this.state.badCertText}
+                    uploadValue={this.state.uploadValue}
+                    uploadFileName={this.state.uploadFileName}
+                    uploadIsLoading={this.state.uploadIsLoading}
+                    uploadIsRejected={this.state.uploadIsRejected}
+                    handleFileInputChange={this.onFileInputChange}
+                    handleTextOrDataChange={this.onTextOrDataChange}
+                    handleFileReadStarted={this.onFileReadStarted}
+                    handleFileReadFinished={this.onFileReadFinished}
+                    handleClear={this.onClear}
+                    handleFileRejected={this.handleFileRejected}
+                />
+                <SecurityAddCSRModal
+                    showModal={this.state.showAddCSRModal}
+                    closeHandler={this.closeAddCSRModal}
+                    handleChange={this.onCSRChange}
+                    saveHandler={this.addCSR}
+                    previewValue={this.state.csrSubject}
+                    csrName={this.state.csrName}
+                    csrAltNames={this.state.csrAltNames}
+                    csrIsSelectOpen={this.state.csrIsSelectOpen}
+                    handleOnSelect={this.csrOnSelect}
+                    handleOnToggle={this.csrOnToggle}
+                    spinning={this.state.modalSpinning}
+                    error={this.state.errObj}
+                />
+                <SecurityViewCSRModal
+                    showModal={this.state.showViewCSRModal}
+                    closeHandler={this.closeViewCSRModal}
+                    name={this.state.csrName}
+                    item={this.state.csrContent}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.delCert}
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Certificate"
-                    mMsg="Are you sure you want to delete this certificate?"
-                    mSpinningMsg="Deleting Certificate ..."
-                    mBtnName="Delete Certificate"
+                    mTitle={_("Delete Certificate")}
+                    mMsg={_("Are you sure you want to delete this certificate?")}
+                    mSpinningMsg={_("Deleting Certificate ...")}
+                    mBtnName={_("Delete Certificate")}
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showCSRConfirmDelete}
+                    closeHandler={this.closeCSRConfirmDelete}
+                    handleChange={this.onChange}
+                    actionHandler={this.delCSR}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.csrName}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Delete CSR")}
+                    mMsg={_("Are you sure you want to delete this CSR?")}
+                    mSpinningMsg={_("Deleting CSR ...")}
+                    mBtnName={_("Delete CSR")}
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showKeyConfirmDelete}
+                    closeHandler={this.closeKeyConfirmDelete}
+                    handleChange={this.onChange}
+                    actionHandler={this.delKey}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.keyID}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Delete Key")}
+                    mMsg={_("Are you sure you want to delete this Key?")}
+                    mSpinningMsg={_("Deleting Key ...")}
+                    mBtnName={_("Delete Key")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCAChange}
                     closeHandler={this.closeConfirmCAChange}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.doEditCert}
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
                     checked={this.state.modalChecked}
-                    mTitle="Warning - "
-                    mMsg="Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?"
-                    mSpinningMsg="Editing CA Certificate ..."
-                    mBtnName="Change Trust Flags"
+                    mTitle={_("Warning - Altering CA Certificate Properties")}
+                    mMsg={_("Removing the 'C' or 'T' flags from the SSL trust category could break all TLS connectivity to and from the server, are you sure you want to proceed?")}
+                    mSpinningMsg={_("Editing CA Certificate ...")}
+                    mBtnName={_("Change Trust Flags")}
                 />
             </div>
         );
@@ -626,6 +1612,8 @@ CertificateManagement.propTypes = {
     serverId: PropTypes.string,
     CACerts: PropTypes.array,
     ServerCerts: PropTypes.array,
+    ServerCSRs: PropTypes.array,
+    ServerKeys: PropTypes.array,
     addNotification: PropTypes.func,
 };
 
@@ -633,7 +1621,8 @@ CertificateManagement.defaultProps = {
     serverId: "",
     CACerts: [],
     ServerCerts: [],
-    addNotification: noop,
+    ServerCSRs: [],
+    ServerKeys: [],
 };
 
 export default CertificateManagement;

@@ -230,16 +230,17 @@ do_one_pam_auth(
     char *pam_service,        /* name of service for pam_start() */
     char *map_ident_attr,     /* for ENTRY method, name of attribute holding pam identity */
     PRBool fallback,          /* if true, failure here should fallback to regular bind */
-    int pw_response_requested /* do we need to send pwd policy resp control */
+    int pw_response_requested, /* do we need to send pwd policy resp control */
+    PRBool module_thread_safe /* if not thread safe, make sure only one thread auth at a time */
     )
 {
-    MyStrBuf pam_id;
+    MyStrBuf pam_id = {0};
     const char *binddn = NULL;
     Slapi_DN *bindsdn = NULL;
     int rc = PAM_SUCCESS;
     int retcode = LDAP_SUCCESS;
-    pam_handle_t *pam_handle;
-    struct my_pam_conv_str my_data;
+    pam_handle_t *pam_handle = NULL;
+    struct my_pam_conv_str my_data = {0};
     struct pam_conv my_pam_conv = {pam_conv_func, NULL};
     char *errmsg = NULL; /* free with PR_smprintf_free */
     int locked = 0;
@@ -267,6 +268,17 @@ do_one_pam_auth(
         goto done;                           /* skip the pam stuff */
     }
 
+    /*
+     * We need to check for pam_service as null, because if it is then pam_start will fail
+     * before it allocates pam_handle. This causes pam_end to segfault as the pam_handle is
+     * invalid.
+     */
+    if (pam_service == NULL) {
+        errmsg = PR_smprintf("Pam service is invalid. Contact system administrator.");
+        retcode = LDAP_UNWILLING_TO_PERFORM; /* user inactivated */
+        goto done;                           /* skip the pam stuff */
+    }
+
     if (!pam_id.str) {
         errmsg = PR_smprintf("Bind DN [%s] is invalid or not found", binddn);
         retcode = LDAP_NO_SUCH_OBJECT; /* user unknown */
@@ -277,7 +289,9 @@ do_one_pam_auth(
     my_data.pb = pb;
     my_data.pam_identity = pam_id.str;
     my_pam_conv.appdata_ptr = &my_data;
-    slapi_lock_mutex(PAMLock);
+    if (! module_thread_safe) {
+        slapi_lock_mutex(PAMLock);
+    }
     /* from this point on we are in the critical section */
     rc = pam_start(pam_service, pam_id.str, &my_pam_conv, &pam_handle);
     report_pam_error("during pam_start", rc, pam_handle);
@@ -358,9 +372,14 @@ do_one_pam_auth(
     }
 
     rc = pam_end(pam_handle, rc);
-    report_pam_error("during pam_end", rc, pam_handle);
-    slapi_unlock_mutex(PAMLock);
-/* not in critical section any more */
+    if (rc != PAM_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                      "do_one_pam_auth - Error during pam_end (%d)\n", rc);
+    }
+    if (! module_thread_safe) {
+        slapi_unlock_mutex(PAMLock);
+    }
+    /* not in critical section any more */
 
 done:
     delete_my_str_buf(&pam_id);
@@ -419,12 +438,13 @@ int
 pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 {
     int rc = LDAP_SUCCESS;
-    MyStrBuf pam_id_attr; /* avoid malloc if possible */
-    MyStrBuf pam_service; /* avoid malloc if possible */
+    MyStrBuf pam_id_attr = {0}; /* avoid malloc if possible */
+    MyStrBuf pam_service = {0}; /* avoid malloc if possible */
     int method1, method2, method3;
     PRBool final_method;
     PRBool fallback = PR_FALSE;
     int pw_response_requested;
+    PRBool module_thread_safe = PR_FALSE;
     LDAPControl **reqctrls = NULL;
 
     /* get the methods and other info */
@@ -437,6 +457,8 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 
     fallback = cfg->pamptconfig_fallback;
 
+    module_thread_safe = cfg->pamptconfig_thread_safe;
+
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &reqctrls);
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &pw_response_requested);
 
@@ -445,15 +467,15 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 
     final_method = (method2 == PAMPT_MAP_METHOD_NONE);
     rc = do_one_pam_auth(pb, method1, final_method, pam_service.str, pam_id_attr.str, fallback,
-                         pw_response_requested);
+                         pw_response_requested, module_thread_safe);
     if ((rc != LDAP_SUCCESS) && !final_method) {
         final_method = (method3 == PAMPT_MAP_METHOD_NONE);
         rc = do_one_pam_auth(pb, method2, final_method, pam_service.str, pam_id_attr.str, fallback,
-                             pw_response_requested);
+                             pw_response_requested, module_thread_safe);
         if ((rc != LDAP_SUCCESS) && !final_method) {
             final_method = PR_TRUE;
             rc = do_one_pam_auth(pb, method3, final_method, pam_service.str, pam_id_attr.str, fallback,
-                                 pw_response_requested);
+                                 pw_response_requested, module_thread_safe);
         }
     }
 

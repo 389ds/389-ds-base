@@ -8,6 +8,6 @@ A generic high load, long running tests
 reliab7_5_test.py
 ------------------------------
 
-This script is a light-weight version of the legacy TET stress test called "Reliabilty 15".  This test consists of two MMR Masters, and a 5000 entry database.  The test starts off with two threads doing unindexed searchesi(1 for each master).  These do not exit untl the entire test completes.  Then while the unindexed searches are going on, the test performs a set of adds, mods, deletes, and modrdns on each master at the same time.  It performs this set of operations 1000 times.  The main goal of this script is to test stablilty, replication convergence, and memory growth/fragmentation.
+This script is a light-weight version of the legacy TET stress test called "Reliabilty 15".  This test consists of two MMR Suppliers, and a 5000 entry database.  The test starts off with two threads doing unindexed searchesi(1 for each supplier).  These do not exit untl the entire test completes.  Then while the unindexed searches are going on, the test performs a set of adds, mods, deletes, and modrdns on each supplier at the same time.  It performs this set of operations 1000 times.  The main goal of this script is to test stablilty, replication convergence, and memory growth/fragmentation.
 
 Known issue: the server can deadlock in the libdb4 code while performing modrdns(under investigation via https://fedorahosted.org/389/ticket/48166)

@@ -581,7 +581,7 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
     Slapi_Regex *re = NULL;
     int ret = 0;
     int matched = 0;
-    const char *recomp_result = NULL;
+    char *recomp_result = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_check", "=>\n");
     /* Compiles the regex */
@@ -590,6 +590,7 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
         slapi_log_err(SLAPI_LOG_ERR,
                       "sasl_map_check", "slapi_re_comp failed for expression (%s): %s\n",
                       dp->regular_expression, recomp_result ? recomp_result : "unknown");
+        slapi_ch_free_string(&recomp_result);
     } else {
         /* Matches the compiled regex against sasl_user_and_realm */
         matched = slapi_re_exec_nt(re, sasl_user_and_realm);

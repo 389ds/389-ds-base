@@ -1,5 +1,5 @@
 /* --- BEGIN COPYRIGHT BLOCK ---
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -168,11 +168,11 @@ extern size_t snmptrap_oid_len;
 /*************************************************************
  * dsEntriesTable column defines
  */
-#define COLUMN_DSMASTERENTRIES 1
+#define COLUMN_DSSUPPLIERENTRIES 1
 #define COLUMN_DSCOPYENTRIES 2
 #define COLUMN_DSCACHEENTRIES 3
 #define COLUMN_DSCACHEHITS 4
-#define COLUMN_DSSLAVEHITS 5
+#define COLUMN_DSCONSUMERHITS 5
 #define dsEntriesTable_COL_MIN 1
 #define dsEntriesTable_COL_MAX 5
 

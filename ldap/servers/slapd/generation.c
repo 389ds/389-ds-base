@@ -78,6 +78,7 @@ set_database_dataversion(const char *dn, const char *dataversion)
     if (NULL != pb) {
         Slapi_Entry *e;
         slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
+        slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
         slapi_entry_free(e);
     }
     slapi_pblock_destroy(pb);
@@ -87,15 +88,24 @@ set_database_dataversion(const char *dn, const char *dataversion)
 
 static char *server_dataversion_id = NULL;
 
+void
+free_server_dataversion(void) {
+    slapi_ch_free_string(&server_dataversion_id);
+}
+
 const char *
 get_server_dataversion()
 {
     lenstr *l = NULL;
     Slapi_Backend *be;
     char *cookie;
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+    /* Serialize to avoid race condition */
+    pthread_mutex_lock(&mutex);
     /* we already cached the copy - just return it */
     if (server_dataversion_id != NULL) {
+        pthread_mutex_unlock(&mutex);
         return server_dataversion_id;
     }
 
@@ -130,5 +140,6 @@ get_server_dataversion()
         server_dataversion_id = slapi_ch_strdup(l->ls_buf);
     }
     lenstr_free(&l);
+    pthread_mutex_unlock(&mutex);
     return server_dataversion_id;
 }

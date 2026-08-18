@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -45,6 +45,7 @@ usn_cleanup_close(void)
 static void
 usn_cleanup_thread(void *arg)
 {
+    slapi_set_thread_name("usn-cleanup");
     Slapi_Task *task = (Slapi_Task *)arg;
     int rv = 0;
     int total_work = 2;
@@ -238,9 +239,9 @@ usn_cleanup_add(Slapi_PBlock *pb,
 {
     PRThread *thread = NULL;
     char *suffix = NULL;
-    char *backend = NULL;
+    char *backend_str = NULL;
     char *maxusn = NULL;
-    char *bind_dn;
+    char *bind_dn = NULL;
     struct usn_cleanup_data *cleanup_data = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Task *task = NULL;
@@ -263,10 +264,10 @@ usn_cleanup_add(Slapi_PBlock *pb,
 
     /* get args */
     suffix = slapi_entry_attr_get_charptr(e, "suffix");
-    backend = (char *)slapi_entry_attr_get_ref(e, "backend");
+    backend_str = (char *)slapi_entry_attr_get_ref(e, "backend");
     maxusn = slapi_entry_attr_get_charptr(e, "maxusn_to_delete");
 
-    if (!suffix && !backend) {
+    if (!suffix && !backend_str) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
                       "usn_cleanup_add - Both suffix and backend are missing.\n");
         snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -277,14 +278,14 @@ usn_cleanup_add(Slapi_PBlock *pb,
     }
 
     /* suffix is not given, but backend is; get the suffix */
-    if (!suffix && backend) {
-        be = slapi_be_select_by_instance_name(backend);
+    if (!suffix && backend_str) {
+        be = slapi_be_select_by_instance_name(backend_str);
         be_suffix = slapi_be_getsuffix(be, 0);
         if (be_suffix) {
             suffix = slapi_ch_strdup(slapi_sdn_get_ndn(be_suffix));
         } else {
             slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                          "usn_cleanup_add - Backend %s is invalid.\n", backend);
+                          "usn_cleanup_add - Backend %s is invalid.\n", backend_str);
             *returncode = LDAP_PARAM_ERROR;
             rv = SLAPI_DSE_CALLBACK_ERROR;
             goto bail;
@@ -323,8 +324,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
     suffix = NULL; /* don't free in this function */
     cleanup_data->maxusn_to_delete = maxusn;
     maxusn = NULL; /* don't free in this function */
-    cleanup_data->bind_dn = bind_dn;
-    bind_dn = NULL; /* don't free in this function */
+    cleanup_data->bind_dn = slapi_ch_strdup(bind_dn);
     slapi_task_set_data(task, cleanup_data);
 
     /* start the USN tombstone cleanup task as a separate thread */
@@ -363,7 +363,6 @@ usn_cleanup_task_destructor(Slapi_Task *task)
             slapi_ch_free_string(&mydata->suffix);
             slapi_ch_free_string(&mydata->maxusn_to_delete);
             slapi_ch_free_string(&mydata->bind_dn);
-            /* Need to cast to avoid a compiler warning */
             slapi_ch_free((void **)&mydata);
         }
     }

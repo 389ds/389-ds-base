@@ -50,8 +50,20 @@ aclgroup_init()
 void
 aclgroup_free()
 {
-    slapi_destroy_rwlock(aclUserGroups->aclg_rwlock);
-    slapi_ch_free((void **)&aclUserGroups);
+    aclUserGroup *u_group, *next_group;
+
+    if (aclUserGroups) {
+        /* Clean up all user groups */
+        u_group = aclUserGroups->aclg_first;
+        while (u_group) {
+            next_group = u_group->aclug_next;
+            __aclg__delete_userGroup(u_group);
+            u_group = next_group;
+        }
+
+        slapi_destroy_rwlock(aclUserGroups->aclg_rwlock);
+        slapi_ch_free((void **)&aclUserGroups);
+    }
 }
 
 /*
@@ -263,10 +275,12 @@ aclg_get_usersGroup(struct acl_pblock *aclpb, char *n_dn)
         return NULL;
     }
 
-    if (aclpb->aclpb_groupinfo)
-        return aclpb->aclpb_groupinfo;
-
     ACLG_LOCK_GROUPCACHE_WRITE();
+
+    if (aclpb->aclpb_groupinfo) {
+        ACLG_ULOCK_GROUPCACHE_WRITE();
+        return aclpb->aclpb_groupinfo;
+    }
 
     /* try it one more time. We might have one in the meantime */
     aclg_init_userGroup(aclpb, n_dn, 1 /* got the lock */);
@@ -337,11 +351,12 @@ aclg_get_usersGroup(struct acl_pblock *aclpb, char *n_dn)
 
     aclUserGroups->aclg_num_userGroups++;
 
+    /* Now hang on to it */
+    aclpb->aclpb_groupinfo = u_group;
+
     /* Put it in the queue */
     ACLG_ULOCK_GROUPCACHE_WRITE();
 
-    /* Now hang on to it */
-    aclpb->aclpb_groupinfo = u_group;
     return u_group;
 }
 

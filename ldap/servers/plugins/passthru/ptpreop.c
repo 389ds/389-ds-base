@@ -87,8 +87,9 @@ passthru_bindpreop_start(Slapi_PBlock *pb)
 
     if ((rc = passthru_config(argc, argv)) != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
-                      "passthru_bindpreop_start - Configuration failed (%s)\n", ldap_err2string(rc));
-        return (-1);
+                      "passthru_bindpreop_start - Configuration failed (%s) plugin is nonoperational.\n", ldap_err2string(rc));
+        /* We don't need to return an error and prevent the server from starting in this case */
+        return (0);
     }
 
     return (0);

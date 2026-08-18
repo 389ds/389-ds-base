@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.plugins import WhoamiPlugin
 
 pytestmark = pytest.mark.tier1
@@ -18,8 +18,6 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds47384
-@pytest.mark.ds47601
 def test_pluginpath_validation(topology_st):
     """Test pluginpath validation: relative and absolute paths
     With the inclusion of ticket 47601 - we do allow plugin paths

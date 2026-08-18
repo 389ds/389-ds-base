@@ -6,10 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import ldap
 import logging
 import pytest
-from lib389._constants import DEFAULT_SUFFIX
+import time
+from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.config import Config
 from lib389.plugins import USNPlugin, MemberOfPlugin
 from lib389.idm.group import Groups
@@ -17,7 +19,9 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.tombstone import Tombstones
 from lib389.rootdse import RootDSE
-from lib389.topologies import topology_st, topology_m2
+from test389.topologies import topology_st, topology_m2
+
+pytestmark = pytest.mark.tier1
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +115,11 @@ def test_entryusn_no_duplicates(topology_st, setup):
     """
 
     inst = topology_st.standalone
+    plugin = MemberOfPlugin(inst)
+    if (plugin.get_memberofdeferredupdate() and plugin.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     config = Config(inst)
     config.replace('nsslapd-accesslog-level', '260')  # Internal op
     config.replace('nsslapd-errorlog-level', '65536')
@@ -121,6 +130,7 @@ def test_entryusn_no_duplicates(topology_st, setup):
     groups = setup["groups"]
 
     groups[0].replace('member', users[0].dn)
+    time.sleep(delay)
     entryusn_list.append(users[0].get_attr_val_int('entryusn'))
     log.info(f"{users[0].dn}_1: {entryusn_list[-1:]}")
     entryusn_list.append(groups[0].get_attr_val_int('entryusn'))
@@ -128,6 +138,7 @@ def test_entryusn_no_duplicates(topology_st, setup):
     check_entryusn_no_duplicates(entryusn_list)
 
     groups[1].replace('member', [users[0].dn, users[1].dn])
+    time.sleep(delay)
     entryusn_list.append(users[0].get_attr_val_int('entryusn'))
     log.info(f"{users[0].dn}_2: {entryusn_list[-1:]}")
     entryusn_list.append(users[1].get_attr_val_int('entryusn'))
@@ -194,7 +205,7 @@ def test_entryusn_after_repl_delete(topology_m2):
         4. Success
     """
 
-    inst = topology_m2.ms["master1"]
+    inst = topology_m2.ms["supplier1"]
     plugin = USNPlugin(inst)
     plugin.enable()
     inst.restart()
@@ -209,6 +220,7 @@ def test_entryusn_after_repl_delete(topology_m2):
         user_usn = user_1.get_attr_val_int('entryusn')
 
         user_1.delete()
+        time.sleep(1)  # Gives a little time for tombstone creation to complete
 
         ts = tombstones.get(user_rdn)
         ts_usn = ts.get_attr_val_int('entryusn')
@@ -233,8 +245,72 @@ def test_entryusn_after_repl_delete(topology_m2):
             pass
 
 
+def test_entryusn_tombstone_index(topology_st, setup):
+    """Verify deleted entries with USN (tombstones) are correctly handled in indexes
+
+    :id: 95b2c769-f00e-43f4-af63-074c07547478
+    :setup: Standalone instance with USN plugin enabled and test users
+    :steps:
+        1. Create two test users for index verification
+        2. Delete first user and check it is not in the cn index via dbscan
+        3. Reindex cn offline with db2index
+        4. Check deleted entry is still not in the cn index
+        5. Delete second user and check tombstone exists via Tombstones class
+        6. Reindex objectclass offline with db2index
+        7. Check tombstone still exists after reindex
+    :expectedresults:
+        1. Users are created
+        2. Deleted entry should not appear in cn index
+        3. Reindexing succeeds
+        4. Deleted entry should still not appear in cn index
+        5. Tombstone should exist
+        6. Reindexing succeeds
+        7. Tombstone should still exist
+    """
+
+    inst = topology_st.standalone
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+
+    log.info('Creating test users for index verification')
+    cn_user = users.create_test_user(uid=1100)
+    oc_user = users.create_test_user(uid=1101)
+    cn_user_cn = cn_user.get_attr_val_utf8('cn')
+    oc_user_uid = oc_user.get_attr_val_utf8('uid')
+
+    log.info(f'Deleting user {cn_user_cn} for cn index verification')
+    cn_user.delete()
+
+    log.info('Checking deleted entry is not in the cn index')
+    dbscan_output = inst.dbscan(bename=DEFAULT_BENAME, index='cn').decode('utf-8', errors='replace')
+    assert cn_user_cn not in dbscan_output
+
+    log.info('Reindexing cn offline')
+    inst.stop()
+    assert inst.db2index(bename=DEFAULT_BENAME, attrs=['cn'])
+    inst.start()
+
+    log.info('Verifying deleted entry is still not in cn index after reindex')
+    dbscan_output = inst.dbscan(bename=DEFAULT_BENAME, index='cn').decode('utf-8', errors='replace')
+    assert cn_user_cn not in dbscan_output
+
+    log.info(f'Deleting user {oc_user_uid} for tombstone verification')
+    oc_user.delete()
+
+    log.info('Checking tombstone exists in the directory')
+    tombstones = Tombstones(inst, DEFAULT_SUFFIX)
+    ts_list = tombstones.filter(f'(uid={oc_user_uid})')
+    assert len(ts_list) == 1
+
+    log.info('Reindexing objectclass offline')
+    inst.stop()
+    assert inst.db2index(bename=DEFAULT_BENAME, attrs=['objectclass'])
+    inst.start()
+
+    log.info('Verifying tombstone still exists after reindex')
+    ts_list = tombstones.filter(f'(uid={oc_user_uid})')
+    assert len(ts_list) == 1
+
+
 if __name__ == '__main__':
-    # Run isolated
-    # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
-    pytest.main("-s %s" % CURRENT_FILE)
+    pytest.main(["-s", CURRENT_FILE])

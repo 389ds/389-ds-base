@@ -37,15 +37,15 @@ ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_
 /* Takes a return code supposed to be errno or from lidb
    which we don't expect to see and prints a handy log message */
 void
-ldbm_nasty(char *func, const char *str, int c, int err)
+ldbm_nasty(const char *func, const char *str, int c, int err)
 {
-    char *msg = NULL;
+    const char *msg = NULL;
     char buffer[200];
-    if (err == DB_LOCK_DEADLOCK) {
+    if (err == DBI_RC_RETRY) {
         PR_snprintf(buffer, 200, "%s WARNING %d", str, c);
         slapi_log_err(SLAPI_LOG_BACKLDBM, func, "%s, err=%d %s\n",
                       buffer, err, (msg = dblayer_strerror(err)) ? msg : "");
-    } else if (err == DB_RUNRECOVERY) {
+    } else if (err == DBI_RC_RUNRECOVERY) {
         slapi_log_err(SLAPI_LOG_ERR, func, "%s (%d); "
                                            "server stopping as database recovery needed.\n",
                       str, c);
@@ -55,6 +55,24 @@ ldbm_nasty(char *func, const char *str, int c, int err)
         slapi_log_err(SLAPI_LOG_ERR, func, "%s, err=%d %s\n",
                       buffer, err, (msg = dblayer_strerror(err)) ? msg : "");
     }
+}
+
+/* Backoff before retrying a DBI_RC_RETRY fetch: exponential with jitter,
+ * capped at 200ms */
+void
+ldbm_fetch_retry_sleep(int retry_count)
+{
+    PRUint32 backoff_ms = 10;
+    int i;
+
+    for (i = 0; i < retry_count && backoff_ms < 200; i++) {
+        backoff_ms *= 2;
+    }
+    if (backoff_ms > 200) {
+        backoff_ms = 200;
+    }
+    backoff_ms += slapi_rand() % (backoff_ms + 1);
+    DS_Sleep(PR_MillisecondsToInterval(backoff_ms));
 }
 
 /* Put a message in the access log, complete with connection ID and operation ID */
@@ -106,9 +124,19 @@ static const char *systemIndexes[] = {
 
 
 int
+ldbm_index_entrydn_should_ignore(const char *index_name)
+{
+    /* entryrdn is always enabled; leftover entrydn indexes must be ignored */
+    return index_name && (0 == strcasecmp(index_name, LDBM_ENTRYDN_STR));
+}
+
+int
 ldbm_attribute_always_indexed(const char *attrtype)
 {
     int r = 0;
+    if (ldbm_index_entrydn_should_ignore(attrtype)) {
+        return 0;
+    }
     if (NULL != attrtype) {
         int i = 0;
         while (!r && systemIndexes[i] != NULL) {
@@ -329,7 +357,7 @@ ldbm_txn_ruv_modify_context(Slapi_PBlock *pb, modify_context *mc)
     Slapi_Mods *smods = NULL;
     struct backentry *bentry;
     entry_address bentry_addr;
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock *, char **, Slapi_Mods **) = NULL;
     int rc = 0;
     back_txn txn = {NULL};
 
@@ -401,38 +429,6 @@ is_fullpath(char *path)
     return 0;
 }
 
-/* the problem with getline is that it inserts \0 for every
-   newline \n or \r - this is a problem when you just want
-   to grab some value from the ldif string but do not
-   want to change the ldif string because it will be
-   parsed again in the future
-   openldap ldif_getline() is more of a problem because
-   it does this for every comment line too.
-*/
-static void
-ldif_getline_fixline(char *start, char *end)
-{
-    while (start && (start < end)) {
-        if (*start == '\0') {
-            /* the original ldif string will usually end with \n \0
-               ldif_getline will turn this into \0 \0
-               in this case, we don't want to turn it into
-               \r \n we want \n \0
-            */
-            if ((start < (end - 1)) && (*(start + 1) == '\0')) {
-                *start = '\r';
-                start++;
-            }
-            *start = '\n';
-            start++;
-        } else {
-            start++;
-        }
-    }
-
-    return;
-}
-
 /*
  * Get value of type from string.
  * Note: this function is very primitive.  It does not support multi values.
@@ -445,13 +441,12 @@ get_value_from_string(const char *string, char *type, char **value)
 {
     int rc = -1;
     size_t typelen = 0;
-    char *ptr = NULL;
-    char *copy = NULL;
-    char *tmpptr = NULL;
-    char *startptr = NULL;
+    const char *ptr = NULL;
+    const char *tmpptr = NULL;
     struct berval tmptype = {0, NULL};
     struct berval bvvalue = {0, NULL};
     int freeval = 0;
+    struct berval copy = {0};
 
     if (NULL == string || NULL == type || NULL == value) {
         return rc;
@@ -464,20 +459,15 @@ get_value_from_string(const char *string, char *type, char **value)
     }
 
     typelen = strlen(type);
-    startptr = tmpptr;
-    while (NULL != (ptr = ldif_getline(&tmpptr))) {
+    while (NULL != (ptr = ldif_getline_ro(&tmpptr))) {
         if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
             (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
             /* did not match */
-            ldif_getline_fixline(startptr, tmpptr);
-            startptr = tmpptr;
             continue;
         }
         /* matched */
-        copy = slapi_ch_strdup(ptr);
-        ldif_getline_fixline(startptr, tmpptr);
-        startptr = tmpptr;
-        rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
+        dup_ldif_line(&copy, ptr, tmpptr);
+        rc = slapi_ldif_parse_line(copy.bv_val, &tmptype, &bvvalue, &freeval);
         if (0 > rc || NULL == tmptype.bv_val ||
             NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
             slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
@@ -506,10 +496,9 @@ get_value_from_string(const char *string, char *type, char **value)
             memcpy(*value, bvvalue.bv_val, bvvalue.bv_len);
             *(*value + bvvalue.bv_len) = '\0';
         }
-        slapi_ch_free_string(&copy);
     }
 bail:
-    slapi_ch_free_string(&copy);
+    slapi_ch_free_string(&copy.bv_val);
     return rc;
 }
 
@@ -523,10 +512,8 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
 {
     int rc = -1;
     size_t typelen = 0;
-    char *ptr = NULL;
-    char *copy = NULL;
-    char *tmpptr = NULL;
-    char *startptr = NULL;
+    const char *ptr = NULL;
+    const char *tmpptr = NULL;
     struct berval tmptype = {0, NULL};
     struct berval bvvalue = {0, NULL};
     int freeval = 0;
@@ -534,6 +521,7 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
     int idx = 0;
 #define get_values_INITIALMAXCNT 1
     int maxcnt = get_values_INITIALMAXCNT;
+    struct berval copy = {0};
 
     if (NULL == string || NULL == type || NULL == valuearray) {
         return rc;
@@ -546,20 +534,15 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
     }
 
     typelen = strlen(type);
-    startptr = tmpptr;
-    while (NULL != (ptr = ldif_getline(&tmpptr))) {
+    while (NULL != (ptr = ldif_getline_ro(&tmpptr))) {
         if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
             (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
             /* did not match */
-            ldif_getline_fixline(startptr, tmpptr);
-            startptr = tmpptr;
             continue;
         }
         /* matched */
-        copy = slapi_ch_strdup(ptr);
-        ldif_getline_fixline(startptr, tmpptr);
-        startptr = tmpptr;
-        rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
+        dup_ldif_line(&copy, ptr, tmpptr);
+        rc = slapi_ldif_parse_line(copy.bv_val, &tmptype, &bvvalue, &freeval);
         if (0 > rc || NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
             continue;
         }
@@ -601,10 +584,9 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
         }
         (*valuearray)[idx++] = value;
         (*valuearray)[idx] = NULL;
-        slapi_ch_free_string(&copy);
     }
 bail:
-    slapi_ch_free_string(&copy);
+    slapi_ch_free_string(&copy.bv_val);
     return rc;
 }
 
@@ -625,4 +607,25 @@ normalize_dir(char *dir)
         }
     }
     *(p + 1) = '\0';
+}
+
+char *
+convert_bytes_to_str(double value, char *buffer, int level)
+{
+    const char *unit[10] = {
+        "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+    };
+
+    PR_ASSERT(level < 10);
+    if (level > 9) {
+        return "<value exceeded limits>";
+    }
+
+    if (value > 1024) {
+        double next_val = value / 1024;
+        convert_bytes_to_str(next_val, buffer, ++level);
+    } else {
+        sprintf(buffer, "%.1f %s", value, unit[level]);
+    }
+    return buffer;
 }

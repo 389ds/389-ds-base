@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -14,8 +14,8 @@
 
 /*
     FILE :        opCheck.c
-    AUTHOR :        Jean-Luc SCHWING
-    VERSION :       1.0
+    AUTHOR :      Jean-Luc SCHWING
+    VERSION :     1.0
     DATE :        04 May 1999
     DESCRIPTION :
             This file contains the functions used to manage and
@@ -47,7 +47,7 @@
 #endif
 #include "port.h" /* Portability definitions */ /*JLS 29-11-00*/
 #include "ldclt.h"                              /* This tool's include file */
-#include "remote.h"                             /* Definitions common with the slave */
+#include "remote.h"                             /* Definitions common with the worker */
 
 enum
 {
@@ -239,7 +239,7 @@ opAdd(
     }                                                            /*JLS 06-03-00*/
     newOper->next = NULL;
     newOper->type = type;
-    newOper->skipped = mctx.slavesNb;
+    newOper->skipped = mctx.workersNb;
     newOper->dn = strdup(dn);
     if (newOper->dn == NULL)                                         /*JLS 06-03-00*/
     {                                                                /*JLS 06-03-00*/
@@ -501,7 +501,7 @@ thOperFree(thoper *head, thoper *elem)
 
 /* ****************************************************************************
     FUNCTION :    opCheckLoop
-    PURPOSE :    This function is the per slave check function
+    PURPOSE :    This function is the per worker check function
     INPUT :        arg    = this check thread's check_context
     OUTPUT :    None.
     RETURN :    None.
@@ -543,7 +543,7 @@ opCheckLoop(void *arg)
             if ((nbRead = read(pfd.fd, recOper, sizeof(repconfirm))) < 0)
                 break;
             if (nbRead != sizeof(repconfirm))
-                printf("C%03d(%s): Partial header read %d - expected %d\n", cctx->thrdNum, cctx->slaveName, nbRead, sizeof(repconfirm));
+                printf("C%03d(%s): Partial header read %d - expected %d\n", cctx->thrdNum, cctx->workerName, nbRead, sizeof(repconfirm));
             recOper->type = ntohl(recOper->type);
             recOper->res = ntohl(recOper->res);
             recOper->dnSize = ntohl(recOper->dnSize);
@@ -553,24 +553,24 @@ opCheckLoop(void *arg)
             if ((nbRead = read(pfd.fd, recOper->dn + sizeof(recOper->dn), recOper->dnSize)) < 0)
                 break;
             if (nbRead != recOper->dnSize)
-                printf("C%03d(%s): Partial dn read %d - expected %d\n", cctx->thrdNum, cctx->slaveName, nbRead, recOper->dnSize);
+                printf("C%03d(%s): Partial dn read %d - expected %d\n", cctx->thrdNum, cctx->workerName, nbRead, recOper->dnSize);
             if (nbRead > (1500 - sizeof(repconfirm)))
-                printf("C%03d(%s): Read too much %d - expected %d\n", cctx->thrdNum, cctx->slaveName, nbRead, 1500 - sizeof(repconfirm));
+                printf("C%03d(%s): Read too much %d - expected %d\n", cctx->thrdNum, cctx->workerName, nbRead, 1500 - sizeof(repconfirm));
             cnt = 0;
             cctx->nbOpRecv++;
             if (mctx.mode & VERY_VERBOSE) {
-                printf("C%03d(%s): Rec %s\n", cctx->thrdNum, cctx->slaveName, recOper->dn);
+                printf("C%03d(%s): Rec %s\n", cctx->thrdNum, cctx->workerName, recOper->dn);
                 for (myop = cctx->headListOp->next; myop; myop = myop->next)
-                    printf("C%03d(%s): IN : %s\n", cctx->thrdNum, cctx->slaveName, myop->dn);
+                    printf("C%03d(%s): IN : %s\n", cctx->thrdNum, cctx->workerName, myop->dn);
                 for (t = cctx->dcOper; t; t = t->next)
-                    printf("C%03d(%s): LATE : %s\n", cctx->thrdNum, cctx->slaveName, t->dn);
+                    printf("C%03d(%s): LATE : %s\n", cctx->thrdNum, cctx->workerName, t->dn);
             }
             /*
          * Do not tell me there was an error during replica...
          */
             if (recOper->res) {
                 printf("C%03d(%s): Replica failed, op:%d(%s), dn=\"%s\" res=%d\n",
-                       cctx->thrdNum, cctx->slaveName,
+                       cctx->thrdNum, cctx->workerName,
                        recOper->type, opDecOper(recOper->type),
                        recOper->dn, recOper->res);
                 switch (recOper->res) {
@@ -602,7 +602,7 @@ opCheckLoop(void *arg)
                          * error.
                          */
                             printf("C%03d(%s): Late replica:   op:%d(%s), dn=\"%s\"\n",
-                                   cctx->thrdNum, cctx->slaveName,
+                                   cctx->thrdNum, cctx->workerName,
                                    t->type, opDecOper(t->type), t->dn);
                             cctx->nbLate++;
                         } else if (t->first == MIDDLE) {
@@ -610,7 +610,7 @@ opCheckLoop(void *arg)
                          * Middle of a series : 23546
                          */
                             printf("C%03d(%s): Early (%3d)     op:%d(%s), dn=\"%s\"\n",
-                                   cctx->thrdNum, cctx->slaveName, i,
+                                   cctx->thrdNum, cctx->workerName, i,
                                    t->type, opDecOper(t->type), t->dn);
                             cctx->nbEarly++;
 
@@ -647,7 +647,7 @@ opCheckLoop(void *arg)
                                 /*
                              * Skip all between current head and this one
                              */
-                                printf("C%03d(%s): Early (%3d)     op:%d(%s), dn=\"%s\"\n", cctx->thrdNum, cctx->slaveName, i - 1, recOper->type, opDecOper(recOper->type), recOper->dn);
+                                printf("C%03d(%s): Early (%3d)     op:%d(%s), dn=\"%s\"\n", cctx->thrdNum, cctx->workerName, i - 1, recOper->type, opDecOper(recOper->type), recOper->dn);
                                 cctx->nbEarly++;
                                 opNext(cctx, &myop);
                                 /*
@@ -670,7 +670,7 @@ opCheckLoop(void *arg)
                         } else
                             break;
                     if (!myop) {
-                        printf("C%03d(%s): Not on list     op:%d(%s), dn=\"%s\"\n", cctx->thrdNum, cctx->slaveName, recOper->type, opDecOper(recOper->type), recOper->dn);
+                        printf("C%03d(%s): Not on list     op:%d(%s), dn=\"%s\"\n", cctx->thrdNum, cctx->workerName, recOper->type, opDecOper(recOper->type), recOper->dn);
                         cctx->nbNotOnList++;
                     }
                 }
@@ -697,16 +697,16 @@ opCheckLoop(void *arg)
             break;
     }
     if (mctx.mode & VERY_VERBOSE)
-        printf("C%03d(%s): Exiting\n", cctx->thrdNum, cctx->slaveName);
+        printf("C%03d(%s): Exiting\n", cctx->thrdNum, cctx->workerName);
     /*
    * Any operation left?
    */
     for (opNext(cctx, &myop); myop; opNext(cctx, &myop)) {
-        printf("Operation %d(%s) still on Queue for %s (%s)\n", myop->type, opDecOper(myop->type), cctx->slaveName, myop->dn);
+        printf("Operation %d(%s) still on Queue for %s (%s)\n", myop->type, opDecOper(myop->type), cctx->workerName, myop->dn);
         cctx->nbStillOnQ++;
     }
     for (t = cctx->dcOper; t; t = t->next) {
-        printf("Lost op %d(%s) on %s (%s)\n", t->type, opDecOper(t->type), cctx->slaveName, t->dn);
+        printf("Lost op %d(%s) on %s (%s)\n", t->type, opDecOper(t->type), cctx->workerName, t->dn);
         cctx->nbLostOp++;
     }
     close(cctx->sockfd);
@@ -715,10 +715,9 @@ opCheckLoop(void *arg)
 }
 
 /* ****************************************************************************
-    FUNCTION :    opCheckMain
-    PURPOSE :    This function is the main function of the check
-            operation threads,
-    INPUT :        arg    = NULL
+    FUNCTION :  opCheckMain
+    PURPOSE :   This function is the main function of the check operation threads,
+    INPUT :     arg = NULL
     OUTPUT :    None.
     RETURN :    None.
     DESCRIPTION :
@@ -739,12 +738,12 @@ opCheckMain(
     int retry; /* To retry on EINTR */
 
     /*
-   * Initialization
-   */
+     * Initialization
+     */
 
     srvsaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     srvsaddr.sin_family = AF_INET;
-    srvsaddr.sin_port = htons(masterPort);
+    srvsaddr.sin_port = htons(supplierPort);
 
     /*
    * Let's go !!!
@@ -807,24 +806,24 @@ opCheckMain(
      * Search for an empty client slot. If a client reconnects, use the
      * same slot
      */
-        for (i = 0; i < mctx.slavesNb; i++) {
+        for (i = 0; i < mctx.workersNb; i++) {
             if (cctx[i].calls == 0) {
                 i = ncctx++;
                 break;
             }
-            if (cctx[i].slaveName && cctx[i].status == DEAD)
-                if (strcmp(cctx[i].slaveName, cltaddr.h_name) == 0)
+            if (cctx[i].workerName && cctx[i].status == DEAD)
+                if (strcmp(cctx[i].workerName, cltaddr.h_name) == 0)
                     break;
         }
-        if (i >= mctx.slavesNb) {
-            fprintf(stderr, "ldclt: Too many slaves %s\n", cltaddr.h_name);
+        if (i >= mctx.workersNb) {
+            fprintf(stderr, "ldclt: Too many workers %s\n", cltaddr.h_name);
             close(newfd);
             continue;
         }
 
         cctx[i].sockfd = newfd;
         cctx[i].calls++;
-        cctx[i].slaveName = strdup(cltaddr.h_name);
+        cctx[i].workerName = strdup(cltaddr.h_name);
         if ((err = pthread_create(&(cctx[i].tid), NULL,
                                   opCheckLoop, (void *)&(cctx[i]))) != 0) {
             fprintf(stderr, "ldclt: %s\n", strerror(err));
@@ -832,7 +831,7 @@ opCheckMain(
                     cltaddr.h_name);
             fflush(stderr);
         } else
-            mctx.slaveConn = 1;
+            mctx.workerConn = 1;
     }
     close(sockfd);
 }

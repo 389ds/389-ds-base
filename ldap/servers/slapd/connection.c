@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -22,13 +22,18 @@
 #include "prcvar.h"
 #include "prlog.h" /* for PR_ASSERT */
 #include "fe.h"
+#include "threadpool_stats.h"
 #include <sasl/sasl.h>
+#include <stdbool.h>
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif
+#ifdef USDT
+#include <sys/sdt.h>
+#endif
 
 typedef Connection work_q_item;
-static void connection_threadmain(void);
+static void connection_threadmain(void *arg);
 static void connection_add_operation(Connection *conn, Operation *op);
 static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
@@ -40,20 +45,22 @@ static void log_ber_too_big_error(const Connection *conn,
 
 static PRStack *op_stack;     /* stack of Slapi_Operation * objects so we don't have to malloc/free every time */
 static PRInt32 op_stack_size; /* size of op_stack */
-
 struct Slapi_op_stack
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
     Slapi_Operation *op;
 };
 
-static void add_work_q(work_q_item *, struct Slapi_op_stack *);
-static work_q_item *get_work_q(struct Slapi_op_stack **);
+/* worker threads */
+static int32_t max_threads = 0;
+static int32_t *threads_indexes = NULL;
 
 /*
  * We maintain a global work queue of items that have not yet
  * been handed off to an operation thread.
  */
+static void add_work_q(work_q_item *, struct Slapi_op_stack *);
+static work_q_item *get_work_q(struct Slapi_op_stack **);
 struct Slapi_work_q
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
@@ -64,8 +71,10 @@ struct Slapi_work_q
 
 static struct Slapi_work_q *head_work_q = NULL; /* global work queue head */
 static struct Slapi_work_q *tail_work_q = NULL; /* global work queue tail */
-static PRLock *work_q_lock = NULL;              /* protects head_conn_q and tail_conn_q */
-static PRCondVar *work_q_cv;                    /* used by operation threads to wait for work - when there is a conn in the queue waiting to be processed */
+static pthread_mutex_t work_q_lock;             /* protects head_conn_q and tail_conn_q */
+static pthread_cond_t work_q_cv;                /* used by operation threads to wait for work -
+                                                 * when there is a conn in the queue waiting
+                                                 * to be processed */
 static PRInt32 work_q_size;                     /* size of conn_q */
 static PRInt32 work_q_size_max;                 /* high water mark of work_q_size */
 #define WORK_Q_EMPTY (work_q_size == 0)
@@ -73,6 +82,8 @@ static PRStack *work_q_stack;         /* stack of work_q structs so we don't hav
 static PRInt32 work_q_stack_size;     /* size of work_q_stack */
 static PRInt32 work_q_stack_size_max; /* max size of work_q_stack */
 static PRInt32 op_shutdown = 0;       /* if non-zero, server is shutting down */
+static int32_t current_busy_workers = 0;   /* workers currently processing ops */
+static int32_t max_busy_workers = 0;       /* high water mark of busy workers */
 
 #define LDAP_SOCKET_IO_BUFFER_SIZE 512 /* Size of the buffer we give to the I/O system for reads */
 
@@ -185,6 +196,15 @@ connection_cleanup(Connection *conn)
     if (conn->c_prfd) {
         PR_Close(conn->c_prfd);
     }
+#ifdef ENABLE_EPOLL
+    if (conn->c_idle_tfd != -1) {
+        /* Close the idle timer */
+        epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
+        timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
+        close(conn->c_idle_tfd);
+        conn->c_idle_tfd = -1;
+    }
+#endif /* ENABLE_EPOLL */
 
     conn->c_sd = SLAPD_INVALID_SOCKET;
     conn->c_ldapversion = 0;
@@ -194,6 +214,7 @@ connection_cleanup(Connection *conn)
     slapi_ch_free((void **)&conn->cin_destaddr);
     slapi_ch_free((void **)&conn->cin_addr_aclip);
     slapi_ch_free_string(&conn->c_ipaddr);
+    slapi_ch_free_string(&conn->c_serveripaddr);
     if (conn->c_domain != NULL) {
         ber_bvecfree(conn->c_domain);
         conn->c_domain = NULL;
@@ -211,6 +232,7 @@ connection_cleanup(Connection *conn)
     conn->c_idlesince = 0;
     conn->c_flags = 0;
     conn->c_needpw = 0;
+    conn->c_haproxyheader_read = 0;
     conn->c_prfd = NULL;
     /* c_ci stays as it is */
     conn->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
@@ -232,28 +254,6 @@ connection_cleanup(Connection *conn)
     conn->c_ns_close_jobs = 0;
 }
 
-static char *
-get_ip_str(struct sockaddr *addr, char *str)
-{
-    switch(addr->sa_family) {
-        case AF_INET:
-            if (sizeof(str) < INET_ADDRSTRLEN) {
-                break;
-            }
-            inet_ntop(AF_INET, &(((struct sockaddr_in *)addr)->sin_addr), str, INET_ADDRSTRLEN);
-            break;
-
-        case AF_INET6:
-            if (sizeof(str) < INET6_ADDRSTRLEN) {
-                break;
-            }
-            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)addr)->sin6_addr), str, INET6_ADDRSTRLEN);
-            break;
-    }
-
-    return str;
-}
-
 /*
  * Callers of connection_reset() must hold the conn->c_mutex lock.
  */
@@ -268,6 +268,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     char buf_destip[INET6_ADDRSTRLEN + 1] = {0};
     char *str_unknown = "unknown";
     int in_referral_mode = config_check_referral_mode();
+    int32_t log_format = config_get_accesslog_log_format();
 
     slapi_log_err(SLAPI_LOG_CONNS, "connection_reset", "new %sconnection on %d\n", pTmp, conn->c_sd);
 
@@ -275,8 +276,8 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     conn->c_connid = slapi_counter_increment(num_conns);
 
     if (!in_referral_mode) {
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionSeq);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnections);
     }
 
     /*
@@ -336,7 +337,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
             PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&addr)->sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
             PRLDAP_SET_PORT(conn->cin_addr, ((struct sockaddr_in *)&addr)->sin_port);
-            str_ip = get_ip_str(&addr, buf_ip);
+            str_ip = get_ip_str(&addr, buf_ip, sizeof(buf_ip));
         } else {
             str_ip = str_unknown;
         }
@@ -390,7 +391,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             PRLDAP_SET_PORT(conn->cin_destaddr, ((struct sockaddr_in *)&destaddr)->sin_port);
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
             PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&destaddr)->sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
-            str_destip = get_ip_str(&destaddr, buf_destip);
+            str_destip = get_ip_str(&destaddr, buf_destip, sizeof(buf_destip));
         } else {
             str_destip = str_unknown;
         }
@@ -402,15 +403,10 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
         ids_sasl_server_new(conn);
     }
 
-    /* log useful stuff to our access log */
-    slapi_log_access(LDAP_DEBUG_STATS,
-                     "conn=%" PRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
-                     conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip);
-
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
-    conn->c_starttime = slapi_current_utc_time();
-    conn->c_idlesince = conn->c_starttime;
+    conn->c_starttime = slapi_current_utc_time();  /* only used by the monitor */
+    conn->c_idlesince = slapi_current_rel_time_t();
     conn->c_flags = is_SSL ? CONN_FLAG_SSL : 0;
     conn->c_authtype = slapi_ch_strdup(SLAPD_AUTH_NONE);
     /* Just initialize the SSL SSF to 0 now since the handshake isn't complete
@@ -418,51 +414,95 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     conn->c_ssl_ssf = 0;
     conn->c_local_ssf = 0;
     conn->c_ipaddr = slapi_ch_strdup(str_ip);
+    conn->c_serveripaddr = slapi_ch_strdup(str_destip);
+
+    /* log useful stuff to our access log */
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock logpb = {0};
+        slapd_log_pblock_init(&logpb, log_format, NULL);
+        logpb.conn_time = conn->c_starttime;
+        logpb.conn_id = conn->c_connid;
+        logpb.fd = conn->c_sd;
+        logpb.slot = ns;
+        logpb.client_ip = str_ip;
+        logpb.server_ip = str_destip;
+        logpb.using_tls = is_SSL ? PR_TRUE : PR_FALSE;
+        slapd_log_access_conn(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS,
+                         "conn=%" PRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
+                         conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip);
+
+    }
 }
 
 /* Create a pool of threads for handling the operations */
 void
-init_op_threads()
+init_op_threads(int32_t threadnumber)
 {
-    int i;
-    PRErrorCode errorCode;
-    int max_threads = config_get_threadnumber();
+    pthread_condattr_t condAttr;
+    int32_t rc;
+
     /* Initialize the locks and cv */
-
-    if ((work_q_lock = PR_NewLock()) == NULL) {
-        errorCode = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "init_op_threads", "PR_NewLock failed for work_q_lock, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      errorCode, slapd_pr_strerror(errorCode));
+    if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new lock.  error %d (%s)\n",
+                      rc, strerror(rc));
         exit(-1);
     }
-
-    if ((work_q_cv = PR_NewCondVar(work_q_lock)) == NULL) {
-        errorCode = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads", "PR_NewCondVar failed for work_q_cv, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      errorCode, slapd_pr_strerror(errorCode));
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition attribute variable.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot set condition attr clock.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_cond_init(&work_q_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition variable.  error %d (%s)\n",
+                      rc, strerror(rc));
         exit(-1);
     }
+    pthread_condattr_destroy(&condAttr); /* no longer needed */
 
+    max_threads = threadnumber;
     work_q_stack = PR_CreateStack("connection_work_q");
-
     op_stack = PR_CreateStack("connection_operation");
+    alloc_per_thread_snmp_vars(max_threads);
+    init_thread_private_snmp_vars();
+
+    threads_indexes = (int32_t *) slapi_ch_calloc(max_threads, sizeof(int32_t));
+    for (size_t i = 0; i < max_threads; i++) {
+        threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
+    }
 
     /* start the operation threads */
-    for (i = 0; i < max_threads; i++) {
+    for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
         if (PR_CreateThread(PR_USER_THREAD,
-                            (VFP)(void *)connection_threadmain, NULL,
+                            (VFP)(void *)connection_threadmain, (void *) &threads_indexes[i],
                             PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                             PR_UNJOINABLE_THREAD,
                             SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
             int prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "init_op_threads", "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                          "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr));
         } else {
             g_incr_active_threadcnt();
         }
     }
+    /* We will free threads_indexes at the very end of slapd_daemon() */
+}
+
+/* Called at shutdown to silence ASAN and friends */
+void
+free_worker_thread_indexes()
+{
+    slapi_ch_free((void **)&threads_indexes);
 }
 
 static void
@@ -489,42 +529,56 @@ referral_mode_reply(Slapi_PBlock *pb)
 static int
 connection_need_new_password(const Connection *conn, const Operation *op, Slapi_PBlock *pb)
 {
-    int r = 0;
+    int32_t log_format = config_get_accesslog_log_format();
+    int rc = 0;
     /*
-        * add tag != LDAP_REQ_SEARCH to allow admin server 3.5 to do
+     * add tag != LDAP_REQ_SEARCH to allow admin server 3.5 to do
      * searches when the user needs to reset
      * the pw the first time logon.
-     * LP: 22 Dec 2000: Removing LDAP_REQ_SEARCH. It's very unlikely that AS 3.5 will
-     * be used to manage DS5.0
      */
 
     if (conn->c_needpw && op->o_tag != LDAP_REQ_MODIFY &&
         op->o_tag != LDAP_REQ_BIND && op->o_tag != LDAP_REQ_UNBIND &&
-        op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_EXTENDED) {
+        op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_EXTENDED)
+    {
         slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
-                         conn->c_connid, op->o_opid,
-                         "UNPROCESSED OPERATION - need new password");
+
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.conn_time = conn->c_starttime;
+            logpb.conn_id = conn->c_connid;
+            logpb.op_id = op->o_opid;
+            logpb.request_controls = operation_get_req_controls(op);
+            logpb.response_controls = operation_get_result_controls(op);
+            logpb.msg = "UNPROCESSED OPERATION - need new password";
+            slapd_log_access_error(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
+                             conn->c_connid, op->o_opid,
+                             "UNPROCESSED OPERATION - need new password");
+        }
         send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
                          NULL, NULL, 0, NULL);
-        r = 1;
+        rc = 1;
     }
-    return r;
+    return rc;
 }
-
 
 static void
 connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
     int32_t minssf = conn->c_minssf;
     int32_t minssf_exclude_rootdse = conn->c_minssf_exclude_rootdse;
+    int32_t log_format = config_get_accesslog_log_format();
+
 #ifdef TCP_CORK
     int32_t enable_nagle = conn->c_enable_nagle;
     int32_t pop_cork = 0;
 #endif
 
     /* Set the connid and op_id to be used by internal op logging */
-    slapi_td_reset_internal_logging(conn->c_connid, op->o_opid);
+    slapi_td_reset_internal_logging(conn->c_connid, op->o_opid, conn->c_starttime);
 
     /* Get the effective key length now since the first SSL handshake should be complete */
     connection_set_ssl_ssf(conn);
@@ -536,6 +590,22 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
         /* If it is replicated op, ignore the maxbersize. */
         ber_len_t maxbersize = 0;
         ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
+    }
+
+    /* Set the start time */
+    slapi_operation_set_time_started(op);
+
+    /* difficult to detect false asynch operations
+     * Indeed because of scheduling of threads a previous
+     * operation may have sent its result but not yet updated
+     * the completed count.
+     * To avoid false positive lets set a limit of 2.
+     */
+    if ((conn->c_opsinitiated - conn->c_opscompleted) > 2) {
+        unsigned int opnote;
+        opnote = slapi_pblock_get_operation_notes(pb);
+        opnote |= SLAPI_OP_NOTE_ASYNCH_OP; /* the operation is dispatch while others are running */
+        slapi_pblock_set_operation_notes(pb, opnote);
     }
 
     /* If the minimum SSF requirements are not met, only allow
@@ -552,12 +622,27 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
         (conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
         (conn->c_local_ssf < minssf) && (op->o_tag != LDAP_REQ_BIND) &&
         (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
-        (op->o_tag != LDAP_REQ_ABANDON)) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
-                         " - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
-                         conn->c_connid, op->o_opid, conn->c_local_ssf,
-                         conn->c_sasl_ssf, conn->c_ssl_ssf);
+        (op->o_tag != LDAP_REQ_ABANDON))
+    {
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.conn_time = conn->c_starttime;
+            logpb.conn_id = conn->c_connid;
+            logpb.op_id = op->o_opid;
+            logpb.local_ssf = conn->c_local_ssf;
+            logpb.ssl_ssf = conn->c_ssl_ssf;
+            logpb.sasl_ssf = conn->c_sasl_ssf;
+            logpb.msg = "UNPROCESSED OPERATION - Insufficient SSF";
+            slapd_log_access_ssf_error(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
+                             " - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
+                             conn->c_connid, op->o_opid, conn->c_local_ssf,
+                             conn->c_sasl_ssf, conn->c_ssl_ssf);
+        }
+
         send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                          "Minimum SSF not met.", 0, NULL);
         return;
@@ -580,11 +665,22 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
          /* root DSE access only and something other than BIND, EXTOP, UNBIND, ABANDON, or SEARCH */
          ((conn->c_anon_access == SLAPD_ANON_ACCESS_ROOTDSE) && (op->o_tag != LDAP_REQ_BIND) &&
           (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
-          (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH)))) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
-                         " - Anonymous access not allowed\n",
-                         conn->c_connid, op->o_opid);
+          (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH))))
+    {
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.conn_time = conn->c_starttime;
+            logpb.conn_id = conn->c_connid;
+            logpb.op_id = op->o_opid;
+            logpb.msg = "UNPROCESSED OPERATION - Anonymous access not allowed";
+            slapd_log_access_error(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
+                             " - Anonymous access not allowed\n",
+                             conn->c_connid, op->o_opid);
+        }
 
         send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                          "Anonymous access is not allowed.",
@@ -949,16 +1045,23 @@ connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
 }
 
 int
-connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
+connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
 {
     int ret = CONN_FOUND_WORK_TO_DO;
     work_q_item *wqitem = NULL;
     struct Slapi_op_stack *op_stack_obj = NULL;
 
-    PR_Lock(work_q_lock);
+    pthread_mutex_lock(&work_q_lock);
 
     while (!op_shutdown && WORK_Q_EMPTY) {
-        PR_WaitCondVar(work_q_cv, interval);
+        if (interval == 0 ) {
+            pthread_cond_wait(&work_q_cv, &work_q_lock);
+        } else {
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_cond_timedwait(&work_q_cv, &work_q_lock, &current_time);
+        }
     }
 
     if (op_shutdown) {
@@ -969,13 +1072,36 @@ connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
         slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "no work to do\n");
         ret = CONN_NOWORK;
     } else {
+        Connection *conn = wqitem;
         /* make new pb */
-        slapi_pblock_set(pb, SLAPI_CONNECTION, wqitem);
+        slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
         slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
         slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
+        if (conn->c_flagblocked) {
+            /* flag this new operation that it was blocked by maxthreadperconn */
+            slapi_pblock_set_operation_notes(pb, SLAPI_OP_NOTE_ASYNCH_BLOCKED);
+            conn->c_flagblocked = false;
+        }
     }
 
-    PR_Unlock(work_q_lock);
+#ifdef USDT
+    /* Snapshot probe args under the lock; same pattern as add_work_q. */
+    uint64_t probe_connid = 0;
+    int probe_opid = 0;
+    int32_t probe_depth = 0;
+    if (wqitem != NULL) {
+        probe_connid = wqitem->c_connid;
+        probe_opid = op_stack_obj->op->o_opid;
+        probe_depth = work_q_size;
+    }
+#endif
+    pthread_mutex_unlock(&work_q_lock);
+
+#ifdef USDT
+    if (wqitem != NULL) {
+        STAP_PROBE3(ns-slapd, work_q__dequeue, probe_connid, probe_opid, probe_depth);
+    }
+#endif
     return ret;
 }
 
@@ -1098,6 +1224,28 @@ conn_buffered_data_avail_nolock(Connection *conn, int *conn_closed)
     }
 }
 
+/* Function to convert a PRNetAddr to a normalized IPv4 string and keep original address string. */
+static void
+normalize_IPv4(const PRNetAddr *addr, char *normalizedAddr, size_t normalizedAddrSize, char *originalAddr, size_t originalAddrSize)
+{
+    /* Keep the original address string */
+    PR_NetAddrToString(addr, originalAddr, originalAddrSize);
+
+    if (PR_IsNetAddrType(addr, PR_IpAddrV4Mapped)) {
+        /* Handle IPv4-mapped-to-IPv6 */
+        PRNetAddr v4addr;
+        /* v4addr gets the lower 32 bits of addr6 (the IPv4 address in the IPv6 format) */
+        v4addr.inet.family = PR_AF_INET;
+        v4addr.inet.ip = addr->ipv6.ip.pr_s6_addr32[3];
+        PR_NetAddrToString(&v4addr, normalizedAddr, normalizedAddrSize);
+    } else {
+        /* If it's not an IPv4-mapped IPv6 address, just keep the original format */
+        strncpy(normalizedAddr, originalAddr, normalizedAddrSize - 1);
+        normalizedAddr[normalizedAddrSize - 1] = '\0';
+    }
+    originalAddr[originalAddrSize - 1] = '\0';
+}
+
 /* Upon returning from this function, we have either:
    1. Read a PDU successfully.
    2. Detected some error condition with the connection which requires closing it.
@@ -1112,6 +1260,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 {
     ber_len_t len = 0;
     int ret = 0;
+    int haproxy_rc = 0;
     int32_t waits_done = 0;
     ber_int_t msgid;
     int new_operation = 1; /* Are we doing the first I/O read for a new operation ? */
@@ -1120,6 +1269,18 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     PRInt32 syserr = 0;
     size_t buffer_data_avail;
     int conn_closed = 0;
+    PRNetAddr pr_netaddr_from = {0};
+    PRNetAddr pr_netaddr_dest = {0};
+    char buf_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char buf_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
+    char str_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char str_haproxy_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char str_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
+    int trusted_matches_ip_found = 0;
+    int trusted_matches_destip_found = 0;
+    struct berval **bvals = NULL;
+    int proxy_connection = 0;
+    int32_t log_format = config_get_accesslog_log_format();
 
     pthread_mutex_lock(&(conn->c_mutex));
     /*
@@ -1145,6 +1306,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
         }
         new_operation = 0;
     }
+
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
         int32_t ioblocktimeout_waits = conn->c_ioblocktimeout / CONN_TURBO_TIMEOUT_INTERVAL;
@@ -1152,6 +1314,109 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
         if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
+            /* Process HAProxy header */
+            if (conn->c_haproxyheader_read == 0) {
+                conn->c_haproxyheader_read = 1;
+                /*
+                * We only check for HAProxy header if nsslapd-haproxy-trusted-ip is configured.
+                * If it is we proceed with the connection only if it's comming from trusted
+                * proxy server with correct and complete header.
+                */
+                if  ((bvals = g_get_haproxy_trusted_ip()) != NULL) {
+                    /* Can we have an unknown address at that point? */
+                    if ((haproxy_rc = haproxy_receive(conn->c_sd, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest)) == HAPROXY_ERROR) {
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation", "Error reading HAProxy header.\n");
+                        disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_PROXY_INVALID_HEADER, EPROTO);
+                        ret = CONN_DONE;
+                        goto done;
+                    }
+
+                    /* If bval is NULL and we don't have an error - we still want the proper log and update */
+                    if ((haproxy_rc == HAPROXY_HEADER_PARSED) && (proxy_connection)) {
+                        /* Normalize IP addresses for logging */
+                        normalize_IPv4(conn->cin_addr, buf_ip, sizeof(buf_ip), str_ip, sizeof(str_ip));
+                        normalize_IPv4(&pr_netaddr_dest, buf_haproxy_destip, sizeof(buf_haproxy_destip),
+                                       str_haproxy_destip, sizeof(str_haproxy_destip));
+
+                        /* Initialize match result - will be set to 0 if both IPs match */
+                        haproxy_rc = -1;
+
+                        /*
+                         * Validate connection against trusted IPs/subnets.
+                         *
+                         * Both the HAProxy client IP and the destination IP from the HAProxy header
+                         * must match one of the configured trusted IP addresses or subnets.
+                         * This allows configurations where DS instance and HAProxy are on the same machine.
+                         *
+                         * Uses parsed binary entries for efficient matching during connection handling.
+                         */
+                        haproxy_trusted_entry_t *parsed_entries = NULL;
+                        size_t parsed_count = 0;
+
+                        parsed_entries = g_get_haproxy_trusted_ip_parsed(&parsed_count);
+
+                        if (parsed_entries && parsed_count > 0) {
+                            /* Use parsed binary entries for matching */
+                            trusted_matches_ip_found = haproxy_ip_matches_parsed(conn->cin_addr,
+                                                                                 parsed_entries,
+                                                                                 parsed_count);
+                            trusted_matches_destip_found = haproxy_ip_matches_parsed(&pr_netaddr_dest,
+                                                                                     parsed_entries,
+                                                                                     parsed_count);
+                        } else {
+                            /* Parsed entries should always be available after config load.
+                             * If they're not, this indicates a configuration initialization failure. */
+                            slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
+                                          "HAProxy trusted IPs not properly initialized - disconnecting connection\n");
+                            disconnect_server_nomutex(conn, conn->c_connid, -1,
+                                                      SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
+                            ret = CONN_DONE;
+                            goto done;
+                        }
+
+                        if (trusted_matches_ip_found && trusted_matches_destip_found) {
+                            haproxy_rc = 0;
+                        }
+
+                        if (haproxy_rc == -1) {
+                            slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation", "HAProxy header received from unknown source.\n");
+                            disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
+                            ret = CONN_DONE;
+                            goto done;
+                        }
+                        /* Get the HAProxy header client IP address */
+                        PR_NetAddrToString(&pr_netaddr_from, str_haproxy_ip, sizeof(str_haproxy_ip));
+
+                        /* Replace cin_addr and cin_destaddr in the Connection struct with received addresses */
+                        slapi_ch_free((void**)&conn->cin_addr);
+                        slapi_ch_free((void**)&conn->cin_destaddr);
+                        conn->cin_addr = (PRNetAddr*)slapi_ch_malloc(sizeof(PRNetAddr));
+                        conn->cin_destaddr = (PRNetAddr*)slapi_ch_malloc(sizeof(PRNetAddr));
+                        memcpy(conn->cin_addr, &pr_netaddr_from, sizeof(PRNetAddr));
+                        memcpy(conn->cin_destaddr, &pr_netaddr_dest, sizeof(PRNetAddr));
+                        conn->c_ipaddr = slapi_ch_strdup(str_haproxy_ip);
+                        conn->c_serveripaddr = slapi_ch_strdup(str_haproxy_destip);
+                        conn->c_hapoxied = PR_TRUE;
+
+                        if (log_format != LOG_FORMAT_DEFAULT) {
+                            slapd_log_pblock logpb = {0};
+                            slapd_log_pblock_init(&logpb, log_format, NULL);
+                            logpb.conn_time = conn->c_starttime;
+                            logpb.conn_id =conn->c_connid;
+                            logpb.fd = conn->c_sd;
+                            logpb.haproxy_ip = str_haproxy_ip;
+                            logpb.haproxy_destip = str_haproxy_destip;
+                            logpb.haproxied = true;
+                            slapd_log_access_haproxy(&logpb);
+                        } else {
+                            slapi_log_access(LDAP_DEBUG_STATS,
+                                             "conn=%" PRIu64 " fd=%d HAProxy new_address_from=%s to new_address_dest=%s\n",
+                                              conn->c_connid, conn->c_sd, str_haproxy_ip, str_haproxy_destip);
+                        }
+                        slapi_log_security_tcp(conn, SECURITY_HAPROXY_SUCCESS, 0, "");
+                    }
+                }
+            }
             ret = connection_read_ldap_data(conn, &err);
         } else {
             ret = get_next_from_buffer(NULL, 0, &len, tag, op->o_ber, conn);
@@ -1168,7 +1433,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 /* Connection is closed */
                 disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, 0);
                 conn->c_gettingber = 0;
-                signal_listner();
+                signal_listner(conn->c_ct_list);
                 ret = CONN_DONE;
                 goto done;
             }
@@ -1177,6 +1442,18 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             syserr = PR_GetOSError();
             if (SLAPD_PR_WOULD_BLOCK_ERROR(err) ||
                 SLAPD_SYSTEM_WOULD_BLOCK_ERROR(syserr)) {
+
+                /*
+                 * We blocked, is this the first read in a PDU? We don't want to
+                 * wait here on a new operation, but we do if there is actually data coming
+                 * in and getting queued up.
+                 */
+                if (new_operation && !conn_buffered_data_avail_nolock(conn, &conn_closed)) {
+                    /* If so, we return */
+                    ret = CONN_TIMEDOUT;
+                    goto done;
+                }
+
                 struct PRPollDesc pr_pd;
                 PRIntervalTime timeout = PR_MillisecondsToInterval(CONN_TURBO_TIMEOUT_INTERVAL);
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
@@ -1193,29 +1470,22 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         ret = CONN_SHUTDOWN;
                         goto done;
                     }
-                    /* We timed out, is this the first read in a PDU ? */
-                    if (new_operation) {
-                        /* If so, we return */
-                        ret = CONN_TIMEDOUT;
+                    /* Loop, unless we exceeded the ioblock timeout */
+                    if (waits_done > ioblocktimeout_waits) {
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
+                                      "ioblocktimeout expired on connection %" PRIu64 "\n", conn->c_connid);
+                        disconnect_server_nomutex(conn, conn->c_connid, -1,
+                                                  SLAPD_DISCONNECT_IO_TIMEOUT, 0);
+                        ret = CONN_DONE;
                         goto done;
                     } else {
-                        /* Otherwise we loop, unless we exceeded the ioblock timeout */
-                        if (waits_done > ioblocktimeout_waits) {
-                            slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
-                                          "ioblocktimeout expired on connection %" PRIu64 "\n", conn->c_connid);
-                            disconnect_server_nomutex(conn, conn->c_connid, -1,
-                                                      SLAPD_DISCONNECT_IO_TIMEOUT, 0);
-                            ret = CONN_DONE;
-                            goto done;
-                        } else {
 
-                            /* The turbo mode may cause threads starvation.
-                                  Do a yield here to reduce the starving.
-                            */
-                            PR_Sleep(PR_INTERVAL_NO_WAIT);
+                        /* The turbo mode may cause threads starvation.
+                              Do a yield here to reduce the starving.
+                        */
+                        PR_Sleep(PR_INTERVAL_NO_WAIT);
 
-                            continue;
-                        }
+                        continue;
                     }
                 }
                 if (-1 == ret) {
@@ -1324,7 +1594,7 @@ connection_make_readable(Connection *conn)
     pthread_mutex_lock(&(conn->c_mutex));
     conn->c_gettingber = 0;
     pthread_mutex_unlock(&(conn->c_mutex));
-    signal_listner();
+    signal_listner(conn->c_ct_list);
 }
 
 void
@@ -1353,7 +1623,7 @@ connection_check_activity_level(Connection *conn)
     /* store current count in the previous count slot */
     conn->c_private->previous_op_count = current_count;
     /* update the last checked time */
-    conn->c_private->previous_count_check_time = slapi_current_utc_time();
+    conn->c_private->previous_count_check_time = slapi_current_rel_time_t();
     pthread_mutex_unlock(&(conn->c_mutex));
     slapi_log_err(SLAPI_LOG_CONNS, "connection_check_activity_level", "conn %" PRIu64 " activity level = %d\n", conn->c_connid, delta_count);
 }
@@ -1459,11 +1729,16 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
 }
 
 static void
-connection_threadmain()
+connection_threadmain(void *arg)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
+    int32_t *snmp_vars_idx = (int32_t *) arg;
+    char tname[16];
+    snprintf(tname, sizeof(tname), "worker-%d", *snmp_vars_idx);
+    slapi_set_thread_name(tname);
+    tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
     /* wait forever for new pb until one is available or shutdown */
-    PRIntervalTime interval = PR_INTERVAL_NO_TIMEOUT; /* PR_SecondsToInterval(10); */
+    int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
@@ -1473,12 +1748,13 @@ connection_threadmain()
     int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
     int doshutdown = 0;
     int maxthreads = 0;
-    long bypasspollcnt = 0;
+    bool is_busy = false;
 
 #if defined(hpux)
     /* Arrange to ignore SIGPIPE signals. */
     SIGNAL(SIGPIPE, SIG_IGN);
 #endif
+    thread_private_snmp_vars_set_idx(*snmp_vars_idx);
 
     while (1) {
         int is_timedout = 0;
@@ -1487,6 +1763,10 @@ connection_threadmain()
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                           "op_thread received shutdown signal\n");
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
+            tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -1495,19 +1775,33 @@ connection_threadmain()
         if (!thread_turbo_flag && !more_data) {
 	        Connection *pb_conn = NULL;
 
+            /* Mark this worker as idle before blocking on the work queue */
+            if (is_busy) {
+                is_busy = false;
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
+            tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
+
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
                done sending the request and wait for the response forever.
                [blackflag 624234] */
+#ifdef USDT
+            STAP_PROBE1(ns-slapd, worker__idle, *snmp_vars_idx);
+#endif
             ret = connection_wait_for_new_work(pb, interval);
 
             switch (ret) {
             case CONN_NOWORK:
-                PR_ASSERT(interval != PR_INTERVAL_NO_TIMEOUT); /* this should never happen with PR_INTERVAL_NO_TIMEOUT */
+                PR_ASSERT(interval != 0); /* this should never happen */
                 continue;
             case CONN_SHUTDOWN:
                 slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                               "op_thread received shutdown signal\n");
+                if (is_busy) {
+                    slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+                }
+                tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
                 return;
@@ -1520,6 +1814,10 @@ connection_threadmain()
                 slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
                 if (pb_conn == NULL) {
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
+                    if (is_busy) {
+                        slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+                    }
+                    tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
                     return;
@@ -1580,15 +1878,32 @@ connection_threadmain()
             }
             pthread_mutex_unlock(&(conn->c_mutex));
             if (!config_check_referral_mode()) {
-                slapi_counter_increment(ops_initiated);
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
             }
         }
-        /* Once we're here we have a pb */
+        /* Once we're here we have a pb - mark this worker as busy */
+        if (!is_busy) {
+            is_busy = true;
+            int32_t val = slapi_atomic_incr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            /*
+             * Best-effort high-water mark: without a CAS primitive two threads
+             * could race and briefly regress the value, but it self-corrects on
+             * the next higher peak.  Acceptable for a monitoring-only metric.
+             */
+            while (val > slapi_atomic_load_32(&max_busy_workers, __ATOMIC_RELAXED)) {
+                slapi_atomic_store_32(&max_busy_workers, val, __ATOMIC_RELAXED);
+            }
+            tp_stats_worker_busy((uint32_t)*snmp_vars_idx);
+        }
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
         if (conn == NULL || op == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
+            tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
             return;
@@ -1610,7 +1925,7 @@ connection_threadmain()
                           conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
         }
 
-        curtime = slapi_current_utc_time();
+        curtime = slapi_current_rel_time_t();
 #define DB_PERF_TURBO 1
 #if defined(DB_PERF_TURBO)
         /* If it's been a while since we last did it ... */
@@ -1677,6 +1992,18 @@ connection_threadmain()
                update c_idlesince here since, if we got some read activity, we are
                not idle */
             conn->c_idlesince = curtime;
+#ifdef ENABLE_EPOLL
+            if (conn->c_idle_tfd != -1) {
+                /* Reset the idle timer */
+                slapi_log_err(SLAPI_LOG_DEBUG,
+                              "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
+                timerfd_settime(conn->c_idle_tfd, 0,
+                                &(struct itimerspec) {
+                                    .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
+                                    .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
+                                }, NULL);
+            }
+#endif /* ENABLE_EPOLL */
         }
 
         /*
@@ -1698,9 +2025,8 @@ connection_threadmain()
                 pthread_mutex_unlock(&(conn->c_mutex));
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
-                signal_listner();
+                signal_listner(conn->c_ct_list);
             } else { /* more data in conn - just put back on work_q - bypass poll */
-                bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
                 if (conn->c_threadnumber < maxthreads) {
@@ -1710,12 +2036,35 @@ connection_threadmain()
                      * are bypassing both of those, we set idlesince here
                      */
                     conn->c_idlesince = curtime;
+#ifdef ENABLE_EPOLL
+                    if (conn->c_idle_tfd != -1) {
+                        /* Reset the idle timer */
+                        slapi_log_err(SLAPI_LOG_DEBUG,
+                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
+                        timerfd_settime(conn->c_idle_tfd, 0,
+                                        &(struct itimerspec) {
+                                            .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
+                                            .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
+                                        }, NULL);
+                    }
+#endif /* ENABLE_EPOLL */
                     connection_activity(conn, maxthreads);
                     slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
                                   conn->c_connid);
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
+                    conn->c_flagblocked = true;
+                    if (conn->c_maxthreadsblocked == 1 && connection_has_psearch(conn)) {
+                        slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
+                                "Connection (conn=%" PRIu64 ") has a running persistent search "
+                                "that has exceeded the maximum allowed threads per connection. "
+                                "New operations will be blocked.\n",
+                                conn->c_connid);
+                    }
+#ifdef USDT
+                    STAP_PROBE2(ns-slapd, work__blocked, conn->c_connid, op->o_opid);
+#endif
                 }
                 pthread_mutex_unlock(&(conn->c_mutex));
             }
@@ -1747,21 +2096,41 @@ connection_threadmain()
         }
 
         /*
+         * Fix bz 1931820 issue (the check to set OP_FLAG_REPLICATED may be done
+         * before replication session is properly set).
+         */
+        if (replication_connection) {
+            operation_set_flag(op, OP_FLAG_REPLICATED);
+        }
+
+#ifdef USDT
+        /* Fire just before dispatch so op_tag reflects the request actually
+         * being executed (set by connection_read_operation above). */
+        STAP_PROBE4(ns-slapd, worker__busy, conn->c_connid, op->o_opid,
+                    tag, thread_turbo_flag);
+#endif
+
+        /*
          * Call the do_<operation> function to process this request.
          */
+        tp_stats_worker_operation_start((uint32_t)*snmp_vars_idx, conn->c_connid, (uint64_t)op->o_opid, (uint32_t)op->o_tag);
         connection_dispatch_operation(conn, op, pb);
 
     done:
         if (doshutdown) {
+            if (is_busy) {
+                slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
+            }
+            tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
             connection_make_readable_nolock(conn);
             conn->c_threadnumber--;
             slapi_counter_decrement(conns_in_maxthreads);
-            slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+            slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
             connection_release_nolock(conn);
             pthread_mutex_unlock(&(conn->c_mutex));
-            signal_listner();
+            signal_listner(conn->c_ct_list);
             slapi_pblock_destroy(pb);
             return;
         }
@@ -1775,7 +2144,8 @@ connection_threadmain()
         /* number of ops on this connection */
         PR_AtomicIncrement(&conn->c_opscompleted);
         /* total number of ops for the server */
-        slapi_counter_increment(ops_completed);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
+        tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
         /* If this op isn't a persistent search, remove it */
         if (op->o_flags & OP_FLAG_PS) {
             /* Release the connection (i.e. decrease refcnt) at the condition
@@ -1790,9 +2160,11 @@ connection_threadmain()
                 pthread_mutex_unlock(&(conn->c_mutex));
             }
             /* ps_add makes a shallow copy of the pb - so we
-                 * can't free it or init it here - just set operation to NULL.
-                 * ps_send_results will call connection_remove_operation_ext to free it
-                 */
+             * can't free it or init it here - just set operation to NULL.
+             * ps_send_results will call connection_remove_operation_ext to free it
+             * The connection_thread private pblock ('pb') has be cloned and should only
+             * be reinit (slapi_pblock_init)
+             */
             slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
             slapi_pblock_init(pb);
         } else {
@@ -1837,7 +2209,7 @@ connection_threadmain()
                     if (conn->c_threadnumber == maxthreads) {
                         conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                         slapi_counter_decrement(conns_in_maxthreads);
-                        slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+                        slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
                     }
                     conn->c_threadnumber--;
                     connection_release_nolock(conn);
@@ -1846,13 +2218,9 @@ connection_threadmain()
                      * before that call.
                      */
                     if (need_wakeup) {
-                        signal_listner();
+                        signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
-                } else if (1 == is_timedout) {
-                    /* covscan reports this code is unreachable  (2019/6/4) */
-                    connection_make_readable_nolock(conn);
-                    signal_listner();
                 }
             }
             pthread_mutex_unlock(&(conn->c_mutex));
@@ -1883,8 +2251,8 @@ connection_activity(Connection *conn, int maxthreads)
         conn->c_maxthreadscount++;
         slapi_counter_increment(max_threads_count);
         slapi_counter_increment(conns_in_maxthreads);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHits);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsMaxThreadsHits);
     }
     op_stack_obj = connection_get_operation();
     connection_add_operation(conn, op_stack_obj->op);
@@ -1893,8 +2261,8 @@ connection_activity(Connection *conn, int maxthreads)
     add_work_q((work_q_item *)conn, op_stack_obj);
 
     if (!config_check_referral_mode()) {
-        slapi_counter_increment(ops_initiated);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
     }
     return 0;
 }
@@ -1913,8 +2281,9 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     new_work_q->work_item = wqitem;
     new_work_q->op_stack_obj = op_stack_obj;
     new_work_q->next_work_item = NULL;
+    fgot_start(op_stack_obj->op, FGOT_WQ);
 
-    PR_Lock(work_q_lock);
+    pthread_mutex_lock(&work_q_lock);
     if (tail_work_q == NULL) {
         tail_work_q = new_work_q;
         head_work_q = new_work_q;
@@ -1926,8 +2295,18 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     if (work_q_size > work_q_size_max) {
         work_q_size_max = work_q_size;
     }
-    PR_NotifyCondVar(work_q_cv); /* notify waiters in connection_wait_for_new_work */
-    PR_Unlock(work_q_lock);
+    pthread_cond_signal(&work_q_cv); /* notify waiters in connection_wait_for_new_work */
+#ifdef USDT
+    /* Snapshot under the lock: op_stack pool recycling can zero o_opid before the probe fires. */
+    uint64_t probe_connid = wqitem->c_connid;
+    int probe_opid = op_stack_obj->op->o_opid;
+    int32_t probe_depth = work_q_size;
+#endif
+    pthread_mutex_unlock(&work_q_lock);
+
+#ifdef USDT
+    STAP_PROBE3(ns-slapd, work_q__enqueue, probe_connid, probe_opid, probe_depth);
+#endif
 }
 
 /* get_work_q(): will get a work_q_item from the beginning of the work queue, return NULL if
@@ -1957,8 +2336,54 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
     PR_AtomicDecrement(&work_q_size); /* decrement q size */
     /* Free the memory used by the item found. */
     destroy_work_q(&tmp);
+    fgot_end((*op_stack_obj)->op, FGOT_WQ);
+
+    /*
+     * Capture thread pool state at dequeue time for STAT logging.
+     *   - work_q_size was already decremented above, so get_work_q_size()
+     *     returns the number of other operations still waiting in the queue
+     *   - current_busy_workers will be incremented later in connection_threadmain,
+     *     so get_busy_worker_count() returns the number of workers that
+     *     are busy while this operation was waiting in the queue
+     */
+    if (LDAP_STAT_THREAD_POOL & config_get_statlog_level()) {
+        Operation *op = (*op_stack_obj)->op;
+        op->o_wbusy = get_busy_worker_count();
+        op->o_wmax = config_get_threadnumber();
+        op->o_wqdepth = get_work_q_size();
+    }
 
     return (wqitem);
+}
+
+/* Work queue metric getters - lock-free reads using atomics */
+
+int32_t
+get_work_q_size(void)
+{
+    int32_t val = slapi_atomic_load_32((int32_t *)&work_q_size, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_work_q_size_max(void)
+{
+    int32_t val = slapi_atomic_load_32((int32_t *)&work_q_size_max, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_busy_worker_count(void)
+{
+    int32_t val = slapi_atomic_load_32(&current_busy_workers, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
+}
+
+int32_t
+get_max_busy_worker_count(void)
+{
+    int32_t val = slapi_atomic_load_32(&max_busy_workers, __ATOMIC_ACQUIRE);
+    return val > 0 ? val : 0;
 }
 
 /* Helper functions common to both varieties of connection code: */
@@ -1975,9 +2400,9 @@ op_thread_cleanup()
                   op_stack_size, work_q_size_max, work_q_stack_size_max);
 
     PR_AtomicIncrement(&op_shutdown);
-    PR_Lock(work_q_lock);
-    PR_NotifyAllCondVar(work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
-    PR_Unlock(work_q_lock);
+    pthread_mutex_lock(&work_q_lock);
+    pthread_cond_broadcast(&work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
+    pthread_mutex_unlock(&work_q_lock);
 }
 
 /* do this after all worker threads have terminated */
@@ -2031,6 +2456,7 @@ connection_add_operation(Connection *conn, Operation *op)
     *tmp = op;
     op->o_opid = id;
     op->o_connid = connid;
+    op->o_conn_starttime = conn->c_starttime;
     /* Call the plugin extension constructors */
     op->o_extension = factory_create_extension(get_operation_object_type(), op, conn);
 }
@@ -2226,14 +2652,16 @@ static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
 void
 disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error, int schedule_closure_job)
 {
-    char * str_reason = NULL;
-
     if ((conn->c_sd != SLAPD_INVALID_SOCKET &&
          conn->c_connid == opconnid) &&
-        !(conn->c_flags & CONN_FLAG_CLOSING)) {
-        slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Setting conn %" PRIu64 " fd=%d "
-                                                                        "to be disconnected: reason %d\n",
-                      conn->c_connid, conn->c_sd, reason);
+        !(conn->c_flags & CONN_FLAG_CLOSING))
+    {
+        int32_t log_format = config_get_accesslog_log_format();
+        slapd_log_pblock logpb = {0};
+
+        slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext",
+                "Setting conn %" PRIu64 " fd=%d to be disconnected: reason %d\n",
+                conn->c_connid, conn->c_sd, reason);
         /*
          * PR_Close must be called before anything else is done because
          * of NSPR problem on NT which requires that the socket on which
@@ -2249,37 +2677,63 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
          * The last thread to stop using the connection will do the closing.
          */
         conn->c_flags |= CONN_FLAG_CLOSING;
+#ifdef ENABLE_EPOLL
+        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing connection %d from epoll_fd %d\n",
+                  conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list]);
+        if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_sd, NULL) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
+                        "epoll_ctl failed to remove connection %d from epoll_fd %d\n",
+                        conn->c_sd, conn->c_ct->epoll_fd);
+        }
+        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
+                  conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
+        /* Remove the idle timer if it exists */
+        if (conn->c_idle_tfd != -1) {
+            if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext", "Failed to remove idle timer fd %d for connection %d - %s\n",
+                              conn->c_idle_tfd, conn->c_sd, strerror(errno));
+            }
+            /* Close the idle timer */
+            close(conn->c_idle_tfd);
+            conn->c_idle_tfd = -1;
+        }
+#endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();
 
-        /*
-         * Provide info on the error captured above.
-         */
-        switch(reason) {
-            case SLAPD_DISCONNECT_IDLE_TIMEOUT:
-                str_reason = "Idle timeout (nsslapd-idletimeout)";
-                break;
-            case SLAPD_DISCONNECT_IO_TIMEOUT:
-                str_reason = "IO timeout (nsslapd-ioblocktimeout)";
-                break;
-            default:
-                str_reason = "error";
-                break;
-        }
+        slapd_log_pblock_init(&logpb, log_format, NULL);
+        logpb.conn_time = conn->c_starttime;
+        logpb.conn_id = conn->c_connid;
+        logpb.op_id = opid;
+        logpb.fd = conn->c_sd;
+        logpb.close_reason = slapd_pr_strerror(reason);
+
         if(error) {
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed %s %d (%s) - %s\n",
-                             conn->c_connid, opid, conn->c_sd, str_reason, error,
-                             slapd_system_strerror(error),
-                             slapd_pr_strerror(reason));
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.close_error = slapd_system_strerror(error);
+                slapd_log_access_close(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                 "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s - %s\n",
+                                 conn->c_connid, opid, conn->c_sd,
+                                 slapd_system_strerror(error),
+                                 slapd_pr_strerror(reason));
+            }
+
         } else {
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed %s - %s\n",
-                             conn->c_connid, opid, conn->c_sd, str_reason,
-                             slapd_pr_strerror(reason));
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_access_close(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                 "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s\n",
+                                 conn->c_connid, opid, conn->c_sd,
+                                 slapd_pr_strerror(reason));
+            }
+
         }
+        slapi_log_security_tcp(conn, SECURITY_TCP_ERROR, reason, slapd_pr_strerror(reason));
 
         if (!config_check_referral_mode()) {
-            slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+            slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnections);
         }
 
         conn->c_gettingber = 0;
@@ -2295,15 +2749,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
              * ding all the persistent searches to get them
              * to notice that their operations have been abandoned.
              */
-            int found_ps = 0;
-            Operation *o;
-
-            for (o = conn->c_ops; !found_ps && o != NULL; o = o->o_next) {
-                if (o->o_flags & OP_FLAG_PS) {
-                    found_ps = 1;
-                }
-            }
-            if (found_ps) {
+            if (connection_has_psearch(conn)) {
                 if (NULL == ps_wakeup_all_fn) {
                     if (get_entry_point(ENTRY_POINT_PS_WAKEUP_ALL,
                                         (caddr_t *)(&ps_wakeup_all_fn)) == 0) {
@@ -2314,11 +2760,16 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                 }
             }
         }
-
     } else {
-        slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Not setting conn %d to be disconnected: %s\n",
-                      conn->c_sd,
-                      (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" : ((conn->c_connid != opconnid) ? "conn id does not match op conn id" : ((conn->c_flags & CONN_FLAG_CLOSING) ? "conn is closing" : "unknown")));
+        /* We avoid logging an invalid conn=0 connection as it is not a real connection. */
+        if (!(conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_connid == 0)) {
+            slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext",
+                    "Not setting conn %d to be disconnected: %s\n",
+                    conn->c_sd,
+                    (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" :
+                            ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :
+                                        ((conn->c_flags & CONN_FLAG_CLOSING) ? "conn is closing" : "unknown")));
+        }
     }
 }
 
@@ -2372,4 +2823,18 @@ connection_call_io_layer_callbacks(Connection *c)
     c->c_io_layer_cb_data = NULL;
 
     return rv;
+}
+
+int32_t
+connection_has_psearch(Connection *c)
+{
+    Operation *o;
+
+    for (o = c->c_ops; o != NULL; o = o->o_next) {
+        if (o->o_flags & OP_FLAG_PS) {
+            return 1;
+        }
+    }
+
+    return 0;
 }

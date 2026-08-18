@@ -1,0 +1,34 @@
+name: npm-audit-ci
+
+on:
+  push:
+    branches:
+      - main
+      - "389-ds-base-*"
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  actions: read
+  packages: read
+  contents: read
+
+jobs:
+  npm-audit-ci:
+    name: npm-audit-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: quay.io/389ds/ci-images:test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Run NPM Audit CI
+        run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx --yes audit-ci --config audit-ci.json

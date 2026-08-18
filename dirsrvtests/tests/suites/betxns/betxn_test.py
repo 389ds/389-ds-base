@@ -8,14 +8,18 @@
 #
 import pytest
 import ldap
+import os
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.plugins import (SevenBitCheckPlugin, AttributeUniquenessPlugin,
                             MemberOfPlugin, ManagedEntriesPlugin,
                             ReferentialIntegrityPlugin, MEPTemplates,
-                            MEPConfigs)
-from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+                            MEPConfigs, LinkedAttributesPlugin,
+                            LinkedAttributesConfigs, AutoMembershipPlugin, AutoMembershipDefinitions,
+                            RetroChangelogPlugin)
+from lib389.plugins import MemberOfPlugin
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES, nsUserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
@@ -26,6 +30,16 @@ pytestmark = pytest.mark.tier1
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 USER_PASSWORD = 'password'
+
+def retry_if_busy(f):
+    for x in range(1000):
+        try:
+            return f()
+        except ldap.BUSY:
+            time.sleep(0.02)
+
+    log.error("Too many retries!")
+    assert False
 
 
 def test_betxt_7bit(topology_st):
@@ -78,7 +92,11 @@ def test_betxt_7bit(topology_st):
     log.info('test_betxt_7bit: PASSED')
 
 
-def test_betxn_attr_uniqueness(topology_st):
+
+@pytest.mark.parametrize('unique_attribute, uid_values, sn_values',
+                         [('uid', ['testuser2', 'testuser1'], 'user2'),
+                          ('sn', 'testuser2', ['user1', 'user2'])])
+def test_betxn_attr_uniqueness(topology_st, unique_attribute, uid_values, sn_values):
     """Test that we can not add two entries that have the same attr value that is
     defined by the plugin
 
@@ -88,21 +106,27 @@ def test_betxn_attr_uniqueness(topology_st):
 
     :steps: 1. Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"
             2. Add a test user
-            3. Add another test user having duplicate uid as previous one
-            4. Cleanup - disable PLUGIN_ATTR_UNIQUENESS plugin as "OFF"
-            5. Cleanup - remove test user entry
+            3. Restart server to ensure persistence
+            4. Add another test user having duplicate uid/sn as previous one
+            5. Verify duplicate entry doesn't exist using .exists()
+            6. Verify duplicate entry doesn't exist using search with NO_SUCH_OBJECT
+            7. Cleanup - disable PLUGIN_ATTR_UNIQUENESS plugin as "OFF"
+            8. Cleanup - remove test user entry
 
     :expectedresults:
             1. PLUGIN_ATTR_UNIQUENESS plugin should be ON
             2. Test user should be added
-            3. Add operation should FAIL
-            4. PLUGIN_ATTR_UNIQUENESS plugin should be "OFF"
-            5. Test user entry should be removed
+            3. Server restart should succeed
+            4. Add operation should FAIL
+            5. Duplicate entry should not exist
+            6. Search for duplicate entry should raise NO_SUCH_OBJECT
+            7. PLUGIN_ATTR_UNIQUENESS plugin should be "OFF"
+            8. Test user entry should be removed
     """
 
     attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
     attruniq.create(properties={'cn': 'attruniq'})
-    attruniq.add_unique_attribute('uid')
+    attruniq.add_unique_attribute(unique_attribute)
     attruniq.add_unique_subtree(DEFAULT_SUFFIX)
     attruniq.enable_all_subtrees()
     attruniq.enable()
@@ -118,16 +142,34 @@ def test_betxn_attr_uniqueness(topology_st):
         'homeDirectory': '/home/testuser1'
     })
 
+    # Restart server to ensure persistence
+    topology_st.standalone.restart()
+
     with pytest.raises(ldap.LDAPError):
         users.create(properties={
-            'uid': ['testuser2', 'testuser1'],
+            'uid': uid_values,
             'cn': 'testuser2',
-            'sn': 'user2',
+            'sn': sn_values,
             'uidNumber': '1002',
             'gidNumber': '2002',
             'homeDirectory': '/home/testuser2'
         })
 
+    # Verify with .exists() that duplicate entry doesn't exist
+    try:
+        duplicate_user = users.get('testuser2')
+        assert not duplicate_user.exists(), "Duplicate user should not exist after failed creation"
+    except ldap.NO_SUCH_OBJECT:
+        # This is expected - the duplicate user should not exist
+        pass
+
+    # Search and expect NO_SUCH_OBJECT exception
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        users.get('testuser2')
+
+    # Clean up for the next test
+    attruniq.disable()
+    attruniq.delete()
     user1.delete()
 
     log.info('test_betxn_attr_uniqueness: PASSED')
@@ -157,6 +199,10 @@ def test_betxn_memberof(topology_st):
     memberof = MemberOfPlugin(topology_st.standalone)
     memberof.enable()
     memberof.set_autoaddoc('referral')
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        singleTXN = False
+    else:
+        singleTXN = True
     topology_st.standalone.restart()
 
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
@@ -169,11 +215,17 @@ def test_betxn_memberof(topology_st):
         group2.remove('objectClass', 'nsMemberOf')
 
     # Add group2 to group1 - it should fail with objectclass violation
-    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+    if singleTXN:
+        with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+            group1.add_member(group2.dn)
+
+        # verify entry cache reflects the current/correct state of group1
+        assert not group1.is_member(group2.dn)
+    else:
         group1.add_member(group2.dn)
 
-    # verify entry cache reflects the current/correct state of group1
-    assert not group1.is_member(group2.dn)
+        # verify entry cache reflects the current/correct state of group1
+        assert group1.is_member(group2.dn)
 
     # Done
     log.info('test_betxn_memberof: PASSED')
@@ -206,6 +258,10 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
     memberof.set_autoaddoc('nsContainer')  # Bad OC
     memberof.set('memberOfEntryScope', peoplebase)
     memberof.set('memberOfAllBackends', 'on')
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        singleTXN = False
+    else:
+        singleTXN = True
     topology_st.standalone.restart()
 
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
@@ -221,13 +277,17 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
 
     group.add_member(user.dn)
 
-    # Attempt modrdn that should fail, but the original entry should stay in the cache
-    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
-        group.rename('cn=group_to_people', newsuperior=peoplebase)
+    if singleTXN:
+        # Attempt modrdn that should fail, but the original entry should stay in the cache
+        with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+            retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
 
-    # Should fail, but not with NO_SUCH_OBJECT as the original entry should still be in the cache
-    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
-        group.rename('cn=group_to_people', newsuperior=peoplebase)
+        # Should fail, but not with NO_SUCH_OBJECT as the original entry should still be in the cache
+        with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+            retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
+    else:
+        retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
+        retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
 
     # Done
     log.info('test_betxn_modrdn_memberof: PASSED')
@@ -352,9 +412,317 @@ def test_ri_and_mep_cache_corruption(topology_st):
 
     # Verify test group is still found in entry cache by deleting it
     test_group.delete()
+    user_group.delete()
 
     # Success
     log.info("Test PASSED")
+
+def test_revert_cache(topology_st, request):
+    """Tests that reversion of the entry cache does not occur
+    during 'normal' failure (like schema violation) but only
+    when a plugin fails
+
+    :id: a2361285-b939-4da0-aa80-7fc54d12c981
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Create a user account (with a homeDirectory)
+         2. Remove the error log file
+         3. Add a second value of homeDirectory
+         4. Check that error log does not contain entry cache reversion
+         5. Configure memberof to trigger a failure
+         6. Do a update the will fail in memberof plugin
+         7. Check that error log does contain entry cache reversion
+
+    :expectedresults:
+         1. Succeeds
+         2. Fails with OBJECT_CLASS_VIOLATION
+         3. Succeeds
+         4. Succeeds
+         5. Succeeds
+         6. Fails with OBJECT_CLASS_VIOLATION
+         7. Succeeds
+    """
+    # Create an test user entry
+    log.info('Create a user without nsMemberOF objectclass')
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn='ou=people')
+        user = users.create_test_user()
+        user.replace('objectclass', ['top', 'account', 'person', 'inetorgperson', 'posixAccount', 'organizationalPerson', 'nsAccount'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    # Remove the current error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    #
+    # Add a second value to 'homeDirectory'
+    # leads to ldap.OBJECT_CLASS_VIOLATION
+    # And check that the entry cache was not reverted
+    try:
+        topology_st.standalone.modify_s(user.dn, [(ldap.MOD_ADD, 'homeDirectory', ensure_bytes('/home/user_new'))])
+        assert False
+    except ldap.OBJECT_CLASS_VIOLATION:
+        pass
+    assert not topology_st.standalone.ds_error_log.match('.*WARN - flush_hash - Upon BETXN callback failure, entry cache is flushed during.*')
+
+    # Prepare memberof so that it will fail during a next update
+    # If memberof plugin can not add 'memberof' to the
+    # member entry, it retries after adding
+    # 'memberOfAutoAddOC' objectclass to the member.
+    # If it fails again the plugin fails with 'object
+    # violation'
+    # To trigger this failure, set 'memberOfAutoAddOC'
+    # to a value that does *not* allow 'memberof' attribute
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    memberof.replace('memberOfAutoAddOC', 'account')
+    memberof.replace('memberofentryscope', DEFAULT_SUFFIX)
+    topology_st.standalone.restart()
+
+    # Try to add the user to demo_group
+    # It should fail because user entry has not 'nsmemberof' objectclass
+    # As this is a BETXN plugin that fails it should revert the entry cache
+    try:
+        GROUP_DN = "cn=demo_group,ou=groups,"  + DEFAULT_SUFFIX
+        topology_st.standalone.modify_s(GROUP_DN,
+            [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+        assert False
+    except ldap.OBJECT_CLASS_VIOLATION:
+        pass
+    assert topology_st.standalone.ds_error_log.match('.*WARN - flush_hash - Upon BETXN callback failure, entry cache is flushed during.*')
+
+    def fin():
+        user.delete()
+        memberof = MemberOfPlugin(topology_st.standalone)
+        memberof.replace('memberOfAutoAddOC', 'nsmemberof')
+
+    request.addfinalizer(fin)
+
+@pytest.mark.flaky(max_runs=2, min_passes=1)
+def test_revert_cache_noloop(topology_st, request):
+    """Tests that when an entry is reverted, if an update
+    hit the reverted entry then the retry loop is aborted
+    and the update gets err=51
+    NOTE: this test requires a dynamic so that the two updates
+    occurs about the same time. If the test becomes fragile it is
+    okay to make it flaky
+
+    :id: 88ef0ba5-8c66-49e6-99c9-9e3f6183917f
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Create a user account (with a homeDirectory)
+         2. Remove the error log file
+         3. Configure memberof to trigger a failure
+         4. Do in a loop 3 parallel updates (they will fail in
+            memberof plugin) and an updated on the reverted entry
+         5. Check that error log does contain entry cache reversion
+
+    :expectedresults:
+         1. Succeeds
+         2. Success
+         3. Succeeds
+         4. Succeeds
+         5. Succeeds
+    """
+    # Create an test user entry
+    log.info('Create a user without nsMemberOF objectclass')
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn='ou=people')
+        user = users.create_test_user()
+        user.replace('objectclass', ['top', 'account', 'person', 'inetorgperson', 'posixAccount', 'organizationalPerson', 'nsAccount'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    # Remove the current error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Prepare memberof so that it will fail during a next update
+    # If memberof plugin can not add 'memberof' to the
+    # member entry, it retries after adding
+    # 'memberOfAutoAddOC' objectclass to the member.
+    # If it fails again the plugin fails with 'object
+    # violation'
+    # To trigger this failure, set 'memberOfAutoAddOC'
+    # to a value that does *not* allow 'memberof' attribute
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    memberof.replace('memberOfAutoAddOC', 'account')
+    memberof.replace('memberofentryscope', DEFAULT_SUFFIX)
+    topology_st.standalone.restart()
+
+    for i in range(50):
+        # Try to add the user to demo_group
+        # It should fail because user entry has not 'nsmemberof' objectclass
+        # As this is a BETXN plugin that fails it should revert the entry cache
+        try:
+            GROUP_DN = "cn=demo_group,ou=groups,"  + DEFAULT_SUFFIX
+            topology_st.standalone.modify(GROUP_DN,
+                [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+            topology_st.standalone.modify(GROUP_DN,
+                [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+            topology_st.standalone.modify(GROUP_DN,
+                [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
+
+        user.replace('cn', ['new_value'])
+
+    # Check that both a betxn failed and a reverted entry was
+    # detected during an update
+    assert topology_st.standalone.ds_error_log.match('.*WARN - flush_hash - Upon BETXN callback failure, entry cache is flushed during.*')
+    assert topology_st.standalone.ds_error_log.match('.*cache_is_reverted_entry - Entry reverted.*')
+
+    def fin():
+        user.delete()
+        memberof = MemberOfPlugin(topology_st.standalone)
+        memberof.replace('memberOfAutoAddOC', 'nsmemberof')
+
+    request.addfinalizer(fin)
+
+
+def test_linked_attributes_plugin(topology_st):
+    ''' Test that Linked Attributes Plugin does not allow to add a link entry
+        that does not exist
+
+    :id:  8ec17a8f-d331-4aff-ab80-1afbdf8d4404
+    :setup: Standalone instance
+    :steps:
+        1. Enable Linked Attributes plugin
+        2. Create a config entry for linked attributes plugin
+        3. Create a user with extensibleObject objectClass
+        4. Add a link entry to the user, but the linked entry does not exist
+        5. Cleanup the entry, disable the plugin
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Raises UNWILLING_TO_PERFORM error
+        5. Success
+    '''
+
+    # Enable Linked Attributes plugin
+    linkedattr = LinkedAttributesPlugin(topology_st.standalone)
+    linkedattr.enable()
+
+    # Add the linked attrs config entry
+    la_configs = LinkedAttributesConfigs(topology_st.standalone)
+    la_configs.create(properties={'cn': 'Manager Link',
+                                  'linkType': 'seeAlso',
+                                  'managedType': 'seeAlso'})
+
+    # Add an entry that has a link to an entry that does not exist
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    manager = users.create_test_user(uid=999)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        manager.add('seeAlso', 'uid=user,dc=example,dc=com')
+
+    # Cleanup
+    manager.delete()
+    linkedattr.disable()
+    linkedattr.delete()
+
+
+def test_incorrect_attribute_values(topology_st):
+    """Test that betxnplugins consistently reject entries with incompatible attribute values
+
+    This test is designed to verify that when new entry is repeatedly rejected by betxn plugins
+    due to incorrect attribute values, the operation consistently fails on UNWILLING TO PERFORM
+    rather than AlreadyExists caused by the entry not being removed from cache.
+
+    :id: 8ec17a8f-d331-4aff-ab80-1afbdf8d4405
+
+    :setup: Standalone instance with MemberOf, AutoMembership, and RetroChangelog plugins
+
+    :steps: 1. Enable MemberOf plugin with memberofAutoAddOC set to "account" 
+               (an objectclass that does not allow memberof attribute)
+            2. Enable AutoMembership plugin
+            3. Enable RetroChangelog plugin
+            4. Create a group for auto-membership
+            5. Configure automember to automatically add users to the group
+            6. Attempt to create a test user (first attempt)
+            7. Attempt to create the same test user again (second attempt)
+            8. Verify both attempts fail with UNWILLING_TO_PERFORM
+            9. Cleanup created objects
+
+    :expectedresults:
+            1. MemberOf plugin should be enabled with incompatible autoAddOC
+            2. AutoMembership plugin should be enabled
+            3. RetroChangelog plugin should be enabled
+            4. Group creation should succeed
+            5. Automember configuration should succeed
+            6. First user creation should fail with UNWILLING_TO_PERFORM
+            7. Second user creation should also fail with UNWILLING_TO_PERFORM
+               (not ALREADY_EXISTS)
+            8. Error codes should be consistent across attempts
+            9. Cleanup should succeed
+    """
+
+    # Enable MemberOf plugin, set memberofAutoAddOC to account (OC that does not allow memberof)
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.set_autoaddoc('account')
+    memberof.enable()
+    topology_st.standalone.restart()
+
+    # Enable AutoMembership plugin
+    automemberplugin = AutoMembershipPlugin(topology_st.standalone)
+    automemberplugin.enable()
+    topology_st.standalone.restart()
+
+    # Enable RetroChangelog plugin
+    rcl = RetroChangelogPlugin(topology_st.standalone)
+    rcl.disable()
+    rcl.enable()
+    topology_st.standalone.restart()
+
+    user_name = 'test_user_1000'
+    group_name = 'group'
+
+    # Create group
+    groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties={'cn': group_name})
+
+    # Create automember config entry
+    automember_prop = {
+        'cn': 'group cfg',
+        'autoMemberScope': DEFAULT_SUFFIX,
+        'autoMemberFilter': f'uid={user_name}',
+        'autoMemberDefaultGroup': f'cn={group_name},ou=groups,dc=example,dc=com',
+        'autoMemberGroupingAttr': 'member:dn',
+    }
+
+    automembers = AutoMembershipDefinitions(topology_st.standalone, 
+                                            "cn=Auto Membership Plugin,cn=plugins,cn=config")
+    automember = automembers.create(properties=automember_prop)
+
+    users = nsUserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+
+    # first attempt to add the user
+    # should fail with UNWILLING_TO_PERFORM due to incompatible object class
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        user = users.create_test_user()
+
+    # second attempt to add the user
+    # should also fail with UNWILLING_TO_PERFORM, not with AlreadyExists
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        user = users.create_test_user()
+
+    # Cleanup
+    rcl.disable()
+    automemberplugin.disable()
+    memberof.disable()
+    group.delete()
 
 
 if __name__ == '__main__':

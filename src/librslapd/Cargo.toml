@@ -2,6 +2,7 @@
 name = "librslapd"
 version = "0.1.0"
 authors = ["William Brown <william@blackhats.net.au>"]
+rust-version = "1.70"
 edition = "2018"
 build = "build.rs"
 
@@ -15,7 +16,7 @@ crate-type = ["staticlib", "lib"]
 [dependencies]
 slapd = { path = "../slapd" }
 libc = "0.2"
+concread = "0.5.10"
 
 [build-dependencies]
-cbindgen = "0.9"
-
+cbindgen = "0.29"

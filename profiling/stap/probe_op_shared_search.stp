@@ -1,4 +1,7 @@
 #!/bin/env stap
+# op_shared_search() phase-by-phase latency.
+# Usage: stap probe_op_shared_search.stp /usr/lib64/dirsrv/libslapd.so
+# Probes live in libslapd.so, not ns-slapd.
 
 global op_shared_search_full
 global op_shared_search_prepared
@@ -9,11 +12,6 @@ global entry_times%
 global prepared_times%
 global search_times%
 global finalise_times%
-
-// op_shared_search__entry 
-// op_shared_search__prepared
-// op_shared_search__backends
-// op_shared_search__complete
 
 probe process(@1).mark("op_shared_search__entry") {
     entry_times[tid()] = gettimeofday_us()

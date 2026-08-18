@@ -1,5 +1,6 @@
 /******************************************************************************
 Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+Copyright (C) 2023 Red Hat, Inc.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,6 +27,9 @@ Hewlett-Packard Development Company, L.P.
 #include <time.h>
 #include "acctpolicy.h"
 #include "slapi-plugin.h"
+
+static int
+acct_update_login_history(const char *, char *);
 
 /*
  * acct_policy_dn_is_config()
@@ -79,42 +83,99 @@ acct_inact_limit(Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, ac
     int rc = 0; /* Optimistic default */
     acctPluginCfg *cfg;
 
+    cur_t = slapi_current_utc_time();
+
     config_rd_lock();
     cfg = get_config();
-    if ((lasttimestr = get_attr_string_val(target_entry,
-                                           cfg->state_attr_name)) != NULL) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" login timestamp is %s\n", dn, lasttimestr);
-    } else if (cfg->alt_state_attr_name && ((lasttimestr = get_attr_string_val(target_entry,
-                                                                               cfg->alt_state_attr_name)) != NULL)) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" alternate timestamp is %s\n", dn, lasttimestr);
-    } else {
-        /* the primary or alternate attribute might not yet exist eg.
-     * if only lastlogintime is specified and it id the first login
-     */
-        slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" has no value for stateattr or altstateattr \n", dn);
-        goto done;
-    }
 
-    last_t = gentimeToEpochtime(lasttimestr);
-    cur_t = slapi_current_utc_time();
-    lim_t = policy->inactivitylimit;
+    if (cfg->check_all_state_attrs) {
+        /*
+         * Check both state and alternate state attributes.
+         */
+        if ((lasttimestr = get_attr_string_val(target_entry, cfg->state_attr_name)) != NULL) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" login timestamp is %s (found in attribute '%s')\n",
+                          dn, lasttimestr, cfg->state_attr_name);
+            last_t = gentimeToEpochtime(lasttimestr);
+            lim_t = policy->inactivitylimit;
+            slapi_ch_free_string(&lasttimestr);
 
-    /* Finally do the time comparison */
-    if (cur_t > last_t + lim_t) {
+            /* Finally do the time comparison */
+            if (cur_t > last_t + lim_t) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                              "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
+                              dn, cur_t, last_t, lim_t);
+                rc = 1;
+                goto done;
+            }
+        }
+
+        /* Check alternate state attribute next... */
+        if (cfg->alt_state_attr_name &&
+                ((lasttimestr = get_attr_string_val(target_entry, cfg->alt_state_attr_name)) == NULL))
+        {
+            goto done;
+        }
         slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
-                      dn, cur_t, last_t, lim_t);
-        rc = 1;
-        goto done;
-    } else {
+                      "acct_inact_limit - \"%s\" alternate timestamp is %s (found in attribute '%s')\n",
+                      dn, lasttimestr, cfg->alt_state_attr_name);
+        last_t = gentimeToEpochtime(lasttimestr);
+        lim_t = policy->inactivitylimit;
+        slapi_ch_free_string(&lasttimestr);
+
+        /* Finally do the time comparison */
+        if (cur_t > last_t + lim_t) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
+                          dn, cur_t, last_t, lim_t);
+            rc = 1;
+            goto done;
+        }
         slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
                       "acct_inact_limit - \"%s\" is within inactivity limit (%ld < (%ld + %ld))\n",
                       dn, cur_t, last_t, lim_t);
-    }
+    } else {
+        /*
+         * Check state attribute, if not present in entry only then try
+         * alternate state attribute
+         */
+        if ((lasttimestr = get_attr_string_val(target_entry, cfg->state_attr_name)) != NULL) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" login timestamp is %s (found in attribute '%s')\n",
+                          dn, lasttimestr, cfg->state_attr_name);
+        } else if (cfg->alt_state_attr_name &&
+            ((lasttimestr = get_attr_string_val(target_entry, cfg->alt_state_attr_name)) != NULL))
+        {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" alternate timestamp is %s (found in attribute '%s')\n",
+                          dn, lasttimestr, cfg->alt_state_attr_name);
+        } else {
+            /*
+             * The primary or alternate attribute might not yet exist eg.
+             * if only lastlogintime is specified and it is the first login
+             */
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" has no value for stateattr or altstateattr \n", dn);
+            goto done;
+        }
 
+        last_t = gentimeToEpochtime(lasttimestr);
+        lim_t = policy->inactivitylimit;
+        slapi_ch_free_string(&lasttimestr);
+
+        /* Finally do the time comparison */
+        if (cur_t > last_t + lim_t) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
+                          dn, cur_t, last_t, lim_t);
+            rc = 1;
+            goto done;
+        } else {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" is within inactivity limit (%ld < (%ld + %ld))\n",
+                          dn, cur_t, last_t, lim_t);
+        }
+    }
 done:
     config_unlock();
     /* Deny bind; the account has exceeded the inactivity limit */
@@ -125,14 +186,130 @@ done:
                                0, NULL);
     }
 
-    slapi_ch_free_string(&lasttimestr);
+    return (rc);
+}
+
+/*
+  Preserve bind time stamps in virtual attribute
+*/
+int
+acct_update_login_history(const char *dn, char *timestr)
+{
+    void *plugin_id = NULL;
+    int rc = -1;
+    int num_entries = 0;
+    int mod_required = 0;
+    size_t i = 0;
+    char **login_hist = NULL;
+    Slapi_PBlock *entry_pb = NULL;
+    Slapi_PBlock *mod_pb;
+    Slapi_Entry *e = NULL;
+    Slapi_DN *sdn = NULL;
+    acctPluginCfg *cfg;
+    LDAPMod attribute;
+    LDAPMod *list_of_mods[2];
+
+    /* nothing to do if timestr is empty */
+    if (!timestr) {
+        return (rc);
+    }
+
+    plugin_id = get_identity();
+    sdn = slapi_sdn_new_normdn_byref(dn);
+    slapi_search_get_entry(&entry_pb, sdn, NULL, &e, plugin_id);
+    slapi_sdn_free(&sdn);
+
+    /* if the entry doesn't exist, just return */
+    if (e == NULL) {
+        return (rc);
+    }
+
+    config_rd_lock();
+    cfg = get_config();
+
+    /* does this value already exist in the entry */
+    Slapi_Value *timestr_val = slapi_value_new();
+    slapi_value_set_string(timestr_val, timestr);
+    if (slapi_entry_attr_has_syntax_value(e, cfg->login_history_attr, timestr_val)) {
+        slapi_search_get_entry_done(&entry_pb);
+        slapi_value_free(&timestr_val);
+        config_unlock();
+        return 0;
+    }
+    slapi_value_free(&timestr_val);
+
+    /* now we have an entry that doesnt contain the current timestr */
+    login_hist = slapi_entry_attr_get_charray_ext(e, cfg->login_history_attr, &num_entries);
+    if (login_hist && num_entries) {
+        /* do we need to trim the array */
+        if (num_entries >= cfg->login_history_size) {
+            /* free values we dont want */
+            int diff = (num_entries - cfg->login_history_size);
+            for (i = 0; i <= diff; i++) {
+                slapi_ch_free_string(&login_hist[i]);
+            }
+            /* remap array if it exists */
+            for (i = 0; i < cfg->login_history_size; i++) {
+                login_hist[i] = login_hist[diff + (i + 1)];
+            }
+            if (cfg->login_history_size != 0) {
+                /* append latest value */
+                login_hist[i - 1] = slapi_ch_smprintf("%s", timestr);
+                login_hist[i] = NULL;
+                mod_required = 1;
+            } else {
+                /* size is 0 and array has been trimmed, we need a mod */
+                mod_required = 1;
+            }
+        } else {
+            if (cfg->login_history_size != 0) {
+                /* realloc and append latest value */
+                login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
+                login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
+                login_hist[num_entries + 1] = NULL;
+                mod_required = 1;
+            }
+        }
+        /* first time round */
+    } else if (cfg->login_history_size > 0) {
+        /* alloc new array and append latest value */
+        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
+        login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
+        login_hist[num_entries + 1] = NULL;
+        mod_required = 1;
+    }
+
+    if (mod_required) {
+        /* modify the attribute */
+        attribute.mod_type = cfg->login_history_attr;
+        attribute.mod_op = LDAP_MOD_REPLACE;
+        attribute.mod_values = login_hist;
+
+        list_of_mods[0] = &attribute;
+        list_of_mods[1] = NULL;
+
+        mod_pb = slapi_pblock_new();
+        slapi_modify_internal_set_pb(mod_pb, dn, list_of_mods, NULL, NULL, plugin_id,
+                                     SLAPI_OP_FLAG_NO_ACCESS_CHECK |SLAPI_OP_FLAG_BYPASS_REFERRALS);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (rc != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "acct_update_login_history", "Modify error %d on entry '%s'\n", rc, dn);
+        }
+        slapi_pblock_destroy(mod_pb);
+    }
+
+    config_unlock();
+    slapi_ch_array_free(login_hist);
+    slapi_search_get_entry_done(&entry_pb);
+    slapi_value_free(&timestr_val);
 
     return (rc);
 }
 
 /*
   This is called after binds, it updates an attribute in the account
-  with the current time.
+  and the login time history.
 */
 static int
 acct_record_login(const char *dn)
@@ -193,6 +370,11 @@ acct_record_login(const char *dn)
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
                       "acct_record_login - Recorded %s=%s on \"%s\"\n", cfg->always_record_login_attr, timestr, dn);
+
+        /* update login history */
+        if (cfg->login_history_attr) {
+            acct_update_login_history(dn, timestr);
+        }
     }
 
 done:
@@ -336,8 +518,7 @@ acct_bind_postop(Slapi_PBlock *pb)
             rc = -1;
             goto done;
         } else {
-            if (target_entry && has_attr(target_entry,
-                                         cfg->spec_attr_name, NULL)) {
+            if (target_entry && has_attr(target_entry, cfg->spec_attr_name, NULL)) {
                 tracklogin = 1;
             }
         }

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <semaphore.h>
 #include <errno.h>
 #include "nspr.h"
 
@@ -115,11 +116,11 @@ struct entries_stats_t
     /*
      *  Entries Table Attributes
      */
-    uint64_t dsMasterEntries;
+    uint64_t dsSupplierEntries;
     uint64_t dsCopyEntries;
     uint64_t dsCacheEntries;
     uint64_t dsCacheHits;
-    uint64_t dsSlaveHits;
+    uint64_t dsConsumerHits;
 };
 
 struct int_stats_t
@@ -187,6 +188,18 @@ int agt_mopen_stats(char *statsfile, int mode, int *hdl);
 int agt_mclose_stats(int hdl);
 
 int agt_mread_stats(int hdl, struct hdr_stats_t *, struct ops_stats_t *, struct entries_stats_t *);
+
+/****************************************************************************
+ *
+ *  agt_sem_open () - Like sem_open but ignores umask
+ *
+ *
+ * Inputs:            see sem_open man page.
+ * Outputs:           see sem_open man page.
+ * Return Values:     see sem_open man page.
+ *
+ ****************************************************************************/
+sem_t *agt_sem_open(const char *name, int oflag, mode_t mode, unsigned int value);
 
 #ifdef __cplusplus
 }

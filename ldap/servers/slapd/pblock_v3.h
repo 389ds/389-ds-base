@@ -68,6 +68,7 @@ typedef struct _slapi_pblock_task
     int ldif2db_noattrindexes;
     int ldif_printkey;
     int task_flags;
+    int32_t task_warning;
     int import_state;
 
     int server_running; /* indicate that server is running */
@@ -116,7 +117,7 @@ typedef struct _slapi_pblock_intop
     void *op_stack_elem;
 
     void *pb_txn;           /* transaction ID */
-    IFP pb_txn_ruv_mods_fn; /* Function to fetch RUV mods for txn */
+    int32_t (*pb_txn_ruv_mods_fn)(Slapi_PBlock *, char **, Slapi_Mods **); /* Function to fetch RUV mods for txn */
     passwdPolicy *pwdpolicy;
     LDAPControl **pb_ctrls_arg;      /* allows to pass controls as arguments before
                                    operation object is created  */
@@ -160,9 +161,20 @@ typedef struct _slapi_pblock_intop
     /* For password policy control */
     int pb_pwpolicy_ctrl;
 
+    /* For Session Tracking control */
+    char *pb_session_tracking_id;
+
     int pb_paged_results_index;  /* stash SLAPI_PAGED_RESULTS_INDEX */
     int pb_paged_results_cookie; /* stash SLAPI_PAGED_RESULTS_COOKIE */
     int32_t pb_usn_tombstone_incremented; /* stash SLAPI_PAGED_RESULTS_COOKIE */
+
+    /* For memberof deferred thread
+     * It is set by be_txn_postop with the task that
+     * will be processed by the memberof deferred thread
+     * It is reset by the be_postop, once the txn is committed
+     * when it pushes the task to list of deferred tasks
+     */
+    void *memberof_deferred_task;
 } slapi_pblock_intop;
 
 /* Stuff that is rarely used, but still present */
@@ -216,6 +228,11 @@ typedef struct slapi_pblock
     struct _slapi_pblock_intop *pb_intop;
     struct _slapi_pblock_intplugin *pb_intplugin;
     struct _slapi_pblock_deprecated *pb_deprecated;
+    /* Deferred memberOf sync elements */
+    int pb_deferred_memberof;
+    int pb_deferred_memberof_sync_inited;
+    pthread_mutex_t pb_deferred_memberof_mutex;
+    pthread_cond_t pb_deferred_memberof_cv;
 
 #ifdef PBLOCK_ANALYTICS
     uint32_t analytics_init;

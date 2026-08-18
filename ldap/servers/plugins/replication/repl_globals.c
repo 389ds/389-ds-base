@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -89,6 +89,7 @@ const char *type_replicaReleaseTimeout = "nsds5ReplicaReleaseTimeout";
 const char *type_replicaBackoffMin = "nsds5ReplicaBackoffMin";
 const char *type_replicaBackoffMax = "nsds5ReplicaBackoffMax";
 const char *type_replicaPrecisePurge = "nsds5ReplicaPreciseTombstonePurging";
+const char *type_replicaKeepAliveUpdateInterval = "nsds5ReplicaKeepAliveUpdateInterval";
 
 /* Attribute names for replication agreement attributes */
 const char *type_nsds5ReplicaHost = "nsds5ReplicaHost";
@@ -117,6 +118,9 @@ const char *type_nsds5ReplicaBootstrapBindDN = "nsds5ReplicaBootstrapBindDN";
 const char *type_nsds5ReplicaBootstrapCredentials = "nsds5ReplicaBootstrapCredentials";
 const char *type_nsds5ReplicaBootstrapBindMethod = "nsds5ReplicaBootstrapBindMethod";
 const char *type_nsds5ReplicaBootstrapTransportInfo = "nsds5ReplicaBootstrapTransportInfo";
+const char *type_nsds5ReplicaLastInitStart = "nsds5replicaLastInitStart";
+const char *type_nsds5ReplicaLastInitEnd = "nsds5replicaLastInitEnd";
+const char *type_nsds5ReplicaLastInitStatus = "nsds5replicaLastInitStatus";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
@@ -131,6 +135,7 @@ const char *type_winsyncMoveAction = "winSyncMoveAction";
 const char *type_winSyncWindowsFilter = "winSyncWindowsFilter";
 const char *type_winSyncDirectoryFilter = "winSyncDirectoryFilter";
 const char *type_winSyncSubtreePair = "winSyncSubtreePair";
+const char *type_winSyncFlattenTree = "winSyncFlattenTree";
 
 /* To Allow Consumer Initialization when adding an agreement - */
 const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";
@@ -138,14 +143,14 @@ const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";
 static int repl_active_threads;
 
 int
-decrement_repl_active_threads()
+decrement_repl_active_threads(void)
 {
     PR_AtomicIncrement(&repl_active_threads);
     return repl_active_threads;
 }
 
 int
-increment_repl_active_threads()
+increment_repl_active_threads(void)
 {
     PR_AtomicDecrement(&repl_active_threads);
     return repl_active_threads;

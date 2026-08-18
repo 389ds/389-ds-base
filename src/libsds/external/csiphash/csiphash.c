@@ -89,6 +89,9 @@ sds_siphash13(const void *src, size_t src_sz, const char key[16])
     /* Account for non-uint64_t alligned input */
     /* Could make this stack allocation */
     uint64_t *in = calloc(1, input_sz * sizeof(uint64_t));
+    if (in == NULL) {
+        return 0;
+    }
     /*
      * Because all crypto code sucks, they modify *in
      * during operation, so we stash a copy of the ptr here.

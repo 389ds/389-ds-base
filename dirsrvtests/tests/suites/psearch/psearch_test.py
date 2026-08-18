@@ -1,16 +1,17 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import ldap
+import os
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.group import Groups
-import ldap
 from ldap.controls.psearch import PersistentSearchControl,EntryChangeNotificationControl
 
 pytestmark = pytest.mark.tier1
@@ -64,7 +65,7 @@ def test_psearch(topology_st):
     # Now run the result again and see what's there.
     results = _run_psearch(topology_st.standalone, msg_id)
     # assert our group is in the changeset.
-    assert(group.dn.lower() == results[0])
+    assert(group.dn == results[0])
 
 
 if __name__ == '__main__':

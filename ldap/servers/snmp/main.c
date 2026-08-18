@@ -1,5 +1,5 @@
 /* --- BEGIN COPYRIGHT BLOCK ---
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include "ldap-agent.h"
@@ -101,6 +102,7 @@ main(int argc, char *argv[])
     }
 
     load_config(config_file);
+    free(config_file);
 
     /* check if we're already running as another process */
     if ((pid_fp = fopen(pidfile, "r")) != NULL) {
@@ -148,7 +150,7 @@ main(int argc, char *argv[])
             /* agent-logdir setting looks ok */
             if ((log_hdl->token = malloc(strlen(agent_logdir) +
                                          strlen(LDAP_AGENT_LOGFILE) + 2)) != NULL) {
-                strncpy((char *)log_hdl->token, agent_logdir, strlen(agent_logdir) + 1);
+                memcpy((char *)log_hdl->token, agent_logdir, strlen(agent_logdir) + 1);
                 /* add a trailing slash if needed */
                 if (*(agent_logdir + strlen(agent_logdir)) != '/')
                     strcat((char *)log_hdl->token, "/");
@@ -286,14 +288,14 @@ load_config(char *conf_path)
     }
 
     /* set pidfile path */
-    if ((pidfile = malloc(strlen(LOCALSTATEDIR) + strlen("/run/") +
+    if ((pidfile = malloc(strlen(LOCALRUNDIR) + strlen("/dirsrv/") +
                           strlen(LDAP_AGENT_PIDFILE) + 1)) != NULL) {
-        strncpy(pidfile, LOCALSTATEDIR, strlen(LOCALSTATEDIR) + 1);
+        strncpy(pidfile, LOCALRUNDIR, strlen(LOCALRUNDIR) + 1);
         /* The above will likely not be NULL terminated, but we need to
          * be sure that we're properly NULL terminated for the below
          * strcat() to work properly. */
-        pidfile[strlen(LOCALSTATEDIR)] = (char)0;
-        strcat(pidfile, "/run/");
+        pidfile[strlen(LOCALRUNDIR)] = (char)0;
+        strcat(pidfile, "/dirsrv/");
         strcat(pidfile, LDAP_AGENT_PIDFILE);
     } else {
         printf("ldap-agent: malloc error processing config file\n");
@@ -335,6 +337,7 @@ load_config(char *conf_path)
             /* free the default logdir setting */
             if (agent_logdir != NULL) {
                 free(agent_logdir);
+                agent_logdir = NULL;
             }
 
             /* load agent-logdir setting */
@@ -449,11 +452,10 @@ load_config(char *conf_path)
                             got_port = 1;
                         } else if (strcmp(attr, "nsslapd-rundir") == 0) {
                             /* 8 =  "/" + ".stats" + \0 */
-                            serv_p->stats_file = malloc(vlen + (instancename ? strlen(instancename) : 0) + 8);
+                            serv_p->stats_file = calloc(1, vlen + (instancename ? strlen(instancename) : 0) + 8);
                             if (serv_p->stats_file && instancename) {
                                 snprintf(serv_p->stats_file, vlen + strlen(instancename) + 8,
                                          "%s/%s.stats", val, instancename);
-                                serv_p->stats_file[(vlen + strlen(instancename) + 7)] = (char)0;
                             } else {
                                 printf("ldap-agent: malloc error processing config file\n");
                                 free(entry);

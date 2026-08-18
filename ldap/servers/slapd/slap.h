@@ -1,7 +1,7 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * Contributors:
@@ -13,6 +13,15 @@
  * END COPYRIGHT BLOCK **/
 
 #pragma once
+
+/* XXX Does someone have a better solution to the CTIME conflict? */
+#ifdef HAVE_SYS_EPOLL_H
+#include "sys/epoll.h"
+#undef CTIME /* avoid conflict with portable.h */
+#endif /* HAVE_SYS_EPOLL_H */
+#ifdef HAVE_SYS_TIMERFD_H
+#include "sys/timerfd.h"
+#endif /* HAVE_SYS_TIMERFD_H */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -40,7 +49,7 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_ARCHIVE2DB       5
 #define SLAPD_EXEMODE_DBTEST           6
 #define SLAPD_EXEMODE_DB2INDEX         7
-#define SLAPD_EXEMODE_REFERRAL         8
+#define SLAPD_EXEMODE_REFERRAL         8    /* deprecated */
 #define SLAPD_EXEMODE_SUFFIX2INSTANCE  9
 #define SLAPD_EXEMODE_PRINTVERSION    10
 #define SLAPD_EXEMODE_UPGRADEDB       11
@@ -74,10 +83,17 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <cert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
+#include <stdbool.h>
 #include <time.h> /* For timespec definitions */
+#include "intrinsics.h"
+
+
+/* Macros for paged results lock parameter */
+#define PR_LOCKED true
+#define PR_NOT_LOCKED false
 
 /* Provides our int types and platform specific requirements. */
 #include <slapi_pal.h>
@@ -141,6 +157,8 @@ typedef struct symbol_t
 #define GET_THREAD_ID() pthread_self()
 #endif
 
+#include <json-c/json.h>
+
 /*
  * XXXmcs: these are defined by ldap.h or ldap-extension.h,
  * but only in a newer release than we use with DS today.
@@ -161,6 +179,11 @@ typedef struct symbol_t
 /* PAGED RESULTS control (shared by request and response) */
 #ifndef LDAP_CONTROL_PAGEDRESULTS
 #define LDAP_CONTROL_PAGEDRESULTS "1.2.840.113556.1.4.319"
+#endif
+
+/* LDAP Subentries Control (RFC 3672) */
+#ifndef LDAP_CONTROL_SUBENTRIES
+#define LDAP_CONTROL_SUBENTRIES	"1.3.6.1.4.1.4203.1.10.1"
 #endif
 
 #define SLAPD_VENDOR_NAME VENDOR
@@ -228,6 +251,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_INVALID_SOCKET_INDEX (-1)
 
 #define ETIME_BUFSIZ 42 /* room for struct timespec */
+#define FGOT_BUFSIZ 200 /* room for fine grtain operation timing */
 
 /* ============================================================================
  *       CONFIGURATION DEFAULTS
@@ -240,6 +264,12 @@ typedef void (*VFPV)(); /* takes undefined arguments */
  */
 
 #define SLAPD_DEFAULT_FILE_MODE S_IRUSR | S_IWUSR
+/* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP | S_IWGRP
+ * on semaphore and mmap file if SELinux is enforced.
+ */
+#define SLAPD_DEFAULT_SNMP_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
+/* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP on dse.ldif if SELinux is enforced. */
+#define SLAPD_DEFAULT_DSE_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP
 #define SLAPD_DEFAULT_DIR_MODE S_IRWXU
 #define SLAPD_DEFAULT_IDLE_TIMEOUT 3600 /* seconds - 0 == never */
 #define SLAPD_DEFAULT_IDLE_TIMEOUT_STR "3600"
@@ -274,8 +304,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXBERSIZE_STR "2097152"
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
-/* We'd like this number to be prime for the hash into the Connection table */
-#define SLAPD_DEFAULT_CONNTABLESIZE 4093 /* connection table size */
+#define SLAPD_DEFAULT_MAXCONTROLS_PER_OP 10
+#define SLAPD_DEFAULT_MAXCONTROLS_PER_OP_STR "10"
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
 
@@ -302,16 +332,27 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
 #define SLAPD_DEFAULT_LDAPI_AUTO_DN     "cn=peercred,cn=external,cn=auth"
+#define SLAPD_DEFAULT_LDAPI_MAPPING_DN  "cn=auto_bind,cn=config"
+
+#define SLAPD_DEFAULT_PWD_SCHEME_LIST_NO_UPGRADE_HASH "CRYPT,CLEAR"
 
 #define SLAPD_SCHEMA_DN  "cn=schema"
 #define SLAPD_CONFIG_DN  "cn=config"
 
 #define SLAPD_INIT_LOG_MODE "600"
 #define SLAPD_INIT_ACCESSLOG_ROTATIONUNIT    "day"
+#define SLAPD_INIT_SECURITYLOG_ROTATIONUNIT  "week"
 #define SLAPD_INIT_ERRORLOG_ROTATIONUNIT     "week"
 #define SLAPD_INIT_AUDITLOG_ROTATIONUNIT     "week"
 #define SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT "week"
 #define SLAPD_INIT_LOG_EXPTIMEUNIT           "month"
+#define SLAPD_INIT_LOG_TIME_FORMAT           "%FT%TZ"
+#define SLAPD_INIT_ACCESS_LOG_TIME_FORMAT    "%FT%T"
+#define SLAPD_INIT_ERROR_LOG_TIME_FORMAT    "%FT%T"
+#define SLAPD_INIT_LOG_FORMAT                "default"
+#define LOG_FORMAT_DEFAULT 1
+#define LOG_FORMAT_JSON 0
+#define LOG_FORMAT_JSON_PRETTY JSON_C_TO_STRING_PRETTY
 
 #define SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR 0
 #define SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR "0"
@@ -321,6 +362,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_LOG_ROTATIONTIME_STR "1"
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS 10
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS_STR "10"
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXNUMLOGS 10
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXNUMLOGS_STR "10"
 #define SLAPD_DEFAULT_LOG_MAXNUMLOGS 2
 #define SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR "2"
 #define SLAPD_DEFAULT_LOG_EXPTIME 1
@@ -328,6 +371,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 /* This is in MB */
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE 500
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE_STR "500"
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXDISKSPACE 500
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXDISKSPACE_STR "500"
 #define SLAPD_DEFAULT_LOG_MAXDISKSPACE 100
 #define SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR "100"
 #define SLAPD_DEFAULT_LOG_MAXLOGSIZE 100
@@ -344,6 +389,10 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_FE_ERRORLOG_LEVEL_STR "16384"
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL 256
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR "256"
+#define SLAPD_DEFAULT_STATLOG_LEVEL 0
+#define SLAPD_DEFAULT_STATLOG_LEVEL_STR "0"
+#define SLAPD_DEFAULT_SECURITYLOG_LEVEL 256
+#define SLAPD_DEFAULT_SECURITYLOG_LEVEL_STR "256"
 
 #define SLAPD_DEFAULT_DISK_THRESHOLD 2097152
 #define SLAPD_DEFAULT_DISK_THRESHOLD_STR "2097152"
@@ -360,6 +409,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_GROUPEVALNESTLEVEL_STR "0"
 #define SLAPD_DEFAULT_SNMP_INDEX 0
 #define SLAPD_DEFAULT_SNMP_INDEX_STR "0"
+#define SLAPD_DEFAULT_NUM_LISTENERS 1
+#define SLAPD_DEFAULT_NUM_LISTENERS_STR "1"
 
 #define SLAPD_DEFAULT_PW_INHISTORY 6
 #define SLAPD_DEFAULT_PW_INHISTORY_STR "6"
@@ -395,6 +446,12 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_PW_MAXFAILURE_STR "3"
 #define SLAPD_DEFAULT_PW_RESETFAILURECOUNT 600
 #define SLAPD_DEFAULT_PW_RESETFAILURECOUNT_STR "600"
+#define SLAPD_DEFAULT_PW_TPR_MAXUSE -1
+#define SLAPD_DEFAULT_PW_TPR_MAXUSE_STR "-1"
+#define SLAPD_DEFAULT_PW_TPR_DELAY_EXPIRE_AT -1
+#define SLAPD_DEFAULT_PW_TPR_DELAY_EXPIRE_AT_STR "-1"
+#define SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM -1
+#define SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM_STR "-1"
 #define SLAPD_DEFAULT_PW_LOCKDURATION 3600
 #define SLAPD_DEFAULT_PW_LOCKDURATION_STR "3600"
 
@@ -404,6 +461,14 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_PW_MAX_SEQ_SETS_ATTRIBUTE_STR "0"
 #define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE 0
 #define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE_STR "0"
+
+#define SLAPD_DEFAULT_TCP_FIN_TIMEOUT 30
+#define SLAPD_DEFAULT_TCP_FIN_TIMEOUT_STR "30"
+#define SLAPD_DEFAULT_TCP_KEEPALIVE_TIME 300
+#define SLAPD_DEFAULT_TCP_KEEPALIVE_TIME_STR "300"
+
+#define SLAPD_DEFAULT_REFERRAL_CHECK_PERIOD 300
+#define SLAPD_DEFAULT_REFERRAL_CHECK_PERIOD_STR "300"
 
 #define MIN_THREADS 16
 #define MAX_THREADS 512
@@ -426,6 +491,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define PWD_PBE_DELIM '-'
 
 #define REFERRAL_REMOVE_CMD "remove"
+#define HAPROXY_TRUSTED_IP_REMOVE_CMD "remove"
 
 /* Filenames for DSE storage */
 #define DSE_FILENAME "dse.ldif"
@@ -481,6 +547,8 @@ struct subfilt
 };
 
 #include "filter.h" /* mr_filter_t */
+
+#include "haproxy.h"
 
 /*
  * represents a search filter
@@ -719,6 +787,7 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc, void *
 #define INTEGERORDERINGMATCH_OID "2.5.13.15"  /* integerOrderingMatch */
 #define INTFIRSTCOMPMATCH_OID    "2.5.13.29"  /* integerFirstComponentMatch */
 #define OIDFIRSTCOMPMATCH_OID    "2.5.13.30"  /* objectIdentifierFirstComponentMatch */
+#define LDAP_MATCHING_RULE_IN_CHAIN_OID "1.2.840.113556.1.4.1941"
 
 /* Names for some commonly used matching rules */
 #define DNMATCH_NAME              "distinguishedNameMatch"
@@ -727,6 +796,7 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc, void *
 #define INTEGERORDERINGMATCH_NAME "integerOrderingMatch"
 #define INTFIRSTCOMPMATCH_NAME    "integerFirstComponentMatch"
 #define OIDFIRSTCOMPMATCH_NAME    "objectIdentifierFirstComponentMatch"
+#define LDAP_MATCHING_RULE_IN_CHAIN_NAME "ancestryDNMatch"
 
 #define ATTR_STANDARD_STRING "Standard Attribute"
 #define ATTR_USERDEF_STRING  "User Defined Attribute"
@@ -806,20 +876,20 @@ struct slapi_entry
     Slapi_Attr *e_deleted_attrs;  /* deleted list of attributes and values */
     Slapi_Vattr *e_virtual_attrs; /* cache of virtual attributes */
     uint32_t e_virtual_watermark; /* indicates cache consistency when compared
-                                    to global watermark */
+                                     to global watermark */
     Slapi_RWLock *e_virtual_lock; /* for access to cached vattrs */
     void *e_extension;            /* A list of entry object extensions */
     unsigned char e_flags;
-    Slapi_Attr *e_aux_attrs; /* Attr list used for upgrade */
+    Slapi_Attr *e_aux_attrs;      /* Attr list used for upgrade */
 };
 
 struct attrs_in_extension
 {
     char *ext_type;
-    IFP ext_get;
-    IFP ext_set;
-    IFP ext_copy;
-    IFP ext_get_size;
+    int32_t (*ext_get)(Slapi_Entry *, Slapi_Value ***);
+    int32_t (*ext_set)(Slapi_Entry *, Slapi_Value **, int32_t);
+    int32_t (*ext_copy)(const Slapi_Entry *, Slapi_Entry *);
+    int32_t (*ext_get_size)(Slapi_Entry *, size_t *);
 };
 
 extern struct attrs_in_extension attrs_in_extension[];
@@ -981,6 +1051,7 @@ struct slapdplugin
     char *plg_libpath;                      /* library path for dll/so */
     char *plg_initfunc;                     /* init symbol */
     IFP plg_close;                          /* close function */
+    IFP plg_pre_close;                      /* pre close function */
     Slapi_PluginDesc plg_desc;              /* vendor's info */
     char *plg_name;                         /* used for plugin rdn in cn=config */
     struct slapdplugin *plg_next;           /* for plugin lists */
@@ -991,7 +1062,7 @@ struct slapdplugin
     int plg_precedence;                     /* for plugin execution ordering */
     struct slapdplugin *plg_group;          /* pointer to the group to which this plugin belongs */
     struct pluginconfig plg_conf;           /* plugin configuration parameters */
-    IFP plg_cleanup;                        /* cleanup function */
+    int32_t (*plg_cleanup)(Slapi_PBlock *); /* cleanup function */
     IFP plg_start;                          /* start function */
     IFP plg_poststart;                      /* poststart function */
     int plg_closed;                         /* mark plugin as closed */
@@ -1001,46 +1072,47 @@ struct slapdplugin
     Slapi_Counter *plg_op_counter;          /* operation counter, used for shutdown */
 
     /* NOTE: These LDIF2DB and DB2LDIF fn pointers are internal only for now.
-   I don't believe you can get these functions from a plug-in and
-   then call them without knowing what IFP or VFP0 are.  (These aren't
-   declared in slapi-plugin.h.)  More importantly, it's a pretty ugly
-   way to get to these functions. (Do we want people to get locked into
-   this?)
-
-   The correct way to do this would be to expose these functions as
-   front-end API functions. We can fix this for the next release.
-   (No one has the time right now.)
- */
+     * I don't believe you can get these functions from a plug-in and
+     * then call them without knowing what IFP or VFP0 are.  (These aren't
+     * declared in slapi-plugin.h.)  More importantly, it's a pretty ugly
+     * way to get to these functions. (Do we want people to get locked into
+     * this?)
+     *
+     * The correct way to do this would be to expose these functions as
+     * front-end API functions. We can fix this for the next release.
+     * (No one has the time right now.)
+     */
     union
     { /* backend database plugin structure */
         struct plg_un_database_backend
         {
-            IFP plg_un_db_bind;              /* bind */
-            IFP plg_un_db_unbind;            /* unbind */
-            IFP plg_un_db_search;            /* search */
-            IFP plg_un_db_next_search_entry; /* iterate */
+            int32_t (*plg_un_db_bind)(Slapi_PBlock *);                  /* bind */
+            int32_t (*plg_un_db_unbind)(Slapi_PBlock *);                /* undbind */
+            int32_t (*plg_un_db_search)(Slapi_PBlock *);                /* search */
+            int32_t (*plg_un_db_next_search_entry)(Slapi_PBlock *);     /* iterate */
             IFP plg_un_db_next_search_entry_ext;
-            VFPP plg_un_db_search_results_release; /* PAGED RESULTS */
-            VFP plg_un_db_prev_search_results;     /* PAGED RESULTS */
-            IFP plg_un_db_entry_release;
-            IFP plg_un_db_compare;              /* compare */
-            IFP plg_un_db_modify;               /* modify */
-            IFP plg_un_db_modrdn;               /* modrdn */
-            IFP plg_un_db_add;                  /* add */
-            IFP plg_un_db_delete;               /* delete */
-            IFP plg_un_db_abandon;              /* abandon */
-            IFP plg_un_db_config;               /* config */
-            IFP plg_un_db_seq;                  /* sequence */
-            IFP plg_un_db_entry;                /* entry send */
-            IFP plg_un_db_referral;             /* referral send */
-            IFP plg_un_db_result;               /* result send */
-            IFP plg_un_db_ldif2db;              /* ldif 2 database */
-            IFP plg_un_db_db2ldif;              /* database 2 ldif */
-            IFP plg_un_db_db2index;             /* database 2 index */
-            IFP plg_un_db_archive2db;           /* ldif 2 database */
-            IFP plg_un_db_db2archive;           /* database 2 ldif */
-            IFP plg_un_db_upgradedb;            /* convert old idl to new */
-            IFP plg_un_db_upgradednformat;      /* convert old dn format to new */
+            VFPP plg_un_db_search_results_release;                      /* Paged results */
+            VFP plg_un_db_prev_search_results;                          /* Paged results */
+            int32_t (*plg_un_db_entry_release)(Slapi_PBlock *, void *); /* Releas entry from cache */
+            int32_t (*plg_un_db_compare)(Slapi_PBlock *);               /* compare */
+            int32_t (*plg_un_db_modify)(Slapi_PBlock *);                /* modify */
+            int32_t (*plg_un_db_modrdn)(Slapi_PBlock *);                /* modrdn */
+            int32_t (*plg_un_db_add)(Slapi_PBlock *);                   /* add */
+            int32_t (*plg_un_db_delete)(Slapi_PBlock *);                /* delete */
+            int32_t (*plg_un_db_abandon)(Slapi_PBlock *);               /* abandon */
+            IFP plg_un_db_config;                                       /* config */
+            int32_t (*plg_un_db_seq)(Slapi_PBlock *);                   /* sequence */
+            IFP plg_un_db_entry;                                        /* entry send */
+            IFP plg_un_db_referral;                                     /* referral send */
+            IFP plg_un_db_result;
+            int32_t (*plg_un_db_ldif2db)(Slapi_PBlock *);               /* ldif 2 database */
+            int32_t (*plg_un_db_db2ldif)(Slapi_PBlock *);               /* database 2 ldif */
+            int32_t (*plg_un_db_db2index)(Slapi_PBlock *);              /* database 2 index */
+            int32_t (*plg_un_db_dbcompact)(Slapi_Backend *, bool);      /* compact database */
+            int32_t (*plg_un_db_archive2db)(Slapi_PBlock *);            /* ldif 2 database */
+            int32_t (*plg_un_db_db2archive)(Slapi_PBlock *);            /* database 2 ldif */
+            int32_t (*plg_un_db_upgradedb)(Slapi_PBlock *);             /* convert old idl to new */
+            int32_t (*plg_un_db_upgradednformat)(Slapi_PBlock *);       /* convert old dn format to new */
             IFP plg_un_db_begin;                /* dbase txn begin */
             IFP plg_un_db_commit;               /* dbase txn commit */
             IFP plg_un_db_abort;                /* dbase txn abort */
@@ -1050,12 +1122,12 @@ struct slapdplugin
             IFP plg_un_db_register_dn_callback; /* Register a function to call when a operation is applied to a given DN */
             IFP plg_un_db_register_oc_callback; /* Register a function to call when a operation is applied to a given ObjectClass */
             IFP plg_un_db_init_instance;        /* initializes new db instance */
-            IFP plg_un_db_wire_import;          /* fast replica update */
-            IFP plg_un_db_verify;               /* verify db files */
-            IFP plg_un_db_add_schema;           /* add schema */
-            IFP plg_un_db_get_info;             /* get info */
-            IFP plg_un_db_set_info;             /* set info */
-            IFP plg_un_db_ctrl_info;            /* ctrl info */
+            int32_t (*plg_un_db_wire_import)(Slapi_PBlock *); /* fast replica update */
+            int32_t (*plg_un_db_verify)(Slapi_PBlock *);      /* verify db files */
+            IFP plg_un_db_add_schema;                         /* add schema */
+            int32_t (*plg_un_db_get_info)(Slapi_Backend *, int32_t, void **);  /* get info */
+            int32_t (*plg_un_db_set_info)(Slapi_Backend *, int32_t, void **);  /* set info */
+            int32_t (*plg_un_db_ctrl_info)(Slapi_Backend *, int32_t, void **); /* ctrl info */
         } plg_un_db;
 #define plg_bind plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind plg_un.plg_un_db.plg_un_db_unbind
@@ -1078,6 +1150,7 @@ struct slapdplugin
 #define plg_result plg_un.plg_un_db.plg_un_db_result
 #define plg_ldif2db plg_un.plg_un_db.plg_un_db_ldif2db
 #define plg_db2ldif plg_un.plg_un_db.plg_un_db_db2ldif
+#define plg_dbcompact plg_un.plg_un_db.plg_un_db_dbcompact
 #define plg_db2index plg_un.plg_un_db.plg_un_db_db2index
 #define plg_archive2db plg_un.plg_un_db.plg_un_db_archive2db
 #define plg_db2archive plg_un.plg_un_db.plg_un_db_db2archive
@@ -1099,10 +1172,10 @@ struct slapdplugin
         {
             char **plg_un_pe_exoids;      /* exop oids */
             char **plg_un_pe_exnames;     /* exop names (may be NULL) */
-            IFP plg_un_pe_exhandler;      /* handler */
+            int32_t (*plg_un_pe_exhandler)(Slapi_PBlock *); /* handler */
             IFP plg_un_pe_pre_exhandler;  /* pre extop */
             IFP plg_un_pe_post_exhandler; /* post extop */
-            IFP plg_un_pe_be_exhandler;   /* handler to retrieve the be name for the operation */
+            int32_t (*plg_un_pe_be_exhandler)(Slapi_PBlock *, Slapi_Backend **); /* handler to retrieve the be name for the operation */
         } plg_un_pe;
 #define plg_exoids plg_un.plg_un_pe.plg_un_pe_exoids
 #define plg_exnames plg_un.plg_un_pe.plg_un_pe_exnames
@@ -1238,20 +1311,20 @@ struct slapdplugin
         /* matching rule plugin structure */
         struct plg_un_matching_rule
         {
-            IFP plg_un_mr_filter_create;  /* factory function */
-            IFP plg_un_mr_indexer_create; /* factory function */
+            int32_t (*plg_un_mr_filter_create)(Slapi_PBlock *);  /* factory function */
+            int32_t (*plg_un_mr_indexer_create)(Slapi_PBlock *);  /* factory function */
             /* new style syntax plugin functions */
             /* not all functions will apply to all matching rule types */
             /* e.g. a SUBSTR rule will not have a filter_ava func */
-            IFP plg_un_mr_filter_ava;
-            IFP plg_un_mr_filter_sub;
-            IFP plg_un_mr_values2keys;
-            IFP plg_un_mr_assertion2keys_ava;
-            IFP plg_un_mr_assertion2keys_sub;
+            int32_t (*plg_un_mr_filter_ava)(Slapi_PBlock *, const struct berval *, Slapi_Value **, int32_t, Slapi_Value **);
+            int32_t (*plg_un_mr_filter_sub)(Slapi_PBlock *, char *, char **, char*, Slapi_Value **);
+            int32_t (*plg_un_mr_values2keys)(Slapi_PBlock *, Slapi_Value **, Slapi_Value ***, int32_t);
+            int32_t (*plg_un_mr_assertion2keys_ava)(Slapi_PBlock *, Slapi_Value *, Slapi_Value ***, int32_t);
+            int32_t (*plg_un_mr_assertion2keys_sub)(Slapi_PBlock *, char *, char **, char *, Slapi_Value ***);
             int plg_un_mr_flags;
             char **plg_un_mr_names;
-            IFP plg_un_mr_compare; /* only for ORDERING */
-            VFPV plg_un_mr_normalize;
+            int32_t (*plg_un_mr_compare)(struct berval *, struct berval *); /* only for ORDERING */
+            void (*plg_un_mr_normalize)(Slapi_PBlock *, char *, int32_t,  char **);
         } plg_un_mr;
 #define plg_mr_filter_create plg_un.plg_un_mr.plg_un_mr_filter_create
 #define plg_mr_indexer_create plg_un.plg_un_mr.plg_un_mr_indexer_create
@@ -1268,25 +1341,25 @@ struct slapdplugin
         /* syntax plugin structure */
         struct plg_un_syntax_struct
         {
-            IFP plg_un_syntax_filter_ava;
+            int32_t (*plg_un_syntax_filter_ava)(Slapi_PBlock *, const struct berval *, Slapi_Value **, int32_t, Slapi_Value **);
             IFP plg_un_syntax_filter_ava_sv;
-            IFP plg_un_syntax_filter_sub;
+            int32_t (*plg_un_syntax_filter_sub)(Slapi_PBlock*, char *, char **, char *, Slapi_Value**);
             IFP plg_un_syntax_filter_sub_sv;
-            IFP plg_un_syntax_values2keys;
+            int32_t (*plg_un_syntax_values2keys)(Slapi_PBlock*, Slapi_Value**, Slapi_Value***, int32_t);
             IFP plg_un_syntax_values2keys_sv;
-            IFP plg_un_syntax_assertion2keys_ava;
-            IFP plg_un_syntax_assertion2keys_sub;
+            int32_t (*plg_un_syntax_assertion2keys_ava)(Slapi_PBlock*, Slapi_Value*, Slapi_Value***, int32_t);
+            int32_t (*plg_un_syntax_assertion2keys_sub)(Slapi_PBlock*, char*, char**, char*, Slapi_Value***);
             int plg_un_syntax_flags;
             /*
-   from slapi-plugin.h
-#define SLAPI_PLUGIN_SYNTAX_FLAG_ORKEYS        1
-#define SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING    2
-*/
+             * from slapi-plugin.h
+#define SLAPI_PLUGIN_SYNTAX_FLAG_ORKEYS    1
+#define SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING  2
+             */
             char **plg_un_syntax_names;
             char *plg_un_syntax_oid;
             IFP plg_un_syntax_compare;
-            IFP plg_un_syntax_validate;
-            VFPV plg_un_syntax_normalize;
+            int32_t (*plg_un_syntax_validate)(struct berval *);
+            void (*plg_un_syntax_normalize)(Slapi_PBlock *, char *, int32_t,  char **);
         } plg_un_syntax;
 #define plg_syntax_filter_ava plg_un.plg_un_syntax.plg_un_syntax_filter_ava
 #define plg_syntax_filter_sub plg_un.plg_un_syntax.plg_un_syntax_filter_sub
@@ -1303,10 +1376,11 @@ struct slapdplugin
         struct plg_un_acl_struct
         {
             IFP plg_un_acl_init;
-            IFP plg_un_acl_syntax_check;
-            IFP plg_un_acl_access_allowed;
-            IFP plg_un_acl_mods_allowed;
-            IFP plg_un_acl_mods_update;
+            int32_t (*plg_un_acl_syntax_check)(Slapi_PBlock *, Slapi_Entry *, char **);
+            int32_t (*plg_un_acl_access_allowed)(Slapi_PBlock *, Slapi_Entry*, char **, struct berval *, int32_t, int32_t, char **);
+            int32_t (*plg_un_acl_mods_allowed)(Slapi_PBlock *, Slapi_Entry *, LDAPMod **, void *);
+            int32_t (*plg_un_acl_mods_update)(Slapi_PBlock *, int32_t, Slapi_DN *, void *);
+
         } plg_un_acl;
 #define plg_acl_init plg_un.plg_un_acl.plg_un_acl_init
 #define plg_acl_syntax_check plg_un.plg_un_acl.plg_un_acl_syntax_check
@@ -1316,8 +1390,8 @@ struct slapdplugin
 
         struct plg_un_mmr_struct
         {
-            IFP plg_un_mmr_betxn_preop;
-            IFP plg_un_mmr_betxn_postop;
+            int32_t (*plg_un_mmr_betxn_preop)(Slapi_PBlock *, int32_t);
+            int32_t (*plg_un_mmr_betxn_postop)(Slapi_PBlock *, int32_t);
         } plg_un_mmr;
 #define plg_mmr_betxn_preop 		plg_un.plg_un_mmr.plg_un_mmr_betxn_preop
 #define plg_mmr_betxn_postop 		plg_un.plg_un_mmr.plg_un_mmr_betxn_postop
@@ -1338,8 +1412,8 @@ struct slapdplugin
         /* entry fetch/store */
         struct plg_un_entry_fetch_store_struct
         {
-            IFP plg_un_entry_fetch_func;
-            IFP plg_un_entry_store_func;
+            int32_t (*plg_un_entry_fetch_func)(char **, uint32_t *);
+            int32_t (*plg_un_entry_store_func)(char **, uint32_t *);
         } plg_un_entry_fetch_store;
 #define plg_entryfetchfunc plg_un.plg_un_entry_fetch_store.plg_un_entry_fetch_func
 #define plg_entrystorefunc plg_un.plg_un_entry_fetch_store.plg_un_entry_store_func
@@ -1552,6 +1626,7 @@ typedef struct op
     int o_ssf;                     /* ssf for this operation (highest between SASL and TLS/SSL) */
     int o_opid;                    /* id of this operation */
     PRUint64 o_connid;             /* id of conn initiating this op; for logging only */
+    time_t o_conn_starttime;       /* the time the orignal connection was started, for logging only */
     void *o_handler_data;
     result_handler o_result_handler;
     search_entry_handler o_search_entry_handler;
@@ -1578,6 +1653,11 @@ typedef struct op
     struct slapi_operation_results o_results;
     int o_pagedresults_sizelimit;
     int o_reverse_search_state;
+    /* Thread pool snapshot taken at dequeue, -1 if not captured */
+    int32_t o_wbusy;
+    int32_t o_wmax;
+    int32_t o_wqdepth;
+    fgot_t o_fgots[FGOT_MAX];                        /* Fine grain operation timing counters */
 } Operation;
 
 /*
@@ -1604,7 +1684,6 @@ typedef struct _paged_results
     struct timespec pr_timelimit_hr;        /* expiry time of this request rel to clock monotonic */
     int pr_flags;
     ber_int_t pr_msgid; /* msgid of the request; to abandon */
-    PRLock *pr_mutex;   /* protect each conn structure    */
 } PagedResults;
 
 /* array of simple paged structure stashed in connection */
@@ -1634,6 +1713,11 @@ typedef struct conn
     Sockbuf *c_sb;                   /* ber connection stuff          */
     conn_state c_state;              /* Used in connection table and done to see what's free or not. Later we could use this for other state handlings. */
     int c_sd;                        /* the actual socket descriptor      */
+#ifdef ENABLE_EPOLL
+    struct epoll_event *c_event;     /* epoll event for this connection */
+    struct epoll_event *c_idle_event;/* epoll event for timerfd */
+    int c_idle_tfd;                  /* timerfd for this connection */
+#endif /* ENABLE_EPOLL */
     int c_ldapversion;               /* version of LDAP protocol       */
     char *c_dn;                      /* current DN bound to this conn  */
     int c_isroot;                    /* c_dn was rootDN at time of bind? */
@@ -1665,6 +1749,8 @@ typedef struct conn
     Conn_private *c_private;         /* data which is not shared outside connection.c */
     int c_flags;                     /* Misc flags used only for SSL status currently */
     int c_needpw;                    /* need new password           */
+    int c_haproxyheader_read;        /* 0 if HAProxy header has not been read, 1 if it has been read */
+    PRBool c_hapoxied;               /* True if the connection is from a haproxied IP address */
     CERTCertificate *c_client_cert;  /* Client's Cert          */
     PRFileDesc *c_prfd;              /* NSPR 2.1 FileDesc          */
     int c_ci;                        /* An index into the Connection array. For printing. */
@@ -1687,8 +1773,10 @@ typedef struct conn
     Conn_IO_Layer_cb c_pop_io_layer_cb;  /* callback to pop an IO layer off of the conn->c_prfd */
     void *c_io_layer_cb_data;        /* callback data */
     struct connection_table *c_ct;   /* connection table that this connection belongs to */
+    int c_ct_list;                   /* ct active list this conn is part of */
     int c_ns_close_jobs;             /* number of current close jobs */
     char *c_ipaddr;                  /* ip address str - used by monitor */
+    char *c_serveripaddr;            /* server ip address str - used by monitor */
     /* per conn static config */
     ber_len_t c_maxbersize;
     int32_t c_ioblocktimeout;
@@ -1698,6 +1786,7 @@ typedef struct conn
     int32_t c_anon_access;
     int32_t c_max_threads_per_conn;
     int32_t c_bind_auth_token;
+    bool c_flagblocked;            /* Flag the next read operation as blocked */
 } Connection;
 #define CONN_FLAG_SSL 1     /* Is this connection an SSL connection or not ?         \
                            * Used to direct I/O code when SSL is handled differently \
@@ -1755,6 +1844,7 @@ typedef struct slapi_task
     int task_progress;         /* number between 0 and task_work */
     int task_work;             /* "units" of work to be done */
     int task_flags;            /* (see above) */
+    task_warning task_warn;    /* task warning */
     char *task_status;         /* transient status info */
     char *task_log;            /* appended warnings, etc */
     char task_date[SLAPI_TIMESTAMP_BUFSIZE]; /* Date/time when task was created */
@@ -1835,13 +1925,23 @@ typedef struct passwordpolicyarray
     slapi_onoff_t pw_unlock;
     time_t pw_lockduration;
     long pw_resetfailurecount;
+    int pw_tpr_maxuse;
+    int pw_tpr_delay_expire_at;
+    int pw_tpr_delay_valid_from;
     int pw_gracelimit;
     slapi_onoff_t pw_is_legacy;
     slapi_onoff_t pw_track_update_time;
     struct pw_scheme *pw_storagescheme;
     Slapi_DN *pw_admin;
     Slapi_DN **pw_admin_user;
+    slapi_onoff_t pw_admin_skip_info;  /* Skip updating password information in target entry */
+    char *pw_local_dn; /* DN of the subtree/user policy */
+    slapi_onoff_t pw_check_breach;     /* Check passwords against HIBP breach database */
+    char *pw_breach_db_url;            /* Custom breach database API URL (default HIBP) */
+    int pw_breach_db_timeout;          /* Timeout for breach database queries in seconds */
+
 } passwdPolicy;
+#define PWDPOLICY_DEBUG "PWDPOLICY_DEBUG"
 
 void pwpolicy_init_defaults (passwdPolicy *pw_policy);
 
@@ -1859,6 +1959,13 @@ void slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx);
 
 void *slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb);
 void slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem);
+
+/*
+ * Wait until deferred memberOf work for this operation completes (or shutdown).
+ * No-op unless memberof armed deferred work on this pblock (lazy sync).
+ * Notify is performed by memberof via SLAPI_DEFERRED_MEMBEROF set to 0.
+ */
+void slapi_pblock_wait_deferred_memberof(Slapi_PBlock *pb);
 
 /* index if substrlens */
 #define INDEX_SUBSTRBEGIN  0
@@ -1957,13 +2064,21 @@ struct snmp_ops_tbl_t
 struct snmp_entries_tbl_t
 {
     /* entries table */
-    Slapi_Counter *dsMasterEntries;
+    Slapi_Counter *dsSupplierEntries;
     Slapi_Counter *dsCopyEntries;
     Slapi_Counter *dsCacheEntries;
     Slapi_Counter *dsCacheHits;
-    Slapi_Counter *dsSlaveHits;
+    Slapi_Counter *dsConsumerHits;
 };
 
+struct snmp_server_tbl_t
+{
+    /* general purpose counters */
+    Slapi_Counter *dsOpInitiated;
+    Slapi_Counter *dsOpCompleted;
+    Slapi_Counter *dsEntriesSent;
+    Slapi_Counter *dsBytesSent;
+};
 struct snmp_int_tbl_t
 {
     /* interaction table */
@@ -1983,6 +2098,7 @@ struct snmp_vars_t
 {
     struct snmp_ops_tbl_t ops_tbl;
     struct snmp_entries_tbl_t entries_tbl;
+    struct snmp_server_tbl_t server_tbl;
     struct snmp_int_tbl_t int_tbl[NUM_SNMP_INT_TBL_ROWS];
 };
 
@@ -1992,6 +2108,7 @@ struct snmp_vars_t
 #define ENTRY_POINT_SLAPD_SSL_CLIENT_INIT 108
 #define ENTRY_POINT_SLAPD_SSL_INIT 109
 #define ENTRY_POINT_SLAPD_SSL_INIT2 110
+#define ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED 111
 
 typedef void (*ps_wakeup_all_fn_ptr)(void);
 typedef void (*ps_service_fn_ptr)(Slapi_Entry *, Slapi_Entry *, int, int);
@@ -2000,6 +2117,7 @@ typedef void (*get_disconnect_server_fn_ptr)(Connection *conn, PRUint64 opconnid
 typedef int (*modify_config_dse_fn_ptr)(Slapi_PBlock *pb);
 typedef int (*slapd_ssl_init_fn_ptr)(void);
 typedef int (*slapd_ssl_init_fn_ptr2)(PRFileDesc **s, int StartTLS);
+typedef void (*slapd_ssl_set_cert_refresh_asked_ptr)(bool val);
 
 /*
  * A structure of entry points in the NT exe which need
@@ -2012,6 +2130,7 @@ typedef struct _slapdEntryPoints
     caddr_t sep_disconnect_server;
     caddr_t sep_slapd_ssl_init;
     caddr_t sep_slapd_ssl_init2;
+    caddr_t sep_slapd_ssl_refresh_certs;
 } slapdEntryPoints;
 
 #define DLL_IMPORT_DATA
@@ -2021,6 +2140,21 @@ typedef struct _slapdEntryPoints
 #define SLAPD_ERROR_LOG 0x2
 #define SLAPD_AUDIT_LOG 0x4
 #define SLAPD_AUDITFAIL_LOG 0x8
+#define SLAPD_SECURITY_LOG 0x10
+
+/* Security log events */
+#define SECURITY_BIND_SUCCESS "BIND_SUCCESS"
+#define SECURITY_BIND_FAILED "BIND_FAILED"
+#define SECURITY_AUTHZ_ERROR "AUTHZ_ERROR"
+#define SECURITY_TCP_ERROR "TCP_ERROR"
+#define SECURITY_HAPROXY_SUCCESS "HAPROXY_SUCCESS"
+
+/* Security log messages */
+#define SECURITY_MSG_INVALID_PASSWD "INVALID_PASSWORD"
+#define SECURITY_MSG_NO_ENTRY "NO_SUCH_ENTRY"
+#define SECURITY_MSG_CERT_MAP_FAILED "CERT_MAP_FAILED"
+#define SECURITY_MSG_ACCOUNT_LOCKED "ACCOUNT_LOCKED"
+#define SECURITY_MSG_ANONYMOUS_BIND "ANONYMOUS_BIND"
 
 #define LOGGING_BACKEND_INTERNAL 0x1
 #define LOGGING_BACKEND_SYSLOG 0x2
@@ -2048,66 +2182,94 @@ typedef struct _slapdEntryPoints
 #define CONFIG_SCHEMAREPLACE_ATTRIBUTE "nsslapd-schemareplace"
 #define CONFIG_LOGLEVEL_ATTRIBUTE "nsslapd-errorlog-level"
 #define CONFIG_ACCESSLOGLEVEL_ATTRIBUTE "nsslapd-accesslog-level"
+#define CONFIG_STATLOGLEVEL_ATTRIBUTE "nsslapd-statlog-level"
+#define CONFIG_SECURITYLOGLEVEL_ATTRIBUTE "nsslapd-securitylog-level"
 #define CONFIG_ACCESSLOG_MODE_ATTRIBUTE "nsslapd-accesslog-mode"
+#define CONFIG_SECURITYLOG_MODE_ATTRIBUTE "nsslapd-securitylog-mode"
 #define CONFIG_ERRORLOG_MODE_ATTRIBUTE "nsslapd-errorlog-mode"
 #define CONFIG_AUDITLOG_MODE_ATTRIBUTE "nsslapd-auditlog-mode"
 #define CONFIG_AUDITFAILLOG_MODE_ATTRIBUTE "nsslapd-auditfaillog-mode"
 #define CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-accesslog-maxlogsperdir"
+#define CONFIG_SECURITYLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-securitylog-maxlogsperdir"
 #define CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-errorlog-maxlogsperdir"
 #define CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-auditlog-maxlogsperdir"
 #define CONFIG_AUDITFAILLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-auditfaillog-maxlogsperdir"
 #define CONFIG_ACCESSLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-accesslog-maxlogsize"
+#define CONFIG_SECURITYLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-securitylog-maxlogsize"
 #define CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-errorlog-maxlogsize"
 #define CONFIG_AUDITLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditlog-maxlogsize"
 #define CONFIG_AUDITFAILLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditfaillog-maxlogsize"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-accesslog-logrotationsync-enabled"
+#define CONFIG_SECURITYLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-securitylog-logrotationsync-enabled"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-errorlog-logrotationsync-enabled"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-auditlog-logrotationsync-enabled"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-auditfaillog-logrotationsync-enabled"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-accesslog-logrotationsynchour"
+#define CONFIG_SECURITYLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-securitylog-logrotationsynchour"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-errorlog-logrotationsynchour"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-auditlog-logrotationsynchour"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-auditfaillog-logrotationsynchour"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-accesslog-logrotationsyncmin"
+#define CONFIG_SECURITYLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-securitylog-logrotationsyncmin"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-errorlog-logrotationsyncmin"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-auditlog-logrotationsyncmin"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-auditfaillog-logrotationsyncmin"
 #define CONFIG_ACCESSLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-accesslog-logrotationtime"
+#define CONFIG_SECURITYLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-securitylog-logrotationtime"
 #define CONFIG_ERRORLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-errorlog-logrotationtime"
 #define CONFIG_AUDITLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditlog-logrotationtime"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditfaillog-logrotationtime"
 #define CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logrotationtimeunit"
+#define CONFIG_SECURITYLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-securitylog-logrotationtimeunit"
 #define CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logrotationtimeunit"
 #define CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logrotationtimeunit"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logrotationtimeunit"
 #define CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logmaxdiskspace"
+#define CONFIG_SECURITYLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-securitylog-logmaxdiskspace"
 #define CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logmaxdiskspace"
 #define CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logmaxdiskspace"
 #define CONFIG_AUDITFAILLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditfaillog-logmaxdiskspace"
 #define CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logminfreediskspace"
+#define CONFIG_SECURITYLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-securitylog-logminfreediskspace"
 #define CONFIG_ERRORLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logminfreediskspace"
 #define CONFIG_AUDITLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logminfreediskspace"
 #define CONFIG_AUDITFAILLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditfaillog-logminfreediskspace"
 #define CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-accesslog-logexpirationtime"
+#define CONFIG_SECURITYLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-securitylog-logexpirationtime"
 #define CONFIG_ERRORLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-errorlog-logexpirationtime"
 #define CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditlog-logexpirationtime"
 #define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtime"
 #define CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logexpirationtimeunit"
+#define CONFIG_SECURITYLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-securitylog-logexpirationtimeunit"
 #define CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logexpirationtimeunit"
 #define CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logexpirationtimeunit"
 #define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtimeunit"
 #define CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-accesslog-logging-enabled"
+#define CONFIG_SECURITYLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-securitylog-logging-enabled"
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
+#define CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED "nsslapd-external-libs-debug-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
 #define CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
 #define CONFIG_AUDITFAILLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditfaillog-logging-hide-unhashed-pw"
+#define CONFIG_ACCESSLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-accesslog-compress"
+#define CONFIG_SECURITYLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-securitylog-compress"
+#define CONFIG_AUDITLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditlog-compress"
+#define CONFIG_AUDITFAILLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-compress"
+#define CONFIG_ERRORLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-errorlog-compress"
+#define CONFIG_AUDITLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-auditlog-log-format"
+#define CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-auditlog-time-format"
+#define CONFIG_ACCESSLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-accesslog-log-format"
+#define CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-accesslog-time-format"
+#define CONFIG_ERRORLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-errorlog-log-format"
+#define CONFIG_ERRORLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-errorlog-time-format"
 #define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
 #define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
 #define CONFIG_AUDITFILE_ATTRIBUTE "nsslapd-auditlog"
 #define CONFIG_AUDITFAILFILE_ATTRIBUTE "nsslapd-auditfaillog"
+#define CONFIG_SECURITYFILE_ATTRIBUTE "nsslapd-securitylog"
 #define CONFIG_LASTMOD_ATTRIBUTE "nsslapd-lastmod"
 #define CONFIG_INCLUDE_ATTRIBUTE "nsslapd-include"
 #define CONFIG_DYNAMICCONF_ATTRIBUTE "nsslapd-dynamicconf"
@@ -2116,6 +2278,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_SVRTAB_ATTRIBUTE "nsslapd-svrtab"
 #define CONFIG_UNAUTH_BINDS_ATTRIBUTE "nsslapd-allow-unauthenticated-binds"
 #define CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE "nsslapd-require-secure-binds"
+#define CONFIG_CLOSE_ON_FAILED_BIND "nsslapd-close-on-failed-bind"
 #define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
 #define CONFIG_LOCALSSF_ATTRIBUTE "nsslapd-localssf"
 #define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
@@ -2126,6 +2289,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PORT_ATTRIBUTE "nsslapd-port"
 #define CONFIG_WORKINGDIR_ATTRIBUTE "nsslapd-workingdir"
 #define CONFIG_LISTENHOST_ATTRIBUTE "nsslapd-listenhost"
+#define CONFIG_HAPROXY_TRUSTED_IP "nsslapd-haproxy-trusted-ip"
 #define CONFIG_SNMP_INDEX_ATTRIBUTE "nsslapd-snmp-index"
 #define CONFIG_LDAPI_FILENAME_ATTRIBUTE "nsslapd-ldapifilepath"
 #define CONFIG_LDAPI_SWITCH_ATTRIBUTE "nsslapd-ldapilisten"
@@ -2136,8 +2300,12 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE "nsslapd-ldapigidnumbertype"
 #define CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE "nsslapd-ldapientrysearchbase"
 #define CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE "nsslapd-ldapiautodnsuffix"
+#define CONFIG_LDAPI_AUTH_MAP_BASE_ATTRIBUTE "nsslapd-ldapiDNMappingBase"
+#define CONFIG_LDAPI_AUTH_USERNAME_ATTRIBUTE "nsslapd-ldapiUsername"
+#define CONFIG_LDAPI_AUTH_DN_ATTRIBUTE "nsslapd-authenticateAsDN"
 #define CONFIG_ANON_LIMITS_DN_ATTRIBUTE "nsslapd-anonlimitsdn"
 #define CONFIG_SLAPI_COUNTER_ATTRIBUTE "nsslapd-counters"
+#define CONFIG_THREAD_POOL_STATS_ATTRIBUTE "nsslapd-thread-pool-stats"
 #define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
 #define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
 #define CONFIG_ACCESSLOG_ATTRIBUTE "nsslapd-accesslog"
@@ -2147,7 +2315,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_THREADNUMBER_ATTRIBUTE "nsslapd-threadnumber"
 #define CONFIG_MAXTHREADSPERCONN_ATTRIBUTE "nsslapd-maxthreadsperconn"
 #define CONFIG_MAXDESCRIPTORS_ATTRIBUTE "nsslapd-maxdescriptors"
-#define CONFIG_CONNTABLESIZE_ATTRIBUTE "nsslapd-conntablesize"
+#define CONFIG_NUM_LISTENERS_ATTRIBUTE "nsslapd-numlisteners"
 #define CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE "nsslapd-reservedescriptors"
 #define CONFIG_IDLETIMEOUT_ATTRIBUTE "nsslapd-idletimeout"
 #define CONFIG_IOBLOCKTIMEOUT_ATTRIBUTE "nsslapd-ioblocktimeout"
@@ -2178,6 +2346,9 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_DICT_PATH_ATTRIBUTE "passwordDictPath"
 #define CONFIG_PW_USERATTRS_ATTRIBUTE "passwordUserAttributes"
 #define CONFIG_PW_BAD_WORDS_ATTRIBUTE "passwordBadWords"
+#define CONFIG_PW_BREACH_CHECK_ATTRIBUTE "passwordBreachCheck"
+#define CONFIG_PW_BREACH_URL_ATTRIBUTE "passwordBreachDbUrl"
+#define CONFIG_PW_BREACH_TIMEOUT_ATTRIBUTE "passwordBreachDbTimeout"
 #define CONFIG_PW_EXP_ATTRIBUTE "passwordExp"
 #define CONFIG_PW_MAXAGE_ATTRIBUTE "passwordMaxAge"
 #define CONFIG_PW_MINAGE_ATTRIBUTE "passwordMinAge"
@@ -2190,13 +2361,20 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_UNLOCK_ATTRIBUTE "passwordUnlock"
 #define CONFIG_PW_LOCKDURATION_ATTRIBUTE "passwordLockoutDuration"
 #define CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE "passwordResetFailureCount"
+#define CONFIG_PW_TPR_MAXUSE "passwordTPRMaxUse"
+#define CONFIG_PW_TPR_DELAY_EXPIRE_AT "passwordTPRDelayExpireAt"
+#define CONFIG_PW_TPR_DELAY_VALID_FROM "passwordTPRDelayValidFrom"
 #define CONFIG_PW_ISGLOBAL_ATTRIBUTE "passwordIsGlobalPolicy"
 #define CONFIG_PW_GRACELIMIT_ATTRIBUTE "passwordGraceLimit"
 #define CONFIG_PW_IS_LEGACY "passwordLegacyPolicy"
 #define CONFIG_PW_TRACK_LAST_UPDATE_TIME "passwordTrackUpdateTime"
 #define CONFIG_PW_ADMIN_DN_ATTRIBUTE "passwordAdminDN"
+#define CONFIG_PW_ADMIN_SKIP_INFO_ATTRIBUTE "passwordAdminSkipInfoUpdate"
 #define CONFIG_PW_SEND_EXPIRING "passwordSendExpiringTime"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
+#define CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE "nsslapd-securitylog-logbuffering"
+#define CONFIG_AUDITLOG_BUFFERING_ATTRIBUTE "nsslapd-auditlog-logbuffering"
+#define CONFIG_ERRORLOG_BUFFERING_ATTRIBUTE "nsslapd-errorlog-logbuffering"
 #define CONFIG_CSNLOGGING_ATTRIBUTE "nsslapd-csnlogging"
 #define CONFIG_RETURN_EXACT_CASE_ATTRIBUTE "nsslapd-return-exact-case"
 #define CONFIG_RESULT_TWEAK_ATTRIBUTE "nsslapd-result-tweak"
@@ -2209,15 +2387,19 @@ typedef struct _slapdEntryPoints
 #define CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE "nsslapd-enquote-sup-oc"
 #define CONFIG_BASEDN_ATTRIBUTE "nsslapd-certmap-basedn"
 #define CONFIG_ACCESSLOG_LIST_ATTRIBUTE "nsslapd-accesslog-list"
+#define CONFIG_SECURITYLOG_LIST_ATTRIBUTE "nsslapd-securitylog-list"
 #define CONFIG_ERRORLOG_LIST_ATTRIBUTE "nsslapd-errorlog-list"
 #define CONFIG_AUDITLOG_LIST_ATTRIBUTE "nsslapd-auditlog-list"
+#define CONFIG_AUDITLOG_DISPLAY_ATTRS "nsslapd-auditlog-display-attrs"
 #define CONFIG_AUDITFAILLOG_LIST_ATTRIBUTE "nsslapd-auditfaillog-list"
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
 #define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
+#define CONFIG_TARGETFILTER_CACHE_ATTRIBUTE "nsslapd-targetfilter-cache"
 #define CONFIG_GLOBAL_BACKEND_LOCK "nsslapd-global-backend-lock"
 #define CONFIG_ENABLE_NUNC_STANS "nsslapd-enable-nunc-stans"
 #define CONFIG_ENABLE_UPGRADE_HASH "nsslapd-enable-upgrade-hash"
+#define CONFIG_SCHEME_LIST_NO_UPGRADE_HASH "nsslapd-scheme-list-no-upgrade-hash"
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
 #define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
@@ -2256,29 +2438,36 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LISTEN_BACKLOG_SIZE "nsslapd-listen-backlog-size"
 #define CONFIG_DYNAMIC_PLUGINS "nsslapd-dynamic-plugins"
 #define CONFIG_RETURN_DEFAULT_OPATTR "nsslapd-return-default-opattr"
+#define CONFIG_REFERRAL_CHECK_PERIOD "nsslapd-referral-check-period"
+#define CONFIG_RETURN_ENTRY_DN "nsslapd-return-original-entrydn"
+#define CONFIG_FGOT_ATTRIBUTE "ds-fine-grain-operation-timing"
+#define SLAPD_DEFAULT_FGOT "wtime+wqtime+optime+etime"
+#define SLAPD_DEFAULT_FGOT_FLAGS ((1UL<<FGOT_W)|(1UL<<FGOT_WQ)|(1UL<<FGOT_OP)|(1UL<<FGOT_ETIME))
+#define CONFIG_IGNORED_CRITICALITY_LIST_ATTRIBUTE "ds-ignored-control-criticality"
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
 #define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
+#define CONFIG_MAXCONTROLS_PER_OP_ATTRIBUTE "nsslapd-maxcontrolsperop"
 #define CONFIG_LOGGING_BACKEND "nsslapd-logging-backend"
 
 #define CONFIG_EXTRACT_PEM "nsslapd-extract-pemfiles"
-
-#ifdef HAVE_CLOCK_GETTIME
-#define CONFIG_LOGGING_HR_TIMESTAMPS "nsslapd-logging-hr-timestamps-enabled"
-#endif
 
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST         "nsslapd-malloc-mxfast"
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
 #define CONFIG_MALLOC_MMAP_THRESHOLD "nsslapd-malloc-mmap-threshold"
 
+#define DEFAULT_MALLOC_UNSET_STR "-10"
 #define DEFAULT_MALLOC_UNSET (-10)
 
 #define CONFIG_VERIFY_FILTER_SCHEMA  "nsslapd-verify-filter-schema"
 #define CONFIG_ENABLE_LDAPSSOTOKEN   "nsslapd-enable-ldapssotoken"
 #define CONFIG_LDAPSSOTOKEN_SECRET   "nsslapd-ldapssotoken-secret"
 #define CONFIG_LDAPSSOTOKEN_TTL      "nsslapd-ldapssotoken-ttl-secs"
+
+#define CONFIG_TCP_FIN_TIMEOUT       "nsslapd-tcp-fin-timeout"
+#define CONFIG_TCP_KEEPALIVE_TIME    "nsslapd-tcp-keepalive-time"
 
 /*
  * Define the backlog number for use in listen() call.
@@ -2338,7 +2527,12 @@ typedef struct _slapdFrontendConfig
     slapi_int_t ioblocktimeout;
     slapi_onoff_t lastmod;
     int64_t maxdescriptors;
-    int conntablesize;
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    int64_t maxuserwatches;
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
+    int num_listeners;
     slapi_int_t maxthreadsperconn;
     int outbound_ldap_io_timeout;
     slapi_onoff_t nagle;
@@ -2371,6 +2565,9 @@ typedef struct _slapdFrontendConfig
     char *encryptionalias;
     char *errorlog;
     char *listenhost;
+    struct berval **haproxy_trusted_ip;                 /* LDAP config format (for dse.ldif/queries) */
+    haproxy_trusted_entry_t *haproxy_trusted_ip_parsed; /* Parsed binary format (for connection matching) */
+    size_t haproxy_trusted_ip_parsed_count;             /* Number of parsed entries */
     int snmp_index;
     char *localuser;
     char *localhost;
@@ -2387,6 +2584,7 @@ typedef struct _slapdFrontendConfig
     char **plugin;
     slapi_onoff_t plugin_track;
     slapi_onoff_t moddn_aci;
+    slapi_onoff_t targetfilter_cache;
     struct pw_scheme *pw_storagescheme;
     slapi_onoff_t pwpolicy_local;
     slapi_onoff_t pw_is_global_policy;
@@ -2410,11 +2608,36 @@ typedef struct _slapdFrontendConfig
     int accesslog_exptime;
     char *accesslog_exptimeunit;
     int accessloglevel;
+    char *accesslog_log_format;
+    char *accesslog_time_format;
     slapi_onoff_t accesslogbuffering;
     slapi_onoff_t csnlogging;
+    slapi_onoff_t accesslog_compress;
+    int statloglevel;
+
+    /* SECURITY LOG */
+    char *securitylog;
+    slapi_onoff_t securitylog_logging_enabled;
+    char *securitylog_mode;
+    int securitylog_maxnumlogs;
+    int securitylog_maxlogsize;
+    slapi_onoff_t securitylog_rotationsync_enabled;
+    int securitylog_rotationsynchour;
+    int securitylog_rotationsyncmin;
+    int securitylog_rotationtime;
+    char *securitylog_rotationunit;
+    int securitylog_maxdiskspace;
+    int securitylog_minfreespace;
+    int securitylog_exptime;
+    char *securitylog_exptimeunit;
+    int securityloglevel;
+    slapi_onoff_t securitylogbuffering;
+    slapi_onoff_t securitylog_compress;
 
     /* ERROR LOG */
     slapi_onoff_t errorlog_logging_enabled;
+    char *errorlog_log_format;
+    char *errorlog_time_format;
     char *errorlog_mode;
     int errorlog_maxnumlogs;
     int errorlog_maxlogsize;
@@ -2428,11 +2651,16 @@ typedef struct _slapdFrontendConfig
     int errorlog_exptime;
     char *errorlog_exptimeunit;
     int errorloglevel;
+    slapi_onoff_t external_libs_debug_enabled;
+    slapi_onoff_t errorlog_compress;
+    slapi_onoff_t errorlogbuffering;
 
     /* AUDIT LOG */
     char *auditlog; /* replication audit file */
     int auditloglevel;
     slapi_onoff_t auditlog_logging_enabled;
+    char *auditlog_log_format;
+    char *auditlog_time_format;
     char *auditlog_mode;
     int auditlog_maxnumlogs;
     int auditlog_maxlogsize;
@@ -2446,6 +2674,8 @@ typedef struct _slapdFrontendConfig
     int auditlog_exptime;
     char *auditlog_exptimeunit;
     slapi_onoff_t auditlog_logging_hide_unhashed_pw;
+    slapi_onoff_t auditlogbuffering;
+    slapi_onoff_t auditlog_compress;
 
     /* AUDIT FAIL LOG */
     char *auditfaillog;
@@ -2464,11 +2694,9 @@ typedef struct _slapdFrontendConfig
     int auditfaillog_exptime;
     char *auditfaillog_exptimeunit;
     slapi_onoff_t auditfaillog_logging_hide_unhashed_pw;
+    slapi_onoff_t auditfaillog_compress;
 
     char *logging_backend;
-#ifdef HAVE_CLOCK_GETTIME
-    slapi_onoff_t logging_hr_timestamps;
-#endif
     slapi_onoff_t return_exact_case; /* Return attribute names with the same case
                                        as they appear in at.conf */
 
@@ -2501,13 +2729,15 @@ typedef struct _slapdFrontendConfig
     char *ldapi_filename;                 /* filename for ldapi socket */
     slapi_onoff_t ldapi_switch;           /* switch to turn ldapi on/off */
     slapi_onoff_t ldapi_bind_switch;      /* switch to turn ldapi auto binding on/off */
-    char *ldapi_root_dn;                  /* DN to map root to over LDAPI */
+    char *ldapi_root_dn;                  /* DN to map root to over LDAPI. Obsolete setting. rootds is used instead */
     slapi_onoff_t ldapi_map_entries;      /* turns ldapi entry bind mapping on/off */
     char *ldapi_uidnumber_type;           /* type that contains uid number */
     char *ldapi_gidnumber_type;           /* type that contains gid number */
     char *ldapi_search_base_dn;           /* base dn to search for mapped entries */
     char *ldapi_auto_dn_suffix;           /* suffix to be appended to auto gen DNs */
+    char *ldapi_auto_mapping_base;        /* suffix/subtree containing LDAPI mapping entries */
     slapi_onoff_t slapi_counters;         /* switch to turn slapi_counters on/off */
+    slapi_onoff_t thread_pool_stats;      /* switch to turn thread-pool status diagnostics on/off */
     slapi_onoff_t allow_unauth_binds;     /* switch to enable/disable unauthenticated binds */
     slapi_onoff_t require_secure_binds;   /* switch to require simple binds to use a secure channel */
     slapi_onoff_t allow_anon_access;      /* switch to enable/disable anonymous access */
@@ -2526,6 +2756,7 @@ typedef struct _slapdFrontendConfig
     char *allowed_sasl_mechs;        /* comma/space separated list of allowed sasl mechs */
     char **allowed_sasl_mechs_array; /* Array of allow sasl mechs */
     int sasl_max_bufsize;            /* The max receive buffer size for SASL */
+    slapi_onoff_t close_on_failed_bind;   /* Close connection following a failed bind */
 
     /* disk monitoring */
     slapi_onoff_t disk_monitoring;
@@ -2551,6 +2782,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
     slapi_onoff_t global_backend_lock;
     slapi_int_t maxsimplepaged_per_conn; /* max simple paged results reqs handled per connection */
+    slapi_int_t maxcontrols_per_op;      /* max LDAP controls allowed per operation */
     slapi_onoff_t enable_nunc_stans; /* Despite the removal of NS, we have to leave the value in
                                       * case someone was setting it.
                                       */
@@ -2561,6 +2793,9 @@ typedef struct _slapdFrontendConfig
 #endif
     slapi_onoff_t extract_pem; /* If "on", export key/cert as pem files */
     slapi_onoff_t enable_upgrade_hash; /* If on, upgrade hashes for PW at bind */
+    char *scheme_list_no_upgrade_hash; /* It contains the list of password storage scheme
+                                        * that are not updated (at bind)
+                                        */
     /*
      * Do we verify the filters we recieve by schema?
      * reject-invalid - reject filter if there is anything invalid
@@ -2575,6 +2810,16 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t enable_ldapssotoken;
     char *ldapssotoken_secret;
     slapi_int_t ldapssotoken_ttl;
+
+    slapi_int_t tcp_fin_timeout;
+    slapi_int_t tcp_keepalive_time;
+    int32_t referral_check_period;
+    slapi_onoff_t return_orig_dn;
+    slapi_onoff_t pw_admin_skip_info;
+    char *auditlog_display_attrs;
+    char *fgot;
+    uint64_t fgot_flags;
+    char **ignored_criticality_list;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
@@ -2624,8 +2869,6 @@ typedef struct _slapdFrontendConfig
 
 
 slapdFrontendConfig_t *getFrontendConfig(void);
-
-int slapd_bind_local_user(Connection *conn);
 
 /* LP: NO_TIME cannot be -1, it generates wrong GeneralizedTime
  * And causes some errors on AIX also
@@ -2695,8 +2938,6 @@ extern char *attr_dataversion;
 
 #define LDIF_CSNPREFIX_MAXLENGTH 6 /* sizeof(xxcsn-) */
 
-#include "intrinsics.h"
-
 /* printkey: import & export */
 #define EXPORT_PRINTKEY 0x1
 #define EXPORT_NOWRAP 0x2
@@ -2737,5 +2978,24 @@ typedef enum _upgrade_status {
 } upgrade_status;
 
 upgrade_status upgrade_server(void);
+upgrade_status upgrade_repl_plugin_name(Slapi_Entry *plugin_entry, struct slapdplugin *plugin);
+PRBool upgrade_plugin_removed(char *plg_libpath);
+
+/* ldapi.c */
+#if defined(ENABLE_LDAPI)
+typedef enum {
+    LDAPI_STARTUP,
+    LDAPI_RELOAD,
+    LDAPI_SHUTDOWN
+} slapi_ldapi_state;
+
+void initialize_ldapi_auth_dn_mappings(slapi_ldapi_state reload);
+void free_ldapi_auth_dn_mappings(int32_t shutdown);
+int32_t slapd_identify_local_user(Connection *conn);
+int32_t slapd_bind_local_user(Connection *conn);
+#endif
+
+#define DYNCERTS_CN	"dynamiccertificates"
+#define DYNCERTS_SUFFIX	"cn=" DYNCERTS_CN
 
 #endif /* _slap_h_ */

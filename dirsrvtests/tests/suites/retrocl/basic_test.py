@@ -1,0 +1,615 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2021 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+import logging
+import time
+import os
+import ldap
+import pytest
+from test389.topologies import topology_st
+from lib389.plugins import RetroChangelogPlugin
+from lib389._constants import DEFAULT_SUFFIX, RETROCL_SUFFIX, DN_DM, PW_DM
+from lib389.cli_base import FakeArgs, connect_instance, disconnect_instance
+from lib389.cli_base.dsrc import dsrc_arg_concat
+from lib389.cli_conf.plugins.retrochangelog import retrochangelog_add
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.idm.domain import Domain
+from lib389._mapped_object import DSLdapObjects
+
+pytestmark = pytest.mark.tier1
+
+USER1_DN = 'uid=user1,ou=people,'+ DEFAULT_SUFFIX
+USER2_DN = 'uid=user2,ou=people,'+ DEFAULT_SUFFIX
+USER_PW = 'password'
+ATTR_HOMEPHONE = 'homePhone'
+ATTR_CARLICENSE = 'carLicense'
+
+log = logging.getLogger(__name__)
+
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
+def test_retrocl_exclude_attr_add(topology_st):
+    """ Test exclude attribute feature of the retrocl plugin for add operation
+
+    :id: 3481650f-2070-45ef-9600-2500cfc51559
+
+    :setup: Standalone instance
+
+    :steps:
+        1. Enable dynamic plugins
+        2. Confige retro changelog plugin
+        3. Add an entry
+        4. Ensure entry attrs are in the changelog
+        5. Exclude an attr
+        6. Add another entry
+        7. Ensure excluded attr is not in the changelog
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+    """
+
+    st = topology_st.standalone
+
+    log.info('Configure retrocl plugin')
+    rcl = RetroChangelogPlugin(st)
+    rcl.disable()
+    rcl.enable()
+    rcl.replace('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
+
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
+
+    users = UserAccounts(st, DEFAULT_SUFFIX)
+
+    log.info('Adding user1')
+    try:
+        users.create(properties={
+            'sn': '1',
+            'cn': 'user 1',
+            'uid': 'user1',
+            'uidNumber': '11',
+            'gidNumber': '111',
+            'givenname': 'user1',
+            'homePhone': '0861234567',
+            'carLicense': '131D16674',
+            'mail': 'user1@whereever.com',
+            'homeDirectory': '/home/user1',
+            'userpassword': USER_PW})
+    except ldap.ALREADY_EXISTS:
+        pass
+    except ldap.LDAPError as e:
+        log.error("Failed to add user1: " + str(e))
+
+    log.info('Verify homePhone and carLicense attrs are in the changelog changestring')
+    try:
+        retro_changelog_suffix = DSLdapObjects(st, basedn=RETROCL_SUFFIX)
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
+    except ldap.LDAPError as e:
+        log.fatal("Changelog search failed, error: " + str(e))
+        assert False
+    assert len(cllist) > 0
+    if  cllist[0].present('changes'):
+        clstr = str(cllist[0].get_attr_vals_utf8('changes'))
+        assert ATTR_HOMEPHONE in clstr
+        assert ATTR_CARLICENSE in clstr
+
+    log.info('Excluding attribute ' + ATTR_HOMEPHONE)
+    args = FakeArgs()
+    args.connections = [st.host + ':' + str(st.port) + ':' + DN_DM + ':' + PW_DM]
+    args.instance = 'standalone1'
+    args.basedn = None
+    args.binddn = None
+    args.starttls = False
+    args.pwdfile = None
+    args.bindpw = None
+    args.prompt = False
+    args.exclude_attrs = ATTR_HOMEPHONE
+    args.max_age = None
+    args.func = retrochangelog_add
+    dsrc_inst = dsrc_arg_concat(args, None)
+    inst = connect_instance(dsrc_inst, False, args)
+    result = args.func(inst, None, log, args)
+    disconnect_instance(inst)
+    assert result is None
+
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
+
+    log.info('Adding user2')
+    try:
+        users.create(properties={
+            'sn': '2',
+            'cn': 'user 2',
+            'uid': 'user2',
+            'uidNumber': '22',
+            'gidNumber': '222',
+            'givenname': 'user2',
+            'homePhone': '0879088363',
+            'carLicense': '04WX11038',
+            'mail': 'user2@whereever.com',
+            'homeDirectory': '/home/user2',
+            'userpassword': USER_PW})
+    except ldap.ALREADY_EXISTS:
+        pass
+    except ldap.LDAPError as e:
+        log.error("Failed to add user2: " + str(e))
+
+    log.info('Verify homePhone attr is not in the changelog changestring')
+    try:
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER2_DN})')
+        assert len(cllist) > 0
+        if  cllist[0].present('changes'):
+            clstr = str(cllist[0].get_attr_vals_utf8('changes'))
+            assert ATTR_HOMEPHONE not in clstr
+            assert ATTR_CARLICENSE in clstr
+    except ldap.LDAPError as e:
+        log.fatal("Changelog search failed, error: " + str(e))
+        assert False
+
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
+def test_retrocl_exclude_attr_mod(topology_st):
+    """ Test exclude attribute feature of the retrocl plugin for mod operation
+
+    :id: f6bef689-685b-4f86-a98d-f7e6b1fcada3
+
+    :setup: Standalone instance
+
+    :steps:
+        1. Enable dynamic plugins
+        2. Confige retro changelog plugin
+        3. Add user1 entry
+        4. Ensure entry attrs are in the changelog
+        5. Exclude an attr
+        6. Modify user1 entry
+        7. Ensure excluded attr is not in the changelog
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+    """
+
+    st = topology_st.standalone
+
+    log.info('Configure retrocl plugin')
+    rcl = RetroChangelogPlugin(st)
+    rcl.disable()
+    rcl.enable()
+    rcl.replace('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
+
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
+
+    users = UserAccounts(st, DEFAULT_SUFFIX)
+
+    log.info('Adding user1')
+    try:
+        user1 = users.create(properties={
+            'sn': '1',
+            'cn': 'user 1',
+            'uid': 'user1',
+            'uidNumber': '11',
+            'gidNumber': '111',
+            'givenname': 'user1',
+            'homePhone': '0861234567',
+            'carLicense': '131D16674',
+            'mail': 'user1@whereever.com',
+            'homeDirectory': '/home/user1',
+            'userpassword': USER_PW})
+    except ldap.ALREADY_EXISTS:
+        user1 = UserAccount(st, dn=USER1_DN)
+    except ldap.LDAPError as e:
+        log.error("Failed to add user1: " + str(e))
+
+    log.info('Verify homePhone and carLicense attrs are in the changelog changestring')
+    try:
+        retro_changelog_suffix = DSLdapObjects(st, basedn=RETROCL_SUFFIX)
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
+    except ldap.LDAPError as e:
+        log.fatal("Changelog search failed, error: " + str(e))
+        assert False
+    assert len(cllist) > 0
+    if  cllist[0].present('changes'):
+        clstr = str(cllist[0].get_attr_vals_utf8('changes'))
+        assert ATTR_HOMEPHONE in clstr
+        assert ATTR_CARLICENSE in clstr
+
+    log.info('Excluding attribute ' + ATTR_CARLICENSE)
+    args = FakeArgs()
+    args.connections = [st.host + ':' + str(st.port) + ':' + DN_DM + ':' + PW_DM]
+    args.instance = 'standalone1'
+    args.basedn = None
+    args.binddn = None
+    args.starttls = False
+    args.pwdfile = None
+    args.bindpw = None
+    args.prompt = False
+    args.exclude_attrs = ATTR_CARLICENSE
+    args.max_age = None
+    args.func = retrochangelog_add
+    dsrc_inst = dsrc_arg_concat(args, None)
+    inst = connect_instance(dsrc_inst, False, args)
+    result = args.func(inst, None, log, args)
+    disconnect_instance(inst)
+    assert result is None
+
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
+
+    log.info('Modify user1 carLicense attribute')
+    try:
+        user1.replace(ATTR_CARLICENSE, "123WX321")
+    except ldap.LDAPError as e:
+        log.fatal('test_retrocl_exclude_attr_mod: Failed to update user1 attribute: error ' + e.message['desc'])
+        assert False
+
+    log.info('Verify carLicense attr is not in the changelog changestring')
+    try:
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
+        assert len(cllist) > 0
+        # There will be 2 entries in the changelog for this user, we are only
+        #interested in the second one, the modify operation.
+        if  cllist[1].present('changes'):
+            clstr = str(cllist[1].get_attr_vals_utf8('changes'))
+            assert ATTR_CARLICENSE not in clstr
+    except ldap.LDAPError as e:
+        log.fatal("Changelog search failed, error: " + str(e))
+        assert False
+
+
+def test_retrocl_trimming(topology_st):
+    """Test retrocl trimming works
+
+    :id: 54c6747f-6772-43b7-8b03-09e13fa0c205
+    :setup: Standalone Instance
+    :steps:
+        1. Enable Retro changelog
+        2. Add a bunch of entries
+        3. Configure trimming
+        4. Verify trimming occurred
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    inst = topology_st.standalone
+    # Configure plugin
+    log.info('Configure retrocl plugin')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    inst.restart()
+
+    # Do some updates
+    suffix = Domain(inst, DEFAULT_SUFFIX)
+    for idx in range(0, 10):
+        suffix.replace('description', str(idx))
+
+    # Setup trimming
+    rcl.replace('nsslapd-changelog-trim-interval', '2')
+    rcl.replace('nsslapd-changelogmaxage', '5s')
+    inst.config.set('nsslapd-errorlog-level', '65536') # plugin logging
+    inst.restart()
+
+    # Verify trimming occurs
+    time.sleep(5)
+    assert inst.searchErrorsLog("trim_changelog: removed ")
+
+    # Clean up
+    inst.config.set('nsslapd-errorlog-level', '0')
+
+def test_retrocl_trimming_interval(topology_st, request):
+    """Test retrocl trimming interval works
+
+    :id: 261a951d-8fe3-4b94-b933-c21806f795e7
+    :setup: Standalone Instance
+    :steps:
+        1. Enable Retro changelog
+        2. Configure trimming (trimming records older than 20sec)
+        3. Do a dummy update and wait 5sec
+        4. Do a extra updates
+        5. wait for 10sec and restart (after restart the dummy update will soon be trimmed)
+        6. wait 15sec so that the extra updates are trimmed
+        7. stop the instance
+        8. check that dummy/extra updates have been trimmed
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    inst = topology_st.standalone
+    # Configure plugin
+    log.info('Configure retrocl plugin')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.replace('nsslapd-include-suffix', DEFAULT_SUFFIX)
+    rcl.enable()
+    inst.restart()
+
+    # Do some updates
+    suffix = Domain(inst, DEFAULT_SUFFIX)
+
+    # Configure trimming
+    rcl.replace('nsslapd-changelog-trim-interval', '2')
+    rcl.replace('nsslapd-changelogmaxage', '20s')
+    inst.restart()
+
+    # this update will be the first one to be trimmed
+    # and will initialize in the last_trim time.
+    # This initialization is important to trigger the bug
+    # if not initialized it will trim immediately
+    suffix.replace('description', 'dummy')
+
+    # retrieve the index of the update in retroCL as
+    # starting point for the extra updates
+    try:
+        retro_changelog_suffix = DSLdapObjects(inst, basedn=RETROCL_SUFFIX)
+        cl_index = int(str(retro_changelog_suffix.filter(f'(targetDn={DEFAULT_SUFFIX})')[0].get_attr_vals_utf8('changeNumber')[0]))
+    except ldap.LDAPError as e:
+        log.fatal("Changelog search failed, error: " + str(e))
+        assert False
+    time.sleep(5)
+
+    # Those extra updates should be trimmed 5 sec after the previous one
+    for idx in range(0, 10):
+        suffix.replace('description', str(idx))
+
+    # wait for ~14s (sleep+stop+start), so the trimming
+    # of the first update occurs soon after the restart
+    time.sleep(10)
+    inst.config.set('nsslapd-plugin-logging', 'on')
+    inst.config.set('nsslapd-accesslog-level','260')
+    inst.stop()
+    inst.start()
+
+    # wait for an additional 15s.
+    # at that time we should have trim the extra updates
+    # checking both error logs and DEL operations in access logs
+    inst.config.set('nsslapd-errorlog-level', '65536') # plugin logging
+    time.sleep(15)
+    inst.stop()
+    assert inst.searchErrorsLog("trim_changelog: removed 9 change records")
+    for idx in range(cl_index+1,cl_index+10):
+        pattern="changenumber=%d,cn=changelog" % idx
+        assert inst.searchAccessLog(pattern)
+
+    # Clean up
+    inst.restart()
+
+    def fin():
+        inst.config.set('nsslapd-errorlog-level', '0')
+        inst.config.set('nsslapd-plugin-logging', 'off')
+        inst.config.set('nsslapd-accesslog-level','256')
+
+    request.addfinalizer(fin)
+
+
+def test_retrocl_trimming_entries(topology_st):
+    """Test retrocl trimming reduces changelog entries after maxage timeout
+
+    :id: d7b7cf72-f47c-4b43-b25d-10f7f0ad86f2
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog without trimming
+        2. Add multiple entries to create new changelog records
+        3. Verify we added the expected number of entries
+        4. Configure aggressive trimming settings and restart
+        5. Enable plugin logging and wait for trimming to occur
+        6. Verify changelog entries were reduced by checking error log and count
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    inst = topology_st.standalone
+    max_entries = 10
+
+    log.info('Enable retro changelog plugin without trimming')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    rcl.remove_all('nsslapd-changelogmaxage')
+    rcl.remove_all('nsslapd-changelog-trim-interval')
+    inst.restart()
+
+    log.info('Count existing changelog entries before test')
+    retro_changelog = DSLdapObjects(inst, basedn=RETROCL_SUFFIX)
+    initial_entries = retro_changelog.filter('(changenumber=*)')
+    initial_count = len(initial_entries)
+    log.info(f'Found {initial_count} existing changelog entries')
+
+    log.info(f'Add {max_entries} user entries to generate changelog records')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    for idx in range(max_entries):
+        user_name = f'trimtest{idx}'
+        users.create(properties={
+            'uid': user_name,
+            'cn': user_name,
+            'sn': user_name,
+            'uidNumber': str(3000 + idx),
+            'gidNumber': str(4000 + idx),
+            'homeDirectory': f'/home/{user_name}',
+            'userPassword': 'password'
+        })
+
+    log.info('Verify we added the expected number of changelog entries')
+    entries = retro_changelog.filter('(changenumber=*)')
+    new_count = len(entries)
+    added_entries = new_count - initial_count
+    assert added_entries == max_entries
+    log.info(f'Successfully added {added_entries} changelog entries (total: {new_count})')
+
+    log.info('Configure aggressive trimming: 10s maxage, 5s trim interval')
+    rcl.replace('nsslapd-changelogmaxage', '10s')
+    rcl.replace('nsslapd-changelog-trim-interval', '5s')
+
+    log.info('Enable plugin logging to monitor trimming')
+    inst.config.set('nsslapd-errorlog-level', '65536')
+    inst.restart()
+
+    log.info('Wait for entries to age and trimming to occur')
+    for attempt in range(1, 4):
+        time.sleep(6)
+        if inst.searchErrorsLog("trim_changelog: removed "):
+            log.info(f'Trimming detected after {attempt * 6} seconds')
+            break
+
+    log.info('Verify trimming occurred by checking error log')
+    assert inst.searchErrorsLog("trim_changelog: removed ")
+
+    log.info('Verify changelog entries have been reduced')
+    entries = retro_changelog.filter('(changenumber=*)')
+    final_count = len(entries)
+    assert final_count < new_count
+    log.info(f'Trimming successful: reduced from {new_count} to {final_count} entries')
+
+
+def test_retrocl_changelogmaxage_validation(topology_st):
+    """Verify retro changelog max age validation rejects invalid values
+
+    :id: 4fd38573-3718-4f03-8f32-fd0c9f52e0ac
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog plugin
+        2. Try setting invalid nsslapd-changelogmaxage values
+        3. Verify each invalid value is rejected with UNWILLING_TO_PERFORM
+        4. Try setting valid nsslapd-changelogmaxage values
+        5. Verify valid values are accepted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topology_st.standalone
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    inst.restart()
+
+    invalid_values = ["-1", "1", "d", "1dd", "-12W"]
+    valid_values = ["0", "1h", "1H", "1d", "2D", "1w", "2W", "1m", "2M"]
+
+    for value in invalid_values:
+        log.info(f"Verify invalid nsslapd-changelogmaxage value is rejected: {value}")
+        with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+            rcl.replace('nsslapd-changelogmaxage', value)
+
+    for value in valid_values:
+        log.info(f"Verify valid nsslapd-changelogmaxage value is accepted: {value}")
+        rcl.replace('nsslapd-changelogmaxage', value)
+
+
+def test_retrocl_trimming_shutdown_crash(topology_st):
+    """Test that shutting down while retrocl trimming is active does not crash
+
+    :id: a178e71b-2f3a-4b12-9c01-ef7d3a5b8c42
+    :setup: Standalone Instance
+    :steps:
+        1. Enable retro changelog with aggressive trimming settings
+        2. Generate changelog entries
+        3. Wait for entries to age past maxage
+        4. Perform multiple rapid stop/start cycles during trim activity
+        5. Check for disorderly shutdown (crash) after each cycle
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. No crash detected on any cycle
+        5. No crash detected
+    """
+    inst = topology_st.standalone
+    NUM_ENTRIES = 50
+    NUM_RESTART_CYCLES = 10
+
+    log.info('Enable retro changelog with aggressive trimming')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    rcl.replace('nsslapd-changelogmaxage', '5s')
+    rcl.replace('nsslapd-changelog-trim-interval', '1')
+    inst.restart()
+
+    log.info(f'Generate {NUM_ENTRIES} changelog entries')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    for idx in range(NUM_ENTRIES):
+        users.create(properties={
+            'uid': f'crashtest{idx}',
+            'cn': f'crashtest{idx}',
+            'sn': f'crashtest{idx}',
+            'uidNumber': str(5000 + idx),
+            'gidNumber': str(6000 + idx),
+            'homeDirectory': f'/home/crashtest{idx}',
+            'userPassword': 'password'
+        })
+
+    log.info('Wait for changelog entries to age past maxage')
+    time.sleep(6)
+
+    log.info(f'Perform {NUM_RESTART_CYCLES} rapid stop/start cycles')
+    for cycle in range(NUM_RESTART_CYCLES):
+        suffix = Domain(inst, DEFAULT_SUFFIX)
+        for j in range(5):
+            suffix.replace('description', f'cycle{cycle}_update{j}')
+
+        time.sleep(1)
+        inst.stop()
+
+        log.info(f'Cycle {cycle + 1}/{NUM_RESTART_CYCLES}: checking for crash')
+        assert not inst.detectDisorderlyShutdown(), \
+            f'Server crashed during shutdown cycle {cycle + 1}'
+
+        inst.start()
+
+    log.info('Final shutdown and crash check')
+    inst.stop()
+    assert not inst.detectDisorderlyShutdown(), \
+        'Server crashed during final shutdown'
+    inst.start()
+
+
+if __name__ == '__main__':
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

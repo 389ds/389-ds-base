@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -27,6 +27,8 @@
 #endif
 #endif /* solaris: mmap */
 #endif /* DB_USE_64LFS */
+
+#define BACKUP_CONFIG_DIR "config_files"
 
 #define DBLAYER_PAGESIZE (uint32_t)8 * 1024
 #define DBLAYER_INDEX_PAGESIZE (uint32_t)8 * 1024 /* With the new idl design,      \
@@ -57,17 +59,6 @@
 #define DBLAYER_LIB_VERSION_PRE_24 1
 #define DBLAYER_LIB_VERSION_POST_24 2
 
-/* Define constants from DB2.4 when using DB2.3 header file */
-#ifndef DB_TSL_SPINS
-#define DB_TSL_SPINS 21 /* DB: initialize spin count. */
-#endif
-#ifndef DB_REGION_INIT
-#define DB_REGION_INIT 24 /* DB: page-fault regions in create. */
-#endif
-#ifndef DB_REGION_NAME
-#define DB_REGION_NAME 25 /* DB: named regions, no backing file. */
-#endif
-
 typedef int dblayer_start_fn_t(struct ldbminfo *li, int flags);
 typedef int dblayer_close_fn_t(struct ldbminfo *li, int flags);
 typedef int dblayer_instance_start_fn_t(backend *be, int flags);
@@ -89,7 +80,7 @@ typedef int dblayer_set_info_fn_t(Slapi_Backend *be, int cmd, void **info);
 typedef int dblayer_back_ctrl_fn_t(Slapi_Backend *be, int cmd, void *info);
 typedef int dblayer_delete_db_fn_t(struct ldbminfo *li);
 typedef int dblayer_load_dse_fn_t(struct ldbminfo *li);
-typedef int dblayer_get_db_fn_t(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB **ppDB);
+typedef int dblayer_get_db_fn_t(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB);
 typedef int dblayer_rm_db_file_fn_t(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
 typedef int dblayer_import_fn_t(void *arg);
 typedef void dblayer_config_get_fn_t(struct ldbminfo *li, char *attrname, char *value);
@@ -100,6 +91,43 @@ typedef int instance_cleanup_fn_t(struct ldbm_instance *inst);
 typedef int instance_create_fn_t(struct ldbm_instance *inst);
 typedef int instance_search_callback_fn_t(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
 typedef int dblayer_auto_tune_fn_t(struct ldbminfo *li);
+typedef int dblayer_compact_fn_t(Slapi_Backend *be, PRBool just_changelog);
+
+typedef char *dblayer_get_db_filename_fn_t(dbi_db_t *db);
+typedef int dblayer_bulk_free_fn_t(dbi_bulk_t *bulkdata);
+typedef int dblayer_bulk_nextdata_fn_t(dbi_bulk_t *bulkdata, dbi_val_t *data);
+typedef int dblayer_bulk_nextrecord_fn_t(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data);
+typedef int dblayer_bulk_init_fn_t(dbi_bulk_t *bulkdata);
+typedef int dblayer_bulk_start_fn_t(dbi_bulk_t *bulkdata);
+typedef int dblayer_cursor_bulkop_fn_t(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata);
+typedef int dblayer_cursor_op_fn_t(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+typedef int dblayer_db_op_fn_t(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+typedef int dblayer_new_cursor_fn_t(dbi_db_t *db,  dbi_cursor_t *cursor);
+typedef int dblayer_value_alloc_fn_t(dbi_val_t *data, size_t size);
+typedef int dblayer_value_free_fn_t(dbi_val_t *data);
+typedef int dblayer_value_init_fn_t(dbi_val_t *data);
+typedef int dblayer_set_dup_cmp_fn_t(struct attrinfo *a, dbi_dup_cmp_t idx);
+typedef int dblayer_dbi_txn_begin_fn_t(dbi_env_t *dbenv, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn);
+typedef int dblayer_dbi_txn_commit_fn_t(dbi_txn_t *txn);
+typedef int dblayer_dbi_txn_abort_fn_t(dbi_txn_t *txn);
+typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, dbi_txn_t *txn, int *count);
+typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
+typedef int dblayer_private_open_fn_t(backend *be, const char *db_filename, int rw, dbi_env_t **env, dbi_db_t **db);
+typedef int dblayer_private_close_fn_t(struct ldbminfo *li, dbi_env_t **env, dbi_db_t **db);
+typedef int ldbm_back_wire_import_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_restore_file_init_fn_t(struct ldbminfo *li);
+typedef void dblayer_restore_file_update_fn_t(struct ldbminfo *li, const char *directory);
+typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
+typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
+typedef int dblayer_show_stat_fn_t(const char *dbhome, FILE *fout, FILE *ferr);
+typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
+typedef const char *dblayer_get_db_suffix_fn_t(void);
+typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *db);
+typedef int dblayer_dbi_db_remove_fn_t(backend *be, dbi_db_t *db);
+typedef IDList *dblayer_idl_new_fetch_fn_t(backend *be, dbi_db_t *db, dbi_val_t *inkey, dbi_txn_t *txn,
+                                  struct attrinfo *a, int *flag_err, int allidslimit);
+typedef int dblayer_cursor_iterate_fn_t(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
+                                        const dbi_val_t *startingkey, void *ctx);
 
 struct dblayer_private
 {
@@ -150,6 +178,40 @@ struct dblayer_private
     instance_create_fn_t *instance_register_monitor_fn;
     instance_search_callback_fn_t *instance_search_callback_fn;
     dblayer_auto_tune_fn_t *dblayer_auto_tune_fn;
+
+    dblayer_get_db_filename_fn_t *dblayer_get_db_filename_fn;
+    dblayer_bulk_free_fn_t *dblayer_bulk_free_fn;
+    dblayer_bulk_nextdata_fn_t *dblayer_bulk_nextdata_fn;
+    dblayer_bulk_nextrecord_fn_t *dblayer_bulk_nextrecord_fn;
+    dblayer_bulk_init_fn_t *dblayer_bulk_init_fn;
+    dblayer_bulk_start_fn_t *dblayer_bulk_start_fn;
+    dblayer_cursor_bulkop_fn_t *dblayer_cursor_bulkop_fn;
+    dblayer_cursor_op_fn_t *dblayer_cursor_op_fn;
+    dblayer_db_op_fn_t *dblayer_db_op_fn;
+    dblayer_new_cursor_fn_t *dblayer_new_cursor_fn;
+    dblayer_value_free_fn_t *dblayer_value_free_fn;
+    dblayer_value_init_fn_t *dblayer_value_init_fn;
+    dblayer_set_dup_cmp_fn_t *dblayer_set_dup_cmp_fn;
+    dblayer_dbi_txn_begin_fn_t *dblayer_dbi_txn_begin_fn;
+    dblayer_dbi_txn_commit_fn_t *dblayer_dbi_txn_commit_fn;
+    dblayer_dbi_txn_abort_fn_t *dblayer_dbi_txn_abort_fn;
+    dblayer_get_entries_count_fn_t *dblayer_get_entries_count_fn;
+    dblayer_cursor_get_count_fn_t *dblayer_cursor_get_count_fn;
+    dblayer_private_open_fn_t *dblayer_private_open_fn;
+    dblayer_private_close_fn_t *dblayer_private_close_fn;
+    ldbm_back_wire_import_fn_t *ldbm_back_wire_import_fn;
+    dblayer_restore_file_init_fn_t *dblayer_restore_file_init_fn;
+    dblayer_restore_file_update_fn_t *dblayer_restore_file_update_fn;
+    dblayer_import_file_check_fn_t *dblayer_import_file_check_fn;
+    dblayer_list_dbs_fn_t *dblayer_list_dbs_fn;
+    dblayer_show_stat_fn_t *dblayer_show_stat_fn;
+    dblayer_in_import_fn_t *dblayer_in_import_fn;
+    dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
+    dblayer_compact_fn_t *dblayer_compact_fn;
+    dblayer_clear_vlv_cache_fn_t *dblayer_clear_vlv_cache_fn;
+    dblayer_dbi_db_remove_fn_t *dblayer_dbi_db_remove_fn;
+    dblayer_idl_new_fetch_fn_t *dblayer_idl_new_fetch_fn;
+    dblayer_cursor_iterate_fn_t *dblayer_cursor_iterate_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -158,11 +220,11 @@ void dblayer_init_pvt_txn(void);
 void dblayer_push_pvt_txn(back_txn *txn);
 back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
+int dbimpl_setup(struct ldbminfo *li, const char *plgname);
+const char *dblayer_get_db_suffix(Slapi_Backend *be);
 
-void dblayer_log_print(const DB_ENV *dbenv, const char *prefix, const char *buffer);
-
-int dblayer_delete_indices(ldbm_instance *inst);
-
+int32_t ldbm_archive_config(char *dir, Slapi_Task *task);
+int32_t ldbm_restore_config(char *dir, Slapi_Task *task);
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

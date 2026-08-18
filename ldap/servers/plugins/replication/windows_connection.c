@@ -204,7 +204,7 @@ windows_conn_delete(Repl_Connection *conn)
     PR_ASSERT(NULL != conn);
     PR_Lock(conn->lock);
     if (conn->linger_active) {
-        if (slapi_eq_cancel(conn->linger_event) == 1) {
+        if (slapi_eq_cancel_rel(conn->linger_event) == 1) {
             /* Event was found and cancelled. Destroy the connection object. */
             PR_Unlock(conn->lock);
             destroy_it = PR_TRUE;
@@ -319,7 +319,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn, LDA
             repl5_stop_debug_timeout(eqctx, &setlevel);
             if (0 == rc) {
                 /* Timeout */
-                rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
+                slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
                 conn->last_ldap_error = LDAP_TIMEOUT;
                 return_value = CONN_TIMEOUT;
             } else if (-1 == rc) {
@@ -331,6 +331,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn, LDA
                               "windows_perform_operation - %s: Received error %d: %s for %s operation\n",
                               agmt_get_long_name(conn->agmt),
                               rc, s ? s : "NULL", op_string);
+                slapi_ch_free_string(&s);
                 conn->last_ldap_error = rc;
                 /* some errors will require a disconnect and retry the connection
                    later */
@@ -535,7 +536,7 @@ windows_LDAPMessage2Entry(Slapi_Entry *e, Repl_Connection *conn, LDAPMessage *ms
                         /* get the last count (high + 1) */
                         /* range=low-high */
                         pp = strchr(p, '-');
-                        if (*++pp == '*') {
+                        if (pp==NULL || *++pp == '*') {
                             high = 0; /* high is *; done! */
                         } else {
                             high = strtol(pp, &p, 10);
@@ -776,14 +777,26 @@ send_dirsync_search(Repl_Connection *conn)
         slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name, "send_dirsync_search - Calling dirsync search request plugin\n");
         userfilter = windows_private_get_windows_userfilter(conn->agmt);
         if (userfilter) {
-            filter = slapi_ch_strdup(userfilter);
+            /*
+             * When we have a userfilter, we encounter an issue where a previously
+             * matching object that is *deleted* that we had synced, was not being
+             * deleted. This is because in the unfiltered case, we relied on the
+             * objectClass=*  to get everything, but when we apply a filter we are
+             * removing items that were deleted, especially if they were members of
+             * a group. As a result, we need to *always* request the isDeleted flag
+             * so that we can correct delete any remnants on our side.
+             */
+            size_t buflen = 18 + strlen(userfilter);
+            filter = slapi_ch_calloc(1, buflen);
+            snprintf(filter, buflen, "(|(isDeleted=*)%s)", userfilter);
         } else {
             filter = slapi_ch_strdup("(objectclass=*)");
         }
 
         winsync_plugin_call_dirsync_search_params_cb(conn->agmt, old_dn, &dn, &scope, &filter,
                                                      &attrs, &server_controls);
-        slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name, "send_dirsync_search - Sending dirsync search request\n");
+        slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name, "send_dirsync_search - Sending dirsync search request %s %d %s\n",
+            dn, scope, filter);
 
         rc = ldap_search_ext(conn->ld, dn, scope, filter, attrs, PR_FALSE, server_controls,
                              NULL /* ClientControls */, 0, 0, &msgid);
@@ -1052,7 +1065,7 @@ windows_conn_cancel_linger(Repl_Connection *conn)
                       "windows_conn_cancel_linger - %s: Cancelling linger on the connection\n",
                       agmt_get_long_name(conn->agmt));
         conn->linger_active = PR_FALSE;
-        if (slapi_eq_cancel(conn->linger_event) == 1) {
+        if (slapi_eq_cancel_rel(conn->linger_event) == 1) {
             conn->refcnt--;
         }
         conn->linger_event = NULL;
@@ -1121,7 +1134,7 @@ windows_conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
         return;
     }
-    now = slapi_current_utc_time();
+    now = slapi_current_rel_time_t();
     PR_Lock(conn->lock);
     if (conn->linger_active) {
         slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -1129,7 +1142,7 @@ windows_conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
     } else {
         conn->linger_active = PR_TRUE;
-        conn->linger_event = slapi_eq_once(linger_timeout, conn, now + conn->linger_time);
+        conn->linger_event = slapi_eq_once_rel(linger_timeout, conn, now + conn->linger_time);
         conn->status = STATUS_LINGERING;
     }
     PR_Unlock(conn->lock);
@@ -1662,7 +1675,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
     if (rc == LDAP_SUCCESS) {
         if (conn->last_ldap_error != rc) {
             conn->last_ldap_error = rc;
-            slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_INFO, windows_repl_plugin_name,
                           "bind_and_check_pwp - %s: Replication bind with %s auth resumed\n",
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE");
@@ -1682,7 +1695,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                     if ((ctrls[i]->ldctl_value.bv_val != NULL) &&
                         (ctrls[i]->ldctl_value.bv_len > 0)) {
                         int password_expiring = atoi(ctrls[i]->ldctl_value.bv_val);
-                        slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+                        slapi_log_err(SLAPI_LOG_WARNING, windows_repl_plugin_name,
                                       "bind_and_check_pwp - %s: Successfully bound %s to consumer, "
                                       "but password is expiring on consumer in %d seconds.\n",
                                       agmt_get_long_name(conn->agmt), binddn, password_expiring);
@@ -1709,6 +1722,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg);
+            slapi_ch_free_string(&errmsg);
         } else {
             char *errmsg = NULL;
             /* errmsg is a pointer directly into the ld structure - do not free */
@@ -1718,6 +1732,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg);
+            slapi_ch_free_string(&errmsg);
         }
 
         slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= bind_and_check_pwp - CONN_OPERATION_FAILED\n");
@@ -1822,8 +1837,8 @@ repl5_start_debug_timeout(int *setlevel)
 
     if (s_debug_timeout && s_debug_level) {
         time_t now = time(NULL);
-        eqctx = slapi_eq_once(repl5_debug_timeout_callback, setlevel,
-                              s_debug_timeout + now);
+        eqctx = slapi_eq_once_rel(repl5_debug_timeout_callback, setlevel,
+                                  s_debug_timeout + now);
     }
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= repl5_start_debug_timeout\n");
     return eqctx;
@@ -1837,7 +1852,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> repl5_stop_debug_timeout\n");
 
     if (eqctx && !*setlevel) {
-        (void)slapi_eq_cancel(eqctx);
+        (void)slapi_eq_cancel_rel(eqctx);
     }
 
     if (s_debug_timeout && s_debug_level && *setlevel) {

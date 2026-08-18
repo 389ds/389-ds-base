@@ -231,6 +231,13 @@ venv
 .idea
 src/cockpit/389-console/cockpit_dist/
 src/cockpit/389-console/node_modules/
-ldap/servers/slapd/rust-slapi-private.h
 vendor
 vendor.tar.gz
+.history
+.vscode/launch.json
+.cargo/config
+/rs/
+/rust-nsslapd-private.h
+/rust-slapi-private.h
+/src/target
+src/lib389/lib389/tests/topologies.py

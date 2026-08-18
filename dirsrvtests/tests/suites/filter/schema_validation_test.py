@@ -9,7 +9,8 @@
 
 import pytest
 import ldap
-from lib389.topologies import topology_st as topology_st_pre
+import time
+from test389.topologies import topology_st as topology_st_pre
 from lib389.dirsrv_log import DirsrvAccessLog
 from lib389._mapped_object import DSLdapObjects
 from lib389._constants import DEFAULT_SUFFIX
@@ -36,7 +37,6 @@ def topology_st(topology_st_pre):
     return topology_st_pre
 
 
-@pytest.mark.ds50349
 def test_filter_validation_config(topology_st):
     """Test that the new on/warn/off setting can be set and read
     correctly
@@ -88,7 +88,6 @@ def test_filter_validation_config(topology_st):
     assert(initial_value == final_value)
 
 
-@pytest.mark.ds50349
 def test_filter_validation_enabled(topology_st):
     """Test that queries which are invalid, are correctly rejected by the server.
 
@@ -120,18 +119,17 @@ def test_filter_validation_enabled(topology_st):
 
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         # Check a bad complex one does emit an error.
-        r = raw_objects.filter("(&(a=a)(b=b)(objectClass=*))")
+        raw_objects.filter("(&(a=a)(b=b)(objectClass=*))")
 
     # Does restart work?
     inst.restart()
 
 
-@pytest.mark.ds50349
 def test_filter_validation_warn_safe(topology_st):
     """Test that queries which are invalid, are correctly marked as "notes=F" in
     the access log, and return no entries or partial sets.
 
-    :id: 8b2b23fe-d878-435c-bc84-8c298be4ca1f
+    :id: 7c8b3374-63c7-4201-9032-faae84c86d50
     :setup: Standalone instance
     :steps:
         1. Search a well formed query
@@ -148,6 +146,7 @@ def test_filter_validation_warn_safe(topology_st):
     inst.config.set("nsslapd-verify-filter-schema", "process-safe")
     # Set the access log to un-buffered so we get it immediately.
     inst.config.set("nsslapd-accesslog-logbuffering", "off")
+    time.sleep(.5)
 
     # Setup the query object.
     # Now we don't care if there are any results, we only care about good/bad queries.
@@ -162,6 +161,7 @@ def test_filter_validation_warn_safe(topology_st):
 
     # Check a good query has no warnings.
     r = raw_objects.filter("(objectClass=*)")
+    time.sleep(.5)
     assert(len(r) > 0)
     r_s1 = access_log.match(".*notes=F.*")
     # Should be the same number of log lines IE 0.
@@ -169,27 +169,29 @@ def test_filter_validation_warn_safe(topology_st):
 
     # Check a bad one DOES emit a warning.
     r = raw_objects.filter("(a=a)")
+    time.sleep(.5)
     assert(len(r) == 0)
     r_s2 = access_log.match(".*notes=F.*")
-    # Should be the greate number of log lines IE +1
+    # Should be the greater number of log lines IE +1
     assert(len(r_init) + 1 == len(r_s2))
 
     # Check a bad complex one does emit a warning.
     r = raw_objects.filter("(&(a=a)(b=b)(objectClass=*))")
+    time.sleep(.5)
     assert(len(r) == 0)
     r_s3 = access_log.match(".*notes=F.*")
-    # Should be the greate number of log lines IE +2
+    # Should be the greater number of log lines IE +2
     assert(len(r_init) + 2 == len(r_s3))
 
     # Check that we can still get things when partial
     r = raw_objects.filter("(|(a=a)(b=b)(uid=foo))")
+    time.sleep(.5)
     assert(len(r) == 1)
     r_s4 = access_log.match(".*notes=F.*")
     # Should be the greate number of log lines IE +2
     assert(len(r_init) + 3 == len(r_s4))
 
 
-@pytest.mark.ds50349
 def test_filter_validation_warn_unsafe(topology_st):
     """Test that queries which are invalid, are correctly marked as "notes=F" in
     the access log, and uses the legacy query behaviour to return unsafe sets.
@@ -211,6 +213,7 @@ def test_filter_validation_warn_unsafe(topology_st):
     inst.config.set("nsslapd-verify-filter-schema", "warn-invalid")
     # Set the access log to un-buffered so we get it immediately.
     inst.config.set("nsslapd-accesslog-logbuffering", "off")
+    time.sleep(.5)
 
     # Setup the query object.
     # Now we don't care if there are any results, we only care about good/bad queries.
@@ -225,6 +228,7 @@ def test_filter_validation_warn_unsafe(topology_st):
 
     # Check a good query has no warnings.
     r = raw_objects.filter("(objectClass=*)")
+    time.sleep(.5)
     assert(len(r) > 0)
     r_s1 = access_log.match(".*notes=(U,)?F.*")
     # Should be the same number of log lines IE 0.
@@ -232,23 +236,25 @@ def test_filter_validation_warn_unsafe(topology_st):
 
     # Check a bad one DOES emit a warning.
     r = raw_objects.filter("(a=a)")
+    time.sleep(.5)
     assert(len(r) == 1)
     # NOTE: Unlike warn-process-safely, these become UNINDEXED and show in the logs.
     r_s2 = access_log.match(".*notes=(U,)?F.*")
-    # Should be the greate number of log lines IE +1
+    # Should be the greater number of log lines IE +1
     assert(len(r_init) + 1 == len(r_s2))
 
     # Check a bad complex one does emit a warning.
     r = raw_objects.filter("(&(a=a)(b=b)(objectClass=*))")
+    time.sleep(.5)
     assert(len(r) == 1)
     r_s3 = access_log.match(".*notes=(U,)?F.*")
-    # Should be the greate number of log lines IE +2
+    # Should be the greater number of log lines IE +2
     assert(len(r_init) + 2 == len(r_s3))
 
     # Check that we can still get things when partial
     r = raw_objects.filter("(|(a=a)(b=b)(uid=foo))")
+    time.sleep(.5)
     assert(len(r) == 1)
     r_s4 = access_log.match(".*notes=(U,)?F.*")
-    # Should be the greate number of log lines IE +2
+    # Should be the greater number of log lines IE +2
     assert(len(r_init) + 3 == len(r_s4))
-

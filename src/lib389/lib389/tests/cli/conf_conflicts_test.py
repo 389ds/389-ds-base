@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,7 +16,7 @@ from lib389.cli_base import LogCapture, FakeArgs
 from lib389.utils import *
 from lib389._constants import *
 from lib389.idm.nscontainer import nsContainers
-from lib389.topologies import topology_m2 as topo
+from lib389.tests.topologies import topology_m2 as topo
 from lib389.cli_conf.conflicts import (list_conflicts, cmp_conflict, del_conflict, swap_conflict,
                                        convert_conflict, list_glue, del_glue, convert_glue)
 from lib389.utils import ds_is_older
@@ -41,7 +41,7 @@ def test_conflict_cli(topo):
     """Test manageing replication conflict entries
 
     :id: 800f432a-52ab-4661-ac66-a2bdd9b984d8
-    :setup: two masters
+    :setup: two supplers
     :steps:
         1. Create replication conflict entries
         2. List conflicts
@@ -74,8 +74,8 @@ def test_conflict_cli(topo):
     args.suffix = DEFAULT_SUFFIX
     args.json = True
 
-    m1 = topo.ms["master1"]
-    m2 = topo.ms["master2"]
+    m1 = topo.ms["supplier1"]
+    m2 = topo.ms["supplier2"]
 
     topo.pause_all_replicas()
 

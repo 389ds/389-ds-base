@@ -16,8 +16,31 @@ static int sync_preop_init(Slapi_PBlock *pb);
 static int sync_postop_init(Slapi_PBlock *pb);
 static int sync_be_postop_init(Slapi_PBlock *pb);
 static int sync_betxn_preop_init(Slapi_PBlock *pb);
+static int sync_persist_register_operation_extension(void);
 
 static PRUintn thread_primary_op;
+
+/*
+ * Destructor for the per-thread primary operation list HEAD node.
+ * Called by NSPR when a thread exits, to free the HEAD node
+ * and any remaining linked list entries.
+ */
+static void
+sync_thread_primary_op_destructor(void *priv)
+{
+    OPERATION_PL_CTX_T *head = (OPERATION_PL_CTX_T *)priv;
+    if (head) {
+        OPERATION_PL_CTX_T *curr_op = head->next;
+        while (curr_op) {
+            OPERATION_PL_CTX_T *next = curr_op->next;
+            slapi_entry_free(curr_op->entry);
+            slapi_entry_free(curr_op->eprev);
+            slapi_ch_free((void **)&curr_op);
+            curr_op = next;
+        }
+        slapi_ch_free((void **)&head);
+    }
+}
 
 int
 sync_init(Slapi_PBlock *pb)
@@ -25,7 +48,7 @@ sync_init(Slapi_PBlock *pb)
     char *plugin_identity = NULL;
     int rc = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
                   "--> sync_init\n");
 
     /**
@@ -43,7 +66,8 @@ sync_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
                          (void *)sync_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *)&pdesc) != 0) {
+                         (void *)&pdesc) != 0 ||
+        sync_persist_register_operation_extension()) {
         slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
                       "sync_init - Failed to register plugin\n");
         rc = 1;
@@ -168,11 +192,35 @@ sync_start(Slapi_PBlock *pb)
 {
     int argc;
     char **argv;
+    Slapi_Entry *e = NULL;
+    PRBool allow_openldap_compat = PR_FALSE;
 
     slapi_register_supported_control(LDAP_CONTROL_SYNC,
                                      SLAPI_OPERATION_SEARCH);
-    slapi_log_err(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
                   "--> sync_start\n");
+
+    if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "    sync_start, no config found, that's okay 👍\n");
+    }
+
+    if (e) {
+        /* Do we allow openldap sync? */
+        Slapi_Attr *chattr = NULL;
+        if (slapi_entry_attr_find(e, SYNC_ALLOW_OPENLDAP_COMPAT, &chattr) == 0) {
+            Slapi_Value *sval = NULL;
+            slapi_attr_first_value(chattr, &sval);
+
+            const struct berval *value = slapi_value_get_berval(sval);
+            if (NULL != value && NULL != value->bv_val && '\0' != value->bv_val[0]) {
+                if (strcasecmp(value->bv_val, "on") == 0) {
+                    allow_openldap_compat = PR_TRUE;
+                }
+            }
+        }
+    }
+
+    sync_register_allow_openldap_compat(allow_openldap_compat);
 
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc) != 0 ||
         slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv) != 0) {
@@ -185,8 +233,8 @@ sync_start(Slapi_PBlock *pb)
      * only contains one operation. For nested, the list contains the operations
      * in the order that they were applied
      */
-    PR_NewThreadPrivateIndex(&thread_primary_op, NULL);
-    sync_persist_initialize(argc, argv);
+    PR_NewThreadPrivateIndex(&thread_primary_op, sync_thread_primary_op_destructor);
+    sync_persist_initialize(argc, argv, e);
 
     return (0);
 }
@@ -242,4 +290,64 @@ set_thread_primary_op(OPERATION_PL_CTX_T *op)
         PR_SetThreadPrivate(thread_primary_op, (void *) head);
     }
     head->next = op;
+}
+
+/* The following definitions are used for the operation pending list
+ * (used by sync_repl). To retrieve a specific operation in the pending
+ * list, the operation extension contains the index of the operation in
+ * the pending list
+ */
+static int sync_persist_extension_type;   /* initialized in sync_persist_register_operation_extension */
+static int sync_persist_extension_handle; /* initialized in sync_persist_register_operation_extension */
+
+op_ext_ident_t *
+sync_persist_get_operation_extension(Slapi_PBlock *pb)
+{
+    Slapi_Operation *op;
+    op_ext_ident_t *ident;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    ident = slapi_get_object_extension(sync_persist_extension_type, op,
+                                       sync_persist_extension_handle);
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_get_operation_extension operation (op=0x%lx) -> %d\n",
+                    (ulong) op, ident ? ident->idx_pl : -1);
+    return (op_ext_ident_t *) ident;
+
+}
+
+void
+sync_persist_set_operation_extension(Slapi_PBlock *pb, op_ext_ident_t *op_ident)
+{
+    Slapi_Operation *op;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_set_operation_extension operation (op=0x%lx) -> %d\n",
+                    (ulong) op, op_ident ? op_ident->idx_pl : -1);
+    slapi_set_object_extension(sync_persist_extension_type, op,
+                               sync_persist_extension_handle, (void *)op_ident);
+}
+/* operation extension constructor */
+static void *
+sync_persist_operation_extension_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    /* we only set the extension value explicitly in sync_update_persist_betxn_pre_op */
+    return NULL; /* we don't set anything in the ctor */
+}
+
+/* consumer operation extension destructor */
+static void
+sync_persist_operation_extension_destructor(void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    op_ext_ident_t *op_ident = (op_ext_ident_t *)ext;
+    slapi_ch_free((void **)&op_ident);
+}
+static int
+sync_persist_register_operation_extension(void)
+{
+    return slapi_register_object_extension(SYNC_PLUGIN_SUBSYSTEM,
+                                           SLAPI_EXT_OPERATION,
+                                           sync_persist_operation_extension_constructor,
+                                           sync_persist_operation_extension_destructor,
+                                           &sync_persist_extension_type,
+                                           &sync_persist_extension_handle);
 }

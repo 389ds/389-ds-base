@@ -1,25 +1,39 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { ConfirmPopup } from "./lib/notifications.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { BackupTable } from "./lib/database/databaseTables.jsx";
-import { BackupModal, RestoreModal, DeleteBackupModal } from "./lib/database/backups.jsx";
-import { log_cmd, bad_file_name, valid_dn, valid_port } from "./lib/tools.jsx";
-
+import { BackupModal } from "./lib/database/backups.jsx";
 import {
-    FormControl,
-    FormGroup,
-    ControlLabel,
-    Form,
-    noop,
+    log_cmd,
+    bad_file_name,
+    valid_dn,
+    valid_db_name,
+    callCmdStreamPassword,
+    getApiErrorMessage,
+    replaceFileContent
+} from "./lib/tools.jsx";
+import {
+    Button,
     Checkbox,
-    Spinner,
-    Row,
+    Form,
+    FormHelperText,
+    FormSelect,
+    FormSelectOption,
+    HelperText,
+    HelperTextItem,
+    Grid,
+    GridItem,
     Modal,
-    Icon,
-    Col,
-    Button
-} from "patternfly-react";
+    ModalVariant,
+    NumberInput,
+    TextInput,
+    ValidatedOptions,
+    Spinner,
+} from "@patternfly/react-core";
+import { LogViewer } from '@patternfly/react-log-viewer';
+
+const _ = cockpit.gettext;
 
 export class CreateInstanceModal extends React.Component {
     constructor(props) {
@@ -38,49 +52,39 @@ export class CreateInstanceModal extends React.Component {
             createInitDB: "noInit",
             loadingCreate: false,
             createOK: false,
+            createBuffer: "",
+            createCompleted: false,
             modalMsg: "",
             errObj: {},
         };
 
+        this.maxValue = 65535;
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validate() });
+        };
+        this.onConfigChange = (event, id, min) => {
+            const newValue = isNaN(event.target.value) ? min : Number(event.target.value);
+            this.setState({
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
+            }, () => { this.validate() });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validate() });
+        };
+
         this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.createInstance = this.createInstance.bind(this);
+        this.validate = this.validate.bind(this);
+        this.handleCreateInstance = this.handleCreateInstance.bind(this);
         this.validInstName = this.validInstName.bind(this);
         this.validRootDN = this.validRootDN.bind(this);
-        this.resetModal = this.resetModal.bind(this);
-    }
-
-    componentDidMount() {
-        this.resetModal();
-    }
-
-    resetModal() {
-        this.setState({
-            createServerId: "",
-            createPort: 389,
-            createSecurePort: 636,
-            createDM: "cn=Directory Manager",
-            createDMPassword: "",
-            createDMPasswordConfirm: "",
-            createDBCheckbox: false,
-            createDBSuffix: "",
-            createDBName: "",
-            createTLSCert: true,
-            createInitDB: "noInit",
-            loadingCreate: false,
-            createOK: false,
-            modalMsg: "",
-            errObj: {
-                createServerId: true,
-                createDMPassword: true,
-                createDMPasswordConfirm: true,
-                createDBSuffix: false,
-                createDBName: false,
-            },
-        });
     }
 
     validInstName(name) {
-        return /^[\w@_:-]*$/.test(name);
+        return /^(?!-)[\w#%@_:-]*$/.test(name);
     }
 
     validRootDN(dn) {
@@ -92,206 +96,84 @@ export class CreateInstanceModal extends React.Component {
         // Check that the attr is only letters  [A-Za-z]+  and the value does not
         // start with a space (?=\\S) AND all the characters are standard
         // ascii ([ -~]+)
-        let dn_regex = new RegExp("^([A-Za-z]+=(?=\\S)([ -~]+)$)");
-
-        let result = dn_regex.test(dn);
+        const dn_regex = /^([A-Za-z]+=(?=\\S)([ -~]+)$)/;
+        const result = dn_regex.test(dn);
         return result;
     }
 
-    handleFieldChange(e) {
-        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        let target_id = e.target.id;
-        let valueErr = false;
-        let errObj = this.state.errObj;
+    validate() {
         let all_good = true;
-        let modal_msg = "";
+        let createServerIdMsg = "";
+        const errObj = {};
 
-        errObj[target_id] = valueErr;
-        if (target_id == 'createServerId') {
-            if (value == "") {
+        const reqAttrs = [
+            'createServerId', 'createDM', 'createDMPassword', 'createDMPasswordConfirm'
+        ];
+
+        const dnAttrs = [
+            'createDM'
+        ];
+
+        // Handle server ID
+        if (this.state.createServerId !== "") {
+            if (this.state.createServerId.length > 80) {
                 all_good = false;
-                errObj['createServerId'] = true;
-            } else if (value.length > 80) {
+                errObj.createServerId = true;
+                createServerIdMsg = _("Instance name must be less than 80 characters");
+            } else if (!this.validInstName(this.state.createServerId)) {
                 all_good = false;
-                errObj['createServerId'] = true;
-                modal_msg = "Instance name must be less than 80 characters";
-            } else if (!this.validInstName(value)) {
-                all_good = false;
-                errObj['createServerId'] = true;
-                modal_msg = "Instance name can only contain letters, numbers, and these 4 characters:  - @ : _";
+                errObj.createServerId = true;
+                createServerIdMsg = _("Instance name can only contain letters, numbers, and these characters: % # - @ : _");
             }
-        } else if (this.state.createServerId == "") {
-            all_good = false;
-            errObj['createServerId'] = true;
-        } else if (!this.validInstName(this.state.createServerId)) {
-            all_good = false;
-            errObj['createServerId'] = true;
-            modal_msg = "Not all required fields have values";
-        }
-        if (target_id == 'createPort') {
-            if (value == "") {
-                all_good = false;
-                errObj['createPort'] = true;
-            } else if (!valid_port(value)) {
-                all_good = false;
-                errObj['createPort'] = true;
-                modal_msg = "Invalid Port number.  The port must be between 1 and 65535";
-            }
-        } else if (this.state.createPort == "") {
-            all_good = false;
-            errObj['createPort'] = true;
-        } else if (!valid_port(this.state.createPort)) {
-            all_good = false;
-            errObj['createPort'] = true;
-            modal_msg = "Invalid Port number.  The port must be between 1 and 65535";
-        }
-        if (target_id == 'createSecurePort') {
-            if (value == "") {
-                all_good = false;
-                errObj['createSecurePort'] = true;
-            } else if (!valid_port(value)) {
-                all_good = false;
-                errObj['createSecurePort'] = true;
-                modal_msg = "Invalid Secure Port number.  Port must be between 1 and 65535";
-            }
-        } else if (this.state.createSecurePort == "") {
-            all_good = false;
-            errObj['createSecurePort'] = true;
-        }
-        if (target_id == 'createDM') {
-            if (value == "") {
-                all_good = false;
-                errObj['createDM'] = true;
-            }
-            if (!this.validRootDN(value)) {
-                all_good = false;
-                errObj['createDM'] = true;
-                modal_msg = "Invalid DN for Directory Manager";
-            }
-        } else if (this.state.createDM == "") {
-            all_good = false;
-            errObj['createDM'] = true;
-        } else if (!this.validRootDN(this.state.createDM)) {
-            all_good = false;
-            errObj['createDM'] = true;
-            modal_msg = "Invalid DN for Directory Manager";
-        }
-        if (e.target.id == 'createDMPassword') {
-            if (value == "") {
-                all_good = false;
-                errObj['createDMPassword'] = true;
-            } else if (value != this.state.createDMPasswordConfirm) {
-                all_good = false;
-                errObj['createDMPassword'] = true;
-                errObj['createDMPasswordConfirm'] = true;
-                modal_msg = "Passwords Do Not Match";
-            } else if (value.length < 8) {
-                all_good = false;
-                errObj['createDMPassword'] = true;
-                modal_msg = "Directory Manager password must be at least 8 characters long";
-            } else {
-                errObj['createDMPassword'] = false;
-                errObj['createDMPasswordConfirm'] = false;
-            }
-        } else if (this.state.createDMPassword == "") {
-            all_good = false;
-            errObj['createDMPasswordConfirm'] = true;
-        }
-        if (e.target.id == 'createDMPasswordConfirm') {
-            if (value == "") {
-                all_good = false;
-                errObj['createDMPasswordConfirm'] = true;
-            } else if (value != this.state.createDMPassword) {
-                all_good = false;
-                errObj['createDMPassword'] = true;
-                errObj['createDMPasswordConfirm'] = true;
-                modal_msg = "Passwords Do Not Match";
-            } else if (value.length < 8) {
-                all_good = false;
-                errObj['createDMPasswordConfirm'] = true;
-                modal_msg = "Directory Manager password must be at least 8 characters long";
-            } else {
-                errObj['createDMPassword'] = false;
-                errObj['createDMPasswordConfirm'] = false;
-            }
-        } else if (this.state.createDMPasswordConfirm == "") {
-            all_good = false;
-            errObj['createDMPasswordConfirm'] = true;
         }
 
-        // Optional settings
-        if (target_id == 'createDBCheckbox') {
-            if (!value) {
-                errObj['createDBSuffix'] = false;
-                errObj['createDBName'] = false;
-            } else {
-                if (this.state.createDBSuffix == "") {
-                    all_good = false;
-                    errObj['createDBSuffix'] = true;
-                } else if (!valid_dn(this.state.createDBSuffix)) {
-                    all_good = false;
-                    errObj['createDBSuffix'] = true;
-                    modal_msg = "Invalid DN for suffix";
-                }
-                if (this.state.createDBName == "") {
-                    all_good = false;
-                    errObj['createDBName'] = true;
-                } else if (!valid_dn(this.state.createDBName)) {
-                    all_good = false;
-                    errObj['createDBName'] = true;
-                    modal_msg = "Invalid name for database";
-                }
+        for (const attr of reqAttrs) {
+            if (this.state[attr] === "") {
+                all_good = false;
+                errObj[attr] = true;
             }
-        } else if (this.state.createDBCheckbox) {
-            if (target_id == 'createDBSuffix') {
-                if (value == "") {
-                    all_good = false;
-                    errObj['createDBSuffix'] = true;
-                } else if (!valid_dn(value)) {
-                    all_good = false;
-                    errObj['createDBSuffix'] = true;
-                    modal_msg = "Invalid DN for suffix";
-                }
-            } else if (this.state.createDBSuffix == "") {
+        }
+
+        for (const attr of dnAttrs) {
+            if (this.state[attr] !== "" && !valid_dn(this.state[attr])) {
                 all_good = false;
-                errObj['createDBSuffix'] = true;
-            } else if (!valid_dn(this.state.createDBSuffix)) {
-                all_good = false;
-                errObj['createDBSuffix'] = true;
-                modal_msg = "Invalid DN for suffix";
+                errObj[attr] = true;
             }
-            if (target_id == 'createDBName') {
-                if (value == "") {
-                    all_good = false;
-                    errObj['createDBName'] = true;
-                } else if (/\s/.test(value)) {
-                    // name has some kind of white space character
-                    all_good = false;
-                    errObj['createDBName'] = true;
-                    modal_msg = "Database name can not contain any spaces";
-                }
-            } else if (this.state.createDBName == "") {
+        }
+
+        if (this.state.createDMPassword !== this.state.createDMPasswordConfirm ||
+            this.state.createDMPassword.length < 8) {
+            all_good = false;
+            errObj.createDMPassword = true;
+            errObj.createDMPasswordConfirm = true;
+        }
+
+        if (this.state.createDBCheckbox) {
+            if (!valid_db_name(this.state.createDBName)) {
                 all_good = false;
-                errObj['createDBName'] = true;
-            } else if (/\s/.test(this.state.createDBName)) {
-                all_good = false;
-                errObj['createDBName'] = true;
-                modal_msg = "Invalid database name";
+                errObj["createDBName"] = true;
             }
-        } else {
-            errObj['createDBSuffix'] = false;
-            errObj['createDBName'] = false;
+            if (!valid_dn(this.state.createDBSuffix)) {
+                all_good = false;
+                errObj.createDBSuffix = true;
+            }
         }
 
         this.setState({
-            [target_id]: value,
-            errObj: errObj,
             createOK: all_good,
-            modalMsg: modal_msg,
+            createServerIdMsg,
+            errObj
         });
     }
 
-    createInstance() {
+    handleFieldChange(e) {
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value,
+        }, () => { this.validate() });
+    }
+
+    handleCreateInstance() {
         const {
             createServerId,
             createPort,
@@ -305,7 +187,12 @@ export class CreateInstanceModal extends React.Component {
             createDBCheckbox
         } = this.state;
         const { closeHandler, addNotification, loadInstanceList } = this.props;
-
+        let self_sign = "False";
+        if (createTLSCert) {
+            self_sign = "True";
+        }
+        let newServerId = createServerId;
+        newServerId = newServerId.replace(/^slapd-/i, ""); // strip "slapd-"
         let setup_inf =
             "[general]\n" +
             "config_version = 2\n" +
@@ -313,27 +200,12 @@ export class CreateInstanceModal extends React.Component {
             "[slapd]\n" +
             "user = dirsrv\n" +
             "group = dirsrv\n" +
-            "instance_name = INST_NAME\n" +
-            "port = PORT\n" +
-            "root_dn = ROOTDN\n" +
-            "root_password = ROOTPW\n" +
-            "secure_port = SECURE_PORT\n" +
-            "self_sign_cert = SELF_SIGN\n";
-
-        // Server ID
-        let newServerId = createServerId;
-        newServerId = newServerId.replace(/^slapd-/i, ""); // strip "slapd-"
-        setup_inf = setup_inf.replace("INST_NAME", newServerId);
-        setup_inf = setup_inf.replace("PORT", createPort);
-        setup_inf = setup_inf.replace("SECURE_PORT", createSecurePort);
-        setup_inf = setup_inf.replace("ROOTDN", createDM);
-        setup_inf = setup_inf.replace("ROOTPW", createDMPassword);
-        // Setup Self-Signed Certs
-        if (createTLSCert) {
-            setup_inf = setup_inf.replace("SELF_SIGN", "True");
-        } else {
-            setup_inf = setup_inf.replace("SELF_SIGN", "False");
-        }
+            "instance_name = " + newServerId + "\n" +
+            "port = " + createPort + "\n" +
+            "root_dn = " + createDM + "\n" +
+            // "root_password = ROOTPW\n" +
+            "secure_port = " + createSecurePort + "\n" +
+            "self_sign_cert = " + self_sign + "\n";
 
         if (createDBCheckbox) {
             setup_inf += "\n[backend-" + createDBName + "]\nsuffix = " + createDBSuffix + "\n";
@@ -356,115 +228,147 @@ export class CreateInstanceModal extends React.Component {
          * [6] Remove setup file
          */
         this.setState({
-            loadingCreate: true
+            loadingCreate: true,
+            createBuffer: ""
         });
+        const hostname_cmd = ["hostnamectl", "status", "--static"];
+        log_cmd("handleCreateInstance", "Get FQDN ...", hostname_cmd);
         cockpit
-                .spawn(["hostnamectl", "status", "--static"], { superuser: true, err: "message" })
+                .spawn(hostname_cmd, { superuser: "require", err: "message" })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loadingCreate: false
                     });
-                    addNotification("error", `Failed to get hostname!", ${errMsg.desc}`);
+                    addNotification("error", cockpit.format(_("Failed to get hostname! $0"), errMsg));
                 })
                 .done(data => {
                     /*
                      * We have FQDN, so set the hostname in inf file, and create the setup file
                      */
+                    if (data.trim() === "") {
+                        data = "localhost.localdomain";
+                    }
                     setup_inf = setup_inf.replace("FQDN", data);
-                    let setup_file = "/tmp/389-setup-" + new Date().getTime() + ".inf";
-                    let rm_cmd = ["rm", setup_file];
-                    let create_file_cmd = ["touch", setup_file];
-                    log_cmd("createInstance", "Setting FQDN...", create_file_cmd);
+                    const setup_file = "/tmp/389-setup-" + new Date().getTime() + ".inf";
+                    const rm_cmd = ["rm", setup_file];
+                    const create_file_cmd = ["touch", setup_file];
+                    log_cmd("handleCreateInstance", "Setting FQDN...", create_file_cmd);
                     cockpit
-                            .spawn(create_file_cmd, { superuser: true, err: "message" })
+                            .spawn(create_file_cmd, { superuser: "require", err: "message" })
                             .fail(err => {
                                 this.setState({
                                     loadingCreate: false
                                 });
                                 addNotification(
                                     "error",
-                                    `Failed to create installation file!" ${err.message}`
+                                    cockpit.format(_("Failed to create installation file! $0"), err.message)
                                 );
                             })
-                            .done(_ => {
+                            .done(() => {
                                 /*
                                  * We have our new setup file, now set permissions on that setup file before we add sensitive data
                                  */
-                                let chmod_cmd = ["chmod", "600", setup_file];
-                                log_cmd("createInstance", "Setting initial INF file permissions...", chmod_cmd);
+                                const chmod_cmd = ["chmod", "600", setup_file];
+                                log_cmd("handleCreateInstance", "Setting initial INF file permissions...", chmod_cmd);
                                 cockpit
-                                        .spawn(chmod_cmd, { superuser: true, err: "message" })
+                                        .spawn(chmod_cmd, { superuser: "require", err: "message" })
                                         .fail(err => {
-                                            cockpit.spawn(rm_cmd, { superuser: true, err: "message" }); // Remove Inf file with clear text password
+                                            cockpit.spawn(rm_cmd, { superuser: "require", err: "message" }); // Remove Inf file with clear text password
                                             this.setState({
                                                 loadingCreate: false
                                             });
                                             addNotification(
                                                 "error",
-                                                `Failed to set permissions on setup file ${setup_file}: ${err.message}`
+                                                cockpit.format(_("Failed to set permissions on setup file $0: $1"), setup_file, err.message)
                                             );
                                         })
-                                        .done(_ => {
+                                        .done(() => {
                                             /*
                                              * Success we have our setup file and it has the correct permissions.
                                              * Now populate the setup file...
                                              */
-                                            let cmd = [
-                                                "/bin/sh",
-                                                "-c",
-                                                '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file
-                                            ];
+                                            const setupFileContent = setup_inf.endsWith("\n")
+                                                ? setup_inf
+                                                : setup_inf + "\n";
                                             // Do not log inf file as it contains the DM password
-                                            log_cmd("createInstance", "Apply changes to INF file...", "");
-                                            cockpit
-                                                    .spawn(cmd, { superuser: true, err: "message" })
+                                            log_cmd("handleCreateInstance", "Apply changes to INF file...", [setup_file]);
+                                            replaceFileContent(setup_file, setupFileContent)
                                                     .fail(err => {
                                                         this.setState({
                                                             loadingCreate: false
                                                         });
                                                         addNotification(
                                                             "error",
-                                                            `Failed to populate installation file! ${err.message}`
+                                                            cockpit.format(_("Failed to populate installation file! $0"), err.message)
                                                         );
                                                     })
-                                                    .done(_ => {
-                                                        /*
-                                                         * Next, create the instance...
-                                                         */
-                                                        let cmd = ["dscreate", "-j", "from-file", setup_file];
-                                                        log_cmd("createInstance", "Creating instance...", cmd);
+                                                    .done(() => {
+                                                        const final_chmod_cmd = ["chmod", "600", setup_file];
+                                                        log_cmd("handleCreateInstance", "Reset INF file permissions after write...", final_chmod_cmd);
                                                         cockpit
-                                                                .spawn(cmd, {
-                                                                    superuser: true,
-                                                                    err: "message"
-                                                                })
+                                                                .spawn(final_chmod_cmd, { superuser: "require", err: "message" })
                                                                 .fail(err => {
-                                                                    let errMsg = JSON.parse(err);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
+                                                                    cockpit.spawn(rm_cmd, { superuser: "require", err: "message" }); // Remove Inf file with clear text password
                                                                     this.setState({
                                                                         loadingCreate: false
                                                                     });
                                                                     addNotification(
                                                                         "error",
-                                                                        `${errMsg.desc}`
+                                                                        cockpit.format(_("Failed to set permissions on setup file $0: $1"), setup_file, err.message)
                                                                     );
                                                                 })
-                                                                .done(_ => {
-                                                                    // Success!!!  Now cleanup everything up...
-                                                                    log_cmd("createInstance", "Instance creation compelete, clean everything up...", rm_cmd);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
-                                                                    this.setState({
-                                                                        loadingCreate: false
-                                                                    });
+                                                                .done(() => {
+                                                                    /*
+                                                                     * Next, create the instance...
+                                                                     */
+                                                                    const cmd = ["dscreate", "-j", "from-file", setup_file];
+                                                                    log_cmd("handleCreateInstance", "Creating instance...", cmd);
+                                                                    cockpit
+                                                                            .spawn(cmd, {
+                                                                                superuser: "require",
+                                                                                err: "message"
+                                                                            })
+                                                                            .fail(err => {
+                                                                                const errMsg = getApiErrorMessage(err.message);
+                                                                                cockpit.spawn(rm_cmd, { superuser: "require" }); // Remove Inf file with clear text password
+                                                                                this.setState({
+                                                                                    loadingCreate: false
+                                                                                });
+                                                                                addNotification(
+                                                                                    "error",
+                                                                                    `${errMsg}`
+                                                                                );
+                                                                            })
+                                                                            .done(() => {
+                                                                                // Success!!!  Now set Root DN pw, and cleanup everything up...
+                                                                                log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
+                                                                                cockpit.spawn(rm_cmd, { superuser: "require" });
 
-                                                                    loadInstanceList(createServerId);
-                                                                    addNotification(
-                                                                        "success",
-                                                                        `Successfully created instance: slapd-${createServerId}`
-                                                                    );
-                                                                    closeHandler();
-                                                                    this.resetModal();
+                                                                                const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
+                                                                                    'directory_manager', 'password_change'];
+                                                                                const config = {
+                                                                                    cmd: dm_pw_cmd,
+                                                                                    promptArg: "",
+                                                                                    passwd: createDMPassword,
+                                                                                    addNotification,
+                                                                                    success_msg: cockpit.format(_("Successfully created instance: slapd-$0"), createServerId),
+                                                                                    error_msg: _("Failed to set Directory Manager password"),
+                                                                                    state_callback: () => { this.setState({ loadingCreate: false }) },
+                                                                                    reload_func: loadInstanceList,
+                                                                                    reload_arg: createServerId,
+                                                                                    ext_func: closeHandler,
+                                                                                    ext_arg: "",
+                                                                                    funcName: "handleCreateInstance",
+                                                                                    funcDesc: _("Set Directory Manager password...")
+                                                                                };
+                                                                                callCmdStreamPassword(config);
+                                                                            })
+                                                                            .stream(line => {
+                                                                                this.setState({
+                                                                                    createBuffer: this.state.createBuffer + line
+                                                                                });
+                                                                            });
                                                                 });
                                                     });
                                         });
@@ -489,271 +393,322 @@ export class CreateInstanceModal extends React.Component {
             createTLSCert,
             createInitDB,
             createOK,
-            modalMsg,
+            createBuffer,
             errObj,
         } = this.state;
-        let errMsgClass = "";
-        let errMsg = "";
-        let createSpinner = "";
+
+        let saveBtnName = _("Create Instance");
+        const extraPrimaryProps = {};
         if (loadingCreate) {
-            createSpinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
-                        Creating instance...
-                    </div>
-                </Row>
-            );
+            saveBtnName = _("Creating Instance ...");
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
-        if (modalMsg == "") {
-            // No errors, but to keep the modal nice and stable during input
-            // field validation we need "invisible" text to keep the modal form
-            // from jumping up and down.
-            errMsgClass = "ds-clear-text";
-            errMsg = "no errors";
-        } else {
-            // We have error text to report
-            errMsgClass = "ds-modal-error";
-            errMsg = modalMsg;
+        let createBufferItem = null;
+        if (createBuffer !== "") {
+            createBufferItem = <LogViewer
+                data={createBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={createBuffer.length}
+                height="200px"
+            />;
         }
-
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
+            <Modal
+                variant={ModalVariant.medium}
+                title={_("Create New Server Instance")}
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={this.handleCreateInstance}
+                        isDisabled={!createOK || loadingCreate}
+                        isLoading={loadingCreate}
+                        spinnerAriaValueText={loadingCreate ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button
+                        key="close"
+                        variant="link"
+                        onClick={closeHandler}
+                        isDisabled={loadingCreate}
+                    >
+                        {_("Close")}
+                    </Button>
+                ]}
+            >
+                <div className={loadingCreate ? "ds-disabled" : ""}>
+                    <Form isHorizontal autoComplete="off">
+                        <Grid className="ds-margin-top"
+                            title={_("The instance name, this is what gets appended to 'slapd-'. The instance name can only contain letters, numbers, and: # % @ : - _")}
                         >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title className="ds-center">Create New Server Instance</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal>
-                            <Row>
-                                <Col className="ds-center" sm={12}>
-                                    <p className={errMsgClass}>{errMsg}</p>
-                                </Col>
-                            </Row>
-                            <FormGroup controlId="createServerId" className="ds-margin-top-lg">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and:  # @ : - _"
-                                >
-                                    Instance Name
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createServerId"
-                                        type="text"
-                                        placeholder="Your_Instance_Name"
-                                        value={createServerId}
-                                        onChange={this.handleFieldChange}
-                                        className={errObj.createServerId ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createPort">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The server port number"
-                                >
-                                    Port
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createPort"
-                                        type="number"
-                                        min="0"
-                                        max="65535"
-                                        value={createPort}
-                                        onChange={this.handleFieldChange}
-                                        className={errObj.createPort ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createSecurePort">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The secure port number for TLS connections"
-                                >
-                                    Secure Port
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createSecurePort"
-                                        type="number"
-                                        min="0"
-                                        max="65535"
-                                        value={createSecurePort}
-                                        onChange={this.handleFieldChange}
-                                        className={errObj.createSecurePort ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createTLSCert">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="Create a self-signed certificate database"
-                                >
-                                    Create Self-Signed TLS Certificate
-                                </Col>
-                                <Col sm={7}>
-                                    <Checkbox
-                                        id="createTLSCert"
-                                        checked={createTLSCert}
-                                        onChange={this.handleFieldChange}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDM">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The DN for the unrestricted user"
-                                >
-                                    Directory Manager DN
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        type="text"
-                                        id="createDM"
-                                        onChange={this.handleFieldChange}
-                                        value={createDM}
-                                        className={errObj.createDM ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDMPassword">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="Directory Manager password."
-                                >
-                                    Directory Manager Password
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createDMPassword"
-                                        type="password"
-                                        placeholder="Enter password"
-                                        onChange={this.handleFieldChange}
-                                        value={createDMPassword}
-                                        className={errObj.createDMPassword ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDMPasswordConfirm">
-                                <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
-                                    Confirm Password
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createDMPasswordConfirm"
-                                        type="password"
-                                        placeholder="Confirm password"
-                                        onChange={this.handleFieldChange}
-                                        value={createDMPasswordConfirm}
-                                        className={errObj.createDMPasswordConfirm ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <hr />
-                            <FormGroup controlId="createDBCheckbox">
-                                <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
-                                    <Checkbox
-                                        id="createDBCheckbox"
-                                        checked={createDBCheckbox}
-                                        onChange={this.handleFieldChange}
-                                    >
-                                        Create Database
-                                    </Checkbox>
-                                </Col>
-                            </FormGroup>
-                            <FormGroup className="ds-margin-top-lg" controlId="createDBSuffix">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)"
-                                >
-                                    Database Suffix
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
+                            <GridItem className="ds-label" span={4}>
+                                {_("Instance Name")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <TextInput
+                                    value={createServerId}
+                                    type="text"
+                                    id="createServerId"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="createServerId"
+                                    onChange={(e, str) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={errObj.createServerId ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                {errObj.createServerId &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                {this.state.createServerIdMsg}
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("The server port number should be in the range of 0 to 65534")}>
+                            <GridItem className="ds-label" span={4}>
+                                {_("Port")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <NumberInput
+                                    value={createPort}
+                                    min={1}
+                                    max={65534}
+                                    onMinus={() => { this.onMinusConfig("createPort") }}
+                                    onChange={(e) => { this.onConfigChange(e, "createPort", 0) }}
+                                    onPlus={() => { this.onPlusConfig("createPort") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                                <FormHelperText className="ds-info-color" >
+                                    <HelperText>
+                                        <HelperTextItem variant={"indeterminate"}>
+                                            {_("Port 0 will disable non-TLS connections")}
+                                        </HelperTextItem>
+                                    </HelperText>
+                                </FormHelperText>
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("The secure port number for TLS connections. It should be in the range of 1 to 65534")}>
+                            <GridItem className="ds-label" span={4}>
+                                {_("Secure Port")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <NumberInput
+                                    value={createSecurePort}
+                                    min={1}
+                                    max={65534}
+                                    onMinus={() => { this.onMinusConfig("createSecurePort") }}
+                                    onChange={(e) => { this.onConfigChange(e, "createSecurePort", 1) }}
+                                    onPlus={() => { this.onPlusConfig("createSecurePort") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Create a self-signed certificate database in /etc/dirsrc/ssca directory")}>
+                            <GridItem className="ds-label-checkbox" span={4}>
+                                {_("Create Self-Signed TLS Certificate")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Checkbox
+                                    id="createTLSCert"
+                                    isChecked={createTLSCert}
+                                    onChange={(e, checked) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("The DN for the unrestricted user")}>
+                            <GridItem className="ds-label" span={4}>
+                                {_("Directory Manager DN")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <TextInput
+                                    value={createDM}
+                                    type="text"
+                                    id="createDM"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="createDM"
+                                    onChange={(e, str) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={errObj.createDM ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                {errObj.createDM &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                {_("Enter a valid DN")}
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Directory Manager password must be at least 8 characters in length")}>
+                            <GridItem className="ds-label" span={4}>
+                                {_("Directory Manager Password")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <TextInput
+                                    value={createDMPassword}
+                                    type="password"
+                                    id="createDMPassword"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="createDMPassword"
+                                    onChange={(e, str) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={errObj.createDMPassword ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                {errObj.createDMPassword &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                Password must be set with at least 8 characters, and it must match the confirmation password
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid title={_("Confirm the previously entered password")}>
+                            <GridItem className="ds-label" span={4}>
+                                {_("Confirm Password")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <TextInput
+                                    value={createDMPasswordConfirm}
+                                    type="password"
+                                    id="createDMPasswordConfirm"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="createDMPasswordConfirm"
+                                    onChange={(e, str) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={errObj.createDMPasswordConfirm ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                {errObj.createDMPasswordConfirm &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                Confirmation password must be set with at least 8 characters, and it must match the first password
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top" title={_("Create a database during the installation")}>
+                            <Checkbox
+                                id="createDBCheckbox"
+                                label={_("Create Database")}
+                                isChecked={createDBCheckbox}
+                                onChange={(e, checked) => {
+                                    this.handleFieldChange(e);
+                                }}
+                            />
+                        </Grid>
+                        <div className={createDBCheckbox ? "" : "ds-hidden"}>
+                            <Grid title={_("Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distinguished Name (DN)")}>
+                                <GridItem className="ds-label" offset={1} span={3}>
+                                    {_("Database Suffix")}
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <TextInput
+                                        value={createDBSuffix}
+                                        placeholder="e.g. dc=company,dc=com"
                                         type="text"
                                         id="createDBSuffix"
-                                        placeholder="e.g. dc=example,dc=com"
-                                        onChange={this.handleFieldChange}
-                                        value={createDBSuffix}
-                                        disabled={!createDBCheckbox}
-                                        className={errObj.createDBSuffix ? "ds-input-bad" : ""}
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="createDBSuffix"
+                                        isDisabled={!createDBCheckbox}
+                                        onChange={(e, str) => {
+                                            this.handleFieldChange(e);
+                                        }}
+                                        validated={errObj.createDBSuffix ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDBName">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
-                                >
-                                    Database Name
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
+                                    {errObj.createDBSuffix &&
+                                        <FormHelperText>
+                                            <HelperText>
+                                                <HelperTextItem variant="error">
+                                                    {_("Value must be a valid DN")}
+                                                </HelperTextItem>
+                                            </HelperText>
+                                        </FormHelperText>
+                                    }
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" title={_("The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends")}>
+                                <GridItem className="ds-label" offset={1} span={3}>
+                                    {_("Database Name")}
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <TextInput
+                                        value={createDBName}
+                                        placeholder="e.g. userRoot"
                                         type="text"
                                         id="createDBName"
-                                        placeholder="e.g. userRoot"
-                                        onChange={this.handleFieldChange}
-                                        value={createDBName}
-                                        disabled={!createDBCheckbox}
-                                        className={errObj.createDBName ? "ds-input-bad" : ""}
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="createDBName"
+                                        isDisabled={!createDBCheckbox}
+                                        onChange={(e, str) => {
+                                            this.handleFieldChange(e);
+                                        }}
+                                        validated={errObj.createDBName ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup
-                                key="createInitDB"
-                                controlId="createInitDB"
-                            >
-                                <Col componentClass={ControlLabel} sm={5}>
-                                    Database Initialization
-                                </Col>
-                                <Col sm={7}>
-                                    <select
-                                        className="btn btn-default dropdown"
+                                    {errObj.createDBName &&
+                                        <FormHelperText >
+                                            <HelperText>
+                                                <HelperTextItem variant="error">
+                                                    {createDBName === "" ? _("Name is required") : "Invalid database name"}
+                                                </HelperTextItem>
+                                            </HelperText>
+                                        </FormHelperText>
+                                    }
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" >
+                                <GridItem className="ds-label" offset={1} span={3}>
+                                    {_("Database Initialization")}
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <FormSelect
                                         id="createInitDB"
-                                        onChange={this.handleFieldChange}
-                                        disabled={!createDBCheckbox}
                                         value={createInitDB}
+                                        onChange={(event, value) => {
+                                            this.handleFieldChange(event);
+                                        }}
+                                        aria-label="FormSelect Input"
+                                        isDisabled={!createDBCheckbox}
                                     >
-                                        <option value="noInit">Do Not Initialize Database</option>
-                                        <option value="createSuffix">Create Suffix Entry</option>
-                                        <option value="createSample">Create Sample Entries</option>
-                                    </select>
-                                </Col>
-                            </FormGroup>
-                        </Form>
-                        {createSpinner}
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={this.createInstance}
-                            disabled={!createOK}
-                        >
-                            Create Instance
-                        </Button>
-                    </Modal.Footer>
+                                        <FormSelectOption key="1" value="noInit" label={_("Do Not Initialize Database")} />
+                                        <FormSelectOption key="2" value="createSuffix" label={_("Create Suffix Entry")} />
+                                        <FormSelectOption key="3" value="createSample" label={_("Create Sample Entries")} />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                        </div>
+                        {createBufferItem}
+                        <div className={createDBCheckbox ? "ds-margin-top ds-margin-bottom" : "ds-margin-top ds-margin-bottom-md"} />
+                    </Form>
                 </div>
             </Modal>
         );
@@ -768,7 +723,7 @@ export class SchemaReloadModal extends React.Component {
             loadingSchemaTask: false
         };
 
-        this.reloadSchema = this.reloadSchema.bind(this);
+        this.handleReloadSchema = this.handleReloadSchema.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
     }
 
@@ -778,7 +733,7 @@ export class SchemaReloadModal extends React.Component {
         });
     }
 
-    reloadSchema(e) {
+    handleReloadSchema(e) {
         const { addNotification, serverId, closeHandler } = this.props;
         const { reloadSchemaDir } = this.state;
 
@@ -786,23 +741,23 @@ export class SchemaReloadModal extends React.Component {
             loadingSchemaTask: true
         });
 
-        let cmd = ["dsconf", "-j", serverId, "schema", "reload", "--wait"];
+        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket", "schema", "reload", "--wait"];
         if (reloadSchemaDir !== "") {
             cmd = [...cmd, "--schemadir", reloadSchemaDir];
         }
-        log_cmd("reloadSchemaDir", "Reload schema files", cmd);
+        log_cmd("handleReloadSchema", "Reload schema files", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(data => {
-                    addNotification("success", "Successfully reloaded schema");
+                    addNotification("success", _("Successfully reloaded schema"));
                     this.setState({
                         loadingSchemaTask: false
                     });
                     closeHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    addNotification("error", `Failed to reload schema files - ${errMsg.desc}`);
+                    const errMsg = getApiErrorMessage(err);
+                    addNotification("error", cockpit.format(_("Failed to reload schema files - $0"), errMsg));
                     closeHandler();
                 });
     }
@@ -814,56 +769,51 @@ export class SchemaReloadModal extends React.Component {
         let spinner = "";
         if (loadingSchemaTask) {
             spinner = (
-                <Row>
+                <Grid>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />
+                        <Spinner size="lg" />
                         Reloading schema files...
                     </div>
-                </Row>
+                </Grid>
             );
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>Reload Schema Files</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="The name of the database link.">
-                                <Col sm={3}>
-                                    <ControlLabel>Schema File Directory:</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        id="reloadSchemaDir"
-                                        value={reloadSchemaDir}
-                                        onChange={this.handleFieldChange}
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button bsStyle="primary" onClick={this.reloadSchema}>
-                            Reload Schema
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title={_("Reload Schema Files")}
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={this.handleReloadSchema}>
+                        {_("Reload Schema")}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        {_("Cancel")}
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <Grid title={_("The name of the database link.")}>
+                        <GridItem className="ds-label" span={3}>
+                            Schema File Directory
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={reloadSchemaDir}
+                                type="text"
+                                id="reloadSchemaDir"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="reloadSchemaDir"
+                                onChange={(e, str) => {
+                                    this.handleFieldChange(e);
+                                }}
+                            />
+                        </GridItem>
+                    </Grid>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -879,17 +829,21 @@ export class ManageBackupsModal extends React.Component {
             showConfirmRestore: false,
             showConfirmRestoreReplace: false,
             showConfirmLDIFReplace: false,
-            showRestoreSpinningModal: false,
-            showDelBackupSpinningModal: false,
             showBackupModal: false,
             backupSpinning: false,
+            refreshing: false,
             backupName: "",
             deleteBackup: "",
-            errObj: {}
+            modalSpinning: false,
+            modalChecked: false,
+            errObj: {},
+            backupBuffer: "",
+            backupCompleted: false,
+            restoreCompleted: false,
         };
 
         this.handleNavSelect = this.handleNavSelect.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
 
         // Backups
         this.doBackup = this.doBackup.bind(this);
@@ -901,12 +855,8 @@ export class ManageBackupsModal extends React.Component {
         this.closeConfirmBackup = this.closeConfirmBackup.bind(this);
         this.showConfirmBackupDelete = this.showConfirmBackupDelete.bind(this);
         this.closeConfirmBackupDelete = this.closeConfirmBackupDelete.bind(this);
-        this.showBackupModal = this.showBackupModal.bind(this);
+        this.handleShowBackupModal = this.handleShowBackupModal.bind(this);
         this.closeBackupModal = this.closeBackupModal.bind(this);
-        this.showRestoreSpinningModal = this.showRestoreSpinningModal.bind(this);
-        this.closeRestoreSpinningModal = this.closeRestoreSpinningModal.bind(this);
-        this.showDelBackupSpinningModal = this.showDelBackupSpinningModal.bind(this);
-        this.closeDelBackupSpinningModal = this.closeDelBackupSpinningModal.bind(this);
         this.validateBackup = this.validateBackup.bind(this);
         this.closeConfirmRestoreReplace = this.closeConfirmRestoreReplace.bind(this);
     }
@@ -917,78 +867,70 @@ export class ManageBackupsModal extends React.Component {
         });
     }
 
-    showDelBackupSpinningModal() {
-        this.setState({
-            showDelBackupSpinningModal: true
-        });
-    }
-
-    closeDelBackupSpinningModal() {
-        this.setState({
-            showDelBackupSpinningModal: false
-        });
-    }
-
-    showRestoreSpinningModal() {
-        this.setState({
-            showRestoreSpinningModal: true
-        });
-    }
-
-    closeRestoreSpinningModal() {
-        this.setState({
-            showRestoreSpinningModal: false
-        });
-    }
-
-    showBackupModal() {
+    handleShowBackupModal() {
         this.setState({
             showBackupModal: true,
             backupSpinning: false,
-            backupName: ""
+            backupName: "",
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
     closeBackupModal() {
         this.setState({
-            showBackupModal: false
+            showBackupModal: false,
+            backupBuffer: "",
+            backupCompleted: false,
         });
     }
 
-    showConfirmBackup(item) {
+    showConfirmBackup(name) {
         // call deleteLDIF
         this.setState({
             showConfirmBackup: true,
-            backupName: item.name
+            backupName: name,
+            modalChecked: false,
+            modalSpinning: false,
+            backupCompleted: false,
         });
     }
 
     closeConfirmBackup() {
         // call importLDIF
         this.setState({
-            showConfirmBackup: false
+            showConfirmBackup: false,
+            backupCompleted: false,
         });
     }
 
-    showConfirmRestore(item) {
+    showConfirmRestore(name) {
         this.setState({
             showConfirmRestore: true,
-            backupName: item.name
+            backupName: name,
+            modalChecked: false,
+            modalSpinning: false,
+            backupBuffer: ""
         });
     }
 
     closeConfirmRestore() {
         // call importLDIF
         this.setState({
-            showConfirmRestore: false
+            showConfirmRestore: false,
+            modalSpinning: false,
+            modalChecked: false,
+            backupBuffer: ""
         });
     }
 
-    showConfirmBackupDelete(item) {
+    showConfirmBackupDelete(name) {
         // calls deleteBackup
         this.setState({
             showConfirmBackupDelete: true,
-            backupName: item.name
+            backupName: name,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
@@ -1007,7 +949,7 @@ export class ManageBackupsModal extends React.Component {
 
     validateBackup() {
         for (let i = 0; i < this.props.backups.length; i++) {
-            if (this.state.backupName == this.props.backups[i]["name"]) {
+            if (this.state.backupName === this.props.backups[i].name) {
                 this.setState({
                     showConfirmRestoreReplace: true
                 });
@@ -1019,117 +961,189 @@ export class ManageBackupsModal extends React.Component {
 
     doBackup() {
         this.setState({
-            backupSpinning: true
+            backupSpinning: true,
+            backupBuffer: ""
         });
 
-        let cmd = ["dsctl", "-j", this.props.serverId, "status"];
+        const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
-                .spawn(cmd, { superuser: true })
+                .spawn(cmd, { superuser: "require" })
                 .done(status_data => {
-                    let status_json = JSON.parse(status_data);
-                    if (status_json.running == true) {
-                        let cmd = [
+                    const status_json = JSON.parse(status_data);
+                    if (status_json.running === true) {
+                        const cmd = [
                             "dsconf",
                             "-j",
                             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                             "backup",
                             "create"
                         ];
-                        if (this.state.backupName != "") {
+                        if (this.state.backupName !== "") {
                             if (bad_file_name(this.state.backupName)) {
                                 this.props.addNotification(
                                     "warning",
-                                    `Backup name should not be a path.  All backups are stored in the server's backup directory`
+                                    _("Backup name should not be a path.  All backups are stored in the server's backup directory")
                                 );
                                 return;
                             }
                             cmd.push(this.state.backupName);
                         }
+                        cmd.push("--watch");
 
+                        let backupBuffer = "";
                         log_cmd("doBackup", "Add backup task online", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
                                     this.props.reload();
-                                    this.closeBackupModal();
-                                    this.props.addNotification("success", `Server has been backed up`);
+                                    this.setState({
+                                        backupCompleted: true,
+                                        backupSpinning: false,
+                                    });
+                                    const cmd = [
+                                        "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                                        "config", "get", "nsslapd-bakdir"
+                                    ];
+                                    log_cmd("doBackup", "Get the backup directory", cmd);
+                                    cockpit
+                                            .spawn(cmd, { superuser: "require", err: "message" })
+                                            .done(content => {
+                                                const config = JSON.parse(content);
+                                                const attrs = config.attrs;
+                                                this.props.addNotification(
+                                                    "success",
+                                                    cockpit.format(_("Server has been backed up. You can find the backup in $0 directory on the server machine."), attrs['nsslapd-bakdir'][0])
+                                                );
+                                            })
+                                            .fail(err => {
+                                                const errMsg = getApiErrorMessage(err);
+                                                this.props.addNotification(
+                                                    "error",
+                                                    cockpit.format(_("Error while trying to get the server's backup directory - $0"), errMsg)
+                                                );
+                                                this.setState({
+                                                    backupBuffer: "",
+                                                    backupCompleted: true,
+                                                });
+                                            });
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.props.reload();
-                                    this.closeBackupModal();
+                                    this.setState({
+                                        backupCompleted: true,
+                                        backupSpinning: false,
+                                    });
                                     this.props.addNotification(
                                         "error",
-                                        `Failure backing up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure backing up server - $0"), errMsg)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     } else {
+                        let backupBuffer = "";
                         const cmd = ["dsctl", "-j", this.props.serverId, "db2bak"];
-                        if (this.state.backupName != "") {
+                        if (this.state.backupName !== "") {
                             if (bad_file_name(this.state.backupName)) {
                                 this.props.addNotification(
                                     "warning",
-                                    `Backup name should not be a path.  All backups are stored in the server's backup directory`
+                                    _("Backup name should not be a path.  All backups are stored in the server's backup directory")
                                 );
                                 return;
                             }
                             cmd.push(this.state.backupName);
                         }
+                        cmd.push("--watch");
+
                         log_cmd("doBackup", "Doing backup of the server offline", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
                                     this.props.reload();
-                                    this.closeBackupModal();
-                                    this.props.addNotification("success", `Server has been backed up`);
+                                    this.setState({
+                                        backupCompleted: true,
+                                        backupSpinning: false,
+                                    });
+                                    this.props.addNotification("success", _("Server has been backed up"));
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.props.reload();
-                                    this.closeBackupModal();
+                                    this.setState({
+                                        backupCompleted: true,
+                                        backupSpinning: false,
+                                    });
                                     this.props.addNotification(
                                         "error",
-                                        `Failure backing up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure backing up server - $0"), errMsg)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    console.log("Failed to check the server status", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("Failed to check the server status", errMsg);
                 });
     }
 
     restoreBackup() {
-        this.showRestoreSpinningModal();
-        let cmd = ["dsctl", "-j", this.props.serverId, "status"];
+        this.setState({
+            modalSpinning: true,
+            backupBuffer: ""
+        });
+        let backupBuffer = "";
+        const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
-                .spawn(cmd, { superuser: true })
+                .spawn(cmd, { superuser: "require" })
                 .done(status_data => {
-                    let status_json = JSON.parse(status_data);
-                    if (status_json.running == true) {
+                    const status_json = JSON.parse(status_data);
+                    if (status_json.running === true) {
                         const cmd = [
                             "dsconf",
                             "-j",
                             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                             "backup",
                             "restore",
-                            this.state.backupName
+                            this.state.backupName,
+                            "--watch"
                         ];
                         log_cmd("restoreBackup", "Restoring server online", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
-                                    this.closeRestoreSpinningModal();
-                                    this.props.addNotification("success", `Server has been restored`);
+                                    this.setState({
+                                        restoreCompleted: true,
+                                        modalSpinning: false,
+                                    });
+                                    this.props.addNotification("success", _("Server has been restored"));
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
-                                    this.closeRestoreSpinningModal();
+                                    const errMsg = getApiErrorMessage(err);
+                                    this.setState({
+                                        restoreCompleted: true,
+                                        modalSpinning: false,
+                                    });
                                     this.props.addNotification(
                                         "error",
-                                        `Failure restoring up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure restoring up server - $0"), errMsg)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     } else {
                         const cmd = [
@@ -1137,35 +1151,48 @@ export class ManageBackupsModal extends React.Component {
                             "-j",
                             this.props.serverId,
                             "bak2db",
-                            this.state.backupName
+                            this.state.backupName,
+                            "--watch"
                         ];
                         log_cmd("restoreBackup", "Restoring server offline", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                                 .done(content => {
-                                    this.closeRestoreSpinningModal();
-                                    this.props.addNotification("success", `Server has been restored`);
+                                    this.setState({
+                                        restoreCompleted: true,
+                                        modalSpinning: false,
+                                    });
+                                    this.props.addNotification("success", _("Server has been restored"));
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
-                                    this.closeRestoreSpinningModal();
+                                    const errMsg = getApiErrorMessage(err);
+                                    this.setState({
+                                        restoreCompleted: true,
+                                        modalSpinning: false,
+                                    });
                                     this.props.addNotification(
                                         "error",
-                                        `Failure restoring up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure restoring up server - $0"), errMsg)
                                     );
+                                })
+                                .stream(data => {
+                                    backupBuffer += data;
+                                    this.setState({
+                                        backupBuffer: backupBuffer
+                                    });
                                 });
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    console.log("Failed to check the server status", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("Failed to check the server status", errMsg);
                 });
     }
 
     deleteBackup(e) {
-        // Show confirmation
-        this.showDelBackupSpinningModal();
-
+        this.setState({
+            modalSpinning: true,
+        });
         const cmd = [
             "dsctl",
             "-j",
@@ -1176,17 +1203,21 @@ export class ManageBackupsModal extends React.Component {
         ];
         log_cmd("deleteBackup", "Deleting backup", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload();
-                    this.closeDelBackupSpinningModal();
-                    this.props.addNotification("success", `Backup was successfully deleted`);
+                    this.setState({
+                        modalSpinning: false,
+                    });
+                    this.props.addNotification("success", _("Backup was successfully deleted"));
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload();
-                    this.closeDelBackupSpinningModal();
-                    this.props.addNotification("error", `Failure deleting backup - ${errMsg.desc}`);
+                    this.setState({
+                        modalSpinning: false,
+                    });
+                    this.props.addNotification("error", cockpit.format(_("Failure deleting backup - $0"), errMsg));
                 });
     }
 
@@ -1194,118 +1225,104 @@ export class ManageBackupsModal extends React.Component {
         this.setState({ activeKey: key });
     }
 
-    handleChange(e) {
+    onModalChange(e) {
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
+        const errObj = this.state.errObj;
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
     render() {
-        const { showModal, closeHandler, backups, reload, loadingBackup } = this.props;
+        const { showModal, closeHandler, backups } = this.props;
 
-        let backupSpinner = "";
-        if (loadingBackup) {
-            backupSpinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
-                        Creating instance...
-                    </div>
-                </Row>
-            );
+        let bufferItem = null;
+        if (this.state.backupBuffer !== "") {
+            bufferItem = <LogViewer
+                data={this.state.backupBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.backupBuffer.length}
+                height="200px"
+            />;
         }
 
         return (
             <div>
-                <Modal show={showModal} onHide={closeHandler}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={closeHandler}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Manage Backups</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <div className="ds-margin-top-xlg">
-                                <BackupTable
-                                    rows={backups}
-                                    confirmRestore={this.showConfirmRestore}
-                                    confirmDelete={this.showConfirmBackupDelete}
-                                />
-                            </div>
-                            {backupSpinner}
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.showBackupModal}
-                                className="ds-margin-top"
-                            >
-                                Create Backup
-                            </Button>
-                            <Button
-                                bsStyle="default"
-                                onClick={reload}
-                                className="ds-left-margin ds-margin-top"
-                            >
-                                Refresh Backups
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={_("Manage Backups")}
+                    aria-labelledby="ds-modal"
+                    isOpen={showModal}
+                    onClose={closeHandler}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.handleShowBackupModal}>
+                            {_("Create Backup")}
+                        </Button>,
+                    ]}
+                >
+                    <BackupTable
+                        className="ds-margin-top-xlg"
+                        rows={backups}
+                        key={backups}
+                        confirmRestore={this.showConfirmRestore}
+                        confirmDelete={this.showConfirmBackupDelete}
+                    />
                 </Modal>
                 <BackupModal
                     showModal={this.state.showBackupModal}
                     closeHandler={this.closeBackupModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onModalChange}
                     saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
+                    watchBuffer={bufferItem}
                     error={this.state.errObj}
+                    backupCompleted={this.state.backupCompleted}
                 />
-                <RestoreModal
-                    showModal={this.state.showRestoreSpinningModal}
-                    closeHandler={this.closeRestoreSpinningModal}
-                    msg={this.state.backupName}
-                />
-                <DeleteBackupModal
-                    showModal={this.state.showDelBackupSpinningModal}
-                    closeHandler={this.closeDelBackupSpinningModal}
-                    msg={this.state.backupName}
-                />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmRestore}
                     closeHandler={this.closeConfirmRestore}
-                    actionFunc={this.restoreBackup}
-                    actionParam={this.state.backupName}
-                    msg="Are you sure you want to restore this backup?"
-                    msgContent={this.state.backupName}
+                    handleChange={this.onModalChange}
+                    actionHandler={this.restoreBackup}
+                    spinning={this.state.modalSpinning}
+                    item={bufferItem ? bufferItem : this.state.backupName}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Restore Backup")}
+                    mMsg={_("Are you sure you want to restore this backup?")}
+                    mSpinningMsg={_("Restoring ...")}
+                    mBtnName={this.state.restoreCompleted ? null : _("Restore Backup")}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmBackupDelete}
                     closeHandler={this.closeConfirmBackupDelete}
-                    actionFunc={this.deleteBackup}
-                    actionParam={this.state.backupName}
-                    msg="Are you sure you want to delete this backup?"
-                    msgContent={this.state.backupName}
+                    handleChange={this.onModalChange}
+                    actionHandler={this.deleteBackup}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.backupName}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Delete Backup")}
+                    mMsg={_("Are you sure you want to delete this backup?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete Backup")}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmRestoreReplace}
                     closeHandler={this.closeConfirmRestoreReplace}
-                    actionFunc={this.doBackup}
-                    msg="Replace Existing Backup"
-                    msgContent="A backup already eixsts with the same name, do you want to replace it?"
+                    handleChange={this.onModalChange}
+                    actionHandler={this.deleteBackup}
+                    spinning={this.state.modalSpinning}
+                    item={bufferItem ? bufferItem : this.state.backupName}
+                    checked={this.state.modalChecked}
+                    mTitle={_("Replace Existing Backup")}
+                    mMsg={_(" backup already eixsts with the same name, do you want to replace it?")}
+                    mSpinningMsg={_("Replacing ...")}
+                    mBtnName={_("Replace Backup")}
                 />
             </div>
         );
@@ -1323,9 +1340,6 @@ CreateInstanceModal.propTypes = {
 
 CreateInstanceModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    addNotification: noop,
-    loadInstanceList: noop
 };
 
 SchemaReloadModal.propTypes = {
@@ -1337,8 +1351,6 @@ SchemaReloadModal.propTypes = {
 
 SchemaReloadModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    addNotification: noop,
     serverId: ""
 };
 
@@ -1351,7 +1363,5 @@ ManageBackupsModal.propTypes = {
 
 ManageBackupsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    addNotification: noop,
     serverId: ""
 };

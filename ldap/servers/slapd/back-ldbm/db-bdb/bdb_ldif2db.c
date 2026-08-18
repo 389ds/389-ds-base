@@ -19,12 +19,14 @@
 
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
-#include "../import.h"
+
+#define indextype_EQUALITY "eq"
 
 #define DB2INDEX_ANCESTORID 0x1   /* index ancestorid */
 #define DB2INDEX_ENTRYRDN 0x2     /* index entryrdn */
 #define DB2LDIF_ENTRYRDN 0x4      /* export entryrdn */
 #define DB2INDEX_OBJECTCLASS 0x10 /* for reindexing "objectclass: nstombstone" */
+#define DB2INDEX_NSUNIQUEID 0x20  /* for reindexing RUV tombstone */
 
 #define LDIF2LDBM_EXTBITS(x) ((x)&0xf)
 
@@ -51,7 +53,7 @@ typedef struct _export_args
 
 /* static functions */
 
-static int ldbm_exclude_attr_from_export(struct ldbminfo *li,
+static int bdb_ldbm_exclude_attr_from_export(struct ldbminfo *li,
                                          const char *attr,
                                          int dump_uniqueid);
 
@@ -63,13 +65,13 @@ static int _export_or_index_parents(ldbm_instance *inst, DB *db, back_txn *txn, 
 static size_t import_config_index_buffer_size = DEFAULT_IMPORT_INDEX_BUFFER_SIZE;
 
 void
-import_configure_index_buffer_size(size_t size)
+bdb_import_configure_index_buffer_size(size_t size)
 {
     import_config_index_buffer_size = size;
 }
 
 size_t
-import_get_index_buffer_size()
+bdb_import_get_index_buffer_size()
 {
     return import_config_index_buffer_size;
 }
@@ -88,7 +90,7 @@ bdb_back_free_incl_excl(char **include, char **exclude)
 
 
 /*
- * add_op_attrs - add the parentid, entryid, dncomp,
+ * bdb_add_op_attrs - add the parentid, entryid, dncomp,
  * and entrydn operational attributes to an entry.
  * Also---new improved washes whiter than white version
  * now removes any bogus operational attributes you're not
@@ -96,7 +98,7 @@ bdb_back_free_incl_excl(char **include, char **exclude)
  * Currenty the list of these is: numSubordinates, hasSubordinates
  */
 int
-add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep, int *status)
+bdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep, int *status)
 {
     backend *be;
     char *pdn;
@@ -124,7 +126,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
         int err = 0;
 
         /*
-         * read the entrydn/entryrdn index to get the id of the parent
+         * read the entryrdn index to get the id of the parent
          * If this entry's parent is not present in the index,
          * we'll get a DB_NOTFOUND error here.
          * In olden times, we just ignored this, but now...
@@ -132,68 +134,47 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
          * suffix entry, or its erroneous. So, we signal this to the
          * caller via the status parameter.
          */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            Slapi_DN sdn;
-            slapi_sdn_init(&sdn);
-            slapi_sdn_set_dn_byval(&sdn, pdn);
-            err = entryrdn_index_read_ext(be, &sdn, &pid,
-                                          TOMBSTONE_INCLUDED, NULL);
-            slapi_sdn_done(&sdn);
-            if (DB_NOTFOUND == err) {
-                /*
-                 * Could be a tombstone. E.g.,
-                 * nsuniqueid=042d8081-..-ca8fe9f7,uid=tuser,o=abc,com
-                 * If so, need to get the grandparent of the leaf.
-                 */
-                if (slapi_entry_flag_is_set(ep->ep_entry,
-                                            SLAPI_ENTRY_FLAG_TOMBSTONE) &&
-                    (0 == strncasecmp(pdn, SLAPI_ATTR_UNIQUEID,
-                                      sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
-                    char *ppdn = slapi_dn_parent(pdn);
-                    slapi_ch_free_string(&pdn);
-                    if (NULL == ppdn) {
-                        if (NULL != status) {
-                            *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
-                            goto next;
-                        }
+        Slapi_DN sdn;
+        slapi_sdn_init(&sdn);
+        slapi_sdn_set_dn_byval(&sdn, pdn);
+        err = entryrdn_index_read_ext(be, &sdn, &pid,
+                                      TOMBSTONE_INCLUDED, NULL);
+        slapi_sdn_done(&sdn);
+        if (DBI_RC_NOTFOUND == err) {
+            /*
+                * Could be a tombstone. E.g.,
+                * nsuniqueid=042d8081-..-ca8fe9f7,uid=tuser,o=abc,com
+                * If so, need to get the grandparent of the leaf.
+                */
+            if (slapi_entry_flag_is_set(ep->ep_entry,
+                                        SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+                (0 == strncasecmp(pdn, SLAPI_ATTR_UNIQUEID,
+                                  sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
+                char *ppdn = slapi_dn_parent(pdn);
+                slapi_ch_free_string(&pdn);
+                if (NULL == ppdn) {
+                    if (NULL != status) {
+                        *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
+                        goto next;
                     }
-                    pdn = ppdn;
-                    slapi_sdn_set_dn_byval(&sdn, pdn);
-                    err = entryrdn_index_read(be, &sdn, &pid, NULL);
-                    slapi_sdn_done(&sdn);
                 }
-            }
-            if (err) {
-                if (DB_NOTFOUND != err && 1 != err) {
-                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
-                    slapi_ch_free_string(&pdn);
-                    return (-1);
-                }
-                if (NULL != status) {
-                    *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
-                }
-            }
-        } else {
-            struct berval bv;
-            IDList *idl = NULL;
-            bv.bv_val = pdn;
-            bv.bv_len = strlen(pdn);
-            if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
-                                  &bv, NULL, &err)) != NULL) {
-                pid = idl_firstid(idl);
-                idl_free(&idl);
-            } else {
-                /* empty idl */
-                if (0 != err && DB_NOTFOUND != err) {
-                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
-                    slapi_ch_free_string(&pdn);
-                    return (-1);
-                }
-                if (NULL != status) {
-                    *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
-                }
+                pdn = ppdn;
+                slapi_sdn_set_dn_byval(&sdn, pdn);
+                err = entryrdn_index_read(be, &sdn, &pid, NULL);
+                slapi_sdn_done(&sdn);
             }
         }
+        if (err) {
+            if (DBI_RC_NOTFOUND != err) {
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_add_op_attrs", "database error %d\n", err);
+                slapi_ch_free_string(&pdn);
+                return (-1);
+            }
+            if (NULL != status) {
+                *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
+            }
+        }
+
         slapi_ch_free_string(&pdn);
     } else {
         if (NULL != status) {
@@ -247,7 +228,8 @@ bdb_ldif2db(Slapi_PBlock *pb)
     ldbm_instance *inst = NULL;
     char *instance_name;
     Slapi_Task *task = NULL;
-    int ret, task_flags;
+    int ret = -1;
+    int task_flags = 0;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
@@ -272,53 +254,59 @@ bdb_ldif2db(Slapi_PBlock *pb)
         slapi_task_log_notice(task,
                 "Backend instance '%s' already in the middle of  another task",
                 inst->inst_name);
-        slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db", "ldbm: '%s' is already in the middle of "
-                                                            "another task and cannot be disturbed.\n",
-                      inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db",
+                "ldbm: '%s' is already in the middle of another task "
+                "and cannot be disturbed.\n",
+                inst->inst_name);
         return -1;
-    } else {
-        uint64_t refcnt;
-        refcnt = slapi_counter_get_value(inst->inst_ref_count);
-        if (refcnt > 0) {
-            slapi_task_log_notice(task,
-                    "Backend instance '%s': there are %" PRIu64 " pending operation(s)."
-                    " Import can not proceed until they are completed.\n",
-                    inst->inst_name, refcnt);
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db",
-                    "ldbm: '%s' there are %" PRIu64 " pending operation(s)."
-                     " Import can not proceed until they are completed.\n",
-                    inst->inst_name, refcnt);
-            instance_set_not_busy(inst);
-            return -1;
-        }
     }
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
-        if ((ret = dblayer_import_file_init(inst))) {
+        if ((ret = bdb_import_file_init(inst))) {
             slapi_task_log_notice(task,
                     "Backend instance '%s' Failed to write import file, error %d: %s",
                     inst->inst_name, ret, slapd_pr_strerror(ret));
             slapi_log_err(SLAPI_LOG_ERR,
                     "bdb_ldif2db", "%s: Failed to write import file, error %d: %s\n",
                     inst->inst_name, ret, slapd_pr_strerror(ret));
-            return -1;
+            goto fail;
         }
+    }
+
+    if (!db2ldif_is_suffix_in_ldif(pb, inst)) {
+        ret = 0; /* Nothing to do */
+        goto fail;
     }
 
     /***** prepare & init libdb and dblayer *****/
 
     if (!(task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
+        uint64_t refcnt;
+
         /* shutdown this instance of the db */
         slapi_log_err(SLAPI_LOG_INFO, "bdb_ldif2db", "Bringing %s offline...\n",
                       instance_name);
         slapi_mtn_be_disable(inst->inst_be);
 
-        cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) {
-            cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
+        /* Wait a little for pending operations to complete */
+        if((refcnt = wait_for_ref_count(inst->inst_ref_count)) != 0 ) {
+            slapi_task_log_notice(task,
+                    "Backend instance '%s': there are %" PRIu64 " pending "
+                    "operation(s). Import can not proceed until they are "
+                    "completed.\n",
+                    inst->inst_name, refcnt);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db",
+                    "ldbm: '%s' there are %" PRIu64 " pending operation(s). "
+                    "Import can not proceed until they are completed.\n",
+                    inst->inst_name, refcnt);
+            instance_set_not_busy(inst);
+            return -1;
         }
+
+        cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
+        cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
         dblayer_instance_close(inst->inst_be);
-        dblayer_delete_indices(inst);
+        bdb_delete_indices(inst);
     } else {
         if (bdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")) {
             goto fail;
@@ -366,7 +354,7 @@ bdb_ldif2db(Slapi_PBlock *pb)
     }
 
     /* Delete old database files */
-    dblayer_delete_instance_dir(inst->inst_be);
+    bdb_delete_instance_dir(inst->inst_be);
     /* it's okay to fail -- the directory might have already been deleted */
 
     /* bdb_instance_start will init the id2entry index. */
@@ -388,7 +376,7 @@ bdb_ldif2db(Slapi_PBlock *pb)
     }
     if (ret == 0) {
         if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
-            dblayer_import_file_update(inst);
+            bdb_import_file_update(inst);
         } else {
             slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
         }
@@ -414,8 +402,7 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
     ID id;
     IDList *idltotal = NULL, *idltmp;
     back_txn *txn = NULL;
-    struct berval bv;
-    Slapi_DN sdn; /* Used only if entryrdn_get_switch is true */
+    Slapi_DN sdn;
 
     *err = 0;
     slapi_sdn_init(&sdn);
@@ -479,68 +466,43 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
          * First map the suffix to its entry ID.
          * Note that the suffix is already normalized.
          */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            slapi_sdn_set_dn_byval(&sdn, include[i]);
-            *err = entryrdn_index_read(be, &sdn, &id, NULL);
-            if (*err) {
-                if (DB_NOTFOUND == *err) {
-                    slapi_log_err(SLAPI_LOG_INFO,
-                                  "bdb_fetch_subtrees", "entryrdn not indexed on '%s'; "
-                                                         "entry %s may not be added to the database yet.\n",
-                                  include[i], include[i]);
-                    *err = 0; /* not a problem */
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "bdb_fetch_subtrees", "Reading %s failed on entryrdn; %d\n",
-                                  include[i], *err);
-                }
-                slapi_sdn_done(&sdn);
-                continue;
+        slapi_sdn_set_dn_byval(&sdn, include[i]);
+        *err = entryrdn_index_read(be, &sdn, &id, NULL);
+        if (*err) {
+            if (DB_NOTFOUND == *err) {
+                slapi_log_err(SLAPI_LOG_INFO,
+                              "bdb_fetch_subtrees", "entryrdn not indexed on '%s'; "
+                              "entry %s may not be added to the database yet.\n",
+                              include[i], include[i]);
+                *err = 0; /* not a problem */
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "bdb_fetch_subtrees", "Reading %s failed on entryrdn; %d\n",
+                              include[i], *err);
             }
-        } else {
-            bv.bv_val = include[i];
-            bv.bv_len = strlen(include[i]);
-            idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, txn, err);
-            if (idl == NULL) {
-                if (DB_NOTFOUND == *err) {
-                    slapi_log_err(SLAPI_LOG_INFO,
-                                  "bdb_fetch_subtrees", "entrydn not indexed on '%s'; "
-                                                         "entry %s may not be added to the database yet.\n",
-                                  include[i], include[i]);
-                    *err = 0; /* not a problem */
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR, "bdb_fetch_subtrees",
-                                  "Reading %s failed on entrydn; %d\n",
-                                  include[i], *err);
-                }
-                continue;
-            }
-            id = idl_firstid(idl);
-            idl_free(&idl);
+            slapi_sdn_done(&sdn);
+            continue;
         }
 
         /*
          * Now get all the descendants of that suffix.
          */
-        if (entryrdn_get_noancestorid()) {
-            /* subtree-rename: on && no ancestorid */
-            *err = entryrdn_get_subordinates(be, &sdn, id, &idl, txn, 0);
-        } else {
-            *err = ldbm_ancestorid_read(be, txn, id, &idl);
-        }
+        *err = ldbm_ancestorid_read(be, txn, id, &idl);
+
         slapi_sdn_done(&sdn);
-        if (idl == NULL) {
-            if (DB_NOTFOUND == *err) {
+        if (idl == NULL || IDL_NIDS(idl) == 0) {
+            if (*err == 0 || DB_NOTFOUND == *err) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "bdb_fetch_subtrees", "Entry id %u has no descendants according to %s. "
-                                                     "Index file created by this reindex will be empty.\n",
-                              id, entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid");
+                              "bdb_fetch_subtrees", "Entry id %u has no descendants according to ancestorid. "
+                              "Index file created by this reindex will be empty.\n",
+                              id);
                 *err = 0; /* not a problem */
             } else {
                 slapi_log_err(SLAPI_LOG_WARNING,
-                              "bdb_fetch_subtrees", "%s not indexed on %u\n",
-                              entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid", id);
+                              "bdb_fetch_subtrees", "ancestorid not indexed on %u\n",
+                              id);
             }
+            idl_free(&idl);
             continue;
         }
 
@@ -563,7 +525,7 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
 
 
 static int
-export_one_entry(struct ldbminfo *li,
+bdb_export_one_entry(struct ldbminfo *li,
                  ldbm_instance *inst,
                  export_args *expargs)
 {
@@ -596,7 +558,7 @@ export_one_entry(struct ldbminfo *li,
         rc = slapi_entry_next_attr(expargs->ep->ep_entry,
                                    this_attr, &next_attr);
         slapi_attr_get_type(this_attr, &type);
-        if (ldbm_exclude_attr_from_export(li, type, dump_uniqueid)) {
+        if (bdb_ldbm_exclude_attr_from_export(li, type, dump_uniqueid)) {
             slapi_entry_delete_values(expargs->ep->ep_entry, type, NULL);
         }
         this_attr = next_attr;
@@ -605,7 +567,7 @@ export_one_entry(struct ldbminfo *li,
         /* Decrypt in place */
         rc = attrcrypt_decrypt_entry(be, expargs->ep);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "export_one_entry", "Failed to decrypt entry [%s] : %d\n",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_export_one_entry", "Failed to decrypt entry [%s] : %d\n",
                           slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
         }
     }
@@ -628,7 +590,7 @@ export_one_entry(struct ldbminfo *li,
                                           "userpassword", vals);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "export_one_entry", "%s: Failed to add clear password storage scheme: %d\n",
+                              "bdb_export_one_entry", "%s: Failed to add clear password storage scheme: %d\n",
                               slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
             }
             slapi_ch_free_string(&val.bv_val);
@@ -667,7 +629,7 @@ export_one_entry(struct ldbminfo *li,
                                   "%s: Processed %d entries (%d%%).",
                                   inst->inst_name, *expargs->cnt, percent);
         }
-        slapi_log_err(SLAPI_LOG_INFO, "export_one_entry", "export %s: Processed %d entries (%d%%).\n",
+        slapi_log_err(SLAPI_LOG_INFO, "bdb_export_one_entry", "export %s: Processed %d entries (%d%%).\n",
                       inst->inst_name, *expargs->cnt, percent);
         *expargs->lastcnt = *expargs->cnt;
     }
@@ -729,6 +691,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     export_args eargs = {0};
     int32_t suffix_written = 0;
     int32_t skip_ruv = 0;
+    int return_orig_dn = config_get_return_orig_dn();
 
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2ldif", "=>\n");
 
@@ -905,7 +868,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     if (include_suffix && ok_index)
         get_ids_from_disk(be);
 
-    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "Backend instance '%s' Unable to open/create database(id2entry)",
                 inst->inst_name);
@@ -1071,7 +1034,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
                     eargs.idindex = idindex;
                     eargs.cnt = &cnt;
                     eargs.lastcnt = &lastcnt;
-                    rc = export_one_entry(li, inst, &eargs);
+                    rc = bdb_export_one_entry(li, inst, &eargs);
                     backentry_free(&pending_ruv);
                 }
                 break;
@@ -1096,151 +1059,161 @@ bdb_db2ldif(Slapi_PBlock *pb)
         plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         ep = backentry_alloc();
-        if (entryrdn_get_switch()) {
-            char *rdn = NULL;
 
-            /* rdn is allocated in get_value_from_string */
-            rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+        char *rdn = NULL;
+
+        /* rdn is allocated in get_value_from_string */
+        rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+        if (rc) {
+            /* data.dptr may not include rdn: ..., try "dn: ..." */
+            ep->ep_entry = slapi_str2entry(data.dptr,
+                                           str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
+        } else {
+            char *pid_str = NULL;
+            char *pdn = NULL;
+            ID pid = NOID;
+            char *dn = NULL;
+            struct backdn *bdn = NULL;
+            Slapi_RDN psrdn = {0};
+            bool free_dn = false;
+
+            /* get a parent pid */
+            rc = get_value_from_string((const char *)data.dptr,
+                                       LDBM_PARENTID_STR, &pid_str);
             if (rc) {
-                /* data.dptr may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry(data.dptr,
-                                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
-            } else {
-                char *pid_str = NULL;
-                char *pdn = NULL;
-                ID pid = NOID;
-                char *dn = NULL;
-                struct backdn *bdn = NULL;
-                Slapi_RDN psrdn = {0};
-
-                /* get a parent pid */
-                rc = get_value_from_string((const char *)data.dptr,
-                                           LDBM_PARENTID_STR, &pid_str);
-                if (rc) {
-                    /* this could be a suffix or the RUV entry.
-                     * If it is the ruv and the suffix is not written
-                     * keep the ruv and export as last entry.
-                     *
-                     * The reason for this is that if the RUV entry is in the
-                     * ldif before the suffix entry then at an attempt to import
-                     * that ldif the RUV entry would be skipped because the parent
-                     * does not exist. Later a new RUV would be generated with
-                     * a different database generation and replication is broken
+                /* this could be a suffix or the RUV entry.
+                    * If it is the ruv and the suffix is not written
+                    * keep the ruv and export as last entry.
+                    *
+                    * The reason for this is that if the RUV entry is in the
+                    * ldif before the suffix entry then at an attempt to import
+                    * that ldif the RUV entry would be skipped because the parent
+                    * does not exist. Later a new RUV would be generated with
+                    * a different database generation and replication is broken
+                    */
+                if (suffix_written) {
+                    /* this must be the RUV, just continue and write it */
+                    rc = 0;
+                } else if (0 == strcasecmp(rdn, RUVRDN)) {
+                    /* this is the RUV and the suffix is not yet written
+                     * make it pending and continue with next entry
                      */
-                    if (suffix_written) {
-                        /* this must be the RUV, just continue and write it */
-                        rc = 0;
-                    } else if (0 == strcasecmp(rdn, RUVRDN)) {
-                        /* this is the RUV and the suffix is not yet written
-                         * make it pending and continue with next entry
-                         */
-                        skip_ruv = 1;
-                        rc = 0;
-                    } else {
-                        /* this has to be the suffix */
-                        suffix_written = 1;
-                        rc = 0;
-                    }
+                    skip_ruv = 1;
+                    rc = 0;
                 } else {
-                    pid = (ID)strtol(pid_str, (char **)NULL, 10);
-                    slapi_ch_free_string(&pid_str);
-                    /* if pid is larger than the current pid temp_id,
-                     * the parent entry has to be exported first. */
-                    if (temp_id < pid &&
-                        !idl_id_is_in_idlist(eargs.pre_exported_idl, pid)) {
+                    /* this has to be the suffix */
+                    suffix_written = 1;
+                    rc = 0;
+                }
+            } else {
+                pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                slapi_ch_free_string(&pid_str);
+                /* if pid is larger than the current pid temp_id,
+                 * the parent entry has to be exported first. */
+                if (temp_id < pid &&
+                    !idl_id_is_in_idlist(eargs.pre_exported_idl, pid)) {
 
-                        eargs.idindex = idindex;
-                        eargs.cnt = &cnt;
-                        eargs.lastcnt = &lastcnt;
+                    eargs.idindex = idindex;
+                    eargs.cnt = &cnt;
+                    eargs.lastcnt = &lastcnt;
 
-                        rc = _export_or_index_parents(inst, db, NULL, temp_id,
-                                                      rdn, temp_id, pid, run_from_cmdline,
-                                                      &eargs, DB2LDIF_ENTRYRDN, &psrdn);
-                        if (rc) {
-                            slapi_rdn_done(&psrdn);
-                            backentry_free(&ep);
-                            continue;
-                        }
+                    rc = _export_or_index_parents(inst, db, NULL, temp_id,
+                                                  rdn, temp_id, pid, run_from_cmdline,
+                                                  &eargs, DB2LDIF_ENTRYRDN, &psrdn);
+                    if (rc) {
+                        slapi_rdn_done(&psrdn);
+                        backentry_free(&ep);
+                        continue;
                     }
                 }
+            }
 
-                bdn = dncache_find_id(&inst->inst_dncache, temp_id);
-                if (bdn) {
-                    /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_rdn_done(&psrdn);
-                } else {
-                    int myrc = 0;
-                    Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
-                    if (rc) {
-                        /* We cannot use the entryrdn index;
-                         * Compose dn from the entries in id2entry */
-                        slapi_log_err(SLAPI_LOG_TRACE,
-                                      "bdb_db2ldif", "entryrdn is not available; "
-                                                             "composing dn (rdn: %s, ID: %d)\n",
-                                      rdn, temp_id);
-                        if (NOID != pid) { /* if not a suffix */
-                            if (NULL == slapi_rdn_get_rdn(&psrdn)) {
-                                /* This time just to get the parents' rdn
-                                 * most likely from dn cache. */
-                                rc = _get_and_add_parent_rdns(be, db, NULL, pid,
-                                                              &psrdn, NULL, 0,
-                                                              run_from_cmdline, NULL);
-                                if (rc) {
-                                    slapi_log_err(SLAPI_LOG_WARNING,
-                                                  "bdb_db2ldif", "Skip ID %d\n", pid);
-                                    slapi_ch_free_string(&rdn);
-                                    slapi_rdn_done(&psrdn);
-                                    backentry_free(&ep);
-                                    continue;
-                                }
-                            }
-                            /* Generate DN string from Slapi_RDN */
-                            rc = slapi_rdn_get_dn(&psrdn, &pdn);
+            bdn = dncache_find_id(&inst->inst_dncache, temp_id);
+            if (bdn) {
+                /* Copy the dn: the cached bdn may be evicted and freed
+                 * once the reference is returned. */
+                dn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+                free_dn = true;
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                slapi_rdn_done(&psrdn);
+            } else if (return_orig_dn &&
+                       get_value_from_string((const char *)data.dptr, "dsentrydn", &dn) == 0)
+            {
+                /* Use the DN from dsEntryDN, but we need to free it later */
+                free_dn = true;
+            } else {
+                int myrc = 0;
+                Slapi_DN *sdn = NULL;
+                rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
+                if (rc) {
+                    /* We cannot use the entryrdn index;
+                     * Compose dn from the entries in id2entry */
+                    slapi_log_err(SLAPI_LOG_TRACE,
+                                  "bdb_db2ldif", "entryrdn is not available; "
+                                  "composing dn (rdn: %s, ID: %d)\n",
+                                  rdn, temp_id);
+                    if (NOID != pid) { /* if not a suffix */
+                        if (NULL == slapi_rdn_get_rdn(&psrdn)) {
+                            /* This time just to get the parents' rdn
+                             * most likely from dn cache. */
+                            rc = _get_and_add_parent_rdns(be, db, NULL, pid,
+                                                          &psrdn, NULL, 0,
+                                                          run_from_cmdline, NULL);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_WARNING,
-                                              "bdb_db2ldif", "Failed to compose dn for "
-                                                                     "(rdn: %s, ID: %d) from Slapi_RDN\n",
-                                              rdn, temp_id);
+                                              "bdb_db2ldif", "Skip ID %d\n", pid);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
                                 backentry_free(&ep);
                                 continue;
                             }
                         }
-                        dn = slapi_ch_smprintf("%s%s%s",
-                                               rdn, pdn ? "," : "", pdn ? pdn : "");
-                        slapi_ch_free_string(&pdn);
+                        /* Generate DN string from Slapi_RDN */
+                        rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_WARNING,
+                                          "bdb_db2ldif", "Failed to compose dn for "
+                                          "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            slapi_rdn_done(&psrdn);
+                            backentry_free(&ep);
+                            continue;
+                        }
                     }
-                    slapi_rdn_done(&psrdn);
-                    /* dn is not dup'ed in slapi_sdn_new_dn_passin.
-                     * It's set to bdn and put in the dn cache. */
-                    /* don't free dn */
-                    sdn = slapi_sdn_new_dn_passin(dn);
-                    bdn = backdn_init(sdn, temp_id, 0);
-                    myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
-                    if (myrc) {
-                        backdn_free(&bdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2ldif",
-                                      "%s is already in the dn cache (%d)\n",
-                                      dn, myrc);
-                    } else {
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2ldif",
-                                      "entryrdn_lookup_dn returned: %s, "
-                                      "and set to dn cache\n",
-                                      dn);
-                    }
+                    dn = slapi_ch_smprintf("%s%s%s",
+                                           rdn, pdn ? "," : "", pdn ? pdn : "");
+                    slapi_ch_free_string(&pdn);
                 }
-                ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
-                                                   str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
-                slapi_ch_free_string(&rdn);
+                slapi_rdn_done(&psrdn);
+                /* Copy dn into the sdn so that dn stays valid even if
+                 * the cached bdn is freed (CACHE_ADD failure or eviction
+                 * by another thread) before we are done with it. */
+                sdn = slapi_sdn_new_dn_byval(dn);
+                free_dn = true;
+                bdn = backdn_init(sdn, temp_id, 0);
+                myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+                if (myrc) {
+                    backdn_free(&bdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2ldif",
+                                  "%s is already in the dn cache (%d)\n",
+                                  dn, myrc);
+                } else {
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2ldif",
+                                  "entryrdn_lookup_dn returned: %s, "
+                                  "and set to dn cache\n",
+                                  dn);
+                }
             }
-        } else {
-            ep->ep_entry = slapi_str2entry(data.dptr, str2entry_options);
+            ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
+                                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
+            slapi_ch_free_string(&rdn);
+            if (free_dn) {
+                slapi_ch_free_string(&dn);
+            }
         }
+
         slapi_ch_free(&(data.data));
 
         if ((ep->ep_entry) != NULL) {
@@ -1267,7 +1240,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
         eargs.idindex = idindex;
         eargs.cnt = &cnt;
         eargs.lastcnt = &lastcnt;
-        rc = export_one_entry(li, inst, &eargs);
+        rc = bdb_export_one_entry(li, inst, &eargs);
         backentry_free(&ep);
     }
     /* DB_NOTFOUND -> successful end */
@@ -1324,11 +1297,12 @@ bye:
     bdb_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(&(eargs.pre_exported_idl));
 
+    /* coverity[leaked_handle] */
     return (return_value);
 }
 
 static void
-bdb2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
+bdb_bdb2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
 {
     char *text = vlv_getindexnames(inst->inst_be);
 
@@ -1341,9 +1315,9 @@ bdb2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
                               inst->inst_name, text);
     }
     slapi_log_err(SLAPI_LOG_ERR,
-                  "bdb2index_bad_vlv", "Unknown VLV Index named '%s'\n", index);
+                  "bdb_bdb2index_bad_vlv", "Unknown VLV Index named '%s'\n", index);
     slapi_log_err(SLAPI_LOG_ERR,
-                  "bdb2index_bad_vlv", "Known VLV Indexes are: %s\n", text);
+                  "bdb_bdb2index_bad_vlv", "Known VLV Indexes are: %s\n", text);
     slapi_ch_free_string(&text);
 }
 
@@ -1408,7 +1382,7 @@ bdb_db2index(Slapi_PBlock *pb)
      */
     if (run_from_cmdline) {
         /* Turn off transactions */
-        ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
+        bdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
         if (0 != dblayer_start(li, DBLAYER_INDEX_MODE)) {
             slapi_task_log_notice(task, "Failed to init database: %s", instance_name);
@@ -1439,7 +1413,7 @@ bdb_db2index(Slapi_PBlock *pb)
         return return_value;
     }
 
-    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "%s: Could not open/create database (id2entry)",
                 inst->inst_name);
@@ -1503,53 +1477,47 @@ bdb_db2index(Slapi_PBlock *pb)
             }
             switch (attrs[i][0]) {
             case 't': /* attribute type to index */
+            {
+                char *basename = slapi_ch_strdup(attrs[i] + 1);
+                char *colon = strchr(basename, ':');
+
+                if (colon != NULL) {
+                    *colon = '\0';
+                }
+                if (ldbm_index_entrydn_should_ignore(basename)) {
+                    /* Warn and skip obsolete entrydn */
+                    slapi_task_log_notice(task, "%s: Requested to index %s, but the index is no longer applicable",
+                                          inst->inst_name, LDBM_ENTRYDN_STR);
+                    slapi_log_err(SLAPI_LOG_WARNING,
+                                  "bdb_db2index", "%s: Requested to index %s, but the index is no longer applicable\n",
+                                  inst->inst_name, LDBM_ENTRYDN_STR);
+                    slapi_ch_free_string(&basename);
+                    break;
+                }
+                slapi_ch_free_string(&basename);
+
                 db2index_add_indexed_attr(be, attrs[i]);
                 ainfo_get(be, attrs[i] + 1, &ai);
                 /* the ai was added above, if it didn't already exist */
                 PR_ASSERT(ai != NULL);
                 if (strcasecmp(attrs[i] + 1, LDBM_ANCESTORID_STR) == 0) {
-                    slapi_task_log_notice(task, "%s: Indexing %s",
+                    slapi_task_log_notice(task, "%s: Indexing: %s",
                         inst->inst_name, LDBM_ANCESTORID_STR);
-                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing %s\n",
+                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing: %s\n",
                                   inst->inst_name, LDBM_ANCESTORID_STR);
                     index_ext |= DB2INDEX_ANCESTORID;
                 } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYRDN_STR) == 0) {
-                    if (entryrdn_get_switch()) { /* subtree-rename: on */
-                        slapi_task_log_notice(task, "%s: Indexing %s",
-                             inst->inst_name, LDBM_ENTRYRDN_STR);
-                        slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing %s\n",
-                                      inst->inst_name, LDBM_ENTRYRDN_STR);
-                        index_ext |= DB2INDEX_ENTRYRDN;
-                    } else {
-                        slapi_task_log_notice(task, "%s: Requested to index %s, but %s is off",
-                                inst->inst_name, LDBM_ENTRYRDN_STR, CONFIG_ENTRYRDN_SWITCH);
-                        slapi_log_err(SLAPI_LOG_WARNING,
-                                      "bdb_db2index", "%s: Requested to index %s, but %s is off\n",
-                                      inst->inst_name, LDBM_ENTRYRDN_STR,
-                                      CONFIG_ENTRYRDN_SWITCH);
-                        goto err_out;
-                    }
-                } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYDN_STR) == 0) {
-                    if (entryrdn_get_switch()) { /* subtree-rename: on */
-                        slapi_task_log_notice(task, "%s: Requested to index %s, but %s is on",
-                                inst->inst_name, LDBM_ENTRYDN_STR, CONFIG_ENTRYRDN_SWITCH);
-                        slapi_log_err(SLAPI_LOG_WARNING,
-                                      "bdb_db2index", "%s: Requested to index %s, but %s is on\n",
-                                      inst->inst_name, LDBM_ENTRYDN_STR,
-                                      CONFIG_ENTRYRDN_SWITCH);
-                        goto err_out;
-                    } else {
-                        charray_add(&indexAttrs, attrs[i] + 1);
-                        ai->ai_indexmask |= INDEX_OFFLINE;
-                        slapi_task_log_notice(task, "%s: Indexing attribute: %s",
-                                inst->inst_name, attrs[i] + 1);
-                        slapi_log_err(SLAPI_LOG_INFO,
-                                      "bdb_db2index", "%s: Indexing attribute: %s\n",
-                                      inst->inst_name, attrs[i] + 1);
-                    }
+                    slapi_task_log_notice(task, "%s: Indexing: %s",
+                                          inst->inst_name, LDBM_ENTRYRDN_STR);
+                    slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index", "%s: Indexing: %s\n",
+                                  inst->inst_name, LDBM_ENTRYRDN_STR);
+                    index_ext |= DB2INDEX_ENTRYRDN;
                 } else {
                     if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_OBJECTCLASS) == 0) {
                         index_ext |= DB2INDEX_OBJECTCLASS;
+                    }
+                    if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_UNIQUEID) == 0) {
+                        index_ext |= DB2INDEX_NSUNIQUEID;
                     }
                     charray_add(&indexAttrs, attrs[i] + 1);
                     ai->ai_indexmask |= INDEX_OFFLINE;
@@ -1559,12 +1527,13 @@ bdb_db2index(Slapi_PBlock *pb)
                                   "bdb_db2index", "%s: Indexing attribute: %s\n",
                                   inst->inst_name, attrs[i] + 1);
                 }
-                dblayer_erase_index_file(be, ai, PR_TRUE, i /* chkpt; 1st time only */);
+                dblayer_erase_index_file(be, ai, PR_TRUE, i);
                 break;
+            }
             case 'T': /* VLV Search to index */
                 vlvip = vlv_find_searchname((attrs[i]) + 1, be);
                 if (vlvip == NULL) {
-                    bdb2index_bad_vlv(task, inst, attrs[i] + 1);
+                    bdb_bdb2index_bad_vlv(task, inst, attrs[i] + 1);
                 } else {
                     vlvIndex_go_offline(vlvip, be);
                     if (pvlv == NULL) {
@@ -1584,6 +1553,18 @@ bdb_db2index(Slapi_PBlock *pb)
                 }
                 break;
             }
+        }
+
+        /* Were the requested attrs all skipped */
+        if (attrs && attrs[0] && !indexAttrs && !LDIF2LDBM_EXTBITS(index_ext) &&
+            numvlv == 0) {
+            slapi_task_log_notice(task, "%s: No applicable indexes to rebuild",
+                                  inst->inst_name);
+            slapi_log_err(SLAPI_LOG_INFO, "bdb_db2index",
+                          "%s: No applicable indexes to rebuild\n",
+                          inst->inst_name);
+            return_value = 0;
+            goto err_out;
         }
     }
 
@@ -1649,11 +1630,11 @@ bdb_db2index(Slapi_PBlock *pb)
 
             rc = db->get(db, NULL, &key, &data, 0);
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "bdb_db2index", "%s: Failed "
-                                                                     "to read database, errno=%d (%s)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_db2index",
+                              "%s: Failed to read database, errno=%d (%s)\n",
                               inst->inst_name, rc, dblayer_strerror(rc));
                 slapi_task_log_notice(task, "%s: Failed to read database, err %d (%s)",
-                        inst->inst_name, rc, dblayer_strerror(rc));
+                                      inst->inst_name, rc, dblayer_strerror(rc));
                 break;
             }
             /* back to internal format: */
@@ -1687,143 +1668,147 @@ bdb_db2index(Slapi_PBlock *pb)
         plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         ep = backentry_alloc();
-        if (entryrdn_get_switch()) {
-            char *rdn = NULL;
-            int rc = 0;
+        char *rdn = NULL;
+        int rc = 0;
 
-            /* rdn is allocated in get_value_from_string */
-            rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
-            if (rc) {
-                /* data.dptr may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry(data.dptr,
-                                               SLAPI_STR2ENTRY_NO_ENTRYDN);
-            } else {
-                char *pid_str = NULL;
-                char *pdn = NULL;
-                ID pid = NOID;
-                char *dn = NULL;
-                struct backdn *bdn = NULL;
-                Slapi_RDN psrdn = {0};
+        /* rdn is allocated in get_value_from_string */
+        rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+        if (rc) {
+            /* data.dptr may not include rdn: ..., try "dn: ..." */
+            ep->ep_entry = slapi_str2entry(data.dptr,
+                                           SLAPI_STR2ENTRY_NO_ENTRYDN);
+        } else {
+            char *pid_str = NULL;
+            char *pdn = NULL;
+            ID pid = NOID;
+            char *dn = NULL;
+            bool free_dn = false;
+            struct backdn *bdn = NULL;
+            Slapi_RDN psrdn = {0};
 
-                /* get a parent pid */
-                rc = get_value_from_string((const char *)data.dptr,
-                                           LDBM_PARENTID_STR, &pid_str);
-                if (rc || !pid_str) {
-                    /* see if this is a suffix or some entry without a parent id
-                       e.g. a tombstone entry */
-                    Slapi_DN sufdn;
+            /* get a parent pid */
+            rc = get_value_from_string((const char *)data.dptr,
+                                       LDBM_PARENTID_STR, &pid_str);
+            if (rc || !pid_str) {
+                /* see if this is a suffix or some entry without a parent id
+                 * e.g. a tombstone entry */
+                Slapi_DN sufdn;
 
-                    slapi_sdn_init_dn_byref(&sufdn, rdn);
-                    if (slapi_be_issuffix(be, &sufdn)) {
-                        rc = 0;             /* is a suffix */
-                        suffixid = temp_id; /* this is the ID of a suffix entry */
-                    } else {
-                        /* assume the parent entry is the suffix entry for this backend
-                           set pid to the id of that entry */
-                        pid = suffixid;
-                    }
-                    slapi_sdn_done(&sufdn);
-                }
-                if (pid_str) {
-                    pid = (ID)strtol(pid_str, (char **)NULL, 10);
-                    slapi_ch_free_string(&pid_str);
-                    /* if pid is larger than the current pid temp_id,
-                     * the parent entry has to be exported first. */
-                    if (temp_id < pid) {
-                        rc = _export_or_index_parents(inst, db, &txn, temp_id,
-                                                      rdn, temp_id, pid, run_from_cmdline,
-                                                      NULL, index_ext, &psrdn);
-                        if (rc) {
-                            backentry_free(&ep);
-                            continue;
-                        }
-                    }
-                }
-
-                bdn = dncache_find_id(&inst->inst_dncache, temp_id);
-                if (bdn) {
-                    /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                slapi_sdn_init_dn_byref(&sufdn, rdn);
+                if (slapi_be_issuffix(be, &sufdn)) {
+                    rc = 0;             /* is a suffix */
+                    suffixid = temp_id; /* this is the ID of a suffix entry */
                 } else {
-                    int myrc = 0;
-                    Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
+                    /* assume the parent entry is the suffix entry for this backend
+                     * set pid to the id of that entry */
+                    pid = suffixid;
+                }
+                slapi_sdn_done(&sufdn);
+            }
+            if (pid_str) {
+                pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                slapi_ch_free_string(&pid_str);
+                /* if pid is larger than the current pid temp_id,
+                 * the parent entry has to be exported first. */
+                if (temp_id < pid) {
+                    rc = _export_or_index_parents(inst, db, &txn, temp_id,
+                                                  rdn, temp_id, pid, run_from_cmdline,
+                                                  NULL, index_ext, &psrdn);
                     if (rc) {
-                        /* We cannot use the entryrdn index;
-                         * Compose dn from the entries in id2entry */
-                        slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2index",
-                                      "entryrdn is not available; "
-                                      "composing dn (rdn: %s, ID: %d)\n",
-                                      rdn, temp_id);
-                        if (NOID != pid) { /* if not a suffix */
-                            if (NULL == slapi_rdn_get_rdn(&psrdn)) {
-                                /* This time just to get the parents' rdn
-                                 * most likely from dn cache. */
-                                rc = _get_and_add_parent_rdns(be, db, &txn, pid,
-                                                              &psrdn, NULL, 0,
-                                                              run_from_cmdline, NULL);
-                                if (rc) {
-                                    slapi_log_err(SLAPI_LOG_WARNING,
-                                                  "bdb_db2index", "Skip ID %d\n", pid);
-                                    slapi_log_err(SLAPI_LOG_WARNING,
-                                                  "bdb_db2index", "Parent entry (ID %d) of entry. "
-                                                                          "(ID %d, rdn: %s) does not exist.\n",
-                                                  pid, temp_id, rdn);
-                                    slapi_log_err(SLAPI_LOG_WARNING,
-                                                  "bdb_db2index", "We recommend to export the backend "
-                                                                          "instance %s and reimport it.\n",
-                                                  instance_name);
-                                    slapi_ch_free_string(&rdn);
-                                    slapi_rdn_done(&psrdn);
-                                    backentry_free(&ep);
-                                    continue;
-                                }
-                            }
-                            /* Generate DN string from Slapi_RDN */
-                            rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                        backentry_free(&ep);
+                        continue;
+                    }
+                }
+            }
+
+            bdn = dncache_find_id(&inst->inst_dncache, temp_id);
+            if (bdn) {
+                /* Copy the dn: the cached bdn may be evicted and freed
+                 * once the reference is returned. */
+                dn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+                free_dn = true;
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            } else {
+                int myrc = 0;
+                Slapi_DN *sdn = NULL;
+                rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
+                if (rc) {
+                    /* We cannot use the entryrdn index;
+                     * Compose dn from the entries in id2entry */
+                    slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2index",
+                                  "entryrdn is not available; "
+                                  "composing dn (rdn: %s, ID: %d)\n",
+                                  rdn, temp_id);
+                    if (NOID != pid) { /* if not a suffix */
+                        if (NULL == slapi_rdn_get_rdn(&psrdn)) {
+                            /* This time just to get the parents' rdn
+                             * most likely from dn cache. */
+                            rc = _get_and_add_parent_rdns(be, db, &txn, pid,
+                                                          &psrdn, NULL, 0,
+                                                          run_from_cmdline, NULL);
                             if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "bdb_db2index", "Failed to compose dn for "
-                                                                      "(rdn: %s, ID: %d) from Slapi_RDN\n",
-                                              rdn, temp_id);
+                                slapi_log_err(SLAPI_LOG_WARNING,
+                                              "bdb_db2index", "Skip ID %d\n", pid);
+                                slapi_log_err(SLAPI_LOG_WARNING,
+                                              "bdb_db2index", "Parent entry (ID %d) of entry. "
+                                              "(ID %d, rdn: %s) does not exist.\n",
+                                              pid, temp_id, rdn);
+                                slapi_log_err(SLAPI_LOG_WARNING,
+                                              "bdb_db2index", "We recommend to export the backend "
+                                              "instance %s and reimport it.\n",
+                                              instance_name);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
                                 backentry_free(&ep);
                                 continue;
                             }
                         }
-                        dn = slapi_ch_smprintf("%s%s%s",
-                                               rdn, pdn ? "," : "", pdn ? pdn : "");
-                        slapi_ch_free_string(&pdn);
+                        /* Generate DN string from Slapi_RDN */
+                        rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_ERR,
+                                          "bdb_db2index", "Failed to compose dn for "
+                                          "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            slapi_rdn_done(&psrdn);
+                            backentry_free(&ep);
+                            continue;
+                        }
                     }
-                    /* dn is not dup'ed in slapi_sdn_new_dn_passin.
-                     * It's set to bdn and put in the dn cache. */
-                    /* don't free dn */
-                    sdn = slapi_sdn_new_dn_passin(dn);
-                    bdn = backdn_init(sdn, temp_id, 0);
-                    myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
-                    if (myrc) {
-                        backdn_free(&bdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2index",
-                                      "%s is already in the dn cache (%d)\n",
-                                      dn, myrc);
-                    } else {
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2index",
-                                      "entryrdn_lookup_dn returned: %s, "
-                                      "and set to dn cache\n",
-                                      dn);
-                    }
+                    dn = slapi_ch_smprintf("%s%s%s",
+                                           rdn, pdn ? "," : "", pdn ? pdn : "");
+                    slapi_ch_free_string(&pdn);
                 }
-                slapi_rdn_done(&psrdn);
-                ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
-                                                   SLAPI_STR2ENTRY_NO_ENTRYDN);
-                slapi_ch_free_string(&rdn);
+                /* Copy dn into the sdn so that dn stays valid even if
+                 * the cached bdn is freed (CACHE_ADD failure or eviction
+                 * by another thread) before we are done with it. */
+                sdn = slapi_sdn_new_dn_byval(dn);
+                free_dn = true;
+                bdn = backdn_init(sdn, temp_id, 0);
+                myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+                if (myrc) {
+                    backdn_free(&bdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2index",
+                                  "%s is already in the dn cache (%d)\n",
+                                  dn, myrc);
+                } else {
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "bdb_db2index",
+                                  "entryrdn_lookup_dn returned: %s, "
+                                  "and set to dn cache\n",
+                                  dn);
+                }
             }
-        } else {
-            ep->ep_entry = slapi_str2entry(data.dptr, 0);
+            slapi_rdn_done(&psrdn);
+            ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
+                                               SLAPI_STR2ENTRY_NO_ENTRYDN);
+            slapi_ch_free_string(&rdn);
+            if (free_dn) {
+                slapi_ch_free_string(&dn);
+            }
         }
+
         slapi_ch_free(&(data.data));
 
         if (ep->ep_entry != NULL) {
@@ -1903,7 +1888,7 @@ bdb_db2index(Slapi_PBlock *pb)
          * Update the attribute indexes
          */
         if (indexAttrs) {
-            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN | DB2INDEX_OBJECTCLASS))) {
+            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN | DB2INDEX_OBJECTCLASS | DB2INDEX_NSUNIQUEID))) {
                 /* if it is a tombstone entry, just entryrdn or "objectclass: nstombstone"
                  * need to be reindexed.  the to-be-indexed list does not contain them. */
                 backentry_free(&ep);
@@ -1923,8 +1908,10 @@ bdb_db2index(Slapi_PBlock *pb)
                         if (istombstone) {
                             if (!slapi_attr_type_cmp(indexAttrs[j], SLAPI_ATTR_OBJECTCLASS, SLAPI_TYPE_CMP_SUBTYPE)) {
                                 is_tombstone_obj = 1; /* is tombstone && is objectclass. need to index "nstombstone"*/
-                            } else if (slapi_attr_type_cmp(indexAttrs[j], LDBM_ENTRYRDN_STR, SLAPI_TYPE_CMP_SUBTYPE)) {
-                                /* Entry is a tombstone && this index is not an entryrdn. */
+                            } else if (slapi_attr_type_cmp(indexAttrs[j], LDBM_ENTRYRDN_STR, SLAPI_TYPE_CMP_SUBTYPE) &&
+                                       slapi_attr_type_cmp(indexAttrs[j], SLAPI_ATTR_UNIQUEID, SLAPI_TYPE_CMP_SUBTYPE))
+                            {
+                                /* Entry is a tombstone && this index is not entryrdn or nsuniqueid */
                                 continue;
                             }
                         }
@@ -2045,7 +2032,7 @@ bdb_db2index(Slapi_PBlock *pb)
         /*
          * Update the ancestorid and entryrdn index
          */
-        if (!entryrdn_get_noancestorid() && (index_ext & DB2INDEX_ANCESTORID)) {
+        if ((index_ext & DB2INDEX_ANCESTORID) && !istombstone) {
             rc = ldbm_ancestorid_index_entry(be, ep, BE_INDEX_ADD, NULL);
             if (rc != 0) {
                 slapi_log_err(SLAPI_LOG_ERR,
@@ -2062,54 +2049,52 @@ bdb_db2index(Slapi_PBlock *pb)
             }
         }
         if (index_ext & DB2INDEX_ENTRYRDN) {
-            if (entryrdn_get_switch()) { /* subtree-rename: on */
-                if (!run_from_cmdline) {
-                    rc = dblayer_txn_begin(be, NULL, &txn);
-                    if (0 != rc) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "bdb_db2index", "%s: ERROR: failed to begin txn for update index 'entryrdn'\n",
-                                      inst->inst_name);
-                        slapi_log_err(SLAPI_LOG_ERR, "bdb_db2index", "%s: Error %d: %s\n",
-                                      inst->inst_name, rc, dblayer_strerror(rc));
-                        slapi_task_log_notice(task,
-                                "%s: ERROR: failed to begin txn for update index 'entryrdn' (err %d: %s)",
-                                inst->inst_name, rc, dblayer_strerror(rc));
-                        return_value = -2;
-                        goto err_out;
-                    }
-                }
-                rc = entryrdn_index_entry(be, ep, BE_INDEX_ADD, &txn);
-                if (rc) {
+            if (!run_from_cmdline) {
+                rc = dblayer_txn_begin(be, NULL, &txn);
+                if (0 != rc) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "bdb_db2index", "%s: Failed to update index 'entryrdn'\n",
-                                  inst->inst_name);
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "bdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                  dblayer_strerror(rc));
+                                    "bdb_db2index", "%s: ERROR: failed to begin txn for update index 'entryrdn'\n",
+                                    inst->inst_name);
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_db2index", "%s: Error %d: %s\n",
+                                  inst->inst_name, rc, dblayer_strerror(rc));
                     slapi_task_log_notice(task,
-                            "%s: ERROR: failed to update index 'entryrdn' (err %d: %s)",
+                            "%s: ERROR: failed to begin txn for update index 'entryrdn' (err %d: %s)",
                             inst->inst_name, rc, dblayer_strerror(rc));
-                    if (!run_from_cmdline) {
-                        dblayer_txn_abort(be, &txn);
-                    }
                     return_value = -2;
                     goto err_out;
                 }
+            }
+            rc = entryrdn_index_entry(be, ep, BE_INDEX_ADD, &txn);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "bdb_db2index", "%s: Failed to update index 'entryrdn'\n",
+                              inst->inst_name);
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "bdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                              dblayer_strerror(rc));
+                slapi_task_log_notice(task,
+                        "%s: ERROR: failed to update index 'entryrdn' (err %d: %s)",
+                        inst->inst_name, rc, dblayer_strerror(rc));
                 if (!run_from_cmdline) {
-                    rc = dblayer_txn_commit(be, &txn);
-                    if (0 != rc) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "bdb_db2index", "%s: Failed to commit txn for "
-                                                              "update index 'entryrdn'\n",
-                                      inst->inst_name);
-                        slapi_log_err(SLAPI_LOG_ERR, "bdb_db2index", "%s: Error %d: %s\n",
-                                      inst->inst_name, rc, dblayer_strerror(rc));
-                        slapi_task_log_notice(task,
-                                "%s: ERROR: failed to commit txn for update index 'entryrdn' (err %d: %s)",
-                                inst->inst_name, rc, dblayer_strerror(rc));
-                        return_value = -2;
-                        goto err_out;
-                    }
+                    dblayer_txn_abort(be, &txn);
+                }
+                return_value = -2;
+                goto err_out;
+            }
+            if (!run_from_cmdline) {
+                rc = dblayer_txn_commit(be, &txn);
+                if (0 != rc) {
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "bdb_db2index", "%s: Failed to commit txn for "
+                                  "update index 'entryrdn'\n",
+                                  inst->inst_name);
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_db2index", "%s: Error %d: %s\n",
+                                  inst->inst_name, rc, dblayer_strerror(rc));
+                    slapi_task_log_notice(task,
+                            "%s: ERROR: failed to commit txn for update index 'entryrdn' (err %d: %s)",
+                            inst->inst_name, rc, dblayer_strerror(rc));
+                    return_value = -2;
+                    goto err_out;
                 }
             }
         }
@@ -2221,7 +2206,7 @@ err_min:
  * Return 0 if the attribute is not to be excluded.
  */
 static int
-ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_uniqueid)
+bdb_ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_uniqueid)
 
 {
     int i, rc = 0;
@@ -2249,9 +2234,9 @@ ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_un
  * (604921) Support a database uprev process any time post-install
  */
 
-int upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
-int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
-int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
+int bdb_upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
+int bdb_upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
+int bdb_upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 
 /*
  * bdb_upgradedb -
@@ -2310,7 +2295,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
             /* check if an import/restore is already ongoing... */
-            /* BUSY flag is cleared at the end of import_main (join thread);
+            /* BUSY flag is cleared at the end of bdb_import_main (join thread);
                it should not cleared in this thread [610347] */
             if (instance_set_busy(inst) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
@@ -2337,17 +2322,6 @@ bdb_upgradedb(Slapi_PBlock *pb)
             }
         }
     }
-    if ((up_flags & SLAPI_UPGRADEDB_DN2RDN) && !entryrdn_get_switch()) {
-        /*
-         * DN2RDN option (-r) is given, but subtree-rename is off.
-         * Print an error and back off.
-         */
-        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
-                      "DN2RDN option (-r) is given, but %s is off in "
-                      "dse.ldif.  Please change the value to on.\n",
-                      CONFIG_ENTRYRDN_SWITCH);
-        return -1;
-    }
 
     inst_obj = objset_first_obj(li->li_instance_set);
     if (inst_obj) {
@@ -2358,7 +2332,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             /* set new idl */
             ldbm_config_internal_set(li, CONFIG_IDL_SWITCH, "new");
             /* First check the dbversion */
-            rval = check_db_inst_version(inst);
+            rval = bdb_check_db_inst_version(inst);
             need_upgrade = (DBVERSION_NEED_IDL_OLD2NEW & rval);
             if (!need_upgrade && (up_flags & SLAPI_UPGRADEDB_DN2RDN)) {
                 need_upgrade = (rval & DBVERSION_NEED_DN2RDN);
@@ -2418,7 +2392,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         if (run_from_cmdline) {
             /* need to call bdb_start for each instance,
-               since dblayer_close is called in upgradedb_core =>
+               since dblayer_close is called in bdb_upgradedb_core =>
                bdb_back_ldif2db */
             if (0 != bdb_start(li, DBLAYER_IMPORT_MODE)) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
@@ -2447,7 +2421,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
 
         /* delete index files to be reindexed */
         if (run_from_cmdline) {
-            rval = upgradedb_delete_indices_4cmd(inst, up_flags);
+            rval = bdb_upgradedb_delete_indices_4cmd(inst, up_flags);
             if (rval) {
                 upgrade_rval += rval;
                 slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedb",
@@ -2455,7 +2429,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
                 continue; /* Need to make all backups; continue */
             }
         } else {
-            rval = dblayer_delete_indices(inst);
+            rval = bdb_delete_indices(inst);
             if (rval) {
                 upgrade_rval += rval;
                 slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedb",
@@ -2464,7 +2438,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             }
         }
 
-        rval = upgradedb_core(pb, inst);
+        rval = bdb_upgradedb_core(pb, inst);
         if (rval) {
             upgrade_rval += rval;
             slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
@@ -2477,13 +2451,13 @@ bdb_upgradedb(Slapi_PBlock *pb)
     }
 
     /* copy transaction logs */
-    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0);
+    backup_rval += bdb_upgradedb_copy_logfiles(li, dest_dir, 0);
 
     /* copy DBVERSION */
     home_dir = bdb_get_home_dir(li, NULL);
     src_dbversion = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
     dest_dbversion = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
-    backup_rval += dblayer_copyfile(src_dbversion, dest_dbversion, 0, 0600);
+    backup_rval += bdb_copyfile(src_dbversion, dest_dbversion, 0, 0600);
 
     if (upgrade_rval) {
         goto fail1;
@@ -2497,7 +2471,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
     /* write db version files */
     bdb_version_write(li, home_dir, NULL, DBVERSION_ALL);
 
-    if ((up_flags & SLAPI_UPGRADEDB_DN2RDN) && entryrdn_get_switch()) {
+    if ((up_flags & SLAPI_UPGRADEDB_DN2RDN)) {
         /* exclude dnformat to allow upgradednformat later */
         dbversion_flags = DBVERSION_ALL ^ DBVERSION_DNFORMAT;
         ;
@@ -2567,7 +2541,7 @@ fail0:
 #define LOG "log."
 #define LOGLEN 4
 int
-upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
+bdb_upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2589,12 +2563,12 @@ upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
         dest = destination_dir;
     }
     if (NULL == src || '\0' == *src) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_copy_logfiles",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_copy_logfiles",
                       "NULL src directory\n");
         return -1;
     }
     if (NULL == dest || '\0' == *dest) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_copy_logfiles",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_copy_logfiles",
                       "NULL dest directory\n");
         return -1;
     }
@@ -2641,7 +2615,7 @@ upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
                 len1 = tolen;
             }
             PR_snprintf(to, len1, "%s/%s", dest, direntry->name);
-            rval = dblayer_copyfile(from, to, 1, DEFAULT_MODE);
+            rval = bdb_copyfile(from, to, 1, DEFAULT_MODE);
             if (rval < 0)
                 break;
         }
@@ -2654,7 +2628,7 @@ upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
 }
 
 int
-upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
+bdb_upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2665,11 +2639,11 @@ upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unus
     char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                                 inst_dir, MAXPATHLEN);
 
-    slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_delete_indices_4cmd",
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb_delete_indices_4cmd",
                   "%s\n", inst_dir);
     dirhandle = PR_OpenDir(inst_dirp);
     if (!dirhandle) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_delete_indices_4cmd",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_delete_indices_4cmd",
                       "PR_OpenDir failed\n");
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
@@ -2695,7 +2669,7 @@ upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unus
         rval = PR_GetFileInfo64(fullpathp, &info);
         if (PR_SUCCESS == rval && PR_FILE_DIRECTORY != info.type) {
             PR_Delete(fullpathp);
-            slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_delete_indices_4cmd",
+            slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb_delete_indices_4cmd",
                           "%s deleted\n", fullpath);
         }
         if (fullpathp != fullpath)
@@ -2711,7 +2685,7 @@ upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unus
  * upgradedb_core
  */
 int
-upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
+bdb_upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
 {
     backend *be = NULL;
     int task_flags = 0;
@@ -2721,25 +2695,23 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     be = inst->inst_be;
-    slapi_log_err(SLAPI_LOG_INFO, "upgradedb_core",
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_upgradedb_core",
                   "%s: Start upgradedb.\n", inst->inst_name);
 
     if (!run_from_cmdline) {
         /* shutdown this instance of the db */
-        slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_core",
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb_core",
                       "Bringing %s offline...\n", inst->inst_name);
         slapi_mtn_be_disable(inst->inst_be);
 
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) {
-            cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
         dblayer_instance_close(be);
     }
 
     /* bdb_instance_start will init the id2entry index. */
     if (0 != bdb_instance_start(be, DBLAYER_IMPORT_MODE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_core",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_core",
                       "Failed to init instance %s\n", inst->inst_name);
         return -1;
     }
@@ -2777,10 +2749,6 @@ _get_and_add_parent_rdns(backend *be,
     char *pid_str = NULL;
     ID storedid;
     ID temp_pid = NOID;
-
-    if (!entryrdn_get_switch()) { /* entryrdn specific code */
-        return rc;
-    }
 
     if (NULL == be || NULL == srdn) {
         slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
@@ -2957,7 +2925,7 @@ _get_and_add_parent_rdns(backend *be,
             goto bail;
         }
         eargs->ep = ep;
-        rc = export_one_entry(li, inst, eargs);
+        rc = bdb_export_one_entry(li, inst, eargs);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
                           "Failed to export an entry %s\n",
@@ -3001,10 +2969,6 @@ _export_or_index_parents(ldbm_instance *inst,
     char *pprdn = NULL;
     backend *be = inst->inst_be;
 
-    if (!entryrdn_get_switch()) { /* entryrdn specific code */
-        return rc;
-    }
-
     /* in case the parent is not already exported */
     rc = entryrdn_get_parent(be, rdn, id, &prdn, &temp_pid, NULL);
     if (rc) { /* entryrdn is not available. */
@@ -3030,7 +2994,9 @@ _export_or_index_parents(ldbm_instance *inst,
             char *pdn = NULL;
 
             bdn = dncache_find_id(&inst->inst_dncache, pid);
-            if (!bdn) {
+            if (bdn) {
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            } else {
                 /* we put pdn to dn cache, which could be used
                  * in _get_and_add_parent_rdns */
                 rc = entryrdn_lookup_dn(be, prdn, pid, &pdn, NULL, NULL);
@@ -3042,18 +3008,18 @@ _export_or_index_parents(ldbm_instance *inst,
                     bdn = backdn_init(psdn, pid, 0);
                     myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     if (myrc) {
-                        backdn_free(&bdn);
                         slapi_log_err(SLAPI_LOG_CACHE,
                                       "_export_or_index_parents",
                                       "%s is already in the dn cache (%d)\n",
                                       pdn, myrc);
+                        backdn_free(&bdn);
                     } else {
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
                         slapi_log_err(SLAPI_LOG_CACHE,
                                       "_export_or_index_parents",
                                       "entryrdn_lookup_dn returned: %s, "
                                       "and set to dn cache\n",
                                       pdn);
+                        CACHE_RETURN(&inst->inst_dncache, &bdn);
                     }
                 }
             }

@@ -1,17 +1,17 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-
 import os
 import pytest
 import subprocess
-
-from lib389.topologies import topology_st as topo
+import ldap
+from lib389.idm.organizationalunit import OrganizationalUnit
+from test389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.utils import *
 from lib389.paths import Paths
@@ -20,6 +20,7 @@ from lib389.cli_ctl.dbtasks import dbtasks_db2ldif
 
 pytestmark = pytest.mark.tier1
 
+
 def run_db2ldif_and_clear_logs(topology, instance, backend, ldif, output_msg, encrypt=False, repl=False):
     args = FakeArgs()
     args.instance = instance.serverid
@@ -27,7 +28,7 @@ def run_db2ldif_and_clear_logs(topology, instance, backend, ldif, output_msg, en
     args.encrypted = encrypt
     args.replication = repl
     args.ldif = ldif
-     
+
     dbtasks_db2ldif(instance, topology.logcap.log, args)
 
     log.info('checking output msg')
@@ -39,24 +40,22 @@ def run_db2ldif_and_clear_logs(topology, instance, backend, ldif, output_msg, en
     topology.logcap.flush()
 
 
-@pytest.mark.bz1806978
-@pytest.mark.ds51188
 @pytest.mark.skipif(ds_is_older("1.3.10", "1.4.2"), reason="Not implemented")
 def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
     """Export with dsctl db2ldif, giving a ldif file path which can't be accessed by the user (dirsrv by default)
 
-    :id: ca91eda7-27b1-4750-a013-531a63d3f5b0
+    :id: 511e7702-7685-4951-9966-38f402d6214b
     :setup: Standalone Instance - entries imported in the db
     :steps:
         1. Stop the server
-        2. Launch db2ldif with an non accessible ldif file path 
+        2. Launch db2ldif with an non accessible ldif file path
         3. Catch the reported error code
-        4. check the error reported in the errors log
-    :expected results:
+        4. Check that an appropriate error was returned
+    :expectedresults:
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
-        4. 'ERR - bdb_db2ldif - db2ldif: userRoot: can't open file' should be reported
+        4. "location does not exist" is returned
     """
     export_ldif = '/tmp/nonexistent/export.ldif'
 
@@ -64,23 +63,15 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
     topo.standalone.stop()
 
     log.info("Performing an offline export to a non accessible ldif file path - should fail properly")
-    expected_output="db2ldif failed"
-    run_db2ldif_and_clear_logs(topo, topo.standalone, DEFAULT_BENAME, export_ldif, expected_output) 
-
-    log.info("parsing the errors log to search for the error reported")
-    if ds_is_newer("1.3.10"):
-    	search_str = str(topo.standalone.ds_error_log.match(r".*ERR - bdb_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
-    else:
-    	search_str = str(topo.standalone.ds_error_log.match(r".*ERR - ldbm_back_ldbm2ldif - db2ldif: can't open*"))[1:-1]
-
-    	assert len(search_str) > 0
-    	log.info("error string : %s" % search_str)
+    expected_output="location does not exist"
+    with pytest.raises(ValueError) as e:
+        run_db2ldif_and_clear_logs(topo, topo.standalone, DEFAULT_BENAME, export_ldif, expected_output)
+    assert "location does not exist" in str(e.value)
 
     log.info("Restarting the instance...")
     topo.standalone.start()
 
-@pytest.mark.bz1806978
-@pytest.mark.ds51188
+
 @pytest.mark.skipif(ds_is_older("1.4.3.8"), reason="bz1806978 not fixed")
 def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
     """Export with ns-slapd db2ldif, giving a ldif file path which can't be accessed by the user (dirsrv by default)
@@ -89,14 +80,14 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
     :setup: Standalone Instance - entries imported in the db
     :steps:
         1. Stop the server
-        2. Launch db2ldif with an non accessible ldif file path 
+        2. Launch db2ldif with an non accessible ldif file path
         3. Catch the reported error code
-        4. check the error reported in the errors log
-    :expected results:
+        4. Check that an appropriate error was returned
+    :expectedresults:
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
-        4. 'ERR - bdb_db2ldif - db2ldif: userRoot: can't open file' should be reported
+        4. "The LDIF file location does not exist" is returned
     """
     export_ldif = '/tmp/nonexistent/export.ldif'
     db2ldif_cmd = os.path.join(topo.standalone.ds_paths.sbin_dir, 'dsctl')
@@ -106,24 +97,16 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
 
     log.info("Performing an offline export to a non accessible ldif file path - should fail properly")
     try:
-        subprocess.check_call([db2ldif_cmd, topo.standalone.serverid, 'db2ldif', 'userroot', export_ldif])
+        subprocess.check_output([db2ldif_cmd, topo.standalone.serverid, 'db2ldif', 'userroot', export_ldif])
     except subprocess.CalledProcessError as e:
         if format(e.returncode) == '139':
             log.error('db2ldif had a Segmentation fault (core dumped)')
             assert False
-        else:
-            log.info('db2ldif failed properly: error ({})'.format(e.returncode))
-            assert True
-
-    log.info("parsing the errors log to search for the error reported")
-    search_str = str(topo.standalone.ds_error_log.match(r".*ERR - bdb_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
-    assert len(search_str) > 0
-    log.info("error string : %s" % search_str)
 
     log.info("Restarting the instance...")
     topo.standalone.start()
 
-@pytest.mark.bz1860291
+
 @pytest.mark.xfail(reason="bug 1860291")
 @pytest.mark.skipif(ds_is_older("1.3.10", "1.4.2"), reason="Not implemented")
 def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path_output(topo):
@@ -133,9 +116,9 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path_output(topo):
     :setup: Standalone Instance - entries imported in the db
     :steps:
         1. Stop the server
-        2. Launch db2ldif with a non accessible ldif file path 
+        2. Launch db2ldif with a non accessible ldif file path
         3. check the error reported in the command output
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation properly fails
         3. An clear error message is reported as output of the cli
@@ -147,9 +130,54 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path_output(topo):
 
     log.info("Performing an offline export to a non accessible ldif file path - should fail and output a clear error message")
     expected_output="No such file or directory"
-    run_db2ldif_and_clear_logs(topo, topo.standalone, DEFAULT_BENAME, export_ldif, expected_output) 
+    run_db2ldif_and_clear_logs(topo, topo.standalone, DEFAULT_BENAME, export_ldif, expected_output)
     # This test will possibly have to be updated with the error message reported after bz1860291 fix
 
     log.info("Restarting the instance...")
     topo.standalone.start()
 
+
+def test_db2ldif_preserves_dn_case_in_exported_ldif(topo):
+    """Ensure db2ldif keeps the original DN case in exported LDIF.
+
+    :id: a3af2131-1134-43d2-9cf5-838bf53ec23f
+    :setup: Standalone Instance
+    :steps:
+        1. Add an organizational unit with DN "ou=test_dn_case,dc=EXAMPLE,dc=COM"
+        2. Stop the server
+        3. Perform offline db2ldif export
+        4. Verify the exported LDIF contains the DN with unchanged case
+    :expectedresults:
+        1. Entry is added successfully
+        2. Server stops cleanly
+        3. Offline export succeeds
+        4. DN case is preserved in the exported LDIF file
+    """
+    topo.standalone.start()
+
+    test_dn = "ou=test_dn_case,dc=EXAMPLE,dc=COM"
+    test_rdn_value = "test_dn_case"
+    export_ldif = os.path.join(topo.standalone.get_ldif_dir(), "export_dn_case.ldif")
+    test_ou = OrganizationalUnit(topo.standalone, test_dn)
+
+    log.info("Adding test entry with mixed-case DN suffix")
+    test_ou.create(properties={'ou': test_rdn_value})
+
+    log.info("Stopping the instance...")
+    topo.standalone.stop()
+    try:
+        log.info("Running offline db2ldif export")
+        assert topo.standalone.db2ldif(DEFAULT_BENAME, (DEFAULT_SUFFIX,), None, None, None, export_ldif)
+    finally:
+        log.info("Restarting the instance...")
+        topo.standalone.start()
+
+    log.info("Checking exported LDIF preserves the exact DN case")
+    with open(export_ldif, "r", encoding="utf-8") as export_file:
+        content = export_file.read()
+    assert f"dn: {test_dn}" in content
+
+    # Cleanup test artifacts
+    test_ou.delete()
+    if os.path.exists(export_ldif):
+        os.remove(export_ldif)

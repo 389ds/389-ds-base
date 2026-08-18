@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import pytest
 import glob
 import base64
@@ -6,7 +14,7 @@ from lib389.tasks import *
 from lib389.rewriters import *
 from lib389.idm.user import UserAccounts
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, PORT_STANDALONE
 
@@ -43,8 +51,24 @@ def _create_user(inst, schema_container, name, salt):
 
 
 def test_adfilter_objectCategory(topology_st):
-    """
-    Test adfilter objectCategory rewriter function
+    """Test adfilter objectCategory rewriter function
+
+    :id: 9c6493c9-1ee0-4bc2-b5db-7253a04fb6f8
+    :setup: Standalone instance
+    :steps:
+         1. Add a objectsid rewriter (from librewriters.so)
+         2. Add a dummy schema definition of objectsid to prevent nsslapd-verify-filter-schema
+         3. Restart the server (to load the rewriter)
+         4. Check EQUALITY filter rewrite
+         5. Check SUBSTRING search is not replaced
+         6. Check PRESENCE search is not replaced so it selects all entries having objectCategory
+    :expectedresults:
+         1. Add operation should PASS.
+         2. Add operations should PASS.
+         3. Restart should PASS
+         4. Search returns only one entry
+         5. Search returns zero entries
+         6. Search returns all (20) entries
     """
 
     librewriters = os.path.join( topology_st.standalone.ds_paths.lib_dir, 'dirsrv/librewriters.so')
@@ -89,24 +113,20 @@ def objectsid_to_sid(objectsid):
 
 @pytest.mark.skipif(samba_missing, reason="It is missing samba python bindings")
 def test_adfilter_objectSid(topology_st):
-    """
-    Test adfilter objectCategory rewriter function
+    """Test adfilter objectCategory rewriter function with samba container/users
 
     :id: fc5880ff-4305-47ba-84fb-38429e264e9e
-
     :setup: Standalone instance
-
     :steps:
-         1. add a objectsid rewriter (from librewriters.so)
-         2. add a dummy schema definition of objectsid to prevent nsslapd-verify-filter-schema
-         3. restart the server (to load the rewriter)
+         1. Add a objectsid rewriter (from librewriters.so)
+         2. Add a dummy schema definition of objectsid to prevent nsslapd-verify-filter-schema
+         3. Restart the server (to load the rewriter)
          4. Add "samba" container/users
          5. Searches using objectsid in string format
-
     :expectedresults:
          1. Add operation should PASS.
          2. Add operations should PASS.
-         3. restart should PASS
+         3. Restart should PASS
          4. Add "samba" users should PASS
          5. Search returns only one entry
     """
@@ -125,7 +145,7 @@ def test_adfilter_objectSid(topology_st):
 
     topology_st.standalone.restart()
 
-    # Contains a list of b64encoded SID from https://github.com/SSSD/sssd/blob/master/src/tests/intg/data/ad_data.ldif
+    # Contains a list of b64encoded SID from https://github.com/SSSD/sssd/blob/supplier/src/tests/intg/data/ad_data.ldif
     SIDs = ["AQUAAAAAAAUVAAAADcfLTVzC66zo0l8EUAQAAA==",
             "AQUAAAAAAAUVAAAADcfLTVzC66zo0l8E9gEAAA==",
             "AQUAAAAAAAUVAAAADcfLTVzC66zo0l8EAwIAAA==",

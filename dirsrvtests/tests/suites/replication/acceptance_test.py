@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,14 +8,16 @@
 #
 import pytest
 import logging
+import time
+from lib389.backend import Backend
 from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4 as topo_m4
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m2 as topo_m2
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
-from lib389.replica import ReplicationManager
+from lib389.replica import ReplicationManager, Changelog
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier0
@@ -36,11 +38,11 @@ log = logging.getLogger(__name__)
 
 @pytest.fixture(scope="function")
 def create_entry(topo_m4, request):
-    """Add test entry to master1"""
+    """Add test entry to supplier1"""
 
     log.info('Adding entry {}'.format(TEST_ENTRY_DN))
 
-    test_user = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
+    test_user = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
     if test_user.exists():
         log.info('Deleting entry {}'.format(TEST_ENTRY_DN))
         test_user.delete()
@@ -59,12 +61,12 @@ def new_suffix(topo_m4, request):
     """Add a new suffix and enable a replication on it"""
 
     for num in range(1, 5):
-        log.info('Adding suffix:{} and backend: {} to master{}'.format(NEW_SUFFIX, NEW_BACKEND, num))
-        topo_m4.ms["master{}".format(num)].backend.create(NEW_SUFFIX, {BACKEND_NAME: NEW_BACKEND})
-        topo_m4.ms["master{}".format(num)].mappingtree.create(NEW_SUFFIX, NEW_BACKEND)
+        log.info('Adding suffix:{} and backend: {} to supplier{}'.format(NEW_SUFFIX, NEW_BACKEND, num))
+        topo_m4.ms["supplier{}".format(num)].backend.create(NEW_SUFFIX, {BACKEND_NAME: NEW_BACKEND})
+        topo_m4.ms["supplier{}".format(num)].mappingtree.create(NEW_SUFFIX, NEW_BACKEND)
 
         try:
-            topo_m4.ms["master{}".format(num)].add_s(Entry((NEW_SUFFIX, {
+            topo_m4.ms["supplier{}".format(num)].add_s(Entry((NEW_SUFFIX, {
                 'objectclass': 'top',
                 'objectclass': 'organization',
                 'o': NEW_SUFFIX_NAME,
@@ -76,9 +78,9 @@ def new_suffix(topo_m4, request):
 
     def fin():
         for num in range(1, 5):
-            log.info('Deleting suffix:{} and backend: {} from master{}'.format(NEW_SUFFIX, NEW_BACKEND, num))
-            topo_m4.ms["master{}".format(num)].mappingtree.delete(NEW_SUFFIX)
-            topo_m4.ms["master{}".format(num)].backend.delete(NEW_SUFFIX)
+            log.info('Deleting suffix:{} and backend: {} from supplier{}'.format(NEW_SUFFIX, NEW_BACKEND, num))
+            topo_m4.ms["supplier{}".format(num)].mappingtree.delete(NEW_SUFFIX)
+            topo_m4.ms["supplier{}".format(num)].backend.delete(NEW_SUFFIX)
 
     request.addfinalizer(fin)
 
@@ -87,11 +89,11 @@ def test_add_entry(topo_m4, create_entry):
     """Check that entries are replicated after add operation
 
     :id: 024250f1-5f7e-4f3b-a9f5-27741e6fd405
-    :setup: Four masters replication setup, an entry
+    :setup: Four suppliers replication setup, an entry
     :steps:
-        1. Check entry on all other masters
+        1. Check entry on all other suppliers
     :expectedresults:
-        1. The entry should be replicated to all masters
+        1. The entry should be replicated to all suppliers
     """
 
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
@@ -102,34 +104,46 @@ def test_modify_entry(topo_m4, create_entry):
     """Check that entries are replicated after modify operation
 
     :id: 36764053-622c-43c2-a132-d7a3ab7d9aaa
-    :setup: Four masters replication setup, an entry
+    :setup: Four suppliers replication setup, an entry
     :steps:
-        1. Modify the entry on master1 - add attribute
+        1. Modify the entry on supplier1 - add attribute
         2. Wait for replication to happen
-        3. Check entry on all other masters
-        4. Modify the entry on master1 - replace attribute
+        3. Check entry on all other suppliers
+        4. Modify the entry on supplier1 - replace attribute
         5. Wait for replication to happen
-        6. Check entry on all other masters
-        7. Modify the entry on master1 - delete attribute
+        6. Check entry on all other suppliers
+        7. Modify the entry on supplier1 - delete attribute
         8. Wait for replication to happen
-        9. Check entry on all other masters
+        9. Check entry on all other suppliers
     :expectedresults:
         1. Attribute should be successfully added
         2. Some time should pass
-        3. The change should be present on all masters
+        3. The change should be present on all suppliers
         4. Attribute should be successfully replaced
         5. Some time should pass
-        6. The change should be present on all masters
+        6. The change should be present on all suppliers
         7. Attribute should be successfully deleted
         8. Some time should pass
-        9. The change should be present on all masters
+        9. The change should be present on all suppliers
     """
+    if DEBUGGING:
+        sleep_time = 8
+    else:
+        sleep_time = 2
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
 
-    test_user = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
+    m1 = topo_m4.ms["supplier1"]
+    m2 = topo_m4.ms["supplier2"]
+    m3 = topo_m4.ms["supplier3"]
+    m4 = topo_m4.ms["supplier4"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    test_user = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
     test_user.add('mail', '{}@redhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(1)
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m1, m3)
+    repl.wait_for_replication(m1, m4)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -137,7 +151,9 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - replace operation'.format(TEST_ENTRY_DN))
     test_user.replace('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(1)
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m1, m3)
+    repl.wait_for_replication(m1, m4)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -145,7 +161,9 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - delete operation'.format(TEST_ENTRY_DN))
     test_user.remove('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(1)
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m1, m3)
+    repl.wait_for_replication(m1, m4)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -156,18 +174,21 @@ def test_delete_entry(topo_m4, create_entry):
     """Check that entry deletion is replicated after delete operation
 
     :id: 18437262-9d6a-4b98-a47a-6182501ab9bc
-    :setup: Four masters replication setup, an entry
+    :setup: Four suppliers replication setup, an entry
     :steps:
-        1. Delete the entry from master1
-        2. Check entry on all other masters
+        1. Delete the entry from supplier1
+        2. Check entry on all other suppliers
     :expectedresults:
         1. The entry should be deleted
-        2. The change should be present on all masters
+        2. The change should be present on all suppliers
     """
 
     log.info('Deleting entry {} during the test'.format(TEST_ENTRY_DN))
-    topo_m4.ms["master1"].delete_s(TEST_ENTRY_DN)
-
+    topo_m4.ms["supplier1"].delete_s(TEST_ENTRY_DN)
+    if DEBUGGING:
+        time.sleep(8)
+    else:
+        time.sleep(1)
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
 
@@ -178,20 +199,20 @@ def test_modrdn_entry(topo_m4, create_entry, delold):
 
     :id: 02558e6d-a745-45ae-8d88-34fe9b16adc9
     :parametrized: yes
-    :setup: Four masters replication setup, an entry
+    :setup: Four suppliers replication setup, an entry
     :steps:
-        1. Make modrdn operation on entry on master1 with both delold 1 and 0
-        2. Check entry on all other masters
+        1. Make modrdn operation on entry on supplier1 with both delold 1 and 0
+        2. Check entry on all other suppliers
     :expectedresults:
         1. Modrdn operation should be successful
-        2. The change should be present on all masters
+        2. The change should be present on all suppliers
     """
 
     newrdn_name = 'newrdn'
     newrdn_dn = 'uid={},{}'.format(newrdn_name, DEFAULT_SUFFIX)
     log.info('Modify entry RDN {}'.format(TEST_ENTRY_DN))
     try:
-        topo_m4.ms["master1"].modrdn_s(TEST_ENTRY_DN, 'uid={}'.format(newrdn_name), delold)
+        topo_m4.ms["supplier1"].modrdn_s(TEST_ENTRY_DN, 'uid={}'.format(newrdn_name), delold)
     except ldap.LDAPError as e:
         log.error('Failed to modrdn entry (%s): error (%s)' % (TEST_ENTRY_DN,
                                                                e.message['desc']))
@@ -209,34 +230,39 @@ def test_modrdn_entry(topo_m4, create_entry, delold):
                 TEST_ENTRY_DN)
     finally:
         log.info('Remove entry with new RDN {}'.format(newrdn_dn))
-        topo_m4.ms["master1"].delete_s(newrdn_dn)
+        topo_m4.ms["supplier1"].delete_s(newrdn_dn)
 
 
 def test_modrdn_after_pause(topo_m4):
     """Check that changes are properly replicated after replica pause
 
     :id: 6271dc9c-a993-4a9e-9c6d-05650cdab282
-    :setup: Four masters replication setup, an entry
+    :setup: Four suppliers replication setup, an entry
     :steps:
         1. Pause all replicas
-        2. Make modrdn operation on entry on master1
+        2. Make modrdn operation on entry on supplier1
         3. Resume all replicas
         4. Wait for replication to happen
-        5. Check entry on all other masters
+        5. Check entry on all other suppliers
     :expectedresults:
         1. Replicas should be paused
         2. Modrdn operation should be successful
         3. Replicas should be resumed
         4. Some time should pass
-        5. The change should be present on all masters
+        5. The change should be present on all suppliers
     """
+
+    if DEBUGGING:
+        sleep_time = 8
+    else:
+        sleep_time = 3
 
     newrdn_name = 'newrdn'
     newrdn_dn = 'uid={},{}'.format(newrdn_name, DEFAULT_SUFFIX)
 
     log.info('Adding entry {}'.format(TEST_ENTRY_DN))
     try:
-        topo_m4.ms["master1"].add_s(Entry((TEST_ENTRY_DN, {
+        topo_m4.ms["supplier1"].add_s(Entry((TEST_ENTRY_DN, {
             'objectclass': 'top person'.split(),
             'objectclass': 'organizationalPerson',
             'objectclass': 'inetorgperson',
@@ -254,7 +280,7 @@ def test_modrdn_after_pause(topo_m4):
 
     log.info('Modify entry RDN {}'.format(TEST_ENTRY_DN))
     try:
-        topo_m4.ms["master1"].modrdn_s(TEST_ENTRY_DN, 'uid={}'.format(newrdn_name))
+        topo_m4.ms["supplier1"].modrdn_s(TEST_ENTRY_DN, 'uid={}'.format(newrdn_name))
     except ldap.LDAPError as e:
         log.error('Failed to modrdn entry (%s): error (%s)' % (TEST_ENTRY_DN,
                                                                e.message['desc']))
@@ -264,22 +290,21 @@ def test_modrdn_after_pause(topo_m4):
     topo_m4.resume_all_replicas()
 
     log.info('Wait for replication to happen')
-    time.sleep(3)
+    time.sleep(sleep_time)
 
     try:
         entries_new = get_repl_entries(topo_m4, newrdn_name, ["uid"])
         assert all(entries_new), "Entry {} wasn't replicated successfully".format(newrdn_name)
     finally:
         log.info('Remove entry with new RDN {}'.format(newrdn_dn))
-        topo_m4.ms["master1"].delete_s(newrdn_dn)
+        topo_m4.ms["supplier1"].delete_s(newrdn_dn)
 
 
-@pytest.mark.bz842441
 def test_modify_stripattrs(topo_m4):
     """Check that we can modify nsds5replicastripattrs
 
     :id: f36abed8-e262-4f35-98aa-71ae55611aaa
-    :setup: Four masters replication setup
+    :setup: Four suppliers replication setup
     :steps:
         1. Modify nsds5replicastripattrs attribute on any agreement
         2. Search for the modified attribute
@@ -288,7 +313,7 @@ def test_modify_stripattrs(topo_m4):
         2. The modified attribute should be the one we set
     """
 
-    m1 = topo_m4.ms["master1"]
+    m1 = topo_m4.ms["supplier1"]
     agreement = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
     attr_value = b'modifiersname modifytimestamp'
 
@@ -300,11 +325,170 @@ def test_modify_stripattrs(topo_m4):
     assert attr_value in entries[0].data['nsds5replicastripattrs']
 
 
+def test_multi_subsuffix_replication(topo_m4):
+    """Check that replication works with multiple subsuffixes
+
+    :id: ac1aaeae-173e-48e7-847f-03b9867443c4
+    :setup: Four suppliers replication setup
+    :steps:
+        1. Create additional suffixes
+        2. Setup replication for all suppliers
+        3. Generate test data for each suffix (add, modify, remove)
+        4. Wait for replication to complete across all suppliers for each suffix
+        5. Check that all expected data is present on all suppliers
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success (the data is replicated everywhere)
+    """
+
+    SUFFIX_2 = "dc=test2"
+    SUFFIX_3 = f"dc=test3,{DEFAULT_SUFFIX}"
+    all_suffixes = [DEFAULT_SUFFIX, SUFFIX_2, SUFFIX_3]
+
+    test_users_by_suffix = {suffix: [] for suffix in all_suffixes}
+    created_backends = []
+
+    suppliers = [
+        topo_m4.ms["supplier1"],
+        topo_m4.ms["supplier2"],
+        topo_m4.ms["supplier3"],
+        topo_m4.ms["supplier4"]
+    ]
+
+    try:
+        # Setup additional backends and replication for the new suffixes
+        for suffix in [SUFFIX_2, SUFFIX_3]:
+            repl = ReplicationManager(suffix)
+            for supplier in suppliers:
+                # Create a new backend for this suffix
+                props = {
+                    'cn': f'userRoot_{suffix.split(",")[0][3:]}',
+                    'nsslapd-suffix': suffix
+                }
+                be = Backend(supplier)
+                be.create(properties=props)
+                be.create_sample_entries('001004002')
+
+                # Track the backend so we can remove it later
+                created_backends.append((supplier, props['cn']))
+
+                # Enable replication
+                if supplier == suppliers[0]:
+                    repl.create_first_supplier(supplier)
+                else:
+                    repl.join_supplier(suppliers[0], supplier)
+
+            # Create a full mesh topology for this suffix
+            for i, supplier_i in enumerate(suppliers):
+                for j, supplier_j in enumerate(suppliers):
+                    if i != j:
+                        repl.ensure_agreement(supplier_i, supplier_j)
+
+        # Generate test data for each suffix (add, modify, remove)
+        for suffix in all_suffixes:
+            # Create some user entries in supplier1
+            for i in range(20):
+                user_dn = f'uid=test_user_{i},{suffix}'
+                test_user = UserAccount(suppliers[0], user_dn)
+                test_user.create(properties={
+                    'uid': f'test_user_{i}',
+                    'cn': f'Test User {i}',
+                    'sn': f'User{i}',
+                    'userPassword': 'password',
+                    'uidNumber': str(1000 + i),
+                    'gidNumber': '2000',
+                    'homeDirectory': f'/home/test_user_{i}'
+                })
+                test_users_by_suffix[suffix].append(test_user)
+
+            # Perform modifications on these entries
+            for user in test_users_by_suffix[suffix]:
+                # Add some attributes
+                for j in range(3):
+                    user.add('description', f'Description {j}')
+                # Replace an attribute
+                user.replace('cn', f'Modified User {user.get_attr_val_utf8("uid")}')
+                # Delete the attributes we added
+                for j in range(3):
+                    try:
+                        user.remove('description', f'Description {j}')
+                    except Exception:
+                        pass
+
+        # Wait for replication to complete across all suppliers, for each suffix
+        for suffix in all_suffixes:
+            repl = ReplicationManager(suffix)
+            for i, supplier_i in enumerate(suppliers):
+                for j, supplier_j in enumerate(suppliers):
+                    if i != j:
+                        repl.wait_for_replication(supplier_i, supplier_j)
+
+        # Verify that each user and modification replicated to all suppliers
+        for suffix in all_suffixes:
+            for i in range(20):
+                user_dn = f'uid=test_user_{i},{suffix}'
+                # Retrieve this user from all suppliers
+                all_user_objs = topo_m4.all_get_dsldapobject(user_dn, UserAccount)
+                # Ensure it exists in all 4 suppliers
+                assert len(all_user_objs) == 4, (
+                    f"User {user_dn} not found on all suppliers. "
+                    f"Found only on {len(all_user_objs)} suppliers."
+                )
+                # Check modifications: 'cn' should now be 'Modified User test_user_{i}'
+                for user_obj in all_user_objs:
+                    expected_cn = f"Modified User test_user_{i}"
+                    actual_cn = user_obj.get_attr_val_utf8("cn")
+                    assert actual_cn == expected_cn, (
+                        f"User {user_dn} has unexpected 'cn': {actual_cn} "
+                        f"(expected '{expected_cn}') on supplier {user_obj._instance.serverid}"
+                    )
+                    # And check that 'description' attributes were removed
+                    desc_vals = user_obj.get_attr_vals_utf8('description')
+                    for j in range(3):
+                        assert f"Description {j}" not in desc_vals, (
+                            f"User {user_dn} on supplier {user_obj._instance.serverid} "
+                            f"still has 'Description {j}'"
+                        )
+
+        # Check there are no decoding errors
+        assert not topo_m4.ms["supplier1"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier2"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier3"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier4"].ds_error_log.match('.*decoding failed.*')
+
+    finally:
+        for suffix, test_users in test_users_by_suffix.items():
+            for user in test_users:
+                try:
+                    if user.exists():
+                        user.delete()
+                except Exception:
+                    pass
+
+        for suffix in [SUFFIX_2, SUFFIX_3]:
+            repl = ReplicationManager(suffix)
+            for supplier in suppliers:
+                try:
+                    repl.remove_supplier(supplier)
+                except Exception:
+                    pass
+
+        for (supplier, backend_name) in created_backends:
+            be = Backend(supplier, backend_name)
+            try:
+                be.delete()
+            except Exception:
+                pass
+
+
 def test_new_suffix(topo_m4, new_suffix):
     """Check that we can enable replication on a new suffix
 
     :id: d44a9ed4-26b0-4189-b0d0-b2b336ddccbd
-    :setup: Four masters replication setup, a new suffix
+    :setup: Four suppliers replication setup, a new suffix
     :steps:
         1. Enable replication on the new suffix
         2. Check if replication works
@@ -314,26 +498,27 @@ def test_new_suffix(topo_m4, new_suffix):
         2. Replication should work
         3. Replication on the new suffix should be disabled
     """
-    m1 = topo_m4.ms["master1"]
-    m2 = topo_m4.ms["master2"]
+    m1 = topo_m4.ms["supplier1"]
+    m2 = topo_m4.ms["supplier2"]
 
     repl = ReplicationManager(NEW_SUFFIX)
 
-    repl.create_first_master(m1)
+    repl.create_first_supplier(m1)
 
-    repl.join_master(m1, m2)
+    repl.join_supplier(m1, m2)
 
     repl.test_replication(m1, m2)
     repl.test_replication(m2, m1)
 
-    repl.remove_master(m1)
-    repl.remove_master(m2)
+    repl.remove_supplier(m1)
+    repl.remove_supplier(m2)
+
 
 def test_many_attrs(topo_m4, create_entry):
     """Check a replication with many attributes (add and delete)
 
     :id: d540b358-f67a-43c6-8df5-7c74b3cb7523
-    :setup: Four masters replication setup, a test entry
+    :setup: Four suppliers replication setup, a test entry
     :steps:
         1. Add 10 new attributes to the entry
         2. Delete few attributes: one from the beginning,
@@ -345,14 +530,19 @@ def test_many_attrs(topo_m4, create_entry):
         3. The changes should be replicated in the right order
     """
 
-    m1 = topo_m4.ms["master1"]
+    m1 = topo_m4.ms["supplier1"]
     add_list = ensure_list_bytes(map(lambda x: "test{}".format(x), range(10)))
     delete_list = ensure_list_bytes(map(lambda x: "test{}".format(x), [0, 4, 7, 9]))
-    test_user = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
+    test_user = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
 
     log.info('Modifying entry {} - 10 add operations'.format(TEST_ENTRY_DN))
     for add_name in add_list:
         test_user.add('description', add_name)
+
+    if DEBUGGING:
+        time.sleep(10)
+    else:
+        time.sleep(1)
 
     log.info('Check that everything was properly replicated after an add operation')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["description"])
@@ -362,6 +552,11 @@ def test_many_attrs(topo_m4, create_entry):
     log.info('Modifying entry {} - 4 delete operations for {}'.format(TEST_ENTRY_DN, str(delete_list)))
     for delete_name in delete_list:
         test_user.remove('description', delete_name)
+
+    if DEBUGGING:
+        time.sleep(10)
+    else:
+        time.sleep(1)
 
     log.info('Check that everything was properly replicated after a delete operation')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["description"])
@@ -375,22 +570,32 @@ def test_double_delete(topo_m4, create_entry):
     """Check that double delete of the entry doesn't crash server
 
     :id: 5b85a5af-df29-42c7-b6cb-965ec5aa478e
-    :feature: Multi master replication
-    :setup: Four masters replication setup, a test entry
+    :feature: Multi supplier replication
+    :setup: Four suppliers replication setup, a test entry
     :steps: 1. Delete the entry
-            2. Delete the entry on the second master
+            2. Delete the entry on the second supplier
             3. Check that server is alive
     :expectedresults: Server hasn't crash
     """
 
-    log.info('Deleting entry {} from master1'.format(TEST_ENTRY_DN))
-    topo_m4.ms["master1"].delete_s(TEST_ENTRY_DN)
+    log.info('Deleting entry {} from supplier1'.format(TEST_ENTRY_DN))
+    topo_m4.ms["supplier1"].delete_s(TEST_ENTRY_DN)
 
-    log.info('Deleting entry {} from master2'.format(TEST_ENTRY_DN))
+    if DEBUGGING:
+        time.sleep(5)
+    else:
+        time.sleep(1)
+
+    log.info('Deleting entry {} from supplier2'.format(TEST_ENTRY_DN))
     try:
-        topo_m4.ms["master2"].delete_s(TEST_ENTRY_DN)
+        topo_m4.ms["supplier2"].delete_s(TEST_ENTRY_DN)
     except ldap.NO_SUCH_OBJECT:
-        log.info("Entry {} wasn't found master2. It is expected.".format(TEST_ENTRY_DN))
+        log.info("Entry {} wasn't found supplier2. It is expected.".format(TEST_ENTRY_DN))
+
+    if DEBUGGING:
+        time.sleep(5)
+    else:
+        time.sleep(1)
 
     log.info('Make searches to check if server is alive')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
@@ -401,40 +606,51 @@ def test_password_repl_error(topo_m4, create_entry):
     """Check that error about userpassword replication is properly logged
 
     :id: d4f12dc0-cd2c-4b92-9b8d-d764a60f0698
-    :feature: Multi master replication
-    :setup: Four masters replication setup, a test entry
-    :steps: 1. Change userpassword on master 1
+    :feature: Multi supplier replication
+    :setup: Four suppliers replication setup, a test entry
+    :steps: 1. Change userpassword on supplier 1
             2. Restart the servers to flush the logs
             3. Check the error log for an replication error
     :expectedresults: We don't have a replication error in the error log
     """
 
-    m1 = topo_m4.ms["master1"]
-    m2 = topo_m4.ms["master2"]
+    m1 = topo_m4.ms["supplier1"]
+    m2 = topo_m4.ms["supplier2"]
+    m3 = topo_m4.ms["supplier3"]
+    m4 = topo_m4.ms["supplier4"]
     TEST_ENTRY_NEW_PASS = 'new_{}'.format(TEST_ENTRY_NAME)
 
     log.info('Clean the error log')
     m2.deleteErrorLogs()
 
     log.info('Set replication loglevel')
+    m1.config.loglevel((ErrorLog.REPLICA,))
     m2.config.loglevel((ErrorLog.REPLICA,))
+    m3.config.loglevel((ErrorLog.REPLICA,))
+    m4.config.loglevel((ErrorLog.REPLICA,))
 
-    log.info('Modifying entry {} - change userpassword on master 2'.format(TEST_ENTRY_DN))
-    test_user_m1 = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
-    test_user_m2 = UserAccount(topo_m4.ms["master2"], TEST_ENTRY_DN)
-    test_user_m3 = UserAccount(topo_m4.ms["master3"], TEST_ENTRY_DN)
-    test_user_m4 = UserAccount(topo_m4.ms["master4"], TEST_ENTRY_DN)
+
+    log.info('Modifying entry {} - change userpassword on supplier 2'.format(TEST_ENTRY_DN))
+    test_user_m1 = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
+    test_user_m2 = UserAccount(topo_m4.ms["supplier2"], TEST_ENTRY_DN)
+    test_user_m3 = UserAccount(topo_m4.ms["supplier3"], TEST_ENTRY_DN)
+    test_user_m4 = UserAccount(topo_m4.ms["supplier4"], TEST_ENTRY_DN)
 
     test_user_m1.set('userpassword', TEST_ENTRY_NEW_PASS)
 
     log.info('Restart the servers to flush the logs')
     for num in range(1, 5):
-        topo_m4.ms["master{}".format(num)].restart(timeout=10)
+        topo_m4.ms["supplier{}".format(num)].restart(timeout=10)
 
     m1_conn = test_user_m1.bind(TEST_ENTRY_NEW_PASS)
     m2_conn = test_user_m2.bind(TEST_ENTRY_NEW_PASS)
     m3_conn = test_user_m3.bind(TEST_ENTRY_NEW_PASS)
     m4_conn = test_user_m4.bind(TEST_ENTRY_NEW_PASS)
+
+    if DEBUGGING:
+        time.sleep(5)
+    else:
+        time.sleep(1)
 
     log.info('Check the error log for the error with {}'.format(TEST_ENTRY_DN))
     assert not m2.ds_error_log.match('.*can.t add a change for uid={}.*'.format(TEST_ENTRY_NAME))
@@ -444,7 +660,7 @@ def test_invalid_agmt(topo_m4):
     """Test adding that an invalid agreement is properly rejected and does not crash the server
 
     :id: 92f10f46-1be1-49ca-9358-784359397bc2
-    :setup: MMR with four masters
+    :setup: MMR with four suppliers
     :steps:
         1. Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
         2. Verify the server is still running
@@ -452,7 +668,7 @@ def test_invalid_agmt(topo_m4):
         1. Invalid repl agreement should be rejected
         2. Server should be still running
     """
-    m1 = topo_m4.ms["master1"]
+    m1 = topo_m4.ms["supplier1"]
 
     # Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
     AGMT_DN = 'cn=whatever,cn=replica,cn="dc=example,dc=com",cn=mapping tree,cn=config'
@@ -477,11 +693,27 @@ def test_invalid_agmt(topo_m4):
         assert False
 
 
-def test_warining_for_invalid_replica(topo_m4):
+def test_reject_self_referential_agmt(topo_m4):
+    """Test that creating a replication agreement pointing to self is rejected
+
+    :id: 7df2f91a-878b-4a7e-86f7-4f72ef5726c6
+    :setup: MMR with four suppliers
+    :steps:
+        1. Try to add an agreement on supplier1 that points to supplier1 host/port
+    :expectedresults:
+        1. Agreement creation should fail with UNWILLING_TO_PERFORM
+    """
+    m1 = topo_m4.ms["supplier1"]
+
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        m1.agreement.create(suffix=DEFAULT_SUFFIX, host=m1.host, port=m1.port)
+
+
+def test_warning_for_invalid_replica(topo_m4):
     """Testing logs to indicate the inconsistency when configuration is performed.
 
     :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c8
-    :setup: MMR with four masters
+    :setup: MMR with four suppliers
     :steps:
         1. Setup nsds5ReplicaBackoffMin to 20
         2. Setup nsds5ReplicaBackoffMax to 10
@@ -489,7 +721,7 @@ def test_warining_for_invalid_replica(topo_m4):
         1. nsds5ReplicaBackoffMin should set to 20
         2. An error should be generated and also logged in the error logs.
     """
-    replicas = Replicas(topo_m4.ms["master1"])
+    replicas = Replicas(topo_m4.ms["supplier1"])
     replica = replicas.list()[0]
     log.info('Set nsds5ReplicaBackoffMin to 20')
     replica.set('nsds5ReplicaBackoffMin', '20')
@@ -499,36 +731,14 @@ def test_warining_for_invalid_replica(topo_m4):
     log.info('Resetting configuration: nsds5ReplicaBackoffMin')
     replica.remove_all('nsds5ReplicaBackoffMin')
     log.info('Check the error log for the error')
-    assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
+    assert topo_m4.ms["supplier1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
-@pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
-def test_csngen_task(topo_m2):
-    """Test csn generator test
 
-    :id: b976849f-dbed-447e-91a7-c877d5d71fd0
-    :setup: MMR with 2 masters
-    :steps:
-        1. Create a csngen_test task
-        2. Check that debug messages "_csngen_gen_tester_main" are in errors logs
-    :expectedresults:
-        1. Should succeeds
-        2. Should succeeds
-    """
-    m1 = topo_m2.ms["master1"]
-    csngen_task = csngenTestTask(m1)
-    csngen_task.create(properties={
-        'ttl': '300'
-    })
-    time.sleep(10)
-    log.info('Check the error log contains strings showing csn generator is tested')
-    assert m1.searchErrorsLog("_csngen_gen_tester_main")
-
-@pytest.mark.ds51082
 def test_csnpurge_large_valueset(topo_m2):
     """Test csn generator test
 
     :id: 63e2bdb2-0a8f-4660-9465-7b80a9f72a74
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Create a test_user
         2. add a large set of values (more than 10)
@@ -544,7 +754,7 @@ def test_csnpurge_large_valueset(topo_m2):
         5. Should succeeds
         6. Should not crash
     """
-    m1 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier2"]
 
     test_user = UserAccount(m1, TEST_ENTRY_DN)
     if test_user.exists():
@@ -573,19 +783,19 @@ def test_csnpurge_large_valueset(topo_m2):
     replica = replicas.list()[0]
     log.info('nsds5ReplicaPurgeDelay to 5')
     replica.set('nsds5ReplicaPurgeDelay', '5')
-    time.sleep(6)
+    time.sleep(10)
 
     # add some new values to the valueset containing entries that should be purged
     for i in range(21,25):
         test_user.add('description', 'value {}'.format(str(i)))
 
-@pytest.mark.ds51244
 def test_urp_trigger_substring_search(topo_m2):
     """Test that a ADD of a entry with a '*' in its DN, triggers
     an internal search with a escaped DN
 
     :id: 9869bb39-419f-42c3-a44b-c93eb0b77667
-    :setup: MMR with 2 masters
+    :customerscenario: True
+    :setup: MMR with 2 suppliers
     :steps:
         1. enable internal operation loggging for plugins
         2. Create on M1 a test_user with a '*' in its DN
@@ -597,8 +807,8 @@ def test_urp_trigger_substring_search(topo_m2):
         3. Should succeeds
         4. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
 
     # Enable loggging of internal operation logging to capture URP intop
     log.info('Set nsslapd-plugin-logging to on')
@@ -632,7 +842,7 @@ def test_urp_trigger_substring_search(topo_m2):
             break
         else:
             log.info('Entry not yet replicated on M2, wait a bit')
-            time.sleep(2)
+            time.sleep(3)
 
     # check that M2 access logs does not "(&(objectclass=nstombstone)(nscpentrydn=uid=asterisk_*_in_value,dc=example,dc=com))"
     log.info('Check that on M2, URP as not triggered such internal search')
@@ -640,6 +850,45 @@ def test_urp_trigger_substring_search(topo_m2):
     found = m2.ds_access_log.match(pattern)
     log.info("found line: %s" % found)
     assert not found
+
+
+@pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
+def test_csngen_task(topo_m2):
+    """Test csn generator test
+
+    :id: b976849f-dbed-447e-91a7-c877d5d71fd0
+    :setup: MMR with 2 suppliers
+    :steps:
+        1. Create a csngen_test task
+        2. Check that debug messages "_csngen_gen_tester_main" are in errors logs
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+    """
+    m1 = topo_m2.ms["supplier1"]
+    csngen_task = csngenTestTask(m1)
+    csngen_task.create(properties={
+        'ttl': '300'
+    })
+    time.sleep(10)
+    log.info('Check the error log contains strings showing csn generator is tested')
+    assert m1.searchErrorsLog("_csngen_gen_tester_main")
+
+
+def test_default_cl_trimming_enabled(topo_m2):
+    """Check that changelog trimming was enabled by default
+
+    :id: c37b9a28-f961-4867-b8a1-e81edd7f9bf3
+    :setup: Supplier Instance
+    :steps:
+        1. Check changelog has trimming set up by default
+    :expectedresults:
+        1. Success
+    """
+
+    # Set up changelog trimming by default
+    cl = Changelog(topo_m2.ms["supplier1"], DEFAULT_SUFFIX)
+    assert cl.get_attr_val_utf8("nsslapd-changelogmaxage") == "7d"
 
 
 if __name__ == '__main__':

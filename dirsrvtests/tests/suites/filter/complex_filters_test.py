@@ -11,7 +11,7 @@ import pytest
 import os
 import ldap
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 
 pytestmark = pytest.mark.tier1
@@ -24,7 +24,6 @@ else:
 log = logging.getLogger(__name__)
 ALL_FILTERS = []
 
-
 # Parameterized filters to test
 AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=first1))", 1),
                ("(&(uid=uid1)(&(sn=last1)(givenname=first1)))", 1),
@@ -33,8 +32,15 @@ AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=first1))", 1),
                ("(&(uid=*)(&(sn=last3)(givenname=*)))", 1),
                ("(&(uid=uid5)(&(&(sn=*))(&(givenname=*))))", 1),
                ("(&(objectclass=*)(uid=*)(sn=last*))", 5),
-               ("(&(objectclass=*)(uid=*)(sn=last1))", 1)]
-
+               ("(&(objectclass=*)(uid=*)(sn=last1))", 1),
+               ("(&(sn:dn:=last1))", 1),
+               ("(&(sn:dn:=last1)(givenname:dn:=first1))", 1),
+               ("(&(sn:dn:=last1)(givenname=first1))", 1),
+               ("(&(sn=last1)(givenname=first1)(uid:dn:=uid1))", 1),
+               ("(&(uid:dn:=uid1))", 1),
+               ("(&(uid:dn:=uid1)(cn:dn:=full1))", 1),
+               ("(&(uid:dn:=uid1)(givenname:dn:=first1))", 1),
+               ("(&(uid:dn:=uid1)(givenname:dn:=first1)(cn:dn:=full1))", 1)]
 OR_FILTERS = [("(|(uid=uid1)(sn=last1)(givenname=first1))", 1),
               ("(|(uid=uid1)(|(sn=last1)(givenname=first1)))", 1),
               ("(|(uid=uid1)(|(|(sn=last1))(|(givenname=first1))))", 1),
@@ -53,13 +59,20 @@ MIX_FILTERS = [("(&(|(uid=uid1)(uid=NULL))(sn=last1))", 1),
                ("(|(&(uid=uid1)(uid=NULL))(sn=last2))", 1),
                ("(&(uid=uid5)(sn=*)(cn=*)(givenname=*)(uid=u*)(sn=la*)" +
                 "(cn=full*)(givenname=f*)(uid>=u)(!(givenname=NULL)))", 1),
-               ("(|(&(objectclass=*)(sn=last))(&(givenname=first1)))", 1)]
+               ("(|(&(objectclass=*)(sn=last))(&(givenname=first1)))", 1),
+               ("(&(objectclass=person)(&(|(sn=last*)(sn=first*))" +
+                "(|(givenname=last*)(givenname=first*)))" +
+                "(|(uid=uid1)(cn=full1))(!(telephone=)))", 1)]
 
 ZERO_AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=NULL))", 0),
                    ("(&(uid=uid1)(&(sn=last1)(givenname=NULL)))", 0),
                    ("(&(uid=uid1)(&(&(sn=last1))(&(givenname=NULL))))", 0),
                    ("(&(uid=uid1)(&(&(sn=last1))(&(givenname=NULL)(sn=*)))(|(sn=NULL)))", 0),
-                   ("(&(uid=uid1)(&(&(sn=last*))(&(givenname=first*)))(&(sn=NULL)))", 0)]
+                   ("(&(uid=uid1)(&(&(sn=last*))(&(givenname=first*)))(&(sn=NULL)))", 0),
+                   ("(&(uid:dn:=not_uid))", 0),
+                   ("(&(uid:dn:=not_uid)(cn:dn:=full1))", 0),
+                   ("(&(uid:dn:=uid1)(givenname:dn:=not_first1))", 0),
+                   ("(&(uid:dn:=uid1)(givenname:dn:=first1)(cn:dn:=not_full1))", 0)]
 
 ZERO_OR_FILTERS = [("(|(uid=NULL)(sn=NULL)(givenname=NULL))", 0),
                   ("(|(uid=NULL)(|(sn=NULL)(givenname=NULL)))", 0),

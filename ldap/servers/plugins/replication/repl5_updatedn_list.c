@@ -185,7 +185,7 @@ replica_updatedn_list_get_members(Slapi_DN *dn)
     attrs[3] = NULL;
     slapi_search_internal_set_pb(mpb, slapi_sdn_get_ndn(dn), LDAP_SCOPE_BASE, filter_groups,
                                  &attrs[0], 0, NULL /* controls */, NULL /* uniqueid */,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(mpb);
     slapi_pblock_get(mpb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
     if (rval == LDAP_SUCCESS) {
@@ -301,16 +301,10 @@ static int
 convert_to_string(Slapi_DN *dn, void *arg)
 {
     struct list_to_string_data *data = (struct list_to_string_data *)arg;
-    int newlen = slapi_sdn_get_ndn_len(dn) + strlen(data->delimiter) + 1;
-    if (data->string) {
-        newlen += strlen(data->string);
-        data->string = slapi_ch_realloc(data->string, newlen);
-    } else {
-        data->string = slapi_ch_calloc(1, newlen);
-    }
-    strcat(data->string, slapi_sdn_get_dn(dn));
-    strcat(data->string, data->delimiter);
-
+    char *str = slapi_ch_smprintf("%s%s%s", (data->string ? data->string : ""),
+                                  slapi_sdn_get_dn(dn), data->delimiter);
+    slapi_ch_free_string(&data->string);
+    data->string = str;
     return 1;
 }
 

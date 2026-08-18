@@ -1,10 +1,18 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import pytest
 import os
 import time
 import ldap
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389 import Entry
 
 pytestmark = pytest.mark.tier2
@@ -49,10 +57,10 @@ def test_ticket49471(topo):
 
     # If you need any test suite initialization,
     # please, write additional fixture for that (including finalizer).
-    # Topology for suites are predefined in lib389/topologies.py.
+    # Topology for suites are predefined in test389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     S1 = topo.standalone
     add_user(S1, 1)

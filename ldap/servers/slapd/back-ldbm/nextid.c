@@ -117,7 +117,7 @@ void
 get_ids_from_disk(backend *be)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    DB *id2entrydb; /*the id2entry database*/
+    dbi_db_t *id2entrydb; /*the id2entry database*/
     int return_value = -1;
 
     /*For the nextid, we go directly to the id2entry database,
@@ -145,23 +145,37 @@ get_ids_from_disk(backend *be)
     } else {
 
         /*Get the last key*/
-        DBC *dbc = NULL;
-        DBT key = {0}; /*For the nextid*/
-        DBT Value = {0};
+        dbi_cursor_t dbc = {0};
+        dbi_val_t key = {0}; /*For the nextid*/
+        dbi_val_t value = {0};
 
-        Value.flags = DB_DBT_MALLOC;
-        key.flags = DB_DBT_MALLOC;
-        return_value = id2entrydb->cursor(id2entrydb, NULL, &dbc, 0);
+        dblayer_value_init(be, &key);
+        dblayer_value_init(be, &value);
+        return_value = dblayer_new_cursor(be, id2entrydb, NULL, &dbc);
         if (0 == return_value) {
-            return_value = dbc->c_get(dbc, &key, &Value, DB_LAST);
+            return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &key, &value);
             if ((0 == return_value) && (NULL != key.dptr)) {
-                inst->inst_nextid = id_stored_to_internal(key.dptr) + 1;
+                ID id = id_stored_to_internal(key.dptr);
+                int32_t count = 0;
+
+                if (dblayer_get_entries_count(be, id2entrydb, NULL, &count) == 0 &&
+                    count == 1 &&
+                    id == 2)
+                {
+                    /* This can only happen if the only entry in the db is the
+                     * RUV entry (which has ID 2). Set the nextid to 1 for when
+                     * we add the suffix entry */
+                    inst->inst_nextid = 1;
+                    inst->inst_ruv_inserted_first = true;
+                } else {
+                    inst->inst_nextid = id + 1;
+                }
             } else {
                 inst->inst_nextid = 1; /* error case: set 1 */
             }
-            slapi_ch_free(&(key.data));
-            slapi_ch_free(&(Value.data));
-            dbc->c_close(dbc);
+            dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
+            dblayer_value_free(be, &value);
+            dblayer_value_free(be, &key);
         } else {
             inst->inst_nextid = 1; /* when there is no id2entry, start from id 1 */
         }
@@ -193,7 +207,7 @@ id_internal_to_stored(ID i, char *b)
 }
 
 ID
-id_stored_to_internal(char *b)
+id_stored_to_internal(const char *b)
 {
     ID i;
     i = (ID)b[3] & 0x000000ff;
@@ -212,7 +226,7 @@ sizeushort_internal_to_stored(size_t i, char *b)
 }
 
 size_t
-sizeushort_stored_to_internal(char *b)
+sizeushort_stored_to_internal(const char *b)
 {
     size_t i;
     i = (PRUint16)b[1] & 0x000000ff;

@@ -1,116 +1,20 @@
+import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
     Button,
     Checkbox,
-    Col,
     Form,
-    Icon,
-    MessageDialog,
+    Grid,
+    GridItem,
     Modal,
-    noop,
-    Row,
-    Spinner,
-    TimedToastNotification,
-    ToastNotificationList
-} from "patternfly-react";
+    ModalVariant,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
 
-class NotificationController extends React.Component {
-    render() {
-        const { notifications, removeNotificationAction } = this.props;
-        return (
-            <ToastNotificationList>
-                {notifications.map(notification => (
-                    <TimedToastNotification
-                        key={notification.key}
-                        type={notification.type}
-                        persistent={notification.persistent}
-                        onDismiss={() => removeNotificationAction(notification)}
-                        timerdelay={notification.timerdelay} // By default - 8000
-                    >
-                        <span>
-                            {notification.header && (
-                                <strong>{notification.header}</strong>
-                            )}
-                            {notification.type == "error" ? (
-                                <pre className="ds-width-auto">{notification.message}</pre>
-                            ) : (
-                                <span>{notification.message}</span>
-                            )}
-                        </span>
-                    </TimedToastNotification>
-                ))}
-            </ToastNotificationList>
-        );
-    }
-}
-
-NotificationController.propTypes = {
-    removeNotificationAction: PropTypes.func,
-    notifications: PropTypes.array
-};
-
-NotificationController.defaultProps = {
-    notifications: []
-};
-
-class ConfirmPopup extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {};
-
-        // Chaining OIDs
-        this.primaryAction = this.primaryAction.bind(this);
-    }
-
-    primaryAction() {
-        this.props.actionFunc(this.props.actionParam);
-        this.props.closeHandler();
-    }
-
-    render() {
-        const {
-            showModal,
-            closeHandler,
-        } = this.props;
-
-        let secondaryContent = "";
-        if (this.props.msgContent !== undefined) {
-            if (this.props.msgContent.constructor === Array) {
-                // Comma separate the lines of this list
-                secondaryContent = this.props.msgContent.map((item) =>
-                    <p key={item}><b>{item}</b></p>);
-            } else {
-                secondaryContent = <p><b>{this.props.msgContent}</b></p>;
-            }
-        }
-
-        const icon = <Icon type="pf" style={{'fontSize':'30px', 'marginRight': '15px'}}
-            name="warning-triangle-o" />;
-        const msg = <p className="lead">{this.props.msg}</p>;
-
-        return (
-            <React.Fragment>
-                <MessageDialog
-                    className="ds-confirm"
-                    show={showModal}
-                    onHide={closeHandler}
-                    primaryAction={this.primaryAction}
-                    secondaryAction={closeHandler}
-                    primaryActionButtonContent="Yes"
-                    secondaryActionButtonContent="No"
-                    title="Confirmation"
-                    icon={icon}
-                    primaryContent={msg}
-                    secondaryContent={secondaryContent}
-                    accessibleName="questionDialog"
-                    accessibleDescription="questionDialogContent"
-                />
-            </React.Fragment>
-        );
-    }
-}
-
+const _ = cockpit.gettext;
 export class DoubleConfirmModal extends React.Component {
     render() {
         const {
@@ -126,77 +30,128 @@ export class DoubleConfirmModal extends React.Component {
             mSpinningMsg,
             mBtnName,
         } = this.props;
-        let spinner = "";
         let saveDisabled = true;
+        let btnName = mBtnName;
+        const extraPrimaryProps = {};
 
-        if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />{mSpinningMsg}
-                    </div>
-                </Row>;
-            saveDisabled = true;
-        }
         if (checked) {
             saveDisabled = false;
         }
 
+        if (spinning) {
+            btnName = mSpinningMsg;
+            extraPrimaryProps.spinnerAriaValueText = btnName;
+        }
+
+        const actions = [];
+        if (btnName) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={actionHandler}
+                    isDisabled={saveDisabled || spinning}
+                    isLoading={spinning}
+                    {...extraPrimaryProps}
+                >
+                    {btnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            {mTitle}
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <h4>{mMsg}</h4>
-                            <h5 className="ds-center ds-margin-top-xlg"><b>{item}</b></h5>
-                            <Row className="ds-margin-top-xlg">
-                                <Col sm={12} className="ds-center">
-                                    <Checkbox
+            <Modal
+                variant={ModalVariant.small}
+                title={mTitle}
+                titleIconVariant="warning"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={actions}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <TextContent>
+                        <Text className="ds-margin-top" component={TextVariants.h3}>
+                            {mMsg}
+                        </Text>
+                    </TextContent>
+                    <TextContent>
+                        <Text className="ds-center ds-margin-top" component={TextVariants.h4}>
+                            <i>{item}</i>
+                        </Text>
+                    </TextContent>
+                    {btnName && (
+                        <Grid className="ds-margin-top-xlg">
+                            <GridItem sm={12} className="ds-center">
+                                <Checkbox
                                         id="modalChecked"
-                                        defaultChecked={checked}
-                                        onChange={handleChange}
-                                    >
-                                        <b>Yes</b>, I am sure.
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={actionHandler}
-                            disabled={saveDisabled}
-                        >
-                            {mBtnName}
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                                        isChecked={checked}
+                                        isDisabled={spinning}
+                                        onChange={(e, checked) => {
+                                            handleChange(e);
+                                        }}
+                                        label={<><b>{_("Yes")}</b>{_(", I am sure.")}</>}
+                                    />
+                            </GridItem>
+                        </Grid>
+                    )}
+                </Form>
             </Modal>
         );
     }
 }
+
+export class WarningModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            mTitle,
+            mMsg,
+        } = this.props;
+
+        return (
+            <Modal
+                variant={ModalVariant.small}
+                title={mTitle}
+                titleIconVariant="warning"
+                isOpen={showModal}
+                aria-labelledby="warning-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="ok" variant="primary" onClick={closeHandler}>
+                        {_("Okay")}
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <TextContent>
+                        <Text className="ds-margin-top ds-margin-bottom" component={TextVariants.h3}>
+                            {mMsg}
+                        </Text>
+                    </TextContent>
+                </Form>
+            </Modal>
+        );
+    }
+}
+
+WarningModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    mTitle: PropTypes.string,
+    mMsg: PropTypes.string,
+};
+
+WarningModal.defaultProps = {
+    showModal: false,
+    mTitle: "",
+    mMsg: "",
+};
 
 DoubleConfirmModal.propTypes = {
     showModal: PropTypes.bool,
@@ -204,7 +159,6 @@ DoubleConfirmModal.propTypes = {
     handleChange: PropTypes.func,
     actionHandler: PropTypes.func,
     spinning: PropTypes.bool,
-    item: PropTypes.string,
     checked: PropTypes.bool,
     mTitle: PropTypes.string,
     mMsg: PropTypes.string,
@@ -214,9 +168,6 @@ DoubleConfirmModal.propTypes = {
 
 DoubleConfirmModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    actionHandler: noop,
     spinning: false,
     item: "",
     checked: false,
@@ -225,5 +176,3 @@ DoubleConfirmModal.defaultProps = {
     mSpinningMsg: "",
     mBtnName: "",
 };
-
-export { NotificationController, ConfirmPopup };

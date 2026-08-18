@@ -1,15 +1,30 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import sys
 import ldap
 from getpass import getpass
 import json
+from lib389._mapped_object import DSLdapObject
+from lib389.cli_base import _get_dn_arg
+from lib389.idm.user import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_USER
+from lib389.idm.group import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_GROUP
+from lib389.idm.posixgroup import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_POSIXGROUP
+from lib389.idm.services import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_SERVICES
+
+# The key is module name, the value is default RDN
+BASEDN_RDNS = {
+    'user': DEFAULT_BASEDN_RDN_USER,
+    'group': DEFAULT_BASEDN_RDN_GROUP,
+    'posixgroup': DEFAULT_BASEDN_RDN_POSIXGROUP,
+    'service': DEFAULT_BASEDN_RDN_SERVICES,
+}
 
 
 def _get_arg(args, msg=None):
@@ -37,8 +52,29 @@ def _get_args(args, kws):
     return kwargs
 
 
+def _get_basedn_arg(inst, args, basedn, log, msg=None):
+    basedn_arg = _get_dn_arg(basedn, msg="Enter basedn")
+    if not DSLdapObject(inst, basedn_arg).exists():
+        raise ValueError(f'The base DN "{basedn_arg}" does not exist.')
+
+    # Get the RDN based on the last part of the module name if applicable
+    # (lib389.cli_idm.user -> user)
+    try:
+        command_name = args.func.__module__.split('.')[-1]
+        object_rdn = BASEDN_RDNS[command_name]
+        # Check if the DN for our command exists
+        command_basedn = f'{object_rdn},{basedn_arg}'
+        if not DSLdapObject(inst, command_basedn).exists():
+            errmsg = f'The DN "{command_basedn}" does not exist.'
+            errmsg += f' It is required for "{command_name}" subcommand. Please create it first.'
+            raise ValueError(errmsg)
+    except KeyError:
+        pass
+    return basedn_arg
+
+
 # This is really similar to get_args, but generates from an array
-def _get_attributes(args, attrs):
+def _get_attributes(args, attrs, optional_attrs=None):
     kwargs = {}
     for attr in attrs:
         # Python can't represent a -, so it replaces it to _
@@ -51,6 +87,13 @@ def _get_attributes(args, attrs):
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
             else:
                 kwargs[attr] = input("Enter value for %s : " % attr)
+
+    if optional_attrs is not None:
+        for attr in optional_attrs:
+            attr_normal = attr.replace('-', '_')
+            if hasattr(args, attr_normal) and getattr(args, attr_normal) is not None:
+                kwargs[attr] = getattr(args, attr_normal)
+
     return kwargs
 
 
@@ -58,62 +101,84 @@ def _warn(data, msg=None):
     if msg is not None:
         print("%s :" % msg)
     if 'Yes I am sure' != input("Type 'Yes I am sure' to continue: "):
-        raise Exception("Not sure if want")
+        raise Exception("Not sure if I want to")
     return data
 
 
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
-    ol = mc.list()
+    full_dn = False
+    if hasattr(args, 'full_dn') and getattr(args, 'full_dn') is not None:
+        full_dn = args.full_dn
+    ol = mc.list(full_dn=full_dn)
     if len(ol) == 0:
         if args and args.json:
-            print(json.dumps({"type": "list", "items": []}, indent=4))
+            log.info(json.dumps({"type": "list", "items": []}, indent=4))
         else:
-            log.info("No objects to display")
+            log.info("No entries to display")
     elif len(ol) > 0:
         # We might sort this in the future
         if args and args.json:
             json_result = {"type": "list", "items": []}
         for o in ol:
-            o_str = o.__unicode__()
+            if full_dn:
+                o_str = o  # Already a string
+            else:
+                o_str = o.get_rdn_from_dn(o.dn)
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
                 log.info(o_str)
         if args and args.json:
-            print(json.dumps(json_result, indent=4))
+            log.info(json.dumps(json_result, indent=4))
 
 
 # Display these entries better!
 def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
-        o = mc.get(selector, json=True)
-        print(o)
+        try:
+            o = mc.get(selector, json=True)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError(f'Could not find the entry under "{mc._basedn}"')
+        log.info(o)
     else:
-        o = mc.get(selector)
+        try:
+            o = mc.get(selector)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError(f'Could not find the entry under "{mc._basedn}"')
         o_str = o.display()
         log.info(o_str)
 
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.get(dn=dn)
-    o_str = o.__unicode__()
-    print(o_str)
+    if args is not None and args.json:
+        o = mc.get(dn=dn, json=True)
+        log.info(o)
+    else:
+        o = mc.get(dn=dn)
+        log.info(o.display())
 
 
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.create(properties=kwargs)
-    o_str = o.__unicode__()
-    log.info('Successfully created %s' % o_str)
+    try:
+        o = mc.create(properties=kwargs)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The base DN "{mc._basedn}" does not exist')
+
+    rdn_value = o.get_rdn_from_dn(o.dn)
+    log.info('Successfully created %s' % rdn_value)
 
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
     o = object_class(inst, dn)
-    o.delete()
+    try:
+        o.delete()
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The entry does not exist')
     log.info('Successfully deleted %s' % dn)
 
 
@@ -124,8 +189,18 @@ def _generic_rename_inner(log, o, new_rdn, newsuperior=None, deloldrdn=None):
         arguments['newsuperior'] = newsuperior
     if deloldrdn is not None:
         arguments['deloldrdn'] = deloldrdn
+
+    # Store original state for comparison
+    old_dn = o.dn
+
+    # Perform the rename operation
     o.rename(**arguments)
-    print('Successfully renamed to %s' % o.dn)
+
+    # Check if anything actually changed
+    if old_dn == o.dn:
+        log.info('No changes made - entry already has this name')
+    else:
+        log.info('Successfully renamed to %s' % o.dn)
 
 
 def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
@@ -134,13 +209,23 @@ def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
     # Here, we should have already selected the type etc. mc should be a
     # type of DSLdapObjects (plural)
     mc = manager_class(inst, basedn)
-    # Get the object singular by selector
-    o = mc.get(selector)
-    rdn_attr = ldap.dn.str2dn(o.dn)[0][0][0]
+    try:
+        rdn_attr = mc._childobject(inst)._rdn_attribute
+        entry_dn = f"{rdn_attr}={selector},{mc._basedn}"
+        o = mc._childobject(inst, dn=entry_dn)
+
+        if not o.exists():
+            raise ldap.NO_SUCH_OBJECT()
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The entry does not exist')
+
     arguments = {'new_rdn': f'{rdn_attr}={args.new_name}'}
     if args.keep_old_rdn:
         arguments['deloldrdn'] = False
-    _generic_rename_inner(log, o, **arguments)
+    try:
+        _generic_rename_inner(log, o, **arguments)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
 
 def _generic_rename_dn(inst, basedn, log, manager_class, dn, args=None):
@@ -161,6 +246,9 @@ def _generic_rename_dn(inst, basedn, log, manager_class, dn, args=None):
         arguments['newsuperior'] = new_parent
     if args.keep_old_rdn:
         arguments['deloldrdn'] = False
-    _generic_rename_inner(log, o, **arguments)
+    try:
+        _generic_rename_inner(log, o, **arguments)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

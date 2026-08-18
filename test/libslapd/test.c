@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * Copyright (C) 2019 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
@@ -30,8 +30,36 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_operation_v3c_target_spec),
         cmocka_unit_test(test_libslapd_counters_atomic_usage),
         cmocka_unit_test(test_libslapd_counters_atomic_overflow),
+        cmocka_unit_test(test_libslapd_filter_optimise),
         cmocka_unit_test(test_libslapd_pal_meminfo),
         cmocka_unit_test(test_libslapd_util_cachesane),
+        /* HAProxy header parsing tests */
+        cmocka_unit_test(test_libslapd_haproxy_v1),
+        cmocka_unit_test(test_libslapd_haproxy_v2_valid),
+        cmocka_unit_test(test_libslapd_haproxy_v2_valid_local),
+        cmocka_unit_test(test_libslapd_haproxy_v2_invalid),
+        /* HAProxy IP validation and subnet matching tests */
+        cmocka_unit_test(test_haproxy_ipv4_subnet_matching),
+        cmocka_unit_test(test_haproxy_ipv6_subnet_matching),
+        cmocka_unit_test(test_haproxy_trusted_ip_parsing),
+        cmocka_unit_test(test_haproxy_parsing_edge_cases),
+        cmocka_unit_test(test_haproxy_netmask_precomputation),
+        cmocka_unit_test(test_haproxy_ip_matches_cidr),
+        cmocka_unit_test(test_haproxy_ipv4_mask_edge_cases),
+        /* CSN Generator clock error tests (Bug 1837105) */
+        cmocka_unit_test(test_libslapd_csngen_clock_failure),
+        cmocka_unit_test(test_libslapd_csngen_large_time_jump),
+        cmocka_unit_test(test_libslapd_csngen_time_backwards),
+        cmocka_unit_test(test_libslapd_csngen_multiple_clock_failures),
+        cmocka_unit_test(test_libslapd_csngen_seqnum_handling),
+#ifdef ENABLE_HIBP
+        /* HIBP password breach checking tests */
+        cmocka_unit_test(test_hibp_sha1_hex),
+        cmocka_unit_test(test_hibp_parse_response),
+        cmocka_unit_test(test_hibp_buffer_handling),
+        cmocka_unit_test(test_hibp_api_integration),
+        cmocka_unit_test(test_hibp_concurrent_requests),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

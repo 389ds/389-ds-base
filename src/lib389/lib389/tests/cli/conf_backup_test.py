@@ -13,7 +13,7 @@ import shutil
 from lib389.cli_conf.backup import backup_create, backup_restore
 from lib389.cli_base import LogCapture, FakeArgs
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 from lib389.utils import ds_is_older
 from lib389._constants import DEFAULT_SUFFIX
 pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")

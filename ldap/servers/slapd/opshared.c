@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -16,7 +16,7 @@
 #include "log.h"
 #include "slap.h"
 
-#ifdef SYSTEMTAP
+#ifdef USDT
 #include <sys/sdt.h>
 #endif
 
@@ -219,6 +219,7 @@ cache_return_target_entry(Slapi_PBlock *pb, Slapi_Backend *be, Slapi_Operation *
         operation_set_target_entry_id(operation, 0);
     }
 }
+
 /*
  * Returns: 0    - if the operation is successful
  *        < 0    - if operation fails.
@@ -240,6 +241,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     int rc = 0;
     int internal_op;
     Slapi_DN *basesdn = NULL;
+    Slapi_DN monitorsdn = {0};
     Slapi_DN *sdn = NULL;
     Slapi_Operation *operation = NULL;
     Slapi_Entry *referral = NULL;
@@ -249,7 +251,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     char *errtext = NULL;
     int nentries, pnentries;
     int flag_search_base_found = 0;
-    int flag_no_such_object = 0;
+    bool flag_no_such_object = false;
     int flag_referral = 0;
     int flag_psearch = 0;
     int err_code = LDAP_SUCCESS;
@@ -261,7 +263,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     int sent_result = 0;
     unsigned int pr_stat = 0;
     Connection *pb_conn;
-
     ber_int_t pagesize = -1;
     ber_int_t estimate = 0; /* estimated search result set size */
     int curr_search_count = 0;
@@ -270,12 +271,14 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     int pr_idx = -1;
     Slapi_DN *orig_sdn = NULL;
     int free_sdn = 0;
-    PRBool vattr_lock_acquired = PR_FALSE;
+    pthread_mutex_t *pagedresults_mutex = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     be_list[0] = NULL;
     referral_list[0] = NULL;
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__entry);
 #endif
 
@@ -283,9 +286,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
-
-    /* Set the time we actually started the operation */
-    slapi_operation_set_time_started(operation);
 
     if (NULL == sdn) {
         sdn = slapi_sdn_new_dn_byval(base);
@@ -318,6 +318,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         goto free_and_return_nolock;
     }
 
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(operation);
+
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     flag_psearch = operation_is_flag_set(operation, OP_FLAG_PS);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
@@ -331,10 +334,12 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         int32_t op_id;
         int32_t op_internal_id;
         int32_t op_nested_count;
+        time_t start_time;
 
         PR_ASSERT(fstr);
-        if (internal_op) {
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
+
+        if (proxydn) {
+            proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
         if (NULL == attrs) {
@@ -343,10 +348,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             strarray2str(attrs, attrlistbuf, sizeof(attrlistbuf),
                          1 /* include quotes */);
             attrliststr = attrlistbuf;
-        }
-
-        if (proxydn) {
-            proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
 #define SLAPD_SEARCH_FMTSTR_CONN_OP "conn=%" PRIu64 " op=%d"
@@ -369,6 +370,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         if (!internal_op) {
             strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP);
         } else {
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
             if (connid == 0) {
                 strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP_INT_INT);
             } else {
@@ -380,24 +382,49 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         strcat(fmtstr, LOG_ACCESS_FORMAT_ATTR_BUFSIZ(attrliststr, "\" attrs=", SLAPD_SEARCH_BUFPART));
         strcat(fmtstr, SLAPD_SEARCH_FMTSTR_REMAINDER);
 
+        /* Prep log pblock */
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.authzid = proxydn;
+        logpb.base_dn = normbase;
+        logpb.scope = scope;
+        logpb.filter = fstr;
+        logpb.attrs = attrs;
+        logpb.psearch = flag_psearch ? PR_TRUE : PR_FALSE;
+
         if (!internal_op) {
-            slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
-                             pb_conn->c_connid,
-                             operation->o_opid,
-                             normbase,
-                             scope, fstr, attrliststr,
-                             flag_psearch ? " options=persistent" : "",
-                             proxystr ? proxystr : "");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_access_search(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
+                                 pb_conn->c_connid,
+                                 operation->o_opid,
+                                 normbase,
+                                 scope, fstr, attrliststr,
+                                 flag_psearch ? " options=persistent" : "",
+                                 proxystr ? proxystr : "");
+            }
+
         } else {
-            slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
-                             connid,
-                             op_id,
-                             op_internal_id,
-                             op_nested_count,
-                             normbase,
-                             scope, fstr, attrliststr,
-                             flag_psearch ? " options=persistent" : "",
-                             proxystr ? proxystr : "");
+            /* Internal op */
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
+                logpb.op_internal_id = op_internal_id;
+                logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
+                slapd_log_access_search(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 normbase,
+                                 scope, fstr, attrliststr,
+                                 flag_psearch ? " options=persistent" : "",
+                                 proxystr ? proxystr : "");
+            }
         }
     }
 
@@ -480,6 +507,20 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             while (be_list[index] && be_list[index + 1]) {
                 index++;
             }
+            if (scope == LDAP_SCOPE_ONELEVEL) {
+                /*
+                 * ONE LEVEL searches may ends up on multiple backends
+                 *  with a ONE LEVEL search on a suffix and a BASE search on its
+                 *  subsuffixes. Because LDAP_SCOPE_ONELEVEL rewrite the filter
+                 *  the backends should be reversed so that the BASE search(es)
+                 *  are done first (with the original filter).
+                 */
+                for (int idx = 0; idx <= index/2; idx++) {
+                    be = be_list[index-idx];
+                    be_list[index-idx] = be_list[idx];
+                    be_list[idx] = be;
+                }
+            }
             be = be_list[index];
         } else {
             be = NULL;
@@ -515,7 +556,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 pr_be = pagedresults_get_current_be(pb_conn, pr_idx);
                 if (be_name) {
                     if (pr_be != be_single) {
-                        slapi_be_Unlock(be_single);
+                        if (be_single != NULL) {
+                            slapi_be_Unlock(be_single);
+                        }
                         be_single = be = pr_be;
                         slapi_be_Rlock(be_single);
                     }
@@ -529,8 +572,8 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                         be = be_list[index];
                     }
                 }
-                pr_search_result = pagedresults_get_search_result(pb_conn, operation, 0 /*not locked*/, pr_idx);
-                estimate = pagedresults_get_search_result_set_size_estimate(pb_conn, operation, pr_idx);
+                pr_search_result = pagedresults_get_search_result(pb_conn, operation, PR_NOT_LOCKED, pr_idx);
+                estimate = pagedresults_get_search_result_set_size_estimate(pb_conn, operation, PR_NOT_LOCKED, pr_idx);
                 /* Set operation note flags as required. */
                 if (pagedresults_get_unindexed(pb_conn, operation, pr_idx)) {
                     slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
@@ -564,8 +607,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     }
 
     slapi_pblock_set(pb, SLAPI_BACKEND_COUNT, &index);
-    vattr_rdlock();
-    vattr_lock_acquired = PR_TRUE;
 
     if (be) {
         slapi_pblock_set(pb, SLAPI_BACKEND, be);
@@ -578,6 +619,8 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             int32_t tlimit;
             slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &tlimit);
             pagedresults_set_timelimit(pb_conn, operation, (time_t)tlimit, pr_idx);
+            /* IMPORTANT: Never acquire pagedresults_mutex when holding c_mutex. */
+            pagedresults_mutex = pageresult_lock_get_addr(pb_conn);
         }
 
         /*
@@ -646,7 +689,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         }
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__prepared);
 #endif
 
@@ -693,20 +736,18 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         if (op_is_pagedresults(operation) && pr_search_result) {
             void *sr = NULL;
             /* PAGED RESULTS and already have the search results from the prev op */
-            pagedresults_lock(pb_conn, pr_idx);
             /*
              * In async paged result case, the search result might be released
              * by other theads.  We need to double check it in the locked region.
              */
-            pthread_mutex_lock(&(pb_conn->c_mutex));
-            pr_search_result = pagedresults_get_search_result(pb_conn, operation, 1 /*locked*/, pr_idx);
+            pthread_mutex_lock(pagedresults_mutex);
+            pr_search_result = pagedresults_get_search_result(pb_conn, operation, PR_LOCKED, pr_idx);
             if (pr_search_result) {
-                if (pagedresults_is_abandoned_or_notavailable(pb_conn, 1 /*locked*/, pr_idx)) {
-                    pagedresults_unlock(pb_conn, pr_idx);
+                if (pagedresults_is_abandoned_or_notavailable(pb_conn, PR_LOCKED, pr_idx)) {
+                    pthread_mutex_unlock(pagedresults_mutex);
                     /* Previous operation was abandoned and the simplepaged object is not in use. */
                     send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
                     rc = LDAP_SUCCESS;
-                    pthread_mutex_unlock(&(pb_conn->c_mutex));
                     goto free_and_return;
                 } else {
                     slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, pr_search_result);
@@ -714,14 +755,13 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
                     /* search result could be reset in the backend/dse */
                     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-                    pagedresults_set_search_result(pb_conn, operation, sr, 1 /*locked*/, pr_idx);
+                    pagedresults_set_search_result(pb_conn, operation, sr, PR_LOCKED, pr_idx);
                 }
             } else {
                 pr_stat = PAGEDRESULTS_SEARCH_END;
                 rc = LDAP_SUCCESS;
             }
-            pthread_mutex_unlock(&(pb_conn->c_mutex));
-            pagedresults_unlock(pb_conn, pr_idx);
+            pthread_mutex_unlock(pagedresults_mutex);
 
             if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
                 /* no more entries to send in the backend */
@@ -739,22 +779,22 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             }
             pagedresults_set_response_control(pb, 0, estimate,
                                               curr_search_count, pr_idx);
-            if (pagedresults_get_with_sort(pb_conn, operation, pr_idx)) {
+            if (pagedresults_get_with_sort(pb_conn, operation, PR_NOT_LOCKED, pr_idx)) {
                 sort_make_sort_response_control(pb, CONN_GET_SORT_RESULT_CODE, NULL);
             }
             pagedresults_set_search_result_set_size_estimate(pb_conn,
                                                              operation,
-                                                             estimate, pr_idx);
+                                                             estimate, PR_NOT_LOCKED, pr_idx);
             if (PAGEDRESULTS_SEARCH_END == pr_stat) {
-                pagedresults_lock(pb_conn, pr_idx);
+                pthread_mutex_lock(pagedresults_mutex);
                 slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
-                if (!pagedresults_is_abandoned_or_notavailable(pb_conn, 0 /*not locked*/, pr_idx)) {
-                    pagedresults_free_one(pb_conn, operation, pr_idx);
+                if (!pagedresults_is_abandoned_or_notavailable(pb_conn, PR_LOCKED, pr_idx)) {
+                    pagedresults_free_one(pb_conn, operation, PR_LOCKED, pr_idx);
                 }
-                pagedresults_unlock(pb_conn, pr_idx);
+                pthread_mutex_unlock(pagedresults_mutex);
                 if (next_be) {
                     /* no more entries, but at least another backend */
-                    if (pagedresults_set_current_be(pb_conn, next_be, pr_idx, 0) < 0) {
+                    if (pagedresults_set_current_be(pb_conn, next_be, pr_idx, PR_NOT_LOCKED) < 0) {
                         goto free_and_return;
                     }
                 }
@@ -764,8 +804,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             }
         } else {
             /* be_suffix null means that we are searching the default backend
-             * -> don't change the search parameters in pblock */
-           if (be_suffix != NULL) {
+             * -> don't change the search parameters in pblock
+             * Also, we skip this block for 'cn=monitor' search and its subsearches
+             * as they are done by callbacks from monitor.c */
+            slapi_sdn_init_dn_byref(&monitorsdn, "cn=monitor");
+            if (!((be_suffix == NULL) || slapi_sdn_issuffix(basesdn, &monitorsdn))) {
                 if ((be_name == NULL) && (scope == LDAP_SCOPE_ONELEVEL)) {
                     /* one level searches
                      * - depending on the suffix of the backend we might have to
@@ -776,7 +819,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                         (slapi_sdn_get_ndn_len(basesdn) == 0)) {
                         int tmp_scope = LDAP_SCOPE_BASE;
                         slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-
                         if (free_sdn) {
                             slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
                             slapi_sdn_free(&sdn);
@@ -787,8 +829,16 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     } else if (slapi_sdn_issuffix(basesdn, be_suffix)) {
                         int tmp_scope = LDAP_SCOPE_ONELEVEL;
                         slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-                    } else
+                        if (free_sdn) {
+                            slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+                            slapi_sdn_free(&sdn);
+                            sdn = slapi_sdn_dup(basesdn);
+                            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
+                        }
+                    } else {
+                        slapi_sdn_done(&monitorsdn);
                         goto next_be;
+                    }
                 }
 
                 /* subtree searches :
@@ -809,7 +859,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     }
                 }
             }
-
+            slapi_sdn_done(&monitorsdn);
             slapi_pblock_set(pb, SLAPI_BACKEND, be);
             slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
@@ -827,7 +877,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     /* may be the object exist somewhere else
                      * wait the end of the loop to send back this error
                      */
-                    flag_no_such_object = 1;
+                    flag_no_such_object = true;
                 } else {
                     /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will
                      * have sent the result -
@@ -837,35 +887,42 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 /* fall through */
 
             case -1: /* an error occurred */
-                /* PAGED RESULTS */
-                if (op_is_pagedresults(operation)) {
-                    /* cleanup the slot */
-                    pthread_mutex_lock(&(pb_conn->c_mutex));
-                    pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
-                    rc = pagedresults_set_current_be(pb_conn, NULL, pr_idx, 1);
-                    pthread_mutex_unlock(&(pb_conn->c_mutex));
-                }
-                if (1 == flag_no_such_object) {
-                    break;
-                }
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
-                if (err == LDAP_NO_SUCH_OBJECT) {
-                    /* may be the object exist somewhere else
-                     * wait the end of the loop to send back this error
-                     */
-                    flag_no_such_object = 1;
+                /* PAGED RESULTS */
+                /* Explicit ctrlp test avoid gcc -fanalyzer warning */
+                if (op_is_pagedresults(operation)) {
+                    /* Disable gcc -fanalyzer false positive about pagedresults_mutex == NULL */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-null-argument"
+                    /* cleanup the slot */
+                    pthread_mutex_lock(pagedresults_mutex);
+                    if (err != LDAP_NO_SUCH_OBJECT && !flag_no_such_object) {
+                        /* Free the results if not "no_such_object" */
+                        void *sr = NULL;
+                        slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+                        if (be->be_search_results_release != NULL) {
+                            be->be_search_results_release(&sr);
+                        }
+                    }
+                    pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
+                    rc = pagedresults_set_current_be(pb_conn, NULL, pr_idx, PR_LOCKED);
+                    pthread_mutex_unlock(pagedresults_mutex);
+#pragma GCC diagnostic pop
+                }
+
+                if (err == LDAP_NO_SUCH_OBJECT || flag_no_such_object) {
+                    /* Maybe the object exists somewhere else, wait to the end
+                     * of the loop to send back this error */
+                    flag_no_such_object = true;
                     break;
                 } else {
-                    /* for error other than LDAP_NO_SUCH_OBJECT
-                     * the error has already been sent
-                     * stop the search here
-                     */
+                    /* For error other than LDAP_NO_SUCH_OBJECT the error has
+                     * already been sent stop the search here */
                     cache_return_target_entry(pb, be, operation);
                     goto free_and_return;
                 }
 
             /* when rc == SLAPI_FAIL_DISKFULL this case is executed */
-
             case SLAPI_FAIL_DISKFULL:
                 operation_out_of_disk_space();
                 cache_return_target_entry(pb, be, operation);
@@ -884,11 +941,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
                     if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
                         /* no more entries, but at least another backend */
-                        pthread_mutex_lock(&(pb_conn->c_mutex));
+                        pthread_mutex_lock(pagedresults_mutex);
                         pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
                         be->be_search_results_release(&sr);
-                        rc = pagedresults_set_current_be(pb_conn, next_be, pr_idx, 1);
-                        pthread_mutex_unlock(&(pb_conn->c_mutex));
+                        rc = pagedresults_set_current_be(pb_conn, next_be, pr_idx, PR_LOCKED);
+                        pthread_mutex_unlock(pagedresults_mutex);
                         pr_stat = PAGEDRESULTS_SEARCH_END; /* make sure stat is SEARCH_END */
                         if (NULL == next_be) {
                             /* no more entries && no more backends */
@@ -900,25 +957,23 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     } else {
                         curr_search_count = pnentries;
                         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-                        pagedresults_lock(pb_conn, pr_idx);
-                        if ((pagedresults_set_current_be(pb_conn, be, pr_idx, 0) < 0) ||
-                            (pagedresults_set_search_result(pb_conn, operation, sr, 0, pr_idx) < 0) ||
-                            (pagedresults_set_search_result_count(pb_conn, operation, curr_search_count, pr_idx) < 0) ||
-                            (pagedresults_set_search_result_set_size_estimate(pb_conn, operation, estimate, pr_idx) < 0) ||
-                            (pagedresults_set_with_sort(pb_conn, operation, with_sort, pr_idx) < 0)) {
-                            pagedresults_unlock(pb_conn, pr_idx);
+                        pthread_mutex_lock(pagedresults_mutex);
+                        if ((pagedresults_set_current_be(pb_conn, be, pr_idx, PR_LOCKED) < 0) ||
+                            (pagedresults_set_search_result(pb_conn, operation, sr, PR_LOCKED, pr_idx) < 0) ||
+                            (pagedresults_set_search_result_count(pb_conn, operation, curr_search_count, PR_LOCKED, pr_idx) < 0) ||
+                            (pagedresults_set_search_result_set_size_estimate(pb_conn, operation, estimate, PR_LOCKED, pr_idx) < 0) ||
+                            (pagedresults_set_with_sort(pb_conn, operation, with_sort, PR_LOCKED, pr_idx) < 0)) {
+                            pthread_mutex_unlock(pagedresults_mutex);
                             cache_return_target_entry(pb, be, operation);
                             goto free_and_return;
                         }
-                        pagedresults_unlock(pb_conn, pr_idx);
+                        pthread_mutex_unlock(pagedresults_mutex);
                     }
                     slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
                     next_be = NULL; /* to break the loop */
                     if (operation->o_status & SLAPI_OP_STATUS_ABANDONED) {
                         /* It turned out this search was abandoned. */
-                        pthread_mutex_lock(&(pb_conn->c_mutex));
-                        pagedresults_free_one_msgid_nolock(pb_conn, operation->o_msgid);
-                        pthread_mutex_unlock(&(pb_conn->c_mutex));
+                        pagedresults_free_one_msgid(pb_conn, operation->o_msgid, PR_NOT_LOCKED);
                         /* paged-results-request was abandoned; making an empty cookie. */
                         pagedresults_set_response_control(pb, 0, estimate, -1, pr_idx);
                         send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
@@ -928,7 +983,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     }
                     pagedresults_set_response_control(pb, 0, estimate, curr_search_count, pr_idx);
                     if (curr_search_count == -1) {
-                        pagedresults_free_one(pb_conn, operation, pr_idx);
+                        pagedresults_free_one(pb_conn, operation, PR_NOT_LOCKED, pr_idx);
                     }
                 }
 
@@ -953,7 +1008,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         be = next_be; /* this be won't be used for PAGED_RESULTS */
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__backends);
 #endif
 
@@ -973,12 +1028,12 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             } else {
                 /* Manage DSA was set, referral must be sent as an entry */
                 int attrsonly;
-                char **attrs = NULL;
+                char **dsa_attrs = NULL;
 
-                slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
+                slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &dsa_attrs);
                 slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
                 slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, referral);
-                switch (send_ldap_search_entry(pb, referral, NULL, attrs, attrsonly)) {
+                switch (send_ldap_search_entry(pb, referral, NULL, dsa_attrs, attrsonly)) {
                 case 0:
                     flag_search_base_found++;
                     nentries++;
@@ -1037,8 +1092,9 @@ free_and_return:
     } else if (be_single) {
         slapi_be_Unlock(be_single);
     }
-    if (vattr_lock_acquired) {
-        vattr_rd_unlock();
+    if (rc > 0) {
+        /* rc > 0 means a plugin generated an error and we should abort */
+        send_ldap_result(pb, rc, NULL, NULL, 0, NULL);
     }
 
 free_and_return_nolock:
@@ -1049,12 +1105,16 @@ free_and_return_nolock:
         slapi_sdn_free(&sdn);
     }
     slapi_sdn_free(&basesdn);
+    /* coverity false positive:
+     *  var_deref_model: Passing null pointer "orig_sdn" to "slapi_pblock_set", which dereferences it.
+     */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, orig_sdn);
 
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, op_shared_search__return);
 #endif
 }
@@ -1126,27 +1186,27 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
 static void
 send_entry(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Operation *operation, char **attrs, int attrsonly, int *pnentries)
 {
-                /*
-             * It's a regular entry, or it's a referral and
-             * managedsait control is on.  In either case, send
-             * the entry.
-             */
-                switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
-                case 0: /* entry sent ok */
-                    (*pnentries)++;
-                    slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
-                    break;
-                case 1: /* entry not sent */
-                    break;
-                case -1: /* connection closed */
-                    /*
-                     * mark the operation as abandoned so the backend
-                     * next entry function gets called again and has
-                     * a chance to clean things up.
-                     */
-                    operation->o_status = SLAPI_OP_STATUS_ABANDONED;
-                    break;
-                }
+    /*
+     * It's a regular entry, or it's a referral and
+     * managedsait control is on.  In either case, send
+     * the entry.
+     */
+    switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
+    case 0: /* entry sent ok */
+        (*pnentries)++;
+        slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
+        break;
+    case 1: /* entry not sent */
+        break;
+    case -1: /* connection closed */
+        /*
+         * mark the operation as abandoned so the backend
+         * next entry function gets called again and has
+         * a chance to clean things up.
+         */
+        operation->o_status = SLAPI_OP_STATUS_ABANDONED;
+        break;
+    }
 }
 
 /* Loops through search entries and sends them to the client.
@@ -1565,21 +1625,34 @@ op_shared_log_error_access(Slapi_PBlock *pb, const char *type, const char *dn, c
     char *proxystr = NULL;
     Slapi_Operation *operation;
     Connection *pb_conn;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-    if ((proxyauth_get_dn(pb, &proxydn, NULL) == LDAP_SUCCESS)) {
+    if ((proxyauth_get_dn(pb, &proxydn, NULL) == LDAP_SUCCESS &&
+        log_format == LOG_FORMAT_DEFAULT))
+    {
         proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
     }
 
-    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s dn=\"%s\"%s, %s\n",
-                     (pb_conn ? pb_conn->c_connid : 0),
-                     (operation ? operation->o_opid : 0),
-                     type,
-                     dn,
-                     proxystr ? proxystr : "",
-                     msg ? msg : "");
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.authzid = proxydn;
+        logpb.target_dn = dn;
+        logpb.msg = msg;
+        logpb.op_type = type;
+        slapd_log_access_error(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s dn=\"%s\"%s, %s\n",
+                         pb_conn ? pb_conn->c_connid : 0,
+                         operation ? operation->o_opid : 0,
+                         type,
+                         dn,
+                         proxystr ? proxystr : "",
+                         msg ? msg : "");
+    }
 
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);

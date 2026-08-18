@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "slapi-private.h"
 #include "slapi-plugin.h"
@@ -69,6 +70,7 @@ typedef struct _cnumRet
 #define CONFIG_CHANGELOG_DIRECTORY_ATTRIBUTE "nsslapd-changelogdir"
 #define CONFIG_CHANGELOG_INCLUDE_SUFFIX      "nsslapd-include-suffix"
 #define CONFIG_CHANGELOG_EXCLUDE_SUFFIX      "nsslapd-exclude-suffix"
+#define CONFIG_CHANGELOG_EXCLUDE_ATTRS       "nsslapd-exclude-attrs"
 
 #define RETROCL_CHANGELOG_DN   "cn=changelog"
 #define RETROCL_MAPPINGTREE_DN "cn=\"cn=changelog\",cn=mapping tree,cn=config"
@@ -144,5 +146,6 @@ extern void retrocl_stop_trimming(void);
 extern char *retrocl_get_config_str(const char *attrt);
 
 int retrocl_entry_in_scope(Slapi_Entry *e);
+int retrocl_attr_in_exclude_attrs(char *attr, int attrlen);
 
 #endif /* _H_RETROCL */

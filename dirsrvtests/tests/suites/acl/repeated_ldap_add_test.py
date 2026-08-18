@@ -12,7 +12,7 @@ import pytest
 from lib389.paths import Paths
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, PASSWORD, SERVERID_STANDALONE
 
@@ -148,7 +148,6 @@ def check_op_result(server, op, dn, superior, exists, rc):
     log.info('PASSED\n')
 
 
-@pytest.mark.bz1347760
 def test_repeated_ldap_add(topology_st):
     """Prevent revealing the entry info to whom has no access rights.
 

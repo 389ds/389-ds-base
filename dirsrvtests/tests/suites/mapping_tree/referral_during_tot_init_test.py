@@ -8,7 +8,8 @@
 #
 import ldap
 import pytest
-from lib389.topologies import topology_m2
+import os
+from test389.topologies import topology_m2
 from lib389._constants import (DEFAULT_SUFFIX)
 from lib389.agreement import Agreements
 from lib389.idm.user import (TEST_USER_PROPERTIES, UserAccounts)
@@ -19,38 +20,57 @@ pytestmark = pytest.mark.tier1
 
 @pytest.mark.skipif(ds_is_older("1.4.0.0"), reason="Not implemented")
 def test_referral_during_tot(topology_m2):
+    """Test referrals during total init
 
-    master1 = topology_m2.ms["master1"]
-    master2 = topology_m2.ms["master2"]
+    :id: 2a030f15-89ae-4acc-880d-bd2263a6be33
+    :setup: 2 suppliers
+    :steps:
+        1. Create test user on supplier2
+        2. Create a bunch of entries in supplier1
+        3. Recreate the user on supplier1 also, so that if the init finishes first we don't lose the user on supplier2
+        4. Initialize replica on supplier1
+        5. While that's happening try to bind as a user to supplier2
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. This should trigger the referral code.
+    """
 
-    users = UserAccounts(master2, DEFAULT_SUFFIX)
+    supplier1 = topology_m2.ms["supplier1"]
+    supplier2 = topology_m2.ms["supplier2"]
+
+    users = UserAccounts(supplier2, DEFAULT_SUFFIX)
     u = users.create(properties=TEST_USER_PROPERTIES)
     u.set('userPassword', 'password')
     binddn = u.dn
     bindpw = 'password'
 
-    # Create a bunch of entries on master1
-    ldif_dir = master1.get_ldif_dir()
+    # Create a bunch of entries on supplier1
+    ldif_dir = supplier1.get_ldif_dir()
     import_ldif = ldif_dir + '/ref_during_tot_import.ldif'
-    dbgen_users(master1, 10000, import_ldif, DEFAULT_SUFFIX)
+    dbgen_users(supplier1, 10000, import_ldif, DEFAULT_SUFFIX)
 
-    master1.stop()
-    master1.ldif2db(bename=None, excludeSuffixes=None, encrypt=False, suffixes=[DEFAULT_SUFFIX], import_file=import_ldif)
-    master1.start()
-    # Recreate the user on m1 also, so that if the init finishes first ew don't lose the user on m2
-    users = UserAccounts(master1, DEFAULT_SUFFIX)
+    supplier1.stop()
+    supplier1.ldif2db(bename=None, excludeSuffixes=None, encrypt=False, suffixes=[DEFAULT_SUFFIX], import_file=import_ldif)
+    supplier1.start()
+    # Recreate the user on supplier1 also, so that if the init finishes first we don't lose the user on supplier2
+    users = UserAccounts(supplier1, DEFAULT_SUFFIX)
     u = users.create(properties=TEST_USER_PROPERTIES)
     u.set('userPassword', 'password')
-    # Now export them to master2
-    agmts = Agreements(master1)
+    # Now export them to supplier2
+    agmts = Agreements(supplier1)
     agmts.list()[0].begin_reinit()
 
-    # While that's happening try to bind as a user to master 2
+    # While that's happening try to bind as a user to supplier 2
     # This should trigger the referral code.
     referred = False
+    ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(supplier2.get_config_dir(), "ca.crt"))
     for i in range(0, 100):
-        conn = ldap.initialize(master2.toLDAPURL())
+        conn = ldap.initialize(supplier2.toLDAPURL())
         conn.set_option(ldap.OPT_REFERRALS, False)
+        conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         try:
             conn.simple_bind_s(binddn, bindpw)
             conn.unbind_s()

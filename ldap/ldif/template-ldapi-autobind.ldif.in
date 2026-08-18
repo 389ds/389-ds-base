@@ -3,9 +3,6 @@ changetype: modify
 replace: nsslapd-ldapiautobind
 nsslapd-ldapiautobind: on
 -
-replace: nsslapd-ldapimaprootdn
-nsslapd-ldapimaprootdn: %rootdn%
--
 replace: nsslapd-ldapimaptoentries
 nsslapd-ldapimaptoentries: off
 -

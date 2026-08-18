@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -99,6 +99,7 @@ grab_lockfile(void)
             size_t nb_bytes = 0;
 
             nb_bytes = read(fd, (void *)&owning_pid, sizeof(pid_t));
+            close(fd);
             if ((nb_bytes != (size_t)(sizeof(pid_t))) || (owning_pid == 0) || (kill(owning_pid, 0) != 0 && errno == ESRCH)) {
                 /* The process that owns the lock is dead. Try to remove the old lockfile. */
                 if (unlink(lockfile) != 0) {
@@ -194,17 +195,16 @@ make_sure_dir_exists(char *dir)
 static void
 add_this_process_to(char *dir_name)
 {
-    char file_name[MAXPATHLEN];
+    char *file_name;
     struct passwd *pw;
     struct stat stat_buffer;
     PRFileDesc *prfd;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    snprintf(file_name, sizeof(file_name), "%s/%d", dir_name, getpid());
-    file_name[sizeof(file_name) - 1] = (char)0;
-
+    file_name = PR_smprintf("%s/%d", dir_name, getpid());
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0644)) == NULL) {
         slapi_log_err(SLAPI_LOG_WARNING, "add_this_process_to", FILE_CREATE_WARNING, file_name);
+        slapi_ch_free_string(&file_name);
         return;
     }
 
@@ -219,6 +219,7 @@ add_this_process_to(char *dir_name)
             }
         }
     }
+    slapi_ch_free_string(&file_name);
     PR_Close(prfd);
 }
 
@@ -423,6 +424,10 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
              * but it in the importing dir so no other process can change
              * things while we are doing ldif2db with the -r flag. */
                 add_this_process_to(import_dir);
+                /* But also add the process in export_dir to differenciate 
+                 * from and import task
+                 */
+                add_this_process_to(export_dir);
                 result = 0;
             }
         } else {

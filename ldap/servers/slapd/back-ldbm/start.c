@@ -35,7 +35,6 @@ int
 ldbm_back_start(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
-    int action = 0;
     int retval = 0;
     dblayer_private *priv = NULL;
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend starting\n");
@@ -43,7 +42,7 @@ ldbm_back_start(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
 
     /* initialize dblayer  */
-   if( dblayer_setup(li)) {
+    if( dblayer_setup(li)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to setup dblayer\n");
         return SLAPI_FAIL_GENERAL;
     }
@@ -96,7 +95,7 @@ ldbm_back_start(Slapi_PBlock *pb)
         ldbm_config_internal_set(li, CONFIG_DIRECTORY, "get default");
     }
 
-    /* We are autotuning the caches. was: 
+    /* We are autotuning the caches. was:
      * retval = ldbm_back_start_autotune(li);
      * This involves caches specific to instances managed in the ldbm layer
      * and to caches specific to the db implementation.
@@ -105,7 +104,7 @@ ldbm_back_start(Slapi_PBlock *pb)
      * Therfor this functionality is moved to the db_xxx layer.
      * The latest autotune function was implemented only with BDB in mind
      * so it should be safe to move it to db_bdb.
-     */ 
+     */
     priv = (dblayer_private *)li->li_dblayer_private;
     retval = priv->dblayer_auto_tune_fn(li);
     if (retval != 0) {
@@ -113,23 +112,10 @@ ldbm_back_start(Slapi_PBlock *pb)
         return SLAPI_FAIL_GENERAL;
     }
 
-    /* TBD do we want to go on with auto upgrades of old db versions and config 
-     * or take the opportunity to stop this ??
-    retval = check_db_version(li, &action);
-    if (0 != retval) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "db version is not supported\n");
-        return SLAPI_FAIL_GENERAL;
-    }
-     */
+    retval = dblayer_start(li, DBLAYER_NORMAL_MODE);
 
-    if (action &
-        (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4 | DBVERSION_UPGRADE_4_5)) {
-        retval = dblayer_start(li, DBLAYER_CLEAN_RECOVER_MODE);
-    } else {
-        retval = dblayer_start(li, DBLAYER_NORMAL_MODE);
-    }
     if (0 != retval) {
-        char *msg;
+        const char *msg;
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to init database, err=%d %s\n",
                       retval, (msg = dblayer_strerror(retval)) ? msg : "");
         if (LDBM_OS_ERR_IS_DISKFULL(retval))
@@ -141,7 +127,7 @@ ldbm_back_start(Slapi_PBlock *pb)
     /* Walk down the instance list, starting all the instances. */
     retval = ldbm_instance_startall(li);
     if (0 != retval) {
-        char *msg;
+        const char *msg;
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to start databases, err=%d %s\n",
                       retval, (msg = dblayer_strerror(retval)) ? msg : "");
         if (LDBM_OS_ERR_IS_DISKFULL(retval))

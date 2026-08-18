@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -26,6 +26,7 @@
 #include "snmp_collator.h"
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <ifaddrs.h>
 #include <errno.h>
 
 #define UTIL_ESCAPE_NONE 0
@@ -338,6 +339,10 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             } else {
                 filter_len = escaped_filter.bv_len;
                 buf = escaped_filter.bv_val;
+                if (buf == NULL) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Attempt to copy from NULL pointer\n");
+                    return -1;
+                }
             }
         }
 
@@ -415,12 +420,20 @@ slapi_filter_sprintf(const char *fmt, ...)
 
     va_start(args, fmt);
     rc = PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+    va_end(args);
     if (rc == -1) {
         /* transformation failed, just return non-normalized/escaped string */
         ctx.skip_escape = 1;
-        PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+        ctx.attr_position = 0;
+        ctx.attr_found = 0;
+        ctx.buf_size = 0;
+        va_start(args, fmt);
+        rc = PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+        va_end(args);
+        if (rc == -1) {
+            PR_snprintf(ctx.buf, FILTER_BUF+1, "??? (Unprintable filter)");
+        }
     }
-    va_end(args);
 
     if (ctx.attr_size > ATTRSIZE) {
         slapi_ch_free_string(&ctx.attr);
@@ -478,6 +491,64 @@ replace_char(char *str, char c, char c2)
         }
     }
 }
+
+
+/*
+** Break a string at the delimiter
+** If the delimiter is not found, the string is not modified.
+** The position immediately following the delimiter is returned.
+*/
+char *split_string_at_delim(char *str, char delim) {
+    if (str == NULL) {
+        return NULL;
+    }
+
+    char *delim_position = strchr(str, delim);
+
+    if (delim_position != NULL) {
+        *delim_position = '\0';
+        delim_position++;
+    }
+
+    return delim_position;
+}
+
+
+/* a simple string tokenizer */
+char *tokenize_string(char **str, const char *delim)
+{
+    char   *cp = *str;
+    char   *result;
+
+    /* The string is empty or has been fully tokenized */
+    if (cp == NULL) {
+        return NULL;
+    }
+
+    /* The first loop skips any leading delimiter characters in the input string */
+    while (*cp && strchr(delim, *cp)) {
+        cp++;
+    }
+    if (cp == NULL) {
+        return NULL;
+    }
+
+    /* The second loop tries to find a delimiter character or reaches the end of the string */
+    result = cp;
+    while (*cp && strchr(delim, *cp) == 0) {
+        cp++;
+    }
+
+    /* Found! Replace the delimiter with a null character */
+    if (*cp) {
+            *cp++ = '\0';
+    }
+
+    /* In future, search from the updated position */
+    *str = cp;
+    return (result);
+}
+
 
 /*
 ** This function takes a quoted attribute value of the form "abc",
@@ -551,7 +622,7 @@ slapi_mods2entry(Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
     PR_ASSERT(*e);
     slapi_entry_init(*e, slapi_ch_strdup(idn), NULL);
 
-    for (i = 0; rc == LDAP_SUCCESS && attrs[i] != NULL; i++) {
+    for (i = 0; rc == LDAP_SUCCESS && attrs && attrs[i]; i++) {
         char *normtype;
         Slapi_Value **vals;
 
@@ -969,6 +1040,21 @@ slapi_berval_get_string_copy(const struct berval *bval)
     return return_value;
 }
 
+/* Prints an advice to errors log when cert is not found.
+   It may happen when nsSSLPersonalitySSL value is different from actual NSS DB content*/
+void
+slapd_cert_not_found_error_help(char *cert_name)
+{
+    char *certdir = config_get_certdir();
+    slapi_log_err(SLAPI_LOG_ERR, "slapd_cert_not_found_error_help",
+                  "Please, make sure that nsSSLPersonalitySSL value is correctly set to the certificate from"
+                  " NSS database (currently, nsSSLPersonalitySSL attribute is set to '%1$s'). You can get the certificate list"
+                  " for your NSS DB by running 'certutil -L -d \"%2$s\"' command. Then, you can either set nsSSLPersonalitySSL attribute"
+                  " to the correct certificate from the list, either you can change the certificate Nickname in your NSS DB"
+                  " by running 'certutil -d \"%2$s\" --rename -n \"OLD_NICKNAME\" --new-n \"%1$s\" '\n",
+                  cert_name, certdir);
+    slapi_ch_free_string(&certdir);
+}
 
 /* Takes a return code supposed to be errno or from a plugin
    which we don't expect to see and prints a handy log message */
@@ -1459,7 +1545,7 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
 {
     /* Check we have a valid meminfo struct */
     if (mi->system_available_bytes == 0) {
-        slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid system memory info, can not proceed.");
+        slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid system memory info, can not proceed.\n");
         return UTIL_CACHESIZE_ERROR;
     }
 
@@ -1471,7 +1557,7 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
          */
         uint64_t adjust_cachesize = (mi->system_available_bytes * 0.5);
         if (adjust_cachesize > *cachesize) {
-            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %" PRIu64, adjust_cachesize);
+            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %" PRIu64 "\n", adjust_cachesize);
             return UTIL_CACHESIZE_ERROR;
         }
         if (adjust_cachesize < (16 * mi->pagesize_bytes)) {
@@ -1486,42 +1572,50 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
 }
 
 long
-util_get_hardware_threads(void)
+util_get_capped_hardware_threads(long min, long max)
 {
-    long threads = MIN_THREADS;
+    long threads = min;
 #ifdef LINUX
-    long hw_threads = sysconf(_SC_NPROCESSORS_ONLN);
-
-    slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads",
-             "Detected %ld hardware threads\n", hw_threads);
-
-    if (hw_threads == -1) {
-        /* sysconf failed, use MIN_THREADS */
-        slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
-                "Failed to get hardware threads.  Error (%d) %s\n",
-                errno, slapd_system_strerror(errno));
-    } else if (hw_threads == 0) {
-        /* sysconf failed to find any processors, use MIN_THREADS */
-        slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
-                "Cannot detect any hardware threads.\n");
-    } else if (hw_threads > MIN_THREADS) {
-        if (hw_threads < MAX_THREADS) {
-            threads = hw_threads;
-        } else {
-            /* Cap at 512 for now ... */
-            threads = MAX_THREADS;
-        }
+    /* A new version that rely on sched_getaffinity rather than on sysconf
+     * to take in account the affinity
+     */
+    cpu_set_t cs = {0};
+    sched_getaffinity(0, sizeof(cs), &cs);
+    threads = CPU_COUNT(&cs);
+    if (threads == 0) {
+        threads = sysconf(_SC_NPROCESSORS_ONLN);
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads",
+             "Detected %ld hardware threads\n", threads);
 
-    slapi_log_err(SLAPI_LOG_INFO, "util_get_hardware_threads", "Automatically configuring %ld threads\n", threads);
-
-    return threads;
+    if (threads < min){
+        if (threads == -1) {
+            /* sysconf failed, use MIN_THREADS */
+            slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+                    "Failed to get hardware threads.  Error (%d) %s\n",
+                    errno, slapd_system_strerror(errno));
+        } else if (threads == 0) {
+            /* sysconf failed to find any processors, use MIN_THREADS */
+            slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+                    "Cannot detect any hardware threads.\n");
+        }
+        threads = min;
+    } else if (threads > max) {
+        threads = max;
+    }
 #else
     slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
             "ERROR: Cannot detect hardware threads on this platform. This is probably a bug!\n");
     /* Can't detect threads on this platform!  Return the default thread number */
-    return threads;
 #endif
+    return threads;
+}
+
+long
+util_get_hardware_threads(void)
+{
+    /* Cap at 512 for now ... */
+    return util_get_capped_hardware_threads(MIN_THREADS, MAX_THREADS);
 }
 
 void
@@ -1540,7 +1634,12 @@ slapi_create_errormsg(
 }
 
 void
-get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count) {
+get_internal_conn_op (uint64_t *connid,
+                      int32_t *op_id,
+                      int32_t *op_internal_id,
+                      int32_t *op_nested_count,
+                      time_t *start_time)
+{
     struct slapi_td_log_op_state_t *op_state = slapi_td_get_log_op_state();
 
     if (op_state != NULL) {
@@ -1548,12 +1647,13 @@ get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id,
         *op_id = op_state->op_id;
         *op_internal_id = op_state->op_int_id;
         *op_nested_count = op_state->op_nest_count;
-
+        *start_time = op_state->conn_starttime;
     } else {
         *connid = 0;
         *op_id = 0;
         *op_internal_id = 0;
         *op_nested_count = 0;
+        *start_time = 0;
     }
 }
 
@@ -1563,7 +1663,7 @@ get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id,
  * to free the returned string value.
  */
 const char *
-slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
+slapi_fetch_attr(Slapi_Entry *e, char *attrname, char *default_val)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -1637,4 +1737,335 @@ mkdir_p(char *dir, unsigned int mode)
         }
         return 0;
     }
+}
+
+
+/*
+ * Standard openldap ldif_getline function does modify the input buffer in place
+ * which leads to SIGSEGV if buffer is directly comming from mdb data
+ *  (because the database memory is write protected). So lets have a read only version.
+ */
+const char *ldif_getline_ro( const char **next)
+{
+    const char *line = NULL;
+    const char *pt = *next;
+
+    do {
+        if ( pt == NULL || *pt == '\n' || *pt == '\0' ) {
+            *next = NULL;
+            return( line );
+        }
+
+        line = pt;
+        while ( (pt = strchr( pt, '\n' )) != NULL && *++pt == ' ') {
+            pt ++;  /* skip continuation line leading space */
+        }
+    } while( *line == '#' );
+    *next = pt;
+    return( line );
+}
+
+/*
+ * Duplicate the contents of an ldif "line" generated by ldif_getline_ro
+ * removing \r or \n and leading space marking continuation on next line
+ *  copy->bv_val may get realloc if copy->bv_len is too small)
+ * Note: copy->bv_len is the buffer size the line lenght is smaller
+ *  and marked by \0
+ */
+void dup_ldif_line(struct berval *copy, const char *line, const char *endline)
+{
+    const char *ptend = endline ? endline : line + strlen(line) + 1;
+    char *buf = copy->bv_val;
+    const char *pt = line;
+    int copylen = 0;
+    int pos = 0;
+
+    /* Realloc the buffer if it is too small */
+    if (buf == NULL ||  (ptend - line) > copy->bv_len) {
+        buf = copy->bv_val = slapi_ch_realloc(buf, ptend - line);
+        copy->bv_len = (ptend - line);
+    }
+
+    /* endline was computed by ldif_getline_ro and is either the start of next line or the end of string */
+    PR_ASSERT( endline == NULL || *endline == 0 || endline[-1] == '\n' );
+
+    while (pt && pt < ptend) {
+        line = pt;
+        /* Search end of line */
+        while (pt < ptend && *pt != '\n' && *pt != 0) {
+            pt++;
+        }
+        PR_ASSERT(pt <= ptend);
+        copylen = pt - line;
+        if (copylen>0 && line[copylen-1] == '\r') {
+            copylen--;
+        }
+        if (copylen == 0) {
+            break;
+        }
+        if (*line == '#' && pos == 0) {
+            pt++;
+            continue;
+        }
+        strncpy(buf+pos, line, copylen);
+        pos += copylen;
+        pt += 2;        /* Skip \n and continuation line space */
+    }
+    buf[pos] = 0;
+    copy->bv_len = copylen;
+}
+
+/* Helper oid function for getting an OID name */
+struct oid_map {
+    char *oid;
+    char *name;
+};
+
+struct oid_map oidmap[] = {
+    {"2.16.840.1.113730.3.4.2", "LDAP_CONTROL_MANAGEDSAIT"},
+    {"2.16.840.1.113730.3.4.18", "LDAP_CONTROL_PROXIEDAUTH"},
+    {"1.3.6.1.4.1.4203.1.10.1", "LDAP_CONTROL_SUBENTRIES"},
+    {"1.2.826.0.1.3344810.2.3", "LDAP_CONTROL_VALUESRETURNFILTER"},
+    {"1.3.6.1.1.12", "LDAP_CONTROL_ASSERT"},
+    {"1.3.6.1.1.13.1", "LDAP_CONTROL_PRE_READ_ENTRY"},
+    {"1.3.6.1.1.13.2", "LDAP_CONTROL_POST_READ_ENTRY"},
+    {"1.2.840.113556.1.4.473", "LDAP_CONTROL_SORTREQUEST"},
+    {"1.2.840.113556.1.4.474", "LDAP_CONTROL_SORTRESPONSE"},
+    {"1.2.840.113556.1.4.319", "LDAP_CONTROL_PAGEDRESULTS"},
+    {"2.16.840.1.113730.3.4.16", "LDAP_CONTROL_AUTH_REQUEST"},
+    {"2.16.840.1.113730.3.4.15", "LDAP_CONTROL_AUTH_RESPONSE"},
+    {"1.3.6.1.4.1.4203.1.9.1", "LDAP_SYNC_OID"},
+    {"1.3.6.1.1.22", "LDAP_CONTROL_DONTUSECOPY"},
+    {"1.3.6.1.4.1.42.2.27.8.5.1", "LDAP_CONTROL_PASSWORDPOLICYRESPONSE"},
+    {"1.3.6.1.4.1.4203.666.5.2", "LDAP_CONTROL_NOOP"},
+    {"1.3.6.1.4.1.4203.666.5.11", "LDAP_CONTROL_NO_SUBORDINATES"},
+    {"1.3.6.1.4.1.4203.666.5.12", "LDAP_CONTROL_RELAX"},
+    {"1.3.6.1.4.1.4203.666.5.13", "LDAP_CONTROL_SLURP"},
+    {"1.3.6.1.4.1.4203.666.5.14", "LDAP_CONTROL_VALSORT"},
+    {"1.3.6.1.4.1.4203.666.5.16", "LDAP_CONTROL_X_DEREF"},
+    {"1.3.6.1.4.1.4203.666.5.17", "LDAP_CONTROL_X_WHATFAILED"},
+    {"1.3.6.1.4.1.4203.666.11.3", "LDAP_CONTROL_X_CHAINING_BEHAVIOR"},
+    {"1.2.840.113556.1.4.619", "LDAP_CONTROL_X_LAZY_COMMIT"},
+    {"1.2.840.113556.1.4.802", "LDAP_CONTROL_X_INCREMENTAL_VALUES"},
+    {"1.2.840.113556.1.4.1339", "LDAP_CONTROL_X_DOMAIN_SCOPE"},
+    {"1.2.840.113556.1.4.1413", "LDAP_CONTROL_X_PERMISSIVE_MODIFY"},
+    {"1.2.840.113556.1.4.1340", "LDAP_CONTROL_X_SEARCH_OPTIONS"},
+    {"1.2.840.113556.1.4.805", "LDAP_CONTROL_X_TREE_DELETE"},
+    {"1.2.840.113556.1.4.528", "LDAP_CONTROL_X_SERVER_NOTIFICATION"},
+    {"1.2.840.113556.1.4.529", "LDAP_CONTROL_X_EXTENDED_DN"},
+    {"1.2.840.113556.1.4.417", "LDAP_CONTROL_X_SHOW_DELETED"},
+    {"1.2.840.113556.1.4.841", "LDAP_CONTROL_X_DIRSYNC"},
+    {"1.3.6.1.4.1.21008.108.63.1", "LDAP_CONTROL_X_SESSION_TRACKING"},
+    {"2.16.840.1.113719.1.27.101.1", "LDAP_CONTROL_DUPENT_REQUEST"},
+    {"2.16.840.1.113719.1.27.101.2", "LDAP_CONTROL_DUPENT_RESPONSE"},
+    {"2.16.840.1.113719.1.27.101.3", "LDAP_CONTROL_DUPENT_ENTRY"},
+    {"2.16.840.1.113730.3.4.3", "LDAP_CONTROL_PERSISTENTSEARCH"},
+    {"2.16.840.1.113730.3.4.7", "LDAP_CONTROL_ENTRYCHANGE"},
+    {"2.16.840.1.113730.3.4.9", "LDAP_CONTROL_VLVREQUEST"},
+    {"2.16.840.1.113730.3.4.10", "LDAP_CONTROL_VLVRESPONSE"},
+    {"1.3.6.1.4.1.42.2.27.9.5.8", "LDAP_CONTROL_X_ACCOUNT_USABILITY"},
+    {"2.16.840.1.113730.3.4.4", "LDAP_CONTROL_PWEXPIRED"},
+    {"2.16.840.1.113730.3.4.5", "LDAP_CONTROL_PWEXPIRING"},
+    {"1.3.6.1.4.1.42.2.27.8.5.1", "LDAP_CONTROL_PASSWORDPOLICY"},
+    {"2.16.840.1.113730.3.4.12", "LDAP_CONTROL_PROXYAUTH"},
+    {"2.16.840.1.113730.3.4.17", "LDAP_CONTROL_REAL_ATTRS_ONLY"},
+    {"2.16.840.1.113730.3.4.19", "LDAP_CONTROL_VIRT_ATTRS_ONLY"},
+    {"1.3.6.1.4.1.42.2.27.9.5.2", "LDAP_CONTROL_GET_EFFECTIVE_RIGHTS"},
+    {"1.3.6.1.4.1.1466.20037", "START_TLS_OID"},
+    {"2.16.840.1.113730.3.5.7", "EXTOP_BULK_IMPORT_START_OID"},
+    {"2.16.840.1.113730.3.5.8", "EXTOP_BULK_IMPORT_DONE_OID"},
+    {"1.3.6.1.4.1.4203.1.11.1", "EXTOP_PASSWD_OID"},
+    {"2.16.840.1.113730.3.5.14", "EXTOP_LDAPSSOTOKEN_REQUEST_OID"},
+    {"2.16.840.1.113730.3.5.15", "EXTOP_LDAPSSOTOKEN_RESPONSE_OID"},
+    {"2.16.840.1.113730.3.5.16", "EXTOP_LDAPSSOTOKEN_REVOKE_OID"},
+    {"2.5.13.1", "DNMATCH_OID"},
+    {"2.5.13.2", "CASEIGNOREMATCH_OID"},
+    {"2.5.13.14", "INTEGERMATCH_OID"},
+    {"2.5.13.15", "INTEGERORDERINGMATCH_OID"},
+    {"2.5.13.29", "INTFIRSTCOMPMATCH_OID"},
+    {"2.5.13.30", "OIDFIRSTCOMPMATCH_OID"},
+    {"1.2.840.113556.1.4.1941", "LDAP_MATCHING_RULE_IN_CHAIN_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.5", "BINARY_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.6", "BITSTRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.7", "BOOLEAN_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.11", "COUNTRYSTRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.12", "DN_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.14", "DELIVERYMETHOD_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.15", "DIRSTRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.21", "ENHANCEDGUIDE_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.22", "FACSIMILE_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.23", "FAX_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.24", "GENERALIZEDTIME_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.25", "GUIDE_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.26", "IA5STRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.27", "INTEGER_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.28", "JPEG_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.34", "NAMEANDOPTIONALUID_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.36", "NUMERICSTRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.38", "OID_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.40", "OCTETSTRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.41", "POSTALADDRESS_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.44", "PRINTABLESTRING_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.50", "TELEPHONE_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.51", "TELETEXTERMID_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.52", "TELEXNUMBER_SYNTAX_OID"},
+    {"2.16.840.1.113730.3.7.1", "SPACE_INSENSITIVE_STRING_SYNTAX_OID"},
+    {"2.16.840.1.113730.3.4.14", "MTN_CONTROL_USE_ONE_BACKEND_OID"},
+    {"2.16.840.1.113730.3.4.20", "MTN_CONTROL_USE_ONE_BACKEND_EXT_OID"},
+    {"2.16.840.1.113730.3.1.2110", "PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID"},
+    {"2.5.13.8", "NUMERICSTRINGMATCH_OID"},
+    {"2.5.13.9", "NUMERICSTRINGORDERINGMATCH_OID"},
+    {"2.5.13.10", "NUMERICSTRINGSUBSTRINGSMATCH_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.8", "CERTIFICATE_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.9", "CERTIFICATELIST_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.10", "CERTIFICATEPAIR_SYNTAX_OID"},
+    {"1.3.6.1.4.1.1466.115.121.1.49", "SUPPORTEDALGORITHM_SYNTAX_OID"},
+    {"1.2.840.113556.1.4.841", "REPL_DIRSYNC_CONTROL_OID"},
+    {"1.2.840.113556.1.4.417", "REPL_RETURN_DELETED_OBJS_CONTROL_OID"},
+    {"1.2.840.113556.1.4.1670", "REPL_WIN2K3_AD_OID"},
+    {"2.16.840.1.113730.3.5.3", "REPL_START_NSDS50_REPLICATION_REQUEST_OID"},
+    {"2.16.840.1.113730.3.5.5", "REPL_END_NSDS50_REPLICATION_REQUEST_OID"},
+    {"2.16.840.1.113730.3.5.6", "REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID"},
+    {"2.16.840.1.113730.3.5.4", "REPL_NSDS50_REPLICATION_RESPONSE_OID"},
+    {"2.16.840.1.113730.3.4.13", "REPL_NSDS50_UPDATE_INFO_CONTROL_OID"},
+    {"2.16.840.1.113730.3.6.1", "REPL_NSDS50_INCREMENTAL_PROTOCOL_OID"},
+    {"2.16.840.1.113730.3.6.2", "REPL_NSDS50_TOTAL_PROTOCOL_OID"},
+    {"2.16.840.1.113730.3.6.4", "REPL_NSDS71_INCREMENTAL_PROTOCOL_OID"},
+    {"2.16.840.1.113730.3.6.3", "REPL_NSDS71_TOTAL_PROTOCOL_OID"},
+    {"2.16.840.1.113730.3.5.9", "REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID"},
+    {"2.16.840.1.113730.3.5.12", "REPL_START_NSDS90_REPLICATION_REQUEST_OID"},
+    {"2.16.840.1.113730.3.5.13", "REPL_NSDS90_REPLICATION_RESPONSE_OID"},
+    {"2.16.840.1.113730.3.6.5", "REPL_CLEANRUV_OID"},
+    {"2.16.840.1.113730.3.6.6", "REPL_ABORT_CLEANRUV_OID"},
+    {"2.16.840.1.113730.3.6.7", "REPL_CLEANRUV_GET_MAXCSN_OID"},
+    {"2.16.840.1.113730.3.6.8", "REPL_CLEANRUV_CHECK_STATUS_OID"},
+    {"2.16.840.1.113730.3.6.9", "REPL_ABORT_SESSION_OID"},
+    {NULL, NULL},
+};
+
+const char *
+get_oid_name(const char *oid)
+{
+    if (oid == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0; oidmap[i].oid != NULL; i++) {
+        if (strcmp(oid, oidmap[i].oid) == 0) {
+            return oidmap[i].name;
+        }
+    }
+    return "Unknown";
+}
+
+/*
+ * Return true if the backend is lmdb
+ */
+bool
+slapi_db_is_lmdb(void)
+{
+    Slapi_PBlock *search_pb;
+    Slapi_Entry **entries = NULL;
+    const char *config_dn = "cn=config,cn=ldbm database,cn=plugins,cn=config";
+    int result = 0;
+    bool is_lmdb = false;
+
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(search_pb, config_dn, LDAP_SCOPE_BASE,
+                                 "objectclass=*",
+                                 NULL, 0, NULL, NULL,
+                                 plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+    if (LDAP_SUCCESS != result) {
+        /* Failed to search cn=config */
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_db_is_lmdb",
+                      "Unable to search ldbm config entry, err=%d\n", result);
+    } else {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries && entries[0]) {
+            Slapi_Entry *config_e = entries[0];
+            const char *db_type = slapi_entry_attr_get_ref(config_e,
+                                                           "nsslapd-backend-implement");
+            if (db_type && strcmp(db_type, "mdb") == 0) {
+                is_lmdb = true;
+            }
+        }
+    }
+
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+
+    return is_lmdb;
+}
+
+char *
+get_ip_str(struct sockaddr *addr, char *str, size_t str_size)
+{
+    if (addr == NULL) {
+        return str;
+    }
+
+    switch(addr->sa_family) {
+        case AF_INET:
+            if (str_size < INET_ADDRSTRLEN) {
+                break;
+            }
+            inet_ntop(AF_INET, &(((struct sockaddr_in *)addr)->sin_addr), str, INET_ADDRSTRLEN);
+            break;
+
+        case AF_INET6:
+            if (str_size < INET6_ADDRSTRLEN) {
+                break;
+            }
+            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)addr)->sin6_addr), str, INET6_ADDRSTRLEN);
+            break;
+    }
+
+    return str;
+}
+
+/* Take a hostname and verify if it's the local host */
+bool
+slapi_is_local_host(char *hostname, char **err_str, char **server_err_str)
+{
+    struct addrinfo *info = NULL;
+    struct ifaddrs *ifap = NULL;
+    char ip_str[64] = {0};
+    char local_ip_str[64] = {0};
+    int32_t rc = 0;
+    bool is_localhost = false;
+
+    /* Get the provided hostname info */
+    rc = getaddrinfo(hostname, NULL, NULL, &info);
+    if (rc != 0) {
+        *err_str = (char *)gai_strerror(rc);
+        return false;
+    }
+
+    /* Get the local host info */
+    errno = 0;
+    rc = getifaddrs(&ifap);
+    if (rc != 0) {
+        *server_err_str = strerror(errno);
+        freeaddrinfo(info);
+        return false;
+    }
+
+    /* Compare the provided hostname info with the local host info */
+    for (struct addrinfo *ai = info; ai && !is_localhost; ai = ai->ai_next) {
+        get_ip_str(ai->ai_addr, ip_str, sizeof(ip_str));
+        for (struct ifaddrs *ifa = ifap; ifa; ifa = ifa->ifa_next) {
+            get_ip_str(ifa->ifa_addr, local_ip_str, sizeof(local_ip_str));
+            if (strcasecmp(ip_str, local_ip_str) == 0) {
+                is_localhost = true;
+                break;
+            }
+        }
+    }
+
+    freeaddrinfo(info);
+    freeifaddrs(ifap);
+
+    return is_localhost;
 }

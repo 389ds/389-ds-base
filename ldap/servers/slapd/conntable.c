@@ -48,69 +48,59 @@
  * under the connection table lock. This should move the allocation algorithm from O(n) worst case
  * to O(1) worst case as we always recieve and empty slot *or* ct full. It also reduces lock/atomic
  * contention on the CPU to improve things.
+ * Lastly a change was done: Instead of having a sliding windows that tend to get a never used
+ * slot for each new connection, it nows reuse last freed one. That has several benefits:
+ *  - Fix a bug because the last free list slots may not be alloced.
+ *  - Avoid to grow the memory footprint when there is no much load
+ *  - Simplify the code (as only a single is needed. )
  *
- * The freelist is a ringbuffer of pointers to the connection table. On a small scale it looks like:
- *
- *  |--------------------------------------------|
- *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
- *  | _ ptr  | _ ptr  | _ ptr  | _ ptr  | _ ptr  |
- *  |--------------------------------------------|
- *     ^  ^- conn_next
- *     |
- *     \-- conn_free
- *
- * As we allocate, we shift conn_next through the list, yielding the ptr that was stored (and
- * setting it to NULL as we proceed)
+ * The freelist is a stack of pointers to the connection table.
+ * It is NULL terminated. On a small scale it looks like:
  *
  *  |--------------------------------------------|
- *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
- *  | _NULL  | _NULL  | _ ptr  | _ ptr  | _ ptr  |
+ *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
+ *  | _ ptr  | _ ptr  | _ ptr  | _ ptr  | NULL   |
  *  |--------------------------------------------|
- *     ^                  ^- conn_next
- *     |
- *     \-- conn_free
+ *        ^- conn_next
  *
- * When a connection is "freed" we return it to conn_free, which is then also slid up.
- *
- *  |--------------------------------------------|
- *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
- *  | _ ptr  | _NULL  | _ ptr  | _ ptr  | _ ptr  |
- *  |--------------------------------------------|
- *              ^         ^- conn_next
- *              |
- *              \-- conn_free
- *
- * If all connections are exhausted, conn_next will == conn_next, as conn_next must have proceeded
- * to the end of the ring, and then wrapped back allocating all previous until we meet with conn_free.
+ * To allocate, we pop one of the stored connection ptr out of the stack (yield the ptr, set
+ * its slot to NULL then increase conn_next)
  *
  *  |--------------------------------------------|
- *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
+ *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
+ *  | _NULL  | _NULL  | _ ptr  | _ ptr  | NULL   |
+ *  |--------------------------------------------|
+ *                        ^- conn_next
+ *
+ * When a connection is "freed" we push it back in the stack after decreasing conn_next
+ *
+ *  |--------------------------------------------|
+ *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
+ *  | _NULL  | _ ptr  | _ ptr  | _ ptr  | NULL   |
+ *  |--------------------------------------------|
+ *              ^- conn_next
+ *
+ * If all connections are exhausted, freelist[conn_next] is NULL
+ *
+ *  |--------------------------------------------|
+ *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
  *  | _NULL  | _NULL  | _NULL  | _NULL  | _NULL  |
  *  |--------------------------------------------|
- *              ^ ^- conn_next
- *              |
- *              \-- conn_free
+ *                                          ^- conn_next
  *
  * This means allocations of conns will keep failing until a connection is returned.
  *
  *  |--------------------------------------------|
- *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
- *  | _NULL  | _ ptr  | _NULL  | _NULL  | _NULL  |
+ *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
+ *  | _NULL  | _NULL  | _NULL  | _ ptr  | NULL   |
  *  |--------------------------------------------|
- *             ^- conn_next ^
- *                          |
- *                          \-- conn_free
+ *                                 ^- conn_next
  *
  * And now conn_next can begin to allocate again.
  *
  *
  *  -- invariants
- * * when conn_free is slid back to meet conn_next, there can be no situation where another
- *   connection is returned, as none must allocated  -if they were allocated, conn_free would have
- *   moved_along.
- * * the ring buffer must be as large as conntable.
- * * We do not check conn_next == conn_free (that's the starting state), but we check if the
- *   slot at conn_next is NULL, which must imply that conn_free has nothing to return.
+ * * the stack must be as large as conntable.
  * * connection_table_move_connection_out_of_active_list is the only function able to return a
  *   connection to the freelist, as it is the function that is called when the event system has
  *   determined all IO's are complete, or unable to complete. This function is what prepares the
@@ -124,70 +114,133 @@ Connection_Table *
 connection_table_new(int table_size)
 {
     Connection_Table *ct;
-    int i = 0;
-    ber_len_t maxbersize = config_get_maxbersize();
+    size_t i = 0;
+    size_t ct_list = 0;
+    size_t free_idx = 0;
 
+    ber_len_t maxbersize = config_get_maxbersize();
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
-    ct->size = table_size;
-    ct->c = (Connection *)slapi_ch_calloc(1, table_size * sizeof(Connection));
-    ct->fd = (struct POLL_STRUCT *)slapi_ch_calloc(1, table_size * sizeof(struct POLL_STRUCT));
+    ct->list_num = config_get_num_listeners();
+    ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
+    /* Connection table size must be divisible by the number of listeners */
+    ct->size = table_size - (table_size % ct->list_num);
+    /* Account for first slot of each list being used as head (c_next).  */
+    ct->list_size = (ct->size/ct->list_num)+1;
+    /*
+     * Since there are extra list heads, in the case ct->size was a multiple of list_num, we
+     * need to expand ct->size to reflect the true allocation amount.
+     */
+    ct->size = ct->list_size * ct->list_num;
+    ct->c = (Connection **)slapi_ch_calloc(1, ct->size * sizeof(Connection *));
+    ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, ct->list_num * sizeof(struct POLL_STRUCT*));
     ct->table_mutex = PR_NewLock();
-    /* Allocate the freelist */
-    ct->c_freelist = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection *));
-    /* NEVER use slot 0, this is a list pointer */
-    ct->conn_next_offset = 1;
-    ct->conn_free_offset = 1;
+    /* Allocate the freelist (a slot for each connection plus another slot for the final NULL pointer) */
+    ct->c_freelist = (Connection **)slapi_ch_calloc(1, (ct->size + 1) * sizeof(Connection *));
+    ct->conn_next_offset = 0;
+
+    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "Number of connection sub-tables %d, each containing %d slots.\n",
+        ct->list_num, ct->list_size);
+
+#ifdef ENABLE_EPOLL
+    ct->epoll_fd = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
+    if (ct->epoll_fd == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll fds\n");
+        exit(1);
+    }
+    for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        ct->epoll_fd[ct_list] = epoll_create1(EPOLL_CLOEXEC);
+        if (ct->epoll_fd[ct_list] < 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create epoll fd for connection table list %zu\n", ct_list);
+            exit(1);
+        }
+    }
+#endif /* ENABLE_EPOLL */
 
     pthread_mutexattr_t monitor_attr = {0};
     pthread_mutexattr_init(&monitor_attr);
     pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);
+    for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        ct->c[ct_list] = (Connection *)slapi_ch_calloc(1, ct->list_size * sizeof(Connection));
+        ct->fd[ct_list] = (struct POLL_STRUCT *)slapi_ch_calloc(1, ct->list_size * sizeof(struct POLL_STRUCT));
+        /* We rely on the fact that we called calloc, which zeros the block, so we don't
+        * init any structure element unless a zero value is troublesome later
+        */
+        for (i = 0; i < ct->list_size; i++) {
+            /*
+            * Technically this is a no-op due to calloc, but we should always be
+            * careful with things like this ....
+            */
+            ct->c[ct_list][i].c_state = CONN_STATE_FREE;
+            /* Start the conn setup. */
 
-    /* We rely on the fact that we called calloc, which zeros the block, so we don't
-     * init any structure element unless a zero value is troublesome later
+#ifdef ENABLE_EPOLL
+            ct->c[ct_list][i].c_event = (struct epoll_event *)slapi_ch_calloc(1, sizeof(struct epoll_event));
+            if (ct->c[ct_list][i].c_event == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll event for connection %zu\n", i);
+                exit(1);
+            }
+            ct->c[ct_list][i].c_idle_event = (struct epoll_event *)slapi_ch_calloc(1, sizeof(struct epoll_event));
+            if (ct->c[ct_list][i].c_idle_event == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for idle event for connection %zu\n", i);
+                exit(1);
+            }
+            ct->c[ct_list][i].c_idle_tfd = -1;
+#endif
+
+            LBER_SOCKET invalid_socket;
+            /* DBDB---move this out of here once everything works */
+            ct->c[ct_list][i].c_sb = ber_sockbuf_alloc();
+            invalid_socket = SLAPD_INVALID_SOCKET;
+            ct->c[ct_list][i].c_sd = SLAPD_INVALID_SOCKET;
+            ber_sockbuf_ctrl(ct->c[ct_list][i].c_sb, LBER_SB_OPT_SET_FD, &invalid_socket);
+            ber_sockbuf_ctrl(ct->c[ct_list][i].c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
+            /* all connections start out invalid */
+            ct->fd[ct_list][i].fd = SLAPD_INVALID_SOCKET;
+
+            /* The connection sub-tables have a double linked list running through them.
+            * This is used to find out which connections should be looked at
+            * in the poll loop.  Slot 0 in each sub-table is always the head of
+            * the linked list.  Each slot has a c_next and c_prev which are
+            * pointers back into the array of connection slots. */
+            ct->c[ct_list][i].c_next = NULL;
+            ct->c[ct_list][i].c_prev = NULL;
+            ct->c[ct_list][i].c_ci = i;
+            ct->c[ct_list][i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
+
+            if (pthread_mutex_init(&(ct->c[ct_list][i].c_mutex), &monitor_attr) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "pthread_mutex_init failed\n");
+                exit(1);
+            }
+
+            ct->c[ct_list][i].c_pdumutex = PR_NewLock();
+            if (ct->c[ct_list][i].c_pdumutex == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewLock failed\n");
+                exit(1);
+            }
+
+            /* Ready to rock, mark as such. */
+            ct->c[ct_list][i].c_state = CONN_STATE_INIT;
+        }
+    }
+
+    /*
+     * The freelist is how new connections are inserted into our ct to be used. We need to ensure
+     * these are *spread* initially over the set of listeners so that we distributed between handlers
+     * from the start. Over time as things are re-added to the freelist it will "shuffle" and we
+     * will effectively have randomised listener assignment.
+     *
+     * Without this it means that a single listener will be "focused on" until it's conntable
+     * is full at which point we spill out into the next listener.
+     *
+     * This is why in the subsequent loops we INVERT the loop to iterate over list_size
+     * first, and then the ct_list as the inner component so that the freelist initially
+     * alternates between the listeners first to help distribute requests.
      */
-    for (i = 0; i < table_size; i++) {
-        /*
-         * Technically this is a no-op due to calloc, but we should always be
-         * careful with things like this ....
-         */
-        ct->c[i].c_state = CONN_STATE_FREE;
-        /* Start the conn setup. */
-
-        LBER_SOCKET invalid_socket;
-        /* DBDB---move this out of here once everything works */
-        ct->c[i].c_sb = ber_sockbuf_alloc();
-        invalid_socket = SLAPD_INVALID_SOCKET;
-        ct->c[i].c_sd = SLAPD_INVALID_SOCKET;
-        ber_sockbuf_ctrl(ct->c[i].c_sb, LBER_SB_OPT_SET_FD, &invalid_socket);
-        ber_sockbuf_ctrl(ct->c[i].c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
-        /* all connections start out invalid */
-        ct->fd[i].fd = SLAPD_INVALID_SOCKET;
-
-        /* The connection table has a double linked list running through it.
-         * This is used to find out which connections should be looked at
-         * in the poll loop.  Slot 0 in the table is always the head of
-         * the linked list.  Each slot has a c_next and c_prev which are
-         * pointers back into the array of connection slots. */
-        ct->c[i].c_next = NULL;
-        ct->c[i].c_prev = NULL;
-        ct->c[i].c_ci = i;
-        ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
-
-        if (pthread_mutex_init(&(ct->c[i].c_mutex), &monitor_attr) != 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "pthread_mutex_init failed\n");
-            exit(1);
+    for (i = 1; i < ct->list_size; i++) {
+        for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
+            /* Map multiple ct lists to a single freelist, but skip slot 0 of each list. */
+            ct->c_freelist[free_idx++] = &(ct->c[ct_list][i]);
         }
-
-        ct->c[i].c_pdumutex = PR_NewLock();
-        if (ct->c[i].c_pdumutex == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
-            exit(1);
-        }
-
-        /* Ready to rock, mark as such. */
-        ct->c[i].c_state = CONN_STATE_INIT;
-        /* Prepare the connection into the freelist. */
-        ct->c_freelist[i] = &(ct->c[i]);
     }
 
     return ct;
@@ -198,26 +251,42 @@ connection_table_free(Connection_Table *ct)
 {
     /* Release the freelist */
     slapi_ch_free((void **)&ct->c_freelist);
-    /* Now release the connections. */
-    for (size_t i = 0; i < ct->size; i++) {
-        /* Free the contents of the connection structure */
-        Connection *c = &(ct->c[i]);
-        connection_done(c);
+    for (size_t ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        /* Now release the connections. */
+        for (size_t i = 0; i < ct->list_size; i++) {
+            /* Free the contents of the connection structure */
+            Connection *c = &(ct->c[ct_list][i]);
+            connection_done(c);
+#ifdef ENABLE_EPOLL
+            if (c->c_event) {
+                slapi_ch_free((void **)&c->c_event);
+            }
+            if (c->c_idle_event) {
+                slapi_ch_free((void **)&c->c_idle_event);
+            }
+#endif /* ENABLE_EPOLL */
+        }
+
+        slapi_ch_free((void **)&ct->c[ct_list]);
+        slapi_ch_free((void **)&ct->fd[ct_list]);
     }
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
     PR_DestroyLock(ct->table_mutex);
+    slapi_ch_free((void *)&ct->num_active);
     slapi_ch_free((void **)&ct);
 }
 
 void
 connection_table_abandon_all_operations(Connection_Table *ct)
 {
-    for (size_t i = 0; i < ct->size; i++) {
-        if (ct->c[i].c_state != CONN_STATE_FREE) {
-            pthread_mutex_lock(&(ct->c[i].c_mutex));
-            connection_abandon_operations(&ct->c[i]);
-            pthread_mutex_unlock(&(ct->c[i].c_mutex));
+    for (size_t ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        for (size_t i = 0; i < ct->list_size; i++) {
+            if (ct->c[ct_list][i].c_state != CONN_STATE_FREE) {
+                pthread_mutex_lock(&(ct->c[ct_list][i].c_mutex));
+                connection_abandon_operations(&ct->c[ct_list][i]);
+                pthread_mutex_unlock(&(ct->c[ct_list][i].c_mutex));
+            }
         }
     }
 }
@@ -225,12 +294,14 @@ connection_table_abandon_all_operations(Connection_Table *ct)
 void
 connection_table_disconnect_all(Connection_Table *ct)
 {
-    for (size_t i = 0; i < ct->size; i++) {
-        if (ct->c[i].c_state != CONN_STATE_FREE) {
-            Connection *c = &(ct->c[i]);
-            pthread_mutex_lock(&(c->c_mutex));
-            disconnect_server_nomutex(c, c->c_connid, -1, SLAPD_DISCONNECT_ABORT, ECANCELED);
-            pthread_mutex_unlock(&(c->c_mutex));
+    for (size_t ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        for (size_t i = 0; i < ct->list_size; i++) {
+            if (ct->c[ct_list][i].c_state != CONN_STATE_FREE) {
+                Connection *c = &(ct->c[ct_list][i]);
+                pthread_mutex_lock(&(c->c_mutex));
+                disconnect_server_nomutex(c, c->c_connid, -1, SLAPD_DISCONNECT_ABORT, ECANCELED);
+                pthread_mutex_unlock(&(c->c_mutex));
+            }
         }
     }
 }
@@ -250,22 +321,22 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 {
     PR_Lock(ct->table_mutex);
 
-    PR_ASSERT(ct->conn_next_offset != 0);
     Connection *c = ct->c_freelist[ct->conn_next_offset];
     if (c != NULL) {
         /* We allocated it, so now NULL the slot and move forward. */
-        ct->c_freelist[ct->conn_next_offset] = NULL;
-        /* Handle overflow. */
-        ct->conn_next_offset = (ct->conn_next_offset + 1) % ct->size;
-        if (ct->conn_next_offset == 0) {
-            /* Never use slot 0 */
-            ct->conn_next_offset += 1;
-        }
+        PR_ASSERT(ct->conn_next_offset>=0 && ct->conn_next_offset<ct->size);
+        ct->c_freelist[ct->conn_next_offset++] = NULL;
         PR_Unlock(ct->table_mutex);
     } else {
         /* couldn't find a Connection, table must be full */
-        slapi_log_err(SLAPI_LOG_CONNS, "connection_table_get_connection", "Max open connections reached\n");
         PR_Unlock(ct->table_mutex);
+        static time_t last_err_msg_time = 0;
+        time_t curtime = slapi_current_utc_time();
+        /* Logs the message only once per seconds */
+        if (curtime != last_err_msg_time) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "Max open connections reached\n");
+            last_err_msg_time = curtime;
+        }
         return NULL;
     }
 
@@ -294,9 +365,9 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 /* active connection iteration functions */
 
 Connection *
-connection_table_get_first_active_connection(Connection_Table *ct)
+connection_table_get_first_active_connection(Connection_Table *ct, size_t listnum)
 {
-    return ct->c[0].c_next;
+    return ct->c[listnum][0].c_next;
 }
 
 Connection *
@@ -314,14 +385,17 @@ connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Con
      */
     Connection *current_conn = NULL;
     int ret = 0;
+    size_t i = 0;
     PR_Lock(ct->table_mutex);
-    current_conn = connection_table_get_first_active_connection(ct);
-    while (current_conn) {
-        ret = f(current_conn, arg);
-        if (ret) {
-            break;
+    for (i = 0; i < ct->list_num; i++) {
+        current_conn = connection_table_get_first_active_connection(ct, i);
+        while (current_conn) {
+            ret = f(current_conn, arg);
+            if (ret) {
+                break;
+            }
+            current_conn = connection_table_get_next_active_connection(ct, current_conn);
         }
-        current_conn = connection_table_get_next_active_connection(ct, current_conn);
     }
     PR_Unlock(ct->table_mutex);
     return ret;
@@ -332,22 +406,25 @@ static void
 connection_table_dump_active_connection(Connection *c)
 {
     slapi_log_err(SLAPI_LOG_DEBUG, "connection_table_dump_active_connection", "conn=%p fd=%d refcnt=%d c_flags=%d\n"
-                                                                              "mutex=%p next=%p prev=%p\n\n",
+                                                                              "mutex=%p next=%p prev=%p ctlist=%d\n\n",
                   c, c->c_sd, c->c_refcnt, c->c_flags,
-                  c->c_mutex, c->c_next, c->c_prev);
+                  c->c_mutex, c->c_next, c->c_prev, c->c_ct_list);
 }
 
 static void
 connection_table_dump_active_connections(Connection_Table *ct)
 {
     Connection *c;
+    int i = 0;
 
     PR_Lock(ct->table_mutex);
-    slapi_log_err(SLAPI_LOG_DEBUG, "connection_table_dump_active_connections", "********** BEGIN DUMP ************\n");
-    c = connection_table_get_first_active_connection(ct);
-    while (c) {
-        connection_table_dump_active_connection(c);
-        c = connection_table_get_next_active_connection(ct, c);
+    for (i = 0; i < ct->numlists; i++) {
+        slapi_log_err(SLAPI_LOG_DEBUG, "connection_table_dump_active_connections", "********** BEGIN DUMP ************\n");
+        c = connection_table_get_first_active_connection(ct, i);
+        while (c) {
+            connection_table_dump_active_connection(c);
+            c = connection_table_get_next_active_connection(ct, c);
+        }
     }
 
     slapi_log_err(SLAPI_LOG_DEBUG, "connection_table_dump_active_connections", "********** END DUMP ************\n");
@@ -366,6 +443,7 @@ connection_table_dump_active_connections(Connection_Table *ct)
  * the connection slot to the freelist for re-use.
  */
 int
+
 connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c)
 {
     int c_sd; /* for logging */
@@ -414,6 +492,10 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
     /* We need to lock here because we're modifying the linked list */
     PR_Lock(ct->table_mutex);
 
+    /* Decrement the number of active connections on the ct list this connection was assigned. */
+    (*(ct->num_active + c->c_ct_list))--;
+    c->c_ct_list = -1;
+
     c->c_prev->c_next = c->c_next;
 
     if (c->c_next) {
@@ -427,14 +509,10 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
 
     /* Finally, place the connection back into the freelist for use */
     PR_ASSERT(c->c_refcnt == 0);
-    PR_ASSERT(ct->conn_free_offset != 0);
-    PR_ASSERT(ct->c_freelist[ct->conn_free_offset] == NULL);
-    ct->c_freelist[ct->conn_free_offset] = c;
-    ct->conn_free_offset = (ct->conn_free_offset + 1) % ct->size;
-    if (ct->conn_free_offset == 0) {
-        /* Never use slot 0 */
-        ct->conn_free_offset += 1;
-    }
+    PR_ASSERT(ct->conn_next_offset != 0);
+    ct->conn_next_offset--;
+    PR_ASSERT(ct->c_freelist[ct->conn_next_offset] == NULL);
+    ct->c_freelist[ct->conn_next_offset] = c;
 
     PR_Unlock(ct->table_mutex);
 
@@ -471,18 +549,38 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connect
     connection_table_dump_active_connection(c);
 #endif
 
-    c->c_next = ct->c[0].c_next;
+    /* Get the least used ct list and incremant its number of active connections. */
+    c->c_ct_list = connection_table_get_list(ct);
+    (*(ct->num_active + c->c_ct_list))++;
+
+    c->c_next = ct->c[c->c_ct_list][0].c_next;
     if (c->c_next != NULL) {
         c->c_next->c_prev = c;
     }
-    c->c_prev = &(ct->c[0]);
-    ct->c[0].c_next = c;
+    c->c_prev = &(ct->c[c->c_ct_list][0]);
+    ct->c[c->c_ct_list][0].c_next = c;
 
     PR_Unlock(ct->table_mutex);
 
 #ifdef FOR_DEBUGGING
     connection_table_dump_active_connections(ct);
 #endif
+}
+
+/* Find a connection table list with the lowest number of connections. */
+int
+connection_table_get_list(Connection_Table *ct)
+{
+    size_t i;
+    int list = 0;
+    int lowest = ct->num_active[0];
+    for (i = 1; i < ct->list_num; i++) {
+        if (*(ct->num_active + i) < lowest) {
+            lowest = *(ct->num_active + i);
+            list = i;
+        }
+    }
+    return list;
 }
 
 /*
@@ -501,7 +599,9 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
     char maxthreadbuf[BUFSIZ];
     struct berval val;
     struct berval *vals[2];
-    int i, nconns, nreadwaiters;
+    size_t ct_list;
+    size_t i;
+    int nconns, nreadwaiters;
     struct tm utm;
 
     vals[0] = &val;
@@ -510,90 +610,92 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
     attrlist_delete(&e->e_attrs, "connection");
     nconns = 0;
     nreadwaiters = 0;
-    for (i = 0; i < (ct != NULL ? ct->size : 0); i++) {
-        PR_Lock(ct->table_mutex);
-        if (ct->c[i].c_state == CONN_STATE_FREE) {
+    for (ct_list = 0; ct_list < (ct != NULL ? ct->list_num : 0); ct_list++) {
+        for (i = 0; i < ct->list_size; i++) {
+            PR_Lock(ct->table_mutex);
+            if (ct->c[ct_list][i].c_state == CONN_STATE_FREE) {
+                PR_Unlock(ct->table_mutex);
+                continue;
+            }
+            /* Can't take c_mutex if holding table_mutex; temporarily unlock */
             PR_Unlock(ct->table_mutex);
-            continue;
-        }
-        /* Can't take c_mutex if holding table_mutex; temporarily unlock */
-        PR_Unlock(ct->table_mutex);
 
-        pthread_mutex_lock(&(ct->c[i].c_mutex));
-        if (ct->c[i].c_sd != SLAPD_INVALID_SOCKET) {
-            char buf2[SLAPI_TIMESTAMP_BUFSIZE+1];
-            size_t lendn = ct->c[i].c_dn ? strlen(ct->c[i].c_dn) : 6; /* "NULLDN" */
-            size_t lenip = ct->c[i].c_ipaddr ? strlen(ct->c[i].c_ipaddr) : 0;
-            size_t lenconn = 1;
-            uint64_t connid = ct->c[i].c_connid;
-            char *bufptr = &buf[0];
-            char *newbuf = NULL;
-            int maxthreadstate = 0;
+            pthread_mutex_lock(&(ct->c[ct_list][i].c_mutex));
+            if (ct->c[ct_list][i].c_sd != SLAPD_INVALID_SOCKET) {
+                char buf2[SLAPI_TIMESTAMP_BUFSIZE+1];
+                size_t lendn = ct->c[ct_list][i].c_dn ? strlen(ct->c[ct_list][i].c_dn) : 6; /* "NULLDN" */
+                size_t lenip = ct->c[ct_list][i].c_ipaddr ? strlen(ct->c[ct_list][i].c_ipaddr) : 0;
+                size_t lenconn = 1;
+                uint64_t connid = ct->c[ct_list][i].c_connid;
+                char *bufptr = &buf[0];
+                char *newbuf = NULL;
+                int maxthreadstate = 0;
 
-            /* Get the connid length */
-            while (connid > 9) {
-                lenconn++;
-                connid /= 10;
-            }
+                /* Get the connid length */
+                while (connid > 9) {
+                    lenconn++;
+                    connid /= 10;
+                }
 
-            if (ct->c[i].c_flags & CONN_FLAG_MAX_THREADS) {
-                maxthreadstate = 1;
-            }
+                if (ct->c[ct_list][i].c_flags & CONN_FLAG_MAX_THREADS) {
+                    maxthreadstate = 1;
+                }
 
-            nconns++;
-            if (ct->c[i].c_gettingber) {
-                nreadwaiters++;
-            }
+                nconns++;
+                if (ct->c[ct_list][i].c_gettingber) {
+                    nreadwaiters++;
+                }
 
-            gmtime_r(&ct->c[i].c_starttime, &utm);
-            strftime(buf2, SLAPI_TIMESTAMP_BUFSIZE, "%Y%m%d%H%M%SZ", &utm);
+                gmtime_r(&ct->c[ct_list][i].c_starttime, &utm);
+                strftime(buf2, SLAPI_TIMESTAMP_BUFSIZE, "%Y%m%d%H%M%SZ", &utm);
 
-            /*
-             * Max threads per connection stats
-             *
-             * Appended output "1:2:3"
-             *
-             * 1 = Connection max threads state:  1 is in max threads, 0 is not
-             * 2 = The number of times this thread has hit max threads
-             * 3 = The number of operations attempted that were blocked
-             *     by max threads.
-             */
-            snprintf(maxthreadbuf, sizeof(maxthreadbuf), "%d:%" PRIu64 ":%" PRIu64 "",
-                     maxthreadstate, ct->c[i].c_maxthreadscount,
-                     ct->c[i].c_maxthreadsblocked);
-
-            if ((lenconn + lenip + lendn + strlen(maxthreadbuf)) > (BUFSIZ - 54)) {
                 /*
-                 * 54 =  8 for the colon separators +
-                 *       6 for the "i" counter +
-                 *      15 for buf2 (date) +
-                 *      10 for c_opsinitiated +
-                 *      10 for c_opscompleted +
-                 *       1 for c_gettingber +
-                 *       3 for "ip=" +
-                 *       1 for NULL terminator
-                 */
-                newbuf = (char *)slapi_ch_malloc(lenconn + lendn + lenip + strlen(maxthreadbuf) + 54);
-                bufptr = newbuf;
-            }
+                * Max threads per connection stats
+                *
+                * Appended output "1:2:3"
+                *
+                * 1 = Connection max threads state:  1 is in max threads, 0 is not
+                * 2 = The number of times this thread has hit max threads
+                * 3 = The number of operations attempted that were blocked
+                *     by max threads.
+                */
+                snprintf(maxthreadbuf, sizeof(maxthreadbuf), "%d:%" PRIu64 ":%" PRIu64 "",
+                        maxthreadstate, ct->c[ct_list][i].c_maxthreadscount,
+                        ct->c[ct_list][i].c_maxthreadsblocked);
 
-            sprintf(bufptr, "%d:%s:%d:%d:%s%s:%s:%s:%" PRIu64 ":ip=%s",
-                    i,
-                    buf2,
-                    ct->c[i].c_opsinitiated,
-                    ct->c[i].c_opscompleted,
-                    ct->c[i].c_gettingber ? "r" : "-",
-                    "",
-                    ct->c[i].c_dn ? ct->c[i].c_dn : "NULLDN",
-                    maxthreadbuf,
-                    ct->c[i].c_connid,
-                    ct->c[i].c_ipaddr);
-            val.bv_val = bufptr;
-            val.bv_len = strlen(bufptr);
-            attrlist_merge(&e->e_attrs, "connection", vals);
-            slapi_ch_free_string(&newbuf);
+                if ((lenconn + lenip + lendn + strlen(maxthreadbuf)) > (BUFSIZ - 54)) {
+                    /*
+                    * 54 =  8 for the colon separators +
+                    *       6 for the "i" counter +
+                    *      15 for buf2 (date) +
+                    *      10 for c_opsinitiated +
+                    *      10 for c_opscompleted +
+                    *       1 for c_gettingber +
+                    *       3 for "ip=" +
+                    *       1 for NULL terminator
+                    */
+                    newbuf = (char *)slapi_ch_malloc(lenconn + lendn + lenip + strlen(maxthreadbuf) + 54);
+                    bufptr = newbuf;
+                }
+
+                sprintf(bufptr, "%zu:%s:%d:%d:%s%s:%s:%s:%" PRIu64 ":ip=%s",
+                        i,
+                        buf2,
+                        ct->c[ct_list][i].c_opsinitiated,
+                        ct->c[ct_list][i].c_opscompleted,
+                        ct->c[ct_list][i].c_gettingber ? "r" : "-",
+                        "",
+                        ct->c[ct_list][i].c_dn ? ct->c[ct_list][i].c_dn : "NULLDN",
+                        maxthreadbuf,
+                        ct->c[ct_list][i].c_connid,
+                        ct->c[ct_list][i].c_ipaddr);
+                val.bv_val = bufptr;
+                val.bv_len = strlen(bufptr);
+                attrlist_merge(&e->e_attrs, "connection", vals);
+                slapi_ch_free_string(&newbuf);
+            }
+            pthread_mutex_unlock(&(ct->c[ct_list][i].c_mutex));
         }
-        pthread_mutex_unlock(&(ct->c[i].c_mutex));
     }
 
     snprintf(buf, sizeof(buf), "%d", nconns);
@@ -630,23 +732,25 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 void
 connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 {
-    int i;
-
-    for (i = 0; i < ct->size; i++) {
-        Connection *c = &(ct->c[i]);
-        if (c->c_state) {
-            /* Find the connection we are referring to */
-            int j = c->c_fdi;
-            pthread_mutex_lock(&(c->c_mutex));
-            if ((c->c_sd != SLAPD_INVALID_SOCKET) &&
-                (j >= 0) && (c->c_prfd == ct->fd[j].fd)) {
-                int r = ct->fd[j].out_flags & SLAPD_POLL_FLAGS;
-                if (r) {
-                    slapi_log_err(SLAPI_LOG_CONNS, "connection_table_dump_activity_to_errors_log",
-                                  "activity on %d%s\n", i, r ? "r" : "");
+    size_t i;
+    size_t l;
+    for (l = 0; l < ct->list_num; l++) {
+        for (i = 0; i < ct->list_size; i++) {
+            Connection *c = &(ct->c[l][i]);
+            if (c->c_state) {
+                /* Find the connection we are referring to */
+                int ct_list = c->c_fdi;
+                pthread_mutex_lock(&(c->c_mutex));
+                if ((c->c_sd != SLAPD_INVALID_SOCKET) &&
+                    (ct_list >= 0) && (c->c_prfd == ct->fd[l][ct_list].fd)) {
+                    int r = ct->fd[l][ct_list].out_flags & SLAPD_POLL_FLAGS;
+                    if (r) {
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_table_dump_activity_to_errors_log",
+                                    "activity on %zu%s\n", i, r ? "r" : "");
+                    }
                 }
+                pthread_mutex_unlock(&(c->c_mutex));
             }
-            pthread_mutex_unlock(&(c->c_mutex));
         }
     }
 }

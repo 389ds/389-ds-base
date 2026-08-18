@@ -1,8 +1,16 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import pytest
 import os
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1 as topo
 from lib389.backend import Backends
 from lib389.encrypted_attributes import EncryptedAttrs
 
@@ -24,7 +32,7 @@ def test_be_delete(topo):
     context should also be updated to reflect the next available suffix
 
     :id: 5208f897-7c95-4925-bad0-9ceb95fee678
-    :setup: Master Instance
+    :setup: Supplier Instance
     :steps:
         1. Create second backend/suffix
         2. Add an encrypted attribute to the default suffix
@@ -47,7 +55,7 @@ def test_be_delete(topo):
         9. Success
     """
     
-    inst = topo.ms["master1"] 
+    inst = topo.ms["supplier1"] 
     
     # Create second suffix      
     backends = Backends(inst)

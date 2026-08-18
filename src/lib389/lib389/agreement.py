@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,11 +9,11 @@
 import ldap
 import re
 import time
-import six
 import json
 import datetime
 from lib389._constants import *
 from lib389.properties import *
+from lib389.cli_base import _get_arg
 from lib389._entry import FormatDict
 from lib389.utils import normalizeDN, ensure_bytes, ensure_str, ensure_dict_str, ensure_list_str
 from lib389 import Entry, DirSrv, NoSuchEntryError, InvalidArgumentError
@@ -161,7 +161,7 @@ class Agreement(DSLdapObject):
         from lib389.replica import Replicas
         replicas = Replicas(self._instance)
         replica = replicas.get(suffix)
-        rid = replica.get_attr_val_utf8(REPL_ID)
+        rid = int(replica.get_attr_val_utf8(REPL_ID))
 
         # Open a connection to the consumer
         consumer = DirSrv(verbose=self._instance.verbose)
@@ -191,12 +191,15 @@ class Agreement(DSLdapObject):
             else:
                 elements = ensure_list_str(entry[0].getValues('nsds50ruv'))
                 for ruv in elements:
-                    if ('replica %s ' % rid) in ruv:
+                    if ('replica %d ' % rid) in ruv:
                         ruv_parts = ruv.split()
                         if len(ruv_parts) == 5:
                             result_msg = ruv_parts[4]
                         break
         except ldap.INVALID_CREDENTIALS as e:
+            self._log.debug('Failed to search for the suffix ' +
+                                     '({}) consumer ({}:{}) failed, error: {}'.format(
+                                         suffix, host, port, e))
             raise(e)
         except ldap.LDAPError as e:
             self._log.debug('Failed to search for the suffix ' +
@@ -216,7 +219,17 @@ class Agreement(DSLdapObject):
         con_maxcsn = "Unknown"
         try:
             agmt_maxcsn = self.get_agmt_maxcsn()
-            agmt_status = json.loads(self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS_JSON))
+            agmt_status_json = self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS_JSON)
+            try:
+                agmt_status = json.loads(agmt_status_json)
+            except TypeError:
+                # This may happen when dealing with an old version of directory server
+                agmt_status_legacy = self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS)
+                agmt_status = { 'state': 'amber',
+                                'message': f'Legacy replica message: is {agmt_status_legacy}' }
+            except json.JSONDecodeError:
+                agmt_status = { 'state': 'red', 
+                                'message': f'Invalid status syntax: {agmt_status_json}' }
             if agmt_maxcsn is not None:
                 try:
                     con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
@@ -285,10 +298,10 @@ class Agreement(DSLdapObject):
 
         if con_maxcsn is None:
             raise ValueError("Unable to get consumer's max csn")
-        if con_maxcsn.lower() == "unavailable":
-            return con_maxcsn
+        if con_maxcsn.lower() == "unavailable" or agmt_maxcsn is None:
+            return "unavailable"
 
-        # Extract the csn timstamps and compare them
+        # Extract the csn timestamps and compare them
         agmt_time = 0
         con_time = 0
         match = Agreement.csnre.match(agmt_maxcsn)
@@ -306,7 +319,7 @@ class Agreement(DSLdapObject):
         # Return a nice formated timestamp
         return "{:0>8}".format(str(lag))
 
-    def status(self, winsync=False, just_status=False, use_json=False, binddn=None, bindpw=None):
+    def status(self, winsync=False, just_status=False, use_json=False, binddn=None, bindpw=None, pwprompt=False):
         """Get the status of a replication agreement
         :param winsync: Specifies if the the agreement is a winsync replication agreement
         :type winsync: boolean
@@ -318,6 +331,8 @@ class Agreement(DSLdapObject):
         :type binddn: str
         :param bindpw: Password for the bind DN
         :type bindpw: str
+        :param pwprompt: If binddn or bindpw is None, ask for them interactively
+        :type pwprompt: boolean
         :returns: A status message
         :raises: ValueError - if failing to get agmt status
         """
@@ -329,6 +344,14 @@ class Agreement(DSLdapObject):
         # RUV entry under the suffix, then we can't get the status.  So in this case we
         # need to provide a DN and password.
         if not winsync:
+            if pwprompt:
+                host = self.get_attr_val_utf8(AGMT_HOST)
+                port = self.get_attr_val_utf8(AGMT_PORT)
+                suffix = self.get_attr_val_utf8(REPL_ROOT)
+                if binddn is None:
+                    binddn = _get_arg(None, msg=f"Enter bind DN for the replicated suffix ({suffix}) on {host}:{port}")
+                if bindpw is None:
+                    bindpw = _get_arg(None, msg=f"Enter password for ({binddn}) to the replicated suffix ({suffix}) on {host}:{port}", hidden=True)
             try:
                 status = self.get_agmt_status(binddn=binddn, bindpw=bindpw)
             except ldap.INVALID_CREDENTIALS as e:
@@ -416,13 +439,13 @@ class Agreement(DSLdapObject):
     def pause(self):
         """Pause outgoing changes from this server to consumer. Note
         that this does not pause the consumer, only that changes will
-        not be sent from this master to consumer: the consumer may still
+        not be sent from this supplier to consumer: the consumer may still
         receive changes from other replication paths!
         """
         self.set('nsds5ReplicaEnabled', 'off')
 
     def resume(self):
-        """Resume sending updates from this master to consumer directly.
+        """Resume sending updates from this supplier to consumer directly.
         """
         self.set('nsds5ReplicaEnabled', 'on')
 
@@ -747,7 +770,7 @@ class AgreementLegacy(object):
             # Build the result from the returned attributes
             for attr in entry.getAttrs():
                 # given an attribute name retrieve the property name
-                props = [k for k, v in six.iteritems(RA_PROPNAME_TO_ATTRNAME)
+                props = [k for k, v in RA_PROPNAME_TO_ATTRNAME.items()
                          if v.lower() == attr.lower()]
 
                 # If this attribute is present in the RA properties, adds it to
@@ -1038,7 +1061,7 @@ class AgreementLegacy(object):
                     'bindpw': bindpw
                 }
                 # Work on `self` aka producer
-                if replica.nsds5replicatype == MASTER_TYPE:
+                if replica.nsds5replicatype == SUPPLIER_TYPE:
                     self.conn.setupChainingFarm(**chain_args)
                 # Work on `consumer`
                 # TODO - is it really required?
@@ -1103,7 +1126,7 @@ class AgreementLegacy(object):
     def init(self, suffix=None, consumer_host=None, consumer_port=None):
         """Trigger a total update of the consumer replica
         - self is the supplier,
-        - consumer is a DirSrv object (consumer can be a master)
+        - consumer is a DirSrv object (consumer can be a supplier)
         - cn_format - use this string to format the agreement name
 
         :param suffix: The suffix targeted by the total update [mandatory]

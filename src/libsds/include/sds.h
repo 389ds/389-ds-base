@@ -342,7 +342,7 @@ typedef struct _sds_bptree_transaction
     uint32_t checksum;
     /**
      * Reference count to the number of consumers of this transaction. This is
-     * atomically updated. If this is the "active" master transaction, this is
+     * atomically updated. If this is the "active" primary transaction, this is
      * guaranteed to be 1 or greater. When a new write transaction is commited,
      * if this reference count falls to 0, this transaction is implicitly
      * destroy.

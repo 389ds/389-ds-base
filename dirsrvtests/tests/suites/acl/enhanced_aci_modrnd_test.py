@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 pytestmark = pytest.mark.tier1
 
@@ -64,7 +64,6 @@ def env_setup(topology_st):
     topology_st.standalone.modify_s(CONTAINER_2, mod)
 
 
-@pytest.mark.ds47553
 def test_enhanced_aci_modrnd(topology_st, env_setup):
     """Tests, that MODRDN operation is allowed,
     if user has ACI right '(all)' under superior entries,

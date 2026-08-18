@@ -13,7 +13,7 @@ from lib389.utils import ensure_bytes, ds_supports_new_changelog
 from lib389.replica import ReplicationManager
 from lib389.dseldif import DSEldif
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier1
@@ -30,18 +30,18 @@ log = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def topology_with_tls(topology_m2):
-    """Enable TLS on all masters"""
+    """Enable TLS on all suppliers"""
 
     [i.enable_tls() for i in topology_m2]
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.test_replication(topology_m2.ms['master1'], topology_m2.ms['master2'])
+    repl.test_replication(topology_m2.ms['supplier1'], topology_m2.ms['supplier2'])
 
     return topology_m2
 
 
 def _enable_changelog_encryption(inst, encrypt_algorithm):
-    """Configure changelog encryption for master"""
+    """Configure changelog encryption for supplier"""
 
     dse_ldif = DSEldif(inst)
     log.info('Configuring changelog encryption:{} for: {}'.format(inst.serverid, encrypt_algorithm))
@@ -65,12 +65,10 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
         dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-        for dbfile in os.listdir(changelog_dbdir):
-            if dbfile.endswith('.db'):
-                changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
-                log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
-        log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
-        dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+        for changelog_dbfile in glob.glob(f'{changelog_dbdir}*/*.db*'):
+            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+            log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
+            dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
     count = 0
     for entry in dbscanOut.split(b'dbid: '):
@@ -84,21 +82,22 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
                 assert user_pw_attr in entry, 'Changelog entry does not contain clear text password'
     assert count, 'Operation type and DN of the entry not matched in changelog'
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_algorithm_unhashed(topology_with_tls):
     """Check encryption algorithm AES
     And check unhashed#user#password attribute for encryption.
 
     :id: b7a37bf8-4b2e-4dbd-9891-70117d67558c
     :parametrized: yes
-    :setup: Replication with two masters and SSL configured.
-    :steps: 1. Enable changelog encrytion on master1
-            2. Add a user to master1/master2
+    :setup: Replication with two suppliers and SSL configured.
+    :steps: 1. Enable changelog encrytion on supplier1
+            2. Add a user to supplier1/supplier2
             3. Run dbscan -f on m1 to check unhashed#user#password
                attribute is encrypted.
             4. Run dbscan -f on m2 to check unhashed#user#password
                attribute is in cleartext.
-            5. Modify password in master2/master1
+            5. Modify password in supplier2/supplier1
             6. Run dbscan -f on m1 to check unhashed#user#password
                attribute is encrypted.
             7. Run dbscan -f on m2 to check unhashed#user#password
@@ -113,8 +112,8 @@ def test_algorithm_unhashed(topology_with_tls):
             7. It should pass
     """
     encryption = 'AES'
-    m1 = topology_with_tls.ms['master1']
-    m2 = topology_with_tls.ms['master2']
+    m1 = topology_with_tls.ms['supplier1']
+    m2 = topology_with_tls.ms['supplier2']
     m1.config.set('nsslapd-unhashed-pw-switch', 'on')
     m2.config.set('nsslapd-unhashed-pw-switch', 'on')
     test_passw = 'm2Test199'

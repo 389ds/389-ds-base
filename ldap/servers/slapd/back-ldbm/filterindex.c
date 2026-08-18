@@ -176,7 +176,7 @@ ava_candidates(
     char *type, *indextype = NULL;
     Slapi_Value sv;
     struct berval *bval;
-    Slapi_Value **ivals;
+    Slapi_Value **ivals = NULL;
     IDList *idl = NULL;
     int unindexed = 0;
     Slapi_Attr sattr;
@@ -185,10 +185,10 @@ ava_candidates(
     Operation *pb_op;
     Connection *pb_conn;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "=>\n");
+    slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "=>\n");
 
     if (slapi_filter_get_ava(f, &type, &bval) != 0) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "slapi_filter_get_ava failed\n");
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "slapi_filter_get_ava failed\n");
         return (NULL);
     }
 
@@ -197,8 +197,7 @@ ava_candidates(
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_attr_init(&sattr, type);
 
-#ifdef LDAP_ERROR_LOGGING
-    if (loglevel_is_set(LDAP_DEBUG_TRACE)) {
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
         char *op = NULL;
         char buf[BUFSIZ];
 
@@ -216,10 +215,8 @@ ava_candidates(
             op = "~=";
             break;
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "   %s%s%s\n", type, op,
-                      encode(bval, buf));
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "   %s%s%s\n", type, op, encode(bval, buf));
     }
-#endif
 
     switch (ftype) {
     case LDAP_FILTER_GE:
@@ -229,14 +226,16 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "<= idl len %lu\n",
                       (u_long)IDL_NIDS(idl));
         goto done;
         break;
@@ -247,14 +246,16 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "<= idl len %lu\n",
                       (u_long)IDL_NIDS(idl));
         goto done;
         break;
@@ -265,7 +266,7 @@ ava_candidates(
         indextype = (char *)indextype_APPROX;
         break;
     default:
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= invalid filter\n");
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "<= invalid filter\n");
         goto done;
         break;
     }
@@ -303,9 +304,11 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             slapi_attr_assertion2keys_ava_sv(&sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
@@ -338,9 +341,11 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             slapi_value_init_berval(&sv, bval);
@@ -382,7 +387,7 @@ presence_candidates(
     int unindexed = 0;
     back_txn txn = {NULL};
 
-    slapi_log_err(SLAPI_LOG_TRACE, "presence_candidates", "=> n");
+    slapi_log_err(SLAPI_LOG_TRACE, "presence_candidates", "=> \n");
 
     if (slapi_filter_get_type(f, &type) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "presence_candidates", "slapi_filter_get_type failed\n");
@@ -446,6 +451,7 @@ extensible_candidates(
     Slapi_PBlock *pb = slapi_pblock_new();
     int mrOP = 0;
     Slapi_Operation *op = NULL;
+    Connection *conn = NULL;
     back_txn txn = {NULL};
     slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "=> \n");
     slapi_pblock_get(glob_pb, SLAPI_TXN, &txn.back_txn_txn);
@@ -456,7 +462,7 @@ extensible_candidates(
         case SLAPI_OP_EQUAL:
         case SLAPI_OP_GREATER_OR_EQUAL:
         case SLAPI_OP_GREATER: {
-            IFP mrINDEX = NULL;
+            int32_t (*mrINDEX)(Slapi_PBlock *) = NULL;
             void *mrOBJECT = NULL;
             struct berval **mrVALUES = NULL;
             char *mrOID = NULL;
@@ -465,7 +471,11 @@ extensible_candidates(
             /* set the pb->pb_op to glob_pb->pb_op to catch the abandon req.
              * in case the operation is interrupted. */
             slapi_pblock_get(glob_pb, SLAPI_OPERATION, &op);
+            slapi_pblock_get(glob_pb, SLAPI_CONNECTION, &conn);
+            /* coverity[var_deref_model] */
             slapi_pblock_set(pb, SLAPI_OPERATION, op);
+            slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
+            slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &op->o_isroot);
 
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
             slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrOBJECT);
@@ -473,29 +483,36 @@ extensible_candidates(
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID);
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
 
-            if (mrVALUES && *mrVALUES && mrTYPE) {
+            if (mrINDEX && mrVALUES && *mrVALUES && mrTYPE) {
                 /*
                  * Compute keys for each of the values, individually.
                  * Search the index, for the computed keys.
                  * Collect the resulting IDs in idl.
                  */
-                size_t n;
                 struct berval **val;
                 mrTYPE = slapi_attr_basetype(mrTYPE, NULL, 0);
-                for (n = 0, val = mrVALUES; *val; ++n, ++val) {
+                for (val = mrVALUES; *val; ++val) {
                     struct berval **keys = NULL;
                     /* keys = mrINDEX (*val), conceptually.  In detail: */
                     struct berval *bvec[2];
+                    Slapi_Value **svals = NULL;
                     bvec[0] = *val;
                     bvec[1] = NULL;
 
+                    /* Convert berval array to Slapi_Value array */
+                    valuearray_init_bervalarray(bvec, &svals);
+
+                    /* coverity[var_deref_model] */
                     if (slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrOBJECT) ||
-                        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, bvec) ||
+                        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, svals) ||
                         mrINDEX(pb) ||
                         slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &keys)) {
                         /* something went wrong.  bail. */
+                        valuearray_free(&svals);
                         break;
-                    } else if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
+                    }
+                    valuearray_free(&svals);
+                    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
                         /*
                          * REMEMBER: this flag is only set on WARN levels. If the filter verify
                          * is on strict, we reject in search.c, if we ar off, the flag will NOT
@@ -504,20 +521,41 @@ extensible_candidates(
                         slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
                     }
                     if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+                        idl_free(&idl);
                         idl = idl_alloc(0);
                     } else if (keys == NULL || keys[0] == NULL) {
                         /* no keys */
                         idl_free(&idl);
-                        idl = idl_allids(be);
+                        if (strcmp(mrOID, LDAP_MATCHING_RULE_IN_CHAIN_OID) == 0) {
+                            /* we need to return no candidate else, inchain_filter_ava
+                             * matching all candidates, the search returns invalid results
+                             */
+                            idl = idl_alloc(0);
+                        } else {
+                            idl = idl_allids(be);
+                        }
                     } else {
                         IDList *idl2 = NULL;
                         struct berval **key;
+#define KEY_STR_LGHT 35 /* stollen from nsuniqueid.c UIDSTR_SIZE 35 */
+                        char key_str[KEY_STR_LGHT + 1]; /* only used for debug logging */
                         for (key = keys; *key != NULL; ++key) {
                             int unindexed = 0;
                             IDList *idl3 = (mrOP == SLAPI_OP_EQUAL) ? index_read_ext_allids(pb, be, mrTYPE, mrOID, *key, &txn,
                                                                                             err, &unindexed, allidslimit)
                                                                     : index_range_read_ext(pb, be, mrTYPE, mrOID, mrOP,
                                                                                            *key, NULL, 0, &txn, err, allidslimit);
+                            if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+                                int lenght_str = key[0]->bv_len;
+
+                                if (key[0]->bv_len > KEY_STR_LGHT) {
+                                    lenght_str = KEY_STR_LGHT;
+                                }
+
+                                strncpy(key_str, key[0]->bv_val, lenght_str);
+                                key_str[lenght_str] = '\0';
+                                slapi_log_err(SLAPI_LOG_FILTER, "extensible_candidates", "=> idl (%s) = (%d)\n", key_str, idl3->b_ids[0]);
+                            }
                             if (unindexed) {
                                 int pr_idx = -1;
                                 slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
@@ -534,7 +572,12 @@ extensible_candidates(
                                 /* first iteration */
                                 idl2 = idl3;
                             } else {
-                                IDList *tmp = idl_intersection(be, idl2, idl3);
+                                IDList *tmp;
+                                if (strcmp(mrOID, LDAP_MATCHING_RULE_IN_CHAIN_OID) == 0) {
+                                    tmp = idl_union(be, idl2, idl3);
+                                } else {
+                                    tmp = idl_intersection(be, idl2, idl3);
+                                }
                                 idl_free(&idl2);
                                 idl_free(&idl3);
                                 idl2 = tmp;
@@ -567,7 +610,11 @@ extensible_candidates(
     }
 return_idl:
     op = NULL;
+    conn = NULL;
+
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
+    slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
     slapi_pblock_destroy(pb);
     slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "<= %lu\n",
                   (u_long)IDL_NIDS(idl));
@@ -626,7 +673,7 @@ range_candidates(
 
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (entryrdn_get_switch() && op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         /* parentid is treated specially that is needed for the bulk import. (See #48755) */
         operator= SLAPI_OP_RANGE_NO_IDL_SORT | SLAPI_OP_RANGE_NO_ALLIDS;
@@ -701,6 +748,9 @@ list_candidates(
     struct berval *vpairs[2] = {NULL, NULL};
     int is_and = 0;
     IDListSet *idl_set = NULL;
+    back_search_result_set *sr = NULL;
+
+    slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
 
     slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "=> 0x%x\n", ftype);
 
@@ -800,7 +850,6 @@ list_candidates(
 
     idl = NULL;
     nextf = NULL;
-    isnot = 0;
     for (f_head = f = slapi_filter_list_first(flist); f != NULL;
          f = slapi_filter_list_next(flist, f)) {
 
@@ -891,6 +940,8 @@ list_candidates(
              * and allids - we should not process anymore, and fallback to full
              * table scan at this point.
              */
+                slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "OR shortcut condition - must apply filter test\n");
+            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
 
@@ -899,11 +950,13 @@ list_candidates(
              * If we encounter a zero length idl, we bail now because this can never
              * result in a meaningful result besides zero.
              */
+            slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "AND shortcut condition - must apply filter test\n");
+            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
     }
 
-/*
+    /*
      * Do the idl_set operation if required.
      * these are far more efficient than the iterative union and
      * intersections we previously used.
@@ -927,8 +980,7 @@ apply_set_op:
         idl = idl_set_intersect(idl_set, be);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= %lu\n",
-                  (u_long)IDL_NIDS(idl));
+    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= idl len %lu\n", (u_long)IDL_NIDS(idl));
 out:
     idl_set_destroy(idl_set);
     if (is_and) {
@@ -1040,13 +1092,60 @@ keys2idl(
     int allidslimit)
 {
     IDList *idl = NULL;
+    Op_stat *op_stat = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "keys2idl", "=> type %s indextype %s\n", type, indextype);
+
+    /* Before reading the index take the start time */
+    if (LDAP_STAT_READ_INDEX & config_get_statlog_level()) {
+        op_stat = op_stat_get_operation_extension(pb);
+        if (op_stat->search_stat) {
+            clock_gettime(CLOCK_MONOTONIC, &(op_stat->search_stat->keys_lookup_start));
+        } else {
+            op_stat = NULL;
+        }
+    }
+
     for (uint32_t i = 0; ivals[i] != NULL; i++) {
         IDList *idl2 = NULL;
+        struct component_keys_lookup *key_stat;
+        int key_len;
 
+        if (op_stat) {
+            /* gather the index lookup statistics */
+            key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
+            clock_gettime(CLOCK_MONOTONIC, &(key_stat->key_lookup_start));
+        }
         idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
+        if (op_stat) {
+            clock_gettime(CLOCK_MONOTONIC, &(key_stat->key_lookup_end));
+            /* indextype e.g. "eq" or "sub" (see index.c) */
+            if (indextype) {
+                key_stat->index_type = slapi_ch_strdup(indextype);
+            }
+            /* key value e.g. '^st' or 'smith'*/
+            key_len = slapi_value_get_length(ivals[i]);
+            if (key_len) {
+                key_stat->key = (char *) slapi_ch_calloc(1, key_len + 1);
+                memcpy(key_stat->key, slapi_value_get_string(ivals[i]), key_len);
+            }
 
+            /* attribute name e.g. 'uid' */
+            if (type) {
+                key_stat->attribute_type = slapi_ch_strdup(type);
+            }
+
+            /* Number of lookup IDs with the key */
+            key_stat->id_lookup_cnt = idl2 ? idl2->b_nids : 0;
+            if (op_stat->search_stat->keys_lookup) {
+                /* it already exist key stat. add key_stat at the head */
+                key_stat->next = op_stat->search_stat->keys_lookup;
+            } else {
+                /* this is the first key stat record */
+                key_stat->next = NULL;
+            }
+            op_stat->search_stat->keys_lookup = key_stat;
+        }
 #ifdef LDAP_ERROR_LOGGING
         /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE ) { XXX */
         {
@@ -1078,6 +1177,11 @@ keys2idl(
             idl_free(&idl2);
             idl_free(&tmp);
         }
+    }
+
+    /* All the keys have been fetch, time to take the completion time */
+    if (op_stat) {
+        clock_gettime(CLOCK_MONOTONIC, &(op_stat->search_stat->keys_lookup_end));
     }
 
     return (idl);

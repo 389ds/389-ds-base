@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -21,7 +21,7 @@
  * The callback can allocate some private data to return.  If so
  * the callback must define a repl_session_plugin_destroy_agmt_cb
  * so that the private data can be freed.  This private data is passed
- * to other callback functions on a master as the void *cookie argument.
+ * to other callback functions on a sender as the void *cookie argument.
  */
 typedef void *(*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree);
 #define REPL_SESSION_PLUGIN_AGMT_INIT_CB 1
@@ -29,8 +29,8 @@ typedef void *(*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree);
 /*
  * Callbacks called when acquiring a replica
  *
- * The pre and post callbacks are called on the sending (master) side.
- * The receive and reply callbacks are called on the receiving (replica)
+ * The pre and post callbacks are called on the sending (sender/receiver)
+ * side. The receive and reply callbacks are called on the receiving (replica)
  * side.
  *
  * Data can be exchanged between the sending and receiving sides using
@@ -43,8 +43,8 @@ typedef void *(*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree);
  * follows:
  *
  *   pre - send data to replica
- *   recv - receive data from master
- *   reply - send data to master
+ *   recv - receive data from sender
+ *   reply - send data to sender
  *   post - receive data from replica
  *
  * The memory used by data_guid and data should be allocated in the pre
@@ -53,7 +53,7 @@ typedef void *(*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree);
  *
  * The return value of the callbacks should be 0 to allow replication
  * to continue. A non-0 return value will cause the replication session
- * to be abandoned, causing the master to go into incremental backoff
+ * to be abandoned, causing the sender to go into incremental backoff
  * mode.
  */
 typedef int (*repl_session_plugin_pre_acquire_cb)(void *cookie, const Slapi_DN *repl_subtree, int is_total, char **data_guid, struct berval **data);

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -614,9 +614,9 @@ ACL_MALLOC_DECL
 
 ACL_DECL
 	{
-	register acl_state_type acl_current_state;
-	register char *acl_cp, *acl_bp;
-	register int acl_act;
+	acl_state_type acl_current_state;
+	char *acl_cp, *acl_bp;
+	int acl_act;
 
 #line 47 "aclscan.l"
 
@@ -663,7 +663,7 @@ ACL_DECL
 acl_match:
 		do
 			{
-			register ACL_CHAR acl_c = acl_ec[ACL_SC_TO_UI(*acl_cp)];
+			ACL_CHAR acl_c = acl_ec[ACL_SC_TO_UI(*acl_cp)];
 			if ( acl_accept[acl_current_state] )
 				{
 				acl_last_accepting_state = acl_current_state;
@@ -1125,10 +1125,10 @@ ECHO;
  */
 
 static int acl_get_next_buffer()
-	{
-	register char *dest = acl_current_buffer->acl_ch_buf;
-	register char *source = acltext_ptr;
-	register int number_to_move, i;
+{
+	char *dest = acl_current_buffer->acl_ch_buf;
+	char *source = acltext_ptr;
+	int number_to_move, i;
 	int ret_val;
 
 	if ( acl_c_buf_p > &acl_current_buffer->acl_ch_buf[acl_n_chars + 1] )
@@ -1256,14 +1256,14 @@ static int acl_get_next_buffer()
 
 static acl_state_type acl_get_previous_state()
 	{
-	register acl_state_type acl_current_state;
-	register char *acl_cp;
+	acl_state_type acl_current_state;
+	char *acl_cp;
 
 	acl_current_state = acl_start;
 
 	for ( acl_cp = acltext_ptr + ACL_MORE_ADJ; acl_cp < acl_c_buf_p; ++acl_cp )
 		{
-		register ACL_CHAR acl_c = (*acl_cp ? acl_ec[ACL_SC_TO_UI(*acl_cp)] : 1);
+		ACL_CHAR acl_c = (*acl_cp ? acl_ec[ACL_SC_TO_UI(*acl_cp)] : 1);
 		if ( acl_accept[acl_current_state] )
 			{
 			acl_last_accepting_state = acl_current_state;
@@ -1295,10 +1295,10 @@ static acl_state_type acl_try_NUL_trans( acl_current_state )
 acl_state_type acl_current_state;
 #endif
 	{
-	register int acl_is_jam;
-	register char *acl_cp = acl_c_buf_p;
+	int acl_is_jam;
+	char *acl_cp = acl_c_buf_p;
 
-	register ACL_CHAR acl_c = 1;
+	ACL_CHAR acl_c = 1;
 	if ( acl_accept[acl_current_state] )
 		{
 		acl_last_accepting_state = acl_current_state;
@@ -1319,14 +1319,14 @@ acl_state_type acl_current_state;
 
 #ifndef ACL_NO_UNPUT
 #ifdef ACL_USE_PROTOS
-static void aclunput( int c, register char *acl_bp )
+static void aclunput( int c, char *acl_bp )
 #else
 static void aclunput( c, acl_bp )
 int c;
-register char *acl_bp;
+char *acl_bp;
 #endif
 	{
-	register char *acl_cp = acl_c_buf_p;
+	char *acl_cp = acl_c_buf_p;
 
 	/* undo effects of setting up acltext */
 	*acl_cp = acl_hold_char;
@@ -1334,10 +1334,10 @@ register char *acl_bp;
 	if ( acl_cp < acl_current_buffer->acl_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		register int number_to_move = acl_n_chars + 2;
-		register char *dest = &acl_current_buffer->acl_ch_buf[
+		int number_to_move = acl_n_chars + 2;
+		char *dest = &acl_current_buffer->acl_ch_buf[
 					acl_current_buffer->acl_buf_size + 2];
-		register char *source =
+		char *source =
 				&acl_current_buffer->acl_ch_buf[number_to_move];
 
 		while ( source > acl_current_buffer->acl_ch_buf )
@@ -1795,7 +1795,7 @@ aclconst char *s2;
 int n;
 #endif
 	{
-	register int i;
+	int i;
 	for ( i = 0; i < n; ++i )
 		s1[i] = s2[i];
 	}
@@ -1809,7 +1809,7 @@ static int acl_flex_strlen( s )
 aclconst char *s;
 #endif
 	{
-	register int n;
+	int n;
 	for ( n = 0; s[n]; ++n )
 		;
 

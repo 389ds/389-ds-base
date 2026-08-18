@@ -15,11 +15,8 @@
 
 #include <stdio.h>
 #include "slap.h"
-
-/* If available, expose rust types. */
-#ifdef RUST_ENABLE
 #include <rust-nsslapd-private.h>
-#endif
+
 
 static const char *extended_op_oid2string(const char *oid);
 
@@ -206,8 +203,6 @@ extop_handle_import_done(Slapi_PBlock *pb, char *extoid __attribute__((unused)),
     return;
 }
 
-
-#ifdef RUST_ENABLE
 static void
 extop_handle_ldapssotoken_request(Slapi_PBlock *pb, char *extoid __attribute__((unused)), struct berval *extval) {
     BerElement *ber = NULL;
@@ -258,8 +253,6 @@ extop_handle_ldapssotoken_request(Slapi_PBlock *pb, char *extoid __attribute__((
     ber_bvfree(bvp);
     return;
 }
-#endif
-
 
 void
 do_extended(Slapi_PBlock *pb)
@@ -273,14 +266,13 @@ do_extended(Slapi_PBlock *pb)
     const char *name;
     Operation *pb_op = NULL;
     Connection *pb_conn = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "->\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-
-    /* Set the time we actually started the operation */
-    slapi_operation_set_time_started(pb_op);
 
     if (pb_conn == NULL || pb_op == NULL) {
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "param error", 0, NULL);
@@ -288,6 +280,9 @@ do_extended(Slapi_PBlock *pb)
                       "NULL param error: conn (0x%p) op (0x%p)\n", pb_conn, pb_op);
         goto free_and_return;
     }
+
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(pb_op);
 
     /*
      * Parse the extended request. It looks like this:
@@ -326,15 +321,27 @@ do_extended(Slapi_PBlock *pb)
     if (NULL == (name = extended_op_oid2string(extoid))) {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s)\n", extoid);
 
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d EXT oid=\"%s\"\n",
-                         pb_conn->c_connid, pb_op->o_opid, extoid);
+        if (log_format == LOG_FORMAT_DEFAULT) {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d EXT oid=\"%s\"\n",
+                             pb_conn->c_connid, pb_op->o_opid, extoid);
+        } else {
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.oid = extoid;
+            slapd_log_access_extop(&logpb);
+        }
     } else {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s-%s)\n",
                       extoid, name);
-
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
-                         pb_conn->c_connid, pb_op->o_opid, extoid, name);
+        if (log_format == LOG_FORMAT_DEFAULT) {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
+                             pb_conn->c_connid, pb_op->o_opid, extoid, name);
+        } else {
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.oid = extoid;
+            logpb.name = name;
+            slapd_log_access_extop(&logpb);
+        }
     }
 
     /* during a bulk import, only BULK_IMPORT_DONE is allowed!
@@ -411,7 +418,6 @@ do_extended(Slapi_PBlock *pb)
      * Auth tokens are generated outside of transactions, and are just part of the
      * main server, so we do it now before consulting plugins - WB
      */
-#ifdef RUST_ENABLE
     if (strcmp(extoid, EXTOP_LDAPSSOTOKEN_REQUEST_OID) == 0 && config_get_enable_ldapssotoken()) {
         /*
          * We want to generate an auth token for this user.
@@ -433,7 +439,6 @@ do_extended(Slapi_PBlock *pb)
             goto free_and_return;
         }
     }
-#endif
 
     rc = plugin_determine_exop_plugins(extoid, &p);
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Plugin_determine_exop_plugins rc %d\n", rc);

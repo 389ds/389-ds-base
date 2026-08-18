@@ -1,19 +1,56 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import os
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.replica import ReplicationManager
 from lib389.idm.user import UserAccounts, UserAccount
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 
 pytestmark = pytest.mark.tier1
 
+
+def _attr_values_repr(values):
+    return sorted(repr(value) for value in values)
+
+
+def _format_compare_mismatch(obj1, obj2):
+    obj1_attrs = obj1.get_compare_attrs()
+    obj2_attrs = obj2.get_compare_attrs()
+    obj1_attr_names = set(obj1_attrs)
+    obj2_attr_names = set(obj2_attrs)
+    lines = []
+
+    for attr in sorted(obj1_attr_names - obj2_attr_names):
+        lines.append(f"Only in supplier1: {attr}={_attr_values_repr(obj1_attrs[attr])}")
+
+    for attr in sorted(obj2_attr_names - obj1_attr_names):
+        lines.append(f"Only in supplier2: {attr}={_attr_values_repr(obj2_attrs[attr])}")
+
+    for attr in sorted(obj1_attr_names & obj2_attr_names):
+        if set(obj1_attrs[attr]) != set(obj2_attrs[attr]):
+            lines.append(
+                f"Different {attr}: "
+                f"supplier1={_attr_values_repr(obj1_attrs[attr])}, "
+                f"supplier2={_attr_values_repr(obj2_attrs[attr])}"
+            )
+
+    return "\n".join(lines) or "No compare attribute mismatch found"
+
+
 def test_user_compare_m2Repl(topology_m2):
     """
-    User compare test between users of master to master replicaton topology.
+    User compare test between users of supplier to supplier replicaton topology.
 
     :id: 7c243bea-4075-4304-864d-5b789d364871
 
-    :setup: 2 master MMR
+    :setup: 2 supplier MMR
 
     :steps: 1. Add a user to m1
             2. Wait for replication
@@ -24,8 +61,8 @@ def test_user_compare_m2Repl(topology_m2):
                       3. The user is the same
     """
     rm = ReplicationManager(DEFAULT_SUFFIX)
-    m1 = topology_m2.ms.get('master1')
-    m2 = topology_m2.ms.get('master2')
+    m1 = topology_m2.ms.get('supplier1')
+    m2 = topology_m2.ms.get('supplier2')
 
     m1_users = UserAccounts(m1, DEFAULT_SUFFIX)
     m2_users = UserAccounts(m2, DEFAULT_SUFFIX)
@@ -47,7 +84,14 @@ def test_user_compare_m2Repl(topology_m2):
 
     m2_testuser = m2_users.get('testuser')
 
-    assert UserAccount.compare(m1_testuser, m2_testuser)
+    assert 'parentid' not in m1_testuser.get_compare_attrs()
+    assert 'parentid' not in m2_testuser.get_compare_attrs()
+
+    if not UserAccount.compare(m1_testuser, m2_testuser):
+        pytest.fail(
+            "Replicated user compare mismatch:\n"
+            f"{_format_compare_mismatch(m1_testuser, m2_testuser)}"
+        )
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2016 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -25,10 +25,8 @@
 #endif
 #include "slap.h"
 #include "fe.h"
-
-#ifdef RUST_ENABLE
 #include <rust-nsslapd-private.h>
-#endif
+
 
 int
 pw_verify_root_dn(const char *dn, const Slapi_Value *cred)
@@ -64,12 +62,14 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 
     int mt_result = slapi_mapping_tree_select(pb, &be, referral, NULL, 0);
     if (mt_result != LDAP_SUCCESS) {
+        slapi_send_ldap_result(pb, LDAP_UNAVAILABLE, NULL, NULL, 0, NULL);
         return SLAPI_BIND_NO_BACKEND;
     }
 
     if (*referral) {
         /* If we have a referral, this is NULL */
         PR_ASSERT(be == NULL);
+        slapi_send_ldap_result(pb, LDAP_REFERRAL, NULL, NULL, 0, NULL);
         return SLAPI_BIND_REFERRAL;
     }
 
@@ -78,6 +78,7 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     if (be->be_bind == NULL) {
         /* Selected backend doesn't support binds! */
         slapi_be_Unlock(be);
+        slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         return LDAP_OPERATIONS_ERROR;
     }
     slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
@@ -97,7 +98,6 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 int32_t
 pw_verify_token_dn(Slapi_PBlock *pb) {
     int rc = SLAPI_BIND_FAIL;
-#ifdef RUST_ENABLE
     struct berval *cred = NULL;
     Slapi_DN *sdn = NULL;
 
@@ -107,8 +107,11 @@ pw_verify_token_dn(Slapi_PBlock *pb) {
     }
 
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
+    if (!cred) {
+        return SLAPI_BIND_FAIL;
+    }
     slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
-    char *dn = slapi_sdn_get_dn(sdn);
+    char *dn = (char *)slapi_sdn_get_dn(sdn);
     char *key = config_get_ldapssotoken_secret();
     uint64_t tok_ttl = (uint64_t)config_get_ldapssotoken_ttl();
 
@@ -116,7 +119,7 @@ pw_verify_token_dn(Slapi_PBlock *pb) {
         rc = SLAPI_BIND_SUCCESS;
     }
     slapi_ch_free_string(&key);
-#endif
+
     return rc;
 }
 

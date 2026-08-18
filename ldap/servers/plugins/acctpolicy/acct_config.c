@@ -1,5 +1,6 @@
 /******************************************************************************
 Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+Copyright (C) 2023 Red Hat, Inc.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -73,6 +74,7 @@ static int
 acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
 {
     char *config_val;
+    int value = 0;
     int rc = 0;
 
     if (newcfg == NULL) {
@@ -103,6 +105,19 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
     } else if (!strcmp(newcfg->alt_state_attr_name, "1.1")) {
         slapi_ch_free_string(&newcfg->alt_state_attr_name); /*none - NULL */
     }                                                       /* else use configured value */
+
+    config_val = get_attr_string_val(e, CFG_CHECK_ALL_STATE_ATTRS);
+    if (config_val &&
+        (strcasecmp(config_val, "true") == 0 ||
+         strcasecmp(config_val, "yes") == 0 ||
+         strcasecmp(config_val, "on") == 0 ||
+         strcasecmp(config_val, "1") == 0))
+    {
+        newcfg->check_all_state_attrs = PR_TRUE;
+    } else {
+        newcfg->check_all_state_attrs = PR_FALSE;
+    }
+    slapi_ch_free_string(&config_val);
 
     newcfg->always_record_login_attr = get_attr_string_val(e, CFG_RECORD_LOGIN_ATTR);
     /* What user attribute will store the last login time
@@ -135,6 +150,30 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
     }
     slapi_ch_free_string(&config_val);
 
+    if (newcfg->always_record_login) {
+        char *hist_size_str = NULL;
+        newcfg->login_history_attr = get_attr_string_val(e, LASTLOGIN_HISTORY_ATTR);
+        if (newcfg->login_history_attr == NULL) {
+            newcfg->login_history_attr = slapi_ch_strdup(LASTLOGIN_HISTORY_ATTR);
+        }
+        if (has_attr(e, LASTLOGIN_HISTORY_SIZE_ATTR, &hist_size_str)) {
+            if (hist_size_str) {
+                value = strtoul(hist_size_str, 0, 0);
+                if (value >= 0) {
+                    newcfg->login_history_size = value;
+                } else {
+                    slapi_log_err(SLAPI_LOG_WARNING, PLUGIN_NAME,
+                                  "acct_policy_entry2config - Invalid value for login-history-size: %d, "
+                                  "Using default value of %d\n", value, DEFAULT_LASTLOGIN_HISTORY_SIZE);
+                    newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
+                }
+                slapi_ch_free_string(&hist_size_str);
+            }
+        } else {
+            newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
+        }
+    }
+
     /* the default limit if not set in the acctPolicySubentry */
     config_val = get_attr_string_val(e, newcfg->limit_attr_name);
     if (config_val) {
@@ -148,10 +187,10 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
             rc = -1;
             newcfg->inactivitylimit = ULONG_MAX;
         }
+        slapi_ch_free_string(&config_val);
     } else {
         newcfg->inactivitylimit = ULONG_MAX;
     }
-    slapi_ch_free_string(&config_val);
 
     return (rc);
 }
@@ -174,4 +213,5 @@ free_config()
     slapi_ch_free_string(&globalcfg.spec_attr_name);
     slapi_ch_free_string(&globalcfg.limit_attr_name);
     slapi_ch_free_string(&globalcfg.always_record_login_attr);
+    slapi_ch_free_string(&globalcfg.login_history_attr);
 }

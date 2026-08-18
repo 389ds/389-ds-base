@@ -1,21 +1,27 @@
 import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    Icon,
-    Row,
-    Spinner,
-} from "patternfly-react";
+	Button,
+	Checkbox,
+    Divider,
+	Form,
+	Grid,
+	GridItem,
+	Spinner,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
-import { Typeahead } from "react-bootstrap-typeahead";
+import { SyncAltIcon } from "@patternfly/react-icons";
+
+const _ = cockpit.gettext;
 
 export class ServerSASL extends React.Component {
     constructor(props) {
@@ -28,6 +34,7 @@ export class ServerSASL extends React.Component {
             errObj: {},
             saveDisabled: true,
             supportedMechs: [],
+            mappingKey: 0,
 
             // Main settings
             allowedMechs: [],
@@ -44,21 +51,41 @@ export class ServerSASL extends React.Component {
             saslBase: "",
             saslFilter: "",
             saslPriority: "100",
-            saslModalType: "Create",
+            saslModalType: _("Create"),
             saslErrObj: {},
             showConfirmDelete: false,
             modalChecked: false,
+            isAllowedMechOpen: false,
+        };
+        // Allowed SASL Mechanisms
+        this.handleOnAllowedMechToggle = (_event, isAllowedMechOpen) => {
+            this.setState({
+                isAllowedMechOpen,
+            });
+        };
+        this.handleOnSelect = (event, selection) => {
+            this.setState({
+                allowedMechs: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateSaveBtn() });
+        };
+        this.handleOnAllowedMechClear = () => {
+            this.setState({
+                allowedMechs: [],
+                isAllowedMechOpen: false
+            });
         };
 
+        this.validateRegex = this.validateRegex.bind(this);
+        this.validateModal = this.validateModal.bind(this);
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleModalAddChange = this.handleModalAddChange.bind(this);
-        this.handleTestRegex = this.handleTestRegex.bind(this);
-        this.loadConfig = this.loadConfig.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.onTestRegex = this.onTestRegex.bind(this);
+        this.handleLoadConfig = this.handleLoadConfig.bind(this);
         this.loadMechs = this.loadMechs.bind(this);
         this.loadSASLMappings = this.loadSASLMappings.bind(this);
-        this.saveConfig = this.saveConfig.bind(this);
-        this.showCreateMapping = this.showCreateMapping.bind(this);
+        this.handleSaveConfig = this.handleSaveConfig.bind(this);
+        this.handleShowCreateMapping = this.handleShowCreateMapping.bind(this);
         this.showEditMapping = this.showEditMapping.bind(this);
         this.closeMapping = this.closeMapping.bind(this);
         this.showConfirmDelete = this.showConfirmDelete.bind(this);
@@ -71,233 +98,181 @@ export class ServerSASL extends React.Component {
     componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
-            this.loadConfig();
+            this.handleLoadConfig();
         } else {
             this.props.enableTree();
         }
     }
 
-    handleTestRegex() {
-        let test_string = this.state.saslTestText;
-        let regex = this.state.saslMapRegex;
-        let cleaned_regex = regex.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
-        let sasl_regex = RegExp(cleaned_regex);
-        if (sasl_regex.test(test_string)) {
-            this.props.addNotification(
-                "success",
-                "The test string matches the Regular Expression"
-            );
+    normalizeRegex(regex_str) {
+        return regex_str.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+    }
+
+    validateRegex(regex) {
+        // Just check that the regex itself is valid
+        const errObj = this.state.saslErrObj;
+        let saveMappingDisabled = this.state.saveMappingDisabled;
+        if (this.state.saslMapRegex === "") {
+            errObj.saslMapRegex = true;
+        } else {
+            try {
+                RegExp(this.state.saslMapRegex);
+                const cleaned_regex = this.normalizeRegex(this.state.saslMapRegex);
+                // Test the normalized version
+                RegExp(cleaned_regex);
+                errObj.saslMapRegex = false;
+            } catch (e) {
+                // Bad regex
+                errObj.saslMapRegex = true;
+                saveMappingDisabled = true;
+            }
+        }
+        this.setState({
+            saslErrObj: errObj,
+            saveMappingDisabled
+
+        });
+        return !errObj.saslMapRegex;
+    }
+
+    onTestRegex() {
+        const test_string = this.state.saslTestText;
+        if (this.validateRegex()) {
+            const cleaned_regex = this.normalizeRegex(this.state.saslMapRegex);
+            const sasl_regex = RegExp(cleaned_regex);
+            if (sasl_regex.test(test_string)) {
+                this.props.addNotification(
+                    "success",
+                    _("The test string matches the Regular Expression")
+                );
+            } else {
+                this.props.addNotification(
+                    "warning",
+                    _("The test string does not match the Regular Expression")
+                );
+            }
         } else {
             this.props.addNotification(
-                "warning",
-                "The test string does not match the Regular Expression"
+                "error",
+                _("Invalid regular expression")
             );
         }
+    }
+
+    validateSaveBtn() {
+        const attrs = ['mappingFallback', 'maxBufSize'];
+        let disableSaveBtn = true;
+
+        for (const attr of attrs) {
+            if (this.state[attr] !== this.state['_' + attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        const orig_mechs = [...this.state._allowedMechs];
+        const new_mechs = [...this.state.allowedMechs];
+        if (!listsEqual(orig_mechs, new_mechs)) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            saveDisabled: disableSaveBtn,
+        });
     }
 
     handleChange(e) {
         let attr = "";
         let value = "";
-        let isArray = false;
-        let chkBox = false;
-        let disableSaveBtn = true;
-        let valueErr = false;
-        let errObj = this.state.errObj;
 
-        // Could be a typeahead change, check if "e" is an Array
-        if (Array.isArray(e)) {
-            isArray = true;
-            attr = "allowedMechs";
-            value = e;
-        } else {
-            value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-            attr = e.target.id;
-            if (e.target.type === 'checkbox') {
-                chkBox = true;
-            }
-        }
+        value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        attr = e.target.id;
 
-        // Check if a setting was changed, if so enable the save button
-        if (attr == 'mappingFallback' && this.state._mappingFallback != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslPriority' && this.state._saslPriority != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'maxBufSize' && this.state._maxBufSize != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'allowedMechs' && this.state._allowedMechs.join(' ') != value.join(' ')) {
-            if (this.state._allowedMechs.length > value.length) {
-                // The way allow mechanisms work if that once you set it initially
-                // you can't edit it without removing all the current mecahisms.  So
-                // if we remove one, just remove them all and make the user start over.
-                // MARK THIS DOES NOT WORK
-                value = [];
-            }
-            disableSaveBtn = false;
-        }
-
-        // Now check for differences in values that we did not touch
-        if (attr != 'mappingFallback' && this.state._mappingFallback != this.state.mappingFallback) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslPriority' && this.state._saslPriority != this.state.saslPriority) {
-            disableSaveBtn = false;
-        } else if (attr != 'maxBufSize' && this.state._maxBufSize != this.state.maxBufSize) {
-            disableSaveBtn = false;
-        } else if (attr != 'allowedMechs' && this.state._allowedMechs.join(' ') != this.state.allowedMechs.join(' ')) {
-            disableSaveBtn = false;
-        }
-
-        if (!isArray && !chkBox && value == "") {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-
-        errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            saveDisabled: disableSaveBtn,
-            errObj: errObj,
-        });
+            isAllowedMechOpen: false
+        }, () => { this.validateSaveBtn() });
     }
 
-    handleModalAddChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+    validateModal() {
         let disableSaveBtn = true;
         let disableRegexTestBtn = true;
-        let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.saslErrObj;
+        let error = false;
 
-        // Check if a setting was changed, if so enable the save button
-        if (attr == 'saslMapName' && value != "") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslMapRegex' && value != "") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslBase' && value != "") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslPriority' && value != "0") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslFilter' && value != "") {
-            disableSaveBtn = false;
+        const attrs = ['saslMapName', 'saslMapRegex', 'saslBase', 'saslPriority', 'saslFilter'];
+        for (const attr of attrs) {
+            if (this.state[attr] === "" || (attr === 'saslPriority' && this.state[attr] === "0")) {
+                errObj[attr] = true;
+                error = true;
+            } else {
+                // attr value is good
+                errObj[attr] = false;
+            }
         }
-        if (!disableSaveBtn) {
-            // Make sure every other field is set
-            if (attr != 'saslMapName' && this.state.saslMapName == "") {
-                disableSaveBtn = true;
-            }
-            if (attr != 'saslMapRegex' && this.state.saslMapRegex == "") {
-                disableSaveBtn = true;
-            }
-            if (attr != 'saslBase' && this.state.saslBase == "") {
-                disableSaveBtn = true;
-            }
-            if (attr != 'saslFilter' && this.state.saslFilter == "") {
-                disableSaveBtn = true;
+
+        if (!error) {
+            // Check for changes in values
+            for (const attr of attrs) {
+                if (this.state[attr] !== this.state['_' + attr]) {
+                    disableSaveBtn = false;
+                    break;
+                }
             }
         }
 
         // Handle Test Text field and buttons
-        if (attr == 'saslTestText' && value != "" && this.state.saslMapRegex != "") {
-            disableRegexTestBtn = false;
-        }
-        if (attr != 'saslTestText' && this.state.saslMapRegex != "" && this.state.saslTestText != "") {
+        if (this.state.saslMapRegex !== "" && this.state.saslTestText !== "") {
             disableRegexTestBtn = false;
         }
 
-        errObj[attr] = valueErr;
         this.setState({
-            [attr]: value,
             saveMappingDisabled: disableSaveBtn,
             testBtnDisabled: disableRegexTestBtn,
-            errObj: errObj,
-        });
+            saslErrObj: errObj,
+        }, () => { this.validateRegex() });
     }
 
-    handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
-        let disableSaveBtn = true;
-        let disableRegexTestBtn = true;
-        let valueErr = false;
-        let errObj = this.state.errObj;
+    onModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
 
-        // Check if a setting was changed, if so enable the save button
-        if (attr == 'saslMapName' && this.state._saslMapName != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslMapRegex' && this.state._saslMapRegex != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslBase' && this.state._saslBase != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslFilter' && this.state._saslFilter != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslPriority' && this.state._saslPriority != value) {
-            disableSaveBtn = false;
-        }
-
-        // Now check for differences in values that we did not touch
-        if (attr != 'saslMapName' && this.state._saslMapName != this.state.saslMapName) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslMapRegex' && this.state._saslMapRegex != this.state.saslMapRegex) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslBase' && this.state._saslBase != this.state.saslBase) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslFilter' && this.state._saslFilter != this.state.saslFilter) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslPriority' && this.state._saslPriority != this.state.saslPriority) {
-            disableSaveBtn = false;
-        }
-
-        // Handle TEst Text filed and buttons
-        if (attr == 'saslTestText' && value != "" && this.state.saslMapRegex != "") {
-            disableRegexTestBtn = false;
-        }
-        if (attr != 'saslTestText' && this.state.saslMapRegex != "" && this.state.saslTestText != "") {
-            disableRegexTestBtn = false;
-        }
-
-        if (value == "" && attr != "saslTestText") {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-
-        errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            saveMappingDisabled: disableSaveBtn,
-            testBtnDisabled: disableRegexTestBtn,
-            errObj: errObj,
-        });
+        }, () => { this.validateModal() });
     }
 
-    loadConfig() {
-        let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", 'get'
+    handleLoadConfig() {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", 'get'
         ];
-        log_cmd("loadConfig", "Get SASL settings", cmd);
+        log_cmd("handleLoadConfig", "Get SASL settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let allowedMechsVal = attrs['nsslapd-allowed-sasl-mechanisms'][0];
                     let allowedMechs = [];
                     let fallback = false;
 
-                    if (attrs['nsslapd-sasl-mapping-fallback'][0] == "on") {
+                    if (attrs['nsslapd-sasl-mapping-fallback'][0] === "on") {
                         fallback = true;
                     }
-                    if (allowedMechsVal != "") {
+                    if (allowedMechsVal !== "") {
                         // Could be space or comma separated
                         if (allowedMechsVal.indexOf(',') > -1) {
                             allowedMechsVal = allowedMechsVal.trim();
                             allowedMechs = allowedMechsVal.split(',');
                         } else {
-                            allowedMechs = allowedMechsVal.split();
+                            allowedMechs = allowedMechsVal.split(' ');
                         }
                     }
 
                     this.setState({
                         maxBufSize: attrs['nsslapd-sasl-max-buffer-size'][0],
-                        allowedMechs: allowedMechs,
+                        allowedMechs,
                         mappingFallback: fallback,
                         saveDisabled: true,
                         // Store original values
@@ -309,12 +284,12 @@ export class ServerSASL extends React.Component {
     }
 
     loadMechs() {
-        let cmd = [
-            "dsconf", "-j", this.props.serverId, "sasl", 'get-mechs'
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", "sasl", 'get-available-mechs'
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -324,34 +299,38 @@ export class ServerSASL extends React.Component {
     }
 
     loadSASLMappings() {
-        let cmd = ["dsconf", '-j', this.props.serverId, 'sasl', 'list', '--details'];
+        const cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
         log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    let saslMapObj = JSON.parse(content);
-                    let mappings = [];
-                    for (let mapping of saslMapObj['items']) {
-                        if (!mapping['attrs'].hasOwnProperty('nssaslmappriority')) {
-                            mapping['attrs'].nssaslmappriority = ['100'];
+                    const saslMapObj = JSON.parse(content);
+                    const mappings = [];
+                    for (const mapping of saslMapObj.items) {
+                        if (!('nssaslmappriority' in mapping.attrs)) {
+                            mapping.attrs.nssaslmappriority = ['100'];
                         }
-                        mappings.push(mapping['attrs']);
+                        mappings.push(mapping.attrs);
                     }
+                    const key = this.state.mappingKey + 1;
                     this.setState({
-                        mappings: mappings,
+                        mappings,
+                        mappingKey: key,
                         loaded: true,
                         tableLoading: false,
                         configLoading: false,
+                        showMappingModal: false,
+                        showConfirmDelete: false,
                     }, this.props.enableTree);
                 });
     }
 
-    showCreateMapping() {
+    handleShowCreateMapping() {
         this.setState({
             showMappingModal: true,
             saveMappingDisabled: true,
             testRegexDisabled: true,
-            saslModalType: "Create",
+            saslModalType: _("Create"),
             saslMapName: "",
             saslMapRegex: "",
             saslTestText: "",
@@ -373,7 +352,7 @@ export class ServerSASL extends React.Component {
             showMappingModal: true,
             saveMappingDisabled: true,
             testRegexDisabled: true,
-            saslModalType: "Edit",
+            saslModalType: _("Edit"),
             saslMapName: name,
             saslMapRegex: regex,
             saslTestText: "",
@@ -410,8 +389,8 @@ export class ServerSASL extends React.Component {
         this.setState({
             tableLoading: true,
         });
-        let cmd = [
-            'dsconf', '-j', this.props.serverId,
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
             '--nsSaslMapFilterTemplate=' + this.state.saslFilter,
@@ -422,30 +401,29 @@ export class ServerSASL extends React.Component {
 
         log_cmd("createMapping", "Create sasl mapping", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    this.loadConfig();
-                    this.closeMapping();
+                    this.handleLoadConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully create new SASL Mapping"
+                        _("Successfully create new SASL Mapping")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.loadConfig();
+                    const errMsg = getApiErrorMessage(err);
+                    this.handleLoadConfig();
                     this.props.addNotification(
                         "error",
-                        `Error creating new SASL Mapping - ${errMsg.desc}`
+                        cockpit.format(_("Error creating new SASL Mapping - $0"), errMsg)
                     );
                 });
     }
 
     editMapping(name) {
         // Start spinning
-        let new_mappings = this.state.mappings;
-        for (let saslMap of new_mappings) {
-            if (saslMap.cn[0] == name) {
+        const new_mappings = this.state.mappings;
+        for (const saslMap of new_mappings) {
+            if (saslMap.cn[0] === name) {
                 saslMap.nssaslmapregexstring = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapregexstring[0]} loading size="sm" />];
                 saslMap.nssaslmapbasedntemplate = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapbasedntemplate[0]} loading size="sm" />];
                 saslMap.nssaslmapfiltertemplate = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapfiltertemplate[0]} loading size="sm" />];
@@ -454,16 +432,17 @@ export class ServerSASL extends React.Component {
         }
 
         this.setState({
-            mappings: new_mappings
+            mappings: new_mappings,
+            tableLoading: true
         });
 
         // Delete and create
-        let delete_cmd = [
-            'dsconf', '-j', this.props.serverId,
+        const delete_cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state._saslMapName
         ];
-        let create_cmd = [
-            'dsconf', '-j', this.props.serverId,
+        const create_cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
             '--nsSaslMapFilterTemplate=' + this.state.saslFilter,
@@ -474,45 +453,44 @@ export class ServerSASL extends React.Component {
 
         log_cmd("editMapping", "deleting sasl mapping", delete_cmd);
         cockpit
-                .spawn(delete_cmd, {superuser: true, "err": "message"})
+                .spawn(delete_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     log_cmd("editMapping", "Create new sasl mapping", create_cmd);
                     cockpit
-                            .spawn(create_cmd, {superuser: true, "err": "message"})
+                            .spawn(create_cmd, { superuser: "require", err: "message" })
                             .done(content => {
-                                this.closeMapping();
-                                this.loadConfig();
+                                this.handleLoadConfig();
                                 this.props.addNotification(
                                     "success",
-                                    "Successfully updated SASL Mapping"
+                                    _("Successfully updated SASL Mapping")
                                 );
                             })
                             .fail(err => {
-                                let errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.closeMapping();
-                                this.loadConfig();
+                                this.handleLoadConfig();
                                 this.props.addNotification(
                                     "error",
-                                    `Error updating SASL Mapping - ${errMsg.desc}`
+                                    cockpit.format(_("Error updating SASL Mapping - $0"), errMsg)
                                 );
                             });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.loadConfig();
+                    const errMsg = getApiErrorMessage(err);
+                    this.handleLoadConfig();
                     this.closeMapping();
                     this.props.addNotification(
                         "error",
-                        `Error replacing SASL Mapping - ${errMsg.desc}`
+                        cockpit.format(_("Error replacing SASL Mapping - $0"), errMsg)
                     );
                 });
     }
 
     deleteMapping() {
         // Start spinning
-        let new_mappings = this.state.mappings;
-        for (let saslMap of new_mappings) {
-            if (saslMap.cn[0] == this.state.saslMapName) {
+        const new_mappings = this.state.mappings;
+        for (const saslMap of new_mappings) {
+            if (saslMap.cn[0] === this.state.saslMapName) {
                 saslMap.nssaslmapregexstring = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapregexstring[0]} loading size="sm" />];
                 saslMap.nssaslmapbasedntemplate = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapbasedntemplate[0]} loading size="sm" />];
                 saslMap.nssaslmapfiltertemplate = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapfiltertemplate[0]} loading size="sm" />];
@@ -520,207 +498,218 @@ export class ServerSASL extends React.Component {
             }
         }
         this.setState({
-            mappings: new_mappings
+            mappings: new_mappings,
+            tableLoading: true
         });
 
-        let cmd = [
-            'dsconf', '-j', this.props.serverId,
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state.saslMapName
         ];
         log_cmd("deleteMapping", "Delete sasl mapping", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    this.closeConfirmDelete();
-                    this.loadConfig();
+                    this.handleLoadConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully deleted SASL Mapping"
+                        _("Successfully deleted SASL Mapping")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.loadConfig();
+                    const errMsg = getApiErrorMessage(err);
+                    this.handleLoadConfig();
                     this.closeConfirmDelete();
                     this.props.addNotification(
                         "error",
-                        `Error deleting SASL Mapping - ${errMsg.desc}`
+                        cockpit.format(_("Error deleting SASL Mapping - $0"), errMsg)
                     );
                 });
     }
 
-    saveConfig() {
+    handleSaveConfig() {
         // Start spinning
         this.setState({
             configLoading: true,
         });
 
         // Build up the command list
-        let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config'
         ];
 
-        let mech_str_new = this.state.allowedMechs.join(' ');
-        let mech_str_orig = this.state._allowedMechs.join(' ');
-        if (mech_str_orig != mech_str_new) {
-            cmd.push("nsslapd-allowed-sasl-mechanisms=" + mech_str_new);
+        const mech_str_new = this.state.allowedMechs.join(' ');
+        const mech_str_orig = this.state._allowedMechs.join(' ');
+        if (mech_str_orig !== mech_str_new) {
+            if (mech_str_new.length === 0) {
+                cmd.push('delete');
+                cmd.push("nsslapd-allowed-sasl-mechanisms");
+            } else {
+                cmd.push('replace');
+                cmd.push("nsslapd-allowed-sasl-mechanisms=" + mech_str_new);
+            }
+        } else {
+            // The rest of the settings always have values to replace
+            cmd.push('replace');
         }
-        if (this.state._mappingFallback != this.state.mappingFallback) {
+        if (this.state._mappingFallback !== this.state.mappingFallback) {
             let value = "off";
             if (this.state.mappingFallback) {
                 value = "on";
             }
             cmd.push("nsslapd-sasl-mapping-fallback=" + value);
         }
-        if (this.state._maxBufSize != this.state.maxBufSize) {
+        if (this.state._maxBufSize !== this.state.maxBufSize) {
             cmd.push("nsslapd-sasl-max-buffer-size=" + this.state.maxBufSize);
         }
 
-        log_cmd("saveConfig", "Applying SASL config change", cmd);
+        log_cmd("handleSaveConfig", "Applying SASL config change", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    this.loadConfig();
+                    this.handleLoadConfig();
                     this.props.addNotification(
-                        "success",
-                        "Successfully updated SASL configuration.  These " +
-                            "changes require the server to be restarted to take effect."
+                        "warning",
+                        _("Successfully updated SASL configuration.  These changes require the server to be restarted to take effect.")
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.loadConfig();
+                    const errMsg = getApiErrorMessage(err);
+                    this.handleLoadConfig();
                     this.props.addNotification(
                         "error",
-                        `Error updating SASL configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating SASL configuration - $0"), errMsg)
                     );
                 });
     }
 
     render() {
-        let configSpinner = "";
-        let tableSpinner = " ";
         let body = "";
-        if (this.state.tableLoading) {
-            tableSpinner = <Spinner loading size="sm" />;
-        }
+        let saveBtnName = _("Save Settings");
+        const extraPrimaryProps = {};
         if (this.state.configLoading) {
-            configSpinner = <Spinner loading size="md" />;
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         if (!this.state.loaded) {
-            body =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading SASL configuration ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
-                </div>;
+            body = (
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>{_("Loading SASL Configuration ...")}</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
+                </div>
+            );
         } else {
-            body =
-                <div className="ds-margin-left-sm">
-                    <Row>
-                        <Col sm={3} className="ds-word-wrap">
-                            <ControlLabel className="ds-suffix-header ds-margin-top-lg">
-                                SASL Settings
-                                <Icon className="ds-left-margin ds-refresh"
-                                    type="fa" name="refresh" title="Refresh SASL configuration"
-                                    onClick={() => {
-                                        this.loadConfig();
-                                    }}
-                                />
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={1} className="ds-margin-top-lg">
-                            {configSpinner}
-                        </Col>
-                    </Row>
-                    <hr />
-                    <Form>
-                        <Row title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={3}>
-                                Max SASL Buffer Size
-                            </Col>
-                            <Col sm={4}>
-                                <FormControl
-                                    id="maxBufSize"
-                                    type="number"
-                                    min="-1"
-                                    max="2147483647"
+            body = (
+                <div className={this.state.configLoading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
+                    <Grid>
+                        <GridItem span={3}>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    {_("SASL Settings")}
+                                    <Button
+                                        variant="plain"
+                                        aria-label={_("Refresh SASL settings")}
+                                        onClick={this.handleLoadConfig}
+                                    >
+                                        <SyncAltIcon />
+                                    </Button>
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                    </Grid>
+                    <Form isHorizontal autoComplete="off" className="ds-margin-left">
+                        <Grid title={_("The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size).")} className="ds-margin-top-xlg">
+                            <GridItem className="ds-label" span={3}>
+                                {_("Max SASL Buffer Size")}
+                            </GridItem>
+                            <GridItem span={2}>
+                                <DsNumberInput
                                     value={this.state.maxBufSize}
-                                    onChange={this.handleChange}
-                                />
-                            </Col>
-                        </Row>
-                        <Row
-                            title="A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed."
-                            className="ds-margin-top"
-                        >
-                            <Col componentClass={ControlLabel} sm={3}>
-                                Allowed SASL Mechanisms
-                            </Col>
-                            <Col sm={4}>
-                                <Typeahead
-                                    id="allowedMechs"
-                                    onChange={value => {
-                                        this.handleChange(value);
+                                    id="maxBufSize"
+                                    min={2097152}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
+                                        this.handleChange(e);
                                     }}
-                                    multiple
-                                    options={this.state.supportedMechs}
-                                    selected={this.state.allowedMechs}
-                                    placeholder="Type SASL mechanism to allow"
-                                    ref={(typeahead) => { this.typeahead = typeahead }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row
-                            title="Check all sasl mappings until one succeeds or they all fail (nsslapd-sasl-mapping-fallback)."
-                            className="ds-margin-top"
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title={_("A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed.")}
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                {_("Allowed SASL Mechanisms")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <TypeaheadSelect
+                                    selected={this.state.allowedMechs}
+                                    onSelect={this.handleOnSelect}
+                                    onClear={this.handleOnAllowedMechClear}
+                                    options={this.state.supportedMechs}
+                                    isOpen={this.state.isAllowedMechOpen}
+                                    onToggle={this.handleOnAllowedMechToggle}
+                                    placeholder={_("Type SASL mechanism to allow...")}
+                                    noResultsText="There are no matching entries"
+                                    ariaLabel="Type SASL mechanism to allow"
+                                    isMulti={true}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title={_("Check all sasl mappings until one succeeds or they all fail (nsslapd-sasl-mapping-fallback).")}
                         >
                             <Checkbox
-                                checked={this.state.mappingFallback}
+                                isChecked={this.state.mappingFallback}
                                 id="mappingFallback"
-                                onChange={this.handleChange} className="ds-margin-left-sm"
-                            >
-                                Allow SASL Mapping Fallback
-                            </Checkbox>
-                        </Row>
+                                onChange={(e, checked) => {
+                                    this.handleChange(e);
+                                }}
+                                label={_("Allow SASL Mapping Fallback")}
+                            />
+                        </Grid>
                     </Form>
                     <Button
-                        disabled={this.state.saveDisabled}
-                        bsStyle="primary"
-                        className="ds-margin-top-med"
-                        onClick={this.saveConfig}
+                        isDisabled={this.state.saveDisabled || this.state.configLoading}
+                        variant="primary"
+                        className="ds-margin-top-xlg ds-margin-left"
+                        onClick={this.handleSaveConfig}
+                        isLoading={this.state.configLoading}
+                        spinnerAriaValueText={this.state.configLoading ? _("Saving") : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Save Settings
+                        {saveBtnName}
                     </Button>
-                    <hr />
-                    <Row>
-                        <h4 className="ds-center ds-logo-style">
-                            <div className="ds-inline">
-                                <ControlLabel>
-                                    <b>SASL Mappings</b>
-                                </ControlLabel>
-                            </div>
-                            <div className="ds-left-indent ds-inline">
-                                <ControlLabel>
-                                    {tableSpinner}
-                                </ControlLabel>
-                            </div>
-                        </h4>
-                    </Row>
-                    <SASLTable
-                        rows={this.state.mappings}
-                        editMapping={this.showEditMapping}
-                        deleteMapping={this.showConfirmDelete}
-                        className="ds-margin-top"
-                    />
+                    <Grid className="ds-margin-top ds-margin-left">
+                        <GridItem span={11}>
+                            <Divider />
+                        </GridItem>
+                        <TextContent>
+                            <Text className="ds-center ds-margin-top" component={TextVariants.h3}>
+                                {_("SASL Mappings")}
+                            </Text>
+                        </TextContent>
+                        <GridItem span={11}>
+                            <SASLTable
+                                key={this.state.mappingKey}
+                                rows={this.state.mappings}
+                                editMapping={this.showEditMapping}
+                                deleteMapping={this.showConfirmDelete}
+                                className="ds-margin-top ds-margin-left"
+                            />
+                        </GridItem>
+                    </Grid>
                     <Button
-                        bsStyle="primary"
-                        className="ds-margin-top-med"
-                        onClick={this.showCreateMapping}
+                        variant="primary"
+                        onClick={this.handleShowCreateMapping}
+                        className="ds-margin-top ds-margin-left"
                     >
-                        Create New Mapping
+                        {_("Create New Mapping")}
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -730,10 +719,10 @@ export class ServerSASL extends React.Component {
                     showModal={this.state.showMappingModal}
                     testBtnDisabled={this.state.testBtnDisabled}
                     saveDisabled={this.state.saveMappingDisabled}
-                    closeHandler={this.closeMapping}
-                    handleChange={this.state.saslModalType == "Create" ? this.handleModalAddChange : this.handleModalChange}
-                    handleTestRegex={this.handleTestRegex}
-                    saveHandler={this.state.saslModalType == "Create" ? this.createMapping : this.editMapping}
+                    handleClose={this.closeMapping}
+                    handleChange={this.onModalChange}
+                    handleTestRegex={this.onTestRegex}
+                    saveHandler={this.state.saslModalType === "Create" ? this.createMapping : this.editMapping}
                     error={this.state.saslErrObj}
                     type={this.state.saslModalType}
                     name={this.state.saslMapName}
@@ -747,15 +736,15 @@ export class ServerSASL extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteMapping}
                     item={this.state.saslMapName}
                     checked={this.state.modalChecked}
                     spinning={this.state.tableLoading}
-                    mTitle="Delete SASL Mapping"
-                    mMsg="Are you sure you want to delete this SASL mapping?"
-                    mSpinningMsg="Deleting SASL Mapping ..."
-                    mBtnName="Delete Mapping"
+                    mTitle={_("Delete SASL Mapping")}
+                    mMsg={_("Are you sure you want to delete this SASL mapping?")}
+                    mSpinningMsg={_("Deleting SASL Mapping ...")}
+                    mBtnName={_("Delete Mapping")}
                 />
             </div>
         );

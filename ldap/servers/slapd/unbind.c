@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -39,21 +39,33 @@ do_unbind(Slapi_PBlock *pb)
     BerElement *ber;
     int err;
     int ignore_criticality = 1;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_unbind", "=>\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     ber = operation->o_ber;
+
+    slapd_log_pblock_init(&logpb, log_format, pb);
+
     /*
      * Parse the unbind request.  It looks like this:
      *
      *    UnBindRequest ::= NULL
      */
     if (ber_get_null(ber) == LBER_ERROR) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
-                                           " decoding error: UnBindRequest not null\n",
-                         pb_conn->c_connid, operation->o_opid);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.msg = "decoding error: UnBindRequest not null";
+            slapd_log_access_unbind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
+                             " decoding error: UnBindRequest not null\n",
+                             pb_conn->c_connid, operation->o_opid);
+        }
+
         /* LDAPv3 does not allow a response to an unbind... so just return. */
         goto free_and_return;
     }
@@ -66,10 +78,19 @@ do_unbind(Slapi_PBlock *pb)
      * MUST ignore the criticality field of controls
      */
     if ((err = get_ldapmessage_controls_ext(pb, ber, NULL, ignore_criticality)) != 0) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
-                                           " error processing controls - error %d (%s)\n",
-                         pb_conn->c_connid, operation->o_opid,
-                         err, ldap_err2string(err));
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.msg = "error processing control";
+            logpb.err = err;
+            logpb.close_error = ldap_err2string(err);
+            slapd_log_access_unbind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
+                             " error processing controls - error %d (%s)\n",
+                             pb_conn->c_connid, operation->o_opid,
+                             err, ldap_err2string(err));
+        }
+
         /* LDAPv3 does not allow a response to an unbind... so just return. */
         goto free_and_return;
     }
@@ -80,15 +101,23 @@ do_unbind(Slapi_PBlock *pb)
     pthread_mutex_unlock(&(pb_conn->c_mutex));
 
     /* ONREPL - plugins should be called and passed bind dn and, possibly, other data */
-
-    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND\n",
-                     pb_conn->c_connid, operation->o_opid);
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        /* JSON logging */
+            slapd_log_access_unbind(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND\n",
+                         pb_conn->c_connid, operation->o_opid);
+    }
 
     /* pass the unbind to all backends */
     be_unbindall(pb_conn, operation);
 
-free_and_return:;
+free_and_return:
 
-    /* close the connection to the client */
-    disconnect_server(pb_conn, operation->o_connid, operation->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+    /* close the connection to the client after refreshing the operation */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+    disconnect_server(pb_conn,
+                      operation ? operation->o_connid : -1,
+                      operation ? operation->o_opid : -1,
+                      SLAPD_DISCONNECT_UNBIND, 0);
 }

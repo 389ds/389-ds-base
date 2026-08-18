@@ -60,7 +60,7 @@ typedef struct
     char nodeID[6];
 } uuid_node_t;
 
-typedef struct _guid_t
+typedef struct guid_t_
 {
     unsigned32 time_low;
     unsigned16 time_mid;

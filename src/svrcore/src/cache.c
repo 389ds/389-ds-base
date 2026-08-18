@@ -2,7 +2,7 @@
  * Copyright (C) 1998 Netscape Communications Corporation.
  * All Rights Reserved.
  *
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2021 Red Hat, Inc. and/or its affiliates.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -94,7 +94,7 @@ static char *
 getPin(SVRCOREPinObj *ctx, const char *tokenName, PRBool retry)
 {
   SVRCORECachedPinObj *obj = (SVRCORECachedPinObj*)ctx;
-  Node **link, *node;
+  Node **link, *node_ptr;
   char *pin = 0;
 
   /*
@@ -102,16 +102,16 @@ getPin(SVRCOREPinObj *ctx, const char *tokenName, PRBool retry)
    * a retry, or getting the stored value fails.  This loop terminates
    * with 'pin' set to any valid cached value.
    */
-  for(link = &obj->pinList;(node = *link) != NULL;link = &node->next)
+  for(link = &obj->pinList;(node_ptr = *link) != NULL;link = &node_ptr->next)
   {
-    if (strcmp(node->tokenName, tokenName) != 0) continue;
+    if (strcmp(node_ptr->tokenName, tokenName) != 0) continue;
 
     if (retry ||
-        SVRCORE_Pk11StoreGetPin(&pin, node->store) != SVRCORE_Success)
+        SVRCORE_Pk11StoreGetPin(&pin, node_ptr->store) != SVRCORE_Success)
     {
-      *link = node->next;
+      *link = node_ptr->next;
 
-      freeNode(node);
+      freeNode(node_ptr);
     }
 
     break;

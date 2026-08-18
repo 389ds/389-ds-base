@@ -1,0 +1,119 @@
+// Selected set of PF chart colors to optimize for full-spectrum and colorblindness
+// using unique part of PF name and a hex color fallback
+$plotColors: (
+  blue-300   #06c,
+  green-100  #bde2b9,
+  cyan-200   #73c5c5,
+  purple-100 #b2b0ea,
+  gold-300   #f4c145,
+  orange-300 #ec7a08,
+  red-200    #a30000,
+  cyan-300   #009596,
+  black-500  #4d5258
+);
+
+.ct-plot {
+  font-family: var(--pf-v5-chart-global--FontFamily);
+
+  &-border {
+    stroke: var(--pf-v5-chart-global--Fill--Color--300);
+    fill: transparent;
+    shape-rendering: crispedges;
+  }
+
+  &-title {
+    font-size: calc(var(--pf-v5-chart-global--FontSize--md) * 1px);
+  }
+
+  // Placeholder string to stretch the column, set offscreen
+  &-widest {
+    fill: transparent;
+  }
+
+  &-axis,
+  &-unit {
+    font-size: calc(var(--pf-v5-chart-global--FontSize--xs) * 1px);
+    fill: var(--pf-v5-chart-global--Fill--Color--700);
+    letter-spacing: var(--pf-v5-chart-global--letter-spacing);
+  }
+
+  .pf-v5-theme-dark &-axis,
+  .pf-v5-theme-dark &-unit {
+    fill: var(--pf-v5-chart-global--Fill--Color--400);
+  }
+
+  &-lines,
+  &-ticks {
+    stroke: var(--pf-v5-chart-global--Fill--Color--300);
+    shape-rendering: crispedges;
+  }
+
+  &-selection {
+    fill: tan;
+    stroke: black;
+    opacity: 0.5;
+    shape-rendering: crispedges;
+  }
+
+  &-paths {
+    stroke-width: var(--pf-v5-chart-global--stroke--Width--sm);
+    shape-rendering: geometricprecision;
+
+    > path {
+      fill: var(--ct-plot-path-color);
+      stroke: var(--ct-plot-path-color);
+    }
+  }
+}
+
+.ct-plot-title {
+  fill: var(--pf-v5-global--Color--100);
+}
+
+$plotColorCurrent: 0;
+$plotColorTotal: 0;
+
+// Count up total number of plot colors
+@each $plotColor in $plotColors { $plotColorTotal: $plotColorTotal + 1; }
+
+// Iterate through colors and set each graph area to a color
+@each $plotColor, $plotColorBackup in $plotColors {
+  $plotColorCurrent: $plotColorCurrent + 1;
+  .ct-plot-paths > path:nth-last-child(#{$plotColorTotal}n + #{$plotColorCurrent}) {
+    --ct-plot-path-color: var(--pf-v5-chart-color-#{$plotColor}, #{$plotColorBackup});
+  }
+}
+
+// Make plot colors available to the entire page
+:root {
+  --ct-plot-color-total: #{$plotColorTotal};
+
+  @for $i from 1 through $plotColorTotal {
+    --ct-plot-color-#{i}: #{$plotColors[$i]};
+  }
+}
+
+[dir="rtl"] {
+  // Mirror the entire graph (placement & animation)
+  .ct-plot {
+    transform: scaleX(-1);
+
+    // Flip the text back (so it's not a mirror image)
+    text {
+      transform: scaleX(-1);
+      transform-origin: 50%;
+      transform-box: fill-box;
+    }
+
+    // Set the anchor point for y-axis and units
+    .ct-plot-axis-y text,
+    .ct-plot-unit {
+      transform-origin: 0%;
+    }
+
+    // Set the anchor point for the title
+    .ct-plot-title {
+      transform-origin: 100%;
+    }
+  }
+}

@@ -342,6 +342,7 @@ parse_changes_string(char *str)
             if (strcasecmp(line, "-") == 0) {
                 if (slapi_mod_isvalid(&mod)) {
                     slapi_mods_add_smod(mods, &mod);
+                    slapi_mod_init(&mod, 0);
                 } else {
                     /* need to cleanup */
                     slapi_mod_done(&mod);
@@ -382,6 +383,7 @@ parse_changes_string(char *str)
             }
             line = ldif_getline(&next);
         }
+        slapi_mod_done(&mod);
     }
 
     return mods;
@@ -666,7 +668,6 @@ repl_set_mtn_state_and_referrals(
         }
         /* We should delete referral only if we want to set the
            replica database in backend state mode */
-        /* if chain on update mode, go ahead and set the referrals anyway */
         if (strcasecmp(mtn_state, STATE_BACKEND) == 0 || chain_on_update) {
             rc = slapi_mtn_set_referral(repl_root_sdn, referrals_to_set);
             if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
@@ -864,7 +865,7 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN *target_dn __attribute__((unused
     }
 
     /* if using global password policy, chain the bind request so that the
-       master can update and replicate the password policy op attrs */
+       supplier can update and replicate the password policy op attrs */
     if (op_type == SLAPI_OPERATION_BIND) {
         extern int config_get_pw_is_global_policy(void);
         if (!config_get_pw_is_global_policy()) {
@@ -925,7 +926,7 @@ repl_enable_chain_on_update(Slapi_DN *suffix)
         slapi_mods_get_ldapmods_byref(&smods), /* JCM cast */
         NULL,                                  /*Controls*/
         NULL,                                  /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
 
     slapi_modify_internal_pb(pb);
@@ -967,7 +968,7 @@ repl_disable_chain_on_update(Slapi_DN *suffix)
         slapi_mods_get_ldapmods_byref(&smods), /* JCM cast */
         NULL,                                  /*Controls*/
         NULL,                                  /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
 
     slapi_modify_internal_pb(pb);
@@ -1014,7 +1015,7 @@ is_chain_on_update_setup(const Slapi_DN *replroot)
         0,     /*attrsonly*/
         NULL,  /*Controls*/
         NULL,  /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &operation_result);

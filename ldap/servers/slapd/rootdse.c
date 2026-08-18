@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -27,6 +27,7 @@ static char *readonly_attributes[] = {
     "supportedextension",
     "supportedfeatures",
     "supportedsaslmechanisms",
+    "availablesaslmechanisms",
     "dataversion",
     "ref",
     "vendorName",
@@ -203,9 +204,9 @@ read_root_dse(Slapi_PBlock *pb,
         charray_free(strs);
     }
 
-    /* supported sasl mechanisms */
+    /* supported/accepted sasl mechanisms */
     attrlist_delete(&e->e_attrs, "supportedSASLMechanisms");
-    if ((strs = ids_sasl_listmech(pb)) != NULL) {
+    if ((strs = ids_sasl_listmech(pb, PR_FALSE)) != NULL) {
         for (i = 0; strs[i] != NULL; ++i) {
             val.bv_val = strs[i];
             val.bv_len = strlen(strs[i]);
@@ -214,6 +215,16 @@ read_root_dse(Slapi_PBlock *pb,
         charray_free(strs);
     }
 
+    /* available SASL mechs */
+    attrlist_delete(&e->e_attrs, "availableSASLMechanisms");
+    if ((strs = ids_sasl_listmech(pb, PR_TRUE)) != NULL) {
+        for (i = 0; strs[i] != NULL; ++i) {
+            val.bv_val = strs[i];
+            val.bv_len = strlen(strs[i]);
+            attrlist_merge(&e->e_attrs, "availableSASLMechanisms", vals);
+        }
+        charray_free(strs);
+    }
 
     /* supported LDAP versions */
     val.bv_val = "2";

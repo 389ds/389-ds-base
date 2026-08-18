@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -231,23 +231,23 @@ slapd_pk11_setSlotPWValues(PK11SlotInfo *slot, int askpw, int timeout)
  * One can imagine to set NSS ON when system FIPS is OFF but it makes no real sense
  */
 #define FIPS_ENABLED "/proc/sys/crypto/fips_enabled"
-PRBool
-slapd_system_isFIPS()
+static PRBool
+slapd_system_isFIPS(void)
 {
     PRBool rc = PR_FALSE;
     PRFileDesc *prfd;
     char buf[sizeof (PRIu64)];
     int val;
     if (PR_SUCCESS != PR_Access(FIPS_ENABLED, PR_ACCESS_READ_OK)) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not access %s - assuming FIPS is OFF\n", FIPS_ENABLED);
+        slapi_log_err(SLAPI_LOG_NOTICE, "slapd_system_isFIPS", "Can not access %s - assuming FIPS is OFF\n", FIPS_ENABLED);
         goto done;
     }
     if ((prfd = PR_Open(FIPS_ENABLED, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not open %s - assuming FIPS is OFF\n", FIPS_ENABLED);
+        slapi_log_err(SLAPI_LOG_NOTICE, "slapd_system_isFIPS", "Can not open %s - assuming FIPS is OFF\n", FIPS_ENABLED);
         goto done;
     }
     if (PR_Read(prfd, buf, sizeof (buf)) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not read %s - assuming FIPS is OFF\n", FIPS_ENABLED);
+        slapi_log_err(SLAPI_LOG_NOTICE, "slapd_system_isFIPS", "Can not read %s - assuming FIPS is OFF\n", FIPS_ENABLED);
         PR_Close(prfd);
         goto done;
     }

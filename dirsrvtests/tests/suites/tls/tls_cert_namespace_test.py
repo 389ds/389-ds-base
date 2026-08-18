@@ -10,9 +10,9 @@ import time
 import subprocess
 import pytest
 
-from glob import glob
+import glob
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.paths import Paths
 
 pytestmark = pytest.mark.tier1
@@ -23,14 +23,13 @@ log = logging.getLogger(__name__)
 p = Paths()
 
 
-@pytest.mark.ds50889
-@pytest.mark.bz1638875
 @pytest.mark.skipif(p.with_systemd == False, reason='Will not run without systemd')
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_pem_cert_in_private_namespace(topology_st):
     """Test if certificates are present in private /tmp namespace
 
     :id: 01bc27d0-6368-496a-9724-7fe1e8fb239b
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Create DS instance
@@ -61,7 +60,7 @@ def test_pem_cert_in_private_namespace(topology_st):
     assert PRIVATE_TMP in ensure_str(result)
 
     log.info('Check files in private /tmp')
-    cert_path = glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
+    cert_path = glob.glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
                                                                                        standalone.serverid))
     assert os.path.exists(cert_path[0])
     for item in PEM_CHECK:
@@ -76,8 +75,6 @@ def test_pem_cert_in_private_namespace(topology_st):
         assert not os.path.exists(cert_path + item)
 
 
-@pytest.mark.ds50952
-@pytest.mark.bz1809279
 @pytest.mark.xfail(ds_is_older("1.4.3"), reason="Might fail because of bz1809279")
 @pytest.mark.skipif(ds_is_older("1.4.0"), reason="Not implemented")
 def test_cert_category_authority(topology_st):
@@ -108,9 +105,9 @@ def test_cert_category_authority(topology_st):
 
     log.info('Get certificate path')
     if ds_is_older('1.4.3'):
-        cert_path = glob('/etc/dirsrv/slapd-{}/'.format(standalone.serverid))
+        cert_path = glob.glob('/etc/dirsrv/slapd-{}/'.format(standalone.serverid))
     else:
-        cert_path = glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
+        cert_path = glob.glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
                                                                                            standalone.serverid))
     log.info('Check that {} is present'.format(PEM_FILE))
     signed_cert = cert_path[0] + PEM_FILE

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,6 +8,7 @@
 
 from lib389.plugins import POSIXWinsyncPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'create_memberof_task': 'posixWinsyncCreateMemberOfTask',
@@ -31,10 +32,13 @@ def do_fixup(inst, basedn, log, args):
         log.error(f"'{plugin.rdn}' is disabled. Fix up task can't be executed")
         return
     fixup_task = plugin.fixup(args.DN, args.filter)
-    fixup_task.wait()
+    fixup_task.wait(timeout=args.timeout)
     exitcode = fixup_task.get_exit_code()
     if exitcode != 0:
-        log.error(f'MemberUID task for {args.DN} has failed. Please, check logs')
+        if exitcode is None:
+            raise ValueError(f'MemberUID task for {args.DN} has not completed. Please, check logs')
+        else:
+            raise ValueError(f'MemberUID task for {args.DN} has failed. Please, check logs')
     else:
         log.info('Successfully added task entry')
 
@@ -58,18 +62,20 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    winsync = subparsers.add_parser('posix-winsync', help='Manage and configure The Posix Winsync API plugin')
+    winsync = subparsers.add_parser('posix-winsync', help='Manage and configure the Posix Winsync API plugin', formatter_class=CustomHelpFormatter)
     subcommands = winsync.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, POSIXWinsyncPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=winsync_edit)
     _add_parser_args(edit)
 
-    fixup = subcommands.add_parser('fixup', help='Run the memberOf fix-up task to correct mismatched member and uniquemember values for synced users')
+    fixup = subcommands.add_parser('fixup', help='Run the memberOf fix-up task to correct mismatched member and uniquemember values for synced users', formatter_class=CustomHelpFormatter)
     fixup.set_defaults(func=do_fixup)
-    fixup.add_argument('DN', help="Base DN that contains entries to fix up")
+    fixup.add_argument('DN', help="Set the base DN that contains entries to fix up")
     fixup.add_argument('-f', '--filter',
                        help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
                             'inetuser/inetadmin/nsmemberof under the specified base will have '
                             'their memberOf attribute regenerated.')
+    fixup.add_argument('--timeout', default=120, type=int,
+                       help="Set a timeout to wait for the fixup task.  Default is 120 seconds")

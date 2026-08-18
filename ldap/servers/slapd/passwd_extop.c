@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -32,6 +32,9 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 
 /* Type of connection for this operation;*/
 #define LDAP_EXTOP_PASSMOD_CONN_SECURE
@@ -120,6 +123,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods, 
 {
     LDAPControl **req_controls_copy = NULL;
     LDAPControl **pb_resp_controls = NULL;
+    passwdPolicy *pwpolicy = NULL;
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "=>\n");
@@ -132,6 +136,14 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods, 
         }
 
         Slapi_PBlock *pb = slapi_pblock_new();
+        pwpolicy = new_passwdPolicy(pb_orig, slapi_sdn_get_ndn(sdn));
+        if (pw_is_pwp_admin(pb_orig, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+            /* If this is root DN or password admin set is_requestor_root so
+             * set this in the new pblock so password updates are correctly
+             * applied */
+            int is_requestor_root = 1;
+            slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &is_requestor_root);
+        }
         slapi_modify_internal_set_pb_ext(pb, sdn,
                                          slapi_mods_get_ldapmods_byref(mods),
                                          req_controls_copy, NULL,           /* UniqueID */
@@ -287,7 +299,9 @@ passwd_modify_generate_policy_passwd(passwdPolicy *pwpolicy,
 
     /* if only minalphas is set, divide it into minuppers and minlowers. */
     if (pwpolicy->pw_minalphas > 0 &&
-        (my_policy[idx_minuppers] == 0 && my_policy[idx_minlowers] == 0)) {
+        (my_policy[idx_minuppers] == 0 && my_policy[idx_minlowers] == 0))
+    {
+        /* coverity[store_truncates_time_t] */
         unsigned int x = (unsigned int)time(NULL);
         my_policy[idx_minuppers] = slapi_rand_r(&x) % pwpolicy->pw_minalphas;
         my_policy[idx_minlowers] = pwpolicy->pw_minalphas - my_policy[idx_minuppers];
@@ -346,6 +360,7 @@ passwd_modify_generate_policy_passwd(passwdPolicy *pwpolicy,
     /* if password length is longer the sum of my_policy's,
        let them share the burden */
     if (passlen > tmplen) {
+        /* coverity[store_truncates_time_t] */
         unsigned int x = (unsigned int)time(NULL);
         int delta = passlen - tmplen;
         for (i = 0; i < delta; i++) {
@@ -453,23 +468,26 @@ passwd_modify_extop(Slapi_PBlock *pb)
     BerElement *response_ber = NULL;
     Slapi_Entry *targetEntry = NULL;
     Connection *conn = NULL;
+    Operation *pb_op = NULL;
     LDAPControl **req_controls = NULL;
     LDAPControl **resp_controls = NULL;
     passwdPolicy *pwpolicy = NULL;
     Slapi_DN *target_sdn = NULL;
     Slapi_Entry *referrals = NULL;
-    /* Slapi_DN sdn; */
+    Slapi_Backend *be = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
 
     slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_extop", "=>\n");
 
     /* Before going any further, we'll make sure that the right extended operation plugin
      * has been called: i.e., the OID shipped whithin the extended operation request must
      * match this very plugin's OID: EXTOP_PASSWD_OID. */
-    if (slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid) != 0) {
-        errMesg = "Could not get OID value from request.\n";
+    slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid);
+    if (oid == NULL) {
+        errMesg = "Could not get OID value from request.";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                      "%s", errMesg);
+                      "%s\n", errMesg);
         goto free_and_return;
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
@@ -477,7 +495,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
     }
 
     if (strcasecmp(oid, EXTOP_PASSWD_OID) != 0) {
-        errMesg = "Request OID does not match Passwd OID.\n";
+        errMesg = "Request OID does not match Passwd OID.";
         rc = LDAP_OPERATIONS_ERROR;
         goto free_and_return;
     } else {
@@ -492,28 +510,28 @@ passwd_modify_extop(Slapi_PBlock *pb)
      * connections using SASL privacy layers */
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     if (conn == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL\n");
         goto free_and_return;
     }
     if (slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
-        errMesg = "Could not get SASL SSF from connection\n";
+        errMesg = "Could not get SASL SSF from connection";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                      "%s", errMesg);
+                      "%s\n", errMesg);
         goto free_and_return;
     }
 
     if (slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
-        errMesg = "Could not get local SSF from connection\n";
+        errMesg = "Could not get local SSF from connection";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                      "%s", errMesg);
+                      "%s\n", errMesg);
         goto free_and_return;
     }
 
     if (((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
         (sasl_ssf <= 1) && (local_ssf <= 1)) {
-        errMesg = "Operation requires a secure connection.\n";
+        errMesg = "Operation requires a secure connection.";
         rc = LDAP_CONFIDENTIALITY_REQUIRED;
         goto free_and_return;
     }
@@ -532,7 +550,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
     }
 
     if ((ber = ber_init(extop_value)) == NULL) {
-        errMesg = "PasswdModify Request decode failed.\n";
+        errMesg = "PasswdModify Request decode failed.";
         rc = LDAP_PROTOCOL_ERROR;
         goto free_and_return;
     }
@@ -560,14 +578,13 @@ passwd_modify_extop(Slapi_PBlock *pb)
         tag = ber_peek_tag(ber, &len);
     }
 
-
     /* identify userID field by tags */
     if (tag == LDAP_EXTOP_PASSMOD_TAG_USERID) {
         rc = 0;
         if (ber_scanf(ber, "a", &rawdn) == LBER_ERROR) {
             slapi_ch_free_string(&rawdn);
             slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
-            errMesg = "ber_scanf failed at userID parse.\n";
+            errMesg = "ber_scanf failed at userID parse.";
             rc = LDAP_PROTOCOL_ERROR;
             goto free_and_return;
         }
@@ -579,7 +596,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
             if (rc) { /* syntax check failed */
                 op_shared_log_error_access(pb, "EXT", rawdn ? rawdn : "",
                                            "strict: invalid target dn");
-                errMesg = "invalid target dn.\n";
+                errMesg = "invalid target dn.";
                 slapi_ch_free_string(&rawdn);
                 rc = LDAP_INVALID_SYNTAX;
                 goto free_and_return;
@@ -593,7 +610,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
         if (ber_scanf(ber, "a", &oldPasswd) == LBER_ERROR) {
             slapi_ch_free_string(&oldPasswd);
             slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
-            errMesg = "ber_scanf failed at oldPasswd parse.\n";
+            errMesg = "ber_scanf failed at oldPasswd parse.";
             rc = LDAP_PROTOCOL_ERROR;
             goto free_and_return;
         }
@@ -605,7 +622,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
         if (ber_scanf(ber, "a", &newPasswd) == LBER_ERROR) {
             slapi_ch_free_string(&newPasswd);
             slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
-            errMesg = "ber_scanf failed at newPasswd parse.\n";
+            errMesg = "ber_scanf failed at newPasswd parse.";
             rc = LDAP_PROTOCOL_ERROR;
             goto free_and_return;
         }
@@ -622,7 +639,7 @@ parse_req_done:
     /* If the connection is bound anonymously, we must refuse to process this operation. */
     if (bindDN == NULL || *bindDN == '\0') {
         /* Refuse the operation because they're bound anonymously */
-        errMesg = "Anonymous Binds are not allowed.\n";
+        errMesg = "Anonymous Binds are not allowed.";
         rc = LDAP_INSUFFICIENT_ACCESS;
         goto free_and_return;
     }
@@ -635,8 +652,8 @@ parse_req_done:
     }
     dn = slapi_sdn_get_ndn(target_sdn);
     if (dn == NULL || *dn == '\0') {
-        /* Refuse the operation because they're bound anonymously */
-        errMesg = "Invalid dn.\n";
+        /* Invalid DN - refuse the operation */
+        errMesg = "Invalid dn.";
         rc = LDAP_INVALID_DN_SYNTAX;
         goto free_and_return;
     }
@@ -653,7 +670,7 @@ parse_req_done:
          * the bind operation (or used sasl or client cert auth or OS creds) */
         slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
         if (!authmethod || !strcmp(authmethod, SLAPD_AUTH_NONE)) {
-            errMesg = "User must be authenticated to the directory server.\n";
+            errMesg = "User must be authenticated to the directory server.";
             rc = LDAP_INSUFFICIENT_ACCESS;
             goto free_and_return;
         }
@@ -676,14 +693,14 @@ parse_req_done:
 
         if (rval != LDAP_SUCCESS) {
             if (!errMesg)
-                errMesg = "Error generating new password.\n";
+                errMesg = "Error generating new password.";
             rc = LDAP_OPERATIONS_ERROR;
             goto free_and_return;
         }
 
         /* Make sure a passwd was actually generated */
         if (newPasswd == NULL || *newPasswd == '\0') {
-            errMesg = "Error generating new password.\n";
+            errMesg = "Error generating new password.";
             rc = LDAP_OPERATIONS_ERROR;
             goto free_and_return;
         }
@@ -712,14 +729,19 @@ parse_req_done:
         ber_free(response_ber, 1);
     }
 
-    slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void *)dn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    if (pb_op == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL\n");
+        goto free_and_return;
+    }
 
+    slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void *)dn);
     /* Now we have the DN, look for the entry */
     ret = passwd_modify_getEntry(dn, &targetEntry);
     /* If we can't find the entry, then that's an error */
     if (ret) {
         /* Couldn't find the entry, fail */
-        errMesg = "No such Entry exists.\n";
+        errMesg = "No such entry exists.";
         rc = LDAP_NO_SUCH_OBJECT;
         goto free_and_return;
     }
@@ -730,30 +752,18 @@ parse_req_done:
         leak any useful information to the client such as current password
         wrong, etc.
       */
-    Operation *pb_op = NULL;
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    if (pb_op == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL");
-        goto free_and_return;
-    }
-
     operation_set_target_spec(pb_op, slapi_entry_get_sdn(targetEntry));
     slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &pb_op->o_isroot);
 
-    /* In order to perform the access control check , we need to select a backend (even though
-     * we don't actually need it otherwise).
-     */
-    {
-        Slapi_Backend *be = NULL;
-
-        be = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(targetEntry));
-        if (NULL == be) {
-            errMesg = "Failed to find backend for target entry";
-            rc = LDAP_OPERATIONS_ERROR;
-            goto free_and_return;
-        }
-        slapi_pblock_set(pb, SLAPI_BACKEND, be);
+    /* In order to perform the access control check, we need to select a backend (even though
+     * we don't actually need it otherwise). */
+    be = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(targetEntry));
+    if (NULL == be) {
+        errMesg = "Failed to find backend for target entry";
+        rc = LDAP_NO_SUCH_OBJECT;
+        goto free_and_return;
     }
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
 
     /* Check if the pwpolicy control is present */
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &need_pwpolicy_ctrl);
@@ -763,7 +773,7 @@ parse_req_done:
         if (need_pwpolicy_ctrl) {
             slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
         }
-        errMesg = "Insufficient access rights\n";
+        errMesg = "Insufficient access rights";
         rc = LDAP_INSUFFICIENT_ACCESS;
         goto free_and_return;
     }
@@ -776,7 +786,7 @@ parse_req_done:
         ret = passwd_check_pwd(targetEntry, oldPasswd);
         if (ret) {
             /* No, then we fail this operation */
-            errMesg = "Invalid oldPasswd value.\n";
+            errMesg = "Invalid oldPasswd value.";
             rc = ret;
             goto free_and_return;
         }
@@ -785,10 +795,7 @@ parse_req_done:
     /* Check if password policy allows users to change their passwords.  We need to do
      * this here since the normal modify code doesn't perform this check for
      * internal operations. */
-
-    Connection *pb_conn;
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-    if (!pb_op->o_isroot && !pb_conn->c_needpw && !pwpolicy->pw_change) {
+    if (!pb_op->o_isroot && !conn->c_needpw && !pwpolicy->pw_change) {
         if (NULL == bindSDN) {
             bindSDN = slapi_sdn_new_normdn_byref(bindDN);
         }
@@ -797,7 +804,7 @@ parse_req_done:
             if (need_pwpolicy_ctrl) {
                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
             }
-            errMesg = "User is not allowed to change password\n";
+            errMesg = "User is not allowed to change password";
             rc = LDAP_UNWILLING_TO_PERFORM;
             goto free_and_return;
         }
@@ -806,6 +813,30 @@ parse_req_done:
     /* Fetch any present request controls so we can use them when
      * performing the modify operation. */
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &req_controls);
+
+#ifdef ENABLE_HIBP
+    /* Check password against breach database (admin bypass) */
+    if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+        slapi_log_err(SLAPI_LOG_DEBUG, "passwd_modify_extop",
+            "Skipping breach check for %s - admin bypass\n", dn);
+    } else if (pwpolicy->pw_check_breach && newPasswd && !slapi_is_encoded((char *)newPasswd)) {
+        int breach_count = hibp_check_password(newPasswd, pwpolicy);
+        if (breach_count > 0) {
+            slapi_log_err(SLAPI_LOG_WARNING, "passwd_modify_extop",
+                "Password for %s found in breach database (%d occurrences)\n",
+                dn, breach_count);
+            if (need_pwpolicy_ctrl) {
+                slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+            }
+            errMesg = "Password found in breach database - choose a different password";
+            rc = LDAP_CONSTRAINT_VIOLATION;
+            goto free_and_return;
+        } else if (breach_count < 0) {
+            slapi_log_err(SLAPI_LOG_WARNING, "passwd_modify_extop",
+                "Failed to check password against breach database - allowing (fail-open)\n");
+        }
+    }
+#endif
 
     /* Now we're ready to make actual password change */
     ret = passwd_modify_userpassword(pb, targetEntry, newPasswd, req_controls, &resp_controls);
@@ -819,7 +850,7 @@ parse_req_done:
 
     if (ret != LDAP_SUCCESS) {
         /* Failed to modify the password, e.g. because password policy, etc. */
-        errMesg = "Failed to update password\n";
+        errMesg = "Failed to update password";
         rc = ret;
         goto free_and_return;
     }
@@ -834,7 +865,28 @@ parse_req_done:
 /* Free anything that we allocated above */
 free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                  "%s", errMesg ? errMesg : "success");
+                  "%s\n", errMesg ? errMesg : "success");
+
+    if (dn) {
+        /* Log the target ndn (if we have a target ndn) */
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            slapd_log_pblock logpb = {0};
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.name = "passwd_modify_plugin";
+            logpb.target_dn = dn;
+            logpb.bind_dn = bindDN;
+            logpb.msg = errMesg ? errMesg : "success";
+            logpb.err = rc;
+            slapd_log_access_extop_info(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                    "conn=%" PRIu64 " op=%d EXT_INFO name=\"passwd_modify_plugin\" bind_dn=\"%s\" target_dn=\"%s\" msg=\"%s\" rc=%d\n",
+                    conn ? conn->c_connid : -1, pb_op ? pb_op->o_opid : -1,
+                    bindDN ? bindDN : "", dn,
+                    errMesg ? errMesg : "success", rc);
+        }
+    }
 
     if ((rc == LDAP_REFERRAL) && (referrals)) {
         send_referrals_from_entry(pb, referrals);
@@ -875,6 +927,8 @@ free_and_return:
     /* We can free the generated password bval now */
     ber_bvfree(gen_passwd);
 
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
 
 } /* passwd_modify_extop */

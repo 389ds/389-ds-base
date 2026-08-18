@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -28,10 +28,12 @@
 #include "llist.h"
 #include "repl5_ruv.h"
 #include "plstr.h"
+#include <pthread.h>
+#include <stdbool.h>
 
 #define START_UPDATE_DELAY                   2 /* 2 second */
 #define REPLICA_TYPE_WINDOWS                 1
-#define REPLICA_TYPE_MULTIMASTER             0
+#define REPLICA_TYPE_MULTISUPPLIER             0
 #define REPL_DIRSYNC_CONTROL_OID             "1.2.840.113556.1.4.841"
 #define REPL_RETURN_DELETED_OBJS_CONTROL_OID "1.2.840.113556.1.4.417"
 #define REPL_WIN2K3_AD_OID                   "1.2.840.113556.1.4.1670"
@@ -48,7 +50,7 @@
 #define REPL_NSDS50_TOTAL_PROTOCOL_OID            "2.16.840.1.113730.3.6.2"
 /* DS7.1 introduces pipelineing in the protocol : really not much different to the 5.0
  * protocol, but enough change to make it unsafe to interoperate the two. So we define
- * new OIDs for 7.1 here. The supplier server looks for these on the consumer and
+ * new OIDs for 7.1 here. The sender server looks for these on the consumer and
  * if they're not there it falls back to the older 5.0 non-pipelined protocol */
 #define REPL_NSDS71_INCREMENTAL_PROTOCOL_OID "2.16.840.1.113730.3.6.4"
 #define REPL_NSDS71_TOTAL_PROTOCOL_OID       "2.16.840.1.113730.3.6.3"
@@ -58,7 +60,7 @@
  * So, we add a new extended operation for the 7.1 total protocol. This is partly because
  * the total protocol is slightly different (no LDAP_BUSY allowed in 7.1) and partly
  * because we need a handy way to spot the difference between a pre-7.1 and post-7.0
- * consumer at the supplier */
+ * consumer at the sender */
 #define REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID "2.16.840.1.113730.3.5.9"
 /* DS9.0 introduces replication session callbacks that can send/receive
  * arbitrary data when starting a replication session.  This requires a
@@ -75,6 +77,10 @@
 #define ABORT_SESSION    1
 #define SESSION_ABORTED  2
 
+#define CLEANRUV "CLEANRUV"
+#define CLEANRUVLEN 8
+#define CLEANALLRUV "CLEANALLRUV"
+#define CLEANALLRUVLEN 11
 #define CLEANRUV_ACCEPTED  "accepted"
 #define CLEANRUV_REJECTED  "rejected"
 #define CLEANRUV_FINISHED  "finished"
@@ -86,7 +92,7 @@
 /* DS 5.0 replication protocol error codes */
 #define NSDS50_REPL_REPLICA_READY             0x00  /* Replica ready, go ahead */
 #define NSDS50_REPL_REPLICA_BUSY              0x01  /* Replica busy, try later */
-#define NSDS50_REPL_EXCESSIVE_CLOCK_SKEW      0x02  /* Supplier clock too far ahead */
+#define NSDS50_REPL_EXCESSIVE_CLOCK_SKEW      0x02  /* Sender clock too far ahead */
 #define NSDS50_REPL_PERMISSION_DENIED         0x03  /* Bind DN not allowed to send updates */
 #define NSDS50_REPL_DECODING_ERROR            0x04  /* Consumer couldn't decode extended operation */
 #define NSDS50_REPL_UNKNOWN_UPDATE_PROTOCOL   0x05  /* Consumer doesn't understand suplier's update protocol */
@@ -97,7 +103,7 @@
 #define NSDS50_REPL_REPLICAID_ERROR           0x0B  /* replicaID doesn't seem to be unique */
 #define NSDS50_REPL_DISABLED                  0x0C  /* replica suffix is disabled */
 #define NSDS50_REPL_UPTODATE                  0x0D  /* replica is uptodate */
-#define NSDS50_REPL_BACKOFF                   0x0E  /* replica wants master to go into backoff mode */
+#define NSDS50_REPL_BACKOFF                   0x0E  /* replica wants sender to go into backoff mode */
 #define NSDS50_REPL_CL_ERROR                  0x0F  /* Problem reading changelog */
 #define NSDS50_REPL_CONN_ERROR                0x10  /* Problem with replication connection*/
 #define NSDS50_REPL_CONN_TIMEOUT              0x11  /* Connection timeout */
@@ -119,12 +125,14 @@
 #define PROTOCOL_STATUS_TOTAL_SENDING_DATA             711
 
 #define DEFAULT_PROTOCOL_TIMEOUT 120
+#define DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL 3600
+#define REPLICA_KEEPALIVE_UPDATE_INTERVAL_MIN 60
 
 /* To Allow Consumer Initialization when adding an agreement - */
 #define STATE_PERFORMING_TOTAL_UPDATE       501
 #define STATE_PERFORMING_INCREMENTAL_UPDATE 502
 
-#define MAX_NUM_OF_MASTERS   256
+#define MAX_NUM_OF_SUPPLIERS   256
 #define REPL_SESSION_ID_SIZE 64
 
 #define REPL_GET_DN(addrp) slapi_sdn_get_dn((addrp)->sdn)
@@ -161,6 +169,10 @@ extern const char *type_nsds5ReplicaBootstrapBindDN;
 extern const char *type_nsds5ReplicaBootstrapCredentials;
 extern const char *type_nsds5ReplicaBootstrapBindMethod;
 extern const char *type_nsds5ReplicaBootstrapTransportInfo;
+extern const char *type_replicaKeepAliveUpdateInterval;
+extern const char *type_nsds5ReplicaLastInitStart;
+extern const char *type_nsds5ReplicaLastInitEnd;
+extern const char *type_nsds5ReplicaLastInitStatus;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -175,6 +187,7 @@ extern const char *type_winsyncMoveAction;
 extern const char *type_winSyncWindowsFilter;
 extern const char *type_winSyncDirectoryFilter;
 extern const char *type_winSyncSubtreePair;
+extern const char *type_winSyncFlattenTree;
 
 /* To Allow Consumer Initialization when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
@@ -202,37 +215,37 @@ extern const char *type_replicaCleanRUV;
 extern const char *type_replicaAbortCleanRUV;
 extern const char *type_ruvElementUpdatetime;
 
-/* multimaster plugin points */
-int multimaster_preop_bind(Slapi_PBlock *pb);
-int multimaster_preop_add(Slapi_PBlock *pb);
-int multimaster_preop_delete(Slapi_PBlock *pb);
-int multimaster_preop_modify(Slapi_PBlock *pb);
-int multimaster_preop_modrdn(Slapi_PBlock *pb);
-int multimaster_preop_search(Slapi_PBlock *pb);
-int multimaster_preop_compare(Slapi_PBlock *pb);
-int multimaster_ruv_search(Slapi_PBlock *pb);
-int multimaster_mmr_preop (Slapi_PBlock *pb, int flags);
-int multimaster_mmr_postop (Slapi_PBlock *pb, int flags);
-int multimaster_bepreop_add(Slapi_PBlock *pb);
-int multimaster_bepreop_delete(Slapi_PBlock *pb);
-int multimaster_bepreop_modify(Slapi_PBlock *pb);
-int multimaster_bepreop_modrdn(Slapi_PBlock *pb);
+/* multisupplier plugin points */
+int multisupplier_preop_bind(Slapi_PBlock *pb);
+int multisupplier_preop_add(Slapi_PBlock *pb);
+int multisupplier_preop_delete(Slapi_PBlock *pb);
+int multisupplier_preop_modify(Slapi_PBlock *pb);
+int multisupplier_preop_modrdn(Slapi_PBlock *pb);
+int multisupplier_preop_search(Slapi_PBlock *pb);
+int multisupplier_preop_compare(Slapi_PBlock *pb);
+int multisupplier_ruv_search(Slapi_PBlock *pb);
+int multisupplier_mmr_preop (Slapi_PBlock *pb, int flags);
+int multisupplier_mmr_postop (Slapi_PBlock *pb, int flags);
+int multisupplier_bepreop_add(Slapi_PBlock *pb);
+int multisupplier_bepreop_delete(Slapi_PBlock *pb);
+int multisupplier_bepreop_modify(Slapi_PBlock *pb);
+int multisupplier_bepreop_modrdn(Slapi_PBlock *pb);
 int replica_ruv_smods_for_op(Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods);
-int multimaster_bepostop_modrdn(Slapi_PBlock *pb);
-int multimaster_bepostop_delete(Slapi_PBlock *pb);
-int multimaster_postop_bind(Slapi_PBlock *pb);
-int multimaster_postop_add(Slapi_PBlock *pb);
-int multimaster_postop_delete(Slapi_PBlock *pb);
-int multimaster_postop_modify(Slapi_PBlock *pb);
-int multimaster_postop_modrdn(Slapi_PBlock *pb);
-int multimaster_betxnpostop_modrdn(Slapi_PBlock *pb);
-int multimaster_betxnpostop_delete(Slapi_PBlock *pb);
-int multimaster_betxnpostop_add(Slapi_PBlock *pb);
-int multimaster_betxnpostop_modify(Slapi_PBlock *pb);
-int multimaster_be_betxnpostop_modrdn(Slapi_PBlock *pb);
-int multimaster_be_betxnpostop_delete(Slapi_PBlock *pb);
-int multimaster_be_betxnpostop_add(Slapi_PBlock *pb);
-int multimaster_be_betxnpostop_modify(Slapi_PBlock *pb);
+int multisupplier_bepostop_modrdn(Slapi_PBlock *pb);
+int multisupplier_bepostop_delete(Slapi_PBlock *pb);
+int multisupplier_postop_bind(Slapi_PBlock *pb);
+int multisupplier_postop_add(Slapi_PBlock *pb);
+int multisupplier_postop_delete(Slapi_PBlock *pb);
+int multisupplier_postop_modify(Slapi_PBlock *pb);
+int multisupplier_postop_modrdn(Slapi_PBlock *pb);
+int multisupplier_betxnpostop_modrdn(Slapi_PBlock *pb);
+int multisupplier_betxnpostop_delete(Slapi_PBlock *pb);
+int multisupplier_betxnpostop_add(Slapi_PBlock *pb);
+int multisupplier_betxnpostop_modify(Slapi_PBlock *pb);
+int multisupplier_be_betxnpostop_modrdn(Slapi_PBlock *pb);
+int multisupplier_be_betxnpostop_delete(Slapi_PBlock *pb);
+int multisupplier_be_betxnpostop_add(Slapi_PBlock *pb);
+int multisupplier_be_betxnpostop_modify(Slapi_PBlock *pb);
 
 /* In repl5_replica.c */
 typedef struct replica Replica;
@@ -260,12 +273,12 @@ void set_thread_private_cache(void *buf);
 char *get_repl_session_id(Slapi_PBlock *pb, char *id, CSN **opcsn);
 
 /* In repl_extop.c */
-int multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb);
-int multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb);
-int multimaster_extop_cleanruv(Slapi_PBlock *pb);
-int multimaster_extop_abort_cleanruv(Slapi_PBlock *pb);
-int multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb);
-int multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb);
+int multisupplier_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb);
+int multisupplier_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb);
+int multisupplier_extop_cleanruv(Slapi_PBlock *pb);
+int multisupplier_extop_abort_cleanruv(Slapi_PBlock *pb);
+int multisupplier_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb);
+int multisupplier_extop_cleanruv_check_status(Slapi_PBlock *pb);
 int extop_noop(Slapi_PBlock *pb);
 struct berval *NSDS50StartReplicationRequest_new(const char *protocol_oid,
                                                  const char *repl_root,
@@ -281,7 +294,7 @@ struct berval *NSDS90StartReplicationRequest_new(const char *protocol_oid,
                                                  const struct berval *data);
 
 /* In repl5_total.c */
-int multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb);
+int multisupplier_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb);
 
 /* From repl_globals.c */
 extern char *repl_changenumber;
@@ -339,9 +352,9 @@ void replsupplier_notify(Repl_Supplier *rs, uint32_t eventmask);
 uint32_t replsupplier_get_status(Repl_Supplier *rs);
 
 /* In repl5_plugins.c */
-int multimaster_set_local_purl(void);
-const char *multimaster_get_local_purl(void);
-PRBool multimaster_started(void);
+int multisupplier_set_local_purl(void);
+const char *multisupplier_get_local_purl(void);
+PRBool multisupplier_started(void);
 
 /* In repl5_schedule.c */
 typedef struct schedule Schedule;
@@ -420,12 +433,15 @@ int agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBoo
 int agmt_set_port_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_host_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 const char *agmt_get_long_name(const Repl_Agmt *ra);
+void agmt_set_session_id(Repl_Agmt *ra);
+char *agmt_get_session_id(Repl_Agmt *ra);
 int agmt_initialize_replica(const Repl_Agmt *agmt);
 void agmt_replica_init_done(const Repl_Agmt *agmt);
 void agmt_notify_change(Repl_Agmt *ra, Slapi_PBlock *pb);
 Object *agmt_get_consumer_ruv(Repl_Agmt *ra);
 ReplicaId agmt_get_consumer_rid(Repl_Agmt *ra, void *conn);
 int agmt_set_consumer_ruv(Repl_Agmt *ra, RUV *ruv);
+void agmt_update_init_status(Repl_Agmt *ra);
 void agmt_update_consumer_ruv(Repl_Agmt *ra);
 CSN *agmt_get_consumer_schema_csn(Repl_Agmt *ra);
 void agmt_set_consumer_schema_csn(Repl_Agmt *ra, CSN *csn);
@@ -547,17 +563,17 @@ consumer_connection_extension *consumer_connection_extension_acquire_exclusive_a
 int consumer_connection_extension_relinquish_exclusive_access(void *conn, uint64_t connid, int opid, PRBool force);
 
 /* mapping tree extension - stores replica object */
-typedef struct multimaster_mtnode_extension
+typedef struct multisupplier_mtnode_extension
 {
     Object *replica;
     Objset *removed_replicas;
-} multimaster_mtnode_extension;
-void *multimaster_mtnode_extension_constructor(void *object, void *parent);
-void multimaster_mtnode_extension_destructor(void *ext, void *object, void *parent);
+} multisupplier_mtnode_extension;
+void *multisupplier_mtnode_extension_constructor(void *object, void *parent);
+void multisupplier_mtnode_extension_destructor(void *ext, void *object, void *parent);
 
 /* general extension functions - repl_ext.c */
-void repl_sup_init_ext();                            /* initializes registrations - must be called first */
-void repl_con_init_ext();                            /* initializes registrations - must be called first */
+void repl_sup_init_ext(void);                            /* initializes registrations - must be called first */
+void repl_con_init_ext(void);                            /* initializes registrations - must be called first */
 int repl_sup_register_ext(ext_type type);            /* registers an extension of the specified type */
 int repl_con_register_ext(ext_type type);            /* registers an extension of the specified type */
 void *repl_sup_get_ext(ext_type type, void *object); /* retireves the extension from the object */
@@ -620,6 +636,7 @@ void conn_set_agmt_changed(Repl_Connection *conn);
 ConnResult conn_read_result(Repl_Connection *conn, int *message_id);
 ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int noblock);
 LDAP *conn_get_ldap(Repl_Connection *conn);
+const Repl_Agmt *conn_get_agmt(Repl_Connection *conn);
 void conn_lock(Repl_Connection *conn);
 void conn_unlock(Repl_Connection *conn);
 void conn_delete_internal_ext(Repl_Connection *conn);
@@ -676,8 +693,8 @@ Replica *windows_replica_new(const Slapi_DN *root);
    during addition of the replica over LDAP */
 int replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **r);
 void replica_destroy(void **arg);
-int replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid);
-int replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid);
+void replica_subentry_update(time_t when, void *arg);
+int replica_subentry_check(const char *repl_root, ReplicaId rid);
 PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, uint64_t connid, int opid, const char *locking_purl, char **current_purl);
 void replica_relinquish_exclusive_access(Replica *r, uint64_t connid, int opid);
 PRBool replica_get_tombstone_reap_active(const Replica *r);
@@ -697,6 +714,9 @@ PRBool replica_is_updatedn(Replica *r, const Slapi_DN *sdn);
 void replica_set_updatedn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 void replica_set_groupdn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 char *replica_get_generation(const Replica *r);
+bool replica_check_validity(Replica *replica);
+int replica_get_port(Replica *r);
+int replica_get_secure_port(Replica *r);
 
 /* currently supported flags */
 #define REPLICA_LOG_CHANGES 0x1 /* enable change logging */
@@ -708,6 +728,7 @@ void replica_dump(Replica *r);
 void replica_set_enabled(Replica *r, PRBool enable);
 Replica *replica_get_replica_from_dn(const Slapi_DN *dn);
 Replica *replica_get_replica_from_root(const char *repl_root);
+int replica_check_generation(Replica *r, const RUV *remote_ruv);
 int replica_update_ruv(Replica *replica, const CSN *csn, const char *replica_purl);
 Replica *replica_get_replica_for_op(Slapi_PBlock *pb);
 /* the functions below manipulate replica hash */
@@ -737,6 +758,8 @@ void consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplie
 Replica *replica_get_for_backend(const char *be_name);
 void replica_set_purge_delay(Replica *r, uint32_t purge_delay);
 void replica_set_tombstone_reap_interval(Replica *r, long interval);
+void replica_set_keepalive_update_interval(Replica *r, int64_t interval);
+int64_t replica_get_keepalive_update_interval(Replica *r);
 void replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv);
 Slapi_Entry *get_in_memory_ruv(Slapi_DN *suffix_sdn);
 int replica_write_ruv(Replica *r);
@@ -792,11 +815,11 @@ int32_t replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn, CSN **op
 int replica_get_attr(Slapi_PBlock *pb, const char *type, void *value);
 
 /* mapping tree extensions manipulation */
-void multimaster_mtnode_extension_init(void);
-void multimaster_mtnode_extension_destroy(void);
-void multimaster_mtnode_construct_replicas(void);
+void multisupplier_mtnode_extension_init(void);
+void multisupplier_mtnode_extension_destroy(void);
+void multisupplier_mtnode_construct_replicas(void);
 
-void multimaster_be_state_change(void *handle, char *be_name, int old_be_state, int new_be_state);
+void multisupplier_be_state_change(void *handle, char *be_name, int old_be_state, int new_be_state);
 
 #define CLEANRIDSIZ 64 /* maximum number for concurrent CLEANALLRUV tasks */
 #define CLEANRID_BUFSIZ 128
@@ -815,13 +838,6 @@ typedef struct _cleanruv_data
     PRBool original_task;
 } cleanruv_data;
 
-typedef struct _cleanruv_purge_data
-{
-    int cleaned_rid;
-    const Slapi_DN *suffix_sdn;
-    Replica *replica;
-} cleanruv_purge_data;
-
 typedef struct _csngen_test_data
 {
     Slapi_Task *task;
@@ -831,28 +847,6 @@ typedef struct _csngen_test_data
 int replica_config_init(void);
 void replica_config_destroy(void);
 int get_replica_type(Replica *r);
-int replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid);
-void add_cleaned_rid(cleanruv_data *data);
-int is_cleaned_rid(ReplicaId rid);
-int32_t check_and_set_cleanruv_task_count(ReplicaId rid);
-int32_t check_and_set_abort_cleanruv_task_count(void);
-int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
-void replica_cleanallruv_thread_ext(void *arg);
-void stop_ruv_cleaning(void);
-int task_aborted(void);
-void replica_abort_task_thread(void *arg);
-void remove_cleaned_rid(ReplicaId rid);
-int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
-int decode_cleanruv_payload(struct berval *extop_value, char **payload);
-struct berval *create_cleanruv_payload(char *value);
-void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
-void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root, char *certify_all, PRBool original_task);
-int is_task_aborted(ReplicaId rid);
-void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, char *certify_all, PRBool original_task, int skip);
-int is_pre_cleaned_rid(ReplicaId rid);
-void set_cleaned_rid(ReplicaId rid);
-void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
-char *replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 
 /* replutil.c */
 LDAPControl *create_managedsait_control(void);
@@ -910,5 +904,33 @@ int repl_session_plugin_call_post_acquire_cb(const Repl_Agmt *ra, int is_total, 
 int repl_session_plugin_call_recv_acquire_cb(const char *repl_area, int is_total, const char *data_guid, const struct berval *data);
 int repl_session_plugin_call_reply_acquire_cb(const char *repl_area, int is_total, char **data_guid, struct berval **data);
 void repl_session_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra);
+
+/* repl_cleanallruv.c */
+int32_t cleanallruv_init(void);
+int replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid);
+void add_cleaned_rid(cleanruv_data *clean_data);
+int is_cleaned_rid(ReplicaId rid);
+int32_t check_and_set_cleanruv_task_count(ReplicaId rid);
+int32_t check_and_set_abort_cleanruv_task_count(void);
+int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+void replica_cleanallruv_thread_ext(void *arg);
+void stop_ruv_cleaning(void);
+int task_aborted(void);
+void replica_abort_task_thread(void *arg);
+void remove_cleaned_rid(ReplicaId rid);
+int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
+int decode_cleanruv_payload(struct berval *extop_value, char **payload);
+struct berval *create_cleanruv_payload(char *value);
+void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
+void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root, char *certify_all, PRBool original_task);
+int is_task_aborted(ReplicaId rid);
+void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, char *certify_all, PRBool original_task, int skip);
+int is_pre_cleaned_rid(ReplicaId rid);
+void set_cleaned_rid(ReplicaId rid);
+void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
+char *replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
+int replica_execute_cleanruv_task(Replica *r, ReplicaId rid, char *returntext);
+int replica_execute_cleanall_ruv_task(Replica *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext);
+void delete_cleaned_rid_config(cleanruv_data *data);
 
 #endif /* _REPL5_H_ */

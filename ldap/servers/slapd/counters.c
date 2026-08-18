@@ -123,7 +123,7 @@ counters_as_entry(Slapi_Entry *e)
     fetch_counters();
     for (i = 0; i < num_counters; i++) {
         char value[40];
-        char *type = (char *)malloc(counter_size(&counters[i]) + 4);
+        char *type = (char *)slapi_ch_malloc(counter_size(&counters[i]) + 4);
         counter_dump(type, value, i);
         slapi_entry_attr_set_charptr(e, type, value);
         free(type);
@@ -141,7 +141,7 @@ counters_to_errors_log(const char *text)
     slapi_log_err(SLAPI_LOG_DEBUG, "counters_to_errors_log", "Counter Dump - %s\n", text);
     for (i = 0; i < num_counters; i++) {
         char value[40];
-        char *type = (char *)malloc(counter_size(&counters[i]) + 4);
+        char *type = (char *)slapi_ch_malloc(counter_size(&counters[i]) + 4);
         counter_dump(type, value, i);
         slapi_log_err(SLAPI_LOG_DEBUG, "counters_to_errors_log", "%s %s\n", type, value);
         free(type);

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,8 +24,9 @@ of LDAP ADD for example.
 A correct Mapping tree for this backend must contain the suffix name, the database name
 and be a backend type. IE:
 
-cn=o3Dexample,cn=mapping tree,cn=config
-cn: o=example
+cn=dc\\3Dexample\\2Cdc\\3Dcom,cn=mapping tree,cn=config
+cn: dc=example,dc=com
+cn: dc\=example\,dc\=com
 nsslapd-backend: userRoot
 nsslapd-state: backend
 objectClass: top
@@ -57,29 +58,81 @@ DSBLE0003 = {
     'fix': """You need to import an LDIF file, or create the suffix entry, in order to initialize the database."""
 }
 
-# Config checks
-DSCLE0001 = {
-    'dsle': 'DSCLE0001',
+# BDB and MDB checks
+DSBLE0004 = {
+    'dsle': 'DSBLE0004',
     'severity': 'LOW',
-    'description': 'Different log timestamp format.',
-    'items': ['cn=config', ],
-    'detail': """nsslapd-logging-hr-timestamps-enabled changes the log format in directory server from
-
-[07/Jun/2017:17:15:58 +1000]
-
-to
-
-[07/Jun/2017:17:15:58.716117312 +1000]
-
-This actually provides a performance improvement. Additionally, this setting will be
-removed in a future release.
-""",
-    'fix': """Set nsslapd-logging-hr-timestamps-enabled to on.
-You can use 'dsconf' to set this attribute.  Here is an example:
-
-    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-logging-hr-timestamps-enabled=on"""
+    'description': 'Both MDB and BDB database files are present.',
+    'items': [],
+    'detail': """Files for both MDB and BDB databases have been found. This indicates that a cleanup of the database
+files has not been performed after a backend implementation change.""",
+    'fix': """Run 'dsctl <instance> dblib cleanup' to remove old database files that are no longer needed or remove them manually."""
 }
 
+DSBLE0005 = {
+    'dsle': 'DSBLE0005',
+    'severity': 'LOW',
+    'description': 'Backend configuration attributes mismatch.',
+    'items': [],
+    'detail': 'Found configuration attributes that are not applicable for the configured backend type.',
+    'fix': 'Review the backend configuration and remove or adjust the incorrect attributes.'
+}
+
+DSBLE0006 = {
+    'dsle': 'DSBLE0006',
+    'severity': 'MEDIUM',
+    'description': 'BDB is still used as a backend.',
+    'items': [],
+    'detail': 'BDB is deprecated and should not be used as a backend.',
+    'fix': 'Migrate the backend to MDB.'
+}
+
+DSBLE0007 = {
+    'dsle': 'DSBLE0007',
+    'severity': 'HIGH',
+    'description': 'Missing or incorrect system indexes.',
+    'items': [],
+    'detail': """System indexes are essential for proper directory server operation. Missing or
+incorrectly configured system indexes can lead to poor search performance, replication
+issues, and other operational problems.
+
+The following system indexes should be present with correct configuration:
+EXPECTED_INDEXES
+
+Current discrepancies:
+DISCREPANCIES
+""",
+    'fix': """Add the missing system indexes or fix the incorrect configurations using dsconf:
+
+REMEDIATION_COMMANDS
+
+After adding or modifying indexes, you may need to reindex the affected attributes:
+
+REINDEX_COMMANDS
+
+WARNING: Reindexing can be resource-intensive and may impact server performance on a live system.
+Consider scheduling reindexing during maintenance windows or periods of low activity. For production
+systems, you may want to reindex offline or use the --wait option to monitor task completion.
+"""
+}
+
+DSBLE0008 = {
+    'dsle': 'DSBLE0008',
+    'severity': 'HIGH',
+    'description': 'Obsolete entrydn index configuration.',
+    'items': [],
+    'detail': """An entrydn index is configured on backend BACKEND_NAME but this server uses
+entryrdn for DN-based indexing. This can cause inconsistent search results
+and index task failures.
+""",
+    'fix': """Remove the obsolete entrydn index and on disk files, then reindex entryrdn:
+
+    # dsconf YOUR_INSTANCE backend index delete BACKEND_NAME --attr entrydn
+    # rm -f DB_DIR/entrydn.db*
+    # dsconf YOUR_INSTANCE backend index reindex BACKEND_NAME --attr entryrdn"""
+}
+
+# Config checks
 DSCLE0002 = {
     'dsle': 'DSCLE0002',
     'severity': 'HIGH',
@@ -94,23 +147,81 @@ designed to be *fast* to validate. This is the opposite of what we desire for pa
 storage. In the unlikely event of a disclosure, you want hashes to be *difficult* to
 verify, as this adds a cost of work to an attacker.
 
-In Directory Server, we offer one hash suitable for this (PBKDF2_SHA256) and one hash
+In Directory Server, we offer one hash suitable for this (PBKDF2-SHA512) and one hash
 for "legacy" support (SSHA512).
 
-Your configuration does not use these for password storage or the root password storage
-scheme.
+Your configured scheme (SCHEME) for 'CONFIG' is not secure
 """,
     'fix': """Perform a configuration reset of the values:
 
-passwordStorageScheme
-nsslapd-rootpwstoragescheme
-
-IE, stop Directory Server, and in dse.ldif delete these two lines. When Directory Server
+IE, stop Directory Server, and in dse.ldif delete this line (CONFIG). When Directory Server
 is started, they will use the server provided defaults that are secure.
 
 You can also use 'dsconf' to replace these values.  Here is an example:
 
-    # dsconf slapd-YOUR_INSTANCE config replace passwordStorageScheme=PBKDF2_SHA256 nsslapd-rootpwstoragescheme=PBKDF2_SHA256"""
+    # dsconf slapd-YOUR_INSTANCE config replace CONFIG=PBKDF2-SHA512"""
+}
+
+DSCLE0003 = {
+    'dsle': 'DSCLE0003',
+    'severity': 'MEDIUM',
+    'description': 'Unauthorized Binds Allowed',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-allow-unauthenticated-binds is set to 'on' this can
+lead to unexpected results with clients and potential security issues
+""",
+    'fix': """Set nsslapd-allow-unauthenticated-binds to off.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-allow-unauthenticated-binds=off"""
+}
+
+DSCLE0004 = {
+    'dsle': 'DSCLE0004',
+    'severity': 'LOW',
+    'description': 'Access Log buffering disabled',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-accesslog-logbuffering is set to 'off' this will cause high
+disk IO and can significantly impact server performance.  This should only be used
+for debug purposes
+""",
+    'fix': """Set nsslapd-accesslog-logbuffering to 'on'.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-accesslog-logbuffering=on
+"""
+}
+
+DSCLE0005 = {
+    'dsle': 'DSCLE0005',
+    'severity': 'LOW',
+    'description': 'Security Log buffering disabled',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-securitylog-logbuffering is set to 'off' this will cause high
+disk IO and it will impact server performance.  This should only be used
+for debug purposes
+""",
+    'fix': """Set nsslapd-securitylog-logbuffering to 'on'.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-securitylog-logbuffering=on
+"""
+}
+
+DSCLE0006 = {
+    'dsle': 'DSCLE0006',
+    'severity': 'LOW',
+    'description': 'Audit Log buffering disabled',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-auditlog-logbuffering is set to 'off' this will cause high
+disk IO and it will impact server performance.  This should only be used
+for debug purposes
+""",
+    'fix': """Set nsslapd-auditlog-logbuffering to 'on'.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-auditlog-logbuffering=on
+"""
 }
 
 # Security checks
@@ -152,11 +263,11 @@ the entry - ie these are synchronous.
 
 However, when this is > 0, these are performed asynchronously.
 
-This leads to only having referint enabled on one master in MMR to prevent replication conflicts and loops.
+This leads to only having referint enabled on one supplier in MMR to prevent replication conflicts and loops.
 Additionally, because these are performed in the background these updates may cause spurious update
 delays to your server by batching changes rather than smaller updates during sync processing.
 
-We advise that you set this value to 0, and enable referint on all masters as it provides a more predictable behaviour.
+We advise that you set this value to 0, and enable referint on all suppliers as it provides a more predictable behaviour.
 """,
     'fix': """Set referint-update-delay to 0.
 
@@ -183,6 +294,59 @@ need to reindex the database after adding the missing index type. Here is an
 example using dsconf:
 
     # dsconf slapd-YOUR_INSTANCE backend index add --attr=ATTR --reindex --index-type=eq BACKEND
+"""
+}
+
+# MemberOf plugin checks
+DSMOLE0001 = {
+    'dsle': 'DSMOLE0001',
+    'severity': 'HIGH',
+    'description': 'MemberOf operations can become very slow',
+    'items': ['cn=memberof plugin,cn=plugins,cn=config', ],
+    'detail': """The MemberOf plugin does internal searches when updating a group, or running the fixup task.
+These internal searches will be unindexed leading to poor performance and high CPU.
+
+We advise that you index the memberOf group attributes for equality searches.
+""",
+    'fix': """Check the attributes set in "memberofgroupattr" to make sure they have
+an index defined that has equality "eq" index type.  You will need to reindex the
+database after adding the missing index type. Here is an example using dsconf:
+
+    # dsconf slapd-YOUR_INSTANCE backend index add --attr=ATTR --index-type=eq --reindex BACKEND
+"""
+}
+
+DSMOLE0002 = {
+    'dsle': 'DSMOLE0002',
+    'severity': 'LOW',
+    'description': 'Removal of a member can be slow ',
+    'items': ['cn=memberof plugin,cn=plugins,cn=config', ],
+    'detail': """If the substring index is configured for a membership attribute. The removal of a member
+from the large group can be slow.
+
+""",
+    'fix': """If not required, you can remove the substring index type using dsconf:
+
+    # dsconf slapd-YOUR_INSTANCE backend index set --attr=ATTR BACKEND --del-type=sub
+"""
+}
+
+DSMOLE0003 = {
+    'dsle': 'DSMOLE0003',
+    'severity': 'MEDIUM',
+    'description': 'Global backend lock is disabled while memberOf monitors all backends',
+    'items': ['cn=memberof plugin,cn=plugins,cn=config',],
+    'detail': """The memberOf plugin is configured to monitor all backends and the
+global backend lock is disabled, this may lead to potential deadlocks
+during cross backend updates. The server will log a warning, but no
+automatic fix is applied.""",
+    'fix': """To prevent potential deadlocks, enable the global backend lock:
+
+    # dsconf slapd-YOUR_INSTANCE config replace ATTR=on
+
+Alternatively, if monitoring all backends is not required, you can disable it:
+
+    # dsconf slapd-YOUR_INSTANCE plugin memberof set --allbackends off
 """
 }
 
@@ -289,6 +453,16 @@ DSREPLLE0005 = {
     'detail': """The replication agreement (AGMT) under "SUFFIX" is not in synchronization,
 because the consumer server is not reachable.""",
     'fix': """Check if the consumer is running, and also check the errors log for more information."""
+}
+
+DSREPLLE0006 = {
+    'dsle': 'DSREPLLE0006',
+    'severity': 'MEDIUM',
+    'description': 'Replication has not been initilaized',
+    'items': ['Replication'],
+    'detail': """The replication for "SUFFIX" does not appear to be initialzied,
+because there is no RUV found for the suffix.""",
+    'fix': """Initialize this replica from a primary supplier replica"""
 }
 
 # Replication changelog
@@ -419,6 +593,17 @@ Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_ser
 and find the paragraph "Too much time skew"."""
 }
 
+DSSKEWLE0004 = {
+    'dsle': 'DSSKEWLE0004',
+    'severity': 'Low',
+    'description': 'Extensive time skew.',
+    'items': ['Replication'],
+    'detail': """The time skew is over 365 days. If the time skew continues to
+increase eventually serious replication problems can occur.""",
+    'fix': """Avoid making changes to the system time, and make sure the clocks
+on all the replicas are correct."""
+}
+
 DSLOGNOTES0001 = {
     'dsle': 'DSLOGNOTES0001',
     'severity': 'Medium',
@@ -439,4 +624,30 @@ DSLOGNOTES0002 = {
 unknown attribute in the search filter.\n""",
     'fix': """Stop using this these unknown attributes in the filter, or add the schema
 to the server and make sure it's properly indexed."""
+}
+
+# Transparent Huge Pages
+DSTHPLE0001 = {
+    'dsle': 'DSTHPLE0001',
+    'severity': 'Medium',
+    'description': 'Transparent Huge Pages',
+    'items': ['Possible Performance Impact'],
+    'detail': """Transparent Huge Pages are enabled. This can lead to an unexpected memory
+consumption, especially when using large caches.\n""",
+    'fix': """Disable Transparent Huge Pages.
+System-wide at boot:
+Add "transparent_hugepage=never" to the list of kernel boot parameters.
+
+System-wide at runtime:
+# echo "never" > /sys/kernel/mm/transparent_hugepage/enabled
+# echo "never" > /sys/kernel/mm/transparent_hugepage/defrag
+
+Per instance (for the versions of 389 Directory Server that support it):
+Edit dirsrv unit file:
+# systemctl edit dirsrv@instance_name
+
+And uncomment the following lines:
+[Service]
+Environment=THP_DISABLE=1
+"""
 }

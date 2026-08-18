@@ -1,49 +1,57 @@
 #!/usr/bin/python3
 #
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
+#
+# PYTHON_ARGCOMPLETE_OK
 
+import argparse, argcomplete
+import argcomplete
+import datetime
 import optparse
 import os
 import re
 import sys
 import uuid
-from lib389 import topologies
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
+
+from test389 import topologies
 
 """This script generates a template test script that handles the
 non-interesting parts of a test script:
-- topology fixture that doesn't exist in in lib389/topologies.py
+- topology fixture that doesn't exist in in test389/topologies.py
 - test function (to be completed by the user),
 - run-isolated function
 """
 
 
-def displayUsage():
+def display_usage():
     """Display the usage"""
 
-    print ('\nUsage:\ncreate_ticket.py -t|--ticket <ticket number> ' +
-           '-s|--suite <suite name> ' +
-           '[ i|--instances <number of standalone instances> ' +
-           '[ -m|--masters <number of masters> -h|--hubs <number of hubs> ' +
-           '-c|--consumers <number of consumers> ] -o|--outputfile ]\n')
-    print ('If only "-t" is provided then a single standalone instance is ' +
-           'created. Or you can create a test suite script using ' +
-           '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
-           'can add mulitple standalone instances (maximum 99). However, you' +
-           ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
-           'There is a maximum of 99 masters, 99 hubs, and 99 consumers.')
+    print('\nUsage:\ncreate_ticket.py -t|--ticket <ticket number> ' +
+          '-s|--suite <suite name> ' +
+          '[ i|--instances <number of standalone instances> ' +
+          '[ -m|--suppliers <number of suppliers> -h|--hubs <number of hubs> ' +
+          '-c|--consumers <number of consumers> ] -o|--outputfile -C|--copyright <name of the entity>]\n')
+    print('If only "-t" is provided then a single standalone instance is ' +
+          'created. Or you can create a test suite script using ' +
+          '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
+          'can add multiple standalone instances (maximum 99). However, you' +
+          ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
+          'There is a maximum of 99 suppliers, 99 hubs, and 99 consumers.')
     print('If "-s|--suite" option was chosen, then no topology would be added ' +
-          'to the test script. You can find predefined fixtures in the lib389/topologies.py ' +
+          'to the test script. You can find predefined fixtures in the test389/topologies.py ' +
           'and use them or write a new one if you have a special case.')
     exit(1)
 
 
-def writeFinalizer():
+def write_finalizer():
     """Write the finalizer function - delete/stop each instance"""
 
     def writeInstanceOp(action):
@@ -59,7 +67,7 @@ def writeFinalizer():
     TEST.write('\n\n')
 
 
-def get_existing_topologies(inst, masters, hubs, consumers):
+def get_existing_topologies(inst, suppliers, hubs, consumers):
     """Check if the requested topology exists"""
     setup_text = ""
 
@@ -72,14 +80,14 @@ def get_existing_topologies(inst, masters, hubs, consumers):
             setup_text = "{} Standalone Instances".format(inst)
     else:
         i = ''
-    if masters:
-        ms = 'm{}'.format(masters)
+    if suppliers:
+        ms = 'm{}'.format(suppliers)
         if len(setup_text) > 0:
             setup_text += ", "
-        if masters == 1:
-            setup_text += "Master Instance"
+        if suppliers == 1:
+            setup_text += "Supplier Instance"
         else:
-            setup_text += "{} Master Instances".format(masters)
+            setup_text += "{} Supplier Instances".format(suppliers)
     else:
         ms = ''
     if hubs:
@@ -119,7 +127,6 @@ def check_id_uniqueness(id_value):
     """
 
     tests_dir = os.path.join(os.getcwd(), 'tests')
-
     for root, dirs, files in os.walk(tests_dir):
         for name in files:
             if name.endswith('.py'):
@@ -131,89 +138,99 @@ def check_id_uniqueness(id_value):
     return True
 
 
+def display_uuid():
+    tc_uuid = '0'
+    while not check_id_uniqueness(tc_uuid): tc_uuid = uuid.uuid4()
+    print(str(tc_uuid))
+    exit(0)
+
+
 desc = 'Script to generate an initial lib389 test script.  ' + \
        'This generates the topology, test, final, and run-isolated functions.'
 
 if len(sys.argv) > 0:
-    parser = optparse.OptionParser(description=desc, add_help_option=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--ticket', default=None,
+                        help="The name of the ticket/issue to include in the script name: 'ticket_<TEXT INPUT>_test.py'")
+    parser.add_argument('-s', '--suite', default=None, help="Name for the test: '<TEXT INPUT>_test.py'")
+    parser.add_argument('-i', '--instances', default='0', help="Number of instances needed in the test")
+    parser.add_argument('-m', '--suppliers', default='0',
+                        help="Number of replication suppliers needed in the test")
+    parser.add_argument('-b', '--hubs', default='0', help="Number of replication hubs needed in the test")
+    parser.add_argument('-c', '--consumers', default='0',
+                        help="Number of replication consumers needed in the test")
+    parser.add_argument('-o', '--filename', default=None, help="Custom test script file name")
+    parser.add_argument('-u', '--uuid', action='store_true',
+                        help="Display a test case uuid to used for new test functions in script")
+    parser.add_argument('-C', '--copyright', default="Red Hat, Inc.", help="Add a copyright section in the beginning of the file")
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
 
-    # Script options
-    parser.add_option('-t', '--ticket', dest='ticket', default=None)
-    parser.add_option('-s', '--suite', dest='suite', default=None)
-    parser.add_option('-i', '--instances', dest='inst', default='0')
-    parser.add_option('-m', '--masters', dest='masters', default='0')
-    parser.add_option('-h', '--hubs', dest='hubs', default='0')
-    parser.add_option('-c', '--consumers', dest='consumers', default='0')
-    parser.add_option('-o', '--outputfile', dest='filename', default=None)
-
-    # Validate the options
-    try:
-        (args, opts) = parser.parse_args()
-    except:
-        displayUsage()
+    if args.uuid:
+        display_uuid()
 
     if args.ticket is None and args.suite is None:
         print('Missing required ticket number/suite name')
-        displayUsage()
+        display_usage()
 
     if args.ticket and args.suite:
         print('You must choose either "-t|--ticket" or "-s|--suite", ' +
               'but not both.')
-        displayUsage()
+        display_usage()
 
-    if int(args.masters) == 0:
+    if int(args.suppliers) == 0:
         if int(args.hubs) > 0 or int(args.consumers) > 0:
-            print('You must use "-m|--masters" if you want to have hubs ' +
+            print('You must use "-m|--suppliers" if you want to have hubs ' +
                   'and/or consumers')
-            displayUsage()
+            display_usage()
 
-    if not args.masters.isdigit() or \
-           int(args.masters) > 99 or \
-           int(args.masters) < 0:
-        print('Invalid value for "--masters", it must be a number and it can' +
+    if not args.suppliers.isdigit() or \
+        int(args.suppliers) > 99 or \
+            int(args.suppliers) < 0:
+        print('Invalid value for "--suppliers", it must be a number and it can' +
               ' not be greater than 99')
-        displayUsage()
+        display_usage()
 
     if not args.hubs.isdigit() or int(args.hubs) > 99 or int(args.hubs) < 0:
         print('Invalid value for "--hubs", it must be a number and it can ' +
               'not be greater than 99')
-        displayUsage()
+        display_usage()
 
     if not args.consumers.isdigit() or \
-           int(args.consumers) > 99 or \
-           int(args.consumers) < 0:
+        int(args.consumers) > 99 or \
+            int(args.consumers) < 0:
         print('Invalid value for "--consumers", it must be a number and it ' +
               'can not be greater than 99')
-        displayUsage()
+        display_usage()
 
-    if args.inst:
-        if not args.inst.isdigit() or \
-               int(args.inst) > 99 or \
-               int(args.inst) < 0:
+    if args.instances:
+        if not args.instances.isdigit() or \
+            int(args.instances) > 99 or \
+            int(args.instances) < 0:
             print('Invalid value for "--instances", it must be a number ' +
                   'greater than 0 and not greater than 99')
-            displayUsage()
-        if int(args.inst) > 0:
-            if int(args.masters) > 0 or \
+            display_usage()
+        if int(args.instances) > 0:
+            if int(args.suppliers) > 0 or \
                             int(args.hubs) > 0 or \
                             int(args.consumers) > 0:
                 print('You can not mix "--instances" with replication.')
-                displayUsage()
+                display_usage()
 
     # Extract usable values
     ticket = args.ticket
     suite = args.suite
 
-    if args.inst == '0' and args.masters == '0' and args.hubs == '0' \
+    if args.instances == '0' and args.suppliers == '0' and args.hubs == '0' \
        and args.consumers == '0':
         instances = 1
         my_topology = [True, 'topology_st', "Standalone Instance"]
     else:
-        instances = int(args.inst)
-        masters = int(args.masters)
+        instances = int(args.instances)
+        suppliers = int(args.suppliers)
         hubs = int(args.hubs)
         consumers = int(args.consumers)
-        my_topology = get_existing_topologies(instances, masters, hubs, consumers)
+        my_topology = get_existing_topologies(instances, suppliers, hubs, consumers)
     filename = args.filename
     setup_text = my_topology[2]
 
@@ -230,23 +247,37 @@ if len(sys.argv) > 0:
         print("Can\'t open file:", filename)
         exit(1)
 
+    # Write the copyright section
+    if args.copyright:
+        today = datetime.date.today()
+        current_year = today.year
+
+        TEST.write('# --- BEGIN COPYRIGHT BLOCK ---\n')
+        TEST.write('# Copyright (C) {} {}\n'.format(current_year, args.copyright))
+        TEST.write('# All rights reserved.\n')
+        TEST.write('#\n')
+        TEST.write('# License: GPL (version 3 or any later version).\n')
+        TEST.write('# See LICENSE for details.\n')
+        TEST.write('# --- END COPYRIGHT BLOCK ---\n')
+        TEST.write('#\n')
+
     # Write the imports
     if my_topology[0]:
-        topology_import = 'from lib389.topologies import {} as topo\n'.format(my_topology[1])
+        topology_import = 'from test389.topologies import {} as topo\n'.format(my_topology[1])
     else:
-        topology_import = 'from lib389.topologies import create_topology\n'
+        topology_import = 'from test389.topologies import create_topology\n'
 
     TEST.write('import logging\nimport pytest\nimport os\n')
     TEST.write('from lib389._constants import *\n')
     TEST.write('{}\n'.format(topology_import))
     TEST.write('log = logging.getLogger(__name__)\n\n')
 
-    # Add topology function for non existing (in lib389/topologies.py) topologies only
+    # Add topology function for non existing (in test389/topologies.py) topologies only
     if not my_topology[0]:
         # Write the replication or standalone classes
         topologies_str = ""
-        if masters > 0:
-            topologies_str += " {} masters".format(masters)
+        if suppliers > 0:
+            topologies_str += " {} suppliers".format(suppliers)
         if hubs > 0:
             topologies_str += " {} hubs".format(hubs)
         if consumers > 0:
@@ -259,8 +290,8 @@ if len(sys.argv) > 0:
         TEST.write('def topo(request):\n')
         TEST.write('    """Create a topology with{}"""\n\n'.format(topologies_str))
         TEST.write('    topology = create_topology({\n')
-        if masters > 0:
-            TEST.write('        ReplicaRole.MASTER: {},\n'.format(masters))
+        if suppliers > 0:
+            TEST.write('        ReplicaRole.SUPPLIER: {},\n'.format(suppliers))
         if hubs > 0:
             TEST.write('        ReplicaRole.HUB: {},\n'.format(hubs))
         if consumers > 0:
@@ -270,10 +301,10 @@ if len(sys.argv) > 0:
         TEST.write('        })\n')
 
         TEST.write('    # You can write replica test here. Just uncomment the block and choose instances\n')
-        TEST.write('    # replicas = Replicas(topology.ms["master1"])\n')
+        TEST.write('    # replicas = Replicas(topology.ms["supplier1"])\n')
         TEST.write('    # replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])\n')
 
-        writeFinalizer()
+        write_finalizer()
         TEST.write('    return topology\n\n')
 
     tc_id = '0'
@@ -296,9 +327,9 @@ if len(sys.argv) > 0:
     TEST.write('    """\n\n')
     TEST.write('    # If you need any test suite initialization,\n')
     TEST.write('    # please, write additional fixture for that (including finalizer).\n'
-               '    # Topology for suites are predefined in lib389/topologies.py.\n\n')
+               '    # Topology for suites are predefined in test389/topologies.py.\n\n')
     TEST.write('    # If you need host, port or any other data about instance,\n')
-    TEST.write('    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)\n\n\n')
+    TEST.write('    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)\n\n\n')
 
     # Write the main function
     TEST.write("if __name__ == '__main__':\n")

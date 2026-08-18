@@ -185,7 +185,7 @@ do_bind(Slapi_PBlock *pb)
             static char *kmsg =
                 "LDAPv2-style kerberos authentication received "
                 "on LDAPv3 connection.";
-            slapi_log_err(SLAPI_LOG_ERR, "do_bind", "%s", kmsg);
+            slapi_log_err(SLAPI_LOG_ERR, "do_bind", "%s\n", kmsg);
             log_bind_access(pb, dn ? dn : "empty", method, version, saslmech, kmsg);
             send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL,
                              kmsg, 0, NULL);
@@ -248,7 +248,7 @@ do_bind(Slapi_PBlock *pb)
     /* You are "bound" when the SSL connection is made,
        but the client still passes a BIND SASL/EXTERNAL request.
      */
-    if ((LDAP_AUTH_SASL == method) &&
+    if ((LDAP_AUTH_SASL == method) && (saslmech != NULL) &&
         (0 == strcasecmp(saslmech, LDAP_SASL_EXTERNAL)) &&
         (0 == dn || 0 == dn[0]) && pb_conn->c_unix_local) {
         slapd_bind_local_user(pb_conn);
@@ -331,7 +331,7 @@ do_bind(Slapi_PBlock *pb)
          * All SASL auth methods are categorized as strong binds,
          * although they are not necessarily stronger than simple.
          */
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsStrongAuthBinds);
         if (saslmech == NULL || *saslmech == '\0') {
             send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                              "SASL mechanism absent", 0, NULL);
@@ -349,9 +349,9 @@ do_bind(Slapi_PBlock *pb)
             while (1) {
                 if (*pmech == NULL) {
                     /*
-                 * As we call the safe function, we receive a strdup'd saslmechanisms
-                 * charray. Therefore, we need to remove it instead of NULLing it
-                 */
+                     * As we call the safe function, we receive a strdup'd saslmechanisms
+                     * charray. Therefore, we need to remove it instead of NULLing it
+                     */
                     charray_free(supported);
                     pmech = supported = NULL;
                     break;
@@ -415,8 +415,12 @@ do_bind(Slapi_PBlock *pb)
             if (NULL == pb_conn->c_external_dn) {
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Client certificate mapping failed");
                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
+                slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_CERT_MAP_FAILED);
                 /* call postop plugins */
                 plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
+                if (config_get_close_on_failed_bind()) {
+                    disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                }
                 goto free_and_return;
             }
 
@@ -441,13 +445,14 @@ do_bind(Slapi_PBlock *pb)
                 slapi_add_auth_response_control(pb, pb_conn->c_external_dn);
             }
             send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            slapi_log_security(pb, SECURITY_BIND_SUCCESS, "");
             /* call postop plugins */
             plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
             goto free_and_return;
         }
         break;
     case LDAP_AUTH_SIMPLE:
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
 
         /* Check if the minimum SSF requirement has been met. */
         minssf = config_get_minssf();
@@ -464,16 +469,25 @@ do_bind(Slapi_PBlock *pb)
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Minimum SSF not met.", 0, NULL);
             /* increment BindSecurityErrorcount */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
             goto free_and_return;
         }
 
         /* accept null binds */
         if (dn == NULL || *dn == '\0') {
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
+            if (cred.bv_len > 0) {
+                /* RFC 4513 does not specify this case. Let's reject it. */
+                send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                                 "Bind with a null DN and non-empty password is rejected", 0, NULL);
+                /* increment BindSecurityErrorcount */
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_log_security(pb, SECURITY_BIND_FAILED,  SECURITY_MSG_INVALID_PASSWD);
+                goto free_and_return;
+            }
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsAnonymousBinds);
             /* by definition anonymous is also unauthenticated so increment
                that counter */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
             /* Refuse the operation if anonymous access is disabled.  We need to allow
              * an anonymous bind through if only root DSE anonymous access is set too. */
@@ -481,7 +495,8 @@ do_bind(Slapi_PBlock *pb)
                 send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_ANONYMOUS_BIND);
                 goto free_and_return;
             }
 
@@ -495,7 +510,7 @@ do_bind(Slapi_PBlock *pb)
                     slapi_add_auth_response_control(pb, "");
                 }
                 send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
-
+                slapi_log_security(pb, SECURITY_BIND_SUCCESS, SECURITY_MSG_ANONYMOUS_BIND);
                 /* call postop plugins */
                 plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
             } else {
@@ -505,14 +520,14 @@ do_bind(Slapi_PBlock *pb)
             /* Check if unauthenticated binds are allowed. */
         } else if (cred.bv_len == 0) {
             /* Increment unauthenticated bind counter */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
             /* Refuse the operation if anonymous access is disabled. */
             if (config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) {
                 send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
 
@@ -524,7 +539,7 @@ do_bind(Slapi_PBlock *pb)
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                                  "Unauthenticated binds are not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
             /* Check if simple binds are allowed over an insecure channel.  We only check
@@ -553,7 +568,7 @@ do_bind(Slapi_PBlock *pb)
                 (sasl_ssf <= 1) && (local_ssf <= 1)) {
                 send_ldap_result(pb, LDAP_CONFIDENTIALITY_REQUIRED, NULL,
                                  "Operation requires a secure connection", 0, NULL);
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
         }
@@ -583,7 +598,7 @@ do_bind(Slapi_PBlock *pb)
             if (plugin_call_plugins(pb, SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN) != 0) {
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                                  "RootDN access control violation", 0, NULL);
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
                 goto free_and_return;
             }
@@ -602,9 +617,13 @@ do_bind(Slapi_PBlock *pb)
                  */
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
+                slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_INVALID_PASSWD);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
+                if (config_get_close_on_failed_bind()) {
+                    disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                }
                 goto free_and_return;
             }
 
@@ -618,7 +637,7 @@ do_bind(Slapi_PBlock *pb)
                                                 (cred.bv_len == 0) ? "" : slapi_sdn_get_ndn(sdn));
             }
             send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
-
+            slapi_log_security(pb, SECURITY_BIND_SUCCESS, "");
             /* call postop plugins */
             plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
         } else {
@@ -733,9 +752,19 @@ do_bind(Slapi_PBlock *pb)
                 slapi_pblock_get(pb, SLAPI_BACKEND, &be);
                 if (!isroot && !slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                     bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
+                    myrc = slapi_check_tpr_limits(pb, bind_target_entry, 1 /* send result */);
+                    if (myrc) {
+                        /* a result was sent, similar to account locked */
+                        rc = myrc;
+                        goto account_locked;
+                    }
                     myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
                     if (1 == myrc) { /* account is locked */
                         rc = myrc;
+                        slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_ACCOUNT_LOCKED);
+                        if (config_get_close_on_failed_bind()) {
+                            disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                        }
                         goto account_locked;
                     }
                     myrc = 0;
@@ -784,6 +813,10 @@ do_bind(Slapi_PBlock *pb)
                         if (!bind_target_entry) {
                             slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
                             send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
+                            slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_NO_ENTRY);
+                            if (config_get_close_on_failed_bind()) {
+                                disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                            }
                             goto free_and_return;
                         }
                     }
@@ -832,15 +865,24 @@ do_bind(Slapi_PBlock *pb)
             if (rc == LDAP_OPERATIONS_ERROR) {
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL);
                 goto free_and_return;
+            } else {
+                if (bind_target_entry) {
+                    slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_INVALID_PASSWD);
+                } else {
+                    slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_NO_ENTRY);
+                }
+                if (config_get_close_on_failed_bind()) {
+                    disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                }
             }
         account_locked:
             if (cred.bv_len == 0) {
                 /* its an UnAuthenticated Bind, DN specified but no pw */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsUnAuthBinds);
             } else {
                 /* password must have been invalid */
                 /* increment BindSecurityError count */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
             }
         }
 
@@ -855,6 +897,7 @@ do_bind(Slapi_PBlock *pb)
          */
         if (rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
             send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            slapi_log_security(pb, SECURITY_BIND_SUCCESS, "");
         }
 
         slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
@@ -903,34 +946,73 @@ log_bind_access(
     Connection *pb_conn = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     if (pb_op == NULL || pb_conn == NULL) {
         return;
     }
 
+    slapd_log_pblock_init(&logpb, log_format, pb);
+    logpb.version = version;
+    logpb.bind_dn = dn;
+    logpb.method = "sasl";
+
     if (method == LDAP_AUTH_SASL && saslmech && msg) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=sasl version=%d mech=%s, %s\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         version, saslmech, msg);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.mech = saslmech;
+            logpb.msg = msg;
+            logpb.method = "sasl";
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=sasl version=%d mech=%s, %s\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             version, saslmech, msg);
+        }
     } else if (method == LDAP_AUTH_SASL && saslmech) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=sasl version=%d mech=%s\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         version, saslmech);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.mech = saslmech;
+            logpb.method = "sasl";
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=sasl version=%d mech=%s\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             version, saslmech);
+        }
     } else if (msg) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=%" BERTAG_T " version=%d, %s\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         method, version, msg);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.mech = saslmech;
+            logpb.msg = msg;
+            logpb.method = "sasl";
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=%" BERTAG_T " version=%d, %s\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             method, version, msg);
+        }
     } else {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=%" BERTAG_T " version=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         method, version);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            char method_str[22] = {0};
+
+            PR_snprintf(method_str, sizeof(method_str), "%lu", method);
+            logpb.method = method_str;
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=%" BERTAG_T " version=%d\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             method, version);
+        }
     }
 }

@@ -21,9 +21,9 @@ attributeTypes: (
 attributeTypes: (
   1.3.6.1.1.1.1.2 NAME 'gecos'
   DESC 'The GECOS field; the common name'
-  EQUALITY caseIgnoreIA5Match
-  SUBSTR caseIgnoreIA5SubstringsMatch
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
   SINGLE-VALUE
   )
 attributeTypes: (

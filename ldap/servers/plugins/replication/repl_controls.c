@@ -161,7 +161,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
     struct berval superior_uuid_val = {0};
     struct berval csn_val = {0};
     BerElement *tmp_bere = NULL;
-    Slapi_Mods modrdn_smods;
+    Slapi_Mods modrdn_smods = {0};
     PRBool got_modrdn_mods = PR_FALSE;
     ber_len_t len;
 
@@ -232,11 +232,13 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 
         if (NULL != modrdn_mods && got_modrdn_mods) {
             *modrdn_mods = slapi_mods_get_ldapmods_passout(&modrdn_smods);
+        } else {
+            slapi_mods_done(&modrdn_smods);
         }
-        slapi_mods_done(&modrdn_smods);
 
         rc = 1;
     } else {
+        /* Control not present */
         rc = 0;
     }
 loser:
@@ -257,6 +259,10 @@ loser:
     if (NULL != csn_val.bv_val) {
         ldap_memfree(csn_val.bv_val);
         csn_val.bv_val = NULL;
+    }
+    if (rc < 1) {
+        /* no control or error, free smods */
+        slapi_mods_done(&modrdn_smods);
     }
     return rc;
 }

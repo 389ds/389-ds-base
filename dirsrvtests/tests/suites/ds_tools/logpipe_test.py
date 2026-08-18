@@ -9,7 +9,7 @@
 import pytest
 import subprocess
 from lib389.utils import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier1
 

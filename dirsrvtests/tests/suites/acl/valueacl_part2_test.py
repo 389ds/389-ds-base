@@ -11,7 +11,7 @@ from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.user import UserAccount
 from lib389.idm.account import Anonymous
 from lib389.idm.organizationalunit import OrganizationalUnit
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 
 pytestmark = pytest.mark.tier1
@@ -373,7 +373,6 @@ def test_on_modrdn_allow(topo, _add_user, aci_of_user, request):
     assert useraccount.dn == 'cn=engineer,dc=example,dc=com'
 
 
-@pytest.mark.bz979515
 def test_targattrfilters_keyword(topo):
     """Testing the targattrfilters keyword that allows access control based on the value
     of the attributes being added (or deleted))
@@ -428,10 +427,9 @@ def test_targattrfilters_keyword(topo):
     conn = UserAccount(topo.standalone, "cn=acientryusr1,ou=bug979515,{}".format(DEFAULT_SUFFIX)).bind(PW_DM)
     #  Testing the targattrfilters keyword that allows access control based on the value of the attributes being added (or deleted))
     user = UserAccount(conn, "cn=acientryusr1,ou=bug979515,{}".format(DEFAULT_SUFFIX))
-    with pytest.raises(IndexError):
-        user.get_attr_vals('mail')
-        user.get_attr_vals('telephoneNumber')
-        user.get_attr_vals('cn')
+    assert len(user.get_attr_vals('mail')) == 0
+    assert len(user.get_attr_vals('telephoneNumber')) == 0
+    assert len(user.get_attr_vals('cn')) == 0
     user = UserAccount(topo.standalone, "cn=acientryusr1,ou=bug979515,{}".format(DEFAULT_SUFFIX))
     user.get_attr_vals('mail')
     user.get_attr_vals('telephoneNumber')

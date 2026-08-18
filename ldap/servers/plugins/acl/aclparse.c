@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -11,6 +11,7 @@
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include "acl.h"
 
 /****************************************************************************/
@@ -267,7 +268,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
 
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_ATTR_NOT;
-                strncpy(s, single_space, 1);
+                memcpy(s, single_space, 1);
             }
             /* Get individual components of the targetattr.
              * (targetattr = "cn || u* || phone ||tel:add:(tel=1234)
@@ -365,7 +366,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_NOT;
-                strncpy(s, single_space, 1);
+                memcpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
                 s++;
@@ -422,6 +423,9 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             f = slapi_str2filter(tstr);
             slapi_ch_free_string(&tstr);
+            if (rv > 0) {
+                slapi_ch_free_string(&tmpstr);
+            }
         } else if (strncmp(str, aci_targetdn, targetdnlen) == 0) {
             char *tstr = NULL;
             size_t LDAP_URL_prefix_len = 0;
@@ -433,7 +437,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_NOT;
-                strncpy(s, single_space, 1);
+                memcpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
                 s++;
@@ -602,16 +606,15 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
 *    things are missing.
 *
 * Input:
-*    char     *str        - String containg the acl text
-*    int    *err        - error status
+*    char   *str  - String containing the acl text
+*    int    *err  - error status
 *
 * Returns:
 *        0     --- good status
-*        <0       --- error
+*        <0    --- error
 *
 * Error Handling:
 *    None.
-*
 *
 **************************************************************************/
 static int
@@ -630,8 +633,8 @@ __aclp__sanity_check_acltxt(aci_t *aci_item, char *str)
     newstr = str;
 
     while ((s = strstr(newstr, "authenticate")) != NULL) {
-        char *next;
-        next = s + 12;
+        char *next_str;
+        next_str = s + 12;
         s--;
         while (s > str && ldap_utf8isspace(s))
             LDAP_UTF8DEC(s);
@@ -640,7 +643,7 @@ __aclp__sanity_check_acltxt(aci_t *aci_item, char *str)
             return ACL_INVALID_AUTHORIZATION;
 
         } else {
-            newstr = next;
+            newstr = next_str;
         }
     }
 
@@ -706,6 +709,7 @@ __aclp__sanity_check_acltxt(aci_t *aci_item, char *str)
     /* check for acl syntax error */
     if ((handle = (ACLListHandle_t *)ACL_ParseString(&errp, newstr)) == NULL) {
         acl_print_acllib_err(&errp, str);
+        nserrDispose(&errp);
         slapi_ch_free_string(&newstr);
         return ACL_SYNTAX_ERR;
     } else {
@@ -844,12 +848,15 @@ __aclp__normalize_acltxt(aci_t *aci_item, char *str)
     s = aclstr;
     while (s && ldap_utf8isspace(s))
         LDAP_UTF8INC(s);
+    if (s == NULL || *s == '\0' || *(s + 1) == '\0' || *(s + 2) == '\0') {
+        goto error;
+    }
     *(s + 2) = 'l';
 
     aclName = s + 3;
 
     s = strchr(aclstr, ';');
-    if (NULL == s) {
+    if (NULL == s || aclName >= s) {
         goto error;
     }
 
@@ -902,6 +909,7 @@ normalize_nextACERule:
      */
     if (strncasecmp(tmp_str, "allow", 5) == 0) {
         memcpy(acestr, tmp_str, len);
+        acestr[len] = 0;
         tmp_str += 5;
         /* gather the rights */
         aci_rights_val = __aclp__get_aci_right(tmp_str); /* bug 389975 */
@@ -942,7 +950,9 @@ normalize_nextACERule:
 
         len = strlen(d_rule);
         memcpy(acestr, d_rule, len);
-        memcpy(acestr + len, tmp_str, strlen(tmp_str));
+        size_t len2 = strlen(tmp_str);
+        memcpy(acestr + len, tmp_str, len2);
+        acestr[len+len2] = 0;
 
         s = strchr(acestr, ')');
         if (NULL == s) {
@@ -1143,13 +1153,16 @@ normalize_nextACERule:
             if (nextACE && *nextACE != '\0')
                 aclutil_str_append(&ret_str, nextACE);
             slapi_ch_free_string(&s_aclstr);
+            slapi_ch_free_string(&s_acestr);
             return (ret_str);
         }
         acestr = nextACE;
+        slapi_ch_free_string(&s_acestr);
         goto normalize_nextACERule;
     }
 
     slapi_ch_free_string(&s_aclstr);
+    slapi_ch_free_string(&s_acestr);
     return (ret_str);
 
 error:
@@ -1603,7 +1616,7 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
     }
 
     while (str != 0 && *str != 0) {
-        int lenstr = 0;
+        int len_str = 0;
 
         __acl_strip_leading_space(&str);
 
@@ -1630,9 +1643,9 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
          */
         attr = (Targetattr *)slapi_ch_calloc(1, sizeof(Targetattr));
         /* strip double quotes */
-        lenstr = strlen(str);
-        if (*str == '"' && *(str + lenstr - 1) == '"') {
-            *(str + lenstr - 1) = '\0';
+        len_str = strlen(str);
+        if (*str == '"' && *(str + len_str - 1) == '"') {
+            *(str + len_str - 1) = '\0';
             str++;
         }
         if (strchr(str, '*')) {
@@ -1643,8 +1656,8 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
                 char *newline = NULL;
                 struct slapi_filter *f = NULL;
 
-                if (lenstr > 92) { /* 100 - 8 for "(attr=%s)\0" */
-                    newline = slapi_ch_malloc(lenstr + 8);
+                if (len_str > 92) { /* 100 - 8 for "(attr=%s)\0" */
+                    newline = slapi_ch_malloc(len_str + 8);
                     lineptr = newline;
                 }
 
@@ -1843,6 +1856,7 @@ __aclp_chk_paramRules(aci_t *aci_item, char *start, char *end)
 
     s = str = (char *)slapi_ch_calloc(1, len + 1);
     memcpy(str, start, len);
+    s[len] = 0; /* purely for covscan */
     while ((p = strchr(s, '$')) != NULL) {
         p++; /* skip the $ */
         if (0 == strncasecmp(p, "dn", 2))

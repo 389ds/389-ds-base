@@ -1030,6 +1030,7 @@ bailout:
      * slapi_pblock_set() will free any previous data, and
      * pblock_done() will free SLAPI_PB_RESULT_TEXT.
      */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, gerstr);
 
     if (!iscritical) {

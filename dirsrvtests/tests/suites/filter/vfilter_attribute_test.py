@@ -14,7 +14,7 @@ import os
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.schema import Schema
@@ -206,7 +206,7 @@ def test_all_together_positive(topo, _create_test_entries, filter_test, conditio
         :steps:
             1. Create Filter rules.
             2. Try to pass filter rules as per the condition .
-        :expected results:
+        :expectedresults:
             1. It should pass
             2. It should pass
         """

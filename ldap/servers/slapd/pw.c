@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2018 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -79,6 +79,7 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sechash.h>
@@ -226,6 +227,9 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
             slapi_log_err(SLAPI_LOG_ERR, "slapi_encode_ext",
                           "no encoding password storage scheme found for %s\n",
                           pwpolicy->pw_storagescheme->pws_name);
+
+            /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+            /* coverity[leaked_storage] */
             return NULL;
         }
     } else {
@@ -240,8 +244,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
                 slapi_ch_free((void **)&scheme_list);
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, "slapi_encode_ext",
-                              "Invalid scheme - %s\n"
-                              "no pwdstorage scheme plugin loaded",
+                              "Invalid scheme: %s ==> "
+                              "no pwdstorage scheme plugin loaded\n",
                               alg);
             }
             return NULL;
@@ -252,6 +256,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
 
     hashedval = (*pws_enc)(value);
 
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return hashedval;
 }
 
@@ -270,18 +276,9 @@ pw_name2scheme(char *name)
     typedef char *(*ENCFP)(char *);
 
     if (name == NULL || strcmp(DEFAULT_PASSWORD_SCHEME_NAME, name) == 0) {
-        /*
-         * If the name is DEFAULT, we need to get a scheme based on env and others.
-         */
-        if (slapd_pk11_isFIPS()) {
-            /* Are we in fips mode? This limits algos we have */
-            char *ssha = "SSHA512";
-            p = plugin_get_pwd_storage_scheme(ssha, strlen(ssha), PLUGIN_LIST_PWD_STORAGE_SCHEME);
-        } else {
-            /* if not, let's setup pbkdf2 */
-            char *pbkdf = "PBKDF2_SHA256";
-            p = plugin_get_pwd_storage_scheme(pbkdf, strlen(pbkdf), PLUGIN_LIST_PWD_STORAGE_SCHEME);
-        }
+         /* default scheme */
+         char *pbkdf = "PBKDF2-SHA512";
+         p = plugin_get_pwd_storage_scheme(pbkdf, strlen(pbkdf), PLUGIN_LIST_PWD_STORAGE_SCHEME);
     } else {
         /*
          * Else, get the scheme "as named".
@@ -466,10 +463,13 @@ checkPrefix(char *cipher, char *schemaName, char **encrypt, char **algid)
                 } else {
                     char algid_buf[256];
 
-                    /* extract the algid (length is never greater than 216 */
+                    /* extract the algid - enforce buffer limit */
+                    if ((end - delim) >= (int)sizeof(algid_buf)) {
+                        return 1;  /* algid too long, error */
+                    }
                     memcpy(algid_buf, delim + 1, (end - delim));
                     algid_buf[end - delim - 1] = '\0';
-                    *algid = strdup(algid_buf);
+                    *algid = slapi_ch_strdup(algid_buf);
 
                     /* extract the encrypted password */
                     *encrypt = cipher + strlen(*algid) + strlen(schemaName) + 3;
@@ -671,6 +671,9 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
     internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
     target_dn = slapi_sdn_get_ndn(sdn);
     pwpolicy = new_passwdPolicy(pb, target_dn);
+    if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_ONLY) && pwpolicy->pw_admin_skip_info) {
+        return 0;
+    }
     cur_time = slapi_current_utc_time();
     slapi_mods_init(&smods, 0);
 
@@ -723,6 +726,23 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
         slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "FALSE");
     }
 
+    if (slapi_entry_attr_hasvalue(e, "pwdTPRReset", "TRUE")) {
+        /*
+         * Password TPR was previously reset, just reset the "reset" flag and
+         * unset all TPR related operational attributes.
+         * If the password is being reset again we will catch it below...
+         */
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRReset", "FALSE");
+        if (slapi_entry_attr_exists(e, "pwdTPRUseCount")) {
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, "pwdTPRUseCount", 0, NULL);
+        }
+        if (slapi_entry_attr_exists(e, "pwdTPRExpireAt")) {
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, "pwdTPRExpireAt", 0, NULL);
+        }
+        if (slapi_entry_attr_exists(e, "pwdTPRValidFrom")) {
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, "pwdTPRValidFrom", 0, NULL);
+        }
+    }
     /*
      * If the password is reset by a different user, mark it the first time logon.  If this is an internal
      * operation, we have a special case for the password modify extended operation where
@@ -731,10 +751,51 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
      */
     if ((internal_op && pwpolicy->pw_must_change && (!pb_conn || strcasecmp(target_dn, pb_conn->c_dn))) ||
         (!internal_op && pwpolicy->pw_must_change &&
-         ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy))))
+         ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN))))
     {
         pw_exp_date = NO_TIME;
         slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "TRUE");
+        if ((pwpolicy->pw_tpr_maxuse >= 0) ||
+            (pwpolicy->pw_tpr_delay_expire_at >= 0) ||
+            (pwpolicy->pw_tpr_delay_valid_from >= 0)) {
+            char *use_count, *expire_at, *valid_from;
+            time_t cur_time;
+            cur_time = slapi_current_utc_time();
+            slapi_log_err(SLAPI_LOG_TRACE,
+                          "update_pw_info",
+                          "TPR password reset by an admin, pwdTPRReset=TRUE\n");
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRReset", "TRUE");
+
+            /* If useCount is -1, this means this limit is not enforced */
+            if (pwpolicy->pw_tpr_maxuse >= 0) {
+                use_count = "0";
+            } else {
+                use_count = "-1";
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "update_pw_info", "pwdTPRUseCount = %s\n", use_count);
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRUseCount", use_count);
+
+            /* If expire_at is -1, this means this limit is not enforced */
+            if (pwpolicy->pw_tpr_delay_expire_at >= 0) {
+                expire_at = format_genTime(time_plus_sec(cur_time, pwpolicy->pw_tpr_delay_expire_at));
+            } else {
+                expire_at = slapi_ch_strdup("-1");
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "update_pw_info", "pwdTPRExpireAt = %s\n", expire_at);
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRExpireAt", expire_at);
+            slapi_ch_free((void **)&expire_at);
+
+            /* If valid_from is -1, this means this limit is not enforced */
+            if (pwpolicy->pw_tpr_delay_valid_from >= 0) {
+                valid_from = format_genTime(time_plus_sec(cur_time, pwpolicy->pw_tpr_delay_valid_from));
+            } else {
+                valid_from = slapi_ch_strdup("-1");
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "update_pw_info", "pwdTPRValidFrom = %s\n", valid_from);
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRValidFrom", valid_from);
+            slapi_ch_free((void **)&valid_from);
+
+        }
     } else if (pwpolicy->pw_exp == 1) {
         Slapi_Entry *pse = NULL;
 
@@ -821,12 +882,15 @@ check_pw_minage(Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __at
 
             /* check if allow to change the password */
             cur_time_str = format_genTime(slapi_current_utc_time());
-            if (difftime(pw_allowchange_date,
-                         parse_genTime(cur_time_str)) > 0) {
+            if (difftime(pw_allowchange_date, parse_genTime(cur_time_str)) > 0) {
                 if (pwresponse_req == 1) {
                     slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                          LDAP_PWPOLICY_PWDTOOYOUNG);
                 }
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "Password within minimum age: Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+
                 pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "within password minimum age", 0, NULL);
                 slapi_entry_free(e);
                 slapi_ch_free((void **)&cur_time_str);
@@ -925,17 +989,11 @@ pw_sequence(const char *new, int32_t max_seq)
 static int
 pw_max_class_repeats(const char *new, int32_t max_repeats)
 {
-    int digits = 0;
-    int uppers = 0;
-    int lowers = 0;
-    int others = 0;
-    int i;
     enum { NONE, DIGIT, UCASE, LCASE, OTHER } prevclass = NONE;
     int sameclass = 0;
 
-    for (i = 0; new[i]; i++) {
+    for (size_t i = 0; new[i]; i++) {
         if (isdigit(new[i])) {
-            digits++;
             if (prevclass != DIGIT) {
                 prevclass = DIGIT;
                 sameclass = 1;
@@ -943,7 +1001,6 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
                 sameclass++;
             }
         } else if (isupper (new[i])) {
-            uppers++;
             if (prevclass != UCASE) {
                 prevclass = UCASE;
                 sameclass = 1;
@@ -951,7 +1008,6 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
                 sameclass++;
             }
         } else if (islower (new[i])) {
-            lowers++;
             if (prevclass != LCASE) {
                 prevclass = LCASE;
                 sameclass = 1;
@@ -959,7 +1015,6 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
                 sameclass++;
             }
         } else {
-            others++;
             if (prevclass != OTHER) {
                 prevclass = OTHER;
                 sameclass = 1;
@@ -975,10 +1030,11 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
 }
 
 static void
-report_pw_violation(Slapi_PBlock *pb, int pwresponse_req, char *fmt, ...)
+report_pw_violation(Slapi_PBlock *pb, char *dn, int pwresponse_req, char *fmt, ...)
 {
     char errormsg[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
     va_list msg;
+    passwdPolicy *pwpolicy = slapi_pblock_get_pwdpolicy(pb);
 
     va_start(msg, fmt);
     PR_vsnprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE - 1, fmt, msg);
@@ -987,6 +1043,9 @@ report_pw_violation(Slapi_PBlock *pb, int pwresponse_req, char *fmt, ...)
     }
     pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
     va_end(msg);
+    slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                  "%s: Entry (%s) Policy (%s)\n",
+                  errormsg, dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
 }
 
 /* check_pw_syntax is called before add or modify operation on userpassword attribute*/
@@ -1001,7 +1060,8 @@ int
 check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods)
 {
     Slapi_Attr *attr;
-    int i, pwresponse_req = 0;
+    Slapi_Value **va = NULL;
+    int pwresponse_req = 0;
     int is_replication = 0;
     int internal_op = 0;
     char *dn = (char *)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
@@ -1051,23 +1111,43 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
      * when processing an internal operation to handle a special
      * case for the password modify extended operation.
      */
-    for (i = 0; vals[i] != NULL; ++i) {
+    for (size_t i = 0; vals[i] != NULL; ++i) {
         if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
             if (!is_replication && !config_get_allow_hashed_pw() &&
                 ((internal_op && pb_conn && !slapi_dn_isroot(pb_conn->c_dn)) ||
-                 (!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))
+                 (!internal_op && !pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN))))
             {
-                report_pw_violation(pb, pwresponse_req, "invalid password syntax - passwords with storage scheme are not allowed");
+                report_pw_violation(pb, dn, pwresponse_req, "Invalid password syntax - passwords with storage scheme are not allowed");
                 return (1);
             } else {
-                /* We want to skip syntax checking since this is a pre-hashed password */
+                /* We want to skip syntax checking since this is a pre-hashed password. But if the user
+                 * has thrown caution to wind and allowed hashed passwords, we capture the history
+                 */
+                if (config_get_allow_hashed_pw() && pwpolicy->pw_history) {
+                    e = get_entry(pb, dn);
+                    if (e == NULL) {
+                        return -1;
+                    }
+                    attr = attrlist_find(e->e_attrs, SLAPI_USERPWD_ATTR);
+                    if (attr && !valueset_isempty(&attr->a_present_values)) {
+                        if (old_pw) {
+                            va = valueset_get_valuearray(&attr->a_present_values);
+                            if (va != NULL) {
+                                *old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+                            } else {
+                                *old_pw = NULL;
+                            }
+                        }
+                    }
+                    slapi_entry_free(e);
+                }
                 return (0);
             }
         }
     }
 
     if (pwpolicy->pw_syntax == LDAP_ON) {
-        for (i = 0; vals[i] != NULL; ++i) {
+        for (size_t i = 0; vals[i] != NULL; ++i) {
             int syntax_violation = 0;
             int num_digits = 0;
             int num_alphas = 0;
@@ -1078,7 +1158,6 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             int num_repeated = 0;
             int max_repeated = 0;
             int num_categories = 0;
-            char **bad_words_array;
 
             pwd = (char *)slapi_value_get_string(vals[i]);
 
@@ -1086,7 +1165,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             if (pwpolicy->pw_check_dict) {
                 const char *crack_msg;
                 if ((crack_msg = FascistCheck(pwd, pwpolicy->pw_dict_path))) {
-                    report_pw_violation(pb, pwresponse_req, "Password failed dictionary check: %s", crack_msg);
+                    report_pw_violation(pb, dn, pwresponse_req, "Password failed dictionary check: %s", crack_msg);
                     return (1);
                 }
             }
@@ -1094,30 +1173,25 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* check palindrome */
             if (pwpolicy->pw_palindrome) {
                 if (palindrome(pwd)) {
-                    report_pw_violation(pb, pwresponse_req, "Password is a palindrome");
+                    report_pw_violation(pb, dn, pwresponse_req, "Password is a palindrome");
                     return (1);
                 }
             }
 
             /* Check for bad words */
-            bad_words_array = config_get_pw_bad_words_array();
-            if (bad_words_array) {
-                for (size_t b = 0; bad_words_array && bad_words_array[b]; b++) {
-                    if (strcasestr(pwd, bad_words_array[b])) {
-                        report_pw_violation(pb, pwresponse_req, "Password contains a restricted word");
-                        charray_free(bad_words_array);
+            if (pwpolicy->pw_bad_words_array) {
+                for (size_t b = 0; pwpolicy->pw_bad_words_array[b]; b++) {
+                    if (strcasestr(pwd, pwpolicy->pw_bad_words_array[b])) {
+                        report_pw_violation(pb, dn, pwresponse_req, "Password contains a restricted word");
                         return (1);
                     }
                 }
-                charray_free(bad_words_array);
             }
 
             /* Check for sequences */
             if (pwpolicy->pw_max_seq) {
                 if (pw_sequence(pwd, pwpolicy->pw_max_seq)) {
-                    report_pw_violation(pb, pwresponse_req, "Password contains a monotonic sequence");
-                    PR_snprintf(errormsg, sizeof(errormsg) - 1, "Password contains a monotonic sequence");
-
+                    report_pw_violation(pb, dn, pwresponse_req, "Password contains a monotonic sequence");
                     return (1);
                 }
             }
@@ -1125,7 +1199,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* Check for sets of sequences */
             if (pwpolicy->pw_seq_char_sets) {
                 if (pw_sequence_sets(pwd, pwpolicy->pw_seq_char_sets, 1)){
-                    report_pw_violation(pb, pwresponse_req, "Password contains repeated identical sequences");
+                    report_pw_violation(pb, dn, pwresponse_req, "Password contains repeated identical sequences");
                     return (1);
                 }
             }
@@ -1133,7 +1207,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* Check for max repeated characters from the same class */
             if (pwpolicy->pw_max_class_repeats) {
                 if (pw_max_class_repeats(pwd, pwpolicy->pw_max_class_repeats)){
-                    report_pw_violation(pb, pwresponse_req,
+                    report_pw_violation(pb, dn, pwresponse_req,
                             "Password contains too many repeated characters from the same character class");
                     return (1);
                 }
@@ -1141,8 +1215,8 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
             /* check for the minimum password length */
             if (pwpolicy->pw_minlength > (int)ldap_utf8characters((char *)pwd)) {
-                report_pw_violation(pb, pwresponse_req,
-                        "invalid password syntax - password must be at least %d characters long",
+                report_pw_violation(pb, dn, pwresponse_req,
+                        "Invalid password syntax - password must be at least %d characters long",
                         pwpolicy->pw_minlength);
                 return (1);
             }
@@ -1207,42 +1281,42 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             if (pwpolicy->pw_mindigits > num_digits) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d digit characters",
+                            "Invalid password syntax - password must contain at least %d digit characters",
                             pwpolicy->pw_mindigits);
             } else if (pwpolicy->pw_minalphas > num_alphas) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d alphabetic characters",
+                            "Invalid password syntax - password must contain at least %d alphabetic characters",
                             pwpolicy->pw_minalphas);
             } else if (pwpolicy->pw_minuppers > num_uppers) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d uppercase characters",
+                            "Invalid password syntax - password must contain at least %d uppercase characters",
                             pwpolicy->pw_minuppers);
             } else if (pwpolicy->pw_minlowers > num_lowers) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d lowercase characters",
+                            "Invalid password syntax - password must contain at least %d lowercase characters",
                             pwpolicy->pw_minlowers);
             } else if (pwpolicy->pw_minspecials > num_specials) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d special characters",
+                            "Invalid password syntax - password must contain at least %d special characters",
                             pwpolicy->pw_minspecials);
             } else if (pwpolicy->pw_min8bit > num_8bit) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d 8-bit characters",
+                            "Invalid password syntax - password must contain at least %d 8-bit characters",
                             pwpolicy->pw_min8bit);
             } else if ((pwpolicy->pw_maxrepeats != 0) && (pwpolicy->pw_maxrepeats < (max_repeated + 1))) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - a character cannot be repeated more than %d times",
+                            "Invalid password syntax - a character cannot be repeated more than %d times",
                             (pwpolicy->pw_maxrepeats));
             } else if (pwpolicy->pw_mincategories > num_categories) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
-                            "invalid password syntax - password must contain at least %d character "
+                            "Invalid password syntax - password must contain at least %d character "
                             "categories (valid categories are digit, uppercase, lowercase, special, and 8-bit characters)",
                             pwpolicy->pw_mincategories);
             }
@@ -1254,6 +1328,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                                                          LDAP_PWPOLICY_INVALIDPWDSYNTAX);
                 }
                 pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "%s: Entry (%s) Policy (%s)\n",
+                              errormsg, dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 return (1);
             }
         }
@@ -1270,7 +1347,6 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
         /* check for password history */
         if (pwpolicy->pw_history == 1) {
-            Slapi_Value **va = NULL;
             attr = attrlist_find(e->e_attrs, "passwordHistory");
             if (pwpolicy->pw_inhistory && attr && !valueset_isempty(&attr->a_present_values)) {
                 /* Resetting password history array if necessary. */
@@ -1285,6 +1361,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                         slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDINHISTORY);
                     }
                     pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                    slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                  "Password in history: Entry (%s) Policy (%s)\n",
+                                  dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                     slapi_entry_free(e);
                     return (1);
                 }
@@ -1297,12 +1376,18 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                 if (slapi_is_encoded((char *)slapi_value_get_string(vals[0]))) {
                     if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[0])) == 0) {
                         pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                      "Password in history: Entry (%s) Policy (%s)\n",
+                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                         slapi_entry_free(e);
                         return (1);
                     }
                 } else {
                     if (slapi_pw_find_sv(va, vals[0]) == 0) {
                         pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                      "Password in history: Entry (%s) Policy (%s)\n",
+                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                         slapi_entry_free(e);
                         return (1);
                     }
@@ -1324,14 +1409,14 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
     /* check for trivial words if syntax checking is enabled */
     if (pwpolicy->pw_syntax == LDAP_ON) {
-        char **user_attrs_array;
         /* e is null if this is an add operation*/
         if (check_trivial_words(pb, e, vals, "uid", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "cn", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "sn", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "givenname", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "ou", pwpolicy->pw_mintokenlength, smods) == 1 ||
-            check_trivial_words(pb, e, vals, "mail", pwpolicy->pw_mintokenlength, smods) == 1) {
+            check_trivial_words(pb, e, vals, "mail", pwpolicy->pw_mintokenlength, smods) == 1)
+        {
             if (mod_op) {
                 slapi_entry_free(e);
             }
@@ -1339,18 +1424,15 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             return 1;
         }
         /* Check user attributes */
-        user_attrs_array = config_get_pw_user_attrs_array();
-        if (user_attrs_array) {
-            for (size_t a = 0; user_attrs_array && user_attrs_array[a]; a++) {
-                if (check_trivial_words(pb, e, vals, user_attrs_array[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
+        if (pwpolicy->pw_cmp_attrs_array) {
+            for (size_t a = 0; pwpolicy->pw_cmp_attrs_array[a]; a++) {
+                if (check_trivial_words(pb, e, vals, pwpolicy->pw_cmp_attrs_array[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
                     if (mod_op) {
                         slapi_entry_free(e);
                     }
-                    charray_free(user_attrs_array);
                     return 1;
                 }
             }
-            charray_free(user_attrs_array);
         }
     }
 
@@ -1440,7 +1522,18 @@ update_pw_history(Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw)
     pwpolicy = new_passwdPolicy(pb, dn);
 
     if (pwpolicy->pw_inhistory == 0){
-        /* We are only enforcing the current password, just return */
+        /* We are only enforcing the current password, just return but first
+         * cleanup any old passwords in the history */
+        attribute.mod_type = "passwordHistory";
+        attribute.mod_op = LDAP_MOD_REPLACE;
+        attribute.mod_values = NULL;
+        list_of_mods[0] = &attribute;
+        list_of_mods[1] = NULL;
+        mod_pb = slapi_pblock_new();
+        slapi_modify_internal_set_pb_ext(mod_pb, sdn, list_of_mods, NULL, NULL, pw_get_componentID(), 0);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_destroy(mod_pb);
+
         return res;
     }
 
@@ -1649,8 +1742,8 @@ add_password_attrs(Slapi_PBlock *pb, Operation *op __attribute__((unused)), Slap
         if (!strcasecmp((*a)->a_type, "passwordexpirationtime")) {
             Slapi_Value *sval;
             if (slapi_attr_first_value(*a, &sval) == 0) {
-                const struct berval *bv = slapi_value_get_berval(sval);
-                existing_exptime = parse_genTime(bv->bv_val);
+                const struct berval *pw_bv = slapi_value_get_berval(sval);
+                existing_exptime = parse_genTime(pw_bv->bv_val);
             }
             has_expirationtime = 1;
 
@@ -1709,6 +1802,8 @@ add_password_attrs(Slapi_PBlock *pb, Operation *op __attribute__((unused)), Slap
         slapi_entry_attr_merge(e, "passwordallowchangetime", bvals);
         slapi_ch_free_string(&bv.bv_val);
     }
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
 }
 
 static int
@@ -1718,6 +1813,7 @@ check_trivial_words(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *
     Slapi_Mod *smodp = NULL, *smod = NULL;
     Slapi_ValueSet *vs = NULL;
     Slapi_Value *valp = NULL;
+    passwdPolicy *pwpolicy = slapi_pblock_get_pwdpolicy(pb);
     struct berval *bvp = NULL;
     int i, pwresponse_req = 0;
 
@@ -1800,10 +1896,12 @@ check_trivial_words(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *
                     slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                          LDAP_PWPOLICY_INVALIDPWDSYNTAX);
                 }
-                pw_send_ldap_result(pb,
-                                    LDAP_CONSTRAINT_VIOLATION, NULL,
+                pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                     "invalid password syntax - password based off of user entry", 0, NULL);
-
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "Password based off of user entry (attr=%s token_len=%d): Entry (%s) Policy (%s)\n",
+                              attrtype, toklen, slapi_entry_get_dn_const(e),
+                              pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 /* Free valueset */
                 slapi_valueset_free(vs);
                 return (1);
@@ -1817,7 +1915,7 @@ check_trivial_words(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *
 }
 
 int
-pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp)
+pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp, int rootdn_flag)
 {
     Slapi_DN *bind_sdn = NULL;
     int i;
@@ -1826,8 +1924,9 @@ pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp)
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &is_requestor_root);
 
     /* first check if it's root */
-    if (is_requestor_root) {
+    if (is_requestor_root && rootdn_flag == PWP_ADMIN_OR_ROOTDN) {
         return 1;
+
     }
     /* now check if it's a Password Policy Administrator */
     slapi_pblock_get(pb, SLAPI_REQUESTOR_SDN, &bind_sdn);
@@ -1942,9 +2041,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 
     /* If we already allocated a pw policy, return it */
     if (pb != NULL) {
-        passwdPolicy *pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
-        if (pwdpolicy != NULL) {
-            return pwdpolicy;
+        passwdPolicy *existing_pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
+        if (existing_pwdpolicy != NULL) {
+            return existing_pwdpolicy;
         }
     }
 
@@ -2039,11 +2138,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             }
 
             if (e) {
-                Slapi_Attr *attr = NULL;
-                rc = slapi_entry_attr_find(e, "pwdpolicysubentry", &attr);
-                if (attr && (0 == rc)) {
+                Slapi_Attr *e_attr = NULL;
+                rc = slapi_entry_attr_find(e, "pwdpolicysubentry", &e_attr);
+                if (e_attr && (0 == rc)) {
                     /* If the entry has pwdpolicysubentry, use the PwPolicy. */
-                    values = valueset_dup(&attr->a_present_values);
+                    values = valueset_dup(&e_attr->a_present_values);
                 } else {
                     /* Otherwise, retrieve the policy from CoS Cache */
                     rc = slapi_vattr_values_get(e, "pwdpolicysubentry", &values,
@@ -2060,7 +2159,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             Slapi_Value *v = NULL;
             const struct berval *bvp = NULL;
 
-            if (((rc = slapi_valueset_first_value(values, &v)) != -1) &&
+            if ((slapi_valueset_first_value(values, &v) != -1) &&
                 (bvp = slapi_value_get_berval(v)) != NULL) {
                 if (bvp != NULL) {
                     /* we got the pwdpolicysubentry value */
@@ -2075,10 +2174,13 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             if (pw_entry == NULL) {
                 slapi_log_err(SLAPI_LOG_ERR, "new_passwdPolicy",
                               "Loading global password policy for %s"
-                              " --local policy entry not found\n",
+                              " -- local policy entry not found\n",
                               dn);
                 goto done;
             }
+
+            /* policy is local, store the DN of the policy for logging */
+            pwdpolicy->pw_local_dn = slapi_ch_strdup(slapi_entry_get_dn(pw_entry));
 
             /* Set the default values (from libglobs.c) */
             pwpolicy_init_defaults(pwdpolicy);
@@ -2243,6 +2345,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                         pwdpolicy->pw_admin = slapi_sdn_new_dn_byval(slapi_value_get_string(*sval));
                         pw_get_admin_users(pwdpolicy);
                     }
+                } else if (!strcasecmp(attr_name, "passwordAdminSkipInfoUpdate")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_admin_skip_info =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
                 } else if (!strcasecmp(attr_name, "passwordPalindrome")) {
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_palindrome =
@@ -2252,6 +2359,33 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_check_dict =
                             pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
+                } else if (!strcasecmp(attr_name, "passwordBreachCheck")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_check_breach =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
+                } else if (!strcasecmp(attr_name, "passwordBreachDbUrl")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        const char *url = slapi_value_get_string(*sval);
+                        size_t url_len = strlen(url);
+                        /* Validate URL: require https:// and trailing slash */
+                        if (url_len > 0 && strncasecmp(url, "https://", 8) != 0) {
+                            slapi_log_err(SLAPI_LOG_ERR, "new_passwdPolicy",
+                                "Invalid passwordBreachDbUrl in local policy %s: must use https://\n",
+                                pwdpolicy->pw_local_dn);
+                        } else if (url_len > 0 && url[url_len - 1] != '/') {
+                            slapi_log_err(SLAPI_LOG_ERR, "new_passwdPolicy",
+                                "Invalid passwordBreachDbUrl in local policy %s: must end with trailing slash\n",
+                                pwdpolicy->pw_local_dn);
+                        } else {
+                            pwdpolicy->pw_breach_db_url = slapi_ch_strdup(url);
+                        }
+                    }
+                } else if (!strcasecmp(attr_name, "passwordBreachDbTimeout")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_breach_db_timeout =
+                            atoi(slapi_value_get_string(*sval));
                     }
                 } else if (!strcasecmp(attr_name, "passwordUserAttributes")) {
                     if ((sval = attr_get_present_values(attr))) {
@@ -2298,6 +2432,18 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_dict_path = (char *)slapi_value_get_string(*sval);
                     }
+                } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_MAXUSE)) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_tpr_maxuse = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_DELAY_EXPIRE_AT)) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_tpr_delay_expire_at = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_DELAY_VALID_FROM)) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_tpr_delay_valid_from = slapi_value_get_int(*sval);
+                    }
                 }
             } /* end of for() loop */
             if (pw_entry) {
@@ -2321,6 +2467,20 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     pwdpolicy->pw_maxrepeats = g_pwdpolicy->pw_maxrepeats;
                     pwdpolicy->pw_mincategories = g_pwdpolicy->pw_mincategories;
                     pwdpolicy->pw_mintokenlength = g_pwdpolicy->pw_mintokenlength;
+                    pwdpolicy->pw_max_seq = g_pwdpolicy->pw_max_seq;
+                    pwdpolicy->pw_seq_char_sets = g_pwdpolicy->pw_seq_char_sets;
+                    pwdpolicy->pw_max_class_repeats = g_pwdpolicy->pw_max_class_repeats;
+                    pwdpolicy->pw_palindrome = g_pwdpolicy->pw_palindrome;
+                    pwdpolicy->pw_check_dict = g_pwdpolicy->pw_check_dict;
+                    pwdpolicy->pw_dict_path = g_pwdpolicy->pw_dict_path;
+                    pwdpolicy->pw_check_breach = g_pwdpolicy->pw_check_breach;
+                    slapi_ch_free_string(&pwdpolicy->pw_breach_db_url);
+                    pwdpolicy->pw_breach_db_url = config_get_pw_breach_url();
+                    pwdpolicy->pw_breach_db_timeout = g_pwdpolicy->pw_breach_db_timeout;
+                    slapi_ch_array_free(pwdpolicy->pw_cmp_attrs_array);
+                    pwdpolicy->pw_cmp_attrs_array = config_get_pw_user_attrs_array();
+                    slapi_ch_array_free(pwdpolicy->pw_bad_words_array);
+                    pwdpolicy->pw_bad_words_array = config_get_pw_bad_words_array();
                     pwdpolicy->pw_syntax = LDAP_ON; /* Need to enable it to apply the default values */
                 }
             }
@@ -2366,6 +2526,15 @@ delete_passwdPolicy(passwdPolicy **pwpolicy)
             }
             slapi_ch_free((void **)&(*(*pwpolicy)).pw_admin_user);
         }
+        if ((*(*pwpolicy)).pw_local_dn) {
+            /* local policies have their own copies that need to be freed */
+            slapi_ch_array_free((*(*pwpolicy)).pw_bad_words_array);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_bad_words);
+            slapi_ch_array_free((*(*pwpolicy)).pw_cmp_attrs_array);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_cmp_attrs);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_breach_db_url);
+        }
+        slapi_ch_free_string(&(*(*pwpolicy)).pw_local_dn);
         slapi_ch_free((void **)pwpolicy);
     }
 }
@@ -2446,7 +2615,7 @@ slapi_pwpolicy_make_response_control(Slapi_PBlock *pb, int seconds, int logins, 
         ber_bvfree(bvp);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "slapi_pwpolicy_make_response_control", "<= (%d)", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "slapi_pwpolicy_make_response_control", "<= (%d)\n", rc);
 
     return (rc == -1 ? LDAP_OPERATIONS_ERROR : LDAP_SUCCESS);
 }
@@ -2555,6 +2724,256 @@ check_pw_storagescheme_value(const char *attr_name __attribute__((unused)), char
     return retVal;
 }
 
+ /* pwpolicy_attr_check_fn function should return an LDAP result code (LDAP_SUCCESS if all goes well), shared by ADD and MODIFY */
+typedef int (*pwpolicy_attr_check_fn)(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
+
+static const struct pwpolicy_attr_value_check
+{
+    const char *attr_name;
+    pwpolicy_attr_check_fn checkfunc;
+    long minval;
+    long maxval;
+} pwpolicy_attr_value_checklist[] = {
+    {CONFIG_PW_SYNTAX_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_CHANGE_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_LOCKOUT_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_MUSTCHANGE_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_EXP_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_UNLOCK_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_HISTORY_ATTRIBUTE, attr_check_onoff, 0, 0},
+    {CONFIG_PW_MINAGE_ATTRIBUTE, check_pw_duration_value, -1, -1},
+    {CONFIG_PW_WARNING_ATTRIBUTE, check_pw_duration_value, 0, -1},
+    {CONFIG_PW_MINLENGTH_ATTRIBUTE, attr_check_minmax, 2, 512},
+    {CONFIG_PW_MAXFAILURE_ATTRIBUTE, attr_check_minmax, 1, 32767},
+    {CONFIG_PW_INHISTORY_ATTRIBUTE, attr_check_minmax, 0, 24},
+    {CONFIG_PW_LOCKDURATION_ATTRIBUTE, check_pw_duration_value, -1, -1},
+    {CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, check_pw_resetfailurecount_value, -1, -1},
+    {CONFIG_PW_GRACELIMIT_ATTRIBUTE, attr_check_minmax, 0, -1},
+    {CONFIG_PW_STORAGESCHEME_ATTRIBUTE, check_pw_storagescheme_value, -1, -1},
+    {CONFIG_PW_MAXAGE_ATTRIBUTE, check_pw_duration_value, -1, -1}};
+
+#define PWPOLICY_ATTR_CHECK_COUNT \
+    (sizeof(pwpolicy_attr_value_checklist) / sizeof(pwpolicy_attr_value_checklist[0]))
+
+/* Local password policies only. */
+static bool
+entry_is_pwpolicy(Slapi_Entry *e)
+{
+    Slapi_Value target;
+    bool is_pwp;
+
+    if (e == NULL) {
+        return false;
+    }
+
+    slapi_value_init(&target);
+    slapi_value_set_string(&target, "passwordpolicy");
+    is_pwp = (slapi_entry_attr_has_syntax_value(e, "objectclass", &target) == 1);
+    value_done(&target);
+    return is_pwp;
+}
+
+/* Validate a single attr against the checklist */
+static int
+check_pwpolicy_attr_value(const char *attr_type, char *value, char *errorbuf, size_t ebuflen)
+{
+    size_t i;
+
+    if (attr_type == NULL || value == NULL) {
+        return LDAP_SUCCESS;
+    }
+
+    for (i = 0; i < PWPOLICY_ATTR_CHECK_COUNT; i++) {
+        const struct pwpolicy_attr_value_check *c = &pwpolicy_attr_value_checklist[i];
+
+        if (slapi_attr_type_cmp(attr_type, c->attr_name, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
+            return c->checkfunc(c->attr_name, value, c->minval, c->maxval, errorbuf, ebuflen);
+        }
+    }
+
+    return LDAP_SUCCESS;
+}
+
+/* Passwordpolicy attr validation for ADD and MODIFY */
+int
+check_pw_policy_attrs(Slapi_Entry *e, LDAPMod **mods, char *errorbuf, size_t ebuflen)
+{
+    if (!entry_is_pwpolicy(e)) {
+        return LDAP_SUCCESS;
+    }
+
+    /* Modify */
+    if (mods != NULL) {
+        for (; *mods != NULL; mods++) {
+            int err;
+
+            if ((*mods)->mod_bvalues == NULL || SLAPI_IS_MOD_DELETE((*mods)->mod_op)) {
+                continue;
+            }
+            err = check_pwpolicy_attr_value((*mods)->mod_type,
+                                            (*mods)->mod_bvalues[0]->bv_val,
+                                            errorbuf, ebuflen);
+            if (err != LDAP_SUCCESS) {
+                return err;
+            }
+        }
+        return LDAP_SUCCESS;
+    }
+
+    /* Add */
+    {
+        Slapi_Attr *attr = NULL;
+        char *type = NULL;
+
+        for (slapi_entry_first_attr(e, &attr); attr;
+             slapi_entry_next_attr(e, attr, &attr)) {
+            Slapi_Value *val = NULL;
+            int err;
+
+            slapi_attr_get_type(attr, &type);
+            if (slapi_attr_first_value(attr, &val) == -1 || val == NULL) {
+                continue;
+            }
+            err = check_pwpolicy_attr_value(type, (char *)slapi_value_get_string(val),
+                                            errorbuf, ebuflen);
+            if (err != LDAP_SUCCESS) {
+                return err;
+            }
+        }
+    }
+
+    return LDAP_SUCCESS;
+}
+
+/* Before bind operation, check if the bind_target_entry has not overpass TPR limits
+ * returns:
+ *    0: TPR limits not enforced or reached
+ *    LDAP_CONSTRAINT_VIOLATION: TPR limits reached
+ *    LDAP_OPERATIONS_ERROR : internal failure
+ */
+int
+slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int send_result) {
+    passwdPolicy *pwpolicy = NULL;
+    char *dn = NULL;
+    char *value;
+    time_t cur_time;
+    char *cur_time_str = NULL;
+
+    if (bind_target_entry == NULL) {
+        return 0;
+    }
+
+    dn = slapi_entry_get_ndn(bind_target_entry);
+    pwpolicy = new_passwdPolicy(pb, dn);
+    if (pwpolicy == NULL) {
+        /* TPR limits are part of password policy => no limit */
+        return 0;
+    }
+
+    if (!slapi_entry_attr_hasvalue(bind_target_entry, "pwdTPRReset", "TRUE")) {
+        /* the password was not reset by an admin while a TRP pwp was set, just returned */
+        /* covscan false positive: new_passwdPolicy anchor the policy in the pblock */
+        /* coverity[leaked_storage] */
+        return 0;
+    }
+
+    /* Check entry TPR max use */
+    if (pwpolicy->pw_tpr_maxuse >= 0) {
+        uint use_count;
+        value = (char *) slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRUseCount");
+        if (value) {
+            /* max Use is enforced */
+            use_count = strtoull(value, 0, 0);
+            use_count++;
+            update_tpr_pw_usecount(pb, bind_target_entry, (int32_t) use_count);
+            if (use_count > pwpolicy->pw_tpr_maxuse) {
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "slapi_check_tpr_limits - Number of binds (%u) is larger than TPR password max use (%d): Entry (%s) Policy (%s)\n",
+                              use_count, pwpolicy->pw_tpr_maxuse,
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+                if (send_result) {
+                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                     "TPR checking. Contact system administrator", 0, NULL);
+                }
+                return LDAP_CONSTRAINT_VIOLATION;
+            }
+        } else {
+            /* The password was reset at a time that the password policy
+             * did not enforced the max use. That is fine, just log an info.
+             */
+            slapi_log_err(SLAPI_LOG_INFO,
+                        "slapi_check_tpr_limits",
+                        "TPR password max use (%d) was not enforced when the password was reset (%s)\n",
+                        pwpolicy->pw_tpr_maxuse, dn);
+        }
+    }
+    /* If we are enforcing */
+    if ((pwpolicy->pw_tpr_delay_expire_at >= 0) || (pwpolicy->pw_tpr_delay_valid_from)) {
+        cur_time = slapi_current_utc_time();
+        cur_time_str = format_genTime(cur_time);
+    }
+
+    /* Check entry TPR expiration at a specific time */
+    if (pwpolicy->pw_tpr_delay_expire_at >= 0) {
+        value = (char *) slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRExpireAt");
+        if (value) {
+            /* max Use is enforced */
+            if (difftime(parse_genTime(cur_time_str), parse_genTime(value)) >= 0) {
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "slapi_check_tpr_limits - "
+                              "Attempt to bind with an expired TPR password (current=%s, expiration=%s): Entry (%s) Policy (%s)\n",
+                              cur_time_str, value,
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+                if (send_result) {
+                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                     "TPR checking. Contact system administrator", 0, NULL);
+                }
+                slapi_ch_free((void **)&cur_time_str);
+                return LDAP_CONSTRAINT_VIOLATION;
+            }
+        } else {
+            /* The password was reset at a time that the password policy
+             * did not enforced an expiration delay. That is fine, just log an info.
+             */
+            slapi_log_err(SLAPI_LOG_INFO,
+                        "slapi_check_tpr_limits",
+                        "TPR password expiration after %d seconds, was not enforced when the password was reset (%s)\n",
+                        pwpolicy->pw_tpr_delay_expire_at, dn);
+        }
+    }
+
+    /* Check entry TPR valid after a specific time */
+    if (pwpolicy->pw_tpr_delay_valid_from >= 0) {
+        value = (char *) slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRValidFrom");
+        if (value) {
+            /* validity after a specific time is enforced */
+            if (difftime(parse_genTime(value), parse_genTime(cur_time_str)) >= 0) {
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "slapi_check_tpr_limits - "
+                              "Attempt to bind with TPR password not yet valid (current=%s, validity=%s): Entry (%s) Policy (%s)\n",
+                              cur_time_str, value,
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+                if (send_result) {
+                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                     "TPR checking. Contact system administrator", 0, NULL);
+                }
+                slapi_ch_free((void **)&cur_time_str);
+                return LDAP_CONSTRAINT_VIOLATION;
+            }
+        } else {
+            /* The password was reset at a time that the password policy
+             * did not enforced validity delay. That is fine, just log an info.
+             */
+            slapi_log_err(SLAPI_LOG_INFO,
+                        "slapi_check_tpr_limits",
+                        "TPR password validity (after %d seconds) was not enforced when the password was reset (%s)\n",
+                        pwpolicy->pw_tpr_delay_valid_from, dn);
+        }
+    }
+    slapi_ch_free((void **)&cur_time_str);
+    return 0;
+}
+
 /* check_account_lock is called before bind opeation; this could be a pre-op. */
 int
 slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int pwresponse_req, int check_password_policy, int send_result)
@@ -2652,10 +3071,14 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
                 slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                      LDAP_PWPOLICY_ACCTLOCKED);
             }
-            if (send_result)
+            if (send_result) {
                 send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                  "Exceed password retry limit. Contact system administrator to reset.",
                                  0, NULL);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "Account is locked and requires administrator reset: Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+            }
             goto locked;
         }
         cur_time = slapi_current_utc_time();
@@ -2667,10 +3090,14 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
                 slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                      LDAP_PWPOLICY_ACCTLOCKED);
             }
-            if (send_result)
+            if (send_result) {
                 send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                  "Exceed password retry limit. Please try later.",
                                  0, NULL);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "Account is locked: Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+            }
             slapi_ch_free((void **)&cur_time_str);
             goto locked;
         }
@@ -2679,8 +3106,12 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
 
 notlocked:
     /* account is not locked. */
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (0);
 locked:
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (1);
 }
 
@@ -2712,7 +3143,6 @@ slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expi
         if (pwpolicy->pw_exp == 1) {
             char *expiration_val = NULL;
             time_t _expire_time;
-            double diff_t = 0;
             char *cur_time_str = NULL;
             time_t cur_time;
 
@@ -2724,7 +3154,7 @@ slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expi
                 cur_time_str = format_genTime(cur_time);
 
                 if ((_expire_time != NO_TIME) && (_expire_time != NOT_FIRST_TIME) &&
-                    ((diff_t = difftime(_expire_time, parse_genTime(cur_time_str))) <= 0)) {
+                    (difftime(_expire_time, parse_genTime(cur_time_str) <= 0))) {
                     is_expired = 1;
                 }
 
@@ -2984,24 +3414,20 @@ slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags)
 }
 
 int
-pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
+pw_copy_entry_ext(const Slapi_Entry *src_e, Slapi_Entry *dest_e)
 {
     struct slapi_pw_entry_ext *src_extp = NULL;
     struct slapi_pw_entry_ext *dest_extp = NULL;
 
     if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
-        slapi_log_err(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
-                      "pw_entry_extension is not registered\n");
         return LDAP_OPERATIONS_ERROR;
     }
 
     src_extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
         pw_entry_objtype,
-        src_e,
+        (void *)src_e,
         pw_entry_handle);
     if (NULL == src_extp) {
-        slapi_log_err(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
-                      "Source pw_entry_extension is not set\n");
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 
@@ -3012,8 +3438,6 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
         pw_entry_handle);
     if (NULL == dest_extp) {
         slapi_rwlock_unlock(src_extp->pw_entry_lock);
-        slapi_log_err(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
-                      "dest pw_entry_extension is not set\n");
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 
@@ -3297,10 +3721,8 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
      * Does the entry have a pw?
      */
     if (e == NULL || slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &pw) != 0 || pw == NULL) {
-        slapi_log_err(SLAPI_LOG_WARNING,
-                      "update_pw_encoding", "Could not read password attribute on '%s'\n",
-                      dn);
-        res = -1;
+        /* The entry does not have a userpassword attribute so there is nothing to do.
+         * This typically happens when chaining is involved. */
         goto free_and_return;
     }
 
@@ -3336,17 +3758,40 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
      * If the scheme is the same as current, do nothing!
      */
     curpwsp = pw_val2scheme((char *)slapi_value_get_string(password_values[0]), NULL, 1);
-    if (curpwsp != NULL && strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
-        res = 0; // Nothing to do
-        goto free_and_return;
-    }
-    /*
-     * If the scheme is clear or crypt, we also do nothing to prevent breaking some application
-     * integrations. See pwdstorage.h
-     */
-    if (strcmp(curpwsp->pws_name, "CLEAR") == 0 || strcmp(curpwsp->pws_name, "CRYPT") == 0) {
-        res = 0; // Nothing to do
-        goto free_and_return;
+    if (curpwsp != NULL) {
+        slapdFrontendConfig_t *slapdFrontendConfig = NULL;
+
+        if (strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
+            res = 0; // Nothing to do
+            goto free_and_return;
+        }
+
+        /* For some specific original hashes there is no upgrade
+         * By default 'crypt' and 'clear' hashes are not upgraded.
+         * This was to prevent breaking some application integrations.
+         */
+        slapdFrontendConfig = getFrontendConfig();
+        if (slapdFrontendConfig->scheme_list_no_upgrade_hash) {
+            char *no_upgrade_hashes;
+            char *saveptr = NULL;
+            int32_t ignore_upgrade = 0;
+
+            no_upgrade_hashes = slapi_ch_strdup(slapdFrontendConfig->scheme_list_no_upgrade_hash);
+            /* Check if the current hash is in the list of non upgradable hashes */
+            for (char *hash = strtok_r(no_upgrade_hashes, ", \t\n", &saveptr);
+                 hash; hash = strtok_r(NULL, ", \t\n", &saveptr)) {
+                if (strcasecmp(hash, curpwsp->pws_name) == 0) {
+                    ignore_upgrade = 1;
+                    break;
+                }
+            }
+            slapi_ch_free_string(&no_upgrade_hashes);
+
+            if (ignore_upgrade) {
+                res = 0; // Nothing to do
+                goto free_and_return;
+            }
+        }
     }
 
     /*
@@ -3374,7 +3819,7 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
                                      NULL,                         /* Controls */
                                      NULL,                         /* UniqueID */
                                      pw_get_componentID(),         /* PluginID */
-                                     OP_FLAG_SKIP_MODIFIED_ATTRS &
+                                     OP_FLAG_SKIP_MODIFIED_ATTRS |
                                      OP_FLAG_ACTION_SKIP_PWDPOLICY);          /* Flags */
     slapi_modify_internal_pb(pb);
 

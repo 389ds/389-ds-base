@@ -7,14 +7,19 @@
 #
 import pytest
 import time
+import glob
+import base64
 from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
 from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB, DEFAULT_BENAME
 from lib389 import Entry
-from lib389.topologies import topology_m1 as topo_master
-from lib389.idm.user import UserAccounts
+from test389.topologies import topology_m1 as topo_supplier
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.pwpolicy import PwPolicyManager
+from lib389.backend import Backend, Backends
+from lib389.configurations.sample import create_base_org
 
 pytestmark = pytest.mark.tier1
 
@@ -39,6 +44,13 @@ TEST_PASSWORDS += ['CNpwtest1ZZZZ', 'ZZZZZCNpwtest1',
 TEST_PASSWORDS2 = (
     'CN12pwtest31', 'SN3pwtest231', 'UID1pwtest123', 'MAIL2pwtest12@redhat.com', '2GN1pwtest123', 'People123')
 
+SUPPORTED_SCHEMES = (
+    "{SHA}", "{SSHA}", "{SHA256}", "{SSHA256}",
+    "{SHA384}", "{SSHA384}", "{SHA512}", "{SSHA512}",
+    "{crypt}", "{NS-MTA-MD5}", "{clear}", "{MD5}",
+    "{SMD5}", "{PBKDF2_SHA256}", "{PBKDF2_SHA512}",
+    "{GOST_YESCRYPT}", "{PBKDF2-SHA256}", "{PBKDF2-SHA512}" )
+
 def _check_unhashed_userpw(inst, user_dn, is_present=False):
     """Check if unhashed#user#password attribute is present or not in the changelog"""
     unhashed_pwd_attribute = 'unhashed#user#password'
@@ -47,12 +59,9 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
         dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-        for dbfile in os.listdir(changelog_dbdir):
-            if dbfile.endswith('.db'):
-                changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
-                log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
-        log.info('Running dbscan -f to check {} attr'.format(unhashed_pwd_attribute))
-        dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+        for changelog_dbfile in glob.glob(f'{changelog_dbdir}*/*.db*'):
+            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+            dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
     for entry in dbscanOut.split(b'dbid: '):
         if ensure_bytes('operation: modify') in entry and ensure_bytes(user_dn) in entry and ensure_bytes('userPassword') in entry:
@@ -61,7 +70,7 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
             else:
                 assert ensure_bytes(unhashed_pwd_attribute) not in entry
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def passw_policy(topo, request):
     """Configure password policy with PasswordCheckSyntax attribute set to on"""
 
@@ -73,17 +82,19 @@ def passw_policy(topo, request):
 
     subtree = 'ou=people,{}'.format(DEFAULT_SUFFIX)
     log.info('Configure subtree password policy for {}'.format(subtree))
-    topo.standalone.subtreePwdPolicy(subtree, {'passwordchange': b'on',
-                                               'passwordCheckSyntax': b'on',
-                                               'passwordLockout': b'on',
-                                               'passwordResetFailureCount': b'3',
-                                               'passwordLockoutDuration': b'3',
-                                               'passwordMaxFailure': b'2'})
+    pwp = PwPolicyManager(topo.standalone)
+    pwp.create_subtree_policy(subtree, {'passwordchange': 'on',
+                                        'passwordCheckSyntax': 'on',
+                                        'passwordLockout': 'on',
+                                        'passwordResetFailureCount': '3',
+                                        'passwordLockoutDuration': '3',
+                                        'passwordMaxFailure': '2'})
     time.sleep(1)
 
     def fin():
         log.info('Reset pwpolicy configuration settings')
         topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+        pwp.delete_local_policy(subtree)
         topo.standalone.config.set('PasswordExp', 'off')
         topo.standalone.config.set('PasswordCheckSyntax', 'off')
         topo.standalone.config.set('nsslapd-pwpolicy-local', 'off')
@@ -159,7 +170,6 @@ def test_pwp_local_unlock(topo, passw_policy, create_user):
     create_user.bind(PASSWORD)
 
 
-@pytest.mark.bz1465600
 @pytest.mark.parametrize("user_pasw", TEST_PASSWORDS)
 def test_trivial_passw_check(topo, passw_policy, create_user, user_pasw):
     """PasswordCheckSyntax attribute fails to validate cn, sn, uid, givenname, ou and mail attributes
@@ -219,14 +229,13 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     # reset password
     create_user.set('userPassword', PASSWORD)
 
-@pytest.mark.ds49789
-def test_unhashed_pw_switch(topo_master):
+def test_unhashed_pw_switch(topo_supplier):
     """Check that nsslapd-unhashed-pw-switch works corrently
 
     :id: e5aba180-d174-424d-92b0-14fe7bb0b92a
-    :setup: Master Instance
+    :setup: Supplier Instance
     :steps:
-        1. A Master is created, enable retrocl (not  used here)
+        1. A Supplier is created, enable retrocl (not  used here)
         2. Create a set of users
         3. update userpassword of user1 and check that unhashed#user#password is not logged (default)
         4. udpate userpassword of user2 and check that unhashed#user#password is not logged ('nolog')
@@ -241,7 +250,7 @@ def test_unhashed_pw_switch(topo_master):
     MAX_USERS = 10
     PEOPLE_DN = ("ou=people," + DEFAULT_SUFFIX)
 
-    inst = topo_master.ms["master1"]
+    inst = topo_supplier.ms["supplier1"]
     inst.modify_s("cn=Retro Changelog Plugin,cn=plugins,cn=config",
                                         [(ldap.MOD_REPLACE, 'nsslapd-changelogmaxage', b'2m'),
                                          (ldap.MOD_REPLACE, 'nsslapd-changelog-trim-interval', b"5s"),
@@ -250,7 +259,7 @@ def test_unhashed_pw_switch(topo_master):
     inst.restart()
     # If you need any test suite initialization,
     # please, write additional fixture for that (including finalizer).
-    # Topology for suites are predefined in lib389/topologies.py.
+    # Topology for suites are predefined in test389/topologies.py.
 
     # enable dynamic plugins, memberof and retro cl plugin
     #
@@ -290,6 +299,7 @@ def test_unhashed_pw_switch(topo_master):
         _check_unhashed_userpw(inst, user, is_present=False)
     else:
         _check_unhashed_userpw(inst, user, is_present=True)
+    inst.start()
 
     #  Check with nolog that unhashed#user#password is not logged
     inst.modify_s(DN_CONFIG,
@@ -303,6 +313,7 @@ def test_unhashed_pw_switch(topo_master):
                                           PASSWORD.encode())])
     inst.stop()
     _check_unhashed_userpw(inst, user, is_present=False)
+    inst.start()
 
     #  Check with value 'on' that unhashed#user#password is logged
     inst.modify_s(DN_CONFIG,
@@ -320,6 +331,238 @@ def test_unhashed_pw_switch(topo_master):
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
+
+@pytest.mark.parametrize("scheme", SUPPORTED_SCHEMES )
+def test_long_hashed_password(topo, create_user, scheme):
+    """Check that hashed password with very long value does not cause trouble
+
+    :id: 252a1f76-114b-11ef-8a7a-482ae39447e5
+    :setup: standalone Instance
+    :parametrized: yes
+    :steps:
+        1. Add a test user user
+        2. Set a long password with requested scheme
+        3. Bind on that user using a wrong password
+        4. Check that instance is still alive
+        5. Remove the added user
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Should get ldap.INVALID_CREDENTIALS exception
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+    inst.simple_bind_s(DN_DM, PASSWORD)
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    # Make sure that server is started as this test may crash it
+    inst.start()
+    # Adding Test user (It may already exists if previous test failed)
+    user2 = UserAccount(inst, dn='uid=test_user_1002,ou=People,dc=example,dc=com')
+    if not user2.exists():
+        user2 = users.create_test_user(uid=1002, gid=2002)
+    # Setting hashed password
+    passwd = 'A'*4000
+    hashed_passwd = scheme.encode('utf-8') + base64.b64encode(passwd.encode('utf-8'))
+    user2.replace('userpassword', hashed_passwd)
+    # Bind on that user using a wrong password
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        conn = user2.bind(PASSWORD)
+    # Check that instance is still alive
+    assert inst.status()
+    # Remove the added user
+    user2.delete()
+
+
+SECOND_SUFFIX_COS = b'o=netscaperoot'
+BE_NAME_COS = 'netscaperoot'
+
+
+def test_cos_vattr_cache_invalidation(topo, create_user):
+    """COS def changes must be reflected in users (vattr cache invalidation).
+
+    With multiple suffixes, if the last suffix checked has no COS entries, the vattr cache
+    may not be invalidated, so users could keep stale pwdpolicysubentry after delete/re-add
+    of policy. This test verifies the virtual attribute updates correctly.
+
+    :id: 8f4e2a1c-9b3d-4e6a-8c7f-1d2e3a4b5c6d
+    :setup: Standalone instance, create_user fixture (user under ou=People)
+    :steps:
+        1. Create a second suffix with no COS entries
+        2. Enable local pwpolicy and add subtree policy for ou=people via PwPolicyManager
+        3. Assert create_user has pwdpolicysubentry
+        4. Delete the subtree policy
+        5. Assert create_user no longer has pwdpolicysubentry
+        6. Re-add the subtree policy
+        7. Assert create_user has pwdpolicysubentry again
+        8. Cleanup: delete the subtree policy and second backend
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+    inst = topo.standalone
+    people_dn = f'ou=people,{DEFAULT_SUFFIX}'
+
+
+    inst.simple_bind_s(DN_DM, PASSWORD)
+
+    # Create second suffix using lib389 Backend (backend + mapping tree) and suffix root entry.
+    # The Suffix class is for querying (list, toBackend, getParent); creation uses Backend + sample.
+    try:
+        be = Backend(inst)
+        be.create(properties={'cn': BE_NAME_COS, 'nsslapd-suffix': SECOND_SUFFIX_COS})
+    except ldap.ALREADY_EXISTS:
+        pass
+    try:
+        create_base_org(inst, SECOND_SUFFIX_COS)
+    except ldap.ALREADY_EXISTS:
+        pass
+    assert SECOND_SUFFIX_COS in inst.suffix.list(), 'Second suffix should be in suffix list'
+
+    # Set up subtree password policy
+    inst.config.set('nsslapd-pwpolicy-local', 'on')
+
+    pwp = PwPolicyManager(inst)
+    policy_props = {
+        'passwordMustChange': 'off',
+        'passwordExp': 'off',
+        'passwordHistory': 'off',
+        'passwordMinAge': '0',
+        'passwordChange': 'off',
+        'passwordStorageScheme': 'ssha',
+    }
+    pwp.create_subtree_policy(people_dn, policy_props)
+
+    # User must have pwdpolicysubentry
+    assert len(create_user.get_attr_vals_utf8('pwdpolicysubentry')) > 0, (
+        'User should have pwdpolicysubentry after adding policy'
+    )
+
+    # Delete subtree policy
+    pwp.delete_local_policy(people_dn)
+    time.sleep(0.5)
+
+    # User must no longer have pwdpolicysubentry
+    assert len(create_user.get_attr_vals_utf8('pwdpolicysubentry')) == 0, (
+        'User should not have pwdpolicysubentry after deleting policy'
+    )
+
+    # Re-add subtree policy
+    pwp.create_subtree_policy(people_dn, policy_props)
+    time.sleep(0.5)
+
+    # User must have pwdpolicysubentry again
+    assert len(create_user.get_attr_vals_utf8('pwdpolicysubentry')) > 0, (
+        'User should have pwdpolicysubentry after re-adding policy'
+    )
+
+    # Cleanup: remove subtree policy and second backend
+    pwp.delete_local_policy(people_dn)
+    inst.config.set('nsslapd-pwpolicy-local', 'off')
+    Backends(inst).get(SECOND_SUFFIX_COS.decode('utf-8')).delete()
+
+
+def test_nested_cos_ordering(topo):
+    """Multiple nested COS pointer defs must apply correct policy per user.
+
+    The COS plugin sorts attribute indexes by subtree; each user must receive the
+    pwdpolicysubentry from their own (closest) branch. This test verifies ordering.
+
+    :id: c7d8e9f0-1a2b-4c5d-9e8f-7a6b5c4d3e2f
+    :setup: Standalone instance
+    :steps:
+        1. Create six nested OUs
+        2. Create one user in each branch
+        3. Enable local pwpolicy and add a subtree policy per branch
+        4. For each user, assert pwdpolicysubentry equals the policy DN for that user's branch
+        5. Cleanup: remove created users and policies
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+    inst.simple_bind_s(DN_DM, PASSWORD)
+
+    branch1 = 'ou=level1,' + DEFAULT_SUFFIX
+    branch2 = 'ou=level2,' + branch1
+    branch3 = 'ou=level3,' + branch2
+    branch4 = 'ou=people,' + DEFAULT_SUFFIX
+    branch5 = 'ou=lower,' + branch4
+    branch6 = 'ou=lower,' + branch5
+
+    # Define nested branches: (branch_dn, ou_rdn_value) for creation order
+    branches = [branch1, branch2, branch3, branch4, branch5, branch6]
+    user_rdns = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6']
+    policy_props = {
+        'passwordMustChange': 'off',
+        'passwordExp': 'off',
+        'passwordHistory': 'off',
+        'passwordMinAge': '0',
+        'passwordChange': 'off',
+        'passwordStorageScheme': 'ssha',
+    }
+
+    # Create branch OUs using lib389 (parent before children)
+    ous_top = OrganizationalUnits(inst, DEFAULT_SUFFIX)
+    ous_top.ensure_state(rdn='ou=level1', properties={'ou': 'level1'})
+    OrganizationalUnits(inst, branch1).ensure_state(rdn='ou=level2', properties={'ou': 'level2'})
+    OrganizationalUnits(inst, branch2).ensure_state(rdn='ou=level3', properties={'ou': 'level3'})
+    ous_top.ensure_state(rdn='ou=people', properties={'ou': 'people'})
+    OrganizationalUnits(inst, branch4).ensure_state(rdn='ou=lower', properties={'ou': 'lower'})
+    OrganizationalUnits(inst, branch5).ensure_state(rdn='ou=lower', properties={'ou': 'lower'})
+
+    # Create users in each branch using lib389 UserAccounts
+    user_dns = []
+    for i, branch_dn in enumerate(branches):
+        users = UserAccounts(inst, branch_dn, rdn=None)
+        user_props = {
+            'uid': user_rdns[i],
+            'cn': user_rdns[i],
+            'sn': user_rdns[i],
+            'uidNumber': str(1000 + i),
+            'gidNumber': '2000',
+            'homeDirectory': f'/home/{user_rdns[i]}',
+        }
+        users.ensure_state(rdn=f'uid={user_rdns[i]}', properties=user_props)
+        user_dns.append(f'uid={user_rdns[i]},{branch_dn}')
+
+    inst.config.set('nsslapd-pwpolicy-local', 'on')
+    time.sleep(0.5)
+
+    # Add subtree policies
+    pwp = PwPolicyManager(inst)
+    expected_policy_dns = []
+    for branch_dn in branches:
+        pwp_entry = pwp.create_subtree_policy(branch_dn, policy_props)
+        expected_policy_dns.append(pwp_entry.get_attr_val_utf8('dsEntryDN'))
+
+    time.sleep(1)
+
+    # Each user must have the policy DN for their branch (via COS pwdpolicysubentry).
+    # Read via UserAccount and assert the attribute value.
+    for i, user_dn in enumerate(user_dns):
+        user = UserAccount(inst, user_dn)
+        actual_policy = user.get_attr_val_utf8('pwdpolicysubentry')
+        assert actual_policy == expected_policy_dns[i], (
+            f'User {user_dn} should have pwdpolicysubentry {expected_policy_dns[i]}, got {actual_policy}'
+        )
+
+    # Cleanup: remove created users and policies
+    for user_dn in user_dns:
+        user = UserAccount(inst, user_dn)
+        user.delete()
+    for branch in branches:
+        pwp.delete_local_policy(branch)
+    inst.config.set('nsslapd-pwpolicy-local', 'off')
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ from collections import Counter
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 
 from lib389._constants import SUFFIX, DEFAULT_SUFFIX, ErrorLog
 
@@ -25,20 +25,24 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-@pytest.fixture(params=[(None, (4, 11)),
+# Expected minimum and maximum number of async result in usual cases
+USUAL_MIN_AP = 2
+USUAL_MAX_AP = 11
+
+@pytest.fixture(params=[(None, (USUAL_MIN_AP, USUAL_MAX_AP)),
                         ('2000', (0, 2)),
-                        ('0', (4, 11)),
-                        ('-5', (4, 11))])
+                        ('0', (USUAL_MIN_AP, USUAL_MAX_AP)),
+                        ('-5', (USUAL_MIN_AP, USUAL_MAX_AP))])
 def waitfor_async_attr(topology_m2, request):
     """Sets attribute on all replicas"""
 
     attr_value = request.param[0]
     expected_result = request.param[1]
 
-    # Run through all masters
+    # Run through all suppliers
 
-    for master in topology_m2.ms.values():
-        agmt = Agreements(master).list()[0]
+    for supplier in topology_m2.ms.values():
+        agmt = Agreements(supplier).list()[0]
 
         if attr_value:
             agmt.set_wait_for_async_results(attr_value)
@@ -54,14 +58,14 @@ def waitfor_async_attr(topology_m2, request):
 
 @pytest.fixture
 def entries(topology_m2, request):
-    """Adds entries to the master1"""
+    """Adds entries to the supplier1"""
 
-    master1 = topology_m2.ms["master1"]
+    supplier1 = topology_m2.ms["supplier1"]
 
     test_list = []
 
-    log.info("Add 100 nested entries under replicated suffix on %s" % master1.serverid)
-    ous = OrganizationalUnits(master1, DEFAULT_SUFFIX)
+    log.info("Add 100 nested entries under replicated suffix on %s" % supplier1.serverid)
+    ous = OrganizationalUnits(supplier1, DEFAULT_SUFFIX)
     for i in range(100):
         ou = ous.create(properties={
             'ou' : 'test_ou_%s' % i,
@@ -74,7 +78,7 @@ def entries(topology_m2, request):
 
     def fin():
         log.info("Clear the errors log in the end of the test case")
-        with open(master1.errlog, 'w') as errlog:
+        with open(supplier1.errlog, 'w') as errlog:
             errlog.writelines("")
 
     request.addfinalizer(fin)
@@ -84,15 +88,15 @@ def test_not_int_value(topology_m2):
     """Tests not integer value
 
     :id: 67c9994f-9251-425a-8197-8d12ad9beafc
-    :setup: Replication with two masters
+    :setup: Replication with two suppliers
     :steps:
         1. Try to set some string value
            to nsDS5ReplicaWaitForAsyncResults
     :expectedresults:
         1. Invalid syntax error should be raised
     """
-    master1 = topology_m2.ms["master1"]
-    agmt = Agreements(master1).list()[0]
+    supplier1 = topology_m2.ms["supplier1"]
+    agmt = Agreements(supplier1).list()[0]
 
     with pytest.raises(ldap.INVALID_SYNTAX):
         agmt.set_wait_for_async_results("ws2")
@@ -101,7 +105,7 @@ def test_multi_value(topology_m2):
     """Tests multi value
 
     :id: 1932301a-db29-407e-b27e-4466a876d1d3
-    :setup: Replication with two masters
+    :setup: Replication with two suppliers
     :steps:
         1. Set nsDS5ReplicaWaitForAsyncResults to some int
         2. Try to add one more int value
@@ -111,8 +115,8 @@ def test_multi_value(topology_m2):
         2. Object class violation error should be raised
     """
 
-    master1 = topology_m2.ms["master1"]
-    agmt = Agreements(master1).list()[0]
+    supplier1 = topology_m2.ms["supplier1"]
+    agmt = Agreements(supplier1).list()[0]
 
     agmt.set_wait_for_async_results('100')
     with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
@@ -123,12 +127,12 @@ def test_value_check(topology_m2, waitfor_async_attr):
 
     :id: 3e81afe9-5130-410d-a1bb-d798d8ab8519
     :parametrized: yes
-    :setup: Replication with two masters,
-        wait for async set on all masters, try:
+    :setup: Replication with two suppliers,
+        wait for async set on all suppliers, try:
         None, '2000', '0', '-5'
     :steps:
-        1. Search for nsDS5ReplicaWaitForAsyncResults on master 1
-        2. Search for nsDS5ReplicaWaitForAsyncResults on master 2
+        1. Search for nsDS5ReplicaWaitForAsyncResults on supplier 1
+        2. Search for nsDS5ReplicaWaitForAsyncResults on supplier 2
     :expectedresults:
         1. nsDS5ReplicaWaitForAsyncResults should be set correctly
         2. nsDS5ReplicaWaitForAsyncResults should be set correctly
@@ -136,8 +140,8 @@ def test_value_check(topology_m2, waitfor_async_attr):
 
     attr_value = waitfor_async_attr[0]
 
-    for master in topology_m2.ms.values():
-        agmt = Agreements(master).list()[0]
+    for supplier in topology_m2.ms.values():
+        agmt = Agreements(supplier).list()[0]
 
         server_value = agmt.get_wait_for_async_results_utf8()
         assert server_value == attr_value
@@ -148,28 +152,26 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
 
     :id: 117b6be2-cdab-422e-b0c7-3b88bbeec036
     :parametrized: yes
-    :setup: Replication with two masters,
-        wait for async set on all masters, try:
+    :setup: Replication with two suppliers,
+        wait for async set on all suppliers, try:
         None, '2000', '0', '-5'
     :steps:
         1. Set Replication Debugging loglevel for the errorlog
-        2. Set nsslapd-logging-hr-timestamps-enabled to 'off' on both masters
-        3. Gather all sync attempts,  group by timestamp
-        4. Take the most common timestamp and assert it has appeared
+        2. Gather all sync attempts,  group by timestamp
+        3. Take the most common timestamp and assert it has appeared
            in the set range
     :expectedresults:
         1. Replication Debugging loglevel should be set
-        2. nsslapd-logging-hr-timestamps-enabled  should be set
-        3. Operation should be successful
-        4. Errors log should have all timestamp appear
+        2. Operation should be successful
+        3. Errors log should have all timestamp appear
     """
 
-    master1 = topology_m2.ms["master1"]
-    master2 = topology_m2.ms["master2"]
+    supplier1 = topology_m2.ms["supplier1"]
+    supplier2 = topology_m2.ms["supplier2"]
 
     log.info("Set Replication Debugging loglevel for the errorlog")
-    master1.config.loglevel((ErrorLog.REPLICA,))
-    master2.config.loglevel((ErrorLog.REPLICA,))
+    supplier1.config.loglevel((ErrorLog.REPLICA,))
+    supplier2.config.loglevel((ErrorLog.REPLICA,))
 
     sync_dict = Counter()
     min_ap = waitfor_async_attr[1][0]
@@ -178,7 +180,7 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
     time.sleep(20)
 
     log.info("Gather all sync attempts within Counter dict, group by timestamp")
-    with open(master1.errlog, 'r') as errlog:
+    with open(supplier1.errlog, 'r') as errlog:
         errlog_filtered = filter(lambda x: "waitfor_async_results" in x, errlog)
 
         # Watch only over unsuccessful sync attempts

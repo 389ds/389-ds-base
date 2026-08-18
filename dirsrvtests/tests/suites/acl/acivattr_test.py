@@ -1,18 +1,18 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import pytest, os, ldap
+import pytest, os, ldap, time
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.user import UserAccount
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.cos import CosTemplate, CosClassicDefinition
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.domain import Domain
 from lib389.idm.role import FilteredRoles
@@ -190,6 +190,8 @@ def test_positive(topo, _add_user, aci_of_user, user, entry, aci):
     """
     # set aci
     Domain(topo.standalone, DNBASE).set("aci", aci)
+    time.sleep(.5)
+
     # create connection
     conn = UserAccount(topo.standalone, user).bind(PW_DM)
     # according to the aci , user will  be able to change description
@@ -242,6 +244,7 @@ def test_negative(topo, _add_user, aci_of_user, user, entry, aci):
     """
     # set aci
     Domain(topo.standalone, DNBASE).set("aci", aci)
+    time.sleep(.5)
     # create connection
     conn = UserAccount(topo.standalone, user).bind(PW_DM)
     # according to the aci , user will not be able to change description

@@ -18,6 +18,7 @@ from lib389.cli_base import (
     _get_arg,
     _get_attributes,
     _warn,
+    CustomHelpFormatter
     )
 
 SINGULAR = SaslMapping
@@ -72,7 +73,7 @@ def sasl_map_delete(inst, basedn, log, args, warn=True):
     if warn and args.json is False:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('sasl_map_delete'), SINGULAR, dn, args)
-    
+
 def sasl_get_supported(inst, basedn, log, args):
     """Get a list of the supported sasl mechanisms"""
     mechs = inst.rootdse.supported_sasl()
@@ -84,27 +85,42 @@ def sasl_get_supported(inst, basedn, log, args):
             log.info(mech)
 
 
+def sasl_get_available(inst, basedn, log, args):
+    """Get a list of the available sasl mechanisms"""
+    mechs = inst.rootdse.available_sasl()
+    if args.json:
+        result = {'type': 'list', 'items': mechs}
+        log.info(json.dumps(result, indent=4, ))
+    else:
+        for mech in mechs:
+            log.info(mech)
+
+
 def create_parser(subparsers):
-    sasl_parser = subparsers.add_parser('sasl', help='Query and manipulate SASL mappings')
+    sasl_parser = subparsers.add_parser('sasl', help='Manage SASL mappings', formatter_class=CustomHelpFormatter)
 
     subcommands = sasl_parser.add_subparsers(help='sasl')
 
-    list_mappings_parser = subcommands.add_parser('list', help='List available SASL mappings')
+    list_mappings_parser = subcommands.add_parser('list', help='Display available SASL mappings', formatter_class=CustomHelpFormatter)
     list_mappings_parser.set_defaults(func=sasl_map_list)
     list_mappings_parser.add_argument('--details', action='store_true', default=False,
-        help="Get each SASL Mapping in detail.")
-    get_mech_parser= subcommands.add_parser('get-mechs', help='List available SASL mechanisms')
+        help="Displays each SASL mapping in detail")
+
+    get_mech_parser= subcommands.add_parser('get-mechs', help='Display the SASL mechanisms that the server will accept', formatter_class=CustomHelpFormatter)
     get_mech_parser.set_defaults(func=sasl_get_supported)
 
-    get_parser = subcommands.add_parser('get', help='get')
-    get_parser.set_defaults(func=sasl_map_get)
-    get_parser.add_argument('selector', nargs='?', help='SASL mapping name to get')
+    get_mech_parser= subcommands.add_parser('get-available-mechs', help='Display the SASL mechanisms that are available to the server', formatter_class=CustomHelpFormatter)
+    get_mech_parser.set_defaults(func=sasl_get_available)
 
-    create_parser = subcommands.add_parser('create', help='create')
+    get_parser = subcommands.add_parser('get', help='Displays SASL mappings', formatter_class=CustomHelpFormatter)
+    get_parser.set_defaults(func=sasl_map_get)
+    get_parser.add_argument('selector', nargs='?', help='The SASL mapping name to display')
+
+    create_parser = subcommands.add_parser('create', help='Create a SASL mapping ', formatter_class=CustomHelpFormatter)
     create_parser.set_defaults(func=sasl_map_create)
     populate_attr_arguments(create_parser, SaslMapping._must_attributes)
 
-    delete_parser = subcommands.add_parser('delete', help='deletes the object')
+    delete_parser = subcommands.add_parser('delete', help='Deletes the SASL object', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=sasl_map_delete)
-    delete_parser.add_argument('map_name', help='The SASL Mapping name ("cn" value)')
+    delete_parser.add_argument('map_name', help='The SASL mapping name ("cn" value)')
 

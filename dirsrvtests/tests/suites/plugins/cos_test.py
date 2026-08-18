@@ -18,7 +18,7 @@ from lib389 import Entry
 from lib389.utils import *
 from lib389.plugins import *
 from lib389._constants import *
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier1
 
@@ -34,7 +34,6 @@ def add_user(server, uid, testbase, locality=None, tel=None, title=None):
                              'telephoneNumber': tel,
                              'description': 'description real'})))
 
-@pytest.mark.ds50053
 def test_cos_operational_default(topo):
     """operational-default cosAttribute should not overwrite an existing value
 

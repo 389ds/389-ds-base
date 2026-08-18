@@ -1,19 +1,20 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import logging
+import ldap
 import pytest
 import os
 from lib389.schema import Schema
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
-from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import log, topology_st as topo
+from lib389.idm.group import Group, Groups
+from lib389._constants import DEFAULT_SUFFIX, PW_DM
+from test389.topologies import log, topology_st as topo
 
 pytestmark = pytest.mark.tier0
 
@@ -103,6 +104,191 @@ def test_invalid_uidnumber(topo, validate_syntax_off):
     error_lines = inst.ds_error_log.match('.*uidNumber: value #0 invalid per syntax.*')
     assert (len(error_lines) == 1)
     log.info('Found an invalid entry with wrong uidNumber - Success')
+
+
+def test_invalid_dn_syntax_crash(topo):
+    """Add an entry with an escaped space, restart the server, and try to delete
+    it.  In this case the DN is not correctly parsed and causes cache revert to
+    to dereference a NULL pointer.  So the delete can fail as long as the server
+    does not crash.
+
+    :id: 62d87272-dfb8-4627-9ca1-dbe33082caf8
+    :setup: Standalone Instance
+    :steps:
+        1. Add entry with leading escaped space in the RDN
+        2. Restart the server so the entry is rebuilt from the database
+        3. Delete the entry
+        4. The server should still be running
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+        # Create group
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties={'cn': ' test'})
+
+    # Restart the server
+    topo.standalone.restart()
+
+    # Delete group
+    try:
+        group.delete()
+    except ldap.NO_SUCH_OBJECT:
+        # This is okay in this case as we are only concerned about a crash
+        pass
+
+    # Make sure server is still running
+    groups.list()
+
+
+@pytest.mark.parametrize("props, rawdn", [
+                         ({'cn': ' leadingSpace'}, "cn=\\20leadingSpace,ou=Groups,dc=example,dc=com"),
+                         ({'cn': 'trailingSpace '}, "cn=trailingSpace\\20,ou=Groups,dc=example,dc=com")])
+def test_dn_syntax_spaces_delete(topo,  props,  rawdn):
+    """Test that an entry with a space as the first character in the DN can be
+    deleted without error.  We also want to make sure the indexes are properly
+    updated by repeatedly adding and deleting the entry, and that the entry cache
+    is properly maintained.
+
+    :id: b993f37c-c2b0-4312-992c-a9048ff98965
+    :customerscenario: True
+    :parametrized: yes
+    :setup: Standalone Instance
+    :steps:
+        1. Create a group with a DN that has a space as the first/last
+           character.
+        2. Delete group
+        3. Add group
+        4. Modify group
+        5. Restart server and modify entry
+        6. Delete group
+        7. Add group back
+        8. Delete group using specific DN
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    # Create group
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties=props.copy())
+
+    # Delete group (verifies DN/RDN parsing works and cache is correct)
+    group.delete()
+
+    # Add group again (verifies entryrdn index was properly updated)
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties=props.copy())
+
+    # Modify the group (verifies dn/rdn parsing is correct)
+    group.replace('description', 'escaped space group')
+
+    # Restart the server.  This will pull the entry from the database and
+    # convert it into a cache entry, which is different than how a client
+    # first adds an entry and is put into the cache before being written to
+    # disk.
+    topo.standalone.restart()
+
+    # Make sure we can modify the entry (verifies cache entry was created
+    # correctly)
+    group.replace('description', 'escaped space group after restart')
+
+    # Make sure it can still be deleted (verifies cache again).
+    group.delete()
+
+    # Add it back so we can delete it using a specific DN (sanity test to verify
+    # another DN/RDN parsing variation).
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties=props.copy())
+    group = Group(topo.standalone, dn=rawdn)
+    group.delete()
+
+
+def test_boolean_case(topo):
+    """Test that we can a boolean value in any case
+
+       :id: 56777c1d-b058-41e1-abd5-87a6f1512db2
+       :customerscenario: True
+       :setup: Standalone Instance
+       :steps:
+           1. Create test user
+           2. Add boolean attribute value that is lowercase "false"
+       :expectedresults:
+           1. Success
+           2. Success
+    """
+    inst = topo.standalone
+    users  = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create_test_user(uid=1011)
+
+    user.add('objectclass', 'extensibleObject')
+    user.add('pamsecure', 'false')
+    user.replace('pamsecure', 'FALSE')
+    user.replace('pamsecure', 'true')
+    user.replace('pamsecure', 'TRUE')
+
+    # Test some invalid syntax
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        user.replace('pamsecure', 'blah')
+
+def test_escaped_space(topo, request):
+    """Test that we can bind with DN containing escaped space
+
+       :id: 480adf31-f6c0-48a1-ba5b-29e0324c5702
+       :customerscenario: True
+       :setup: Standalone Instance
+       :steps:
+           1. Create test user with RDN containing space
+           2. Authenticate with that user escaping the space
+           3. Do few searches
+       :expectedresults:
+           1. Success
+           2. Success
+           3. Success
+    """
+    inst = topo.standalone
+    users  = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_properties = {
+        'uid': 'my uid',
+        'cn': 'my uid',
+        'sn': 'user',
+        'userpassword': PW_DM,
+        'uidNumber': '111',
+        'gidNumber': '111',
+        'homeDirectory': '/home/testuser111'
+    }
+    # Step 1 the user RDN contains space
+    user = users.create(properties=user_properties)
+
+    # Step 2 authenticate escaping the space
+    escaped_dn = 'uid=my\\20uid,%s' % ','.join(user.dn.split(',')[1:])
+    ldc = ldap.initialize(f'ldap://{inst.host}:{inst.port}')
+    ldc.bind_s(escaped_dn, PW_DM)
+
+    # Step 3 few searches
+    assert len(ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=my\\20uid")) == 1
+    assert len(ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=my uid")) == 1
+
+    def fin():
+        try:
+            user.delete()
+        except ldap.LDAPError:
+            pass
+        try:
+            ldc.unbind()
+        except:
+            pass
+
+    request.addfinalizer(fin)
 
 
 if __name__ == '__main__':
