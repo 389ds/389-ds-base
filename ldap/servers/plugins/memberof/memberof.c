@@ -774,6 +774,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
 
     pb = task->pb;
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_e);
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "deferred_mod_func - target %s\n", slapi_sdn_get_dn(sdn));
     /* get the mod set */
@@ -796,7 +797,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
             mainConfig = memberof_get_config();
             if (memberof_is_grouping_attr(type, mainConfig)) {
                 interested = 1;
-                memberof_set_entry_info(pre_e, NULL, &entry_info);
+                memberof_set_entry_info(post_e, NULL, &entry_info);
                 if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
                     /* Entry is not in scope */
                     memberof_unlock_config();
