@@ -230,7 +230,7 @@ extop_handle_ldapssotoken_request(Slapi_PBlock *pb, char *extoid __attribute__((
     ber = der_alloc();
     PR_ASSERT(ber);
 
-    rc = ber_printf(ber, "{is}", &rc, token);
+    rc = ber_printf(ber, "{is}", rc, token);
     slapi_ch_free_string(&token);
     /* Finish preparing the response */
     if (rc != -1) {
