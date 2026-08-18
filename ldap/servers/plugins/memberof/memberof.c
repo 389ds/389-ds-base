@@ -758,6 +758,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
 
     pb = task->pb;
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_e);
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "deferred_mod_func - target %s\n", slapi_sdn_get_dn(sdn));
     /* get the mod set */
