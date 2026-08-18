@@ -14,6 +14,7 @@ import datetime
 from lib389.utils import get_default_db_lib
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
+from lib389._mapped_object import DSLdapObject
 from test389.topologies import topology_m1 as topo
 from lib389.utils import ldap, ds_is_older
 from lib389.idm.user import UserAccounts
@@ -22,6 +23,8 @@ from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier2
 log = logging.getLogger(__name__)
+
+BDB_CONFIG_DN = "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
 
 
 def test_compact_db_task(topo):
@@ -172,6 +175,103 @@ def test_no_compaction(topo):
     inst.deleteErrorLogs()
 
     time.sleep(3)
+    assert not inst.searchErrorsLog("Compacting databases")
+    inst.deleteErrorLogs(restart=False)
+
+
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
+def test_no_compaction_near_scheduled_time(topo):
+    """Test that nsslapd-db-compactdb-interval: 0 disables compaction even when
+    nsslapd-db-compactdb-time is imminent, and that nsslapd-db-compactdb-starttime
+    is not rewritten across a restart while compaction remains disabled.
+
+    :id: 47265415-0ced-484d-9f20-b461ba6f673b
+    :customerscenario: True
+    :setup: Supplier Instance
+    :steps:
+        1. Set nsslapd-db-compactdb-interval to 0 and nsslapd-db-compactdb-time
+           90 seconds in the future
+        2. Wait past that time
+        3. Check no scheduling or compaction messages appear in the error log
+        4. Record nsslapd-db-compactdb-starttime, restart the server, and
+           confirm it is unchanged
+    :expectedresults:
+        1. Success
+        2. Success
+        3. No "database compaction scheduled for" or "Compacting databases" logged
+        4. nsslapd-db-compactdb-starttime is identical before and after restart
+    """
+    inst = topo.ms["supplier1"]
+    config = DatabaseConfig(inst)
+    bdb_entry = DSLdapObject(inst, dn=BDB_CONFIG_DN)
+
+    target = datetime.datetime.now() + datetime.timedelta(seconds=90)
+    compact_time = target.strftime("%H:%M")
+
+    log.info("Setting compactdb-interval=0, compactdb-time=%s (~90s from now)", compact_time)
+    config.set([('nsslapd-db-compactdb-interval', '0'),
+                ('nsslapd-db-compactdb-time', compact_time)])
+    inst.deleteErrorLogs(restart=True)
+
+    log.info("Waiting past the configured compaction time-of-day ...")
+    time.sleep(110)
+
+    assert not inst.searchErrorsLog("database compaction scheduled for")
+    assert not inst.searchErrorsLog("Compacting databases")
+
+    starttime_before = bdb_entry.get_attr_val_utf8('nsslapd-db-compactdb-starttime')
+    log.info("nsslapd-db-compactdb-starttime before restart: %s", starttime_before)
+
+    inst.restart()
+    time.sleep(10)
+
+    starttime_after = bdb_entry.get_attr_val_utf8('nsslapd-db-compactdb-starttime')
+    log.info("nsslapd-db-compactdb-starttime after restart: %s", starttime_after)
+
+    assert starttime_before == starttime_after, \
+        "nsslapd-db-compactdb-starttime changed while compaction is disabled (interval=0)"
+    assert not inst.searchErrorsLog("database compaction scheduled for")
+
+    inst.deleteErrorLogs(restart=False)
+
+
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
+def test_disable_compaction_after_already_scheduled(topo):
+    """Test that disabling compaction (interval=0) after a compaction event was
+    already queued prevents the queued event from actually running.
+
+    :id: bbddd990-5f15-44fa-af4a-de84f2ec53f4
+    :customerscenario: True
+    :setup: Supplier Instance
+    :steps:
+        1. Set a short nonzero interval/time so compaction gets scheduled
+        2. Confirm the "scheduled for" message appears
+        3. Set nsslapd-db-compactdb-interval to 0 before the scheduled time arrives
+        4. Wait past the originally scheduled time
+    :expectedresults:
+        1. Success
+        2. Scheduling message is logged
+        3. Success
+        4. Compaction does not actually run
+    """
+    inst = topo.ms["supplier1"]
+    config = DatabaseConfig(inst)
+
+    target = datetime.datetime.now() + datetime.timedelta(seconds=60)
+    compact_time = target.strftime("%H:%M")
+
+    log.info("Setting compactdb-interval=30, compactdb-time=%s (~60s from now)", compact_time)
+    config.set([('nsslapd-db-compactdb-interval', '30'),
+                ('nsslapd-db-compactdb-time', compact_time)])
+    inst.deleteErrorLogs(restart=True)
+
+    time.sleep(10)
+    assert inst.searchErrorsLog("database compaction scheduled for")
+
+    log.info("Disabling compaction before the scheduled time arrives ...")
+    config.set([('nsslapd-db-compactdb-interval', '0')])
+
+    time.sleep(70)
     assert not inst.searchErrorsLog("Compacting databases")
     inst.deleteErrorLogs(restart=False)
 

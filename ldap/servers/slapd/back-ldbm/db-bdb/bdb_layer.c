@@ -3926,6 +3926,24 @@ bdb_compact(time_t when, void *arg)
     ldbm_instance *inst;
     DB *db = NULL;
     int rc = 0;
+    time_t compactdb_interval;
+
+    /*
+     * The interval may have been set to 0 (compaction disabled) after
+     * this one-shot event was already queued via slapi_eq_once_rel().
+     * Re-check the live config before doing any real work.
+     */
+    PR_Lock(li->li_config_mutex);
+    compactdb_interval = (time_t)BDB_CONFIG(li)->bdb_compactdb_interval;
+    PR_Unlock(li->li_config_mutex);
+
+    if (compactdb_interval == 0) {
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact",
+                      "database compaction skipped - auto-compaction is "
+                      "disabled (nsslapd-db-compactdb-interval: 0)\n");
+        compaction_scheduled = PR_FALSE;
+        return;
+    }
 
     for (inst_obj = objset_first_obj(li->li_instance_set);
          inst_obj;
@@ -4067,12 +4085,17 @@ bdb_checkpoint_threadmain(void *param)
          * already had a preexisting time set.  This way regardless if we
          * restart the server we will still compact at the expected interval */
         time_t curr_time = slapi_current_utc_time();
-        if (compactdb_interval < (curr_time - compactdb_start_time)) {
-            /* the interval has now been passed, trigger compaction right away */
-            compactdb_interval = 1;
-        } else {
-            compactdb_interval = compactdb_interval - (curr_time - compactdb_start_time);
+        if (compactdb_interval > 0) {
+            if (compactdb_interval < (curr_time - compactdb_start_time)) {
+                /* the interval has now been passed, trigger compaction right away */
+                compactdb_interval = 1;
+            } else {
+                compactdb_interval = compactdb_interval - (curr_time - compactdb_start_time);
+            }
         }
+        /* else: compaction is disabled (interval == 0) - leave compactdb_interval
+         * at 0. The main loop re-checks the live config every iteration and
+         * gates scheduling on that, independent of compactdb_expire's state. */
     }
 
     /* assumes bdb_force_checkpoint worked */
@@ -4093,13 +4116,18 @@ bdb_checkpoint_threadmain(void *param)
         if (compactdb_interval_update != compactdb_interval_orig) {
             /* Compact interval was changed, so reset the timer */
             time_t curr_time = slapi_current_utc_time();
-            if (compactdb_interval_update < (curr_time - compactdb_start_time)) {
-                /* the new interval has now been passed, trigger compaction right away */
-                compactdb_interval = 1;
-            } else {
-                compactdb_interval = compactdb_interval_update - (curr_time - compactdb_start_time);
+            if (compactdb_interval_update > 0) {
+                if (compactdb_interval_update < (curr_time - compactdb_start_time)) {
+                    /* the new interval has now been passed, trigger compaction right away */
+                    compactdb_interval = 1;
+                } else {
+                    compactdb_interval = compactdb_interval_update - (curr_time - compactdb_start_time);
+                }
+                slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
             }
-            slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
+            /* else: compactdb_interval_update is 0 - skip the timer adjustment.
+             * The scheduling block below also checks compactdb_interval_update
+             * and will short-circuit before compactdb_expire is ever consulted. */
         }
 
         /* Sleep for a while ...
@@ -4177,14 +4205,15 @@ bdb_checkpoint_threadmain(void *param)
 
         /* Compacting DB borrowing the timing of the log flush */
 
-        /*
-         * Remember that if compactdb_interval is 0, timer_expired can
-         * never occur unless the value in compactdb_interval changes.
-         *
-         * this could have been a bug in fact, where compactdb_interval
-         * was 0, if you change while running it would never take effect ....
-         */
-        if (compactdb_interval_update != compactdb_interval_orig ||
+        if (compactdb_interval_update == 0) {
+            /*
+             * Compaction is disabled. Keep compactdb_interval_orig in sync
+             * so that a future transition back to a nonzero interval is
+             * correctly detected by the != comparison below and takes
+             * effect immediately without requiring a server restart.
+             */
+            compactdb_interval_orig = 0;
+        } else if (compactdb_interval_update != compactdb_interval_orig ||
             (slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED && !compaction_scheduled))
         {
             time_t scheduled_time;
