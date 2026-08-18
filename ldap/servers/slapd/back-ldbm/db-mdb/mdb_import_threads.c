@@ -31,6 +31,7 @@
 #include <time.h>
 
 #define CV_TIMEOUT    10000000  /* 10 milli seconds timeout */
+#define BULK_IMPORT_WAIT_LOG_LIMIT 10
 
 /* Value to determine when to wait before adding item to write queue and
  * when to wait until having enough item in queue to start emptying it
@@ -1122,13 +1123,15 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
     param.eid = wqelmt->wait_id;
     param.flags = EIP_WAIT;
     dnrc = dbmdb_import_entry_info_by_param(&param, wqelmt);
+    slapi_ch_free(&bqdata->key.mv_data);
+    bqdata->key.mv_size = 0;
     if (dnrc == DNRC_WAIT) {
         dup_data(&bqdata->wait4key, &param.pkey);
     } else {
-        bqdata->wait4key.mv_data = NULL;
+        slapi_ch_free(&bqdata->wait4key.mv_data);
         bqdata->wait4key.mv_size = 0;
+        dup_data(&bqdata->key, &param.ekey);
     }
-    dup_data(&bqdata->key, &param.ekey);
     entryinfoparam_cleanup(&param);
     return dnrc;
 }
@@ -4139,6 +4142,7 @@ dbmdb_bulk_producer(void *param)
     BulkQueueData_t *entry = NULL;
     BulkQueueData_t **q, *e;
     WorkerQueueData_t tmpslot = {0};
+    MDB_val uuidkey = {0};
     mdb_privdb_t *dndb = NULL;
 
     PR_ASSERT(info != NULL);
@@ -4231,9 +4235,25 @@ dbmdb_bulk_producer(void *param)
                 entry = NULL;
                 continue;
         }
-        /* Let move the entries that are waiting for this entry into processing queue */
+        /* Let move the entries that are waiting for this entry into
+         * processing queue.  A tombstone child waits on its parent's
+         * nsuniqueid while a regular entry's own key is its ndn, so
+         * match waiters against both keys.
+         * Note: dnrc == DNRC_OK/DNRC_SUFFIX here implies that the
+         * nsuniqueid private-db registration succeeded (a failed put
+         * mutates dnrc to DNRC_DUP/DNRC_ERROR, which the switch above
+         * diverts before reaching this loop), so this guard mirrors
+         * the registration condition exactly. */
+        uuidkey.mv_data = NULL;
+        uuidkey.mv_size = 0;
+        if ((tmpslot.dnrc == DNRC_OK || tmpslot.dnrc == DNRC_SUFFIX) &&
+            entry->ep->ep_entry->e_uniqueid) {
+            uuidkey.mv_data = entry->ep->ep_entry->e_uniqueid;
+            uuidkey.mv_size = strlen(uuidkey.mv_data) + 1;
+        }
         for (q = &waitingq; *q;) {
-            if (cmp_data(&(*q)->wait4key, &entry->key) == 0) {
+            if (cmp_data(&(*q)->wait4key, &entry->key) == 0 ||
+                (uuidkey.mv_data && cmp_data(&(*q)->wait4key, &uuidkey) == 0)) {
                 e = *q;
                 slapi_ch_free(&e->wait4key.mv_data);
                 e->wait4key.mv_size = 0;
@@ -4250,6 +4270,32 @@ dbmdb_bulk_producer(void *param)
         entry->ep = NULL; /* Should not free the backentry which is now owned by worker queue */
         free_bulk_queue_item(&entry);
         pthread_cond_broadcast(&ctx->workerq.cv);
+    }
+    if (waitingq && !info_is_finished(info)) {
+        size_t waiting_count = 0;
+        size_t waiting_logged = 0;
+
+        /* Clean end of the import with entries still waiting for a parent
+         * that never arrived: log a bounded sample and abort rather than
+         * freeing them silently (= losing entries without a trace). */
+        for (e = waitingq; e; e = e->next) {
+            if (waiting_logged < BULK_IMPORT_WAIT_LOG_LIMIT) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
+                                  "Bulk import entry \"%s\" (wire import id %d) was never "
+                                  "imported: its parent was not found in the import stream.",
+                                  e->ep ? slapi_entry_get_dn(e->ep->ep_entry) : "(unknown)",
+                                  e->id);
+                waiting_logged++;
+            }
+            waiting_count++;
+        }
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
+                          "Aborting bulk import: %lu entries had no parent in the import stream; "
+                          "logged %lu and omitted %lu additional entries.",
+                          (long unsigned int)waiting_count,
+                          (long unsigned int)waiting_logged,
+                          (long unsigned int)(waiting_count - waiting_logged));
+        thread_abort(info);
     }
     free_bulk_queue_list(&processingq);
     free_bulk_queue_list(&waitingq);
