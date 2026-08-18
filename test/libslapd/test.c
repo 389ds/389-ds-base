@@ -59,6 +59,10 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_hibp_buffer_handling),
         cmocka_unit_test(test_hibp_api_integration),
         cmocka_unit_test(test_hibp_concurrent_requests),
+        cmocka_unit_test(test_hibp_cache_basic),
+        cmocka_unit_test(test_hibp_cache_eviction),
+        cmocka_unit_test(test_hibp_cache_ttl),
+        cmocka_unit_test(test_hibp_cache_lru_reorder),
 #endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
