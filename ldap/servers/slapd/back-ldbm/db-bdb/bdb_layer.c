@@ -3938,7 +3938,7 @@ bdb_compact(time_t when, void *arg)
     PR_Unlock(li->li_config_mutex);
 
     if (compactdb_interval == 0) {
-        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact",
+        slapi_log_err(SLAPI_LOG_DEBUG, "bdb_compact",
                       "database compaction skipped - auto-compaction is "
                       "disabled (nsslapd-db-compactdb-interval: 0)\n");
         compaction_scheduled = PR_FALSE;
