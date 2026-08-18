@@ -42,6 +42,18 @@ utf8isspace_fast(char *s)
     return 0;
 }
 
+int
+trim_spaces_to_mask(int trim_spaces)
+{
+    if (trim_spaces == COMPATIBLE_NOT_TRIM_SPACES) {
+        return NO_TRIM_SHRINK_BLANK;
+    } else if (trim_spaces == COMPATIBLE_TRIM_SPACES) {
+        return COMPATIBLE_TRIM_MASK;
+    } else {
+        return trim_spaces;
+    }
+}
+
 /*
 ** This function is used to normalizes search filter components,
 ** and attribute values.
@@ -201,8 +213,11 @@ value_normalize_ext(
         nd = ldap_utf8prev(d);
         while (nd && nd >= head && utf8isspace_fast(nd)) {
             d = nd;
+            if (d <= head) {
+                break;
+            }
             nd = ldap_utf8prev(d);
-            if (utf8isspace_fast(nd)) {
+            if (nd && nd >= head && utf8isspace_fast(nd)) {
                 /* consum the space referred by 'd' */
                 *d = '\0';
             } else {
@@ -218,8 +233,11 @@ value_normalize_ext(
         nd = ldap_utf8prev(d);
         while (nd && nd >= head && utf8isspace_fast(nd)) {
             d = nd;
-            nd = ldap_utf8prev(d);
             *d = '\0';
+            if (d <= head) {
+                break;
+            }
+            nd = ldap_utf8prev(d);
         }
     }
 }

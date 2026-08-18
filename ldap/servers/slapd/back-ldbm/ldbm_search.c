@@ -28,6 +28,13 @@
  */
 #define LDBM_SRCH_DEFAULT_RESULT (-1)
 
+/* Helper struct to handle srinking/triming spaces */
+struct shrink_blanks_ctx {
+    size_t first_non_space;        /* Position of first char that is not a space */
+    size_t first_trailing_space;   /* Position of first trailing space */
+    size_t len;                    /* Position of \0 (aka strlen(val)) */
+};
+
 /* prototypes */
 static int build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const char *base, int scope, int *lookup_returned_allidsp, IDList **candidates);
 static IDList *base_candidates(Slapi_PBlock *pb, struct backentry *e);
@@ -355,6 +362,42 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     return function_result;
 }
 
+
+/*
+ * Handle appropiatly values having either some leading or trailing spaces
+ * Returns a newly allocated string if the value was modified, NULL if unchanged.
+ */
+static char *
+ldbm_search_substring_shrink_blanks_int(const char *val, int trim_spaces, struct shrink_blanks_ctx *ctx)
+{
+    char *ret = slapi_ch_strdup(val);
+    char *pt = ret;
+
+    /* Caller check that val is not "only spaces" so the following is true: */
+    PR_ASSERT(ctx->first_non_space < ctx->first_trailing_space);
+
+    if (ctx->first_non_space > 0 ) {
+        /* There are some leading spaces to shrink/trim */
+        if (trim_spaces & SHRINK_LEADING_BLANK) {
+            *pt++ = ' ';   /* Append a single leading space */
+        }
+        /* Remove leading spaces */
+        memmove(pt, ret+ctx->first_non_space, ctx->first_trailing_space - ctx->first_non_space);
+    }
+    pt += ctx->first_trailing_space - ctx->first_non_space;
+    if ((trim_spaces & SHRINK_TRAILING_BLANK) && ctx->first_trailing_space < ctx->len) {
+        *pt++ = ' ';   /* Append a single trailing space */
+    }
+    *pt = 0;
+    if (strcmp(ret, val) != 0) {
+        return ret;
+    } else {
+        slapi_ch_free_string(&ret);
+        return NULL;
+    }
+}
+
+
 /*
  * RFC 4518 2.6.1 insignificant space handling for substring assertion values.
  * Returns a newly allocated string if the value was modified, NULL if unchanged.
@@ -362,88 +405,55 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
 static char *
 ldbm_search_substring_shrink_blanks(const char *val, int trim_spaces)
 {
-    char *head;
-    char *s;
-    char *end;
-    int ends_with_space = 0;
+    struct shrink_blanks_ctx ctx = {0};
+    char *head = (char*)val;
+    bool leading = true;
 
-    if (val == NULL) {
+    if (val == NULL || *val == 0) {
         return NULL;
     }
 
-    head = slapi_ch_strdup(val);
-    s = head;
-
-    if (trim_spaces & SHRINK_LEADING_BLANK) {
-        while (ldap_utf8isspace(s)) {
-            LDAP_UTF8INC(s);
+    /* Set the context and determine if there are leading/trailing spaces */
+    ctx.first_non_space = 0;
+    while (*head != '\0') {
+        bool is_space = ldap_utf8isspace(head);
+        if (!is_space && leading) {
+            ctx.first_non_space = head - (char*)val;
+            leading = false;
         }
-        if (head != s) {
-            LDAP_UTF8DEC(s);
-        }
-    }
-    if (trim_spaces & TRIM_LEADING_BLANK) {
-        while (ldap_utf8isspace(s)) {
-            LDAP_UTF8INC(s);
+        LDAP_UTF8INC(head);
+        if (!is_space) {
+            ctx.first_trailing_space = head - (char*)val;
         }
     }
+    ctx.len = head - (char*)val;
 
-    if (*s == '\0' && s != head) {
-        head[0] = ' ';
-        head[1] = '\0';
-        if (strcmp(head, val) == 0) {
-            slapi_ch_free_string(&head);
+    if (ctx.first_trailing_space == 0) {
+        /* Only spaces value => return exactly 1 space */
+        if (strcmp(val, " ") == 0) {
             return NULL;
         }
-        return head;
+        return slapi_ch_strdup(" ");
     }
 
-    if (s != head) {
-        memmove(head, s, strlen(s) + 1);
+    if (trim_spaces & (SHRINK_LEADING_BLANK | TRIM_LEADING_BLANK) == 0) {
+        /* Do not trim leading spaces */
+        ctx.first_non_space = 0;
     }
 
-    end = head + strlen(head);
-    if (end > head) {
-        char *nd = ldap_utf8prev(end);
-
-        if (nd && nd >= head && ldap_utf8isspace(nd)) {
-            ends_with_space = 1;
-        }
+    if (trim_spaces & (SHRINK_TRAILING_BLANK | TRIM_TRAILING_BLANK) == 0) {
+        /* Do not trim trailing spaces */
+        ctx.first_trailing_space = ctx.len;
     }
 
-    if (ends_with_space && (trim_spaces & SHRINK_TRAILING_BLANK)) {
-        char *nd;
-        char *d = end;
-
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && ldap_utf8isspace(nd)) {
-            d = nd;
-            nd = ldap_utf8prev(d);
-            if (ldap_utf8isspace(nd)) {
-                *d = '\0';
-            } else {
-                break;
-            }
-        }
+    if (ctx.first_non_space > 0 || ctx.first_trailing_space < ctx.len) {
+        /* Some leading or trailing spaces ==> shrinking is needed. */
+        return ldbm_search_substring_shrink_blanks_int(val, trim_spaces, &ctx);
     }
-    if (ends_with_space && (trim_spaces & TRIM_TRAILING_BLANK)) {
-        char *nd;
-        char *d = end;
-
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && ldap_utf8isspace(nd)) {
-            d = nd;
-            nd = ldap_utf8prev(d);
-            *d = '\0';
-        }
-    }
-
-    if (strcmp(head, val) == 0) {
-        slapi_ch_free_string(&head);
-        return NULL;
-    }
-    return head;
+    /* Nothing to shrink */
+    return NULL;
 }
+
 
 static int
 ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))

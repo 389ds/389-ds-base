@@ -83,6 +83,7 @@ int string_values2keys(Slapi_PBlock *pb, Slapi_Value **bvals, Slapi_Value ***iva
 int string_assertion2keys_ava(Slapi_PBlock *pb, Slapi_Value *val, Slapi_Value ***ivals, int syntax, int ftype);
 int string_assertion2keys_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Slapi_Value ***ivals, int syntax);
 int value_cmp(struct berval *v1, struct berval *v2, int syntax, int normalize);
+int trim_spaces_to_mask(int trim_spaces);
 void value_normalize(char *s, int syntax, int trim_mask_blanks);
 void value_normalize_ext(char *s, int syntax, int trim_mask_blanks, char **alt);
 
