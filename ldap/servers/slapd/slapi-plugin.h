@@ -5107,6 +5107,15 @@ int slapi_valueset_count(const Slapi_ValueSet *vs);
 int slapi_valueset_isempty(const Slapi_ValueSet *vs);
 
 /**
+ * Checks if a \c Slapi_ValueSet structure maintains a sorted index.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure to check.
+ * \return 1 if the valueset has a non-NULL sorted index.
+ * \return 0 if the valueset is NULL or has no sorted index.
+ */
+int slapi_valueset_is_sorted(const Slapi_ValueSet *vs);
+
+/**
  * Initializes a \c Slapi_ValueSet with copies of the values of a \c Slapi_Mod structure.
  *
  * \param vs Pointer to the \c Slapi_ValueSet structure into which
