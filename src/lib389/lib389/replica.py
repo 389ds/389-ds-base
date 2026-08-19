@@ -2214,13 +2214,15 @@ class ReplicationManager(object):
         # to allow the tot_init to occur.
         self._bootstrap_replica(from_r, to_r, to_instance)
 
+        # Set bind DN group BEFORE creating agreements: the supplier's replication
+        # thread starts immediately on agreement creation and will fail auth permanently
+        # if nsDS5ReplicaBindDNGroup is not yet configured on the consumer.
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
         self.ensure_agreement(to_instance, from_instance, init=True)
-
-        # Now fix our replica credentials from -> to
-        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
 
         # Now finally test it ...
         self.test_replication(from_instance, to_instance)
@@ -2271,12 +2273,14 @@ class ReplicationManager(object):
         # to allow the tot_init to occur.
         self._bootstrap_replica(from_r, to_r, to_instance)
 
+        # Set bind DN group BEFORE creating agreements: the supplier's replication
+        # thread starts immediately on agreement creation and will fail auth permanently
+        # if nsDS5ReplicaBindDNGroup is not yet configured on the consumer.
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
-
-        # Now fix our replica credentials from -> to
-        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
 
         # Now finally test it ...
         self.test_replication(from_instance, to_instance)
@@ -2325,12 +2329,14 @@ class ReplicationManager(object):
         # to allow the tot_init to occur.
         self._bootstrap_replica(from_r, to_r, to_instance)
 
+        # Set bind DN group BEFORE creating agreements: the supplier's replication
+        # thread starts immediately on agreement creation and will fail auth permanently
+        # if nsDS5ReplicaBindDNGroup is not yet configured on the consumer.
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_group.dn)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
-
-        # Now fix our replica credentials from -> to
-        to_r.set('nsDS5ReplicaBindDNGroup', repl_group.dn)
 
         # Now finally test it ...
         # If from_instance replica isn't read-write (hub, probably), we will test it later
