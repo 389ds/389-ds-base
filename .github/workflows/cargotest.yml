@@ -5,7 +5,22 @@ on:
     branches:
       - main
       - "389-ds-base-*"
+    paths-ignore:
+      - '**.md'
+      # not docs/**: slapi.doxy.in and the doxygen assets are build inputs
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   schedule:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
   workflow_dispatch:  # Allow manual triggering
@@ -20,10 +35,40 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'schedule'
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - name: Skip unchanged nightly runs
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Push successes count too: this workflow still triggers on
+          # push and takes no inputs, so any green push run at this sha
+          # is full coverage.
+          run=true
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "${{ github.workflow }}" \
+            --status success --branch "$GITHUB_REF_NAME" --limit 20 --json headSha,event \
+            --jq '[.[] | select(.event == "push" or .event == "schedule")][0].headSha' || true)
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then
+            echo "No new commits since the last successful run"
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   rust-tests:
     name: Cargo Tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    needs: gate
+    # != 'success' keeps the gate fail-open: a gate infra failure must
+    # not skip the nightly.
+    if: ${{ !cancelled() && (needs.gate.result != 'success' || needs.gate.outputs.run == 'true') }}
     container:
       image: quay.io/389ds/ci-images:fedora
 

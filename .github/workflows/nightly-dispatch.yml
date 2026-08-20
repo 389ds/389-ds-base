@@ -1,0 +1,53 @@
+name: Nightly Dispatch
+
+on:
+  schedule:
+    - cron: '30 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch tests for changed release branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Start full test runs on release branches with new commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # X.Y and X.Y.Z branches with commits in the last 30 days,
+          # each head dispatched at most once (a failed run needs a
+          # human, not a nightly retry; a manual partial dispatch also
+          # counts as that head's run). The run-list check has no
+          # --event filter on purpose: on branches that still carry
+          # push triggers, the push run for a head must count or every
+          # backport would run twice. Empty inputs override old
+          # branches' broken pytest_tests default of "false".
+          now=$(date +%s)
+          branches=$(gh api "repos/$GITHUB_REPOSITORY/branches?per_page=100" --paginate \
+            --jq '.[] | select(.name | test("^389-ds-base-[0-9]+\\.[0-9]+(\\.[0-9]+)?$")) | "\(.name) \(.commit.sha)"' || true)
+          while read -r branch sha; do
+            [ -z "$branch" ] && continue
+            committed=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha" --jq '.commit.committer.date' || true)
+            if [ -n "$committed" ]; then
+              cs=$(date -d "$committed" +%s 2>/dev/null || echo 0)
+              if [ "$cs" -gt 0 ] && [ $(( now - cs )) -gt $(( 30 * 86400 )) ]; then
+                continue
+              fi
+            fi
+            for workflow in pytest.yml lmdbpytest.yml; do
+              last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" \
+                --branch "$branch" --limit 1 --json headSha --jq '.[0].headSha' || true)
+              if [ "$last" = "$sha" ]; then
+                continue
+              fi
+              echo "Dispatching $workflow on $branch ($sha)"
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref "$branch" \
+                -f pytest_tests= -f debug_enabled= ||
+                echo "Dispatch failed for $branch (no dispatchable $workflow on that ref)"
+            done
+          done <<< "$branches"

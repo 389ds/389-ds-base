@@ -2,9 +2,26 @@ name: CodeQL
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'
+      # not docs/**: slapi.doxy.in and the doxygen assets are build inputs
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   schedule:
+    # Weekly even without commits: CodeQL query packs update
+    # independently of the tree.
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
