@@ -317,7 +317,8 @@ Source0:          %{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 # Optional eBPF tracer for the shipped USDT bpftrace scripts.
-Recommends:       bpftrace
+# Use Suggests so it is not installed by default (debug-only, pulls in gcc).
+Suggests:         bpftrace
 Source2:          %{name}-devel.README
 %if %{bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
