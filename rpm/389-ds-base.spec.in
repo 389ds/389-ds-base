@@ -222,7 +222,8 @@ Requires:         python3-file-magic
 
 %if %{with usdt}
 # Optional eBPF tracer for the shipped USDT bpftrace scripts.
-Recommends:       bpftrace
+# Use Suggests so it is not installed by default (debug-only, pulls in gcc).
+Suggests:         bpftrace
 %endif
 
 
