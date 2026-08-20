@@ -256,7 +256,11 @@ tombstone_to_conflict(
     Slapi_Mods smods;
     char csnstr[CSN_STRSIZE + 1];
 
-    char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, "nsuiqueid");
+    /*
+     * tombstoneentry get freed by urp_fixup_add_entry so we cannot use
+     * slapi_entry_get_uniqueid (heap-use-after-free error)
+     */
+    char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, SLAPI_ATTR_UNIQUEID);
     const char *entrydn = slapi_entry_attr_get_ref(tombstoneentry, "nscpentrydn");
     char *parentdn = slapi_dn_parent(slapi_sdn_get_ndn(conflictdn));
     const CSN *dncsn = entry_get_dncsn(tombstoneentry);
