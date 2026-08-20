@@ -35,7 +35,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
-from lib389 import Entry
 from lib389.cli_base import FakeArgs
 from lib389._constants import DN_DM, PW_DM
 from lib389.dseldif import DSEldif
@@ -823,18 +822,18 @@ def test_invalid_certificate_handling(topo, setup_tls):
 
 
 def test_dynamic_cert_rejects_mismatched_dn_and_cn(topo, setup_tls):
-    """Test direct add rejects entries whose cn does not match the target DN
+    """Test DynamicCerts.create rejects cn that does not match the target DN
 
     :id: 0f1e2d3c-4444-5555-6666-777777777777
     :setup: Standalone Instance with TLS enabled
     :steps:
         1. Generate a CA certificate
-        2. Build a direct LDAP add request under one nickname
+        2. Build a DynamicCerts create request under one nickname
         3. Set the entry cn to an LDAP-equivalent but non-identical nickname
         4. Verify the add is rejected
     :expectedresults:
         1. Certificate material is generated
-        2. Direct create path is exercised
+        2. DynamicCerts.create path is exercised
         3. The non-identical nickname is detected
         4. Server returns LDAP naming violation
     """
@@ -844,20 +843,22 @@ def test_dynamic_cert_rejects_mismatched_dn_and_cn(topo, setup_tls):
     os.makedirs(dir, 0o700, exist_ok=True)
 
     try:
+        dyncerts = DynamicCerts(inst)
         ca = RSA_Certificate.generateRootCA("TestMismatch_CA")
         ca.save(dir)
 
         with open(ca.pem, 'rb') as f:
             cert_der = pem_to_der(f.read())
 
-        entry = Entry((f"{DYCATTR_CN}=TestMismatch_A,{DYNCERT_SUFFIX}", {
-            'objectClass': ['top', 'extensibleObject'],
+        # The trailing space is insignificant for LDAP naming equality, so the
+        # generic RDN check accepts it, but dyncerts must reject the mismatch.
+        properties = {
             DYCATTR_CN: 'TestMismatch_A ',
             DYCATTR_CERTDER: cert_der,
-        }))
+        }
 
         with pytest.raises(ldap.NAMING_VIOLATION):
-            inst.add_s(entry, escapehatch='i am sure')
+            dyncerts.create(rdn=f"{DYCATTR_CN}=TestMismatch_A", properties=properties)
     finally:
         if not DEBUGGING:
             shutil.rmtree(dir, ignore_errors=True)
