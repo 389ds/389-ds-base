@@ -42,6 +42,18 @@ utf8isspace_fast(char *s)
     return 0;
 }
 
+int
+trim_spaces_to_mask(int trim_spaces)
+{
+    if (trim_spaces == COMPATIBLE_NOT_TRIM_SPACES) {
+        return NO_TRIM_SHRINK_BLANK;
+    } else if (trim_spaces == COMPATIBLE_TRIM_SPACES) {
+        return COMPATIBLE_TRIM_MASK;
+    } else {
+        return trim_spaces;
+    }
+}
+
 /*
 ** This function is used to normalizes search filter components,
 ** and attribute values.
@@ -100,7 +112,17 @@ value_normalize_ext(
     }
 
     d = s;
-    if (trim_spaces) {
+    if (trim_spaces & SHRINK_LEADING_BLANK) {
+        /* consum all leading blanks */
+        while (utf8isspace_fast(s)) {
+            LDAP_UTF8INC(s);
+        }
+        /* if there was leading blanks keep only one*/
+        if (d != s) {
+            LDAP_UTF8DEC(s);
+        }
+    }
+    if (trim_spaces & TRIM_LEADING_BLANK) {
         /* strip leading blanks */
         while (utf8isspace_fast(s)) {
             LDAP_UTF8INC(s);
@@ -184,15 +206,38 @@ value_normalize_ext(
         }
     }
     *d = '\0';
-    /* strip trailing blanks */
-    if (prevspace && trim_spaces) {
+    /* compress trailing blanks */
+    if (prevspace && (trim_spaces & SHRINK_TRAILING_BLANK)) {
         char *nd;
 
         nd = ldap_utf8prev(d);
         while (nd && nd >= head && utf8isspace_fast(nd)) {
             d = nd;
+            if (d <= head) {
+                break;
+            }
             nd = ldap_utf8prev(d);
+            if (nd && nd >= head && utf8isspace_fast(nd)) {
+                /* consum the space referred by 'd' */
+                *d = '\0';
+            } else {
+                /* this was the last space => preserve it */
+                break;
+            }
+        }
+    }
+    /* strip trailing blanks */
+    if (prevspace && (trim_spaces & TRIM_TRAILING_BLANK)) {
+        char *nd;
+
+        nd = ldap_utf8prev(d);
+        while (nd && nd >= head && utf8isspace_fast(nd)) {
+            d = nd;
             *d = '\0';
+            if (d <= head) {
+                break;
+            }
+            nd = ldap_utf8prev(d);
         }
     }
 }
@@ -252,7 +297,7 @@ value_cmp(
             free_v1 = 1;
         }
         value_normalize_ext(v1->bv_val, syntax,
-                            1 /* trim leading blanks */, &alt);
+                             TRIM_LEADING_BLANK /* trim leading blanks */, &alt);
         if (alt) {
             int inserted = 0;
 
@@ -297,7 +342,7 @@ value_cmp(
             free_v2 = 1;
         }
         value_normalize_ext(v2->bv_val, syntax,
-                            1 /* trim leading blanks */, &alt);
+                            TRIM_LEADING_BLANK /* trim leading blanks */, &alt);
         if (alt) {
             int inserted = 0;
 
