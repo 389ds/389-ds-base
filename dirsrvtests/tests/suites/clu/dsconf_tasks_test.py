@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 
 def test_task_timeout(topo):
-    """All thath te timeoutsetting works for all "tasks"
+    """Test that the timeout setting works for all "tasks"
 
     :id: 6a6f5176-76bf-424d-bc10-d33bdfa529eb
     :setup: Standalone Instance
@@ -111,7 +111,7 @@ def test_task_timeout(topo):
         'basedn': DEFAULT_SUFFIX,
         'filter': "objectClass=*"
     })
-    task.wait(timeout=.5, sleep_interval=.5)
+    task.wait(timeout=.2, sleep_interval=.2)
     assert task.get_exit_code() is None
     task.wait(timeout=0)
 
@@ -128,7 +128,7 @@ def test_task_timeout(topo):
     """
 
     # Test timeout for usn cleanup task, first delete a bunch of users
-    for idx in range(1, 1001):
+    for idx in range(1, 2001):
         entry_idx = str(idx).zfill(6)
         dn = f"uid=user{entry_idx},ou=people,{DEFAULT_SUFFIX}"
         UserAccount(inst, dn=dn).delete()
