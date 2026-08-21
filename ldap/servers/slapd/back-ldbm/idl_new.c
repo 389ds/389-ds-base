@@ -743,16 +743,35 @@ idl_new_range_fetch(
 
     /* Position cursor at the first matching key */
     ret = dblayer_cursor_bulkop(&cursor, DBI_OP_MOVE_TO_KEY, &cur_key, &bulkdata);
-    if (0 != ret) {
-        if (DBI_RC_NOTFOUND != ret) {
-            if (ret == DBI_RC_BUFFER_SMALL) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
-                                                                    "data item for key %s is too large for our buffer (need=%ld actual=%ld)\n",
-                              (char *)cur_key.data, bulkdata.v.size, bulkdata.v.ulen);
-            }
-            ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 2, ret);
+    if (DBI_RC_NOTFOUND == ret) {
+        /* The start key was deleted: find the nearest key with a plain
+         * op (bulk ops cannot) and bulk read from it - same transaction,
+         * so the exact match cannot miss. The seek rewrites its key, so
+         * detach cur_key from the caller's buffer first. */
+        char *keydup = slapi_ch_malloc(lowerkey->size);
+        memcpy(keydup, lowerkey->data, lowerkey->size);
+        dblayer_value_set(be, &cur_key, keydup, lowerkey->size);
+        ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_NEAR_KEY, &cur_key, NULL);
+        if (DBI_RC_SUCCESS == ret) {
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "idl_new_range_fetch",
+                          "Start key on %s was removed, resuming at its successor\n",
+                          index_id);
+            ret = dblayer_cursor_bulkop(&cursor, DBI_OP_MOVE_TO_KEY, &cur_key, &bulkdata);
+        } else if (DBI_RC_NOTFOUND == ret) {
+            /* No key at or after the start key: the range is empty */
+            idl = idl_alloc(0);
+            ret = 0;
+            goto error;
         }
-        goto error; /* Not found is OK, return NULL IDL */
+    }
+    if (0 != ret) {
+        if (ret == DBI_RC_BUFFER_SMALL) {
+            slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
+                                                                "data item for key %s is too large for our buffer (need=%ld actual=%ld)\n",
+                          (char *)cur_key.data, bulkdata.v.size, bulkdata.v.ulen);
+        }
+        ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 2, ret);
+        goto error;
     }
 
     /* Allocate an idlist to populate into */
