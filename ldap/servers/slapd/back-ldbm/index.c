@@ -1223,11 +1223,28 @@ retry:
     ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, key, &data); /* both key and data could be allocated */
     /* data allocated here, we don't need it */
     dblayer_value_free(be, &data);
-    if (DBI_RC_NOTFOUND == ret) {
+    if (DBI_RC_NOTFOUND == ret && key->size > 0) {
         /* If this happens, it means that we tried to seek to a key which has just been deleted */
-        /* So, we seek to the nearest one instead */
+        /* So, we seek to the nearest one instead; the seek rewrites the
+         * key, so keep a copy to tell whether we landed on it or past it */
+        dbi_val_t sought = {0};
+        char *keydup = slapi_ch_malloc(key->size);
+        memcpy(keydup, key->data, key->size);
+        dblayer_value_set(be, &sought, keydup, key->size);
         ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_NEAR_KEY, key, &data); /* both key and data could be allocated */
         /* a new key and data are allocated here, need to free them both */
+        dblayer_value_free(be, &data);
+        if (DBI_RC_SUCCESS == ret && !KEY_EQ(key, &sought)) {
+            /* The nearest key is already past the sought one: return it
+             * as the next key */
+            dblayer_value_free(be, &sought);
+            goto error;
+        }
+        dblayer_value_free(be, &sought);
+    } else if (DBI_RC_NOTFOUND == ret) {
+        /* Empty sought key from the old idl walk: keep its legacy
+         * land-on-first-then-advance behavior */
+        ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_NEAR_KEY, key, &data); /* both key and data could be allocated */
         dblayer_value_free(be, &data);
     }
     if (0 != ret) {
@@ -1650,8 +1667,20 @@ index_range_read_ext(
     dblayer_value_init(be, &lowerkey);   /* Clear lowerkey to avoid double free */
     *err = 0;
     if (coreop == SLAPI_OP_GREATER) {
-        *err = index_range_next_key(be, db, &cur_key, db_txn);
-        if (*err) {
+        /* The seek rewrote cur_key with the landed key: rebuild the
+         * bound and step off it only if the walk landed exactly on it */
+        dbi_val_t bound = {0};
+        set_range_limit(be, val, prefix, plen, &bound);
+        if (KEY_EQ(&cur_key, &bound)) {
+            *err = index_range_next_key(be, db, &cur_key, db_txn);
+        }
+        dblayer_value_free(be, &bound);
+        if (DBI_RC_NOTFOUND == *err) {
+            /* the bound key is the last key: the range is empty */
+            *err = 0;
+            idl = idl_alloc(0);
+            goto error;
+        } else if (*err) {
             slapi_log_err(SLAPI_LOG_ERR, "index_range_read_ext",
                           "(%s,%s) op==GREATER, no next key: %i)\n",
                           type, prefix, *err);
