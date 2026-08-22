@@ -1175,6 +1175,25 @@ dyncert_nickname_from_dn(Nickname_t *n, Slapi_DN *sdn)
     return n->nickname;
 }
 
+static const char *
+dyncerts_expected_nickname(const Nickname_t *n)
+{
+    if (n == NULL) {
+        return NULL;
+    }
+    if (n->fullnickname != NULL) {
+        return n->fullnickname;
+    }
+    return n->nickname;
+}
+
+static const char *
+dyncerts_expected_nickname_from_dn(Nickname_t *n, Slapi_DN *sdn)
+{
+    (void) dyncert_nickname_from_dn(n, sdn);
+    return dyncerts_expected_nickname(n);
+}
+
 static SECItem
 slapi_entry_attr_get_secitem(const Slapi_Entry *e, const char *type)
 {
@@ -1198,6 +1217,8 @@ dyncerts_check_entry(Slapi_PBlock *pb, Slapi_Entry *e, Nickname_t *n, char *errm
 {
     int rc = LDAP_SUCCESS;
     Slapi_Attr *a = NULL;
+    const char *nickname = dyncerts_expected_nickname(n);
+    const char *val = NULL;
     char *allowedattrs[] = {
         DYCATTR_NICKNAME,
         DYCATTR_CERTDER,
@@ -1260,6 +1281,14 @@ dyncerts_check_entry(Slapi_PBlock *pb, Slapi_Entry *e, Nickname_t *n, char *errm
                         "Unexpected attribute: %s", a->a_type);
             return LDAP_OBJECT_CLASS_VIOLATION;
         }
+    }
+    /* Check that entry cn matches the nickname encoded in the target DN */
+    val = slapi_entry_attr_get_ref(e, DYCATTR_NICKNAME);
+    if ((nickname == NULL) || (val == NULL) || (strcasecmp(val, nickname) != 0)) {
+        PR_snprintf(errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Attribute %s should be present and should match the entry DN nickname",
+                    DYCATTR_NICKNAME);
+        return LDAP_NAMING_VIOLATION;
     }
     /* Check that nsDynamicCertificateDER attribute is present */
     if ((needcert || slapi_entry_attr_get_ref(e, DYCATTR_PKEYDER)) &&
@@ -1357,10 +1386,9 @@ done:
 static int
 dyncerts_mods2entry(Slapi_PBlock *pb, Slapi_DN *sdn, LDAPMod **mods, Nickname_t *n, char *errmsg, Slapi_Entry **pte)
 {
-    const char *nickname = dyncert_nickname_from_dn(n, sdn);
+    const char *nickname = dyncerts_expected_nickname_from_dn(n, sdn);
     char *dn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
     Slapi_Entry *e = *pte = slapi_entry_alloc();
-    const char *val = NULL;
     int rc = LDAP_SUCCESS;
 
     slapi_entry_init(e, dn, NULL);
@@ -1376,12 +1404,6 @@ dyncerts_mods2entry(Slapi_PBlock *pb, Slapi_DN *sdn, LDAPMod **mods, Nickname_t 
     slapi_entry_add_string(e, DYCATTR_NICKNAME, nickname);
     rc = slapi_entry_apply_mods(e, mods);
     if (rc) {
-        goto done;
-    }
-    val = slapi_entry_attr_get_charptr(e, DYCATTR_NICKNAME);
-    if ((val == NULL) || (strcasecmp(val, nickname) != 0)) {
-        /* cn attribute was changed ! */
-        rc = LDAP_NAMING_VIOLATION;
         goto done;
     }
     rc = dyncerts_check_entry(pb, e, n, errmsg, false);
