@@ -1,8 +1,15 @@
 name: Test
 
 on:
-  push:
   pull_request:
+    paths-ignore:
+      - '**.md'
+      # not docs/**: slapi.doxy.in and the doxygen assets are build inputs
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   schedule:
     - cron:  '0 0 * * *'
   workflow_dispatch:
@@ -10,7 +17,7 @@ on:
       pytest_tests:
         description: 'Run only specified suites or test modules delimited by space, for example "basic/basic_test.py replication"'
         required: false
-        default: false
+        default: ''
       debug_enabled:
         description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'
         required: false
@@ -26,9 +33,39 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'schedule'
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - name: Skip the nightly when nothing changed
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Only scheduled successes count: dispatch runs may be partial
+          # (pytest_tests) and this workflow has no push runs.
+          run=true
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "${{ github.workflow }}" \
+            --event schedule --status success --branch "$GITHUB_REF_NAME" \
+            --limit 1 --json headSha --jq '.[0].headSha' || true)
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then
+            echo "No new commits since the last successful scheduled run"
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    needs: gate
+    # != 'success' keeps the gate fail-open: a gate infra failure must
+    # not skip the nightly.
+    if: ${{ !cancelled() && (needs.gate.result != 'success' || needs.gate.outputs.run == 'true') }}
     container:
       image: quay.io/389ds/ci-images:test
     outputs:
@@ -40,9 +77,18 @@ jobs:
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Check if the diff is limited to the Web UI
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: echo "suites=$(python3 .github/scripts/pr_scope.py ${{ github.event.pull_request.number }})" >>$GITHUB_OUTPUT
+
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})" >>$GITHUB_OUTPUT
+        env:
+          SUITES: ${{ steps.scope.outputs.suites || github.event.inputs.pytest_tests }}
+        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py $SUITES)" >>$GITHUB_OUTPUT
 
       - name: Build RPMs
         run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
