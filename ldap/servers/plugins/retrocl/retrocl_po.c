@@ -416,7 +416,6 @@ entry2reple(Slapi_Entry *e, Slapi_Entry *oe, int optype)
     struct berval *vals[2];
     struct berval val;
     int len;
-    Slapi_Attr *attrs = NULL;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -433,16 +432,7 @@ entry2reple(Slapi_Entry *e, Slapi_Entry *oe, int optype)
     }
     slapi_entry_add_values(e, retrocl_changetype, vals);
 
-    /* Does this entry contain any excluded attributes */
-    for (attrs  = oe->e_attrs; attrs != NULL; attrs = attrs->a_next) {
-        if (retrocl_attr_in_exclude_attrs(attrs->a_type, strlen(attrs->a_type))) {
-            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "entry2reple - excluding attr (%s).\n", attrs->a_type);
-            attrlist_delete(&oe->e_attrs, attrs->a_type);
-            attrs = attrs->a_next;
-        }
-    }
-
-    estr = slapi_entry2str(oe, &len);
+    estr = slapi_entry2str_exclude_attrs(oe, &len, retrocl_get_exclude_attrs());
     p = estr;
     /* Skip over the dn: line */
     while ((p = strchr(p, '\n')) != NULL) {
