@@ -35,6 +35,7 @@ extern "C" {
 #include "nspr.h"
 #include <syslog.h>
 #include <plhash.h>
+#include <stdbool.h>
 
 #ifdef __GNUC__
     #define __ATTRIBUTE__(x) __attribute__(x)
