@@ -871,7 +871,6 @@ librslapd_la_SOURCES = \
 	src/librslapd/src/cache.rs \
 	src/librslapd/src/lib.rs
 
-librslapd_la_EXTRA = src/librslapd/Cargo.lock
 
 @abs_top_builddir@/rs/rslapd/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -892,7 +891,6 @@ librnsslapd_la_SOURCES = \
 	src/librnsslapd/build.rs \
 	src/librnsslapd/src/lib.rs
 
-librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
 
 @abs_top_builddir@/rs/rnsslapd/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -931,7 +929,6 @@ libentryuuid_la_SOURCES = \
 	src/plugins/entryuuid/src/lib.rs \
 	$(libslapi_r_plugin_SOURCES)
 
-libentryuuid_la_EXTRA = src/plugin/entryuuid/Cargo.lock
 
 @abs_top_builddir@/rs/entryuuid/@rust_target_dir@/libentryuuid.a: $(libentryuuid_la_SOURCES) libslapd.la libentryuuid.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -949,7 +946,6 @@ libentryuuid_syntax_la_SOURCES = \
 	src/plugins/entryuuid_syntax/src/lib.rs \
 	$(libslapi_r_plugin_SOURCES)
 
-libentryuuid_syntax_la_EXTRA = src/plugin/entryuuid_syntax/Cargo.lock
 
 @abs_top_builddir@/rs/entryuuid_syntax/@rust_target_dir@/libentryuuid_syntax.a: $(libentryuuid_syntax_la_SOURCES) libslapd.la libentryuuid_syntax.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -969,7 +965,6 @@ libpwdchan_la_SOURCES = \
 	src/plugins/pwdchan/src/lib.rs \
 	$(libslapi_r_plugin_SOURCES)
 
-libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
 
 @abs_top_builddir@/rs/pwdchan/@rust_target_dir@/libpwdchan.a: $(libpwdchan_la_SOURCES) libslapd.la libpwdchan.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -982,11 +977,13 @@ libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
 
 # == pwdchan
 
-EXTRA_DIST = $(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
-			$(libentryuuid_la_SOURCES) $(libentryuuid_la_EXTRA) \
-			$(libentryuuid_syntax_la_SOURCES) $(libentryuuid_syntax_la_EXTRA) \
-			$(libpwdchan_la_SOURCES) $(libpwdchan_la_EXTRA) \
-			$(librnsslapd_la_SOURCES) $(librnsslapd_la_EXTRA)
+EXTRA_DIST = src/Cargo.toml \
+			src/Cargo.lock \
+			$(librslapd_la_SOURCES) \
+			$(libentryuuid_la_SOURCES) \
+			$(libentryuuid_syntax_la_SOURCES) \
+			$(libpwdchan_la_SOURCES) \
+			$(librnsslapd_la_SOURCES)
 
 ## Run rust tests
 # cargo does not support offline tests :(
