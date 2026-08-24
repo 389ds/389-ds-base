@@ -147,5 +147,6 @@ extern char *retrocl_get_config_str(const char *attrt);
 
 int retrocl_entry_in_scope(Slapi_Entry *e);
 int retrocl_attr_in_exclude_attrs(char *attr, int attrlen);
+char **retrocl_get_exclude_attrs(void);
 
 #endif /* _H_RETROCL */
