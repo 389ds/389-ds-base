@@ -12,6 +12,7 @@ import pytest
 import shutil
 import glob
 import ldap
+import sys
 import os
 import gzip
 
@@ -25,6 +26,7 @@ if "WEBUI" in os.environ:
     from slugify import slugify
     from pathlib import Path
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
 p = Paths()
