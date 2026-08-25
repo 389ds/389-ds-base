@@ -825,9 +825,42 @@ multisupplier_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
     int is90 = 0;
 
     if (!check_replica_auth(pb)) {
-        slapi_send_ldap_result(pb, LDAP_INSUFFICIENT_ACCESS, NULL, NULL, 0, NULL);
-        return NSDS50_REPL_PERMISSION_DENIED;
+        int isanon = 0;
+        char *bind_dn = NULL;
+
+        slapi_pblock_get(pb, SLAPI_CONN_DN, &bind_dn);
+        isanon = (bind_dn == NULL);
+        slapi_ch_free_string(&bind_dn);
+
+        if (isanon) {
+            slapi_send_ldap_result(pb, LDAP_INSUFFICIENT_ACCESS,
+                                   NULL, NULL, 0, NULL);
+        } else {
+            BerElement *resp_bere = der_alloc();
+            struct berval *resp_bval = NULL;
+            char *extop_oid = NULL;
+
+            if (resp_bere) {
+                ber_printf(resp_bere, "{e}", NSDS50_REPL_PERMISSION_DENIED);
+                ber_flatten(resp_bere, &resp_bval);
+                ber_free(resp_bere, 1);
+            }
+            slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
+            if (extop_oid &&
+                strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) == 0) {
+                slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID,
+                                 REPL_NSDS90_REPLICATION_RESPONSE_OID);
+            } else {
+                slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID,
+                                 REPL_NSDS50_REPLICATION_RESPONSE_OID);
+            }
+            slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
+            slapi_send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            ber_bvfree(resp_bval);
+        }
+        return SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
     }
+
     /* Decode the extended operation */
     if (decode_startrepl_extop(pb, &protocol_oid, &repl_root, &supplier_ruv,
                                &referrals, &replicacsnstr, &data_guid, &data, &is90) == -1) {
