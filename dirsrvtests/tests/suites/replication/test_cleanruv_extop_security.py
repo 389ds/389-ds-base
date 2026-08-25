@@ -128,6 +128,32 @@ class AccessLogWatcher:
         assert False, f"Failed to complete {self._oid} extended operation before timeout of {timeout}s"
 
 
+def create_startrepl_payload(suffix=DEFAULT_SUFFIX):
+    """
+    Create a minimal but valid BER-encoded payload for
+    StartNSDS50ReplicationRequest extended operations.
+
+    The payload is: SEQUENCE { STRING protocol_oid, STRING repl_root,
+                               SEQUENCE ruv, STRING csn }
+
+    Args:
+        suffix: the replicated suffix DN
+
+    Returns:
+        bytes: BER-encoded payload
+    """
+    outer = univ.Sequence()
+    outer.setComponentByPosition(
+        0, univ.OctetString(REPL_NSDS50_INCREMENTAL_PROTOCOL_OID.encode()))
+    outer.setComponentByPosition(
+        1, univ.OctetString(suffix.encode()))
+    outer.setComponentByPosition(
+        2, univ.Sequence())  # empty RUV
+    outer.setComponentByPosition(
+        3, univ.OctetString(b"58e1a9170001"))  # fake CSN
+    return encoder.encode(outer)
+
+
 def create_cleanruv_payload(filter_string):
     """
     Create a BER-encoded payload for CleanAllRUV extended operations.
@@ -348,12 +374,20 @@ def test_anonymous_extops(topology_m2, init_bind_user, extop_oid):
         3. Operation fails with INSUFFICIENT_ACCESS, SERVER_DOWN, or PROTOCOL_ERROR
     """
     supplier1 = topology_m2.ms["supplier1"]
-    filter_bytes = 'foo'
-    payload = create_cleanruv_payload(b'foo')
+    # Use a proper StartReplication payload for the Start OIDs so we verify
+    # that the auth gate blocks anonymous callers even with a valid payload,
+    # not just because the payload is malformed.
+    if extop_oid in (REPL_START_NSDS50_REPLICATION_REQUEST_OID,
+                     REPL_START_NSDS90_REPLICATION_REQUEST_OID):
+        filter_bytes = DEFAULT_SUFFIX
+        payload = create_startrepl_payload()
+    else:
+        filter_bytes = 'foo'
+        payload = create_cleanruv_payload(b'foo')
     extreq = ldap.extop.ExtendedRequest(extop_oid, payload)
-    expected_exception = ( ldap.INSUFFICIENT_ACCESS, ldap.SERVER_DOWN, ldap.PROTOCOL_ERROR )
+    expected_exception = (ldap.INSUFFICIENT_ACCESS, ldap.SERVER_DOWN, ldap.PROTOCOL_ERROR)
     if extop_oid in (REPL_END_NSDS50_REPLICATION_REQUEST_OID, ):
-        # end session extended operation return success without 
+        # end session extended operation returns success without
         # doing anything if the replica is not acquired
         expected_exception = None
     bind_type = BIND_ANONYMOUS
