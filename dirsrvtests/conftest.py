@@ -11,12 +11,20 @@ import logging
 import pytest
 import shutil
 import glob
+import ldap
+import sys
 import os
 
 from .sanitizers import SANITIZERS, find_library
 from lib389 import DirSrv
 from lib389.paths import Paths
 from enum import Enum
+
+if "WEBUI" in os.environ:
+    from slugify import slugify
+    from pathlib import Path
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
 p = Paths()
