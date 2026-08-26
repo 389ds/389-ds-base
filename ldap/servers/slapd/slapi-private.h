@@ -27,6 +27,7 @@ extern "C" {
 #include "nspr.h"
 #include "portable.h"
 #include "slapi-plugin.h"
+#include <stdbool.h>
 /*
  * XXXmcs: we can stop including slapi-plugin-compat4.h once we stop using
  * deprecated functions internally.
