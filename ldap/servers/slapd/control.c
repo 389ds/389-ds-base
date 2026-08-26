@@ -517,14 +517,16 @@ get_ldapmessage_controls_ext(
                 slapi_log_err(SLAPI_LOG_WARNING, "get_ldapmessage_controls_ext", "Warning: conn=%" PRIu64 " op=%d failed to parse SessionTracking control (%d)\n",
                               pb_conn ? pb_conn->c_connid : -1, pb_op ? pb_op->o_opid : -1, parse_rc);
                 slapi_ch_free_string(&session_tracking_id);
+                slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, NULL);
             } else {
                 /* now replace the sid (if any) in the pblock */
                 slapi_pblock_get(pb, SLAPI_SESSION_TRACKING, &old_sid);
                 slapi_ch_free_string(&old_sid);
                 slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, session_tracking_id);
             }
+        } else {
+            slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, NULL);
         }
-        slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, session_tracking_id);
         pwpolicy_ctrl = slapi_control_present(ctrls,
                                               LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL);
         slapi_pblock_set(pb, SLAPI_PWPOLICY, &pwpolicy_ctrl);
@@ -557,6 +559,7 @@ get_ldapmessage_controls_ext(
 
 free_and_return:;
     ldap_controls_free(ctrls);
+    slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL); /* make sure controls are removed from the pblock */
     slapi_log_err(SLAPI_LOG_TRACE, "get_ldapmessage_controls_ext",
                   "<= %i\n", rc);
     return (rc);
