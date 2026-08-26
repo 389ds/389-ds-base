@@ -423,9 +423,6 @@ def test_authorization_revocation(topology_m2, init_bind_user):
         5. User is re-added to group
         6. Group membership synchronized
         7. Operation succeeds again (user re-authorized)
-    :cleanup:
-        - User is re-added to group (in finally block)
-        - Group cache is synchronized (in finally block)
     """
     supplier1 = topology_m2.ms["supplier1"]
     supplier2 = topology_m2.ms["supplier2"]
