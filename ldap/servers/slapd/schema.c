@@ -1126,7 +1126,11 @@ oc_equal(struct objclass *oc1, struct objclass *oc2)
 {
     PRUint8 flagmask;
 
-    if (schema_strcmp(oc1->oc_name, oc2->oc_name) != 0 || schema_strcmp(oc1->oc_desc, oc2->oc_desc) != 0 || schema_strcmp(oc1->oc_oid, oc2->oc_oid) != 0 || schema_strcmp(oc1->oc_superior, oc2->oc_superior) != 0) {
+    if (schema_strcmp(oc1->oc_name, oc2->oc_name) != 0 ||
+        schema_strcmp(oc1->oc_desc, oc2->oc_desc) != 0 ||
+        schema_strcmp(oc1->oc_oid, oc2->oc_oid) != 0 ||
+        schema_strcmp(oc1->oc_superior, oc2->oc_superior) != 0)
+    {
         return PR_FALSE;
     }
 
@@ -1762,8 +1766,12 @@ read_schema_dse(
         } else {
             oc_description = oc->oc_desc;
         }
-        size = 256 + strlen_null_ok(oc->oc_oid) + strlen(oc->oc_name) +
-               strlen_null_ok(oc_description) + strcat_extensions(NULL, oc->oc_extensions);
+        size = 256 +
+               strlen_null_ok(oc->oc_oid) +
+               strlen(oc->oc_name) +
+               strlen_null_ok(oc_description) +
+               strlen_null_ok(oc->oc_superior) +
+               strcat_extensions(NULL, oc->oc_extensions);
         required = schema_ds4x_compat ? oc->oc_required : oc->oc_orig_required;
         if (required && required[0]) {
             for (i = 0; required[i]; i++)
@@ -5174,6 +5182,8 @@ schema_oc_to_string(struct objclass *oc)
         size += strlen(oc->oc_name);
     if (oc->oc_desc)
         size += strlen(oc->oc_desc);
+    if (oc->oc_superior)
+        size += strlen(oc->oc_superior);
     if (oc->oc_orig_required) {
         for (i = 0; oc->oc_orig_required[i] != NULL; i++) {
             size += strlen(oc->oc_orig_required[i]);
