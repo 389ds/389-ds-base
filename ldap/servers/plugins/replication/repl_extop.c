@@ -12,6 +12,7 @@
 #endif
 
 
+#include <ctype.h>
 #include "slapi-plugin.h"
 #include "repl5.h"
 #include "repl5_prot_private.h"
@@ -44,6 +45,134 @@
  *
  */
 static int check_replica_id_uniqueness(Replica *replica, RUV *supplier_ruv);
+
+typedef struct check_updatedn_data
+{
+    const Slapi_DN *bind_sdn;
+    bool is_updatedn;
+} check_updatedn_data;
+
+/*
+ * Callback function for replica_enumerate_replicas()
+ * Checks if the bind DN in the data structure is an updatedn for the given replica
+ */
+static int
+check_updatedn_callback(Replica *replica, void *arg)
+{
+    check_updatedn_data *data = (check_updatedn_data *)arg;
+
+    if (data->is_updatedn) {
+        /* Already found a match, no need to continue */
+        return 0;
+    }
+    if (replica_is_updatedn(replica, data->bind_sdn)) {
+        data->is_updatedn = true;
+    }
+    return 0;
+}
+
+/*
+ * Check if the connection bind DN is an allowed bind DN for at least one of the replicas
+ *
+ * This function caches the last successful bind DN to avoid repeated replica enumeration
+ * for the same connection. (Useful mostly for bulk import entries)
+ *
+ * Returns:
+ *   true - if the bind DN is an updatedn for at least one replica
+ *   false - if the bind DN is not an updatedn for any replica, or if connection is anonymous
+ */
+static bool
+check_replica_auth(Slapi_PBlock *pb)
+{
+    char *bind_dn = NULL;
+    Slapi_DN *bind_sdn = NULL;
+    check_updatedn_data data = {0};
+    bool result = false;
+    int isroot = 0;
+
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+    if (isroot) {
+        return true;
+    }
+
+    /* Get the bind DN from the connection */
+    slapi_pblock_get(pb, SLAPI_CONN_DN, &bind_dn);
+    if (bind_dn == NULL) {
+        /* No bind DN, connection is anonymous */
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "check_replica_auth - "
+                      "Attempting replication extended operation while anonymous.\n");
+        return false;
+    }
+
+    bind_sdn = slapi_sdn_new_dn_passin(bind_dn);
+    bind_dn = NULL; /* Consumed by slapi_sdn_new_dn_passin */
+    /* Check if the bind DN is an updatedn for any replica */
+    data.bind_sdn = bind_sdn;
+    data.is_updatedn = false;
+    replica_config_enumerate_replicas(check_updatedn_callback, &data);
+    result = data.is_updatedn;
+
+    if (!result) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "check_replica_auth - "
+                      "Invalid binddn %s to perform replication extended operation\n",
+                      slapi_sdn_get_dn(bind_sdn));
+    }
+
+    slapi_sdn_free(&bind_sdn);
+
+    return result;
+}
+
+/*
+ * Check if the connection extension exists and has an acquired replica.
+ * This verifies that a replication session is active on this connection.
+ *
+ * Returns:
+ *   true - if connection extension exists and has an acquired replica
+ *   false - if connection extension doesn't exist or no replica is acquired
+ */
+bool
+check_replica_acquired(Slapi_PBlock *pb)
+{
+    Slapi_Connection *conn = NULL;
+    consumer_connection_extension *connext = NULL;
+    bool result = false;
+
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    if (conn == NULL) {
+        return false;
+    }
+
+    connext = (consumer_connection_extension *)repl_con_get_ext(REPL_CON_EXT_CONN, conn);
+    if (connext != NULL && connext->replica_acquired != NULL) {
+        result = true;
+    }
+
+    return result;
+}
+
+/* Check if filter starts with: (attr=<digit> */
+static inline bool
+check_equality_filter(const char *filter, const char *attr)
+{
+    size_t len = strlen(attr);
+    return (filter[0] == '(' &&
+            strncasecmp(filter+1, attr, len) == 0 &&
+            filter[1+len] == '=' && isdigit((unsigned char)(filter[2+len])));
+}
+
+/* Check that the filter is one of the expected one */
+static bool
+check_valid_filter(const char *filter)
+{
+    if (check_equality_filter(filter, type_replicaAbortCleanRUV)) {
+         return true;
+    }
+    if (check_equality_filter(filter, type_replicaCleanRUV)) {
+         return true;
+    }
+    return false;
+}
 
 static int
 encode_ruv(BerElement *ber, const RUV *ruv)
@@ -705,6 +834,43 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
     struct berval *data = NULL;
     int is90 = 0;
 
+    if (!check_replica_auth(pb)) {
+        int isanon = 0;
+        char *bind_dn = NULL;
+
+        slapi_pblock_get(pb, SLAPI_CONN_DN, &bind_dn);
+        isanon = (bind_dn == NULL);
+        slapi_ch_free_string(&bind_dn);
+
+        if (isanon) {
+            slapi_send_ldap_result(pb, LDAP_INSUFFICIENT_ACCESS,
+                                   NULL, NULL, 0, NULL);
+        } else {
+            BerElement *resp_bere = der_alloc();
+            struct berval *resp_bval = NULL;
+            char *extop_oid = NULL;
+
+            if (resp_bere) {
+                ber_printf(resp_bere, "{e}", NSDS50_REPL_PERMISSION_DENIED);
+                ber_flatten(resp_bere, &resp_bval);
+                ber_free(resp_bere, 1);
+            }
+            slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
+            if (extop_oid &&
+                strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) == 0) {
+                slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID,
+                                 REPL_NSDS90_REPLICATION_RESPONSE_OID);
+            } else {
+                slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID,
+                                 REPL_NSDS50_REPLICATION_RESPONSE_OID);
+            }
+            slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
+            slapi_send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            ber_bvfree(resp_bval);
+        }
+        return SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
+    }
+
     /* Decode the extended operation */
     if (decode_startrepl_extop(pb, &protocol_oid, &repl_root, &supplier_ruv,
                                &referrals, &replicacsnstr, &data_guid, &data, &is90) == -1) {
@@ -1280,6 +1446,17 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
     PRUint64 connid = 0;
     int opid = -1;
 
+    if (!check_replica_acquired(pb)) {
+        /* At this point we do not know the authentication status
+         * If it is a proper end session without acquired replica
+         * there is nothing to do.
+         * So lets just respond NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED
+         * bypassing decoding the payload and avoid associated risk
+         * if it is an attack
+         */
+        response = NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED;
+        goto send_response;
+    }
     /* Decode the extended operation */
     if (decode_endrepl_extop(pb, &repl_root) == -1) {
         response = NSDS50_REPL_DECODING_ERROR;
@@ -1493,6 +1670,10 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
     char *iter = NULL;
     int rc = LDAP_SUCCESS;
 
+    if (!check_replica_auth(pb)) {
+        /* Someone is trying something nasty */
+        return LDAP_INSUFFICIENT_ACCESS;
+    }
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
 
@@ -1612,6 +1793,10 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
     int rid = 0;
     int rc = LDAP_OPERATIONS_ERROR;
 
+    if (!check_replica_auth(pb)) {
+        /* Someone is trying something nasty */
+        return LDAP_INSUFFICIENT_ACCESS;
+    }
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
 
@@ -1791,6 +1976,10 @@ multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
     int rid = 0;
     int rc = LDAP_OPERATIONS_ERROR;
 
+    if (!check_replica_auth(pb)) {
+        /* Someone is trying something nasty */
+        return LDAP_INSUFFICIENT_ACCESS;
+    }
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
 
@@ -1858,6 +2047,11 @@ multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb)
     int res = 0;
     int rc = LDAP_OPERATIONS_ERROR;
 
+
+    if (!check_replica_auth(pb)) {
+        /* Someone is trying something nasty */
+        return LDAP_INSUFFICIENT_ACCESS;
+    }
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
 
@@ -1872,6 +2066,12 @@ multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb)
     if (decode_cleanruv_payload(extop_payload, &filter)) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_check_status - "
                                                        "CleanAllRUV Task - Check Status Task: failed to decode payload.  Aborting ext op\n");
+        goto free_and_return;
+    }
+    if (!check_valid_filter(filter)) {
+        /* Someone is attempting something nasty */
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv_check_status - "
+                                                       "CleanAllRUV Task - Unexpected filter provided as payload.  Aborting ext op\n");
         goto free_and_return;
     }
 

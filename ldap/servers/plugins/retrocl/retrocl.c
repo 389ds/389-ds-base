@@ -736,3 +736,9 @@ retrocl_attr_in_exclude_attrs(char *attr, int attrlen)
     }
     return 0;
 }
+
+char **
+retrocl_get_exclude_attrs(void)
+{
+    return retrocl_exclude_attrs;
+}
