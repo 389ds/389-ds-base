@@ -60,6 +60,7 @@ MUST = [
     'ldif_dir',
     'initconfig_dir',
     'tmpfiles_d',
+    'sysusers_d',
 ]
 
 # will need to add the access, error, audit log later.
