@@ -1305,6 +1305,78 @@ _replica_config_get_mtnode_ext(const Slapi_Entry *e)
     return ext;
 }
 
+/* Helper callback to collect replica roots into a charray */
+static int
+replica_collect_root_callback(Replica *r, void *arg)
+{
+    char ***roots = (char ***)arg;
+    const char *root = slapi_sdn_get_dn(replica_get_root(r));
+
+    if (root) {
+        charray_add(roots, slapi_ch_strdup(root));
+    }
+    return 0;
+}
+
+/*
+ * Enumerate replicas without holding locks during callbacks.
+ * This function is slower than replica_enumerate_replicas buf safer
+ * as it prevents deadlocks when callbacks need to acquire other locks.
+ *
+ * Algorithm:
+ * 1. Collect replica roots with hash lock held (brief)
+ * 2. For each root, get mapping tree node
+ * 3. Hold s_configLock briefly to safely access mtnode_ext->replica
+ * 4. Acquire object reference to keep replica alive
+ * 5. Call callback without any locks held
+ * 6. Release object reference
+ */
+void
+replica_config_enumerate_replicas(FNEnumReplica fn, void *arg)
+{
+    char **roots = NULL;
+
+    /* Step 1: Collect replica roots using the hash lock */
+    replica_enumerate_replicas(replica_collect_root_callback, &roots);
+
+    /* Step 2: Iterate without holding the hash lock */
+    if (roots) {
+        for (size_t i = 0; roots[i] != NULL; i++) {
+            Slapi_DN sdn;
+            mapping_tree_node *mtnode;
+            multisupplier_mtnode_extension *mtnode_ext;
+            Object *replica_obj = NULL;
+            Replica *r;
+
+            slapi_sdn_init_dn_byval(&sdn, roots[i]);
+
+            /* CRITICAL: Hold s_configLock when accessing mapping tree and mtnode_ext */
+            PR_Lock(s_configLock);
+            mtnode = slapi_get_mapping_tree_node_by_dn(&sdn);
+            if (mtnode) {
+                mtnode_ext = (multisupplier_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
+                if (mtnode_ext && mtnode_ext->replica) {
+                    replica_obj = mtnode_ext->replica;
+                    object_acquire(replica_obj);  /* Acquire while lock held */
+                }
+            }
+            PR_Unlock(s_configLock);
+
+            slapi_sdn_done(&sdn);
+
+            if (replica_obj) {
+                r = (Replica *)object_get_data(replica_obj);
+                if (r) {
+                    fn(r, arg);  /* Call without any locks held */
+                }
+                object_release(replica_obj);
+                replica_obj = NULL;
+            }
+        }
+        charray_free(roots);
+    }
+}
+
 
 /* This thread runs the tests of csn generator.
  * It will log a set of csn generated while simulating local and remote time skews

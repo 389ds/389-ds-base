@@ -279,6 +279,7 @@ int multisupplier_extop_cleanruv(Slapi_PBlock *pb);
 int multisupplier_extop_abort_cleanruv(Slapi_PBlock *pb);
 int multisupplier_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb);
 int multisupplier_extop_cleanruv_check_status(Slapi_PBlock *pb);
+bool check_replica_acquired(Slapi_PBlock *pb);
 int extop_noop(Slapi_PBlock *pb);
 struct berval *NSDS50StartReplicationRequest_new(const char *protocol_oid,
                                                  const char *repl_root,
@@ -746,6 +747,7 @@ int replica_update_csngen_state_ext(Replica *r, const RUV *ruv, const CSN *extra
 CSN *replica_get_purge_csn(const Replica *r);
 int replica_log_ruv_elements(const Replica *r);
 void replica_enumerate_replicas(FNEnumReplica fn, void *arg);
+void replica_config_enumerate_replicas(FNEnumReplica fn, void *arg);
 int replica_reload_ruv(Replica *r);
 int replica_check_for_data_reload(Replica *r, void *arg);
 /* the functions below manipulate replica dn hash */
