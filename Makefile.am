@@ -310,9 +310,8 @@ cockpitdir = $(prefixdir)/share/cockpit@cockpitdir@
 metainfodir = $(prefixdir)/share/metainfo/389-console
 tmpfiles_d = @tmpfiles_d@
 
-# This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
-# sysctl.d is always in /lib.
-sysctldir = @prefixdir@/lib/sysctl.d
+sysctldir = @sysctl_d@
+sysusersdir = @sysusers_d@
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -572,6 +571,7 @@ dist_noinst_DATA = \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	$(srcdir)/ldap/servers/snmp/ldap-agent.conf \
 	$(srcdir)/ldap/servers/snmp/redhat-directory.mib \
+	$(srcdir)/ldap/admin/src/389-ds-base.sysusers \
 	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py \
 	$(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/m4 \
@@ -683,14 +683,18 @@ if SYSTEMD
 libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl wrappers/ds_selinux_restorecon.sh
 endif
 
-if ENABLE_COCKPIT
 install-data-hook:
+if ENABLE_COCKPIT
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
 	mkdir -p src/cockpit/389-console/cockpit_dist/
 	mkdir -p $(DESTDIR)$(cockpitdir)
 	rsync -rupE src/cockpit/389-console/cockpit_dist/ $(DESTDIR)$(cockpitdir)
 	mkdir -p $(DESTDIR)$(metainfodir)
 	rsync -up src/cockpit/389-console/org.port389.cockpit_console.metainfo.xml $(DESTDIR)$(metainfodir)/org.port389.cockpit_console.metainfo.xml
+endif
+if INSTALL_SYSUSERS
+	mkdir -p $(DESTDIR)$(sysusersdir)
+	$(INSTALL_DATA) $(srcdir)/ldap/admin/src/389-ds-base.sysusers $(DESTDIR)$(sysusersdir)/$(PACKAGE_TARNAME).conf
 endif
 
 sbin_SCRIPTS =
@@ -709,7 +713,9 @@ python_DATA = ldap/admin/src/scripts/failedbinds.py \
 
 gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
 
+if INSTALL_SYSCTL
 dist_sysctl_DATA = ldap/admin/src/70-dirsrv.conf
+endif
 
 if USDT
 profilingstapdir = $(datadir)/$(PACKAGE_NAME)/profiling/stap
@@ -2105,6 +2111,7 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@tmpfiles_d\@,$(tmpfiles_d),g' \
+	-e 's,@sysusers_d\@,$(sysusersdir),g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \

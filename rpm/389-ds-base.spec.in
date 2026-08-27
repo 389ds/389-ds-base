@@ -63,10 +63,6 @@
 %bcond hibp 0
 %bcond usdt 1
 
-# fedora 15 and later uses tmpfiles.d
-# otherwise, comment this out
-%{!?with_tmpfiles_d: %global with_tmpfiles_d %{_sysconfdir}/tmpfiles.d}
-
 # systemd support
 %global groupname %{pkgname}.target
 
@@ -138,6 +134,7 @@ BuildRequires:    libcurl-devel
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
+BuildRequires:    systemd-rpm-macros
 %if %{with usdt}
 BuildRequires:    systemtap-sdt-devel
 %endif
@@ -219,6 +216,8 @@ Requires:         zlib-devel
 Requires:         python3-file-magic
 # Picks up our systemd deps.
 %{?systemd_requires}
+# Ensure sysusers are created
+%{?sysusers_requires_compat}
 
 %if %{with usdt}
 # Optional eBPF tracer for the shipped USDT bpftrace scripts.
@@ -403,8 +402,6 @@ cp %{SOURCE2} README.devel
 CLANG_FLAGS="--enable-clang"
 %endif
 
-%{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
-
 %if %{with asan}
 ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
@@ -484,12 +481,8 @@ autoreconf -fiv
 %if %{with bundle_libdb}
            --with-bundle-libdb=%{_builddir}/%{libdb_base_version}/BUILD/%{libdb_base_dir}/dist/dist-tls \
 %endif
-           --with-selinux $TMPFILES_FLAG \
+           --with-selinux \
            --with-systemd \
-           --with-systemdsystemunitdir=%{_unitdir} \
-           --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
-           --with-systemdgroupname=%{groupname} \
-           --libexecdir=%{_libexecdir}/%{pkgname} \
            $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS $USDT_FLAGS \
 %if 0%{?fedora} >= 34 || 0%{?rhel} >= 9
            --with-libldap-r=no \
@@ -633,23 +626,6 @@ fi
 instances="" # instances that require a restart after upgrade
 ninst=0 # number of instances found in total
 
-# https://fedoraproject.org/wiki/Packaging:UsersAndGroups#Soft_static_allocation
-# Soft static allocation for UID and GID
-USERNAME="dirsrv"
-ALLOCATED_UID=389
-GROUPNAME="dirsrv"
-ALLOCATED_GID=389
-HOMEDIR="/usr/share/dirsrv"
-
-getent group $GROUPNAME >/dev/null || groupadd -f -g $ALLOCATED_GID -r $GROUPNAME
-if ! getent passwd $USERNAME >/dev/null ; then
-    if ! getent passwd $ALLOCATED_UID >/dev/null ; then
-      useradd -r -u $ALLOCATED_UID -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
-    else
-      useradd -r -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
-    fi
-fi
-
 # Reload our sysctl before we restart (if we can)
 sysctl --system &> "$output"; true
 
@@ -721,6 +697,7 @@ fi
 %config(noreplace)%{_sysconfdir}/%{pkgname}/schema/*.ldif
 %dir %{_sysconfdir}/%{pkgname}/config
 %dir %{_sysconfdir}/systemd/system/%{groupname}.wants
+%{_sysusersdir}/%{name}.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
 %{_datadir}/%{pkgname}
@@ -754,9 +731,7 @@ fi
 %{_mandir}/man5/dirsrv.systemd.5.gz
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
-# This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
-# sysctl.d is always in /lib.
-%{_prefix}/lib/sysctl.d/*
+%{_sysctldir}/*
 %dir %{_localstatedir}/lib/%{pkgname}
 %dir %{_localstatedir}/log/%{pkgname}
 %ghost %dir %{_localstatedir}/lock/%{pkgname}
