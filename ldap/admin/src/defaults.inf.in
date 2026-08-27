@@ -44,6 +44,7 @@ inst_dir = @serverdir@/slapd-{instance_name}
 plugin_dir = @serverplugindir@
 system_schema_dir = @systemschemadir@
 tmpfiles_d = @tmpfiles_d@
+sysusers_d = @sysusers_d@
 
 ; These values can be altered in an installation of ds
 user = dirsrv

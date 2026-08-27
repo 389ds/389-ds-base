@@ -2,9 +2,26 @@ name: CodeQL
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'
+      # not docs/**: slapi.doxy.in and the doxygen assets are build inputs
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
   schedule:
+    # Weekly even without commits: CodeQL query packs update
+    # independently of the tree.
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
@@ -43,7 +60,7 @@ jobs:
         run: dnf install -y which
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build_mode }}
@@ -76,4 +93,4 @@ jobs:
           if-no-files-found: ignore
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
