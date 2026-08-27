@@ -3127,7 +3127,7 @@ slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expi
                 cur_time_str = format_genTime(cur_time);
 
                 if ((_expire_time != NO_TIME) && (_expire_time != NOT_FIRST_TIME) &&
-                    (difftime(_expire_time, parse_genTime(cur_time_str) <= 0))) {
+                    (difftime(_expire_time, parse_genTime(cur_time_str)) <= 0)) {
                     is_expired = 1;
                 }
 
