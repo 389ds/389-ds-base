@@ -542,6 +542,12 @@ if test X"$mandir" = X'${prefix}/man' ; then
    mandir='$(datadir)/man'
 fi
 
+# put libexec scripts under dirsrv subdir
+case "$libexecdir" in
+  */$PACKAGE_NAME|*/$PACKAGE_NAME/) ;;
+  *) libexecdir="$libexecdir/$PACKAGE_NAME" ;;
+esac
+
 # Shared paths for all layouts
 # relative to sysconfdir
 configdir=/$PACKAGE_NAME/config
