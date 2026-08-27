@@ -1,0 +1,56 @@
+name: Backport
+
+on:
+  pull_request_target:
+    types: [closed, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backport:
+    name: Backport
+    runs-on: ubuntu-latest
+    if: >
+      github.event.pull_request.merged == true &&
+      contains(toJSON(github.event.pull_request.labels.*.name), '"backport/')
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target branches from labels
+        id: targets
+        env:
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          # Labels like "backport/3.1" -> target branch "389-ds-base-3.1"
+          branches=$(echo "$LABELS_JSON" | python3 -c "
+          import json, sys
+          labels = json.load(sys.stdin)
+          targets = []
+          for label in labels:
+              if label.startswith('backport/'):
+                  version = label[len('backport/'):]
+                  targets.append('389-ds-base-' + version)
+          print(' '.join(targets))
+          ")
+          echo "branches=$branches" >> "$GITHUB_OUTPUT"
+
+      - uses: korthout/backport-action@2e830a1d0b8269505846ddd407a70876913ad1f8 # v4
+        if: steps.targets.outputs.branches != ''
+        with:
+          # Labels are resolved in the step above; disable label matching.
+          label_pattern: ""
+          target_branches: ${{ steps.targets.outputs.branches }}
+          pull_title: "[Backport ${target_branch}] ${pull_title}"
+          pull_description: >-
+            Backport of #${pull_number} to `${target_branch}`.
+          copy_labels_pattern: "^(?!backport/).*$"
+          copy_requested_reviewers: true
+          comment_style: summary
+          experimental: >
+            {
+              "conflict_resolution": "draft_commit_conflicts"
+            }
