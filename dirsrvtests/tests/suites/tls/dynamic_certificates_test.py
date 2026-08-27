@@ -821,6 +821,93 @@ def test_invalid_certificate_handling(topo, setup_tls):
             shutil.rmtree(dir, ignore_errors=True)
 
 
+def test_dynamic_cert_rejects_mismatched_dn_and_cn(topo, setup_tls):
+    """Test DynamicCerts.create rejects cn that does not match the target DN
+
+    :id: 0f1e2d3c-4444-5555-6666-777777777777
+    :setup: Standalone Instance with TLS enabled
+    :steps:
+        1. Generate a CA certificate
+        2. Build a DynamicCerts create request under one nickname
+        3. Set the entry cn to an LDAP-equivalent but non-identical nickname
+        4. Verify the add is rejected
+    :expectedresults:
+        1. Certificate material is generated
+        2. DynamicCerts.create path is exercised
+        3. The non-identical nickname is detected
+        4. Server returns LDAP naming violation
+    """
+    inst = setup_tls
+    fix_crash_issue_7227(inst)
+    dir = '/tmp/dyncert_mismatch_test'
+    os.makedirs(dir, 0o700, exist_ok=True)
+
+    try:
+        dyncerts = DynamicCerts(inst)
+        ca = RSA_Certificate.generateRootCA("TestMismatch_CA")
+        ca.save(dir)
+
+        with open(ca.pem, 'rb') as f:
+            cert_der = pem_to_der(f.read())
+
+        # The trailing space is insignificant for LDAP naming equality, so the
+        # generic RDN check accepts it, but dyncerts must reject the mismatch.
+        properties = {
+            DYCATTR_CN: 'TestMismatch_A ',
+            DYCATTR_CERTDER: cert_der,
+        }
+
+        with pytest.raises(ldap.NAMING_VIOLATION):
+            dyncerts.create(rdn=f"{DYCATTR_CN}=TestMismatch_A", properties=properties)
+    finally:
+        if not DEBUGGING:
+            shutil.rmtree(dir, ignore_errors=True)
+
+
+def test_dynamic_cert_allows_case_insensitive_dn_and_cn_match(topo, setup_tls):
+    """Test direct add accepts cn that matches the target DN case-insensitively
+
+    :id: 1a2b3c4d-5555-6666-7777-888888888888
+    :setup: Standalone Instance with TLS enabled
+    :steps:
+        1. Generate a CA certificate
+        2. Build a direct LDAP add request with mixed-case target RDN
+        3. Set the entry cn to the same nickname in lowercase
+        4. Verify the add succeeds and the object can be retrieved
+    :expectedresults:
+        1. Certificate material is generated
+        2. Direct create path is exercised
+        3. Case-insensitive nickname comparison is accepted
+        4. The created object is retrievable and can be deleted
+    """
+    inst = setup_tls
+    fix_crash_issue_7227(inst)
+    dir = '/tmp/dyncert_casefold_test'
+    os.makedirs(dir, 0o700, exist_ok=True)
+
+    try:
+        dyncerts = DynamicCerts(inst)
+        ca = RSA_Certificate.generateRootCA("TestCaseFold_CA")
+        ca.save(dir)
+
+        with open(ca.pem, 'rb') as f:
+            cert_der = pem_to_der(f.read())
+
+        nickname = 'testcasefold_a'
+        properties = {
+            DYCATTR_CN: nickname,
+            DYCATTR_CERTDER: cert_der,
+        }
+
+        cert_obj = dyncerts.create(rdn=f"{DYCATTR_CN}=TestCaseFold_A", properties=properties)
+        assert cert_obj is not None
+        assert dyncerts.get_cert_obj(nickname) is not None
+        dyncerts.del_cert(nickname)
+    finally:
+        if not DEBUGGING:
+            shutil.rmtree(dir, ignore_errors=True)
+
+
 def test_certificate_verification_status(topo, setup_tls):
     """Test certificate verification status attribute
 
