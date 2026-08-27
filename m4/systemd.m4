@@ -45,50 +45,58 @@ if test "$with_systemd" = yes; then
         systemd_defs="-DWITH_SYSTEMD"
     fi
 
-    # Check for the pkg config provided unit paths
-    if test -n "$PKG_CONFIG" ; then
-       default_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
-       default_systemdsystemconfdir=`$PKG_CONFIG --variable=systemdsystemconfdir systemd`
-    fi
+    # Detect systemd directories from pkg-config.
+    # Each --with-* flag is an optional override.
 
+    # systemd unit dir
+    default_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd 2>/dev/null`
+    if test -z "$default_systemdsystemunitdir" ; then
+       default_systemdsystemunitdir='$(prefixdir)/lib/systemd/system'
+    fi
     AC_MSG_CHECKING(for --with-systemdsystemunitdir)
     AC_ARG_WITH([systemdsystemunitdir],
        AS_HELP_STRING([--with-systemdsystemunitdir=PATH],
-                      [Directory for systemd service files (default: $with_systemdsystemunitdir)])
+                      [Directory for systemd service files (default: auto-detected from pkg-config)])
     )
     if test "$with_systemdsystemunitdir" = yes ; then
-      if test -n "$default_systemdsystemunitdir" ; then
-        with_systemdsystemunitdir=$default_systemdsystemunitdir
-        AC_MSG_RESULT([$with_systemdsystemunitdir])
-      else
-        AC_MSG_ERROR([You must specify --with-systemdsystemconfdir=/full/path/to/systemd/system directory])
-      fi
+      with_systemdsystemunitdir=$default_systemdsystemunitdir
     elif test "$with_systemdsystemunitdir" = no ; then
       with_systemdsystemunitdir=
     else
-      AC_MSG_RESULT([$with_systemdsystemunitdir])
+      if test -n "$with_systemdsystemunitdir" ; then
+        : # user-provided value, keep it
+      else
+        with_systemdsystemunitdir=$default_systemdsystemunitdir
+      fi
     fi
+    AC_MSG_RESULT([$with_systemdsystemunitdir])
     AC_SUBST(with_systemdsystemunitdir)
 
+    # systemd system conf dir
+    default_systemdsystemconfdir=`$PKG_CONFIG --variable=systemdsystemconfdir systemd 2>/dev/null`
+    if test -z "$default_systemdsystemconfdir" ; then
+       default_systemdsystemconfdir='$(sysconfdir)/systemd/system'
+    fi
     AC_MSG_CHECKING(for --with-systemdsystemconfdir)
     AC_ARG_WITH([systemdsystemconfdir],
        AS_HELP_STRING([--with-systemdsystemconfdir=PATH],
-                      [Directory for systemd service files (default: $with_systemdsystemconfdir)])
+                      [Directory for systemd system configuration (default: auto-detected from pkg-config)])
     )
     if test "$with_systemdsystemconfdir" = yes ; then
-      if test -n "$default_systemdsystemconfdir" ; then
-        with_systemdsystemconfdir=$default_systemdsystemconfdir
-        AC_MSG_RESULT([$with_systemdsystemconfdir])
-      else
-        AC_MSG_ERROR([You must specify --with-systemdsystemconfdir=/full/path/to/systemd/system directory])
-      fi
+      with_systemdsystemconfdir=$default_systemdsystemconfdir
     elif test "$with_systemdsystemconfdir" = no ; then
       with_systemdsystemconfdir=
     else
-      AC_MSG_RESULT([$with_systemdsystemconfdir])
+      if test -n "$with_systemdsystemconfdir" ; then
+        : # user-provided value, keep it
+      else
+        with_systemdsystemconfdir=$default_systemdsystemconfdir
+      fi
     fi
+    AC_MSG_RESULT([$with_systemdsystemconfdir])
     AC_SUBST(with_systemdsystemconfdir)
 
+    # systemd group name
     if test -z "$with_systemdgroupname" ; then
        with_systemdgroupname=$PACKAGE_NAME.target
     fi
@@ -106,24 +114,68 @@ if test "$with_systemd" = yes; then
     fi
     AC_SUBST(with_systemdgroupname)
 
-    if test -z "$with_tmpfiles_d" ; then
-       if test -d $sysconfdir/tmpfiles.d ; then
-          tmpfiles_d='$(sysconfdir)/tmpfiles.d'
-       fi
+    # tmpfiles.d dir
+    tmpfiles_d=`$PKG_CONFIG --variable=tmpfilesdir systemd 2>/dev/null`
+    if test -z "$tmpfiles_d" ; then
+       tmpfiles_d='$(prefixdir)/lib/tmpfiles.d'
     fi
     AC_MSG_CHECKING(for --with-tmpfiles-d)
     AC_ARG_WITH(tmpfiles-d,
        AS_HELP_STRING([--with-tmpfiles-d=PATH],
-                      [system uses tmpfiles.d to handle temp files/dirs (default: $tmpfiles_d)])
+                      [Directory for systemd tmpfiles.d config files (default: auto-detected from pkg-config)])
     )
     if test "$with_tmpfiles_d" = yes ; then
-      AC_MSG_ERROR([You must specify --with-tmpfiles-d=/full/path/to/tmpfiles.d directory])
+      : # keep auto-detected default
     elif test "$with_tmpfiles_d" = no ; then
       tmpfiles_d=
     else
-      tmpfiles_d=$with_tmpfiles_d
-      AC_MSG_RESULT([$tmpfiles_d])
+      if test -n "$with_tmpfiles_d" ; then
+        tmpfiles_d=$with_tmpfiles_d
+      fi
     fi
+    AC_MSG_RESULT([$tmpfiles_d])
+
+    # sysusers.d dir
+    sysusers_d=`$PKG_CONFIG --variable=sysusersdir systemd 2>/dev/null`
+    if test -z "$sysusers_d" ; then
+       sysusers_d='$(prefixdir)/lib/sysusers.d'
+    fi
+    AC_MSG_CHECKING(for --with-sysusers-d)
+    AC_ARG_WITH(sysusers-d,
+       AS_HELP_STRING([--with-sysusers-d=PATH],
+                      [Directory for systemd sysusers.d config files (default: auto-detected from pkg-config)])
+    )
+    if test "$with_sysusers_d" = yes ; then
+      : # keep auto-detected default
+    elif test "$with_sysusers_d" = no ; then
+      sysusers_d=
+    else
+      if test -n "$with_sysusers_d" ; then
+        sysusers_d=$with_sysusers_d
+      fi
+    fi
+    AC_MSG_RESULT([$sysusers_d])
+
+    # sysctl.d dir
+    sysctl_d=`$PKG_CONFIG --variable=sysctldir systemd 2>/dev/null`
+    if test -z "$sysctl_d" ; then
+       sysctl_d='$(prefixdir)/lib/sysctl.d'
+    fi
+    AC_MSG_CHECKING(for --with-sysctl-d)
+    AC_ARG_WITH(sysctl-d,
+       AS_HELP_STRING([--with-sysctl-d=PATH],
+                      [Directory for sysctl.d config files (default: auto-detected from pkg-config)])
+    )
+    if test "$with_sysctl_d" = yes ; then
+      : # keep auto-detected default
+    elif test "$with_sysctl_d" = no ; then
+      sysctl_d=
+    else
+      if test -n "$with_sysctl_d" ; then
+        sysctl_d=$with_sysctl_d
+      fi
+    fi
+    AC_MSG_RESULT([$sysctl_d])
 
 fi
 # End of with_systemd
@@ -132,7 +184,12 @@ AM_CONDITIONAL([SYSTEMD],[test -n "$with_systemd"])
 AM_CONDITIONAL([with_systemd],[test -n "$with_systemd"])
 AM_CONDITIONAL([JOURNALD],[test -n "$with_journald"])
 AM_CONDITIONAL([with_systemd_journald],[test -n "$with_journald"])
+AM_CONDITIONAL([INSTALL_TMPFILES],[test -n "$tmpfiles_d"])
+AM_CONDITIONAL([INSTALL_SYSUSERS],[test -n "$sysusers_d"])
+AM_CONDITIONAL([INSTALL_SYSCTL],[test -n "$sysctl_d"])
 
 AC_SUBST(systemd_defs)
 AC_SUBST(tmpfiles_d)
+AC_SUBST(sysusers_d)
+AC_SUBST(sysctl_d)
 
