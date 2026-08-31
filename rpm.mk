@@ -111,10 +111,12 @@ ifeq ($(COCKPIT_ON), 1)
 endif
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
-	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ] && [ ! -f $(JEMALLOC_TARBALL) ]; then \
 		curl -LO $(JEMALLOC_URL) ; \
 	fi ; \
-	curl -LO $(LIBDB_URL) ;
+	if [ ! -f $(LIBDB_TARBALL) ]; then \
+		curl -LO $(LIBDB_URL) ; \
+	fi
 
 rpmroot:
 	rm -rf $(RPMBUILD)
