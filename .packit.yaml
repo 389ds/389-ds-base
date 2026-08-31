@@ -12,6 +12,9 @@ upstream_tag_template: "389-ds-base-{version}"
 # See: https://packit.dev/docs/configuration/#release_suffix
 release_suffix: "{PACKIT_PROJECT_BRANCH}"
 
+# Prevent cross-major.minor updates on stable Fedora branches.
+version_update_mask: '\\d+\\.\\d+'
+
 srpm_build_deps:
   - make
   - cargo
@@ -22,6 +25,7 @@ actions:
   post-upstream-clone:
     - cargo install cargo-license
     - make -f rpm.mk rpmroot rpmspec
+    - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
   create-archive:
     - make -f rpm.mk BUNDLE_LIBDB=1 download-cargo-dependencies tarballs
     - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
@@ -31,7 +35,8 @@ actions:
     - rpmspec -q --qf "%{Version}" --srpm rpm/389-ds-base.spec
 
 files_to_sync:
-  - rpm/389-ds-base.spec
+  - src: rpm/389-ds-base.spec
+    dest: 389-ds-base.spec
   - .packit.yaml
 
 allowed_pr_authors:
@@ -64,3 +69,22 @@ jobs:
     epel-10-all:
         with_opts:
             - bundle_libdb
+
+# Downstream release automation.
+- job: propose_downstream
+  trigger: release
+  dist_git_branches:
+    - fedora-all
+
+# Builds in Koji automatically when the dist-git PR is merged.
+- job: koji_build
+  trigger: commit
+  dist_git_branches:
+    - fedora-all
+
+# Creates a Bodhi update after a successful Koji build.
+# Rawhide updates are created automatically by Fedora infrastructure.
+- job: bodhi_update
+  trigger: koji_build
+  dist_git_branches:
+    - fedora-branched
