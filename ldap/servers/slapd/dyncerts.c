@@ -29,9 +29,9 @@
 #define SLAPI_LOG_DYC SLAPI_LOG_TRACE
 #endif
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static struct slapdplugin dyncerts_plugin = {0};
 static struct dyncerts pdyncerts;
+static __thread bool aci_self_update = false;
 
 
 /*
@@ -64,6 +64,12 @@ static const struct trust_flags_mask trust_flags[] = {
 static DCSS *get_entry_list(const Slapi_DN *basedn, int scope, char **attrs);
 int dyncerts_apply_cb(const char *nickname, dyc_action_cb_t cb, void *arg, char *errmsg);
 static void dyncert_nickname_free(Nickname_t *n);
+static PRBool is_servercert_ht(const char *fullnickname);
+static char *get_cert_nickname(CERTCertificate *cert);
+static bool is_internal_slot(const char *slotname);
+static void dyncerts_update_cached_aci(Slapi_Entry *entry);
+static void dyncerts_free_cached_aci(void);
+static int dyncerts_encryption_config_modify_cb(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 
 /* Alloc a search set */
 static DCSS *
@@ -112,61 +118,215 @@ be_unwillingtoperform(Slapi_PBlock *pb)
     return -1;
 }
 
-/* Get instance config data and store them in private data */
+/* Get instance config data and store them in private data (one-shot) */
 static void
-read_config_info(void)
+load_cached_aci(void)
 {
-    if (pdyncerts.config == NULL) {
-        DCSS *ss = ss_new();
-        Slapi_PBlock *pb = NULL;
-        Slapi_DN sdn = {0};
-        Slapi_Entry *e = NULL;
-        Slapi_Entry **e2 = NULL;
+    Slapi_Entry *e = NULL;
+    Slapi_DN sdn = {0};
+    slapi_sdn_init_dn_byref(&sdn, CONFIG_DN2);
+    slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
+    slapi_sdn_done(&sdn);
+    if (e) {
+        dyncerts_update_cached_aci(e);
+        slapi_entry_free(e);
+    }
+}
 
-        /* Store cn=config entry */
-        slapi_sdn_init_dn_byref(&sdn, CONFIG_DN1);
-        pthread_mutex_lock(&mutex);
-        slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
-        ss_add_entry(ss, e);
-        slapi_sdn_done(&sdn);
-        /* Store cn=encryption,cn=config entry */
-        slapi_sdn_init_dn_byref(&sdn, CONFIG_DN2);
-        slapi_search_internal_get_entry(&sdn, NULL, &e, plugin_get_default_component_id());
-        ss_add_entry(ss, e);
-        /* Store cn=*,cn=encryption,cn=config active entries */
-        pb = slapi_search_internal(CONFIG_DN2, LDAP_SCOPE_ONELEVEL, CONFIG_DN2_FILTER,
-                                   NULL, NULL, 0);
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &e2);
-        if (e2 != NULL) {
-            while (*e2) {
-                ss_add_entry(ss, slapi_entry_dup(*e2++));
+/* --- Hash table entry management --- */
+
+static dyncert_ht_entry_t *
+dyncert_ht_entry_new(CERTCertificate *cert)
+{
+    dyncert_ht_entry_t *entry = (dyncert_ht_entry_t *)slapi_ch_calloc(1, sizeof(*entry));
+    const char *token = PK11_GetTokenName(cert->slot);
+
+    entry->fullnickname = get_cert_nickname(cert);
+    if (is_internal_slot(token)) {
+        entry->nickname = entry->fullnickname;
+        entry->token = NULL;
+    } else {
+        entry->token = slapi_ch_strdup(token);
+        entry->nickname = strchr(entry->fullnickname, ':');
+        if (entry->nickname) {
+            entry->nickname++;
+        } else {
+            entry->nickname = entry->fullnickname;
+        }
+    }
+    entry->slot = cert->slot;
+    PK11_ReferenceSlot(entry->slot);
+    entry->flags = 0;
+    return entry;
+}
+
+static void
+dyncert_ht_entry_free(dyncert_ht_entry_t *entry)
+{
+    if (entry) {
+        slapi_ch_free_string(&entry->fullnickname);
+        slapi_ch_free_string(&entry->token);
+        PK11_FreeSlot(entry->slot);
+        entry->slot = NULL;
+        slapi_ch_free((void **)&entry);
+    }
+}
+
+static PRIntn
+dyncerts_ht_free_entry_cb(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
+{
+    dyncert_ht_entry_free((dyncert_ht_entry_t *)he->value);
+    return HT_ENUMERATE_REMOVE;
+}
+
+/* PK11_TraverseSlotCerts callback to populate hash table */
+static SECStatus
+dyncerts_ht_populate_cb(CERTCertificate *cert, SECItem *sitem __attribute__((unused)), void *arg)
+{
+    PLHashTable *ht = arg;
+    char *fullnickname = get_cert_nickname(cert);
+
+    if (PL_HashTableLookup(ht, fullnickname)) {
+        slapi_ch_free_string(&fullnickname);
+        return SECSuccess;
+    }
+    slapi_ch_free_string(&fullnickname);
+
+    dyncert_ht_entry_t *entry = dyncert_ht_entry_new(cert);
+    PL_HashTableAdd(ht, entry->fullnickname, entry);
+    return SECSuccess;
+}
+
+static void
+dyncerts_init(void)
+{
+    pdyncerts.rwlock = slapi_new_rwlock();
+    pdyncerts.cert_ht = PL_NewHashTable(64, hashNocaseString, hashNocaseCompare, PL_CompareValues, 0, 0);
+    if (!pdyncerts.cert_ht) {
+        slapi_ch_oom("PL_NewHashTable");  /* Perform an exit */
+    }
+    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP,
+                                   CONFIG_DN2, LDAP_SCOPE_BASE, "(objectclass=*)",
+                                   dyncerts_encryption_config_modify_cb, NULL);
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
+    PK11_TraverseSlotCerts(dyncerts_ht_populate_cb, pdyncerts.cert_ht, NULL);
+    if (!pdyncerts.cached_aci) {
+        load_cached_aci();
+    }
+    slapi_rwlock_unlock(pdyncerts.rwlock);
+}
+
+static PRIntn
+dyncerts_ht_reset_flags_cb(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
+{
+    dyncert_ht_entry_t *entry = (dyncert_ht_entry_t *)he->value;
+    entry->flags = 0;
+    return HT_ENUMERATE_NEXT;
+}
+
+void
+dyncert_prepare_certs_refresh(void)
+{
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
+    if (pdyncerts.cert_ht) {
+        PL_HashTableEnumerateEntries(pdyncerts.cert_ht, dyncerts_ht_reset_flags_cb, NULL);
+    }
+}
+
+void
+dyncerts_register_server_cert(PRFileDesc *fd __attribute__((unused)), CERTCertificate *cert)
+{
+    if (!pdyncerts.cert_ht || !cert) {
+        return;
+    }
+    char *fullnick = get_cert_nickname(cert);
+    dyncert_ht_entry_t *entry = PL_HashTableLookup(pdyncerts.cert_ht, fullnick);
+    if (entry) {
+        entry->flags |= DYNCERT_FLAG_SERVER_CERT;
+    }
+    slapi_ch_free_string(&fullnick);
+
+    CERTCertificate *issuer = CERT_FindCertIssuer(cert, PR_Now(), certUsageAnyCA);
+    while (issuer) {
+        char *issuer_nick = get_cert_nickname(issuer);
+        dyncert_ht_entry_t *ca_entry = PL_HashTableLookup(pdyncerts.cert_ht, issuer_nick);
+        slapi_ch_free_string(&issuer_nick);
+        if (ca_entry) {
+            ca_entry->flags |= DYNCERT_FLAG_SERVER_CA;
+        }
+        CERTCertificate *next = CERT_FindCertIssuer(issuer, PR_Now(), certUsageAnyCA);
+        if (next == issuer) {
+            CERT_DestroyCertificate(next);
+            CERT_DestroyCertificate(issuer);
+            break;
+        }
+        CERT_DestroyCertificate(issuer);
+        issuer = next;
+    }
+}
+
+void
+dyncert_finalize_certs_refresh(void)
+{
+    slapi_rwlock_unlock(pdyncerts.rwlock);
+}
+
+/* --- ACI cache management --- */
+
+static void
+dyncerts_free_cached_aci(void)
+{
+    if (pdyncerts.cached_aci) {
+        valuearray_free(&pdyncerts.cached_aci);
+        pdyncerts.cached_aci = NULL;
+    }
+}
+
+static void
+dyncerts_update_cached_aci(Slapi_Entry *entry)
+{
+    dyncerts_free_cached_aci();
+    if (entry) {
+        Slapi_Attr *attr = NULL;
+        if (slapi_entry_attr_find(entry, "aci", &attr) == 0 && attr) {
+            Slapi_ValueSet *vs = NULL;
+            slapi_attr_get_valueset(attr, &vs);
+            if (vs) {
+                pdyncerts.cached_aci = valueset_get_valuearray(vs);
+                /* Steal the array from the dup'd valueset, free just the shell */
+                vs->va = NULL;
+                vs->num = 0;
+                slapi_valueset_free(vs);
             }
         }
-        slapi_free_search_results_internal(pb);
-        slapi_pblock_destroy(pb);
-        slapi_sdn_done(&sdn);
-        pdyncerts.config = ss;
     }
 }
 
-/* Free private data instance config data */
-static void
-free_config_info(void)
+/* DSE callback: notified when cn=encryption,cn=config is modified */
+static int
+dyncerts_encryption_config_modify_cb(Slapi_PBlock *pb,
+    Slapi_Entry *entryBefore __attribute__((unused)),
+    Slapi_Entry *entryAfter,
+    int *returncode,
+    char *returntext __attribute__((unused)),
+    void *arg __attribute__((unused)))
 {
-    if (pdyncerts.config != NULL) {
-        ss_destroy(&pdyncerts.config);
-        pthread_mutex_unlock(&mutex);
+    if (aci_self_update) {
+        *returncode = LDAP_SUCCESS;
+        return SLAPI_DSE_CALLBACK_OK;
     }
-}
-
-/* Get a specific config entry by index */
-static Slapi_Entry *
-get_config_entry(int idx)
-{
-    if (pdyncerts.config && idx < pdyncerts.config->nb_entries) {
-        return pdyncerts.config->entries[idx];
+    LDAPMod **mods = NULL;
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+    for (size_t i = 0; mods && mods[i]; i++) {
+        if (strcasecmp(mods[i]->mod_type, "aci") == 0) {
+            slapi_rwlock_wrlock(pdyncerts.rwlock);
+            dyncerts_update_cached_aci(entryAfter);
+            slapi_rwlock_unlock(pdyncerts.rwlock);
+            break;
+        }
     }
-    return NULL;
+    *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 /* Backend callback (freeing search set pair) */
@@ -181,6 +341,9 @@ dyncerts_search_set_release(void **pss)
     }
 }
 
+static const char *dyncert_nickname_from_dn(Nickname_t *n, Slapi_DN *sdn);
+static Slapi_Entry *dyncerts_cert2entry(CERTCertificate *cert);
+
 static Slapi_Entry *
 dyncerts_find_entry(const Slapi_DN *basedn, int scope, char **attrs, DCSS **be_ss)
 {
@@ -188,10 +351,27 @@ dyncerts_find_entry(const Slapi_DN *basedn, int scope, char **attrs, DCSS **be_s
     DCSS *ss = NULL;
 
     if (slapi_sdn_compare(basedn, &pdyncerts.suffix_sdn) != 0) {
-        scope = LDAP_SCOPE_SUBTREE;
+        /* Cert DN: direct hash table lookup instead of full enumeration */
+        Nickname_t n = {0};
+        const char *nickname = dyncert_nickname_from_dn(&n, (Slapi_DN *)basedn);
+        ss = ss_new();
+        if (nickname && n.fullnickname && pdyncerts.cert_ht) {
+            dyncert_ht_entry_t *ht_entry = PL_HashTableLookupConst(pdyncerts.cert_ht, n.fullnickname);
+            if (ht_entry) {
+                CERTCertificate *cert = PK11_FindCertFromNickname(ht_entry->fullnickname, NULL);
+                if (cert) {
+                    e = dyncerts_cert2entry(cert);
+                    ss_add_entry(ss, e);
+                    CERT_DestroyCertificate(cert);
+                }
+            }
+        }
+        dyncert_nickname_free(&n);
+        *be_ss = ss;
+        return e;
     }
-    ss =  get_entry_list(&pdyncerts.suffix_sdn, scope, attrs);
-    for(size_t idx = 0; idx<ss->nb_entries; idx++) {
+    ss = get_entry_list(&pdyncerts.suffix_sdn, scope, attrs);
+    for (size_t idx = 0; idx < ss->nb_entries; idx++) {
         e = ss->entries[idx];
         if (slapi_sdn_compare(basedn, slapi_entry_get_sdn_const(e)) == 0) {
             break;
@@ -259,7 +439,7 @@ dyncerts_search(Slapi_PBlock *pb)
     }
 
     /* Let first build the list of all entries */
-    read_config_info();
+    slapi_rwlock_rdlock(pdyncerts.rwlock);
     e = dyncerts_find_entry(basesdn, scope, attrs, &be_ss);
     ss = ss_new();
     ss->pdscc = be_ss;
@@ -287,7 +467,7 @@ fail:
     if (rc != 0) {
         dyncerts_search_set_release((void**)&ss);
     }
-    free_config_info();
+    slapi_rwlock_unlock(pdyncerts.rwlock);
     return rc;
 }
 
@@ -337,20 +517,28 @@ dyncerts_cleanup(Slapi_PBlock *pb)
 {
     struct dyncerts *pdata = NULL;
 
-    pthread_mutex_lock(&mutex);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdata);
-    if (pdata) {
+    if (pdata && pdata->rwlock) {
+        slapi_rwlock_wrlock(pdata->rwlock);
+        if (pdata->cert_ht) {
+            PL_HashTableEnumerateEntries(pdata->cert_ht, dyncerts_ht_free_entry_cb, NULL);
+            PL_HashTableDestroy(pdata->cert_ht);
+            pdata->cert_ht = NULL;
+        }
         while (pdata->sockets) {
             struct sock_elem *se = pdata->sockets->next;
             slapi_ch_free((void **)&pdata->sockets);
             pdata->sockets = se;
         }
-        slapi_sdn_done(&pdyncerts.suffix_sdn);
+        dyncerts_free_cached_aci();
+        slapi_sdn_done(&pdata->suffix_sdn);
+        slapi_rwlock_unlock(pdata->rwlock);
+        slapi_destroy_rwlock(pdata->rwlock);
+        pdata->rwlock = NULL;
         memset(pdata, 0, sizeof *pdata);
         pdata = NULL;
     }
     slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, pdata);
-    pthread_mutex_unlock(&mutex);
     return 0;
 }
 
@@ -478,39 +666,23 @@ is_internal_slot(const char *slotname)
 
 /* Determine if a certificate is the server certificate */
 static PRBool
-is_servercert_int(const char *slotname, const char *nickname)
+is_servercert_ht(const char *fullnickname)
 {
-    Slapi_Entry *e = NULL;
-    if (slotname == NULL) {
-        slotname = INTERNAL_SLOTNAME1;
+    if (!pdyncerts.cert_ht || !fullnickname) {
+        return PR_FALSE;
     }
-    /* Check iof certificate match one of the familly definition */
-    for (size_t i=FIRST_FAMILY_CONFIG_ENTRY_IDX; (e=get_config_entry(i)); i++) {
-        const char *ename = slapi_entry_attr_get_ref(e, "nsSSLPersonalitySSL");
-        const char *eslot = slapi_entry_attr_get_ref(e, "nsSSLToken");
-        if (!ename || !eslot) {
-            continue;
-        }
-        if (strcasecmp(ename, nickname) != 0) {
-            continue;
-        }
-        if (is_internal_slot(eslot) && is_internal_slot(slotname)) {
-            return PR_TRUE;
-        }
-        if (strcasecmp(eslot, slotname) == 0) {
-            return PR_TRUE;
-        }
-    }
-    return PR_FALSE;
+    dyncert_ht_entry_t *entry = PL_HashTableLookupConst(pdyncerts.cert_ht, fullnickname);
+    return (entry && (entry->flags & DYNCERT_FLAG_SERVER_CERT)) ? PR_TRUE : PR_FALSE;
 }
 
 /* Determine if a certificate is the server certificate */
 static PRBool
 is_servercert(CERTCertificate *cert)
 {
-    const char *slotname = PK11_GetTokenName(cert->slot);
-    const char *nickname = cert->nickname;
-    return is_servercert_int(slotname, nickname);
+    char *fullnick = get_cert_nickname(cert);
+    PRBool result = is_servercert_ht(fullnick);
+    slapi_ch_free_string(&fullnick);
+    return result;
 }
 
 static const char *
@@ -950,7 +1122,7 @@ nss_add_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
                     cert->nickname);
         goto done2;
     }
-    ctx->primary = is_servercert_int(ctx->n.token, ctx->n.nickname);
+    ctx->primary = is_servercert_ht(ctx->n.fullnickname);
     if (!ctx->trust) {
         ctx->trust = ",,";
         if (cert->nsCertType & NS_CERT_TYPE_SSL_CA) {
@@ -1040,9 +1212,7 @@ dyncert_refresh_certs()
 int
 dyncerts_import_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
 {
-    Slapi_Entry *e = NULL;
     SECStatus rv = 0;
-    DCSS *ss = NULL;
 
     if (dyncert_resolve_token(ctx)) {
         return ctx->ldaprc;
@@ -1061,16 +1231,16 @@ dyncerts_import_cert_and_key(CertCtx_t *ctx, bool verifyOnly)
     if (verifyOnly) {
         return 0;
     }
-    e = dyncerts_find_entry(ctx->sdn, LDAP_SCOPE_BASE, NULL, &ss);
-    ss_destroy(&ss);
-    if (!e) {
+    CERTCertificate *verify_cert = PK11_FindCertFromNickname(ctx->n.fullnickname, NULL);
+    if (!verify_cert) {
         slapi_log_err(SLAPI_LOG_ERR, "dyncerts_import_cert_and_key",
-                      "Failed to add certificate %s (entry not found after import).\n",
+                      "Failed to add certificate %s (not found after import).\n",
                       ctx->n.fullnickname);
         ERRMSG(ctx, LDAP_UNWILLING_TO_PERFORM,
-               "Failed to add certificate %s (entry not found after import).\n",
+               "Failed to add certificate %s (not found after import).\n",
                ctx->n.fullnickname);
     }
+    CERT_DestroyCertificate(verify_cert);
     if (ctx->primary) {
         dyncert_refresh_certs();
     }
@@ -1336,7 +1506,7 @@ dyncerts_add(Slapi_PBlock *pb)
     /*
      * Get the database, the dn and the entry to add
      */
-    read_config_info();
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdcerts) < 0 ||
         slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn) < 0 ||
         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) < 0 || (NULL == pdcerts)) {
@@ -1349,16 +1519,29 @@ dyncerts_add(Slapi_PBlock *pb)
     (void) dyncert_nickname_from_dn(&n, sdn);
     rc = dyncerts_check_entry(pb, e, &n, returntext, true);
     if (rc) {
-        e = NULL; /* caller will free upon error */
         goto done;
     }
     /* Check that entry does not exist */
     if (dyncerts_find_entry(sdn, LDAP_SCOPE_BASE, NULL, &ss)) {
-        e = NULL; /* caller will free upon error */
         rc = LDAP_ALREADY_EXISTS;
         goto done;
     }
     rc = dyncerts_import_entry(e, returntext, false);
+    if (rc == LDAP_SUCCESS) {
+        /* Use the cn attribute (actual NSS nickname) not the DN-derived one */
+        const char *cn = slapi_entry_attr_get_ref(e, DYCATTR_NICKNAME);
+        Nickname_t ncn = {0};
+        dyncert_nickname_from_full_nickname(&ncn, cn);
+        if (ncn.fullnickname) {
+            CERTCertificate *cert = PK11_FindCertFromNickname(ncn.fullnickname, NULL);
+            if (cert) {
+                dyncert_ht_entry_t *ht_entry = dyncert_ht_entry_new(cert);
+                PL_HashTableAdd(pdyncerts.cert_ht, ht_entry->fullnickname, ht_entry);
+                CERT_DestroyCertificate(cert);
+            }
+        }
+        dyncert_nickname_free(&ncn);
+    }
 done:
     /* make sure OPRETURN and RESULT_CODE are set */
     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &error);
@@ -1372,7 +1555,7 @@ done:
     }
     ss_destroy(&ss);
     dyncert_nickname_free(&n);
-    free_config_info();
+    slapi_rwlock_unlock(pdyncerts.rwlock);
     slapi_send_ldap_result(pb, rc, NULL, returntext[0] ? returntext : NULL, 0, NULL);
     /* The frontend does not free the added entry, so we should do it now */
     if (e) {
@@ -1458,7 +1641,7 @@ dyncerts_modify_cert(Slapi_PBlock *pb, Slapi_Entry *e, LDAPMod **mods, DCSS *ss,
     if (rc != LDAP_SUCCESS) {
         goto done;
     }
-    if (slapi_entry_attr_get_charptr(newe, DYCATTR_CERTDER)) {
+    if (slapi_entry_attr_get_ref(newe, DYCATTR_CERTDER)) {
         /* need to change the certificate ==> import the entry */
         rc = dyncerts_import_entry(newe, errmsg, true);
         if (rc == LDAP_SUCCESS) {
@@ -1528,7 +1711,9 @@ dyncerts_modify_cont(Slapi_Entry *e, LDAPMod **mods, DCSS *ss, char *errmsg)
         acimod.mod_type = "aci";
         mod_pb = slapi_pblock_new();
         slapi_modify_internal_set_pb_ext(mod_pb, &sdn, acimods, NULL, NULL, plugin_get_default_component_id(), 0);
+        aci_self_update = true;
         slapi_modify_internal_pb(mod_pb);
+        aci_self_update = false;
         slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         if (rc != LDAP_SUCCESS) {
             char *err;
@@ -1536,6 +1721,8 @@ dyncerts_modify_cont(Slapi_Entry *e, LDAPMod **mods, DCSS *ss, char *errmsg)
             if (err && err[0]) {
                 PL_strncpyz(errmsg, err, SLAPI_DSE_RETURNTEXT_SIZE);
             }
+        } else {
+            dyncerts_update_cached_aci(e);
         }
         ber_bvecfree(acimod.mod_vals.modv_bvals);
     }
@@ -1563,7 +1750,7 @@ dyncerts_modify(Slapi_PBlock *pb)
     /*
      * Get the database, the dn and the modifiers
      */
-    read_config_info();
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
     PR_ASSERT(pb);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdcerts) < 0 ||
         slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn) < 0 ||
@@ -1578,7 +1765,7 @@ dyncerts_modify(Slapi_PBlock *pb)
         rc = LDAP_NO_SUCH_OBJECT;
         goto done;
     }
-    if (e == ss->entries[0]) {
+    if (slapi_sdn_compare(sdn, &pdyncerts.suffix_sdn) == 0) {
         rc =  dyncerts_modify_cont(e, mods, ss, returntext);
     } else {
         rc =  dyncerts_modify_cert(pb, e, mods, ss, returntext);
@@ -1591,32 +1778,10 @@ done:
                       dn, rc, returntext);
     }
     ss_destroy(&ss);
-    free_config_info();
+    slapi_rwlock_unlock(pdyncerts.rwlock);
     slapi_send_ldap_result(pb, rc, NULL, returntext[0] ? returntext : NULL, 0, NULL);
 
     return rc;
-}
-
-/* dyncerts_apply_cb/PK11_TraverseSlotCerts callback */
-static SECStatus
-dyncert_find_cert_cb(CERTCertificate *cert, SECItem *sitem, void *arg)
-{
-    CertCtx_t *ctx = arg;
-    ctx->cert = cert;
-    const char *slotname = PK11_GetTokenName(cert->slot);
-    if (ctx->internal_token != is_internal_slot(slotname)) {
-        /* Wrong slot ! */
-        return SECSuccess;
-    }
-    if (!ctx->internal_token && strcasecmp(ctx->n.token, slotname)) {
-        /* Still wrong slot ! */
-        return SECSuccess;
-    }
-    if (strcasecmp(cert->nickname, ctx->n.nickname)==0) {
-        ctx->ldaprc = LDAP_SUCCESS;
-        ctx->action_cb(ctx);
-    }
-    return (ctx->ldaprc == LDAP_NO_SUCH_OBJECT) ? SECSuccess: SECFailure;
 }
 
 /* Apply a callback on the certificate with the nickname */
@@ -1632,9 +1797,13 @@ dyncerts_apply_cb(const char *nickname, dyc_action_cb_t cb, void *arg, char *err
     ctx.action_cb = cb;
     ctx.ldaprc = LDAP_NO_SUCH_OBJECT;
     rc = dyncert_resolve_token(&ctx);
-    /* Could probably avoid to look in all slots but PK11_TraverseCertsInSlot is private */
     if (rc == 0) {
-        (void) PK11_TraverseSlotCerts(dyncert_find_cert_cb, &ctx, NULL);
+        CERTCertificate *cert = PK11_FindCertFromNickname(ctx.n.fullnickname, NULL);
+        if (cert) {
+            ctx.cert = cert;
+            ctx.ldaprc = LDAP_SUCCESS;
+            ctx.action_cb(&ctx);
+        }
     }
     rc = ctx.ldaprc;
     dyncerts_cert_ctx_done(&ctx);
@@ -1648,13 +1817,18 @@ dyncerts_unbind(Slapi_PBlock *pb __attribute__((unused)))
     return 0;
 }
 
-/* PK11_TraverseSlotCerts callback that adds a certificate entry in the parent search set */
-static SECStatus
-dyncerts_list_cert_cb(CERTCertificate *cert, SECItem *sitem, void *arg)
+/* Hash table enumeration callback: build cert entries for search results */
+static PRIntn
+dyncerts_ht_build_entries_cb(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg)
 {
-    /* slapi_log_err(SLAPI_LOG_INFO, "dyncerts_list_cert_cb", "See certificate %s\n", cert->nickname); */
-    ss_add_entry(arg, dyncerts_cert2entry(cert));
-    return 0;
+    DCSS *ss = arg;
+    dyncert_ht_entry_t *ht_entry = (dyncert_ht_entry_t *)he->value;
+    CERTCertificate *cert = PK11_FindCertFromNickname(ht_entry->fullnickname, NULL);
+    if (cert) {
+        ss_add_entry(ss, dyncerts_cert2entry(cert));
+        CERT_DestroyCertificate(cert);
+    }
+    return HT_ENUMERATE_NEXT;
 }
 
 /* Generate the parent search set */
@@ -1666,30 +1840,22 @@ get_entry_list(const Slapi_DN *basedn, int scope, char **attrs)
                           SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF;
     Slapi_Entry *e = slapi_str2entry((char*)dyncerts_baseentry_str, str2entry_flags);
 
-    /* Handle aci if requested */
+    /* Apply cached ACI if requested */
     if (charray_inlist(attrs, "aci") || charray_inlist(attrs, "+") ||
         charray_inlist(attrs, "*")) {
-        const struct slapi_value **va = NULL;
-        Slapi_Entry *ce = get_config_entry(ENCRYPTION_CONFIG_ENTRY_IDX);
-        if (ce) {
-            va = slapi_entry_attr_get_valuearray(ce, "aci");
-        }
-        if (va) {
-            slapi_entry_attr_replace_sv(e, "aci", (struct slapi_value **)va);
+        if (pdyncerts.cached_aci) {
+            slapi_entry_attr_replace_sv(e, "aci", pdyncerts.cached_aci);
         }
     }
     ss_add_entry(ss, e);
     if (LDAP_SCOPE_BASE == scope) {
-        /* Bypass getting cert list if only looking for the container */
-        Slapi_DN sdn = {0};
         if (slapi_sdn_compare(&pdyncerts.suffix_sdn, basedn) == 0) {
             return ss;
         }
-        slapi_sdn_done(&sdn);
     }
 
-    if (slapd_nss_is_initialized()) {
-        (void) PK11_TraverseSlotCerts(dyncerts_list_cert_cb, ss, NULL);
+    if (slapd_nss_is_initialized() && pdyncerts.cert_ht) {
+        PL_HashTableEnumerateEntries(pdyncerts.cert_ht, dyncerts_ht_build_entries_cb, ss);
     }
     return ss;
 }
@@ -1711,7 +1877,7 @@ dyncerts_delete(Slapi_PBlock *pb)
     /*
      * Get the backend context and the dn
      */
-    read_config_info();
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdcerts) < 0 ||
         slapi_pblock_get(pb, SLAPI_DELETE_TARGET_SDN, &sdn) < 0 ||
         (pdcerts == NULL)) {
@@ -1732,6 +1898,13 @@ dyncerts_delete(Slapi_PBlock *pb)
         goto done;
     }
     rc = dyncerts_apply_cb(nickname, dyncert_delete_cb, NULL, returntext);
+    if (rc == LDAP_SUCCESS && n.fullnickname) {
+        dyncert_ht_entry_t *removed = PL_HashTableLookup(pdyncerts.cert_ht, n.fullnickname);
+        if (removed) {
+            PL_HashTableRemove(pdyncerts.cert_ht, n.fullnickname);
+            dyncert_ht_entry_free(removed);
+        }
+    }
 
 done:
     if (rc) {
@@ -1741,7 +1914,7 @@ done:
                       dn, rc, returntext);
     }
     ss_destroy(&ss);
-    free_config_info();
+    slapi_rwlock_unlock(pdyncerts.rwlock);
     slapi_send_ldap_result(pb, rc, NULL, returntext[0] ? returntext : NULL, 0, NULL);
     dyncert_nickname_free(&n);
 
@@ -1853,7 +2026,7 @@ dyncerts_rename(Slapi_PBlock *pb)
     const char *new_sup = NULL;
     const char *new_dn = NULL;
 
-    read_config_info();
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
     slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
     /*
      * Get the backend context and the dn
@@ -1907,6 +2080,21 @@ dyncerts_rename(Slapi_PBlock *pb)
         goto done;
     }
     rc = dyncerts_apply_cb(old_nickname, dyncert_rename_cb, (void*) new_dn, returntext);
+    if (rc == LDAP_SUCCESS && n_old.fullnickname && n_new.fullnickname) {
+        dyncert_ht_entry_t *old_entry = PL_HashTableLookup(pdyncerts.cert_ht, n_old.fullnickname);
+        if (old_entry) {
+            PL_HashTableRemove(pdyncerts.cert_ht, n_old.fullnickname);
+            dyncert_ht_entry_free(old_entry);
+        }
+        CERTCertificate *newcert = PK11_FindCertFromNickname(n_new.fullnickname, NULL);
+        if (newcert) {
+            dyncert_ht_entry_t *new_entry = dyncert_ht_entry_new(newcert);
+            if (new_entry) {
+                PL_HashTableAdd(pdyncerts.cert_ht, new_entry->fullnickname, new_entry);
+            }
+            CERT_DestroyCertificate(newcert);
+        }
+    }
 
 done:
     if (rc) {
@@ -1916,7 +2104,7 @@ done:
                       old_dn, rc, returntext);
     }
     slapi_sdn_done(&sdn_new);
-    free_config_info();
+    slapi_rwlock_unlock(pdyncerts.rwlock);
     slapi_send_ldap_result(pb, rc, NULL, returntext[0] ? returntext : NULL, 0, NULL);
     dyncert_nickname_free(&n_old);
     dyncert_nickname_free(&n_new);
@@ -1928,7 +2116,6 @@ done:
 Slapi_Backend *
 dyncert_init_be()
 {
-    pthread_mutex_lock(&mutex);
     if (!pdyncerts.be) {
         Slapi_Backend *be = slapi_be_new(DYNCERTS_BETYPE, DYNCERTS_BENAME, 1 /* Private */, 0 /* Do Not Log Changes */);
         pdyncerts.be = be;
@@ -1953,19 +2140,26 @@ dyncert_init_be()
         slapi_sdn_init_dn_byref(&pdyncerts.suffix_sdn, DYNCERTS_SUFFIX);
         be_addsuffix(be, &pdyncerts.suffix_sdn);
     }
-    pthread_mutex_unlock(&mutex);
     return pdyncerts.be;
 }
 
 /*
  * Store socket fd and associated PRFileDesc in private data
- * to fetch the password
+ * to fetch the password.
+ *
+ * It is the first place where we know that NSS is initialized
+ * so lets also perform some initialization
  */
 void
 dyncerts_register_socket(int sock, PRFileDesc *pr_sock)
 {
     struct sock_elem *se;
-    pthread_mutex_lock(&mutex);
+    static pthread_once_t init = PTHREAD_ONCE_INIT;
+
+    /* NSS is initialized or we do not get here so lets perform init */
+    (void) pthread_once(&init, dyncerts_init);
+
+    slapi_rwlock_wrlock(pdyncerts.rwlock);
     se = pdyncerts.sockets;
     /* If port already exist, lets reuse its slot */
     for (;se; se=se->next) {
@@ -1981,5 +2175,5 @@ dyncerts_register_socket(int sock, PRFileDesc *pr_sock)
     }
     se->sock = sock;
     se->pr_sock = pr_sock;
-    pthread_mutex_unlock(&mutex);
+    slapi_rwlock_unlock(pdyncerts.rwlock);
 }

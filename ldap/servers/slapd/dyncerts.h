@@ -55,6 +55,10 @@
 
 #define TRUST_SIZE 32  /* Large enough to hold trust string */
 
+/* Hash table entry flags */
+#define DYNCERT_FLAG_SERVER_CERT  0x01  /* Server cert associated with a listening SSL PRFileDesc */
+#define DYNCERT_FLAG_SERVER_CA    0x02  /* CA for a server cert associated with a listening SSL PRFileDesc */
+
 #define ERRMSG(ctx, rc, ...) { \
             (ctx)->ldaprc = (rc); \
             if ((ctx)->errmsg) { \
@@ -62,6 +66,15 @@
             } \
             return (ctx)->ldaprc; \
         }
+
+/* Hash table entry: one per certificate nickname */
+typedef struct dyncert_ht_entry {
+    char *fullnickname;   /* Hash key: "token:nickname" or "nickname" (owned) */
+    char *nickname;       /* Points within fullnickname past ':' or == fullnickname */
+    char *token;          /* Owned copy, NULL for internal slot */
+    PK11SlotInfo *slot;   /* Ref-counted via PK11_ReferenceSlot */
+    uint32_t flags;       /* DYNCERT_FLAG_* bitmask */
+} dyncert_ht_entry_t;
 
 /* Entry type (container or certificate) used to check dn validity */
 typedef enum {
@@ -156,10 +169,12 @@ struct sock_elem {
 
 /* The backend private data */
 struct dyncerts {
-    Slapi_Backend *be;
-    DCSS *config;
-    struct sock_elem *sockets;  /* Secure sockets (needed to get the pin) */
     Slapi_DN suffix_sdn;
+    Slapi_Backend *be;
+    Slapi_RWLock *rwlock;           /* Protects cert_ht + cached_aci + sockets */
+    PLHashTable *cert_ht;           /* fullnickname -> dyncert_ht_entry_t* */
+    Slapi_Value **cached_aci;       /* Deep-copied ACI values from cn=encryption,cn=config */
+    struct sock_elem *sockets;      /* Secure sockets (needed to get the pin) */
 };
 
 /* Alternate Name Decoder Callback */

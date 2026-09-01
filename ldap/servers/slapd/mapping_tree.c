@@ -1636,6 +1636,7 @@ add_internal_mapping_tree_node(const char *subtree, Slapi_Backend *be, mapping_t
 int
 mapping_tree_init()
 {
+    Slapi_Backend *dyncert_be = NULL;
     Slapi_Backend *be;
     mapping_tree_node *node;
     /* Create the root of the mapping tree. */
@@ -1690,7 +1691,8 @@ mapping_tree_init()
     be = slapi_be_select_by_instance_name(DSE_SCHEMA);
     node = add_internal_mapping_tree_node("cn=schema", be, mapping_tree_root);
     mapping_tree_node_add_child(mapping_tree_root, node);
-    node = add_internal_mapping_tree_node(DYNCERTS_SUFFIX, dyncert_init_be(), mapping_tree_root);
+    dyncert_be = dyncert_init_be();
+    node = add_internal_mapping_tree_node(DYNCERTS_SUFFIX, dyncert_be, mapping_tree_root);
     mapping_tree_node_add_child(mapping_tree_root, node);
 
     slapi_rwlock_unlock(myLock);
@@ -1705,6 +1707,8 @@ mapping_tree_init()
     if (mapping_tree_node_build_tree()) {
         return -1;
     }
+
+    slapi_mtn_be_disable(dyncert_be);  /* Hide it until slapd_ssl_init2 get called */
 
     slapi_rwlock_wrlock(myLock);
     mtn_create_extension(mapping_tree_root);

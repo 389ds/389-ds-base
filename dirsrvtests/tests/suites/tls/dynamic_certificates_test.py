@@ -60,10 +60,6 @@ tls_enabled = False
 def utcdate():
     return datetime.datetime.utcnow()
 
-def fix_crash_issue_7227(inst):
-    """Work around to avoid ns-slapd crash in CERT_VerifyCertificateNow()"""
-    inst.restart()
-
 
 class RSA_Certificate:
     """RSA Certificate Generator for testing RSA key support"""
@@ -403,7 +399,6 @@ def test_subject_alternative_names(topo, setup_tls):
         6. IP addresses are correctly parsed
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_san_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -466,7 +461,6 @@ def test_private_key_detection(topo, setup_tls):
         6. CA cert not identified as server cert
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_privkey_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -535,7 +529,6 @@ def test_trust_flags_modification(topo, setup_tls):
         6. Trust flags match updated value
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_trust_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -590,7 +583,6 @@ def test_certificate_replace_operation(topo, setup_tls):
         6. Serial number is different
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_replace_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -649,7 +641,6 @@ def test_search_with_filters(topo, setup_tls):
         5. get_cert_details returns detailed info
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_filter_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -719,7 +710,6 @@ def test_batch_certificate_operations(topo, setup_tls):
         6. No certificates remain
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_batch_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -782,7 +772,6 @@ def test_invalid_certificate_handling(topo, setup_tls):
         4. All errors are appropriate exceptions
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_invalid_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -838,7 +827,6 @@ def test_dynamic_cert_rejects_mismatched_dn_and_cn(topo, setup_tls):
         4. Server returns LDAP naming violation
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_mismatch_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -881,7 +869,6 @@ def test_dynamic_cert_allows_case_insensitive_dn_and_cn_match(topo, setup_tls):
         4. The created object is retrievable and can be deleted
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_casefold_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -927,7 +914,6 @@ def test_certificate_verification_status(topo, setup_tls):
         5. Server cert status reflects chain validation
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_verify_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -989,7 +975,6 @@ def test_expired_certificate_handling(topo, setup_tls):
         6. Verification status may indicate invalid/expired
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_expired_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -1078,7 +1063,6 @@ def test_list_and_get_operations(topo, setup_tls):
         6. get_cert_details() returns formatted dictionary
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     dir = '/tmp/dyncert_list_test'
     os.makedirs(dir, 0o700, exist_ok=True)
 
@@ -1180,7 +1164,6 @@ def test_mldsa_dynamic_certificates(topo, setup_tls, with_private_key):
         10. Certificates appear in list operations
     """
     inst = setup_tls
-    fix_crash_issue_7227(inst)
     key_suffix = 'with_key' if with_private_key else 'without_key'
     dir = f'/tmp/dyncert_mldsa_test_{key_suffix}'
     os.makedirs(dir, 0o700, exist_ok=True)
@@ -1522,6 +1505,46 @@ extendedKeyUsage = clientAuth, serverAuth
     except Exception as e:
         log.error(f"Test failed with exception: {e}")
         raise
+    finally:
+        if not DEBUGGING:
+            shutil.rmtree(dir, ignore_errors=True)
+
+
+def test_add_delete_certificate_loop(topo, setup_tls):
+    """Test adding and deleting the same certificate repeatedly
+
+    :id: a3b4c5d6-3333-4444-5555-666666666666
+    :setup: Standalone Instance with TLS enabled
+    :steps:
+        1. Generate a CA certificate
+        2. Loop 10 times: add the certificate then delete it
+        3. Verify the certificate is absent after each deletion
+        4. Verify the certificate is present after each addition
+    :expectedresults:
+        1. Certificate generated successfully
+        2. All add/delete cycles succeed without error
+        3. Certificate is not found after each deletion
+        4. Certificate is found after each addition
+    """
+    inst = setup_tls
+    dir = '/tmp/dyncert_loop_test'
+    os.makedirs(dir, 0o700, exist_ok=True)
+
+    try:
+        dyncerts = DynamicCerts(inst)
+        ca = RSA_Certificate.generateRootCA("TestLoop_CA")
+        ca.save(dir)
+
+        for i in range(10):
+            log.info(f"Add/delete cycle {i+1}/10")
+            dyncerts.add_cert(ca.pem, ca.nickname, ca=True)
+            cert_obj = dyncerts.get_cert_obj(ca.nickname)
+            assert cert_obj is not None, f"Certificate not found after add (cycle {i+1})"
+
+            dyncerts.del_cert(ca.nickname)
+            assert dyncerts.get_cert_obj(ca.nickname) is None, \
+                f"Certificate still found after delete (cycle {i+1})"
+
     finally:
         if not DEBUGGING:
             shutil.rmtree(dir, ignore_errors=True)
