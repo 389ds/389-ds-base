@@ -688,6 +688,7 @@ attr_index_config(
     int return_value = -1;
     int *substrlens = NULL;
     int need_compare_fn = 0;
+    struct slapdplugin *mr_ordering_plugin = NULL;
     int hasIndexType = 0;
     const char *attrsyntax_oid = NULL;
     const struct berval *attrValue;
@@ -886,6 +887,23 @@ attr_index_config(
                 do_continue = 1;                /* done with j - next j */
             }
 
+           if (!do_continue &&
+               slapi_matchingrule_is_ordering_only(attrValue->bv_val) &&
+               !a->ai_sattr.a_mr_ord_plugin) {
+                /* The ordering matching rule is not compatible with the attribute syntax
+                 * pick the plugin that supports this ordering matching rule and use it.
+                 * if there are multiple ordering matching rules for the same attribute,
+                 * use the last one that is found.
+                 */
+                mr_ordering_plugin = plugin_mr_find(attrValue->bv_val);
+                if (!mr_ordering_plugin) {
+                    slapi_log_err(SLAPI_LOG_WARNING, "attr_index_config", "%s: line %d: "
+                                  "no plugin ordering matching rule \"%s\" for the attribute \"%s\" (ignored)\n",
+                                  fname, lineno, attrValue->bv_val, a->ai_type);
+                }
+                do_continue = 1; /* done with j - next j */
+            }
+
             if (do_continue) {
                 continue; /* done with index_rules[j] */
             }
@@ -984,6 +1002,25 @@ attr_index_config(
                           a->ai_type, rc, ldap_err2string(rc));
             a->ai_key_cmp_fn = NULL;
         }
+    }
+    if (mr_ordering_plugin && (a->ai_sattr.a_mr_ord_plugin == NULL)) {
+        /* use the plugin ordering matching rule for the attribute in place
+         * of the default ordering matching rule
+         */
+        int rc;
+        a->ai_sattr.a_mr_ord_plugin = mr_ordering_plugin;
+        rc = attr_get_value_cmp_fn(&a->ai_sattr, &a->ai_key_cmp_fn);
+        if (rc == LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_INFO,
+                "attr_index_config", "The attribute [%s] uses ORDERING matching rule %s\n",
+                a->ai_type, mr_ordering_plugin->plg_name);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "attr_index_config", "The attribute [%s] does not have a valid ORDERING matching rule using %s - error %d:%s\n",
+                          a->ai_type, mr_ordering_plugin->plg_name, rc, ldap_err2string(rc));
+            a->ai_key_cmp_fn = NULL;
+        }
+        a->ai_sattr.a_mr_ord_plugin = NULL;
     }
 
     if (avl_insert(&inst->inst_attrs, (caddr_t)a, ainfo_cmp, ainfo_dup) != 0) {
