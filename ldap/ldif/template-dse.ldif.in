@@ -263,6 +263,7 @@ nsslapd-pluginId: PBKDF2
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -277,6 +278,7 @@ nsslapd-pluginId: PBKDF2-SHA1
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2-SHA1\
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -291,6 +293,7 @@ nsslapd-pluginId: PBKDF2-SHA256
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2-SHA256\
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -305,6 +308,7 @@ nsslapd-pluginId: PBKDF2-SHA512
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2-SHA512
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
