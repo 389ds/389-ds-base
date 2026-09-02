@@ -40,12 +40,13 @@ Verify: every gate exits 0 — check with `echo $?` after each.
 | Rust crates (src/, src/plugins/) | cargo tests + the affected pytest suite |
 | lib389 or dsconf/dsctl/dsidm/dscreate | static gates + the clu suite |
 | dirsrvtests | static gates + the suite you touched |
-| Cockpit UI (src/cockpit/389-console/) | npm build (+ audit) |
+| Cockpit UI (src/cockpit/389-console/) | npm build (+ audit) + the webui suite on both backends; a UI-only PR runs no other suite |
 
 ## Reference: the CI commands, check by check
 
 Everything below is taken from the CI workflow files (pytest.yml, lmdbpytest.yml,
-compile.yml, cargotest.yml, validate.yml, npm.yml) and rpm.mk — passing them means
+compile.yml, cargotest.yml, validate.yml, npm.yml, codeql.yml; nightly-dispatch.yml
+only re-runs the pytest pair on release branches) and rpm.mk — passing them means
 passing in CI. **This is documentation of what the build/test skill must achieve,
 not commands to run directly on an unprepared host** (step 1). Background:
 docs/agents/building.md and docs/agents/testing.md.

@@ -86,8 +86,9 @@ new page or section instead of a field: references/new-page.md.
    do not run the bundler — report the UI build as unverified (CI builds it on
    every PR).** The check the skill must run: `npm ci && npm run build` from
    `src/cockpit/389-console`. The production bundle is built on every PR (inside
-   the RPM tarball step), so a broken import fails all CI even though CI runs no
-   JS lint or test. `npm run eslint` is advisory. **Never run `npm run prettier:fix`** — there is no prettier config, so
+   the RPM tarball step), so a broken import fails the Build job of both pytest
+   workflows even though CI runs no JS lint or test; a UI-only PR then runs just
+   the `webui` suite. `npm run eslint` is advisory. **Never run `npm run prettier:fix`** — there is no prettier config, so
    it mass-reformats with defaults that fight eslint. **Never edit `cockpit_dist/`** —
    it is a generated copy of `dist/`.
 
