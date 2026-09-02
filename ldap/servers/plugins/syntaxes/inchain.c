@@ -412,6 +412,6 @@ inchain_normalize(
     char **alt)
 {
     slapi_log_err(SLAPI_LOG_ERR, "inchain", "inchain_normalize %s \n", s);
-    value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_spaces, alt);
+    value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_spaces_to_mask(trim_spaces), alt);
     return;
 }
