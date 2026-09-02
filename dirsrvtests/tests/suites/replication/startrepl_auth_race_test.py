@@ -38,6 +38,7 @@ from lib389.idm.user import UserAccounts
 from lib389.passwd import password_generate
 from lib389.replica import (
     BootstrapReplicationManager,
+    Changelog5,
     Replicas,
 )
 try:
@@ -58,7 +59,7 @@ log = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def topo_i2(request):
     """Two standalone instances, no replication configured yet."""
-    topology = create_topology({ReplicaRole.STANDALONE: 2}, request=request)
+    topology = create_topology({ReplicaRole.STANDALONE: 2})
     return topology
 
 
@@ -140,6 +141,17 @@ def test_total_init_binddn_group_race(topo_i2):
         'nsDS5ReplicaBindDN': brm.dn,
         'nsds5replicabinddngroupcheckinterval': '0',
     })
+
+    for inst in [inst_a, inst_b]:
+        cl = Changelog5(inst)
+        try:
+            cl.create(properties={
+                'cn': 'changelog5',
+                'nsslapd-changelogdir': inst.get_changelog_dir()
+            })
+        except ldap.ALREADY_EXISTS:
+            pass
+
     log.info("Replicas configured, bootstrap manager ready")
 
     # Step 3: Bootstrap total init from A to B using direct BindDN.
