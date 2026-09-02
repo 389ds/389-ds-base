@@ -436,12 +436,12 @@ ldbm_search_substring_shrink_blanks(const char *val, int trim_spaces)
         return slapi_ch_strdup(" ");
     }
 
-    if (trim_spaces & (SHRINK_LEADING_BLANK | TRIM_LEADING_BLANK) == 0) {
+    if ((trim_spaces & (SHRINK_LEADING_BLANK | TRIM_LEADING_BLANK)) == 0) {
         /* Do not trim leading spaces */
         ctx.first_non_space = 0;
     }
 
-    if (trim_spaces & (SHRINK_TRAILING_BLANK | TRIM_TRAILING_BLANK) == 0) {
+    if ((trim_spaces & (SHRINK_TRAILING_BLANK | TRIM_TRAILING_BLANK)) == 0) {
         /* Do not trim trailing spaces */
         ctx.first_trailing_space = ctx.len;
     }
@@ -496,15 +496,24 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
         }
         if (f->f_sub_initial != NULL) {
             char *alt;
-            *p++ = '^';
             /*
              * rfc4518 2.6.1 Insignificant Space Handling
              * For input strings that are substring assertion values:
              *
+             * If the input string is an initial substring, it is modified to
+             * start with exactly one SPACE character;
+             *
              * If the input string is an initial or an any substring that ends in
              * one or more space characters, it is modified to end with exactly
              * one SPACE character;
+             *
+             * Note that the code use ^ instead of a SPACE leading character
+             *  So for initial substring we should:
+             *   - add ^
+             *   - trim leading spaces
+             *   - shrink trailing spaces
              */
+            *p++ = '^';
             alt = ldbm_search_substring_shrink_blanks(f->f_sub_initial,
                                                       TRIM_LEADING_BLANK | SHRINK_TRAILING_BLANK);
             if (alt) {
@@ -553,8 +562,19 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
              * If the input string is an any or a final substring that starts in
              * one or more space characters, it is modified to start with exactly
              * one SPACE character;
+             *
+             * If the input string is a final substring, it is modified to end
+             * with exactly one SPACE character.
+             *
+             * Note that the code use $ instead of a trailing space
+             *
+             * so for final substring we should:
+             * - shrink leading spaces
+             * - trim trailing spaces
+             * - add $
              */
-            alt = ldbm_search_substring_shrink_blanks(f->f_sub_final, SHRINK_LEADING_BLANK);
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_final,
+                                                      SHRINK_LEADING_BLANK | TRIM_TRAILING_BLANK);
             if (alt) {
                 p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
                 slapi_ch_free_string(&alt);
