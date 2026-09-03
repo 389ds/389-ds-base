@@ -22,8 +22,6 @@ on:
       - '.packit.yaml'
       - '.github/renovate.json'
   schedule:
-    # No sha gate on this nightly: audit-ci results drift with the npm
-    # advisory database even when the tree is unchanged.
     - cron:  '0 0 * * *'
 
 permissions: 
