@@ -29,39 +29,10 @@ permissions:
   contents: read
 
 jobs:
-  gate:
-    name: Gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event_name == 'schedule'
-    outputs:
-      run: ${{ steps.check.outputs.run }}
-    steps:
-      - name: Skip the nightly when nothing changed
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Only scheduled successes count: dispatch runs may be partial
-          # (pytest_tests) and this workflow has no push runs.
-          run=true
-          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "${{ github.workflow }}" \
-            --event schedule --status success --branch "$GITHUB_REF_NAME" \
-            --limit 1 --json headSha --jq '.[0].headSha' || true)
-          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then
-            echo "No new commits since the last successful scheduled run"
-            run=false
-          fi
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-
   build:
     name: Build
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    needs: gate
-    # != 'success' keeps the gate fail-open: a gate infra failure must
-    # not skip the nightly.
-    if: ${{ !cancelled() && (needs.gate.result != 'success' || needs.gate.outputs.run == 'true') }}
     container:
       image: quay.io/389ds/ci-images:test
     outputs:
@@ -77,7 +48,9 @@ jobs:
         id: set-matrix
         env:
           SUITES: ${{ github.event.inputs.pytest_tests }}
-        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py $SUITES)" >>$GITHUB_OUTPUT
+        run: |
+          matrix=$(python3 .github/scripts/generate_matrix.py $SUITES)
+          echo "matrix=$matrix" >>$GITHUB_OUTPUT
 
       - name: Build RPMs
         run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
@@ -95,10 +68,6 @@ jobs:
     name: BDB Test
     runs-on: ubuntu-22.04
     needs: build
-    # The implicit success() check is false whenever any job in the
-    # transitive needs chain was skipped, so the PR-skipped gate would
-    # skip the tests too (actions/runner#491). Depend on build alone.
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.build.outputs.matrix) }}
@@ -111,7 +80,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       with:
         limit-access-to-actor: true
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled }}
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}
 
     - name: Install dependencies
       run: |
