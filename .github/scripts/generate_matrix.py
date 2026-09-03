@@ -34,6 +34,9 @@ if len(sys.argv) > 1:
         if is_valid_suite_file(suite) or is_valid_suite_dir(suite):
             valid_suites.append(suite)
     suites = valid_suites
+    if not suites:
+        print(f"No valid test suites among: {' '.join(sys.argv[1:])}", file=sys.stderr)
+        sys.exit(1)
 
 else:
     # Use tests from the source
