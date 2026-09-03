@@ -350,12 +350,17 @@ dyncerts_find_entry(const Slapi_DN *basedn, int scope, char **attrs, DCSS **be_s
     Slapi_Entry *e = NULL;
     DCSS *ss = NULL;
 
+    if (!pdyncerts.cert_ht) {
+        *be_ss = ss;
+        return e;
+    }
+
     if (slapi_sdn_compare(basedn, &pdyncerts.suffix_sdn) != 0) {
         /* Cert DN: direct hash table lookup instead of full enumeration */
         Nickname_t n = {0};
         const char *nickname = dyncert_nickname_from_dn(&n, (Slapi_DN *)basedn);
         ss = ss_new();
-        if (nickname && n.fullnickname && pdyncerts.cert_ht) {
+        if (nickname && n.fullnickname) {
             dyncert_ht_entry_t *ht_entry = PL_HashTableLookupConst(pdyncerts.cert_ht, n.fullnickname);
             if (ht_entry) {
                 CERTCertificate *cert = PK11_FindCertFromNickname(ht_entry->fullnickname, NULL);
