@@ -9,7 +9,7 @@
 import ldap
 import pytest
 import os
-from lib389.schema import Schema
+from lib389.schema import Schema, SchemaLegacy
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Group, Groups
@@ -287,6 +287,77 @@ def test_escaped_space(topo, request):
             ldc.unbind()
         except:
             pass
+
+    request.addfinalizer(fin)
+
+
+def test_attrname_exceptions_dn_syntax(topo, request):
+    """Test that nsslapd-attribute-name-exceptions allows underscores in
+    attribute names used within DN-valued attributes during entry add and
+    import operations.
+
+    :id: 1a507c3e-31c9-489b-80b4-e3169edc5a5e
+    :customerscenario: True
+    :setup: Standalone Instance
+    :steps:
+        1. Enable nsslapd-attribute-name-exceptions and nsslapd-syntaxcheck
+        2. Add a custom attribute type with an underscore in its name
+        3. Add a custom objectclass using that attribute
+        4. Add an entry using the underscored attribute
+        5. Add a seeAlso value containing a DN with the underscored attribute type
+        6. Verify the entry and seeAlso value were accepted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    inst = topo.standalone
+    config = Config(inst)
+
+    config.replace('nsslapd-attribute-name-exceptions', 'on')
+    config.replace('nsslapd-syntaxcheck', 'on')
+
+    schema = SchemaLegacy(inst)
+    schema.add_attribute(
+        "( 9.9.9.9.1 NAME 'test_underscore_attr' "
+        "DESC 'Test attribute with underscore' "
+        "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
+        "X-ORIGIN 'user defined' )"
+    )
+    schema.add_objectclass(
+        "( 9.9.9.9.2 NAME 'testUnderscoreOC' "
+        "DESC 'Test OC with underscore attr' SUP top AUXILIARY "
+        "MAY test_underscore_attr "
+        "X-ORIGIN 'user defined' )"
+    )
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': 'underscore_test_user',
+        'cn': 'underscore_test_user',
+        'sn': 'user',
+        'uidNumber': '9901',
+        'gidNumber': '9901',
+        'homeDirectory': '/home/underscore_test_user',
+    })
+    user.add('objectclass', 'testUnderscoreOC')
+    user.add('test_underscore_attr', 'some value')
+
+    dn_with_underscore = 'test_underscore_attr=some value,%s' % DEFAULT_SUFFIX
+    user.add('seeAlso', dn_with_underscore)
+
+    entry = user.get_attr_vals_utf8('seeAlso')
+    assert dn_with_underscore in entry
+
+    def fin():
+        try:
+            user.delete()
+        except ldap.LDAPError:
+            pass
+        config.replace('nsslapd-attribute-name-exceptions', 'off')
 
     request.addfinalizer(fin)
 
