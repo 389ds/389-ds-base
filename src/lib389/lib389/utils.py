@@ -2106,6 +2106,8 @@ def rpm_is_older(pkg, version):
         log.debug(f"{pkg} {h['version']} {version}")
         for n1,n2 in itertools.zip_longest(h['version'].split('.'), version.split('.'), fillvalue=""):
             try:
+                if int(n1) > int(n2):
+                    return False
                 if int(n1) < int(n2):
                     return True
             except ValueError:

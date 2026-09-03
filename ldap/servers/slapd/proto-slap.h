@@ -1687,5 +1687,9 @@ int subentries_parse_request_control(struct berval *subentries_spec_ber);
  */
 Slapi_Backend *dyncert_init_be(void);
 void dyncerts_register_socket(int sock, PRFileDesc *pr_sock);
+void dyncerts_invalidate_cache(void);
+void dyncert_prepare_certs_refresh(void);
+void dyncerts_register_server_cert(PRFileDesc *fd, CERTCertificate *cert);
+void dyncert_finalize_certs_refresh(void);
 
 #endif /* _PROTO_SLAP */
