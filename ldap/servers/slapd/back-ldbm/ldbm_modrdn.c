@@ -680,6 +680,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
             /* Set the new dn to the copy of the entry */
             slapi_entry_set_sdn(ec->ep_entry, &dn_newdn);
+<<<<<<< HEAD
             if (entryrdn_get_switch()) { /* subtree-rename: on */
                 Slapi_RDN srdn;
                 /* Set the new rdn to the copy of the entry; store full dn in e_srdn */
@@ -687,6 +688,17 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 slapi_entry_set_srdn(ec->ep_entry, &srdn);
                 slapi_rdn_done(&srdn);
             }
+=======
+            /* Update dsEntryDN to match the new DN (for case-only renames) */
+            slapi_entry_attr_set_charptr(ec->ep_entry, SLAPI_ATTR_DS_ENTRYDN,
+                                         slapi_sdn_get_dn(&dn_newdn));
+
+            Slapi_RDN srdn;
+            /* Set the new rdn to the copy of the entry; store full dn in e_srdn */
+            slapi_rdn_init_all_sdn(&srdn, &dn_newdn);
+            slapi_entry_set_srdn(ec->ep_entry, &srdn);
+            slapi_rdn_done(&srdn);
+>>>>>>> c7c998d2e (Issue 7806 - Preserve dsEntryDN case on modify (#7807))
 
             if (is_resurect_operation) {
                 slapi_log_err(SLAPI_LOG_REPL, "ldbm_back_modrdn",
