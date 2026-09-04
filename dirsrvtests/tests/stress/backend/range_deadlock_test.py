@@ -56,38 +56,52 @@ log = logging.getLogger(__name__)
 NUM_USERS = int(os.getenv('RANGE_DEADLOCK_USERS', 2500))
 DURATION = int(os.getenv('RANGE_DEADLOCK_DURATION', 300))
 INSTR_DURATION = int(os.getenv('RANGE_DEADLOCK_INSTR_DURATION', 60))
+STALE_DURATION = int(os.getenv('RANGE_DEADLOCK_STALE_DURATION', 60))
+# Rewriting a small entry set keeps deleting the walks' start keys
+HOT_SET = min(50, NUM_USERS)
+# Full sweeps use a bound every run has entries above
+SWEEP_MAX_USN = min(50, NUM_USERS)
 RANGE_SEARCH_THREADS = int(os.getenv('RANGE_DEADLOCK_SEARCHERS', 16))
 MODIFY_THREADS = int(os.getenv('RANGE_DEADLOCK_MODIFIERS', 12))
 CHURN_THREADS = int(os.getenv('RANGE_DEADLOCK_CHURNERS', 4))
 LDCLT_THREADS = 8
+# Max fraction of searches that may fail with a logged retry exhaustion
+MAX_SHED_RATIO = float(os.getenv('RANGE_DEADLOCK_MAX_SHED_RATIO', '0.01'))
 
 PEOPLE_SUBTREE = f"ou=people,{DEFAULT_SUFFIX}"
 # nsslapd-errorlog-level bit for SLAPI_LOG_BACKLDBM (proto-slap.h)
 LDAP_DEBUG_BACKLDBM = 0x00080000
-# libdb 5.3 return code as ns-slapd logs it (db.h)
+# libdb 5.3 return codes as ns-slapd logs them (db.h)
 DB_LOCK_DEADLOCK = -30993
+DB_NOTFOUND = -30988
 
 # Errors-log markers. FATAL/EXHAUST mean a search actually failed or gave
 # up; ATTEMPT is the per-conflict ERR line only pre-fix servers emit; the
 # rest are debug lines visible only with LDAP_DEBUG_BACKLDBM raised
 # (ldbm_nasty() renders DB_LOCK_DEADLOCK as "... WARNING 4, err=-30993").
 FATAL_LOG_PATTERN = f'.*build_candidate_list - Database error {DB_LOCK_DEADLOCK}.*'
-EXHAUST_LOG_PATTERN = '.*gave up after .* attempts due to transient lock conflicts.*'
+RANGE_EXHAUST_LOG_PATTERN = '.*Range read on the .* index gave up after .* attempts.*'
+EQ_EXHAUST_LOG_PATTERN = '.*Index read on .* gave up after .* attempts.*'
 ATTEMPT_LOG_PATTERN = '.*Failed to build range candidate list.*'
 COLLISION_LOG_PATTERN = f'.*WARNING 4, err={DB_LOCK_DEADLOCK}.*'
 RETRY_LOG_PATTERN = '.*DBI_RC_RETRY on range fetch retry.*'
 EQ_RETRY_LOG_PATTERN = '.*index read retrying transaction WARNING 1045.*'
+# -30988 means a walk gave up on a deleted start key; a fixed server
+# resumes instead and logs it at debug level
+NOTFOUND_LOG_PATTERN = f'.*Failed to build range candidate list.*Error is {DB_NOTFOUND}.*'
+STALE_START_LOG_PATTERN = '.*Start key on .* was removed, resuming at its successor.*'
 
 # Shared state (reset by each test)
 stats_lock = Lock()
 stats = {}
 range_failures = []
+empty_results = []
 server_crashed = False
 
 
 def _reset_state():
     """Reset the module-level shared state before a test run"""
-    global stats, range_failures, server_crashed
+    global stats, range_failures, empty_results, server_crashed
     with stats_lock:
         stats = {
             'searches': 0,
@@ -98,6 +112,7 @@ def _reset_state():
             'start_time': time.time(),
         }
         range_failures = []
+        empty_results = []
         server_crashed = False
 
 
@@ -111,6 +126,12 @@ def record_range_failure(thread_id, filter_str, err):
     """Record a client-visible range search failure (the bug symptom)"""
     with stats_lock:
         range_failures.append((thread_id, filter_str, str(err)))
+
+
+def record_empty_result(thread_id, filter_str):
+    """Record a success that returned an impossible empty result"""
+    with stats_lock:
+        empty_results.append((thread_id, filter_str))
 
 
 def mark_server_crashed():
@@ -180,6 +201,7 @@ def range_search_worker(stop_event, inst, thread_id):
                     lastusn = get_lastusn(conn)
 
                 dice = random.random()
+                full_sweep = False
                 if lastusn and dice < 0.4:
                     # Incremental refresh near the index tail
                     usn = max(1, lastusn - random.randint(0, 500))
@@ -189,11 +211,15 @@ def range_search_worker(stop_event, inst, thread_id):
                     usn = max(1, lastusn - random.randint(0, 2000))
                     filter_str = f"(&(objectClass=person)(entryusn>={usn}))"
                 else:
-                    # Full index sweep
-                    filter_str = f"(entryusn>={random.randint(1, 50)})"
+                    # Full index sweep: can never be legitimately empty
+                    filter_str = f"(entryusn>={random.randint(1, SWEEP_MAX_USN)})"
+                    full_sweep = True
 
-                conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                              filter_str, attrlist=['1.1'])
+                entries = conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                        filter_str, attrlist=['1.1'])
+                if full_sweep and not entries:
+                    # a silent empty here means the candidate list was lost
+                    record_empty_result(thread_id, filter_str)
                 search_count += 1
 
                 if search_count % 100 == 0:
@@ -219,6 +245,7 @@ def range_search_worker(stop_event, inst, thread_id):
             conn.close()
         except Exception:
             pass
+        update_stats('searches', search_count % 100)
         log.info(f"Range search worker {thread_id} stopped (total searches: {search_count})")
 
 
@@ -262,6 +289,7 @@ def modify_worker(stop_event, inst, thread_id):
             conn.close()
         except Exception:
             pass
+        update_stats('modifies', modify_count % 50)
         log.info(f"Modify worker {thread_id} stopped (total modifies: {modify_count})")
 
 
@@ -322,6 +350,127 @@ def churn_worker(stop_event, inst, thread_id):
         except Exception:
             pass
         log.info(f"Churn worker {thread_id} stopped (total adds: {add_count})")
+
+
+def tail_search_worker(stop_event, inst, thread_id):
+    """Issue range searches starting at the newest entryusn key, the one
+    the hot modify workers keep deleting and reinserting"""
+    try:
+        conn = open_worker_conn(inst)
+    except Exception as e:
+        log.error(f"Tail search worker {thread_id} could not connect: {e}")
+        return
+    log.info(f"Tail search worker {thread_id} started")
+    search_count = 0
+    filter_str = None
+
+    try:
+        while not stop_event.is_set():
+            try:
+                lastusn = get_lastusn(conn)
+                if lastusn:
+                    usn = max(1, lastusn - random.randint(0, 3))
+                    filter_str = f"(entryusn>={usn})"
+                else:
+                    filter_str = "(entryusn>=1)"
+                conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                              filter_str, attrlist=['1.1'])
+                search_count += 1
+
+                # A hot entry is never deleted and its committed entryusn
+                # only grows, so this range can never be empty
+                dn = f"uid=user{random.randint(0, HOT_SET - 1):04d}," \
+                     f"{PEOPLE_SUBTREE}"
+                res = conn.search_s(dn, ldap.SCOPE_BASE, '(objectClass=*)',
+                                    attrlist=['entryusn'])
+                usn_vals = {k.lower(): v
+                            for k, v in res[0][1].items()}.get('entryusn')
+                if usn_vals:
+                    filter_str = f"(entryusn>={int(usn_vals[0])})"
+                    entries = conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                            filter_str, attrlist=['1.1'])
+                    if not entries:
+                        record_empty_result(thread_id, filter_str)
+                    search_count += 1
+
+                # Interleave a sweep that can never be legitimately empty
+                if search_count % 20 == 0:
+                    probe = "(entryusn>=1)"
+                    entries = conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                            probe, attrlist=['1.1'])
+                    if not entries:
+                        record_empty_result(thread_id, probe)
+                    update_stats('searches', 20)
+
+            except ldap.SERVER_DOWN:
+                log.error(f"Tail search worker {thread_id}: SERVER DOWN - ns-slapd crashed!")
+                mark_server_crashed()
+                stop_event.set()
+                break
+            except ldap.OPERATIONS_ERROR as e:
+                record_range_failure(thread_id, filter_str, e)
+            except (ldap.SIZELIMIT_EXCEEDED, ldap.TIMELIMIT_EXCEEDED,
+                    ldap.ADMINLIMIT_EXCEEDED):
+                search_count += 1
+            except Exception as e:
+                update_stats('benign_errors')
+                if search_count < 10:
+                    log.debug(f"Tail search worker {thread_id} error: {e}")
+    finally:
+        # Flush the uncounted remainder
+        update_stats('searches', search_count % 20)
+        try:
+            conn.close()
+        except Exception:
+            pass
+        log.info(f"Tail search worker {thread_id} stopped (total searches: {search_count})")
+
+
+def hot_modify_worker(stop_event, inst, thread_id):
+    """Rewrite a small fixed entry set so its entryusn keys churn at the
+    index tail as fast as possible"""
+    try:
+        conn = open_worker_conn(inst)
+    except Exception as e:
+        log.error(f"Hot modify worker {thread_id} could not connect: {e}")
+        return
+    log.info(f"Hot modify worker {thread_id} started")
+    modify_count = 0
+    seq = 0
+
+    try:
+        while not stop_event.is_set():
+            try:
+                entry_num = seq % HOT_SET
+                seq += 1
+                user = UserAccount(conn,
+                                   f"uid=user{entry_num:04d},{PEOPLE_SUBTREE}")
+                value = f"hot_{thread_id}_{int(time.time() * 1000000)}"
+                user.replace('description', value)
+                modify_count += 1
+
+                if modify_count % 50 == 0:
+                    update_stats('modifies', 50)
+
+            except ldap.SERVER_DOWN:
+                log.error(f"Hot modify worker {thread_id}: SERVER DOWN - ns-slapd crashed!")
+                mark_server_crashed()
+                stop_event.set()
+                break
+            except ldap.NO_SUCH_OBJECT:
+                pass
+            except Exception as e:
+                update_stats('benign_errors')
+                if modify_count < 10:
+                    log.debug(f"Hot modify worker {thread_id} error: {e}")
+    finally:
+        # Flush the uncounted remainder
+        update_stats('modifies', modify_count % 50)
+        try:
+            conn.close()
+        except Exception:
+            pass
+        log.info(f"Hot modify worker {thread_id} stopped (total modifies: {modify_count})")
 
 
 def monitor_worker(stop_event, duration):
@@ -427,18 +576,21 @@ def _db_monitor_snapshot(inst):
 
 
 def _range_log_counts(inst):
-    """Return (pre-fix attempt count, fatal line list, exhaustion count)"""
+    """Return (pre-fix attempt count, fatal line list, exhaustion count,
+    stale-start-key -30988 count)"""
     attempts = [line for line in inst.ds_error_log.match(ATTEMPT_LOG_PATTERN)
                 if str(DB_LOCK_DEADLOCK) in line]
     fatal = inst.ds_error_log.match(FATAL_LOG_PATTERN)
-    exhausted = inst.ds_error_log.match(EXHAUST_LOG_PATTERN)
-    return len(attempts), fatal, len(exhausted)
+    exhausted = (len(inst.ds_error_log.match(RANGE_EXHAUST_LOG_PATTERN)) +
+                 len(inst.ds_error_log.match(EQ_EXHAUST_LOG_PATTERN)))
+    notfound = inst.ds_error_log.match(NOTFOUND_LOG_PATTERN)
+    return len(attempts), fatal, exhausted, len(notfound)
 
 
-def _join_workers(threads, stop_event):
+def _join_workers(threads, stop_event, duration):
     """Join the workers; force the stop and fail instead of hanging if the
     monitor died before signalling the end of the run."""
-    deadline = time.time() + DURATION + 120
+    deadline = time.time() + duration + 120
     for t in threads:
         t.join(max(1.0, deadline - time.time()))
     if any(t.is_alive() for t in threads):
@@ -468,22 +620,26 @@ def _finish_and_assert(inst, mon_before=None, log_base=None):
             log.info(f"  {key}: {before} -> {after} (delta {after - before})")
 
     # The instance is shared by the tests: judge only this test's window
-    base = log_base if log_base is not None else (0, [], 0)
-    attempts_total, fatal_lines, exhausted_total = _range_log_counts(inst)
+    base = log_base if log_base is not None else (0, [], 0, 0)
+    attempts_total, fatal_lines, exhausted_total, notfound_total = \
+        _range_log_counts(inst)
     attempts = attempts_total - base[0]
     fatal = len(fatal_lines) - len(base[1])
     exhausted = exhausted_total - base[2]
-    if min(attempts, fatal, exhausted) < 0:
+    notfound = notfound_total - base[3]
+    if min(attempts, fatal, exhausted, notfound) < 0:
         log.warning("The errors log shrank during the test (rotation?) - "
                     "windowed log counts are unreliable for this run")
         attempts, fatal = max(attempts, 0), max(fatal, 0)
         exhausted = max(exhausted, 0)
+        notfound = max(notfound, 0)
     contended = (mon_delta.get('nsslapd-db-lock-conflicts', 0) > 0 or
                  mon_delta.get('nsslapd-db-abort-rate', 0) > 0 or
                  attempts > 0)
     log.info(f"Pre-fix style per-attempt errors: {attempts}")
     log.info(f"Searches that failed (fatal):     {fatal}")
     log.info(f"Retry exhaustion notices:         {exhausted}")
+    log.info(f"Stale start key errors ({DB_NOTFOUND}):  {notfound}")
     if fatal == 0 and contended:
         log.info("The database was contended and no range search failed - "
                  "the range fetch retries correctly")
@@ -501,18 +657,46 @@ def _finish_and_assert(inst, mon_before=None, log_base=None):
         pytest.fail("ns-slapd crashed during the range deadlock test")
 
     # A run where every searcher died must not pass vacuously
-    assert stats.get('searches', 0) > 0, \
+    searches = stats.get('searches', 0)
+    assert searches > 0, \
         "no searches were performed - the search workers failed to start"
 
-    if range_failures:
+    if empty_results:
+        sample = "\n".join(f"  thread={t} filter={f}"
+                           for t, f in empty_results[:10])
+        pytest.fail(f"{len(empty_results)} range search(es) silently returned "
+                    f"an empty result for a filter that cannot be empty "
+                    f"(stale start key lost the candidate list), sample:\n"
+                    f"{sample}")
+
+    # err=1 is allowed only as rare load shedding: every failure needs a
+    # logged retry exhaustion and the rate must stay small
+    failures = len(range_failures)
+    if failures > exhausted:
         sample = "\n".join(f"  thread={t} filter={f} err={e}"
                            for t, f, e in range_failures[:10])
-        pytest.fail(f"{len(range_failures)} range search(es) failed with "
-                    f"OPERATIONS_ERROR (unretried deadlock), sample:\n{sample}")
+        pytest.fail(f"{failures} range search(es) failed with "
+                    f"OPERATIONS_ERROR but only {exhausted} retry exhaustion "
+                    f"notice(s) were logged - failures without a retried, "
+                    f"exhausted walk, sample:\n{sample}")
+    if failures > searches * MAX_SHED_RATIO:
+        sample = "\n".join(f"  thread={t} filter={f} err={e}"
+                           for t, f, e in range_failures[:10])
+        pytest.fail(f"{failures} of {searches} range search(es) failed "
+                    f"({failures / searches:.2%}), above the "
+                    f"{MAX_SHED_RATIO:.2%} load-shedding bound, sample:\n"
+                    f"{sample}")
 
-    assert fatal == 0, (f"errors log gained {fatal} 'build_candidate_list - "
-                        f"Database error {DB_LOCK_DEADLOCK}' line(s) during this test, "
-                        f"last: {fatal_lines[-1] if fatal_lines else ''}")
+    assert fatal <= exhausted, (
+        f"errors log gained {fatal} 'build_candidate_list - Database error "
+        f"{DB_LOCK_DEADLOCK}' line(s) but only {exhausted} retry exhaustion notice(s): "
+        f"range searches failed without exhausting the retry budget, last: "
+        f"{fatal_lines[-1] if fatal_lines else ''}")
+
+    assert notfound == 0, \
+        (f"errors log gained {notfound} 'Error is {DB_NOTFOUND}' line(s): a range "
+         f"walk gave up because its start key was deleted instead of "
+         f"resuming at its successor")
 
 
 def test_entryusn_range_deadlock_threads(range_stress_setup):
@@ -530,8 +714,8 @@ def test_entryusn_range_deadlock_threads(range_stress_setup):
     :expectedresults:
         1. Success
         2. Server stays up for the whole run
-        3. No range search fails with err=1 and the errors log has no
-           "build_candidate_list - Database error" entries
+        3. No silent empty results; any err=1 failure is an explained
+           retry exhaustion within the load-shedding bound
     """
     inst = range_stress_setup.standalone
 
@@ -573,7 +757,7 @@ def test_entryusn_range_deadlock_threads(range_stress_setup):
 
     log.info(f"Started {len(threads)} worker threads, running for {DURATION}s...")
 
-    _join_workers(threads, stop_event)
+    _join_workers(threads, stop_event, DURATION)
     assert stats.get('modifies', 0) > 0, \
         "no modifies were performed - the write workers failed to start"
     _finish_and_assert(inst, mon_before, log_base)
@@ -594,8 +778,8 @@ def test_entryusn_range_deadlock_ldclt(range_stress_setup):
     :expectedresults:
         1. Success
         2. Server stays up for the whole run
-        3. No range search fails with err=1 and the errors log has no
-           "build_candidate_list - Database error" entries
+        3. No silent empty results; any err=1 failure is an explained
+           retry exhaustion within the load-shedding bound
     """
     inst = range_stress_setup.standalone
 
@@ -669,7 +853,7 @@ def test_entryusn_range_deadlock_ldclt(range_stress_setup):
         log.info(f"ldclt storm running (pid {ldclt_proc.pid}), "
                  f"{len(threads)} python threads, running for {DURATION}s...")
 
-        _join_workers(threads, stop_event)
+        _join_workers(threads, stop_event, DURATION)
 
         # ldclt must survive the full run or the pass means nothing; a
         # failure already collected wins over the skip
@@ -745,7 +929,7 @@ def test_entryusn_range_collision_rate(range_stress_setup):
         base_retries = len(inst.ds_error_log.match(RETRY_LOG_PATTERN))
         base_eq_retries = len(inst.ds_error_log.match(EQ_RETRY_LOG_PATTERN))
         base_fatal = len(inst.ds_error_log.match(FATAL_LOG_PATTERN))
-        base_exhausted = len(inst.ds_error_log.match(EXHAUST_LOG_PATTERN))
+        base_exhausted = len(inst.ds_error_log.match(RANGE_EXHAUST_LOG_PATTERN))
 
         threads = _start_search_threads(stop_event, inst)
         for i in range(MODIFY_THREADS):
@@ -770,13 +954,13 @@ def test_entryusn_range_collision_rate(range_stress_setup):
         threads.append(monitor_thread)
 
         log.info(f"Started {len(threads)} worker threads for {INSTR_DURATION}s...")
-        _join_workers(threads, stop_event)
+        _join_workers(threads, stop_event, INSTR_DURATION)
 
         collisions = len(inst.ds_error_log.match(COLLISION_LOG_PATTERN)) - base_collisions
         retries = len(inst.ds_error_log.match(RETRY_LOG_PATTERN)) - base_retries
         eq_retries = len(inst.ds_error_log.match(EQ_RETRY_LOG_PATTERN)) - base_eq_retries
         fatal = len(inst.ds_error_log.match(FATAL_LOG_PATTERN)) - base_fatal
-        exhausted = len(inst.ds_error_log.match(EXHAUST_LOG_PATTERN)) - base_exhausted
+        exhausted = len(inst.ds_error_log.match(RANGE_EXHAUST_LOG_PATTERN)) - base_exhausted
         mon_after = _db_monitor_snapshot(inst)
     finally:
         stop_event.set()
@@ -830,6 +1014,114 @@ def test_entryusn_range_collision_rate(range_stress_setup):
     assert fatal == 0, f"{fatal} search(es) failed with a database error"
     assert exhausted == 0, \
         f"{exhausted} range search(es) exhausted the retry budget"
+
+
+def test_entryusn_range_stale_start_key(range_stress_setup):
+    """A range walk whose start key was deleted must resume at the key's
+    successor, not fail or return an empty result
+
+    :id: b3f1c2d8-9a41-4f6e-8d2f-7c5a91e04b23
+    :setup: Standalone instance, USN plugin enabled, 2500 users
+    :steps:
+        1. Raise nsslapd-errorlog-level to include LDAP_DEBUG_BACKLDBM
+        2. Run searchers whose range starts at the newest entryusn key
+           against modify workers that keep rewriting a small entry set,
+           so retried walks find their start key deleted
+        3. Restore the log level, check client results and the errors log
+    :expectedresults:
+        1. Success
+        2. Server stays up, no search fails beyond the explained
+           load-shedding bound, no search silently returns an impossible
+           empty result
+        3. No "Error is -30988" line in the errors log; resumptions are
+           visible at debug level when the scenario occurred
+    """
+    inst = range_stress_setup.standalone
+
+    orig_level = inst.config.get_attr_val_utf8('nsslapd-errorlog-level') or '0'
+    instr_level = int(orig_level) | LDAP_DEBUG_BACKLDBM
+
+    log.info("=" * 72)
+    log.info("entryusn range stale start key (BACKLDBM instrumented)")
+    log.info(f"Duration: {STALE_DURATION}s, tail searchers: {RANGE_SEARCH_THREADS}, "
+             f"hot modifiers: {MODIFY_THREADS} over {HOT_SET} entries")
+    log.info("=" * 72)
+
+    _reset_state()
+    stop_event = Event()
+    threads = []
+    try:
+        inst.config.replace('nsslapd-errorlog-level', str(instr_level))
+
+        mon_before = _db_monitor_snapshot(inst)
+        log_base = _range_log_counts(inst)
+        base_stale = len(inst.ds_error_log.match(STALE_START_LOG_PATTERN))
+        base_retries = len(inst.ds_error_log.match(RETRY_LOG_PATTERN))
+
+        for i in range(RANGE_SEARCH_THREADS):
+            t = Thread(target=tail_search_worker,
+                       args=(stop_event, inst, i),
+                       name=f"tail-search-{i}")
+            t.daemon = True
+            t.start()
+            threads.append(t)
+        for i in range(MODIFY_THREADS):
+            t = Thread(target=hot_modify_worker,
+                       args=(stop_event, inst, i),
+                       name=f"hot-modify-{i}")
+            t.daemon = True
+            t.start()
+            threads.append(t)
+        monitor_thread = Thread(target=monitor_worker,
+                                args=(stop_event, STALE_DURATION),
+                                name="monitor")
+        monitor_thread.daemon = True
+        monitor_thread.start()
+        threads.append(monitor_thread)
+
+        log.info(f"Started {len(threads)} worker threads for {STALE_DURATION}s...")
+        _join_workers(threads, stop_event, STALE_DURATION)
+
+        stale = len(inst.ds_error_log.match(STALE_START_LOG_PATTERN)) - base_stale
+        retries = len(inst.ds_error_log.match(RETRY_LOG_PATTERN)) - base_retries
+        if min(stale, retries) < 0:
+            log.warning("The errors log shrank during the test (rotation?) - "
+                        "windowed log counts are unreliable for this run")
+            stale, retries = max(stale, 0), max(retries, 0)
+    finally:
+        stop_event.set()
+        try:
+            inst.config.replace('nsslapd-errorlog-level', str(orig_level))
+        except Exception as e:
+            log.warning(f"Could not restore nsslapd-errorlog-level: {e}")
+
+    log.info("=" * 72)
+    log.info("Stale start key measurement")
+    log.info(f"  searches issued            : {stats.get('searches', 0)}")
+    log.info(f"  modifies issued            : {stats.get('modifies', 0)}")
+    log.info(f"  range fetch retries        : {retries}")
+    log.info(f"  stale start keys resumed   : {stale}")
+    log.info(f"  impossible empty results   : {len(empty_results)}")
+    if stale:
+        log.info("VERDICT: walks lost their start key and resumed at its "
+                 "successor correctly")
+    elif retries:
+        log.info("VERDICT: retries occurred but no start key was lost in "
+                 "this window - stale-key path not exercised")
+    else:
+        log.warning("VERDICT: no retries at all - this run proves nothing. "
+                    "Raise RANGE_DEADLOCK_STALE_DURATION or "
+                    "RANGE_DEADLOCK_MODIFIERS.")
+    log.info("=" * 72)
+
+    if server_crashed:
+        pytest.fail("ns-slapd crashed during the stale start key test")
+    assert stats.get('searches', 0) > 0, "no searches were performed"
+    assert stats.get('modifies', 0) > 0, "no modifies were performed"
+    _finish_and_assert(inst, mon_before, log_base)
+    if stale == 0:
+        pytest.skip("no start key was lost in this window; the run is "
+                    "inconclusive for the stale start key scenario")
 
 
 if __name__ == '__main__':
