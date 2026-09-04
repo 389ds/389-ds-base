@@ -732,16 +732,36 @@ idl_new_range_fetch(
 
     /* Position cursor at the first matching key */
     ret = cursor->c_get(cursor, &cur_key, &data, DB_SET | DB_MULTIPLE);
-    if (0 != ret) {
-        if (DB_NOTFOUND != ret) {
-            if (ret == DB_BUFFER_SMALL) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
-                                                                    "data item for key %s is too large for our buffer (need=%d actual=%d)\n",
-                              (char *)cur_key.data, data.size, data.ulen);
-            }
-            ldbm_nasty("idl_new_range_fetch", filename, 2, ret);
+    if (DB_NOTFOUND == ret) {
+        /* The start key was deleted: find the nearest key with a plain
+         * get and bulk read from it - same transaction, so the exact
+         * match cannot miss. DB_DBT_MALLOC makes the seek return the
+         * landed key in a new buffer, so drop our copy of the start key. */
+        ret = cursor->c_get(cursor, &cur_key, &data, DB_SET_RANGE);
+        if (saved_key != cur_key.data) {
+            slapi_ch_free(&saved_key);
+            saved_key = cur_key.data;
         }
-        goto error; /* Not found is OK, return NULL IDL */
+        if (0 == ret) {
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "idl_new_range_fetch",
+                          "Start key on %s was removed, resuming at its successor\n",
+                          ai ? ai->ai_type : "?");
+            ret = cursor->c_get(cursor, &cur_key, &data, DB_SET | DB_MULTIPLE);
+        } else if (DB_NOTFOUND == ret) {
+            /* No key at or after the start key: the range is empty */
+            idl = idl_alloc(0);
+            ret = 0;
+            goto error;
+        }
+    }
+    if (0 != ret) {
+        if (ret == DB_BUFFER_SMALL) {
+            slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
+                                                                "data item for key %s is too large for our buffer (need=%d actual=%d)\n",
+                          (char *)cur_key.data, data.size, data.ulen);
+        }
+        ldbm_nasty("idl_new_range_fetch", filename, 2, ret);
+        goto error;
     }
 
     /* Allocate an idlist to populate into */
