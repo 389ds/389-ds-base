@@ -57,6 +57,24 @@ ldbm_nasty(char *func, const char *str, int c, int err)
     }
 }
 
+/* Backoff before retrying a DB_LOCK_DEADLOCK fetch: exponential with jitter,
+ * capped at 200ms */
+void
+ldbm_fetch_retry_sleep(int retry_count)
+{
+    PRUint32 backoff_ms = 10;
+    int i;
+
+    for (i = 0; i < retry_count && backoff_ms < 200; i++) {
+        backoff_ms *= 2;
+    }
+    if (backoff_ms > 200) {
+        backoff_ms = 200;
+    }
+    backoff_ms += slapi_rand() % (backoff_ms + 1);
+    DS_Sleep(PR_MillisecondsToInterval(backoff_ms));
+}
+
 /* Put a message in the access log, complete with connection ID and operation ID */
 void
 ldbm_log_access_message(Slapi_PBlock *pblock, char *string)
