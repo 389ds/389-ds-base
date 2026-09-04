@@ -38,10 +38,15 @@ keystring_validate(
     /* Per RFC4512:
      *
      *   keystring = leadkeychar *keychar
+     *
+     * When nsslapd-attribute-name-exceptions is enabled,
+     * underscores are also permitted (for compatibility
+     * with legacy directory servers such as Sun ONE DS).
      */
     if (IS_LEADKEYCHAR(*p)) {
+        int allow_exceptions = config_get_attrname_exceptions();
         for (p++; p <= end; p++) {
-            if (!IS_KEYCHAR(*p)) {
+            if (!IS_KEYCHAR(*p) && !(allow_exceptions && *p == '_')) {
                 rc = 1;
                 goto exit;
             }
