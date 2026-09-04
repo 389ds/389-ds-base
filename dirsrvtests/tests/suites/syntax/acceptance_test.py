@@ -9,7 +9,8 @@
 import ldap
 import pytest
 import os
-from lib389.schema import Schema, SchemaLegacy
+from lib389.schema import Schema, OBJECT_MODEL_PARAMS 
+from ldap.schema.models import AttributeType, ObjectClass
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Group, Groups
@@ -320,19 +321,31 @@ def test_attrname_exceptions_dn_syntax(topo, request):
     config.replace('nsslapd-attribute-name-exceptions', 'on')
     config.replace('nsslapd-syntaxcheck', 'on')
 
-    schema = SchemaLegacy(inst)
-    schema.add_attribute(
-        "( 9.9.9.9.1 NAME 'test_underscore_attr' "
-        "DESC 'Test attribute with underscore' "
-        "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
-        "X-ORIGIN 'user defined' )"
-    )
-    schema.add_objectclass(
-        "( 9.9.9.9.2 NAME 'testUnderscoreOC' "
-        "DESC 'Test OC with underscore attr' SUP top AUXILIARY "
-        "MAY test_underscore_attr "
-        "X-ORIGIN 'user defined' )"
-    )
+    schema = Schema(inst)
+
+    # Add new attribute with underscore
+    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
+    parameters.update({
+        'names': ('test_underscore_attr',),
+        'oid': '9.9.9.9.1',
+        'desc': 'Test attribute with underscore',
+        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
+        'sup': (),
+        'x_origin': 'user defined',
+    })
+    schema.add_attributetype(parameters)
+
+    parameters = OBJECT_MODEL_PARAMS[ObjectClass].copy()
+    parameters.update({
+        'names': ('testUnderscoreOC',),
+        'oid': '9.9.9.9.2',
+        'desc': 'Test OC with underscore attr',
+        'sup': ('top',),
+        'kind': 1,
+        'may': ('test_underscore_attr',),
+        'x_origin': 'user defined',
+    })
+    schema.add_objectclass(parameters)
 
     users = UserAccounts(inst, DEFAULT_SUFFIX)
     user = users.create(properties={
