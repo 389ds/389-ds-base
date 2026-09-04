@@ -864,8 +864,7 @@ list_candidates(
              * subtract from.
              */
             if (f == f_head) {
-                idl = idl_allids(be);
-                idl_set_insert_idl(idl_set, idl);
+                idl_set_insert_idl(idl_set, idl_allids(be));
             }
             /*
              * Not the first filter - good! Get the indexed type out.

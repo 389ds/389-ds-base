@@ -522,6 +522,39 @@ struct ava
     void *ava_private;       /* data private to syntax handler */
 };
 
+/*
+ * Lookup table for a large OR of same-attribute equality branches
+ * (filter_or_lookup.c).  Lives on the OR node's f_or_lookup, on the
+ * backend's per-search filter dups only.  Keys and branch pointers are
+ * borrowed from the child nodes, which outlive the table.
+ */
+struct slapi_filter_or_key
+{
+    const char *ok_key;             /* borrowed: branch's normalized ava_value bytes */
+    size_t ok_len;                  /* strlen(ok_key); bv_len can be stale after
+                                     * in-place normalization */
+    struct slapi_filter *ok_branch; /* borrowed child node */
+    uint32_t ok_ord;                /* list position; duplicate keys collapse to lowest */
+};
+
+struct slapi_filter_or_lookup
+{
+    char *ol_type;                       /* owned; the shared attribute type */
+    int32_t ol_type_is_dn;               /* DN syntax: value-count guard and key validation apply */
+    int32_t ol_boolean_ctx;              /* no NOT ancestor, not VLV: -1 vs undefined
+                                          * is unobservable, a no-winner pass may decide */
+    struct slapi_filter_or_key *ol_tab;  /* owned array, sorted by (ok_len, memcmp) */
+    size_t ol_tab_len;
+    struct slapi_filter **ol_rest;       /* owned array of borrowed non-table children */
+    size_t ol_rest_len;
+};
+
+int32_t filter_or_lookup_build(struct slapi_filter *f, int32_t *largest, int32_t boolean_ctx);
+void filter_or_lookup_free(struct slapi_filter_or_lookup **ol);
+struct slapi_filter *filter_or_lookup_probe(const struct slapi_filter_or_lookup *ol,
+                                            const struct berval *key);
+int32_t vattr_type_sp_registered(Slapi_Entry *e, const char *type);
+
 typedef enum {
     FILTER_TYPE_SUBSTRING,
     FILTER_TYPE_AVA,
