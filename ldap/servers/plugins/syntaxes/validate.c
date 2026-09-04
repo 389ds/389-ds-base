@@ -29,7 +29,6 @@ keystring_validate(
 {
     int rc = 0; /* assume the value is valid */
     const char *p = begin;
-    int allow_exceptions = config_get_attrname_exceptions();
 
     if ((begin == NULL) || (end == NULL)) {
         rc = 1;
@@ -45,6 +44,7 @@ keystring_validate(
      * with legacy directory servers such as Sun ONE DS).
      */
     if (IS_LEADKEYCHAR(*p)) {
+        int allow_exceptions = config_get_attrname_exceptions();
         for (p++; p <= end; p++) {
             if (!IS_KEYCHAR(*p) && !(allow_exceptions && *p == '_')) {
                 rc = 1;
