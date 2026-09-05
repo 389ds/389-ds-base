@@ -19,8 +19,9 @@ The build jobs run in a prebuilt `quay.io/389ds/ci-images` container (`:test` or
 
 | Workflow | Trigger | Key command |
 |---|---|---|
-| `pytest.yml` | push (`main`, `389-ds-base-*`), PR, nightly, manual | `SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms` in the `:test` image, then one `py.test` job per suite on the BDB backend |
+| `pytest.yml` | PR, nightly on `main`, manual | `SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms` in the `:test` image, then one `py.test` job per suite on the BDB backend |
 | `lmdbpytest.yml` | same | identical build; its test job exports `NSSLAPD_DB_LIB=mdb` to switch the backend and drops the read-only-BDB guard |
+| `nightly-dispatch.yml` | nightly on `main` (00:30 UTC), manual | `gh workflow run` of `pytest.yml` and `lmdbpytest.yml` on each `389-ds-base-X.Y[.Z]` branch with a commit in the last 30 days, once per head whatever the result; release branches have no push or schedule trigger of their own |
 | `compile.yml` | push, PR, manual | `autoreconf -fvi && ./configure` (no flags), `make V=0`, across a compiler/flag matrix: GCC, GCC Strict, GCC Static Analyzer (`-fanalyzer`), Clang, Clang `-Weverything` |
 | `cargotest.yml` | push, PR, nightly, manual | `./configure --enable-debug`, `make V=0`, then `make check-local` |
 | `npm.yml` | push, PR, nightly, manual | `npx --yes audit-ci --config audit-ci.json` in `src/cockpit/389-console` |
@@ -28,9 +29,12 @@ The build jobs run in a prebuilt `quay.io/389ds/ci-images` container (`:test` or
 | `validate.yml` | push, PR, manual | `testimony validate` over `dirsrvtests/tests/suites`, the duplicate-`:id:` check, and `vermin --target=3.8` over both `src/lib389` and `dirsrvtests` |
 | `coverity.yml` | weekly cron only | bare `./configure`; the Coverity scan action drives `make` |
 | `release.yml` | tag push `389-ds-base-*`, manual | `TAG=<tag> make -f rpm.mk dist-bz2`, then a GitHub release upload |
+| `backport.yml` | merged PR carrying a `backport/X.Y` label | cherry-picks the squash commit onto `389-ds-base-X.Y` and opens the backport PR; a conflicting cherry-pick arrives as a draft PR with the markers committed |
 
 Facts that change how you use these:
 
+- A doc-only change runs no GitHub Actions workflow: every push- or PR-triggered workflow above ignores `**.md`, `docs/agents/**`, `docs/design/**`, `LICENSE*`, `.packit.yaml` and `.github/renovate.json`, while `docs/slapi.doxy.in` and the doxygen assets stay CI-visible because `make all` consumes them. Packit's COPR builds, the `rpm-build:*` checks, still run on such a PR because `.packit.yaml` has no path filter (`.github/workflows/pytest.yml` (`paths-ignore`); `.packit.yaml` (`copr_build`)).
+- A PR that touches nothing outside `src/cockpit/389-console/` builds the RPMs and then runs only the `webui` suite, on both backends; a renamed file counts under both its paths, and any API failure falls back to the full matrix (`.github/scripts/pr_scope.py`; `.github/workflows/pytest.yml` (Check if the diff is limited to the Web UI step)).
 - In a container, run `git config --global --add safe.directory "$PWD"` before any `rpm.mk` target — `dist-bz2` shells out to `git ls-files`, and without the safe-directory entry the tarball is silently empty (`.github/workflows/pytest.yml` (Add GITHUB_WORKSPACE as a safe directory step); `rpm.mk` (`dist-bz2`)).
 - `dist-bz2` tars `git ls-files` output, so uncommitted changes are **excluded**; `rpms` rsyncs the working tree, so uncommitted changes are **included**. Testing an uncommitted patch requires the `rpms` path (`rpm.mk` (`dist-bz2`, `local-archive`)).
 - Keep `dist-bz2` in the RPM command: `rpms` does not depend on `download-cargo-dependencies` (`dist-bz2` and `srpms` do), so `make -f rpm.mk rpms` alone can fail on a clean tree (`rpm.mk` (`rpms`)).
@@ -64,7 +68,7 @@ The shipping configuration is the RPM spec's `%configure`: `--enable-cmocka`, `-
 
 ## The pytest matrix
 
-- Every directory under `dirsrvtests/tests/suites/` becomes one CI job; `replication` is split into one job per `*_test.py` file (`.github/scripts/generate_matrix.py`).
+- Every directory under `dirsrvtests/tests/suites/` becomes one CI job; `replication` is split into one job per `*_test.py` file (`.github/scripts/generate_matrix.py`). That is the full run; a web-UI-only PR narrows it to `webui` and a manual dispatch to its `pytest_tests` value (see the trigger facts above).
 - `dirsrvtests/tests/stress/`, `perf/` and `tickets/` are run by no workflow — the generator walks only `suites/`.
 - The per-suite invocation, inside a privileged `:test` container with the freshly built RPMs installed:
 
