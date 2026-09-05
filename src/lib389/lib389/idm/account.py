@@ -76,7 +76,7 @@ class Account(DSLdapObject):
     def _dict_get_with_ignore_indexerror(self, dict, attr):
         try:
             return dict[attr][0]
-        except IndexError:
+        except (IndexError, KeyError):
             return ""
 
     def status(self):
@@ -176,7 +176,7 @@ class Account(DSLdapObject):
                                                create_time, modify_time, last_login_time, limit)
 
         # Locked indirectly through Account Policy plugin
-        if process_account_policy and last_login_time:
+        if process_account_policy and last_login_time and limit:
             # Now check the Account Policy Plugin inactivity limits
             remaining_time = float(limit) - (time.mktime(time.gmtime()) - gentime_to_posix_time(last_login_time))
             if remaining_time <= 0:
