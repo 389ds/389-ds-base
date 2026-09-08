@@ -68,8 +68,20 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
         Slapi_Entry *entry_to_use = encrypted_entry ? encrypted_entry->ep_entry : e->ep_entry;
         memset(&data, 0, sizeof(data));
         entrydn = slapi_entry_get_dn(entry_to_use);
-        slapi_entry_attr_set_charptr(entry_to_use, SLAPI_ATTR_DS_ENTRYDN,
-                entrydn);
+        {
+            char *old_ds_entrydn = slapi_entry_attr_get_charptr(
+                    entry_to_use, SLAPI_ATTR_DS_ENTRYDN);
+            if (old_ds_entrydn == NULL ||
+                slapi_UTF8CASECMP(old_ds_entrydn, entrydn) != 0)
+            {
+                /* ADD: not set yet */
+                /* MODRDN: DN changed, update it */
+                slapi_entry_attr_set_charptr(entry_to_use,
+                        SLAPI_ATTR_DS_ENTRYDN, entrydn);
+            }
+            /* MODIFY: same DN, keep the original case */
+            slapi_ch_free_string(&old_ds_entrydn);
+        }
 
         struct backdn *oldbdn = NULL;
         Slapi_DN *sdn =
