@@ -278,7 +278,7 @@ slapi_attr_init_syntax(Slapi_Attr *a)
     basetype = buf;
     tmp = slapi_attr_basetype(a->a_type, buf, sizeof(buf));
     if (tmp) {
-        basetype = buf;
+        basetype = tmp;
     }
     asi = attr_syntax_get_by_name_with_default(basetype);
     if (asi) {
