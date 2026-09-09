@@ -1,0 +1,2 @@
+d @localrundir@/dirsrv 0770 dirsrv dirsrv -
+d @localrundir@/lock/dirsrv 0770 dirsrv dirsrv -
