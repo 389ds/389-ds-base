@@ -26,6 +26,7 @@
 
 #undef SDN_DEBUG
 
+static char *safe_PL_strcasestr(char *start, char *end, const char *needle);
 static void add_rdn_av(char *avstart, char *avend, int *rdn_av_countp, struct berval **rdn_avsp, struct berval *avstack);
 static void reset_rdn_avs(struct berval **rdn_avsp, int *rdn_av_countp);
 static void sort_rdn_avs(struct berval *avs, int count, int escape);
@@ -127,7 +128,7 @@ static void ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len);
 
 #define MAYBEDN(eq) (                 \
     (eq) && ((eq) != subtypestart) && \
-    ((eq) != subtypestart + strlen(subtypestart) - 3))
+    ((eq) != d - 3))
 
 #define B4TYPE 0
 #define INTYPE 1
@@ -745,8 +746,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                                 (ISPLUS(*(s + 1)) || subrdn_av_count > 0)) {
                                 /* if subtypestart is not valid DN,
                                   * we do not do sorting.*/
-                                char *p = PL_strcasestr(subtypestart, "\\3d");
-                                if (MAYBEDN(p)) {
+                                if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
                                     add_rdn_av(subtypestart, d,
                                                &subrdn_av_count,
                                                &subrdn_avs,
@@ -826,8 +826,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             (ISPLUSSTR(s + 1) || subrdn_av_count > 0)) {
                             /* if subtypestart is not valid DN,
                              * we do not do sorting.*/
-                            char *p = PL_strcasestr(subtypestart, "\\3d");
-                            if (MAYBEDN(p)) {
+                            if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
                                 add_rdn_av(subtypestart, d, &subrdn_av_count,
                                            &subrdn_avs, subinitial_rdn_av_stack);
                             } else {
@@ -968,6 +967,23 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         d += 3;
                     }
 
+                    if (subtypestart && subrdn_av_count > 0) {
+                        if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
+                            add_rdn_av(subtypestart, d,
+                                       &subrdn_av_count,
+                                       &subrdn_avs,
+                                       subinitial_rdn_av_stack);
+                        } else {
+                            reset_rdn_avs(&subrdn_avs,
+                                          &subrdn_av_count);
+                            subtypestart = NULL;
+                        }
+                        if (subrdn_av_count > 1) {
+                            sort_rdn_avs(subrdn_avs,
+                                         subrdn_av_count, 1);
+                        }
+                    }
+
                     state = B4SEPARATOR;
                     s++;
                 }
@@ -1005,8 +1021,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             (ISPLUS(*s) || subrdn_av_count > 0)) {
                             /* if subtypestart is not valid DN,
                              * we do not do sorting.*/
-                            char *p = PL_strcasestr(subtypestart, "\\3d");
-                            if (MAYBEDN(p)) {
+                            if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
                                 add_rdn_av(subtypestart, d, &subrdn_av_count,
                                            &subrdn_avs, subinitial_rdn_av_stack);
                             } else {
@@ -1218,6 +1233,21 @@ slapi_create_rdn_value(const char *fmt, ...)
     }
     slapi_ch_free_string(&src);
     return dest;
+}
+
+/*
+ * NUL-safe wrapper around PL_strcasestr: temporarily NUL-terminates
+ * the buffer at 'end' so the search stays within [start, end).
+ */
+static char *
+safe_PL_strcasestr(char *start, char *end, const char *needle)
+{
+    char saved = *end;
+    char *p;
+    *end = '\0';
+    p = PL_strcasestr(start, needle);
+    *end = saved;
+    return p;
 }
 
 /*
