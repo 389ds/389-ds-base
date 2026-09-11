@@ -42,7 +42,7 @@ import CreateRootSuffix from './lib/ldap_editor/lib/rootSuffix.jsx';
 import { ENTRY_MENU } from './lib/ldap_editor/lib/constants.jsx';
 import EditorTableView from './lib/ldap_editor/tableView.jsx';
 import EditorTreeView from './lib/ldap_editor/treeView.jsx';
-import { SearchDatabase } from './lib/ldap_editor/search.jsx';
+import { SearchDatabase, AccountReports } from './lib/ldap_editor/search.jsx';
 import GenericWizard from './lib/ldap_editor/wizards/genericWizard.jsx';
 import { EffectivePwpModal } from './lib/ldap_editor/effectivePwpModal.jsx';
 import { SyncAltIcon } from '@patternfly/react-icons';
@@ -1273,6 +1273,17 @@ export class LDAPEditor extends React.Component {
                     <Tab eventKey={2} title={<TabTitleText>{_("Search")}</TabTitleText>}>
                         <SearchDatabase
                             key={this.state.suffixList + this.state.searchBase}
+                            serverId={this.props.serverId}
+                            suffixList={this.state.suffixList}
+                            attributes={this.state.attributes}
+                            searchBase={this.state.searchBase}
+                            allObjectclasses={this.state.allObjectclasses}
+                            addNotification={this.props.addNotification}
+                        />
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText>{_("Account Reports")}</TabTitleText>}>
+                        <AccountReports
+                            key={this.state.suffixList + "reports"}
                             serverId={this.props.serverId}
                             suffixList={this.state.suffixList}
                             attributes={this.state.attributes}
