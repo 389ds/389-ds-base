@@ -5412,6 +5412,15 @@ int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrEntry);
 int slapi_matchingrule_unregister(char *oid);
 
 /**
+ * Is the given matching rule an ordering matching rule
+ *
+ * \param name_or_oid Name or OID of a matching rule
+ * \return \c TRUE if the matching rule is an ordering rule
+ * \return \c FALSE otherwise
+ */
+int slapi_matchingrule_is_ordering_only(const char *oid_or_name);
+
+/**
  * Is the given matching rule an ordering matching rule and is it
  * compatible with the given syntax?
  *
