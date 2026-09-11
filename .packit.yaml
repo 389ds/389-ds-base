@@ -26,6 +26,11 @@ actions:
     - cargo install cargo-license
     - make -f rpm.mk rpmroot rpmspec
     - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
+  pre-sync:
+    - >-
+      bash -c 'curl --fail --location
+      "https://github.com/389ds/389-ds-base/releases/download/389-ds-base-${PACKIT_PROJECT_VERSION}/389-ds-base-${PACKIT_PROJECT_VERSION}.tar.bz2"
+      --output "389-ds-base-${PACKIT_PROJECT_VERSION}.tar.bz2"'
   create-archive:
     - make -f rpm.mk BUNDLE_LIBDB=1 download-cargo-dependencies tarballs
     - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
@@ -37,6 +42,9 @@ actions:
 files_to_sync:
   - src: rpm/389-ds-base.spec
     dest: 389-ds-base.spec
+  - src:
+      - "389-ds-base-*.tar.bz2"
+    dest: .
   - .packit.yaml
 
 allowed_pr_authors:
