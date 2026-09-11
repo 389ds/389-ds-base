@@ -145,6 +145,15 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...) __ATTRIBUTE__((format(pr
                                                  including case.              \
                                                  Used for DN. */
 
+#define TRIM_LEADING_BLANK    0x10
+#define TRIM_TRAILING_BLANK   0x20
+#define SHRINK_LEADING_BLANK  0x40
+#define SHRINK_TRAILING_BLANK 0x80
+#define NO_TRIM_SHRINK_BLANK  0x00
+#define COMPATIBLE_TRIM_SPACES 0x01
+#define COMPATIBLE_NOT_TRIM_SPACES 0x00
+#define COMPATIBLE_TRIM_MASK (TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK)
+#define COMPATIBLE_NOT_TRIM_MASK 0x00
 /**
  * Flag to indicate that the attribute value is not exposed if specified.
  *

@@ -230,6 +230,6 @@ bitstring_normalize(
     int trim_spaces,
     char **alt)
 {
-    value_normalize_ext(s, SYNTAX_CES, trim_spaces, alt);
+    value_normalize_ext(s, SYNTAX_CES, trim_spaces_to_mask(trim_spaces), alt);
     return;
 }
