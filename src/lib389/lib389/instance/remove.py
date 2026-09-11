@@ -63,6 +63,7 @@ def remove_ds_instance(dirsrv, force=False):
     remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
     remove_paths['etc_sysconfig'] = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
     remove_paths['ldapi'] = dirsrv.ds_paths.ldapi
+    remove_paths['monitor_dir'] = "%s/slapd-%s.monitor" % (dirsrv.ds_paths.run_dir, dirsrv.serverid)
 
     tmpfiles_d_path = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
 
@@ -99,7 +100,7 @@ def remove_ds_instance(dirsrv, force=False):
     # Remove parent (/var/lib/dirsrv/slapd-INST)
     shutil.rmtree(remove_paths['db_dir'].replace('db', ''), ignore_errors=True)
 
-    # Remove /run/slapd-isntance
+    # Remove /run/slapd-instance
     try:
         os.remove(f'/run/slapd-{dirsrv.serverid}.socket')
     except OSError as e:
