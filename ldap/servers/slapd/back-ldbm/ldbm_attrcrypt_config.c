@@ -21,6 +21,10 @@
 
 #include "back-ldbm.h"
 #include "attrcrypt.h"
+#include <pk11func.h>
+
+
+#define IV_ATTRIBUTE_NAME "dsInitializationVector"
 
 /* Forward declarations for the callbacks */
 int ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg);
@@ -88,6 +92,13 @@ ldbm_attrcrypt_parse_entry(ldbm_instance *inst __attribute__((unused)), Slapi_En
     return LDAP_SUCCESS;
 }
 
+/*
+ * ldbm_instance_attrcrypt_enable creates the private struct
+ * if it does not exists and set the cipher
+ * The private struct is freed when attrinfo is freed
+ * to avoid race condition (other threads may still
+ * access the private struct when disabling attribute encryption)
+ */
 static void
 ldbm_instance_attrcrypt_enable(struct attrinfo *ai, int cipher)
 {
@@ -100,15 +111,81 @@ ldbm_instance_attrcrypt_enable(struct attrinfo *ai, int cipher)
     priv->attrcrypt_cipher = cipher;
 }
 
+/* Reset the cipher in the private struct */
 static void
 ldbm_instance_attrcrypt_disable(struct attrinfo *ai)
 {
-    if (NULL != ai->ai_attrcrypt) {
-        /* Don't free the structure here, because other threads might be
-         * concurrently referencing it.
-         */
-        ai->ai_attrcrypt = 0;
+    attrcrypt_private *priv = ai->ai_attrcrypt;
+    if (priv) {
+        priv->attrcrypt_cipher = 0;
     }
+}
+
+static bool
+is_in_dse(Slapi_Entry *e)
+{
+    const Slapi_DN *sdn = slapi_entry_get_sdn_const(e);
+    int rc = slapi_search_internal_get_entry((Slapi_DN *)sdn, NULL, NULL, plugin_get_default_component_id());
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_attrcrypt_init_iv",
+                      "Failed to determine whether the entry %s is in dse.ldif. Attribute may not be decrypted properly. Error: %d:%s",
+                      slapi_entry_get_dn_const(e), rc, ldap_err2string(rc));
+    }
+    return rc != LDAP_NO_SUCH_OBJECT;
+}
+
+/*
+ * Get a 16 bytes initialization vector from the config entry and
+ * initialize a random one if there is none.
+ */
+static struct berval *
+ldbm_instance_attrcrypt_init_iv(Slapi_Entry *e)
+{
+    Slapi_Value *iv_value = NULL;
+    SECStatus rv = SECFailure;
+    struct berval *bv = NULL;
+    Slapi_Value *sval = NULL;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *va[2];
+
+    slapi_entry_attr_find(e, IV_ATTRIBUTE_NAME, &attr);
+    slapi_attr_first_value(attr, &sval);
+    if (sval) {
+        bv = (struct berval*) slapi_value_get_berval(sval);
+    }
+
+    if (bv) {
+        bv = slapi_ch_bvdup(bv);
+    } else {
+        if (is_in_dse(e)) {
+            /* The entry exists and has not IV. So it is a legacy entry\
+             * and we should keep it as is and use hardcoded IV.
+             */
+            return bv;
+        }
+        /* Generate random Initialization Vector */
+        bv = (struct berval*) slapi_ch_calloc(1, sizeof (struct berval));
+        bv->bv_len = 16; /* Some Cipher (like DES3) only consume the first 8 bytes
+                          * of this vector
+                          */
+        bv->bv_val = slapi_ch_malloc(bv->bv_len);
+        rv = PK11_GenerateRandom((unsigned char*)bv->bv_val, bv->bv_len);
+        if (rv != SECSuccess) {
+            slapi_ch_bvfree(&bv);
+            return bv;
+        }
+        /*
+         * Store the IV in the entry. As it is not yet added in the 
+         * dse.ldif, it must be modified directly rather than through
+         * an internal modify operation.
+         */
+        iv_value = slapi_value_new_berval(bv);
+        va[0] = iv_value;
+        va[1] = NULL;
+        slapi_entry_attr_replace_sv(e, IV_ATTRIBUTE_NAME, va);
+        slapi_value_free(&iv_value);
+    }
+    return bv;
 }
 
 /*
@@ -159,18 +236,13 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unus
                 /* Make a new attrinfo object */
                 attr_create_empty(inst->inst_be, attribute_name, &ai);
             }
-            if (ai) {
-                ldbm_instance_attrcrypt_enable(ai, cipher);
-                /* Remember that we have some encryption enabled, so we can be intelligent about warning when SSL is not enabled */
-                inst->attrcrypt_configured = 1;
-            } else {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_attrcrypt_config_add_callback - "
-                                             "Attempt to encryption on a non-existent attribute: %s\n",
-                              attribute_name, 0, 0);
-                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "attribute does not exist");
-                *returncode = LDAP_UNWILLING_TO_PERFORM;
-                ret = SLAPI_DSE_CALLBACK_ERROR;
+            PR_ASSERT(ai && strcmp(LDBM_PSEUDO_ATTR_DEFAULT, ai->ai_type));
+            ldbm_instance_attrcrypt_enable(ai, cipher);
+            if (ai->ai_attrcrypt->iv == NULL) {
+                ai->ai_attrcrypt->iv = ldbm_instance_attrcrypt_init_iv(e);
             }
+            /* Remember that we have some encryption enabled, so we can be intelligent about warning when SSL is not enabled */
+            inst->attrcrypt_configured = 1;
         }
     } else {
         ret = SLAPI_DSE_CALLBACK_ERROR;
