@@ -9,6 +9,7 @@
 
 from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
+from lib389.idm.account import Account
 from lib389.idm.user import UserAccount, UserAccounts
 import pytest
 from lib389.tasks import *
@@ -2331,6 +2332,25 @@ def test_conn_limits(dscreate_with_numlistener):
         c.unbind()
 
     # Step 6 is done in teardown phase by dscreate_instance finalizer
+
+
+@pytest.mark.skipif(not default_paths.asan_enabled, reason="Don't run if ASAN is not enabled")
+def test_bind_multiple_ava(topology_st):
+    """Check a bind with a specific dn.
+
+    :id: 1cd69646-a196-11f1-a7ac-c85309d5c3e3
+    :setup: standalone instance
+    :steps:
+        1. Try to perform a bind with specific DN
+        2. Rebind as Directory manager
+    :expectedresults:
+        1. Should raise ldap.INVALID_CREDENTIAL exception
+        2. Should success
+    """
+    inst = topology_st.standalone
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        Account(inst, 'seeAlso=x+member="sn=b+cn=a",dc=com').bind('foo')
+    DirectoryManager(inst).rebind()
 
 
 if __name__ == '__main__':
