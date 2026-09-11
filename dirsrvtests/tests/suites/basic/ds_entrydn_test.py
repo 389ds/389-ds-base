@@ -9,10 +9,13 @@
 import logging
 import os
 import pytest
+from lib389.backend import Backends
+from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 from lib389.dbgen import dbgen_users, get_index
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.tasks import ImportTask
+from lib389.utils import get_default_db_lib
 from test389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
@@ -38,6 +41,26 @@ def _import_user_dns():
         f"uid={IMPORT_ENTRY_NAME}{get_index(i, NUM_IMPORT_ENTRIES)},{IMPORT_PARENT}"
         for i in range(1, NUM_IMPORT_ENTRIES + 1)
     ]
+
+
+@pytest.fixture
+def export_cache_setup(topo, request):
+    inst = topo.standalone
+    export_file = os.path.join(inst.get_ldif_dir(), 'dsentrydn-export.ldif')
+    backend = Backends(inst).get('userRoot')
+    config_ldbm = (BDB_LDBMConfig(inst) if get_default_db_lib() == 'bdb'
+                   else LMDB_LDBMConfig(inst))
+    old_autosize = config_ldbm.get_attr_val_utf8('nsslapd-cache-autosize')
+    old_cache_size = backend.get_attr_val_utf8('nsslapd-cachesize')
+
+    def cleanup():
+        backend.replace('nsslapd-cachesize', old_cache_size)
+        config_ldbm.replace('nsslapd-cache-autosize', old_autosize)
+        if os.path.exists(export_file):
+            os.remove(export_file)
+
+    request.addfinalizer(cleanup)
+    return backend, config_ldbm, export_file
 
 
 def test_dsentrydn_preserved_on_modify(topo):
@@ -105,6 +128,12 @@ def test_dsentrydn_preserved_on_modify(topo):
     assert current_dsentrydn == orig_dsentrydn, \
         f"dsEntryDN was corrupted: expected '{orig_dsentrydn}' but got '{current_dsentrydn}'"
 
+    users = UserAccounts(inst, SUFFIX).list()
+    matching_users = [entry for entry in users
+                      if entry.get_attr_val_utf8('uid') == 'modUser']
+    assert len(matching_users) == 1
+    assert matching_users[0].dn == orig_dsentrydn
+
 
 def test_dsentrydn_case_only_rename(topo):
     """Test that dsEntryDN is updated on a case-only MODRDN
@@ -128,8 +157,7 @@ def test_dsentrydn_case_only_rename(topo):
     inst = topo.standalone
     inst.config.replace('nsslapd-return-original-entrydn', 'on')
 
-    users = UserAccounts(inst, SUFFIX)
-    user = users.create(properties={
+    user = UserAccount(inst, f'uid=caseRenameUser,ou=People,{SUFFIX}').create(properties={
         'uid': 'caseRenameUser',
         'givenname': 'Case',
         'cn': 'Case Rename User',
@@ -219,6 +247,74 @@ def test_dsentrydn(topo):
         if user.rdn.startswith("tUser"):
             assert user.dn == NEW_USER_NORM_DN
             break
+
+
+def test_prefer_dsentrydn_over_cached_dn(topo, export_cache_setup):
+    """Returned DN must use dsEntryDN after backend export populates the DN cache
+
+    :id: 2f6e4b8a-1c73-4d95-a0e2-8b6f3c1d7a54
+    :setup: Standalone Instance
+    :steps:
+        1. Enable nsslapd-return-original-entrydn
+        2. Create an entry with mixed-case DN components
+        3. Restart the instance to clear runtime caches
+        4. Export the backend with replication data
+        5. Search for the entry after export
+    :expectedresults:
+        1. Success
+        2. dsEntryDN stores the original-form DN
+        3. Success
+        4. Export completes successfully
+        5. Returned DN matches dsEntryDN:
+           uid=exportCacheUser,dc=Example,DC=COM
+           dsEntryDN: uid=exportCacheUser,dc=Example,DC=COM
+    """
+    inst = topo.standalone
+    inst.config.replace('nsslapd-return-original-entrydn', 'on')
+
+    user = UserAccount(inst, f'uid=exportCacheUser,{SUFFIX}').create(properties={
+        'uid': 'exportCacheUser',
+        'givenname': 'Export Cache',
+        'cn': 'Export Cache User',
+        'sn': 'User',
+        'userpassword': 'password',
+        'uidNumber': '1003',
+        'gidNumber': '1003',
+        'homeDirectory': '/home/exportCacheUser'
+    })
+    original_dn = user.get_attr_val_utf8('dsentrydn')
+    expected_original_dn = f'uid=exportCacheUser,{SUFFIX}'
+    assert original_dn == expected_original_dn
+    second_user = UserAccount(inst, f'uid=exportCacheUser2,{SUFFIX}').create(properties={
+        'uid': 'exportCacheUser2',
+        'givenname': 'Export Cache Two',
+        'cn': 'Export Cache User Two',
+        'sn': 'User',
+        'userpassword': 'password',
+        'uidNumber': '1004',
+        'gidNumber': '1004',
+        'homeDirectory': '/home/exportCacheUser2'
+    })
+
+    inst.restart()
+    backend, config_ldbm, export_file = export_cache_setup
+    export_task = Backends(inst).export_ldif(
+        be_names='userRoot', ldif=export_file, replication=True)
+    export_task.wait()
+
+    # Force entrycache miss with DN cache hit to accelerate the reproducer
+    inst.config.replace('nsslapd-return-original-entrydn', 'off')
+    UserAccount(inst, original_dn).search(scope='base', filter='objectclass=*')
+    config_ldbm.replace('nsslapd-cache-autosize', '0')
+    backend.replace('nsslapd-cachesize', '1')
+    UserAccount(inst, second_user.dn).search(scope='base', filter='objectclass=*')
+    inst.config.replace('nsslapd-return-original-entrydn', 'on')
+
+    returned_dn = UserAccount(inst, original_dn).search(
+        scope='base', filter='objectclass=*')[0].dn
+    assert returned_dn == original_dn, \
+        f"returned DN '{returned_dn}' differs from dsEntryDN '{original_dn}' " \
+        f"(normalized form would be 'uid=exportCacheUser,dc=example,dc=com')"
 
 
 def test_dsentrydn_import_ldif(topo, request):
