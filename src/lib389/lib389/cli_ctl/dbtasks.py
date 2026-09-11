@@ -436,6 +436,31 @@ def dbtasks_index_check(inst, log, args):
                     config_fixes.append((backend, index_name, "add_mr"))
                     all_ok = False
 
+
+        for index_name in dse_ldif.get_indexes(backend):
+            # for indexes others than  parentid or ancestorid
+            if index_name != "parentid" and index_name != "ancestorid":
+                config_has_int_order = _has_integer_ordering_match(dse_ldif, backend, index_name)
+                if config_has_int_order:
+                    # Check disk ordering
+                    disk_ordering = _check_disk_ordering(db_dir, backend, index_name, dbscan_path, is_mdb, log)
+                    if disk_ordering == IndexOrdering.UNKNOWN:
+                        log.info("  %s - config: %s, disk: %s",
+                                 index_name, "integer", disk_ordering.value)
+                        log.info("  %s - could not determine disk ordering, skipping", index_name)
+                        continue
+                    if disk_ordering == IndexOrdering.LEXICOGRAPHIC:
+                        log.info("  %s - config: %s, disk: %s",
+                                 index_name, "integer", disk_ordering.value)
+                        log.warning("  %s - MISMATCH: config has integerOrderingMatch but disk is lexicographic (suggest redindex)", index_name)
+                        continue
+                    if disk_ordering == IndexOrdering.INTEGER:
+                        log.info("  %s - config: %s, disk: %s",
+                                 index_name, "integer", disk_ordering.value)
+                        continue
+
+
+
     # Handle issues
     if not all_ok:
         if args.fix:
