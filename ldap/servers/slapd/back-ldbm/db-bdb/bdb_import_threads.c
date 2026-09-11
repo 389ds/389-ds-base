@@ -1743,28 +1743,41 @@ bdb_upgradedn_producer(void *param)
             }
             slapi_ch_free_string(&path);
             if (is_dryrun) {
-                rdn_bdb_has_spaces = bdb_has_spaces(rdn);
-                if (rdn_bdb_has_spaces > 0) {
-                    dn_id = slapi_ch_smprintf("%s:%u\n",
-                                              slapi_entry_get_dn_const(e), temp_id);
-                    if (EOF == fputs(dn_id, job->upgradefd)) {
-                        if (job->task) {
-                            slapi_task_log_notice(job->task,
-                                                  "%s: Error: failed to write a line \"%s\"",
-                                                  inst->inst_name, dn_id);
+                if (NULL != rdn) {
+                    rdn_bdb_has_spaces = bdb_has_spaces(rdn);
+                    if (rdn_bdb_has_spaces > 0) {
+                        dn_id = slapi_ch_smprintf("%s:%u\n",
+                                                  slapi_entry_get_dn_const(e), temp_id);
+                        if (EOF == fputs(dn_id, job->upgradefd)) {
+                            if (job->task) {
+                                slapi_task_log_notice(job->task,
+                                                      "%s: Error: failed to write a line \"%s\"",
+                                                      inst->inst_name, dn_id);
+                            }
+                            slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedn_producer",
+                                          "%s: Error: failed to write a line \"%s\"\n",
+                                          inst->inst_name, dn_id);
+                            slapi_ch_free_string(&dn_id);
+                            goto error;
                         }
-                        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedn_producer",
-                                      "%s: Error: failed to write a line \"%s\"\n",
-                                      inst->inst_name, dn_id);
                         slapi_ch_free_string(&dn_id);
-                        goto error;
+                        if (rdn_bdb_has_spaces > 1) {
+                            /* If an rdn containing multi spaces exists,
+                             * let's check the conflict. */
+                            do_dn_norm_sp = 1;
+                        }
                     }
-                    slapi_ch_free_string(&dn_id);
-                    if (rdn_bdb_has_spaces > 1) {
-                        /* If an rdn containing multi spaces exists,
-                         * let's check the conflict. */
-                        do_dn_norm_sp = 1;
+                } else {
+                    if (job->task) {
+                        slapi_task_log_notice(job->task,
+                                              "%s: WARNING: skipping dn-norm-sp check for "
+                                              "badly formatted entry (id %lu)",
+                                              inst->inst_name, (u_long)temp_id);
                     }
+                    slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedn_producer",
+                                  "%s: Skipping dn-norm-sp check for badly formatted "
+                                  "entry (id %lu)\n",
+                                  inst->inst_name, (u_long)temp_id);
                 }
             } else { /* !is_dryrun */
                 /* check the oid and parentid. */
