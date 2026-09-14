@@ -32,6 +32,10 @@
 static struct slapdplugin dyncerts_plugin = {0};
 static struct dyncerts pdyncerts;
 static __thread bool aci_self_update = false;
+static __thread bool wrlock_held = false;
+
+
+#define NO_CERT_FULL_NICKNAME "None"
 
 
 /*
@@ -70,6 +74,9 @@ static bool is_internal_slot(const char *slotname);
 static void dyncerts_update_cached_aci(Slapi_Entry *entry);
 static void dyncerts_free_cached_aci(void);
 static int dyncerts_encryption_config_modify_cb(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+static int dyncerts_encryption_config_change_post_cb(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+static void dyncert_nickname_from_full_nickname(Nickname_t *n, const char *fullnickname);
+static void dyncert_refresh_certs();
 
 /* Alloc a search set */
 static DCSS *
@@ -208,6 +215,15 @@ dyncerts_init(void)
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP,
                                    CONFIG_DN2, LDAP_SCOPE_BASE, "(objectclass=*)",
                                    dyncerts_encryption_config_modify_cb, NULL);
+    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP,
+                                   CONFIG_DN2, LDAP_SCOPE_SUBTREE, "(objectclass=nsEncryptionModule)",
+                                   dyncerts_encryption_config_change_post_cb, NULL);
+    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP,
+                                   CONFIG_DN2, LDAP_SCOPE_SUBTREE, "(objectclass=nsEncryptionModule)",
+                                   dyncerts_encryption_config_change_post_cb, NULL);
+    slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP,
+                                   CONFIG_DN2, LDAP_SCOPE_SUBTREE, "(objectclass=nsEncryptionModule)",
+                                   dyncerts_encryption_config_change_post_cb, NULL);
     slapi_rwlock_wrlock(pdyncerts.rwlock);
     PK11_TraverseSlotCerts(dyncerts_ht_populate_cb, pdyncerts.cert_ht, NULL);
     if (!pdyncerts.cached_aci) {
@@ -228,6 +244,7 @@ void
 dyncert_prepare_certs_refresh(void)
 {
     slapi_rwlock_wrlock(pdyncerts.rwlock);
+    wrlock_held = true;
     if (pdyncerts.cert_ht) {
         PL_HashTableEnumerateEntries(pdyncerts.cert_ht, dyncerts_ht_reset_flags_cb, NULL);
     }
@@ -268,6 +285,7 @@ dyncerts_register_server_cert(PRFileDesc *fd __attribute__((unused)), CERTCertif
 void
 dyncert_finalize_certs_refresh(void)
 {
+    wrlock_held = false;
     slapi_rwlock_unlock(pdyncerts.rwlock);
 }
 
@@ -326,6 +344,64 @@ dyncerts_encryption_config_modify_cb(Slapi_PBlock *pb,
         }
     }
     *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
+static const char *
+cert_token(CERTCertificate *cert)
+{
+    return PK11_GetTokenName(cert->slot);
+}
+
+/* Get certificate db pin */
+static inline void * __attribute__((always_inline))
+_get_pw(const char *token)
+{
+    /* mutex is held in all backend operation callbacks */
+    struct sock_elem *se = pdyncerts.sockets;
+    char *pw = NULL;
+    SVRCOREStdPinObj *StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+    SVRCOREError err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
+
+    if (err != SVRCORE_Success || pw == NULL) {
+        for (;pw == NULL && se; se=se->next) {
+            pw = SSL_RevealPinArg(se->pr_sock);
+        }
+    }
+    return pw;
+}
+
+/* Extract certificate Token name fdrom config entry */
+static char *
+cert_from_config_entry(Slapi_Entry *e)
+{
+    const char *a = slapi_entry_attr_get_ref(e, "nssslactivation");
+    const char *t = slapi_entry_attr_get_ref(e, "nsssltoken");
+    const char *p = slapi_entry_attr_get_ref(e, "nssslpersonalityssl");
+    if (!p || !t || !a || strcasecmp(a, "on") != 0) {
+        return slapi_ch_strdup(NO_CERT_FULL_NICKNAME);
+    }
+    return slapi_ch_smprintf("%s:%s",p, t);
+}
+
+/* DSE callback: notified before nsEncryptionModule get added/modified */
+static int
+dyncerts_encryption_config_change_post_cb(Slapi_PBlock *pb,
+    Slapi_Entry *entryBefore,
+    Slapi_Entry *entryAfter,
+    int *returncode __attribute__((unused)),
+    char *returntext __attribute__((unused)),
+    void *arg __attribute__((unused)))
+{
+    char *certBefore = cert_from_config_entry(entryBefore);
+    char *certAfter = cert_from_config_entry(entryAfter);
+
+    if (pdyncerts.cert_ht && strcmp(certBefore, certAfter) && strcmp(NO_CERT_FULL_NICKNAME, certAfter)) {
+        dyncert_refresh_certs();
+    }
+    *returncode = LDAP_SUCCESS;
+    slapi_ch_free_string(&certBefore);
+    slapi_ch_free_string(&certAfter);
     return SLAPI_DSE_CALLBACK_OK;
 }
 
@@ -688,30 +764,6 @@ is_servercert(CERTCertificate *cert)
     PRBool result = is_servercert_ht(fullnick);
     slapi_ch_free_string(&fullnick);
     return result;
-}
-
-static const char *
-cert_token(CERTCertificate *cert)
-{
-    return PK11_GetTokenName(cert->slot);
-}
-
-/* Get certificate db pin */
-static inline void * __attribute__((always_inline))
-_get_pw(const char *token)
-{
-    /* mutex is held in all backend operation callbacks */
-    struct sock_elem *se = pdyncerts.sockets;
-    char *pw = NULL;
-    SVRCOREStdPinObj *StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
-    SVRCOREError err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
-
-    if (err != SVRCORE_Success || pw == NULL) {
-        for (;pw == NULL && se; se=se->next) {
-            pw = SSL_RevealPinArg(se->pr_sock);
-        }
-    }
-    return pw;
 }
 
 /* Add certificate verification status to the entry */
@@ -1449,7 +1501,7 @@ dyncerts_check_entry(Slapi_PBlock *pb, Slapi_Entry *e, Nickname_t *n, char *errm
         if (i == -1 || slapi_attr_next_value(a, i, &v) != -1) {
             PR_snprintf(errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
                         "Attribute %s should be single valued", a->a_type);
-            return LDAP_UNWILLING_TO_PERFORM;
+            return LDAP_NAMING_VIOLATION;
         }
         if (!charray_inlist(allowedattrs, a->a_type)) {
             PR_snprintf(errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -1948,15 +2000,16 @@ dyncert_rename_cb(CertCtx_t *ctx)
     const char *new_dn = ctx->arg;
     CertCtx_t new_ctx = {0};
     Slapi_DN sdn_new = {0};
+    SECStatus rv = SECFailure;
     int rc = 0;
 
     slapi_sdn_init_dn_byref(&sdn_new, new_dn);
     (void) dyncert_nickname_from_dn(&new_ctx.n, &sdn_new);
     new_ctx.errmsg = ctx->errmsg;
     rc = dyncert_resolve_token(&new_ctx);
-    /* Could probably avoid to look in all slots but PK11_TraverseCertsInSlot is private */
     if (rc != 0) {
         ctx->ldaprc = rc;
+        goto done;
     }
     if (ctx->internal_token != new_ctx.internal_token) {
         ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
@@ -1964,30 +2017,32 @@ dyncert_rename_cb(CertCtx_t *ctx)
                     "Cannot use modrdn operation to change the token name");
         goto done;
     }
-    if (rc == 0 && !ctx->internal_token &&
+    if (!ctx->internal_token &&
         strcasecmp(ctx->n.token, new_ctx.n.token) != 0) {
         ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
         PR_snprintf(ctx->errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
                     "Cannot use modrdn operation to change the token name");
         goto done;
     }
-    if (rc == 0) {
-        /* __PK11_SetCertificateNickname used by certutil cannot be used because
-         * it deos not update NSS in memory data.
-         * Furthermore adding an already existing certificate leads to increase
-         * reference count toward that certificate. So we cannot add the new name
-         * before having deleted the old one:
-         * ==> There is a risk of loosing the certificate in case of error
-         *     after the deletion
-         */
+
+    /*
+     * __PK11_SetCertificateNickname used by certutil cannot be used because
+     * it does not update NSS in memory data.
+     * Furthermore adding an already existing certificate leads to increase
+     * reference count toward that certificate. So we cannot add the new name
+     * before having deleted the old one:
+     * ==> There is a risk of losing the certificate in case of error
+     *     after the deletion
+     */
+    {
         CERTCertificate *cert = ctx->cert;
+        CERTCertificate *newcert = NULL;
+        CERTCertTrust trust = {0};
         SECKEYPrivateKeyInfo *pkeyinfo = PK11_ExportPrivateKeyInfo(cert, NULL);
-        int rc = 0;
 
         if (pkeyinfo) {
             copy_secitem(&new_ctx.derpkey, &pkeyinfo->privateKey);
             SECKEY_DestroyPrivateKeyInfo(pkeyinfo, PR_TRUE);
-            pkeyinfo = NULL;
         }
         copy_secitem(&new_ctx.dercert, &cert->derCert);
         new_ctx.trust = slapi_ch_malloc(TRUST_SIZE);
@@ -1995,16 +2050,64 @@ dyncert_rename_cb(CertCtx_t *ctx)
 
         rc = SEC_DeletePermCertificate(ctx->cert);
         if (rc == SECFailure) {
-            rc = PR_GetError();
+            int err = PR_GetError();
             ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
             PR_snprintf(ctx->errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
                         "Failed to delete certificate %s. Error is %d - %s.\n",
-                        ctx->n.fullnickname, rc, slapd_pr_strerror(rc));
+                        ctx->n.fullnickname, err, slapd_pr_strerror(err));
             goto done;
-        } else {
-            rc = nss_add_cert_and_key(&new_ctx, false);
         }
+        CERT_DestroyCertificate(ctx->cert);
+        ctx->cert = NULL;
+
+        /* Import the private key if present */
+        if (new_ctx.derpkey.data) {
+            SECKEYPrivateKey *privkey = NULL;
+            rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(
+                new_ctx.slot, &new_ctx.derpkey, NULL, NULL,
+                PR_TRUE, PR_TRUE, KU_ALL, &privkey, NULL);
+            if (rv != SECSuccess) {
+                int err = PR_GetError();
+                ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
+                PR_snprintf(ctx->errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "Failed to import private key for %s. Error is %d - %s.\n",
+                            new_ctx.n.fullnickname, err, slapd_pr_strerror(err));
+                goto done;
+            }
+            if (privkey) {
+                SECKEY_DestroyPrivateKey(privkey);
+            }
+        }
+
+        /* Decode cert from saved DER data and import with the new nickname */
+        newcert = CERT_DecodeCertFromPackage((char *)new_ctx.dercert.data,
+                                             new_ctx.dercert.len);
+        if (!newcert) {
+            int err = PR_GetError();
+            ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
+            PR_snprintf(ctx->errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Failed to decode certificate for %s. Error is %d - %s.\n",
+                        new_ctx.n.fullnickname, err, slapd_pr_strerror(err));
+            goto done;
+        }
+        rv = PK11_ImportCert(new_ctx.slot, newcert, CK_INVALID_HANDLE,
+                             new_ctx.n.nickname, PR_FALSE);
+        if (rv != SECSuccess) {
+            int err = PR_GetError();
+            ctx->ldaprc = LDAP_UNWILLING_TO_PERFORM;
+            PR_snprintf(ctx->errmsg, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Failed to import certificate %s. Error is %d - %s.\n",
+                        new_ctx.n.fullnickname, err, slapd_pr_strerror(err));
+            CERT_DestroyCertificate(newcert);
+            goto done;
+        }
+        rv = CERT_DecodeTrustString(&trust, new_ctx.trust);
+        if (rv == SECSuccess) {
+            CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), newcert, &trust);
+        }
+        CERT_DestroyCertificate(newcert);
     }
+
 done:
     dyncerts_cert_ctx_done(&new_ctx);
     slapi_sdn_done(&sdn_new);
@@ -2104,7 +2207,7 @@ dyncerts_rename(Slapi_PBlock *pb)
 done:
     if (rc) {
         slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
-        slapi_log_err(SLAPI_LOG_DYC, "dyncerts_delete",
+        slapi_log_err(SLAPI_LOG_DYC, "dyncerts_rename",
                       "Modrdn operation of entry %s failed: rc=%d : %s\n",
                       old_dn, rc, returntext);
     }
@@ -2160,11 +2263,16 @@ dyncerts_register_socket(int sock, PRFileDesc *pr_sock)
 {
     struct sock_elem *se;
     static pthread_once_t init = PTHREAD_ONCE_INIT;
+    bool need_lock;
 
     /* NSS is initialized or we do not get here so lets perform init */
     (void) pthread_once(&init, dyncerts_init);
 
-    slapi_rwlock_wrlock(pdyncerts.rwlock);
+    /* During cert refresh the wrlock is already held by this thread */
+    need_lock = !wrlock_held;
+    if (need_lock) {
+        slapi_rwlock_wrlock(pdyncerts.rwlock);
+    }
     se = pdyncerts.sockets;
     /* If port already exist, lets reuse its slot */
     for (;se; se=se->next) {
@@ -2180,5 +2288,7 @@ dyncerts_register_socket(int sock, PRFileDesc *pr_sock)
     }
     se->sock = sock;
     se->pr_sock = pr_sock;
-    slapi_rwlock_unlock(pdyncerts.rwlock);
+    if (need_lock) {
+        slapi_rwlock_unlock(pdyncerts.rwlock);
+    }
 }
