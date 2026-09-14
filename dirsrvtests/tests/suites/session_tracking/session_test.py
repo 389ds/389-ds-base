@@ -31,6 +31,86 @@ SESSION_TRACKING_FORMAT_OID = SESSION_TRACKING_CONTROL_OID + ".1234"
 
 pytestmark = pytest.mark.tier0
 
+from ldap.controls import RequestControl
+from pyasn1.type import namedtype,univ
+from pyasn1.codec.ber import encoder
+from pyasn1_modules.rfc2251 import LDAPString,LDAPOID
+
+
+# OID constants
+SESSION_TRACKING_CONTROL_OID = "1.3.6.1.4.1.21008.108.63.1"
+
+
+class SessionTrackingControlCritical(RequestControl):
+  """
+  Class for Session Tracking Control
+  With a criticality set to TRUE
+  """
+
+  class SessionIdentifierControlValue(univ.Sequence):
+    componentType = namedtype.NamedTypes(
+      namedtype.NamedType('sessionSourceIp',LDAPString()),
+      namedtype.NamedType('sessionSourceName',LDAPString()),
+      namedtype.NamedType('formatOID',LDAPOID()),
+      namedtype.NamedType('sessionTrackingIdentifier',LDAPString()),
+    )
+
+  controlType = SESSION_TRACKING_CONTROL_OID
+
+  def __init__(self,sessionSourceIp,sessionSourceName,formatOID,sessionTrackingIdentifier):
+    # criticality set to TRUE for test robustness
+    self.criticality = True
+    self.sessionSourceIp,self.sessionSourceName,self.formatOID,self.sessionTrackingIdentifier = \
+      sessionSourceIp,sessionSourceName,formatOID,sessionTrackingIdentifier
+
+  def encodeControlValue(self):
+    s = self.SessionIdentifierControlValue()
+    s.setComponentByName('sessionSourceIp',LDAPString(self.sessionSourceIp))
+    s.setComponentByName('sessionSourceName',LDAPString(self.sessionSourceName))
+    s.setComponentByName('formatOID',LDAPOID(self.formatOID))
+    s.setComponentByName('sessionTrackingIdentifier',LDAPString(self.sessionTrackingIdentifier))
+    return encoder.encode(s)
+
+def test_critical_session_tracking_srch(topology_st, request):
+    """Verify that a critical session tracking control
+    does not trigger double free
+
+    :id: 9b46d5e5-82ac-4a2b-90b6-0978802fc063
+    :customerscenario: False
+    :setup: Standalone instance, default backend.
+    :steps:
+        1. Loop with searches with one containing a critical control
+    :expectedresults:
+        1. The SRCH with critical control fails the other one succeeds
+    """
+
+
+    SESSION_TRACKING_IDENTIFIER = "SRCH criticality TRUE"
+    st_ctrl = SessionTrackingControlCritical(
+      SESSION_SOURCE_IP,
+      SESSION_SOURCE_NAME,
+      SESSION_TRACKING_FORMAT_OID,
+      SESSION_TRACKING_IDENTIFIER
+    )
+
+    # 1000 attempts is enough to trigger SIGSEV
+    for i in range(0, 1000):
+        try:
+            topology_st.standalone.search_ext_s(DEFAULT_SUFFIX,
+                                                ldap.SCOPE_SUBTREE,
+                                                '(uid=*)',
+                                                serverctrls=[st_ctrl])
+        except:
+            pass
+        topology_st.standalone.search_ext_s(DEFAULT_SUFFIX,
+                                            ldap.SCOPE_SUBTREE,
+                                            '(uid=*)')
+
+    def fin():
+        pass
+
+    request.addfinalizer(fin)
+
 def test_short_session_tracking_srch(topology_st, request):
     """Verify that a short session_tracking string
     is added (not truncate) during a search
