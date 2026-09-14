@@ -105,7 +105,10 @@
  *   connection to the freelist, as it is the function that is called when the event system has
  *   determined all IO's are complete, or unable to complete. This function is what prepares the
  *   connection for re-use, which is why it's the only place the freelist can be appended to.
- *
+ *   Poll calls it from setup_pr_read_pds. Epoll never builds that poll array, so
+ *   the ct_list thread calls it from handle_pr_read_ready and reap_closing_connections
+ *   (same role as setup_pr_read_pds). The worker only sets CONN_FLAG_CLOSING and
+ *   wakes that thread. Otherwise closed slots are lost for eternity.
  */
 
 #include "fe.h"
@@ -205,6 +208,7 @@ connection_table_new(int table_size)
             ct->c[ct_list][i].c_next = NULL;
             ct->c[ct_list][i].c_prev = NULL;
             ct->c[ct_list][i].c_ci = i;
+            ct->c[ct_list][i].c_ct_list = -1;
             ct->c[ct_list][i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 
             if (pthread_mutex_init(&(ct->c[ct_list][i].c_mutex), &monitor_attr) != 0) {
@@ -447,22 +451,21 @@ int
 connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c)
 {
     int c_sd; /* for logging */
-    /* we always have previous element because list contains a dummy header */;
     PR_ASSERT(c->c_prev);
     if (c->c_prev == NULL) {
-        /* c->c_prev is set when the connection is moved ON the active list
-         * So this connection is already OUT of the active list
-         *
-         * Not sure how to recover from here.
-         * Considering c->c_prev is NULL we can assume refcnt is now 0
-         * and connection_cleanup was already called.
-         * If it is not the case, then consequences are:
-         *  - Leak some memory (connext, unsent page result entries, various buffers)
-         *  - hanging connection (fd not closed)
-         * A option would be to call connection_cleanup here.
-         *
-         * The logged message helps to know how frequently the problem exists
-         */
+    /* c->c_prev is set when the connection is moved ON the active list
+     * So this connection is already OUT of the active list
+     *
+     * Not sure how to recover from here.
+     * Considering c->c_prev is NULL we can assume refcnt is now 0
+     * and connection_cleanup was already called.
+     * If it is not the case, then consequences are:
+     *  - Leak some memory (connext, unsent page result entries, various buffers)
+     *  - hanging connection (fd not closed)
+     * A option would be to call connection_cleanup here.
+     *
+     * The logged message helps to know how frequently the problem exists
+     */
         slapi_log_err(SLAPI_LOG_CRIT,
                       "connection_table_move_connection_out_of_active_list",
                       "conn %d is already OUT of the active list (refcnt is %d)\n",
