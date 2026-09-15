@@ -20,6 +20,7 @@ gost_yescrypt_pw_cmp(const char *userpwd, const char *dbpwd)
     int rc = 1;
     char *hash;
     struct crypt_data output = {0};
+    size_t dbpwd_len = strlen(dbpwd);
 
     hash = crypt_rn(userpwd, dbpwd, &output, (int) sizeof(output));
     if (!hash) {
@@ -28,7 +29,7 @@ gost_yescrypt_pw_cmp(const char *userpwd, const char *dbpwd)
         return rc;
     }
 
-    if (slapi_ct_memcmp(hash, dbpwd, strlen(dbpwd)) == 0) {
+    if (strlen(hash) == dbpwd_len && slapi_ct_memcmp(hash, dbpwd, dbpwd_len) == 0) {
         rc = 0;
     }
 

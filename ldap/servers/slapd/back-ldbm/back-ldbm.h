@@ -689,7 +689,12 @@ struct ldbminfo
 
 
 #define NO_RUV_UPDATE(li)              (li->li_backend_opt_level & BACKEND_OPT_NO_RUV_UPDATE)
-#define DBLOCK_INSIDE_TXN(li)          (li->li_backend_opt_level & BACKEND_OPT_DBLOCK_INSIDE_TXN)
+/* LMDB has one writer across all backends. Take its transaction before a
+ * backend monitor so nested retrocl writes cannot deadlock with trimming.
+ * Use the same order in begin and the reverse order in commit/abort.
+ */
+#define DBLOCK_INSIDE_TXN(li)          ((li->li_flags & LI_LMDB_IMPL) || \
+                                      (li->li_backend_opt_level & BACKEND_OPT_DBLOCK_INSIDE_TXN))
 #define MANAGE_ENTRY_BEFORE_DBLOCK(li) (li->li_backend_opt_level & BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK)
 
 /* li_flags could store these bits defined in ../slapi-plugin.h

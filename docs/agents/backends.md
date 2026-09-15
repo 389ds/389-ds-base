@@ -60,6 +60,18 @@ The `NSSLAPD_DB_LIB` environment variable overrides the lib389 default via `src/
 - The CI "BDB Test" job's pytest step writes a placeholder `pytest.html`/`pytest.xml` and stays green when `/usr/lib64/dirsrv/librobdb.so` is present in the container (`.github/workflows/pytest.yml`) — never treat a green run as BDB coverage; build writable BDB and run the suite yourself with `NSSLAPD_DB_LIB=bdb`.
 - Workflow: see the touch-backend skill (.agents/skills/touch-backend/SKILL.md).
 
+## Transaction and backend-monitor order
+
+LMDB takes the environment's write transaction before a backend's serial monitor,
+including nested writes to the retro changelog. Otherwise a trimming thread can
+hold the changelog monitor while waiting for the LMDB writer, whose owner needs
+that same monitor to append a change. `back-ldbm.h (DBLOCK_INSIDE_TXN)` enforces
+this for LMDB regardless of the backend optimization level; BDB retains its
+configured order. `dblayer.c (dblayer_txn_begin, dblayer_txn_commit,
+dblayer_txn_abort)` acquire and release these resources in opposite orders.
+The existing `retrocl/basic_test.py (test_retrocl_trimming_shutdown_crash)`
+exercises writes concurrent with aggressive trimming and repeated restarts.
+
 ## Caches
 
 - Each instance has two caches, both `struct cache` (the struct has no type member): `inst_cache` (`CACHE_TYPE_ENTRY`, `struct backentry`) and `inst_dncache` (`CACHE_TYPE_DN`, `struct backdn`). The dispatching entry points — `cache_clear`, `cache_destroy_please`, `cache_set_max_size` (explicit `type` argument) and `cache_remove`, `cache_replace`, `cache_return`, `cache_add` (the object's `ep_type` tag) — branch into `entrycache_*` or `dncache_*` halves (`cache.c (cache_clear)`); changing one means editing both halves. `cache_init` is shared, with no halves. The remaining `cache_*` entry points are entry-cache-only, and DN-cache callers use the exported `dncache_*` functions directly.
