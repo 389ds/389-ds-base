@@ -1572,7 +1572,6 @@ void
 ct_list_thread(uint64_t threadnum)
 {
     uint64_t threadid = (uint64_t) threadnum;
-    int32_t refresh_count = 0;
     char tname[16];
     snprintf(tname, sizeof(tname), "ct-list-%lu", (unsigned long)threadid);
     slapi_set_thread_name(tname);
