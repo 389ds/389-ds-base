@@ -133,12 +133,12 @@ def create_parser(subparsers):
     for variant in sorted((*PBKDF2_VARIANTS, legacy_variant)):
         if variant == 'pbkdf2':
             variant_help = (
-                'Manage legacy PBKDF2 scheme ({PBKDF2}); settings are independent '
+                'Manage legacy PBKDF2 scheme (PBKDF2); settings are independent '
                 'of pbkdf2-sha1 even though both use SHA-1'
             )
         elif variant == 'pbkdf2-sha1':
             variant_help = (
-                'Manage PBKDF2-SHA1 scheme ({PBKDF2-SHA1}); settings are independent '
+                'Manage PBKDF2-SHA1 scheme (PBKDF2-SHA1); settings are independent '
                 'of legacy pbkdf2 even though both use SHA-1'
             )
         else:
