@@ -237,7 +237,8 @@ function parseSearchResult(searchResult) {
         const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
             'organization', 'person', 'account', 'organizationalunit',
             'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
-            'posixgroup', 'mailrecipient', 'nsroledefinition'];
+            'posixgroup', 'mailrecipient', 'nsroledefinition', 'inetorgperson',
+            'organizationalperson', 'nsorgperson'];
         if (isAttributeLine(currentLine, 'dn:')) {
             // Convert base64-encoded DNs
             const pos = currentLine.indexOf(':');
