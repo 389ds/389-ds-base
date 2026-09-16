@@ -210,14 +210,11 @@ value_normalize_ext(
     if (prevspace && (trim_spaces & SHRINK_TRAILING_BLANK)) {
         char *nd;
 
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && utf8isspace_fast(nd)) {
+        nd = ldap_utf8prev_safe(d, head);
+        while (nd && utf8isspace_fast(nd)) {
             d = nd;
-            if (d <= head) {
-                break;
-            }
-            nd = ldap_utf8prev(d);
-            if (nd && nd >= head && utf8isspace_fast(nd)) {
+            nd = ldap_utf8prev_safe(d, head);
+            if (nd && utf8isspace_fast(nd)) {
                 /* consum the space referred by 'd' */
                 *d = '\0';
             } else {
@@ -230,14 +227,11 @@ value_normalize_ext(
     if (prevspace && (trim_spaces & TRIM_TRAILING_BLANK)) {
         char *nd;
 
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && utf8isspace_fast(nd)) {
+        nd = ldap_utf8prev_safe(d, head);
+        while (nd && utf8isspace_fast(nd)) {
             d = nd;
             *d = '\0';
-            if (d <= head) {
-                break;
-            }
-            nd = ldap_utf8prev(d);
+            nd = ldap_utf8prev_safe(d, head);
         }
     }
 }

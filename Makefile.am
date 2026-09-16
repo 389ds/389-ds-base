@@ -2024,6 +2024,7 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/spal/meminfo.c \
 	test/libslapd/haproxy/parse.c \
 	test/libslapd/csngen/clock_error.c \
+	test/libslapd/utf8/prev.c \
 	test/plugins/test.c \
 	test/plugins/pwdstorage/pbkdf2.c
 
