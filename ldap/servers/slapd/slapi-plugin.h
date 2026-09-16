@@ -145,6 +145,15 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...) __ATTRIBUTE__((format(pr
                                                  including case.              \
                                                  Used for DN. */
 
+#define TRIM_LEADING_BLANK    0x10
+#define TRIM_TRAILING_BLANK   0x20
+#define SHRINK_LEADING_BLANK  0x40
+#define SHRINK_TRAILING_BLANK 0x80
+#define NO_TRIM_SHRINK_BLANK  0x00
+#define COMPATIBLE_TRIM_SPACES 0x01
+#define COMPATIBLE_NOT_TRIM_SPACES 0x00
+#define COMPATIBLE_TRIM_MASK (TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK)
+#define COMPATIBLE_NOT_TRIM_MASK 0x00
 /**
  * Flag to indicate that the attribute value is not exposed if specified.
  *
@@ -5410,6 +5419,15 @@ int slapi_matchingrule_get(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_set(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrEntry);
 int slapi_matchingrule_unregister(char *oid);
+
+/**
+ * Is the given matching rule an ordering matching rule
+ *
+ * \param name_or_oid Name or OID of a matching rule
+ * \return \c TRUE if the matching rule is an ordering rule
+ * \return \c FALSE otherwise
+ */
+int slapi_matchingrule_is_ordering_only(const char *oid_or_name);
 
 /**
  * Is the given matching rule an ordering matching rule and is it

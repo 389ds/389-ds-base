@@ -26,7 +26,7 @@ and be a backend type. IE:
 
 cn=dc\\3Dexample\\2Cdc\\3Dcom,cn=mapping tree,cn=config
 cn: dc=example,dc=com
-cn: dc\=example\,dc\=com
+cn: dc\\=example\\,dc\\=com
 nsslapd-backend: userRoot
 nsslapd-state: backend
 objectClass: top
