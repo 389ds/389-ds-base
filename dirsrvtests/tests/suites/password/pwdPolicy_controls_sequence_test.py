@@ -68,7 +68,7 @@ def bind_and_get_control(topo):
         res_ctrls = ast.literal_eval(str(e))
         pass
 
-    topo.standalone.simple_bind(DN_DM, PASSWORD)
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     return res_ctrls
 
 

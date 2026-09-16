@@ -189,6 +189,8 @@ RETROCL_SUFFIX = "cn=changelog"
 #
 ##################################
 CONTROL_DEREF = '1.3.6.1.4.1.4203.666.5.16'
+CONTROL_USE_ONE_BACKEND = '2.16.840.1.113730.3.4.14'
+CONTROL_USE_ONE_BACKEND_EXT = '2.16.840.1.113730.3.4.20'
 
 ##################################
 #

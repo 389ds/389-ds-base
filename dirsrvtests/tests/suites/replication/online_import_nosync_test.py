@@ -31,7 +31,7 @@ pytestmark = [
 
 log = logging.getLogger(__name__)
 
-NUM_ENTRIES = 100_000
+NUM_ENTRIES = 150_000
 REINIT_TIMEOUT = 600
 
 
@@ -187,7 +187,7 @@ def test_online_import_nosync_throughput():
     """Test that total init with nosync=on is faster than nosync=off.
 
     :id: c5e8d9b2-3f4a-5b6c-0d7e-8f9a0b1c2d3e
-    :setup: Two fresh Supplier + Consumer topologies with 100K entries
+    :setup: Two fresh Supplier + Consumer topologies with 150K entries
     :steps:
         1. Run total init with nosync=off, measure time
         2. Run total init with nosync=on, measure time

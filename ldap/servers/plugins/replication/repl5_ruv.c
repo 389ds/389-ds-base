@@ -1987,6 +1987,12 @@ get_ruvelement_from_berval(const struct berval *bval)
         /* replica id must be here */
         i = 0;
         while (isdigit(bval->bv_val[urlbegin])) {
+            if (i >= RIDSTR_SIZE - 1) {
+                /* An authenticated RA is sending an invalid replica id */
+                slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
+                              "get_ruvelement_from_berval - Replica ID too long\n");
+                goto loser;
+            }
             ridbuff[i] = bval->bv_val[urlbegin];
             i++;
             urlbegin++;

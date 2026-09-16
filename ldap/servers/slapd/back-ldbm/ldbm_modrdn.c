@@ -660,6 +660,9 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
             /* Set the new dn to the copy of the entry */
             slapi_entry_set_sdn(ec->ep_entry, &dn_newdn);
+            /* Update dsEntryDN to match the new DN (for case-only renames) */
+            slapi_entry_attr_set_charptr(ec->ep_entry, SLAPI_ATTR_DS_ENTRYDN,
+                                         slapi_sdn_get_dn(&dn_newdn));
 
             Slapi_RDN srdn;
             /* Set the new rdn to the copy of the entry; store full dn in e_srdn */

@@ -1191,6 +1191,14 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *a
         return LAS_EVAL_FAIL;
     }
 
+    /* SELFDN and USERDNATTR should never match an anonymous client */
+    if (lasinfo.anomUser) {
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "DS_LASUserDnAttrEval - %s does not match anonymous user\n",
+                      attr_name);
+        return LAS_EVAL_FALSE;
+    }
+
     /*
     ** The userdnAttr syntax is
     **     userdnattr = <attribute> or
@@ -1474,6 +1482,13 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
     /* No attribute name specified--it's a syntax error and so undefined */
     if (attr_pattern == NULL) {
         return LAS_EVAL_FAIL;
+    }
+
+    /* Anonymous clients have no identity to match against an LDAP URL filter evaluation. */
+    if (lasinfo.anomUser) {
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "DS_LASLdapUrlAttrEval - does not match anonymous user\n");
+        return LAS_EVAL_FALSE;
     }
 
     s_attrName = attrName = slapi_ch_strdup(attr_pattern);
