@@ -1006,7 +1006,7 @@ bdb_index_producer(void *param)
         if (rc) {
             /* data.dptr may not include rdn: ..., try "dn: ..." */
             e = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
-            if (job->flags & FLAG_DN2RDN) {
+            if (e && (job->flags & FLAG_DN2RDN)) {
                 int len = 0;
                 int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID |
                               SLAPI_DUMP_RDN_ENTRY;
@@ -1104,6 +1104,19 @@ bdb_index_producer(void *param)
 
         slapi_ch_free(&(key.data));
         slapi_ch_free(&(data.data));
+
+        if (NULL == e) {
+            if (job->task) {
+                slapi_task_log_notice(job->task,
+                                      "%s: WARNING: skipping badly formatted entry (id %lu)",
+                                      inst->inst_name, (u_long)temp_id);
+            }
+            slapi_log_err(SLAPI_LOG_WARNING, "bdb_index_producer",
+                          "%s: Skipping badly formatted entry (id %lu)\n",
+                          inst->inst_name, (u_long)temp_id);
+            job->skipped++;
+            continue;
+        }
 
         rc = bdb_index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
         if (rc) {
