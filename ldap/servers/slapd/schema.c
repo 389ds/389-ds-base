@@ -5786,7 +5786,6 @@ schema_at_superset_check_syntax_oids(char *oid1, char *oid2)
             strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
             strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
             strcmp(oid2, FACSIMILE_SYNTAX_OID) &&
-            strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
             strcmp(oid2, TELEPHONE_SYNTAX_OID) &&
             strcmp(oid2, TELETEXTERMID_SYNTAX_OID) &&
             strcmp(oid2, TELEXNUMBER_SYNTAX_OID))
@@ -5803,7 +5802,6 @@ schema_at_superset_check_syntax_oids(char *oid1, char *oid2)
             strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
             strcmp(oid2, IA5STRING_SYNTAX_OID) &&
             strcmp(oid2, FACSIMILE_SYNTAX_OID) &&
-            strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
             strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
             strcmp(oid2, TELEPHONE_SYNTAX_OID) &&
             strcmp(oid2, TELETEXTERMID_SYNTAX_OID) &&
@@ -5882,7 +5880,6 @@ schema_at_superset_check_syntax_oids(char *oid1, char *oid2)
         }
     } else if (strcmp(oid1, NAMEANDOPTIONALUID_SYNTAX_OID) == 0) {
         if (strcmp(oid2, NAMEANDOPTIONALUID_SYNTAX_OID) &&
-            strcmp(oid2, NAMEANDOPTIONALUID_SYNTAX_OID) &&
             strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
             strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
             strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
@@ -5956,7 +5953,6 @@ schema_at_superset_check_syntax_oids(char *oid1, char *oid2)
         if (strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
             strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
             strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
-            strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
             strcmp(oid2, IA5STRING_SYNTAX_OID)) {
             return 1;
         }
