@@ -135,6 +135,21 @@ if test "$with_systemd" = yes; then
     fi
     AC_MSG_RESULT([$tmpfiles_d])
 
+    # Runtime-generated tmpfiles belong in the administrator configuration
+    # directory, not the vendor directory detected above.
+    runtime_tmpfiles_d='$(sysconfdir)/tmpfiles.d'
+    AC_MSG_CHECKING(for --with-runtime-tmpfiles-d)
+    AC_ARG_WITH(runtime-tmpfiles-d,
+       AS_HELP_STRING([--with-runtime-tmpfiles-d=PATH],
+                      [Directory for runtime-generated tmpfiles.d files (default: $(sysconfdir)/tmpfiles.d)])
+    )
+    if test "$with_runtime_tmpfiles_d" = no ; then
+      runtime_tmpfiles_d=
+    elif test -n "$with_runtime_tmpfiles_d" && test "$with_runtime_tmpfiles_d" != yes ; then
+      runtime_tmpfiles_d=$with_runtime_tmpfiles_d
+    fi
+    AC_MSG_RESULT([$runtime_tmpfiles_d])
+
     # sysusers.d dir
     sysusers_d=`$PKG_CONFIG --variable=sysusersdir systemd 2>/dev/null`
     if test -z "$sysusers_d" ; then
@@ -190,6 +205,6 @@ AM_CONDITIONAL([INSTALL_SYSCTL],[test -n "$sysctl_d"])
 
 AC_SUBST(systemd_defs)
 AC_SUBST(tmpfiles_d)
+AC_SUBST(runtime_tmpfiles_d)
 AC_SUBST(sysusers_d)
 AC_SUBST(sysctl_d)
-

@@ -309,9 +309,15 @@ gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
 cockpitdir = $(prefixdir)/share/cockpit@cockpitdir@
 metainfodir = $(prefixdir)/share/metainfo/389-console
 tmpfiles_d = @tmpfiles_d@
+tmpfiles_ddir = @tmpfiles_d@
+runtime_tmpfiles_d = @runtime_tmpfiles_d@
 
 sysctldir = @sysctl_d@
 sysusersdir = @sysusers_d@
+
+if INSTALL_TMPFILES
+dist_tmpfiles_d_DATA = ldap/admin/src/dirsrv.conf
+endif
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -2110,6 +2116,7 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@tmpfiles_d\@,$(tmpfiles_d),g' \
+	-e 's,@runtime_tmpfiles_d\@,$(runtime_tmpfiles_d),g' \
 	-e 's,@sysusers_d\@,$(sysusersdir),g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
