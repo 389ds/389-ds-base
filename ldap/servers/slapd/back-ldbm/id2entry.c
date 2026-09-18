@@ -338,11 +338,34 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
         char *rdn = NULL;
         int rc = 0;
 
+<<<<<<< HEAD
         /* rdn is allocated in get_value_from_string */
         rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
         if (rc) {
             /* data.dptr may not include rdn: ..., try "dn: ..." */
             ee = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+=======
+    /* rdn is allocated in get_value_from_string */
+    rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+    if (rc) {
+        /* data.dptr may not include rdn: ..., try "dn: ..." */
+        ee = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+    } else {
+        char *normdn = NULL;
+        Slapi_RDN *srdn = NULL;
+        struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
+        if (bdn) {
+            if (config_get_return_orig_dn() &&
+                !get_value_from_string((const char *)data.dptr, SLAPI_ATTR_DS_ENTRYDN, &normdn))
+            {
+                srdn = slapi_rdn_new_all_dn(normdn);
+            } else {
+                normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+            }
+            slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                          "dncache_find_id returned: %s\n", normdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
+>>>>>>> 244f30780 (Issue 7827 - Preserve dsEntryDN case from DN cache (#7828))
         } else {
             char *normdn = NULL;
             Slapi_RDN *srdn = NULL;
@@ -390,11 +413,28 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
                                   normdn, id);
                 }
             }
+<<<<<<< HEAD
             ee = slapi_str2entry_ext((const char *)normdn, (const Slapi_RDN *)srdn, data.dptr,
                                      SLAPI_STR2ENTRY_NO_ENTRYDN);
             slapi_ch_free_string(&rdn);
             slapi_ch_free_string(&normdn);
             slapi_rdn_free(&srdn);
+=======
+
+            sdn = slapi_sdn_new_dn_byval((const char *)normdn);
+            bdn = backdn_init(sdn, id, 0);
+            if (CACHE_ADD(&inst->inst_dncache, bdn, NULL)) {
+                backdn_free(&bdn);
+                slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                              "%s is already in the dn cache\n", normdn);
+            } else {
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                              "entryrdn_lookup_dn returned: %s, "
+                              "and set to dn cache (id %d)\n",
+                              normdn, id);
+            }
+>>>>>>> 244f30780 (Issue 7827 - Preserve dsEntryDN case from DN cache (#7828))
         }
     } else {
         ee = slapi_str2entry(data.dptr, 0);
