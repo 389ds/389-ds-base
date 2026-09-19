@@ -100,6 +100,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     int result_sent = 0;
     int32_t parent_op = 0;
     int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
+    int32_t parent_locked = 0;        /* non-zero when parent entry cache lock is held */
     struct timespec parent_time;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
@@ -219,8 +220,19 @@ ldbm_back_add(Slapi_PBlock *pb)
     txn.back_txn_txn = NULL; /* ready to create the child transaction */
     for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
         if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
-            /* Don't release SERIAL LOCK */
-            dblayer_txn_abort_ext(li, &txn, PR_FALSE);
+            /*
+             * Unlock entry cache locks before releasing SERIAL LOCK
+             * to maintain lock ordering (SERIAL LOCK -> entry locks)
+             * and prevent AB-BA deadlock on retry.
+             * Entries stay refcounted in cache, so pointers remain valid.
+             */
+            if (parent_locked && parent_modify_c.old_entry) {
+                cache_unlock_entry(&inst->inst_cache, parent_modify_c.old_entry);
+                parent_locked = 0;
+            }
+
+            /* Release SERIAL LOCK */
+            dblayer_txn_abort(be, &txn);
             noabort = 1;
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
             /* must duplicate addingentry before returning it to cache,
@@ -267,11 +279,19 @@ ldbm_back_add(Slapi_PBlock *pb)
         }
         /* dblayer_txn_begin holds SERIAL lock,
          * which should be outside of locking the entry (find_entry2modify) */
-        if (0 == retry_count) {
-            /* First time, hold SERIAL LOCK */
-            retval = dblayer_txn_begin(be, parent_txn, &txn);
-            noabort = 0;
+        retval = dblayer_txn_begin(be, parent_txn, &txn);
+        if (0 != retval) {
+            if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
+                disk_full = 1;
+                ldap_result_code = LDAP_OPERATIONS_ERROR;
+                goto diskfull_return;
+            }
+            ldap_result_code = LDAP_OPERATIONS_ERROR;
+            goto error_return;
+        }
+        noabort = 0;
 
+        if (0 == retry_count) {
             if (!is_tombstone_operation) {
                 rc = slapi_setbit_int(rc, SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
             }
@@ -391,23 +411,26 @@ ldbm_back_add(Slapi_PBlock *pb)
                  */
                 /* JCMREPL - Warning: A Plugin could cause an infinite loop by always returning a result code that requires some action. */
             }
-        } else {
-            /* Otherwise, no SERIAL LOCK */
-            retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);
         }
-        if (0 != retval) {
-            if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
-                disk_full = 1;
-                ldap_result_code = LDAP_OPERATIONS_ERROR;
-                goto diskfull_return;
-            }
-            ldap_result_code = LDAP_OPERATIONS_ERROR;
-            goto error_return;
-        }
-        noabort = 0;
 
         /* stash the transaction for plugins */
         slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
+
+        /* Re-lock parent after SERIAL LOCK to maintain lock ordering */
+        if (retry_count > 0 && parent_found && parent_modify_c.old_entry) {
+            int lock_rc = cache_lock_entry(&inst->inst_cache,
+                                           parent_modify_c.old_entry);
+            if (lock_rc != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
+                              "conn=%" PRIu64 " op=%d Failed to re-lock parent "
+                              "entry after deadlock retry (rc=%d)\n",
+                              conn_id, op_id, lock_rc);
+                ldap_result_code = LDAP_OPERATIONS_ERROR;
+                retval = -1;
+                goto error_return;
+            }
+            parent_locked = 1;
+        }
 
         if (0 == retry_count) { /* execute just once */
             /* Nothing in this if crause modifies persistent store.
@@ -439,6 +462,7 @@ ldbm_back_add(Slapi_PBlock *pb)
                     goto error_return;
                 }
                 modify_init(&parent_modify_c, parententry);
+                parent_locked = 1;
             }
 
             /* Check if the entry we have been asked to add already exists */
@@ -1445,6 +1469,12 @@ common_return:
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                   "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
                   conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry);
+    /* Parent unlocked during retry but not re-locked (error path).
+     * Return to cache and NULL out to prevent double-unlock in modify_term. */
+    if (!parent_locked && parent_modify_c.old_entry) {
+        CACHE_RETURN(&(inst->inst_cache), &(parent_modify_c.old_entry));
+        parent_modify_c.old_entry = NULL;
+    }
     myrc = modify_term(&parent_modify_c, be);
     done_with_pblock_entry(pb, SLAPI_ADD_EXISTING_DN_ENTRY);
     done_with_pblock_entry(pb, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY);
