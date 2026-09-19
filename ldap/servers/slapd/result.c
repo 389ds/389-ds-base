@@ -1526,8 +1526,10 @@ send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op, Slapi_PBl
             continue; /* Means this was a computed attr and we prcessed it OK. */
         }
         if (-1 != rc) {
-            /* Means that some error happened */
-            return rc;
+            /* Means that some error happened.  Go through the shared cleanup
+             * rather than returning here directly, otherwise attrs_ext and
+             * my_searchattrs (both built above with slapi_ch_array_add) leak. */
+            goto exit;
         } else {
             rc = 0; /* Means that we just didn't recognize this as a computed attr */
         }
