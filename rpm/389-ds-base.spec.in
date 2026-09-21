@@ -724,6 +724,7 @@ fi
 %dir %{_sysconfdir}/%{pkgname}/config
 %dir %{_sysconfdir}/systemd/system/%{groupname}.wants
 %{_sysusersdir}/%{name}.conf
+%{_tmpfilesdir}/dirsrv.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
 %{_datadir}/%{pkgname}
@@ -877,4 +878,3 @@ fi
 
 %changelog
 %autochangelog
-

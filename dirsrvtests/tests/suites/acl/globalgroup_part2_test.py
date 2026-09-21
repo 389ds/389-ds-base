@@ -120,7 +120,7 @@ def test_undefined_in_group_eval_five(topo, add_test_user, aci_of_user):
             5. Operation should  succeed
     """
 
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPF_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",r'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPF_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER2_GLOBAL).bind(PW_DM)
     # This aci should NOT allow access
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -176,7 +176,7 @@ def test_undefined_in_group_eval_seven(topo, add_test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPH_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",r'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPH_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER3_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -232,7 +232,7 @@ def test_undefined_in_group_eval_nine(topo, add_test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{} || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPA_GLOBAL, GROUPH_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",r'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{} || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPA_GLOBAL, GROUPH_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER3_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)

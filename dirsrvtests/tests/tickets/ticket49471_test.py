@@ -65,7 +65,7 @@ def test_ticket49471(topo):
     S1 = topo.standalone
     add_user(S1, 1)
 
-    Filter = "(description:2.16.840.1.113730.3.3.2.1.1.6:=\*on\*)"
+    Filter = r"(description:2.16.840.1.113730.3.3.2.1.1.6:=\*on\*)"
     ents = S1.search_s(SUFFIX, ldap.SCOPE_SUBTREE, Filter)
     assert len(ents) == 1
 
