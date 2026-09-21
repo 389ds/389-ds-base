@@ -190,7 +190,7 @@ connection_cleanup(Connection *conn)
     /*
      * We hang onto these, since we can reuse them.
      * Sockbuf *c_sb;
-     * PRLock *c_mutex;
+     * pthread_mutex_t c_mutex;
      * PRLock *c_pdumutex;
      * Conn_private *c_private;
      */
@@ -1306,7 +1306,6 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     int32_t waits_done = 0;
     ber_int_t msgid;
     int new_operation = 1; /* Are we doing the first I/O read for a new operation ? */
-    char *buffer = conn->c_private->c_buffer;
     PRErrorCode err = 0;
     PRInt32 syserr = 0;
     size_t buffer_data_avail;
@@ -1340,7 +1339,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     /* First check to see if we have buffered data from "before" */
     if ((buffer_data_avail = conn_buffered_data_avail_nolock(conn, &conn_closed))) {
         /* If so, use that data first */
-        if (0 != get_next_from_buffer(buffer + conn->c_private->c_buffer_offset,
+        if (0 != get_next_from_buffer(conn->c_private->c_buffer + conn->c_private->c_buffer_offset,
                                       buffer_data_avail,
                                       &len, tag, op->o_ber, conn)) {
             ret = CONN_DONE;
@@ -1501,9 +1500,40 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
                 pr_pd.in_flags = PR_POLL_READ;
                 pr_pd.out_flags = 0;
+                /*
+                 * To avoid deadlocks and allow other worker threads to flush
+                 * results for this connection, we must yield c_mutex while
+                 * waiting for I/O.
+                 *
+                 * Lock Hierarchy: c_mutex -> c_pdumutex
+                 *
+                 * We acquire c_pdumutex while holding c_mutex to ensure no other
+                 * thread begins a read/write operation during the transition.
+                 * We then release c_mutex to allow other threads to access
+                 * connection metadata (e.g., for logging or result flushing).
+                 */
                 PR_Lock(conn->c_pdumutex);
+                pthread_mutex_unlock(&(conn->c_mutex));
+
                 ret = PR_Poll(&pr_pd, 1, timeout);
+
+                /*
+                 * DEADLOCK AVOIDANCE: We MUST release c_pdumutex BEFORE
+                 * re-acquiring c_mutex.
+                 *
+                 * If we held c_pdumutex while waiting for c_mutex, we could
+                 * deadlock with a thread that holds c_mutex and is waiting
+                 * for c_pdumutex (e.g., in flush_ber() called from a SASL bind).
+                 */
                 PR_Unlock(conn->c_pdumutex);
+                pthread_mutex_lock(&(conn->c_mutex));
+
+                /* check if the connection was closed while we were waiting */
+                if ((conn->c_sd == SLAPD_INVALID_SOCKET) ||
+                    (conn->c_flags & CONN_FLAG_CLOSING)) {
+                    ret = CONN_DONE;
+                    goto done;
+                }
                 waits_done++;
                 /* Did we time out ? */
                 if (0 == ret) {
@@ -1559,7 +1589,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 conn->c_private->c_buffer_bytes = ret;
                 conn->c_private->c_buffer_offset = 0;
 
-                if (get_next_from_buffer(buffer,
+                if (get_next_from_buffer(conn->c_private->c_buffer,
                                          conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset,
                                          &len, tag, op->o_ber, conn) != 0) {
                     ret = CONN_DONE;
