@@ -116,6 +116,10 @@ typedef struct listener_info
 #ifdef ENABLE_EPOLL
 /* Don't be tempted to use EPOLLEXCLUSIVE, it will not wake the correct threads */
 #define EPOLL_EVENTS (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR)
+/* Use ONESHOT for connection sockets only. */
+#define CONN_EPOLL_EVENTS (EPOLL_EVENTS | EPOLLONESHOT)
+/* Use a smaller fixed batch size. */
+#define EPOLL_MAX_EVENTS 32
 
 static void
 epoll_ctl_del_fd(int efd, int fd)
@@ -145,13 +149,22 @@ connection_epoll_add_socket(Connection *conn)
         return;
     }
     efd = conn->c_ct->epoll_fd[conn->c_ct_list];
-    conn->c_event->events = EPOLL_EVENTS;
+    conn->c_event->events = CONN_EPOLL_EVENTS;
     conn->c_event->data.ptr = conn;
-    if (epoll_ctl(efd, EPOLL_CTL_ADD, conn->c_sd, conn->c_event) == -1 &&
-        errno != EEXIST) {
-        slapi_log_err(SLAPI_LOG_ERR, "connection_epoll_add_socket",
-                      "epoll_ctl ADD fd %d failed: %s\n",
-                      conn->c_sd, strerror(errno));
+    /* ONESHOT leaves the fd registered but disabled, MOD re arms it. */
+    if (epoll_ctl(efd, EPOLL_CTL_MOD, conn->c_sd, conn->c_event) == -1) {
+        if (errno == ENOENT) {
+            if (epoll_ctl(efd, EPOLL_CTL_ADD, conn->c_sd, conn->c_event) == -1 &&
+                errno != EEXIST) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_epoll_add_socket",
+                              "epoll_ctl ADD fd %d failed: %s\n",
+                              conn->c_sd, strerror(errno));
+            }
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_epoll_add_socket",
+                          "epoll_ctl MOD fd %d failed: %s\n",
+                          conn->c_sd, strerror(errno));
+        }
     }
 }
 #endif /* ENABLE_EPOLL */
@@ -1654,8 +1667,8 @@ ct_list_thread(uint64_t threadnum)
 
          wait4certs_refresh(NULL);
 #ifdef ENABLE_EPOLL
-         struct epoll_event events[the_connection_table->list_size];
-         select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, the_connection_table->list_size, slapd_ct_thread_wakeup_timer);
+         struct epoll_event events[EPOLL_MAX_EVENTS];
+         select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, EPOLL_MAX_EVENTS, slapd_ct_thread_wakeup_timer);
 #else /* !ENABLE_EPOLL */
          num_poll = setup_pr_read_pds(the_connection_table, threadid);
          select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
@@ -2087,13 +2100,9 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
             if (c->c_gettingber) {
 #ifdef ENABLE_EPOLL
                 /*
-                 * A worker thread is reading from this socket. Poll omits it from the
-                 * next wait set. Epoll is level triggered, so we must delete it until
-                 * the worker thread is done and adds it back, or this thread busy loops.
-                 */
-                epoll_ctl_del_fd(ct->epoll_fd[list_num], c->c_sd);
-                /*
-                 * Leave the idle timer registered, but drain it or epoll_wait never blocks.
+                 * A worker thread is reading from this socket. Since the socket is
+                 * EPOLLONESHOT, it is disabled till the worker re-arms it.
+                 * Drain the idle timer or level triggered epoll_wait() never blocks.
                  */
                 if (c->c_idle_tfd >= 0) {
                     uint64_t expirations;
@@ -2108,16 +2117,26 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
              * if connection mutex is held for a long time
              */
             if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+#ifdef ENABLE_EPOLL
+                /*
+                * EPOLLONESHOT disabled the fd when the event was delivered.
+                * Re-arm it since the connection could not be processed while
+                * c_mutex is held.
+                */
+                if (!c->c_gettingber) {
+                    connection_epoll_add_socket(c);
+                }
+#endif /* ENABLE_EPOLL */
                 continue;
             }
 #ifdef ENABLE_EPOLL
             /*
-             * Poll omits this fd when at max threads per conn. Epoll must delete
-             * it until a worker drops below the cap and adds it back, or
-             * connection_activity will increment past the cap.
-             */
+            * EPOLLONESHOT disabled the fd when the event was delivered.
+            * Do not re-arm it while the connection is at the maximum
+            * threads per conn limit. A worker will re-arm it when
+            * the thread count drops below the limit.
+            */
             if (c->c_threadnumber >= c->c_max_threads_per_conn) {
-                epoll_ctl_del_fd(ct->epoll_fd[list_num], c->c_sd);
                 if (c->c_idle_tfd >= 0) {
                     uint64_t expirations;
                     (void)read(c->c_idle_tfd, &expirations, sizeof(expirations));
@@ -2548,7 +2567,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
      * what ct_list this connection is assigned, we can register the epoll socket
      * and idle timer fd so ADD and DEL use the same epoll instance.
      */
-    conn->c_event->events = EPOLL_EVENTS;
+    conn->c_event->events = CONN_EPOLL_EVENTS;
     conn->c_event->data.ptr = conn;
     slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
                   "Adding connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
