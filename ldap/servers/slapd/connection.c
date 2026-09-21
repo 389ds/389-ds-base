@@ -1606,7 +1606,7 @@ connection_make_readable_nolock(Connection *conn)
 
 #ifdef ENABLE_EPOLL
     /*
-     * Re add the socket to epoll now the worker is done with it. This
+     * Re-arm the ONESHOT socket now the worker is done with it. This
      * may be skipped if the connection is still at its thread limit.
      * The worker cleanup path will retry after c_threadnumber--.
      */
@@ -2236,9 +2236,10 @@ connection_threadmain(void *arg)
                     connection_release_nolock(conn);
 #ifdef ENABLE_EPOLL
                     /*
-                    * Retry adding the socket after decrementing c_threadnumber.
-                    * The earlier attempt may have been skipped if at the thread limit.
-                    */
+                     * Re-arm the ONESHOT socket after c_threadnumber--.
+                     * The socket may have been left disabled while the
+                     * connection was at the thread limit.
+                     */
                     connection_epoll_add_socket(conn);
                     /* Poll unlinks a closing connection in setup_pr_read_pds. For Epoll we
                      * need to kick the ct-list thread so it can reap closing conns. */
