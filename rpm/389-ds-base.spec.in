@@ -6,7 +6,7 @@ ExcludeArch: i686
 %bcond bundle_jemalloc 1
 %if %{with bundle_jemalloc}
 %global jemalloc_name jemalloc
-%global jemalloc_ver 5.3.0
+%global jemalloc_ver 5.4.0
 %global __provides_exclude ^libjemalloc\\.so.*$
 %endif
 
@@ -244,16 +244,15 @@ Source0:          %{name}-%{version}.tar.bz2
 Source2:          %{name}-devel.README
 %if %{with bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
-Source5:          jemalloc-5.3.0_throw_bad_alloc.patch
 %endif
 Source4:          https://fedorapeople.org/groups/389ds/libdb-5.3.28-59.tar.bz2
 
 # To override vendor/Cargo.lock/cockpit_dist from the upstream tarball
 # with separately uploaded sources
 # uncomment and replace double percent with a single one
-#Source6:          vendor-%%{version}-1.tar.gz
-#Source7:          Cargo-%%{version}-1.lock
-#Source8:          cockpit_dist-%%{version}-1.tar.bz2
+#Source5:          vendor-%%{version}-1.tar.gz
+#Source6:          Cargo-%%{version}-1.lock
+#Source7:          cockpit_dist-%%{version}-1.tar.bz2
 
 %description
 389 Directory Server is an LDAPv3 compliant server. The base package includes
@@ -414,12 +413,12 @@ cd src/lib389
 
 %prep
 %autosetup -p1 -n %{name}-%{version}
-%if %{defined SOURCE6}
+%if %{defined SOURCE5}
 rm -rf vendor
-tar xzf %{SOURCE6}
+tar xzf %{SOURCE5}
 %endif
-%if %{defined SOURCE7}
-cp %{SOURCE7} src/Cargo.lock
+%if %{defined SOURCE6}
+cp %{SOURCE6} src/Cargo.lock
 %endif
 
 %if %{with bundle_jemalloc}
@@ -430,9 +429,9 @@ cp %{SOURCE7} src/Cargo.lock
 %setup -q -n %{name}-%{version} -T -D -b 4
 %endif
 
-%if %{defined SOURCE8}
+%if %{defined SOURCE7}
 # Unpack prebuilt cockpit files
-tar xvjf %{SOURCE8} -C src/cockpit/389-console
+tar xvjf %{SOURCE7} -C src/cockpit/389-console
 %endif
 
 cp %{SOURCE2} README.devel
@@ -490,7 +489,6 @@ USDT_FLAGS="--disable-usdt"
 
 # Build jemalloc
 pushd ../%{jemalloc_name}-%{jemalloc_ver}
-patch -p1 -F3 < %{SOURCE5}
 %configure \
         --libdir=%{_libdir}/%{pkgname}/lib \
         --bindir=%{_libdir}/%{pkgname}/bin \
