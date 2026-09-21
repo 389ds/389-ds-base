@@ -1505,6 +1505,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 PR_Lock(conn->c_pdumutex);
                 pthread_mutex_unlock(&(conn->c_mutex));
 
+<<<<<<< HEAD
                 /* Admit a pending result writer before polling again. */
                 if (slapi_atomic_load_32(&conn->c_pdu_writers_waiting, __ATOMIC_ACQUIRE) > 0) {
                     conn->c_pdu_handoff_pending = PR_TRUE;
@@ -1536,6 +1537,8 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                     pthread_mutex_unlock(&(conn->c_mutex));
                 }
 
+=======
+>>>>>>> 1b26a640c (Issue 7919 - CVE-2026-86344 - Fix worker pool exhaustion via partial LDAP messages (DoS))
                 ret = PR_Poll(&pr_pd, 1, timeout);
 
                 /*

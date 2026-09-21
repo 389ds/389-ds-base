@@ -92,15 +92,23 @@ def test_dos_partial_message(topology_st):
         2. Send a complete Anonymous Bind request followed by a partial second message.
         3. Wait for the error log to confirm the second (partial) message was buffered/queued.
         4. Verify that the Bind response for the first message is received promptly.
+<<<<<<< HEAD
         5. Complete the second Bind request and receive its response.
         6. Verify that other connections can still be established and used.
+=======
+        5. Verify that other connections can still be established and used.
+>>>>>>> 1b26a640c (Issue 7919 - CVE-2026-86344 - Fix worker pool exhaustion via partial LDAP messages (DoS))
     :expectedresults:
         1. Connection established.
         2. Data sent.
         3. The server logs that it queued the connection due to buffered data.
         4. Bind response received well within ioblocktimeout.
+<<<<<<< HEAD
         5. The second Bind succeeds.
         6. Server remains responsive.
+=======
+        5. Server remains responsive.
+>>>>>>> 1b26a640c (Issue 7919 - CVE-2026-86344 - Fix worker pool exhaustion via partial LDAP messages (DoS))
     """
     inst = topology_st.standalone
     original_loglevel = inst.config.get_attr_val_utf8("nsslapd-errorlog-level")
@@ -140,11 +148,16 @@ def test_dos_partial_message(topology_st):
         start = time.monotonic()
         log.info("Waiting for bind response...")
         try:
+<<<<<<< HEAD
             msgid, tag, payload = _recv_ldap_message(s)
+=======
+            data = s.recv(1024)
+>>>>>>> 1b26a640c (Issue 7919 - CVE-2026-86344 - Fix worker pool exhaustion via partial LDAP messages (DoS))
         except socket.timeout:
             pytest.fail("Timed out waiting for bind response. The server might be deadlocked.")
         elapsed = time.monotonic() - start
         log.info(f"Bind response received after {elapsed:.2f}s")
+<<<<<<< HEAD
         log.debug(f"Received Bind response payload: {payload.hex()}")
 
         # Bind response for MsgID=1: 30 0c 02 01 01 61 07 0a 01 00 04 00 04 00
@@ -152,6 +165,15 @@ def test_dos_partial_message(topology_st):
         assert payload.startswith(b"\x0a\x01\x00")
         # The real regression signature is the response taking close to the
         # full ioblocktimeout. A healthy server replies almost
+=======
+        log.debug(f"Received data: {data.hex()}")
+
+        # Bind response for MsgID=1: 30 0c 02 01 01 61 07 0a 01 00 04 00 04 00
+        assert b'\x02\x01\x01\x61' in data
+        # The real regression signature is the response taking close to the
+        # full ioblocktimeout (because a second worker held c_mutex while
+        # blocked reading the fragment). A healthy server replies almost
+>>>>>>> 1b26a640c (Issue 7919 - CVE-2026-86344 - Fix worker pool exhaustion via partial LDAP messages (DoS))
         # immediately, so a generous fraction of the timeout still leaves
         # plenty of margin above normal scheduling noise.
         assert elapsed < (test_ioblocktimeout_ms / 1000.0) / 2, (
@@ -159,10 +181,13 @@ def test_dos_partial_message(topology_st):
             f"behind the partial second LDAP message"
         )
         log.info("Successfully received a prompt bind response for the first operation")
+<<<<<<< HEAD
         s.sendall(bind_req[5:])
         msgid, tag, payload = _recv_ldap_message(s)
         assert (msgid, tag) == (2, 0x61)
         assert payload.startswith(b"\x0a\x01\x00")
+=======
+>>>>>>> 1b26a640c (Issue 7919 - CVE-2026-86344 - Fix worker pool exhaustion via partial LDAP messages (DoS))
     finally:
         if s is not None:
             s.close()
