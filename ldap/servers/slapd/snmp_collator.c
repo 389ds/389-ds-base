@@ -572,12 +572,12 @@ snmp_collator_update(time_t start_time __attribute__((unused)), void *arg __attr
     /* just update the update time in the header */
     if (stats != NULL) {
         stats->hdr_stats.updateTime = time(0);
-    }
 
-    /* update the mmap'd tables */
-    snmp_update_ops_table();
-    snmp_update_entries_table();
-    snmp_update_interactions_table();
+        /* update the mmap'd tables */
+        snmp_update_ops_table();
+        snmp_update_entries_table();
+        snmp_update_interactions_table();
+    }
 
     /* release the semaphore */
     sem_post(stats_sem);

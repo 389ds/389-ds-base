@@ -118,7 +118,9 @@ Run from `src/cockpit/389-console/` unless noted:
 - There are no JS unit tests and no lint gate in CI, but the production build
   runs on every PR inside the RPM build — a broken import fails it. The only
   other JS gate is the dependency audit `npx audit-ci`
-  (`.github/workflows/npm.yml`). Playwright webui tests live under
+  (`.github/workflows/npm.yml`). A PR that touches nothing outside
+  `src/cockpit/389-console/` then runs only the `webui` pytest suite, on both
+  backends (`.github/scripts/pr_scope.py`). Playwright webui tests live under
   `dirsrvtests/tests/suites/webui/` ([testing.md](testing.md)).
 - esbuild writes `dist/`; packaging consumes `cockpit_dist/`, a generated
   copy of it — never edit `cockpit_dist/` (generated-files table:

@@ -361,7 +361,13 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
         Slapi_RDN *srdn = NULL;
         struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
         if (bdn) {
-            normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+            if (config_get_return_orig_dn() &&
+                !get_value_from_string((const char *)data.dptr, SLAPI_ATTR_DS_ENTRYDN, &normdn))
+            {
+                srdn = slapi_rdn_new_all_dn(normdn);
+            } else {
+                normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+            }
             slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
                           "dncache_find_id returned: %s\n", normdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
@@ -389,7 +395,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
                 }
             }
 
-            sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
+            sdn = slapi_sdn_new_dn_byval((const char *)normdn);
             bdn = backdn_init(sdn, id, 0);
             if (CACHE_ADD(&inst->inst_dncache, bdn, NULL)) {
                 backdn_free(&bdn);

@@ -205,6 +205,40 @@ def test_entry_has_restrictions(topology_st, password_policy, create_user):
     user.delete()
 
 
+def test_global_dict_path_lifetime(topology_st):
+    """Ensure global dictionary path remains valid across policy lifetimes
+
+    :id: 4aff4545-6815-4bab-bf3f-8c28e1b131a0
+    :setup: Standalone instance
+    :steps:
+        1. Configure a global password dictionary path.
+        2. Create and delete users under the global password policy.
+        3. Remove the dictionary path configuration.
+    :expectedresults:
+        1. Configuration succeeds.
+        2. User operations complete without memory errors.
+        3. Configuration cleanup succeeds.
+    """
+    config = topology_st.standalone.config
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None)
+
+    config.set('nsslapd-pwpolicy-local', 'off')
+    config.set('passwordDictPath', '/tmp/389ds-global-password-dict')
+
+    for index in range(2):
+        user_props = TEST_USER_PROPERTIES.copy()
+        user_props.update({
+            'uid': 'globaldict{}'.format(index),
+            'cn': 'globaldict{}'.format(index),
+            'userpassword': 'GlobalDictPassword{}-Aa9!'.format(index)
+        })
+        user = users.create(properties=user_props)
+        user.delete()
+
+    config.set('passwordDictPath', '/tmp/389ds-global-password-dict2')
+    config.remove('passwordDictPath', None)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
