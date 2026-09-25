@@ -936,6 +936,18 @@ slapi_ldap_bind(
     struct berval bvcreds = {0, NULL};
     LDAPMessage *result = NULL;
     struct berval *servercredp = NULL;
+    struct timeval default_timeout, *bind_timeout;
+
+    if ((timeout == NULL) || ((timeout->tv_sec == 0) && (timeout->tv_usec == 0))) {
+        /* Let's wait 1 min max to bind */
+        default_timeout.tv_sec = 60;
+        default_timeout.tv_usec = 0;
+
+        bind_timeout = &default_timeout;
+    } else {
+        /* take the one provided by the caller. It should be the one defined in the protocol */
+        bind_timeout = timeout;
+    }
 
     /* do starttls if requested
        NOTE - starttls is an extop, not a control, but we don't have
@@ -1061,18 +1073,6 @@ slapi_ldap_bind(
         if (msgidp) { /* let caller process result */
             *msgidp = mymsgid;
         } else { /* process results */
-            struct timeval default_timeout, *bind_timeout;
-
-            if ((timeout == NULL) || ((timeout->tv_sec == 0) && (timeout->tv_usec == 0))) {
-                /* Let's wait 1 min max to bind */
-                default_timeout.tv_sec = 60;
-                default_timeout.tv_usec = 0;
-
-                bind_timeout = &default_timeout;
-            } else {
-                /* take the one provided by the caller. It should be the one defined in the protocol */
-                bind_timeout = timeout;
-            }
             rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, bind_timeout, &result);
             if (-1 == rc) { /* error */
                 rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
@@ -1169,6 +1169,7 @@ slapi_ldap_bind(
         }
     } else {
         int krb5_serialized = 0;
+        struct timeval *prev_api_timeout = NULL;
 
 #ifdef HAVE_KRB5
         if (mech && !strcmp(mech, "GSSAPI")) {
@@ -1189,6 +1190,16 @@ slapi_ldap_bind(
             rc = LDAP_LOCAL_ERROR;
             goto done;
         }
+
+        /*
+         * ldap_sasl_interactive_bind_s() waits for every server response
+         * with the LDAP_OPT_TIMEOUT of the connection, which is infinite by
+         * default.  Bound the wait with the bind timeout, so a server that
+         * accepts the connection but never answers cannot hang the bind -
+         * and, for GSSAPI, every other bind waiting on krb5_lock.
+         */
+        ldap_get_option(ld, LDAP_OPT_TIMEOUT, &prev_api_timeout);
+        ldap_set_option(ld, LDAP_OPT_TIMEOUT, bind_timeout);
 
 #ifdef HAVE_KRB5
         if (krb5_serialized) {
@@ -1217,6 +1228,15 @@ slapi_ldap_bind(
             PR_Unlock(krb5_lock);
         }
 #endif
+
+        /* Restore the caller's LDAP_OPT_TIMEOUT (unset means infinite) */
+        if (prev_api_timeout) {
+            ldap_set_option(ld, LDAP_OPT_TIMEOUT, prev_api_timeout);
+            ldap_memfree(prev_api_timeout);
+        } else {
+            struct timeval no_timeout = {-1, 0};
+            ldap_set_option(ld, LDAP_OPT_TIMEOUT, &no_timeout);
+        }
     }
 
 done:
