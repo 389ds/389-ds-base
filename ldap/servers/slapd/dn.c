@@ -471,7 +471,7 @@ static int
 ISEOV(char *s, char *ends)
 {
     char *p;
-    for (p = s; p && *p && p < ends; p++) {
+    for (p = s; p && (p < ends) && *p; p++) {
         if (SEPARATOR(*p)) {
             return 1;
         } else if (!ISBLANK(*p)) {
