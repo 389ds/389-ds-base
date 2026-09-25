@@ -603,6 +603,12 @@ normalize_dir(char *dir)
         return;
     }
     l = strlen(dir);
+    if (0 == l) {
+        /* dir + l - 1 would point before the string, and the loop condition
+         * dereferences p before testing (p > dir), so the byte before the
+         * allocation would be read. */
+        return;
+    }
 
     for (p = dir + l - 1; p && *p && (p > dir); p--) {
         if ((' ' != *p) && ('\t' != *p) && ('/' != *p) && ('\\' != *p)) {
