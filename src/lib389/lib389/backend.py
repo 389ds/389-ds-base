@@ -1039,13 +1039,13 @@ class Backend(DSLdapObject):
         # Disable backend (mapping tree)
         suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
         mt = self._mts.get(suffix)
-        mt.set('nsslapd-nsstate', 'Disabled')
+        mt.set('nsslapd-state', 'disabled')
 
     def enable(self):
         # Enable Backend (mapping tree)
         suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
         mt = self._mts.get(suffix)
-        mt.set('nsslapd-nsstate', 'Backend')
+        mt.set('nsslapd-state', 'backend')
 
     def get_mapping_tree(self):
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
