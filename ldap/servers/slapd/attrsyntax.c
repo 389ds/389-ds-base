@@ -697,6 +697,38 @@ default_dirstring_normalize(Slapi_PBlock *pb __attribute__((unused)),
     default_dirstring_normalize_int(s, trim_spaces);
 }
 
+/*
+ * ldap_utf8prev() is not safe to call at the start of a value: it always reads
+ * the byte before its argument, and then keeps walking back for as long as it
+ * sees UTF-8 continuation bytes. A value whose first byte is a stray
+ * continuation byte therefore walks it off the front of the buffer.
+ *
+ * Return the character preceding 's', or NULL when 's' is already at 'head',
+ * without reading anything below 'head'.
+ */
+static char *
+dirstring_utf8prev(char *s, char *head)
+{
+    unsigned char *prev = (unsigned char *)s;
+    unsigned char *floor = (unsigned char *)head;
+    unsigned char *limit;
+
+    if (prev <= floor) {
+        return NULL;
+    }
+    /*
+     * ldap_utf8prev() walks back at most six bytes; keep that bound, but
+     * never form a pointer below the value: computing prev - 6 when fewer
+     * than six bytes precede 's' is undefined behaviour in itself, even
+     * though the byte there is never read.
+     */
+    limit = ((prev - floor) > 6) ? prev - 6 : floor;
+    while ((--prev > floor) && ((*prev & 0xC0) == 0x80) && (prev != limit)) {
+        ;
+    }
+    return (char *)prev;
+}
+
 static void
 default_dirstring_normalize_int(char *s, int trim_spaces)
 {
@@ -741,11 +773,11 @@ default_dirstring_normalize_int(char *s, int trim_spaces)
     if (prevspace && trim_spaces) {
         char *nd;
 
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && ldap_utf8isspace(nd)) {
+        nd = dirstring_utf8prev(d, head);
+        while (nd && ldap_utf8isspace(nd)) {
             d = nd;
-            nd = ldap_utf8prev(d);
             *d = '\0';
+            nd = dirstring_utf8prev(d, head);
         }
     }
 }
