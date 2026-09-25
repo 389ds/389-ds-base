@@ -198,8 +198,10 @@ connection_cleanup(Connection *conn)
     }
 #ifdef ENABLE_EPOLL
     if (conn->c_idle_tfd != -1) {
-        /* Close the idle timer */
-        epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
+        /* Close the idle timer. c_ct_list is -1 once the conn is off the active list. */
+        if (conn->c_ct != NULL && conn->c_ct_list >= 0) {
+            epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
+        }
         timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
         close(conn->c_idle_tfd);
         conn->c_idle_tfd = -1;
@@ -1601,6 +1603,16 @@ void
 connection_make_readable_nolock(Connection *conn)
 {
     conn->c_gettingber = 0;
+
+#ifdef ENABLE_EPOLL
+    /*
+     * Re-arm the ONESHOT socket now the worker is done with it. This
+     * may be skipped if the connection is still at its thread limit.
+     * The worker cleanup path will retry after c_threadnumber--.
+     */
+    connection_epoll_add_socket(conn);
+#endif
+
     slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" PRIu64 " fd=%d\n",
                   conn->c_connid, conn->c_sd);
 }
@@ -2124,13 +2136,16 @@ connection_threadmain(void *arg)
             tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
-            connection_make_readable_nolock(conn);
             conn->c_threadnumber--;
+            connection_make_readable_nolock(conn);
             slapi_counter_decrement(conns_in_maxthreads);
             slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
             connection_release_nolock(conn);
+            int list_num = conn->c_ct_list;
             pthread_mutex_unlock(&(conn->c_mutex));
-            signal_listner(conn->c_ct_list);
+            if (list_num >= 0) {
+                signal_listner(list_num);
+            }
             slapi_pblock_destroy(pb);
             return;
         }
@@ -2157,6 +2172,12 @@ connection_threadmain(void *arg)
             if (!thread_turbo_flag && !more_data) {
                 pthread_mutex_lock(&(conn->c_mutex));
                 connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
+#ifdef ENABLE_EPOLL
+                /* Like Poll, the ct-list thread is the only connection reaper, kick it. */
+                if ((conn->c_flags & CONN_FLAG_CLOSING) && conn->c_ct_list >= 0) {
+                    signal_listner(conn->c_ct_list);
+                }
+#endif
                 pthread_mutex_unlock(&(conn->c_mutex));
             }
             /* ps_add makes a shallow copy of the pb - so we
@@ -2213,11 +2234,24 @@ connection_threadmain(void *arg)
                     }
                     conn->c_threadnumber--;
                     connection_release_nolock(conn);
+#ifdef ENABLE_EPOLL
+                    /*
+                     * Re-arm the ONESHOT socket after c_threadnumber--.
+                     * The socket may have been left disabled while the
+                     * connection was at the thread limit.
+                     */
+                    connection_epoll_add_socket(conn);
+                    /* Poll unlinks a closing connection in setup_pr_read_pds. For Epoll we
+                     * need to kick the ct-list thread so it can reap closing conns. */
+                    if (conn->c_flags & CONN_FLAG_CLOSING) {
+                        need_wakeup = 1;
+                    }
+#endif
                     /* If need_wakeup, call signal_listner once.
                      * Need to release the connection (refcnt--)
                      * before that call.
                      */
-                    if (need_wakeup) {
+                    if (need_wakeup && conn->c_ct_list >= 0) {
                         signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
@@ -2678,22 +2712,31 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
          */
         conn->c_flags |= CONN_FLAG_CLOSING;
 #ifdef ENABLE_EPOLL
-        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing connection %d from epoll_fd %d\n",
-                  conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list]);
-        if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_sd, NULL) == -1) {
-            slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
-                        "epoll_ctl failed to remove connection %d from epoll_fd %d\n",
-                        conn->c_sd, conn->c_ct->epoll_fd);
-        }
-        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
-                  conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
-        /* Remove the idle timer if it exists */
-        if (conn->c_idle_tfd != -1) {
-            if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1) {
-                slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext", "Failed to remove idle timer fd %d for connection %d - %s\n",
-                              conn->c_idle_tfd, conn->c_sd, strerror(errno));
+        if (conn->c_ct != NULL && conn->c_ct_list >= 0 &&
+            conn->c_ct_list < conn->c_ct->list_num) {
+            int efd = conn->c_ct->epoll_fd[conn->c_ct_list];
+            slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext",
+                          "Removing connection %d from epoll_fd %d (list %d)\n",
+                          conn->c_sd, efd, conn->c_ct_list);
+            if (epoll_ctl(efd, EPOLL_CTL_DEL, conn->c_sd, NULL) == -1 &&
+                errno != ENOENT && errno != EBADF) {
+                slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
+                              "epoll_ctl failed to remove connection %d from epoll_fd %d: %s\n",
+                              conn->c_sd, efd, strerror(errno));
             }
-            /* Close the idle timer */
+            if (conn->c_idle_tfd != -1) {
+                slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext",
+                              "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
+                              conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
+                if (epoll_ctl(efd, EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1 &&
+                    errno != ENOENT && errno != EBADF) {
+                    slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
+                                  "Failed to remove idle timer fd %d for connection %d - %s\n",
+                                  conn->c_idle_tfd, conn->c_sd, strerror(errno));
+                }
+            }
+        }
+        if (conn->c_idle_tfd != -1) {
             close(conn->c_idle_tfd);
             conn->c_idle_tfd = -1;
         }
