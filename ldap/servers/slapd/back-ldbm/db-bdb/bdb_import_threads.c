@@ -1568,6 +1568,7 @@ bdb_upgradedn_producer(void *param)
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
         memcpy(ecopy, data.dptr, data.dsize);
         *(ecopy + data.dsize) = '\0';
+        slapi_ch_free_string(&rdn);
         normdn = NULL;
         do_dn_norm = 0;
         do_dn_norm_sp = 0;
@@ -1580,6 +1581,9 @@ bdb_upgradedn_producer(void *param)
             /* data.dptr may not include rdn: ..., try "dn: ..." */
             e = slapi_str2entry(data.dptr,
                                 SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+            if (e) {
+                rdn = slapi_ch_strdup(slapi_entry_get_rdn_const(e));
+            }
         } else {
             bdn = dncache_find_id(&inst->inst_dncache, temp_id);
             if (bdn) {
@@ -1619,7 +1623,6 @@ bdb_upgradedn_producer(void *param)
                                           "upgradedn: Failed to compose dn for "
                                           "(rdn: %s, ID: %d)\n",
                                           rdn, temp_id);
-                            slapi_ch_free_string(&rdn);
                             slapi_rdn_done(&psrdn);
                             continue;
                         }
@@ -1630,7 +1633,6 @@ bdb_upgradedn_producer(void *param)
                             slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedn_producer",
                                           "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
                                           rdn, temp_id);
-                            slapi_ch_free_string(&rdn);
                             continue;
                         }
                     }
@@ -1661,7 +1663,6 @@ bdb_upgradedn_producer(void *param)
             }
             e = slapi_str2entry_ext(normdn, NULL, data.dptr,
                                     SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-            slapi_ch_free_string(&rdn);
         }
 
         if (NULL == e) {
@@ -1673,7 +1674,6 @@ bdb_upgradedn_producer(void *param)
             slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedn_producer",
                           "%s: Skipping badly formatted entry (id %lu)\n",
                           inst->inst_name, (u_long)temp_id);
-            slapi_ch_free_string(&rdn);
             continue;
         }
 
@@ -1744,7 +1744,18 @@ bdb_upgradedn_producer(void *param)
 #pragma GCC diagnostic pop
             }
             slapi_ch_free_string(&path);
-            if (is_dryrun) {
+            if (NULL == rdn) {
+                if (job->task) {
+                    slapi_task_log_notice(job->task,
+                                          "%s: WARNING: skipping dn-norm-sp check for "
+                                          "badly formatted entry (id %lu)",
+                                          inst->inst_name, (u_long)temp_id);
+                }
+                slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedn_producer",
+                              "%s: Skipping dn-norm-sp check for badly formatted "
+                              "entry (id %lu)\n",
+                              inst->inst_name, (u_long)temp_id);
+            } else if (is_dryrun) {
                 rdn_bdb_has_spaces = bdb_has_spaces(rdn);
                 if (rdn_bdb_has_spaces > 0) {
                     dn_id = slapi_ch_smprintf("%s:%u\n",
@@ -1841,7 +1852,7 @@ bdb_upgradedn_producer(void *param)
         }
         /* Check DN syntax attr values if it contains '\\' or not */
         /* Start from the rdn */
-        if (chk_dn_norm) {
+        if (chk_dn_norm && rdn) {
             char *endrdn = NULL;
             char *rdnp = NULL;
             endrdn = rdn + strlen(rdn) - 1;
@@ -1983,7 +1994,6 @@ bdb_upgradedn_producer(void *param)
                 continue;
             }
         } /* end of if (chk_do_norm) */
-        slapi_ch_free_string(&rdn);
 
         if (is_dryrun) {
             if (do_dn_norm) {
