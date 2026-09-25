@@ -235,6 +235,21 @@ operation_done(Slapi_Operation **op, Connection *conn)
         }
         slapi_ch_free_string(&(*op)->o_results.result_matched);
         slapi_ch_free_string(&(*op)->o_results.result_text);
+        /*
+         * For a search, the referral URLs collected by send_ldap_referral()
+         * live in the r_search arm of the results union and are never freed
+         * anywhere else (issue #7744).  send_ldap_referral() only fills that
+         * array on its LDAPv2 path, which is taken for genuine v2 clients and
+         * for internal searches (no connection), so those leak on every
+         * referral; v3 clients go through send_ldapv3_referral() and do not.
+         * Free it here, guarded by operation type because the union arm is
+         * only valid for a search.  ber_bvecfree() matches how the sibling
+         * refscopy array is freed in opshared.c process_entry().
+         */
+        if (operation_get_type(*op) == SLAPI_OPERATION_SEARCH) {
+            ber_bvecfree((*op)->o_results.r.r_search.search_referrals);
+            (*op)->o_results.r.r_search.search_referrals = NULL;
+        }
         int options = 0;
         /* save the old options */
         if ((*op)->o_ber) {
