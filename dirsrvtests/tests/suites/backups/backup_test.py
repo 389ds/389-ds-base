@@ -303,60 +303,57 @@ def test_after_db_log_rotation(topo):
 
 
 def test_backup_task_after_failure(mytopo):
-    """Test that new backup task is successful after a failure.
-    backend that is no longer present.
+    """Test that a failed backup releases backends for the next backup.
 
     :id: a6c24898-2cd9-11ef-8c09-482ae39447e5
     :setup: Standalone Instance with multiple backends
     :steps:
-        1. Cleanup
-        2. Perform a back up
-        3. Rename the backup directory while waiting for backup completion.
-        4. Check that backup failed.
-        5. Perform a back up
-        6. Check that backup succeed.
+        1. Temporarily move the database metadata file out of the way.
+        2. Run a backup and wait for its failure when copying that file.
+        3. Restore the metadata file.
+        4. Run another backup.
     :expectedresults:
         1. Success
-        2. Success
+        2. The backup fails after the backends have been marked busy.
         3. Success
-        4. Backup should fail
-        5. Success
-        6. Backup should succeed
+        4. The backup succeeds, demonstrating that busy flags were cleared.
     """
 
     inst = mytopo.standalone
-    tasks = inst.tasks
     archive_dir1 = f'{inst.ds_paths.backup_dir}/bak1'
-    dir1bidx = 1
     archive_dir2 = f'{inst.ds_paths.backup_dir}/bak2'
+    metadata_dir = inst.ds_paths.db_dir
+    if get_default_db_lib() == 'mdb':
+        metadata_name = 'INFO.mdb'
+    else:
+        metadata_name = 'DBVERSION'
+        metadata_dir = (BDB_LDBMConfig(inst).get_attr_val_utf8('nsslapd-db-home-directory')
+                        or metadata_dir)
+    metadata_path = os.path.join(metadata_dir, metadata_name)
+    saved_metadata = metadata_path + '.backup-test'
 
-    # Sometime the backup complete too fast, so lets retry if first
-    # backup is successful
-    for retry in range(50):
-        # Step 1. Perform cleanup
-        for dir in glob.glob(f'{inst.ds_paths.backup_dir}/*'):
-            shutil.rmtree(dir)
-        # Step 2. Perform a backup
-        tasks.db2bak(backup_dir=archive_dir1)
-        # Step 3. Wait until task is completed, trying to rename backup directory
-        done,exitCode,warningCode = (False, None, None)
-        while not done:
-            if os.path.isdir(archive_dir1):
-                archive_dir1b = f'{inst.ds_paths.backup_dir}/bak1b{dir1bidx}'
-                dir1bidx += 1
-                os.rename(archive_dir1, archive_dir1b)
-            done,exitCode,warningCode = tasks.checkTask(tasks.entry)
-            time.sleep(0.01)
-        if exitCode != 0:
-            break
-    # Step 4. Check that backup failed.
-    # If next assert fails too often, that means that the backup is too fast
-    # A fix would would probably be to add more backends within mytopo
-    assert exitCode != 0, "Backup did not fail as expected."
-    # Step 5. Perform a seconf backup after backup failure
-    exitCode = tasks.db2bak(backup_dir=archive_dir2, args={TASK_WAIT: True})
-    # Step 6. Check it is successful
-    assert exitCode == 0, "Backup failed. Issue #6229 may not be fixed."
+    # Both backends copy this file after ldbm_back_ldbm2archive marks all
+    # instances busy. Removing it produces a failure at that stage without
+    # racing the backup worker or failing before the busy flags are set.
+    assert not os.path.exists(saved_metadata)
+    os.rename(metadata_path, saved_metadata)
+    try:
+        backup_task = BackupTask(inst)
+        backup_task.create(properties={'nsArchiveDir': archive_dir1})
+        backup_task.wait()
+        exit_code = backup_task.get_exit_code()
+        assert exit_code is not None, "Backup task did not finish."
+        assert exit_code != 0, "Backup did not fail as expected."
+        task_log = backup_task.get_task_log() or ''
+        assert 'error in copying version file' in task_log, task_log
+        assert metadata_path in task_log, task_log
+    finally:
+        os.rename(saved_metadata, metadata_path)
+
+    backup_task = BackupTask(inst)
+    backup_task.create(properties={'nsArchiveDir': archive_dir2})
+    backup_task.wait()
+    assert backup_task.get_exit_code() == 0, "Backup failed. Issue #6229 may not be fixed."
 
 
 def load_dse(inst):

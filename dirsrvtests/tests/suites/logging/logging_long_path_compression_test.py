@@ -159,59 +159,66 @@ def test_compressed_log_long_path(topo, long_path_setup):
     # Generate load to trigger many rotations (6 samples × 10 sec = 60 sec)
     generate_load(inst)
 
-    # Check rotationinfo sizes
-    rotinfo_path = long_access_log + '.rotationinfo'
-    assert os.path.exists(rotinfo_path), \
-        f"Rotationinfo file not found: {rotinfo_path}"
-
-    entries = parse_rotationinfo(rotinfo_path)
-    log.info(f"Rotationinfo has {len(entries)} entries")
-    assert len(entries) >= 3, \
-        f"Expected at least 3 rotated logs, got {len(entries)}"
-
     maxlogsize_mb = int(inst.config.get_attr_val_utf8('nsslapd-accesslog-maxlogsize'))
-    maxlogsize_bytes = maxlogsize_mb * 1024 * 1024
+    # Shutdown drains background compression and rotationinfo rewrites. Read
+    # metadata and compressed files only after all writers have stopped.
+    inst.stop()
+    try:
+        # Check rotationinfo sizes
+        rotinfo_path = long_access_log + '.rotationinfo'
+        assert os.path.exists(rotinfo_path), \
+            f"Rotationinfo file not found: {rotinfo_path}"
 
-    mismatches = []
-    for entry in entries:
-        log_path = entry['path']
-        recorded_size = entry['size']
+        entries = parse_rotationinfo(rotinfo_path)
+        log.info(f"Rotationinfo has {len(entries)} entries")
+        assert len(entries) >= 3, \
+            f"Expected at least 3 rotated logs, got {len(entries)}"
 
-        actual_path = log_path
-        if not os.path.exists(actual_path) and os.path.exists(log_path + '.gz'):
-            actual_path = log_path + '.gz'
+        maxlogsize_bytes = maxlogsize_mb * 1024 * 1024
 
-        if not os.path.exists(actual_path):
-            log.warning(f"File not found: {actual_path} (may have been deleted)")
-            continue
+        mismatches = []
+        for entry in entries:
+            log_path = entry['path']
+            recorded_size = entry['size']
 
-        actual_size = os.path.getsize(actual_path)
-        log.info(f"  {os.path.basename(actual_path)}: "
-                 f"recorded={recorded_size}, actual={actual_size}")
+            actual_path = log_path
+            if not os.path.exists(actual_path) and os.path.exists(log_path + '.gz'):
+                actual_path = log_path + '.gz'
 
-        if recorded_size != actual_size:
-            mismatches.append({
-                'file': actual_path,
-                'recorded': recorded_size,
-                'actual': actual_size,
-            })
+            if not os.path.exists(actual_path):
+                log.warning(f"File not found: {actual_path} (may have been deleted)")
+                continue
 
-    assert len(mismatches) == 0, (
-        f"Compressed log sizes in rotationinfo do not match actual file sizes! "
-        f"{len(mismatches)} of {len(entries)} entries differ. "
-        f"Mismatched files: "
-        f"{[m['file'] + ': recorded=' + str(m['recorded']) + ' actual=' + str(m['actual']) for m in mismatches]}"
-    )
+            actual_size = os.path.getsize(actual_path)
+            log.info(f"  {os.path.basename(actual_path)}: "
+                     f"recorded={recorded_size}, actual={actual_size}")
 
-    # Log retained file count for debugging
-    rotated_logs = get_rotated_log_files(long_subdir, 'access')
-    log.info(f"Rotated logs retained: {len(rotated_logs)}")
-    for f in rotated_logs:
-        log.info(f"  {os.path.basename(f)}: {os.path.getsize(f)} bytes")
+            if recorded_size != actual_size:
+                mismatches.append({
+                    'file': actual_path,
+                    'recorded': recorded_size,
+                    'actual': actual_size,
+                })
 
-    total_actual = sum(os.path.getsize(f) for f in rotated_logs)
-    log.info(f"Total actual disk usage of rotated logs: {total_actual} bytes "
-             f"({total_actual / (1024*1024):.2f} MB)")
+        assert len(mismatches) == 0, (
+            f"Compressed log sizes in rotationinfo do not match actual file sizes! "
+            f"{len(mismatches)} of {len(entries)} entries differ. "
+            f"Mismatched files: "
+            f"{[m['file'] + ': recorded=' + str(m['recorded']) + ' actual=' + str(m['actual']) for m in mismatches]}"
+        )
+
+        # Log retained file count for debugging
+        rotated_logs = get_rotated_log_files(long_subdir, 'access')
+        log.info(f"Rotated logs retained: {len(rotated_logs)}")
+        for f in rotated_logs:
+            log.info(f"  {os.path.basename(f)}: {os.path.getsize(f)} bytes")
+
+        total_actual = sum(os.path.getsize(f) for f in rotated_logs)
+        log.info(f"Total actual disk usage of rotated logs: {total_actual} bytes "
+                 f"({total_actual / (1024*1024):.2f} MB)")
+
+    finally:
+        inst.start()
 
 
 if __name__ == '__main__':
