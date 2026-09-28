@@ -387,7 +387,7 @@ snmp_collator_start()
     slapi_ch_free_string(&instdir);
 
     /* open the memory map */
-    if ((err = agt_mopen_stats(tmpstatsfile, O_RDWR, &hdl) != 0)) {
+    if ((err = agt_mopen_stats(tmpstatsfile, O_RDWR, &hdl)) != 0) {
         if (err != EEXIST) /* Ignore if file already exists */
         {
             slapi_log_err(SLAPI_LOG_EMERG, "snmp collator", "Failed to open stats file (%s) "
