@@ -894,7 +894,7 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
 def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_buffering):
-    """Test that DS correctly logs the base dn when a search with invalid attribute request is performed
+    r"""Test that DS correctly logs the base dn when a search with invalid attribute request is performed
 
     :id: 859de962-c261-4ffb-8705-97bceab1ba2c
     :setup: Standalone instance
@@ -1109,7 +1109,7 @@ def test_cert_personality_log_help(topology_st, request):
     request.addfinalizer(fin)
 
 def test_stat_index(topology_st, request):
-    """Testing nsslapd-statlog-level with indexing statistics
+    r"""Testing nsslapd-statlog-level with indexing statistics
 
     :id: fcabab05-f000-468c-8eb4-02ce3c39c902
     :setup: Standalone instance

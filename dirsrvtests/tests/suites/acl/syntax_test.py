@@ -67,7 +67,7 @@ INVALID = [('test_targattrfilters_1',
             f'(targattrfilters ="add=title:(&(|(title=fred)(title=harry))(cn ~= 1))")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_targattrfilters_17',
-            f'\(targattrfilters ="add=title:(&(|(&(title=harry)(title=fred))'
+            rf'\(targattrfilters ="add=title:(&(|(&(title=harry)(title=fred))'
             f'(title=harry))(title ~= 1))")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_targattrfilters_19',
@@ -115,7 +115,7 @@ INVALID = [('test_targattrfilters_1',
             f'(target = ldap:///self)(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_target_set_with_ldap_instead_of_ldap',
-            f'(target = ldap:\\\{DEFAULT_SUFFIX})(targetattr="*")'
+            f'(target = ldap:\\\\{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_target_set_with_more_than_three',
             f'(target = ldap:////{DEFAULT_SUFFIX})(targetattr="*")'

@@ -34,6 +34,8 @@ from lib389.dseldif import DSEldif
 from test389.topologies import topology_st as topo
 from lib389.utils import ds_is_older, ensure_str
 from tempfile import NamedTemporaryFile
+from lib389.dyncerts import DynamicCerts
+from pprint import PrettyPrinter
 
 pytestmark = pytest.mark.tier1
 
@@ -595,6 +597,18 @@ def ecdsa_certs(topo, request):
     return (cert, ca, dir)
 
 
+def list_all_certs(inst, msg):
+    # inst main connection may be broken so better open a new ldapi connection
+    ld = open_ldapi_conn(inst)
+    pp = PrettyPrinter(indent=4)
+    res = ld.search_s('cn=dynamiccertificates', scope=ldap.SCOPE_SUBTREE);
+    log.info(f'*** BEGIN CERTIFICATE DUMP {msg}')
+    for p in pp.pformat(res).split('\n'):
+        log.info(f'{msg}" : {p}')
+    log.info(f'*** END CERTIFICATE DUMP {msg}')
+    ld.unbind()
+
+
 def test_ecdsa(topo, ecdsa_certs):
     """Setup instance with ecdsa certificates
 
@@ -637,15 +651,19 @@ def test_dynamic(topo, ecdsa_certs):
     """
 
     inst=topo.standalone
+    list_all_certs(inst, "Starting test_dynamic")
     cert, ca, dir = ecdsa_certs
     cert1 = ca.generateCertificate("Test-DynCert-1")
     cert1.save(dir)
     cert1.online_install(inst)
+    list_all_certs(inst, "After installing Test-DynCert-1")
     assert cert1.read_cert(inst)
     cert2 = cert1.rename(inst, "Test-DynCert-2")
+    list_all_certs(inst, "After renaming Test-DynCert-2")
     assert not cert1.read_cert(inst)
     assert cert2.read_cert(inst)
     cert2.delete(inst)
+    list_all_certs(inst, "After deleting Test-DynCert-2")
     assert not cert2.read_cert(inst)
 
 
@@ -678,8 +696,8 @@ def test_refresh_ecdsa_1ca(topo, ecdsa_certs):
     ld = open_ldaps_conn(inst, ca)
     cert2 = ca.generateCertificate("New-Cert-1CA")
     cert2.save(dir)
-    cert2.setSslPersonality(inst)
     cert2.online_install(inst)
+    cert2.setSslPersonality(inst)
     tls_search(inst, ca)
     with redirect_stdio(f"Search using already open connection with CA: {ca}"):
         results = ld.search_s('', ldap.SCOPE_BASE)
@@ -715,6 +733,7 @@ def test_refresh_ecdsa_2ca(topo, ecdsa_certs):
     """
 
     inst=topo.standalone
+    list_all_certs(inst, "Entering test_refresh_ecdsa_2ca test")
     cert, ca, dir = ecdsa_certs
     tls_search(inst, ca)
     ld = open_ldaps_conn(inst, ca)
@@ -722,9 +741,11 @@ def test_refresh_ecdsa_2ca(topo, ecdsa_certs):
     cert2 = ca2.generateCertificate("New-Cert-2CA")
     ca2.save(dir)
     cert2.save(dir)
-    cert2.setSslPersonality(inst)
     ca2.online_install(inst)
     cert2.online_install(inst)
+    list_all_certs(inst, "After installing New-Cert-2CA")
+    cert2.setSslPersonality(inst)
+    list_all_certs(inst, "After switching New-Cert-2CA")
     with pytest.raises(ldap.SERVER_DOWN):
         tls_search(inst, ca)
     tls_search(inst, ca2)

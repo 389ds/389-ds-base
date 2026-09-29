@@ -3829,7 +3829,7 @@ config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int a
     int retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+    if (config_value_is_null(attrname, value, errorbuf, 1)) {
         value = NULL;
     } else {
         /* We have a value, do some basic checks */

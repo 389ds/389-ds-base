@@ -156,6 +156,9 @@ def test_ca_cert_bundle(topo):
     lc.flush()
     args = FakeArgs()
     args.json = False
+    # import update directly the NSS db with pk12util
+    # so instance should be restarted to sync the db
+    inst.restart()
     cacert_list(inst, DEFAULT_SUFFIX, lc.log, args)
     assert lc.contains('CA_CERT_1')
     assert lc.contains('CA_CERT_2')

@@ -1808,6 +1808,8 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                                        "bad for cert %s of family %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                        cert_name, *family, errorCode,
                                        slapd_pr_strerror(errorCode));
+                    } else {
+                        dyncerts_register_server_cert(*fd, cert);
                     }
                 }
             }
@@ -3161,6 +3163,8 @@ refresh_certs(daemon_ports_t *ports)
     slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
                   "Certificate refresh started.\n");
 
+    dyncert_prepare_certs_refresh();
+
     /* Perform some cleanup */
     _security_library_initialized = 0;
     for (sock = ports->s_socket; sock && *sock; sock++) {
@@ -3182,6 +3186,7 @@ refresh_certs(daemon_ports_t *ports)
             stop = true;
         }
     }
+    dyncert_finalize_certs_refresh();
     if (stop) {
         g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
     }

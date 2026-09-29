@@ -113,14 +113,18 @@ str2entry_state_information_from_type(struct berval *atype,
 {
     char *p = NULL;
     char *semicolonp = NULL;
+    char *end = NULL;
+
     if ((NULL == atype) || (NULL == atype->bv_val)) {
         return;
     }
-    p = PL_strchr(atype->bv_val, ';');
+    end = atype->bv_val + atype->bv_len;
+    p = memchr(atype->bv_val, ';', atype->bv_len);
     *value_state = VALUE_PRESENT;
     *attr_state = ATTRIBUTE_PRESENT;
     while (p != NULL) {
-        if (p[0] != '\0' && p[1] != '\0' && p[2] != '\0' &&
+        size_t remaining = end - p;
+        if (remaining >= 7 &&
             p[3] == 'c' && p[4] == 's' && p[5] == 'n' && p[6] == '-') {
             CSNType t = CSN_TYPE_UNKNOWN;
             if (p[1] == 'x' && p[2] == '1') {
@@ -162,20 +166,20 @@ str2entry_state_information_from_type(struct berval *atype,
             if (NULL == semicolonp) {
                 semicolonp = p; /* the first semicolon */
             }
-        } else if (strncmp(p + 1, "deletedattribute", 16) == 0) {
+        } else if (remaining >= DELETED_ATTR_STRSIZE && strncmp(p + 1, "deletedattribute", 16) == 0) {
             p[0] = '\0';
             *attr_state = ATTRIBUTE_DELETED;
             if (NULL == semicolonp) {
                 semicolonp = p; /* the first semicolon */
             }
-        } else if (strncmp(p + 1, "deleted", 7) == 0) {
+        } else if (remaining >= DELETED_VALUE_STRSIZE && strncmp(p + 1, "deleted", 7) == 0) {
             p[0] = '\0';
             *value_state = VALUE_DELETED;
             if (NULL == semicolonp) {
                 semicolonp = p; /* the first semicolon */
             }
         }
-        p = strchr(p + 1, ';');
+        p = memchr(p + 1, ';', end - (p + 1));
     }
     if (semicolonp) {
         atype->bv_len = semicolonp - atype->bv_val;

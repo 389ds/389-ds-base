@@ -375,7 +375,7 @@ def test_vattr_on_filtered_role(topo, request):
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
     topo.standalone.stop()
-    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert topo.standalone.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     def fin():
         topo.standalone.restart()
@@ -438,7 +438,7 @@ def test_vattr_on_filtered_role_restart(topo, request):
     topo.standalone.restart()
     time.sleep(5)
     assert topo.standalone.searchErrorsLog("Found a role/cos definition in")
-    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert topo.standalone.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
@@ -494,7 +494,7 @@ def test_vattr_on_managed_role(topo, request):
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
     topo.standalone.stop()
-    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert topo.standalone.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     def fin():
         topo.standalone.restart()
@@ -811,7 +811,7 @@ def test_not_such_entry_role_rewrite(topo, request):
     topo.standalone.stop()
 
     # Check that when the role does not exist it is translated into 'nsuniqueid=-1'
-    pattern = ".*replace \(nsRole=cn=not_such_entry_role,dc=example,dc=com\) by \(nsuniqueid=-1\).*"
+    pattern = r".*replace \(nsRole=cn=not_such_entry_role,dc=example,dc=com\) by \(nsuniqueid=-1\).*"
     assert topo.standalone.ds_error_log.match(pattern)
 
     def fin():

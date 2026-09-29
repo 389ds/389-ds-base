@@ -937,13 +937,15 @@ class SetupDs(object):
             # can trip up the logger.
             self.log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}".encode("utf-8"))
 
-            # Setup tmpfiles_d
-            tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
-            with open(tmpfile_d, "w") as TMPFILE_D:
-                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['run_dir'], slapd['user'], slapd['group']))
-                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'].replace("slapd-" + slapd['instance_name'], ""),
-                                                           slapd['user'], slapd['group']))
-                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'], slapd['user'], slapd['group']))
+            if ds_paths.runtime_tmpfiles_d:
+                os.makedirs(ds_paths.runtime_tmpfiles_d, exist_ok=True)
+                tmpfile_d = f"{ds_paths.runtime_tmpfiles_d}/dirsrv-{slapd['instance_name']}.conf"
+                with open(tmpfile_d, "w") as TMPFILE_D:
+                    if not ds_paths.tmpfiles_d:
+                        TMPFILE_D.write(f"d {slapd['run_dir']} 0770 {slapd['user']} {slapd['group']}\n")
+                        lock_parent = slapd['lock_dir'].replace(f"slapd-{slapd['instance_name']}", "")
+                        TMPFILE_D.write(f"d {lock_parent} 0770 {slapd['user']} {slapd['group']}\n")
+                    TMPFILE_D.write(f"d {slapd['lock_dir']} 0770 {slapd['user']} {slapd['group']}\n")
 
         # Else we need to detect other init scripts?
         # WB: No, we just install and assume that docker will start us ...

@@ -265,6 +265,8 @@ class Paths(object):
             return v
         # Else get from the config
         if self._config:
+            if name == 'runtime_tmpfiles_d' and not self._config.has_option(SECTION, name):
+                return os.path.join(ensure_str(self._config.get(SECTION, 'sysconf_dir')), 'tmpfiles.d')
             if self._serverid is not None:
                 return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
             else:

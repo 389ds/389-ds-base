@@ -249,8 +249,6 @@ slapi_matchingrule_is_ordering_only(const char *oid_or_name)
 int
 slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid)
 {
-    struct matchingRuleList *mrl = NULL;
-
     if (slapi_matchingrule_is_compat(oid_or_name, syntax_oid)) {
         return slapi_matchingrule_is_ordering_only(oid_or_name);
     }

@@ -1356,16 +1356,18 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                     goto retry;
                 }
                 va = attr_get_present_values(attr);
-                if (pw_in_history(va, vals[0]) == 0) {
-                    if (pwresponse_req == 1) {
-                        slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDINHISTORY);
+                for (size_t i = 0; vals[i] != NULL; i++) {
+                    if (pw_in_history(va, vals[i]) == 0) {
+                        if (pwresponse_req == 1) {
+                            slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDINHISTORY);
+                        }
+                        pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                      "Password in history: Entry (%s) Policy (%s)\n",
+                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+                        slapi_entry_free(e);
+                        return (1);
                     }
-                    pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
-                    slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                                  "Password in history: Entry (%s) Policy (%s)\n",
-                                  dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
-                    slapi_entry_free(e);
-                    return (1);
                 }
             }
 
@@ -1373,23 +1375,25 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             attr = attrlist_find(e->e_attrs, "userpassword");
             if (attr && !valueset_isempty(&attr->a_present_values)) {
                 va = valueset_get_valuearray(&attr->a_present_values);
-                if (slapi_is_encoded((char *)slapi_value_get_string(vals[0]))) {
-                    if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[0])) == 0) {
-                        pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
-                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                                      "Password in history: Entry (%s) Policy (%s)\n",
-                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
-                        slapi_entry_free(e);
-                        return (1);
-                    }
-                } else {
-                    if (slapi_pw_find_sv(va, vals[0]) == 0) {
-                        pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
-                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                                      "Password in history: Entry (%s) Policy (%s)\n",
-                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
-                        slapi_entry_free(e);
-                        return (1);
+                for (size_t i = 0; vals[i] != NULL; i++) {
+                    if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
+                        if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[i])) == 0) {
+                            pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                            slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                          "Password in history: Entry (%s) Policy (%s)\n",
+                                          dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+                            slapi_entry_free(e);
+                            return (1);
+                        }
+                    } else {
+                        if (slapi_pw_find_sv(va, vals[i]) == 0) {
+                            pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                            slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                          "Password in history: Entry (%s) Policy (%s)\n",
+                                          dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+                            slapi_entry_free(e);
+                            return (1);
+                        }
                     }
                 }
                 /* We copy the 1st value of the userpassword attribute.
@@ -2430,7 +2434,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     }
                 } else if (!strcasecmp(attr_name, "passwordDictPath")) {
                     if ((sval = attr_get_present_values(attr))) {
-                        pwdpolicy->pw_dict_path = (char *)slapi_value_get_string(*sval);
+                        pwdpolicy->pw_dict_path = slapi_ch_strdup(slapi_value_get_string(*sval));
                     }
                 } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_MAXUSE)) {
                     if ((sval = attr_get_present_values(attr))) {
@@ -2472,7 +2476,8 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     pwdpolicy->pw_max_class_repeats = g_pwdpolicy->pw_max_class_repeats;
                     pwdpolicy->pw_palindrome = g_pwdpolicy->pw_palindrome;
                     pwdpolicy->pw_check_dict = g_pwdpolicy->pw_check_dict;
-                    pwdpolicy->pw_dict_path = g_pwdpolicy->pw_dict_path;
+                    slapi_ch_free_string(&pwdpolicy->pw_dict_path);
+                    pwdpolicy->pw_dict_path = slapi_ch_strdup(g_pwdpolicy->pw_dict_path);
                     pwdpolicy->pw_check_breach = g_pwdpolicy->pw_check_breach;
                     slapi_ch_free_string(&pwdpolicy->pw_breach_db_url);
                     pwdpolicy->pw_breach_db_url = config_get_pw_breach_url();
@@ -2533,6 +2538,7 @@ delete_passwdPolicy(passwdPolicy **pwpolicy)
             slapi_ch_array_free((*(*pwpolicy)).pw_cmp_attrs_array);
             slapi_ch_free_string(&(*(*pwpolicy)).pw_cmp_attrs);
             slapi_ch_free_string(&(*(*pwpolicy)).pw_breach_db_url);
+            slapi_ch_free_string(&(*(*pwpolicy)).pw_dict_path);
         }
         slapi_ch_free_string(&(*(*pwpolicy)).pw_local_dn);
         slapi_ch_free((void **)pwpolicy);

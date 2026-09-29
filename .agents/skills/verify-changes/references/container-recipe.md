@@ -9,17 +9,20 @@ Every command in a code block is copied character-exact from .github/workflows/p
 (differences in lmdbpytest.yml are noted). CI splits this into two jobs: "Build" runs
 *inside* the quay.io/389ds/ci-images:test image as a GitHub Actions container job;
 "BDB Test" drives docker from the runner. Locally one systemd container serves both
-stages; `podman` accepts the same flags wherever `sudo docker` appears.
+stages; `podman` accepts the same flags wherever `sudo docker` appears. CI pulls the
+image first in a five-attempt backoff loop because quay.io pulls time out transiently
+(issue 7528); locally a plain pull is fine.
 
 ## Stage 1 — start the systemd test container (run from the repo root)
 
-    CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+    CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb --sysctl net.ipv4.ip_local_reserved_ports=38900-39399 -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
 
 Flag by flag: `-d` detached; `-h server.example.com` the hostname tests expect;
 `--ulimit core=-1` unlimited core dumps; `--cap-add=SYS_PTRACE` lets debuggers and
 sanitizers attach; `--privileged` needed for systemd and instance management; `--rm`
 autodelete on stop; `--shm-size=4gb` large /dev/shm for the databases;
-`-v ${PWD}:/workspace` mounts the checkout. The image boots systemd — wait for it
+`--sysctl net.ipv4.ip_local_reserved_ports=38900-39399` keeps the test instances' ports out
+of the kernel's ephemeral range; `-v ${PWD}:/workspace` mounts the checkout. The image boots systemd — wait for it
 (verbatim loop; it prints failures until ready):
 
     until sudo docker exec $CID sh -c "systemctl is-system-running"
