@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -42,6 +42,8 @@ static PLHashTable *name2asi = NULL;
 /* read/write lock to protect table */
 static Slapi_RWLock *name2asi_lock = NULL;
 
+static uint64_t attr_syntax_version = 0;
+
 /*
  * For the schema reload task, we need to use separate temporary hashtables & linked lists
  */
@@ -78,11 +80,18 @@ static struct asyntaxinfo *attr_syntax_get_by_oid_locking_optional(const char *o
 static void attr_syntax_insert(struct asyntaxinfo *asip);
 static void attr_syntax_insert_tmp(struct asyntaxinfo *asip);
 static void attr_syntax_remove(struct asyntaxinfo *asip);
+static struct asyntaxinfo *attr_syntax_dup(struct asyntaxinfo *a);
 
 #ifdef ATTR_LDAP_DEBUG
 static void attr_syntax_print(void);
 #endif
 static int attr_syntax_init(void);
+
+struct hashTables {
+    PLHashTable *name;
+    PLHashTable *oid;
+    struct asyntaxinfo *as_free_list;
+};
 
 struct asyntaxinfo *
 attr_syntax_get_global_at()
@@ -90,16 +99,40 @@ attr_syntax_get_global_at()
     return global_at;
 }
 
+uint64_t
+attr_syntax_get_version(void)
+{
+    return slapi_atomic_load_64(&attr_syntax_version, __ATOMIC_ACQUIRE);
+}
+
+void
+attr_syntax_bump_version(void)
+{
+    slapi_atomic_incr_64(&attr_syntax_version, __ATOMIC_RELEASE);
+}
+
 void
 attr_syntax_read_lock(void)
 {
+    PLHashTable *ht = NULL;
+
     if (0 != attr_syntax_init()) {
         PR_ASSERT(0);
         return;
     }
-
-    AS_LOCK_READ(oid2asi_lock);
-    AS_LOCK_READ(name2asi_lock);
+    /*
+     * A worker with a private copy does not need this lock for name/oid
+     * lookups. Callers that walk global_at must use
+     * attr_syntax_global_read_lock() instead: this function skips the lock
+     * when a private table is installed.
+     */
+    slapi_td_get_attr_syntax_name_table(&ht);
+    if (ht == NULL) {
+        /* There is no hash table in this thread storage, so we need to lock
+         * access the global hash tables */
+        AS_LOCK_READ(oid2asi_lock);
+        AS_LOCK_READ(name2asi_lock);
+    }
 }
 
 void
@@ -116,6 +149,38 @@ attr_syntax_write_lock(void)
 
 void
 attr_syntax_unlock_read(void)
+{
+    PLHashTable *ht = NULL;
+
+    slapi_td_get_attr_syntax_name_table(&ht);
+    if (ht == NULL) {
+        /* There is no hash table in this thread storage, so we need the unlock
+         * access the global hash tables */
+        AS_UNLOCK_READ(name2asi_lock);
+        AS_UNLOCK_READ(oid2asi_lock);
+    }
+}
+
+/*
+ * Lock the global syntax tables even when this thread has a private copy.
+ * Callers that walk global_at, or otherwise read the process-wide tables,
+ * must use this pair. attr_syntax_read_lock() skips the lock on a worker
+ * that already has a private copy.
+ */
+void
+attr_syntax_global_read_lock(void)
+{
+    if (0 != attr_syntax_init()) {
+        PR_ASSERT(0);
+        return;
+    }
+
+    AS_LOCK_READ(oid2asi_lock);
+    AS_LOCK_READ(name2asi_lock);
+}
+
+void
+attr_syntax_global_unlock_read(void)
 {
     AS_UNLOCK_READ(name2asi_lock);
     AS_UNLOCK_READ(oid2asi_lock);
@@ -180,20 +245,29 @@ attr_syntax_get_by_oid(const char *oid, PRUint32 schema_flags)
 static struct asyntaxinfo *
 attr_syntax_get_by_oid_locking_optional(const char *oid, PRBool use_lock, PRUint32 schema_flags)
 {
-    struct asyntaxinfo *asi = 0;
-    PLHashTable *ht = oid2asi;
-    int using_tmp_ht = 0;
+    struct asyntaxinfo *asi = NULL;
+    PLHashTable *ht = NULL;
+    PRBool using_tmp_ht = PR_FALSE;
+    PRBool using_td = PR_FALSE;
 
-    if (schema_flags & DSE_SCHEMA_LOCKED) {
-        ht = oid2asi_tmp;
-        using_tmp_ht = 1;
-        use_lock = 0;
+    slapi_td_get_attr_syntax_oid_table(&ht);
+    if (ht && schema_flags == 0) {
+        use_lock = PR_FALSE;
+        using_td = PR_TRUE;
+    } else {
+        ht = oid2asi;
+        if (schema_flags & DSE_SCHEMA_LOCKED) {
+            ht = oid2asi_tmp;
+            using_tmp_ht = PR_TRUE;
+            use_lock = PR_FALSE;
+        }
     }
+
     if (ht) {
         if (use_lock) {
             AS_LOCK_READ(oid2asi_lock);
         }
-        if (!using_tmp_ht) {
+        if (!using_tmp_ht && !using_td) {
             /*
              * The oid2asi pointer could have been rewritten by the schema_reload task
              * while waiting on the lock, so grab it again.
@@ -279,20 +353,30 @@ attr_syntax_get_by_name_with_default(const char *name)
 struct asyntaxinfo *
 attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUint32 schema_flags)
 {
-    struct asyntaxinfo *asi = 0;
-    PLHashTable *ht = name2asi;
-    int using_tmp_ht = 0;
+    struct asyntaxinfo *asi = NULL;
+    PLHashTable *ht = NULL;
+    PRBool using_tmp_ht = PR_FALSE;
+    PRBool using_td = PR_FALSE;
 
-    if (schema_flags & DSE_SCHEMA_LOCKED) {
-        ht = name2asi_tmp;
-        using_tmp_ht = 1;
-        use_lock = 0;
+
+    slapi_td_get_attr_syntax_name_table(&ht);
+    if (ht && schema_flags == 0) {
+        use_lock = PR_FALSE;
+        using_td = PR_TRUE;
+    } else {
+        ht = name2asi;
+        if (schema_flags & DSE_SCHEMA_LOCKED) {
+            ht = name2asi_tmp;
+            using_tmp_ht = PR_TRUE;
+            use_lock = PR_FALSE;
+        }
     }
+
     if (ht) {
         if (use_lock) {
             AS_LOCK_READ(name2asi_lock);
         }
-        if (!using_tmp_ht) {
+        if (!using_tmp_ht && !using_td) {
             /*
              * The name2asi pointer could have been rewritten by the schema_reload task
              * while waiting on the lock, so grab it again.
@@ -307,15 +391,19 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUi
             AS_UNLOCK_READ(name2asi_lock);
         }
     }
-    if (!asi) /* given name may be an OID */
+    if (!asi) { /* given name may be an OID */
         asi = attr_syntax_get_by_oid_locking_optional(name, use_lock, schema_flags);
+    }
 
     return asi;
 }
 
 /*
- * This assumes you have taken the attr_syntax read lock. Assert an attribute type
- * exists by name. 0 is false, 1 is true.
+ * Assert an attribute type exists by name. 0 is false, 1 is true.
+ *
+ * A worker thread looks in its private name table, so it does not take the
+ * global lock. Any other thread must hold attr_syntax_read_lock() (or
+ * attr_syntax_global_read_lock()); the lookup then uses the global table.
  *
  * The main reason to use this over attr_syntax_get_by_name_locking_optional is to
  * avoid the reference count increment/decrement cycle when we only need a boolean
@@ -326,6 +414,7 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUi
 int32_t
 attr_syntax_exist_by_name_nolock(char *name) {
     struct asyntaxinfo *asi = NULL;
+    PLHashTable *ht = NULL;
     char *check_name = NULL;
     char *p = NULL;
     int free_attr = 0;
@@ -341,7 +430,11 @@ attr_syntax_exist_by_name_nolock(char *name) {
         check_name = name;
     }
 
-    asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, check_name);
+    slapi_td_get_attr_syntax_name_table(&ht);
+    if (ht == NULL) {
+        ht = name2asi;
+    }
+    asi = (struct asyntaxinfo *)PL_HashTableLookup_const(ht, check_name);
 
     if (free_attr) {
         slapi_ch_free_string(&check_name);
@@ -369,10 +462,17 @@ attr_syntax_return(struct asyntaxinfo *asi)
 void
 attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
 {
-    int locked = 0;
+    PLHashTable *ht = NULL;
+    int read_locked = 0;
+
+    slapi_td_get_attr_syntax_name_table(&ht);
+    if (ht) {
+        use_lock = PR_FALSE;
+    }
+
     if (use_lock) {
         AS_LOCK_READ(name2asi_lock);
-        locked = 1;
+        read_locked = 1;
     }
     if (NULL != asi) {
         PRBool delete_it = PR_FALSE;
@@ -380,26 +480,28 @@ attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
             delete_it = asi->asi_marked_for_delete;
         }
 
-        if (delete_it) {
-            if (use_lock) {
-                AS_UNLOCK_READ(name2asi_lock);
-                AS_LOCK_WRITE(name2asi_lock);
-            }
+        if (delete_it && !asi->asi_ht_copy) {
             if (slapi_atomic_load_64(&asi->asi_refcnt, __ATOMIC_ACQUIRE) == 0 &&
                 asi->asi_marked_for_delete) /* one final check */
             {
+                if (use_lock) {
+                    AS_UNLOCK_READ(name2asi_lock);
+                    AS_LOCK_WRITE(name2asi_lock);
+                    read_locked = 0;
+                }
+
                 /* ref count is 0 and it's flagged for
                  * deletion, so it's safe to free now */
                 attr_syntax_remove(asi);
                 attr_syntax_free(asi);
-            }
-            if (use_lock) {
-                AS_UNLOCK_WRITE(name2asi_lock);
-                locked = 0;
+
+                if (use_lock) {
+                    AS_UNLOCK_WRITE(name2asi_lock);
+                }
             }
         }
     }
-    if (locked) {
+    if (read_locked) {
         AS_UNLOCK_READ(name2asi_lock);
     }
 }
@@ -581,7 +683,7 @@ slapi_attr_syntax_normalize_ext(char *s, int flags)
  *
  */
 int
-attr_syntax_exists(const char *attr_name)
+attr_syntax_exists(const char *attr_name, PRUint32 schema_flags)
 {
     struct asyntaxinfo *asi;
     char *check_attr_name = NULL;
@@ -599,7 +701,7 @@ attr_syntax_exists(const char *attr_name)
         check_attr_name = (char *)attr_name;
     }
 
-    asi = attr_syntax_get_by_name(check_attr_name, 0);
+    asi = attr_syntax_get_by_name(check_attr_name, schema_flags);
     attr_syntax_return(asi);
 
     if (free_attr) {
@@ -1394,7 +1496,6 @@ attr_syntax_force_to_delete(struct asyntaxinfo *asip, void *arg)
     return ATTR_SYNTAX_ENUM_REMOVE;
 }
 
-
 /*
  * Clear 'flag' within all attribute definitions.
  */
@@ -1568,10 +1669,68 @@ attr_syntax_destroy_tmp(void)
     }
 }
 
+static PRIntn
+attr_syntax_copy_insert(PLHashEntry *he, PRIntn i __attribute__((unused)), void *arg)
+{
+    struct hashTables *tables = (struct hashTables *)arg;
+    struct asyntaxinfo *a = (struct asyntaxinfo *)he->value;
+    struct asyntaxinfo *a_copy = NULL;
+
+    if (PL_HashTableLookup(tables->name, a->asi_name)) {
+        /* we have a duplicate, skip over it so we don't leak memory */
+        return HT_ENUMERATE_NEXT;
+    }
+
+    a_copy = attr_syntax_dup(a);
+    a_copy->asi_ht_copy = PR_TRUE;
+
+    /* Name table */
+    PL_HashTableAdd(tables->name, a_copy->asi_name, a_copy);
+    for (size_t ac = 0; a_copy->asi_aliases && a_copy->asi_aliases[ac] != NULL; ++ac) {
+        PL_HashTableAdd(tables->name, a_copy->asi_aliases[ac], a_copy);
+    }
+
+    /* OID table*/
+    PL_HashTableAdd(tables->oid, a_copy->asi_oid, a_copy);
+
+    /* Update the free list */
+    a_copy->asi_next = tables->as_free_list;
+    tables->as_free_list = a_copy;
+
+    return HT_ENUMERATE_NEXT;
+}
+
+uint64_t
+attr_syntax_copy_ht(PLHashTable **new_name2asi, PLHashTable **new_oid2asi, struct asyntaxinfo **free_list)
+{
+    struct hashTables tables = {0};
+    uint64_t version;
+
+    *new_name2asi = PL_NewHashTable(2047, hashNocaseString, hashNocaseCompare,
+                                    PL_CompareValues, NULL, 0);
+    *new_oid2asi = PL_NewHashTable(2047, hashNocaseString, hashNocaseCompare,
+                                   PL_CompareValues, NULL, 0);
+    tables.name = *new_name2asi;
+    tables.oid = *new_oid2asi;
+
+    /* copy ht contents */
+    AS_LOCK_READ(oid2asi_lock);
+    AS_LOCK_READ(name2asi_lock);
+
+    PL_HashTableEnumerateEntries(name2asi, attr_syntax_copy_insert, &tables);
+    *free_list = tables.as_free_list;
+    version = attr_syntax_get_version();
+
+    AS_UNLOCK_READ(oid2asi_lock);
+    AS_UNLOCK_READ(name2asi_lock);
+
+    return version;
+}
+
 int
 slapi_attr_syntax_exists(const char *attr_name)
 {
-    return attr_syntax_exists(attr_name);
+    return attr_syntax_exists(attr_name, 0);
 }
 
 /*
