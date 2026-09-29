@@ -151,6 +151,93 @@ def test_pwd_algo_test(topology_st, algo):
     log.info('Test %s PASSED' % algo)
 
 
+@pytest.mark.parametrize("incomplete_hash", ["{MD5}", "{GOST_YESCRYPT}$gy$j9T$"])
+def test_incomplete_hash_rejected(topology_st, incomplete_hash):
+    """Reject incomplete MD5 and GOST-YESCRYPT password hashes
+
+    :id: c876e901-9c03-471f-bf51-f24ce3a86c00
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Create a test user
+        2. Replace userPassword with an incomplete password hash
+        3. Attempt to bind with an arbitrary password
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Bind fails with ldap.INVALID_CREDENTIALS
+    """
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user = users.create_test_user()
+
+    try:
+        user.set('userPassword', incomplete_hash)
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            user.bind('ArbitraryPassword123')
+    finally:
+        user.delete()
+
+
+def _craft_smd5_short_hash(decoded_length=3):
+    """Return a {SMD5} hash whose decoded length is less than MD5_LENGTH (16)."""
+    payload = bytes(range(1, decoded_length + 1))
+    return '{SMD5}' + base64.b64encode(payload).decode()
+
+
+def test_smd5_reject_short_hash(topology_st):
+    """Reject {SMD5} stored hashes shorter than MD5_LENGTH without crashing
+
+    :id: 246e702d-9c63-4a28-b4f5-31596b1fc840
+    :setup: Standalone instance
+    :steps:
+        1. Enable nsslapd-allow-hashed-passwords
+        2. Create a test user
+        3. Set userPassword to a truncated {SMD5} hash (decoded length < 16)
+        4. Attempt bind as that user
+        5. Verify the server is still running
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Bind fails with ldap.INVALID_CREDENTIALS
+        5. Server remains up
+    """
+    inst = topology_st.standalone
+    orig_allow_hashed = inst.config.get_attr_val_utf8('nsslapd-allow-hashed-passwords') or 'off'
+    orig_upgrade_hash = inst.config.get_attr_val_utf8('nsslapd-enable-upgrade-hash') or 'off'
+
+    inst.config.set('nsslapd-allow-hashed-passwords', 'on')
+    inst.config.set('nsslapd-enable-upgrade-hash', 'off')
+
+    inst.restart()
+
+    user = None
+    try:
+        users = UserAccounts(inst, DEFAULT_SUFFIX)
+        user = users.create_test_user()
+        short_hash = _craft_smd5_short_hash(3)
+
+        log.info('Setting truncated SMD5 hash')
+        user.set('userPassword', short_hash)
+
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            user.bind('doesntmatter')
+
+        assert inst.status(), 'Server crashed comparing short SMD5 hash'
+    finally:
+        if user is not None:
+            try:
+                if user.exists():
+                    user.delete()
+            except ldap.LDAPError:
+                pass
+        try:
+            inst.config.set('nsslapd-allow-hashed-passwords', orig_allow_hashed)
+            inst.config.set('nsslapd-enable-upgrade-hash', orig_upgrade_hash)
+        except ldap.LDAPError:
+            pass
+
+
 @pytest.mark.ds397
 def test_pbkdf2_algo(topology_st):
     """Changing password storage scheme to PBKDF2_SHA256
