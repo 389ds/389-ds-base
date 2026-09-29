@@ -952,6 +952,7 @@ replica_config_change_type_and_id(Replica *r, const char *new_type, const char *
                 ruv_delete_replica(ruv, oldrid);
                 cl5CleanRUV(oldrid, r);
                 replica_set_csn_assigned(r);
+                object_release(gen_obj);
             }
             object_release(ruv_obj);
         }
