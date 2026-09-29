@@ -153,6 +153,33 @@ def test_pwd_algo_test(topology_st, algo):
     log.info('Test %s PASSED' % algo)
 
 
+@pytest.mark.parametrize("incomplete_hash", ["{MD5}", "{GOST_YESCRYPT}$gy$j9T$"])
+def test_incomplete_hash_rejected(topology_st, incomplete_hash):
+    """Reject incomplete MD5 and GOST-YESCRYPT password hashes
+
+    :id: c876e901-9c03-471f-bf51-f24ce3a86c00
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Create a test user
+        2. Replace userPassword with an incomplete password hash
+        3. Attempt to bind with an arbitrary password
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Bind fails with ldap.INVALID_CREDENTIALS
+    """
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user = users.create_test_user()
+
+    try:
+        user.set('userPassword', incomplete_hash)
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            user.bind('ArbitraryPassword123')
+    finally:
+        user.delete()
+
+
 def _craft_smd5_short_hash(decoded_length=3):
     """Return a {SMD5} hash whose decoded length is less than MD5_LENGTH (16)."""
     payload = bytes(range(1, decoded_length + 1))
