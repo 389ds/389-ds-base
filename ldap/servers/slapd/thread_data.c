@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2012 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,9 +15,16 @@
 /*
  * Thread Local Storage Indexes
  */
-static pthread_key_t td_requestor_dn; /* TD_REQUESTOR_DN */
-static pthread_key_t td_plugin_list;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
-static pthread_key_t td_op_state;
+static pthread_key_t td_requestor_dn = 0; /* TD_REQUESTOR_DN */
+static pthread_key_t td_plugin_list = 0;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
+static pthread_key_t td_op_state = 0;
+static pthread_key_t td_attr_syntax_oid_table = 0;
+static pthread_key_t td_attr_syntax_name_table = 0;
+/* Zero is a valid pthread_key_t, so the static initializers above are not
+ * a sentinel. Stay off pthread_getspecific until slapi_td_init() finishes.
+ * Tools such as dbscan look up attribute syntax without calling it, and
+ * key 0 belongs to whoever created a key first (often NSPR). */
+static bool td_ready = false;
 
 /*
  *   Destructor Functions
@@ -52,7 +59,46 @@ slapi_td_init(void)
         return PR_FAILURE;
     }
 
+    /* Attribute syntax tables */
+    if(pthread_key_create(&td_attr_syntax_oid_table, NULL) != 0){
+        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_attr_syntax_oid_table\n");
+        return PR_FAILURE;
+    }
+    if(pthread_key_create(&td_attr_syntax_name_table, NULL) != 0){
+        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_attr_syntax_name_table\n");
+        return PR_FAILURE;
+    }
+
+    td_ready = true;
     return PR_SUCCESS;
+}
+
+void
+slapi_td_destroy(void)
+{
+    void *priv;
+
+    if (!td_ready) {
+        return;
+    }
+    td_ready = false;
+
+    priv = pthread_getspecific(td_requestor_dn);
+    if (priv != NULL) {
+        td_dn_destructor(priv);
+        pthread_setspecific(td_requestor_dn, NULL);
+    }
+    priv = pthread_getspecific(td_op_state);
+    if (priv != NULL) {
+        td_op_state_destroy(priv);
+        pthread_setspecific(td_op_state, NULL);
+    }
+
+    pthread_key_delete(td_requestor_dn);
+    pthread_key_delete(td_plugin_list);
+    pthread_key_delete(td_op_state);
+    pthread_key_delete(td_attr_syntax_oid_table);
+    pthread_key_delete(td_attr_syntax_name_table);
 }
 
 
@@ -66,6 +112,53 @@ void
 slapi_set_thread_name(const char *name)
 {
     pthread_setname_np(pthread_self(), name);
+}
+
+/* attr syntax tables */
+int32_t
+slapi_td_set_attr_syntax_name_table(PLHashTable *ht)
+{
+    if (!td_ready) {
+        return PR_FAILURE;
+    }
+    if (pthread_setspecific(td_attr_syntax_name_table, ht) != 0) {
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+void
+slapi_td_get_attr_syntax_name_table(PLHashTable **ht)
+{
+    if (ht) {
+        *ht = NULL;
+        if (td_ready) {
+            *ht = pthread_getspecific(td_attr_syntax_name_table);
+        }
+    }
+}
+
+int32_t
+slapi_td_set_attr_syntax_oid_table(PLHashTable *ht)
+{
+    if (!td_ready) {
+        return PR_FAILURE;
+    }
+    if (pthread_setspecific(td_attr_syntax_oid_table, ht) != 0) {
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+void
+slapi_td_get_attr_syntax_oid_table(PLHashTable **ht)
+{
+    if (ht) {
+        *ht = NULL;
+        if (td_ready) {
+            *ht = pthread_getspecific(td_attr_syntax_oid_table);
+        }
+    }
 }
 
 /* plugin list locking */
