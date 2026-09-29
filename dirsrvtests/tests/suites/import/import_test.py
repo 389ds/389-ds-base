@@ -617,7 +617,12 @@ def test_entry_with_escaped_characters_fails_to_import_and_index(topo, _import_c
     topo.standalone.db2index(bename="userroot")
     topo.standalone.start()
     # Should not return error.
-    assert not topo.standalone.searchErrorsLog('error')
+    # On bdb database, ignore "Database error" from transient lock conflicts (DBI_RC_RETRY/-12795).
+    if get_default_db_lib() == "bdb":
+        error_lines = topo.standalone.ds_error_log.match('.*error.*') or []
+        assert not [line for line in error_lines if 'Database error -12795' not in line]
+    else:
+        assert not topo.standalone.searchErrorsLog('error')
     assert not topo.standalone.searchErrorsLog('foreman fifo error')
 
 
