@@ -42,6 +42,7 @@ static int is_ber_too_big(const Connection *conn, ber_len_t ber_len);
 static void log_ber_too_big_error(const Connection *conn,
                                   ber_len_t ber_len,
                                   ber_len_t maxbersize);
+static bool connection_has_active_list(const Connection *conn);
 
 static PRStack *op_stack;     /* stack of Slapi_Operation * objects so we don't have to malloc/free every time */
 static PRInt32 op_stack_size; /* size of op_stack */
@@ -199,7 +200,7 @@ connection_cleanup(Connection *conn)
 #ifdef ENABLE_EPOLL
     if (conn->c_idle_tfd != -1) {
         /* Close the idle timer. c_ct_list is -1 once the conn is off the active list. */
-        if (conn->c_ct != NULL && conn->c_ct_list >= 0) {
+        if (conn->c_ct != NULL && connection_has_active_list(conn)) {
             epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
         }
         timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
@@ -2183,7 +2184,7 @@ connection_threadmain(void *arg)
                 connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
 #ifdef ENABLE_EPOLL
                 /* Like Poll, the ct-list thread is the only connection reaper, kick it. */
-                if ((conn->c_flags & CONN_FLAG_CLOSING) && conn->c_ct_list >= 0) {
+                if ((conn->c_flags & CONN_FLAG_CLOSING) && connection_has_active_list(conn)) {
                     signal_listner(conn->c_ct_list);
                 }
 #endif
@@ -2260,7 +2261,7 @@ connection_threadmain(void *arg)
                      * Need to release the connection (refcnt--)
                      * before that call.
                      */
-                    if (need_wakeup && conn->c_ct_list >= 0) {
+                    if (need_wakeup && connection_has_active_list(conn)) {
                         signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
@@ -2681,6 +2682,14 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len, ber_len_t maxbe
     }
 }
 
+/*
+ * A non negative c_ct_list means the connection has been asigned an active list.
+ */
+static bool
+connection_has_active_list(const Connection *conn)
+{
+    return conn->c_ct_list >= 0;
+}
 
 void
 disconnect_server(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error)
@@ -2728,7 +2737,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
          */
         conn->c_flags |= CONN_FLAG_CLOSING;
 #ifdef ENABLE_EPOLL
-        if (conn->c_ct != NULL && conn->c_ct_list >= 0 &&
+        if (conn->c_ct != NULL && connection_has_active_list(conn) &&
             conn->c_ct_list < conn->c_ct->list_num) {
             int efd = conn->c_ct->epoll_fd[conn->c_ct_list];
             slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext",
