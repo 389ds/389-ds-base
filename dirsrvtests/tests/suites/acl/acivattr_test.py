@@ -192,6 +192,17 @@ def test_positive(topo, _add_user, aci_of_user, user, entry, aci):
     Domain(topo.standalone, DNBASE).set("aci", aci)
     time.sleep(.5)
 
+    # The fixture recreates CoS for every case. Check the virtual target
+    # attribute before testing the ACI that depends on it.
+    if aci in (COS_EQ_ACI, COS_PRES_ACI, COS_SUB_ACI):
+        target = UserAccount(topo.standalone, entry)
+        for _ in range(50):
+            if target.get_attr_val_utf8('employeeType') == 'EngType':
+                break
+            time.sleep(.1)
+        else:
+            pytest.fail('CoS employeeType was not available for the ACI test')
+
     # create connection
     conn = UserAccount(topo.standalone, user).bind(PW_DM)
     # according to the aci , user will  be able to change description
