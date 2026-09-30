@@ -6521,6 +6521,9 @@ modify_schema_free_new_definitions(struct schema_mods_indexes *def_list)
             slapi_ch_free((void **)&def->new_value);
         }
 
+        /* Free the local definition built by schema_oc_to_string() */
+        slapi_ch_free_string(&def->old_value);
+
         /* Then the definition cell */
         slapi_ch_free((void **)&def);
     }
