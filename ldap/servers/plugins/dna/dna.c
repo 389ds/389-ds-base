@@ -4479,6 +4479,7 @@ dna_extend_exop_backend(Slapi_PBlock *pb, Slapi_Backend **target)
     /* Parse the oid and what exop wants us to do */
     res = dna_parse_exop_ber(pb, &shared_dn);
     if (res != LDAP_SUCCESS) {
+        slapi_ch_free_string(&shared_dn);
         return res;
     }
     if (shared_dn) {
@@ -4486,6 +4487,7 @@ dna_extend_exop_backend(Slapi_PBlock *pb, Slapi_Backend **target)
         *target = slapi_be_select(shared_sdn);
         slapi_sdn_free(&shared_sdn);
     }
+    slapi_ch_free_string(&shared_dn);
     res = LDAP_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,

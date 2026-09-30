@@ -225,7 +225,7 @@ def test_bad_replication_agreement(topo_m4):
     # Create the bad replication agreement and try to add it
     # Its a agreement as Missing replica host and port information makes for a bad agreement.
     properties = {
-        "basedn": "cn=Ze_bad_agreeemnt,cn=replica,cn=dc\=example\,dc\=com,cn=mapping tree,cn=config",
+        "basedn": r"cn=Ze_bad_agreeemnt,cn=replica,cn=dc\=example\,dc\=com,cn=mapping tree,cn=config",
         "objectclass": ["top", "nsds5replicationagreement"],
         "cn": "Ze_bad_agreement",
         "nsds5replicabinddn": "{},{}".format("cn=replication manager", "o=fr"),

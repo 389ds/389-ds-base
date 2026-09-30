@@ -50,6 +50,29 @@ import { EffectivePwpModal } from './effectivePwpModal.jsx';
 
 const _ = cockpit.gettext;
 
+const SEARCH_COLUMNS = [
+    {
+        title: _("Entry DN"),
+        cellFormatters: [expandable]
+    },
+    {
+        title: _("Child Entries")
+    },
+    {
+        title: _("Last Modified")
+    }
+];
+
+const REPORT_COLUMNS = [
+    {
+        title: _("Entry DN"),
+        cellFormatters: [expandable]
+    },
+    {
+        title: _("Status")
+    }
+];
+
 export class SearchDatabase extends React.Component {
     constructor (props) {
         super(props);
@@ -84,19 +107,12 @@ export class SearchDatabase extends React.Component {
             isCustomAttrOpen: false,
             isConfirmModalOpen: false,
             checkIfLocked: false,
+            // Account reports
+            reportType: "locked",
+            expiringDays: 7,
+            tableMode: this.props.view === "reports" ? "report" : "search",
             // Table
-            columns: [
-                {
-                    title: _("Entry DN"),
-                    cellFormatters: [expandable]
-                },
-                {
-                    title: _("Child Entries")
-                },
-                {
-                    title: _("Last Modified")
-                }
-            ],
+            columns: this.props.view === "reports" ? REPORT_COLUMNS : SEARCH_COLUMNS,
             rows: [],
             page: 0,
             perPage: 10,
@@ -229,6 +245,8 @@ export class SearchDatabase extends React.Component {
                 rows: [],
                 isExpanded: false,
                 searching: true,
+                tableMode: "search",
+                columns: SEARCH_COLUMNS,
             }, () => {
                 const params = {
                     serverId: this.props.serverId,
@@ -240,6 +258,200 @@ export class SearchDatabase extends React.Component {
                     addNotification: this.props.addNotification,
                 };
                 getSearchEntries(params, this.processResults);
+            });
+        };
+
+        this.handleReportTypeChange = (event, value) => {
+            const reportType = typeof value === "string" ? value : event.target.value;
+            this.setState({ reportType });
+        };
+
+        this.getReportHelpText = () => {
+            switch (this.state.reportType) {
+            case "locked":
+                return _("Accounts locked directly (nsAccountLock), through a role, or by inactivity.");
+            case "expired-password":
+                return _("Accounts whose password has already expired.");
+            case "expiring-password":
+                return _("Accounts whose password will expire within the selected number of days.");
+            case "inactive":
+                return _("Accounts that exceeded the inactivity limit. Requires the Account Policy Plugin to be enabled.");
+            case "must-reset-password":
+                return _("Accounts that must reset their password at next login.");
+            case "never-logged-in":
+                return _("Accounts that have never logged in, or have no password. Requires the Account Policy Plugin to be enabled.");
+            default:
+                return "";
+            }
+        };
+
+        this.getReportGroups = (reportType, data) => {
+            if (reportType === "locked") {
+                return [
+                    {
+                        status: _("Directly locked"),
+                        entryState: "directly locked through nsAccountLock",
+                        accounts: data.directly_locked ? data.directly_locked.accounts : []
+                    },
+                    {
+                        status: _("Indirectly locked"),
+                        entryState: "indirectly locked through a Role",
+                        accounts: data.indirectly_locked ? data.indirectly_locked.accounts : []
+                    },
+                    {
+                        status: _("Inactivity locked"),
+                        entryState: "inactivity limit exceeded",
+                        accounts: data.inactivity_locked ? data.inactivity_locked.accounts : []
+                    }
+                ];
+            }
+            if (reportType === "expired-password") {
+                return [{
+                    status: _("Expired password"),
+                    entryState: "",
+                    accounts: data.expired_password ? data.expired_password.accounts : []
+                }];
+            }
+            if (reportType === "expiring-password") {
+                return [{
+                    status: _("Expiring password"),
+                    entryState: "",
+                    accounts: data.expiring_password ? data.expiring_password.accounts : []
+                }];
+            }
+            if (reportType === "inactive") {
+                return [{
+                    status: _("Inactive"),
+                    entryState: "inactivity limit exceeded",
+                    accounts: data.inactive_accounts ? data.inactive_accounts.accounts : []
+                }];
+            }
+            if (reportType === "must-reset-password") {
+                return [{
+                    status: _("Must reset password"),
+                    entryState: "",
+                    accounts: data.must_reset_password ? data.must_reset_password.accounts : []
+                }];
+            }
+            if (reportType === "never-logged-in") {
+                return [
+                    {
+                        status: _("Never logged in"),
+                        entryState: "",
+                        accounts: data.never_logged_in ? data.never_logged_in.accounts : []
+                    },
+                    {
+                        status: _("No password"),
+                        entryState: "",
+                        accounts: data.no_password ? data.no_password.accounts : []
+                    }
+                ];
+            }
+            return [];
+        };
+
+        this.handleGenerateReport = () => {
+            const reportBase = this.state.baseDN || this.state.searchSuffix;
+            if (!reportBase || this.state.searching) {
+                return;
+            }
+            this.setState({
+                rows: [],
+                isExpanded: false,
+                searching: true,
+                tableMode: "report",
+                columns: REPORT_COLUMNS,
+            }, () => {
+                const cmd = [
+                    "dsidm", "-j",
+                    "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                    "-b", reportBase,
+                    "account", "list"
+                ];
+                if (this.state.reportType === "expiring-password") {
+                    cmd.push("--expiring-password", String(this.state.expiringDays));
+                } else {
+                    cmd.push("--" + this.state.reportType);
+                }
+                log_cmd("handleGenerateReport", "Run dsidm account list report", cmd);
+                cockpit
+                        .spawn(cmd, { superuser: "require", err: "message" })
+                        .done(content => {
+                            this.processReportResults(content);
+                        })
+                        .fail(err => {
+                            this.props.addNotification(
+                                "error",
+                                cockpit.format(_("Failed to generate account report: $0"), getApiErrorMessage(err))
+                            );
+                            this.setState({
+                                searching: false,
+                                rows: [],
+                                pagedRows: [],
+                                total: 0,
+                                page: 1
+                            });
+                        });
+            });
+        };
+
+        this.processReportResults = (content) => {
+            let data = {};
+            try {
+                const jsonStart = content.indexOf("{");
+                data = JSON.parse(jsonStart >= 0 ? content.substring(jsonStart) : content);
+            } catch (e) {
+                this.props.addNotification(
+                    "error",
+                    _("Failed to parse the account list report")
+                );
+                this.setState({
+                    searching: false,
+                    rows: [],
+                    pagedRows: [],
+                    total: 0,
+                    page: 1
+                });
+                return;
+            }
+
+            const groups = this.getReportGroups(this.state.reportType, data);
+            const resultRows = [];
+            let rowNumber = 0;
+            groups.forEach(group => {
+                const accounts = group.accounts || [];
+                accounts.forEach(dn => {
+                    resultRows.push(
+                        {
+                            isOpen: false,
+                            cells: [
+                                { title: dn },
+                                group.status
+                            ],
+                            rawdn: dn,
+                            isLockable: this.state.reportType === "locked" || this.state.reportType === "inactive",
+                            isRole: false,
+                            entryState: group.entryState,
+                            isUser: true,
+                            userPwpLookup: null,
+                        },
+                        {
+                            parent: rowNumber,
+                            cells: [
+                                { title: this.initialResultText }
+                            ]
+                        }
+                    );
+                    rowNumber += 2;
+                });
+            });
+
+            this.setState({
+                searching: false,
+                rows: resultRows,
+                pagedRows: resultRows.slice(0, 2 * this.state.perPage),
+                total: resultRows.length / 2,
+                page: 1
             });
         };
 
@@ -299,17 +511,20 @@ export class SearchDatabase extends React.Component {
 
     componentDidMount() {
         const suffixList = this.props.suffixList;
-        const searchBase = this.props.searchBase;
-        let baseDN = searchBase; // Drop down list of selected suffix
+        const searchBase = this.props.searchBase || "";
+        let baseDN = "";
         for (const suffix of suffixList) {
-            if (baseDN.includes(suffix)) {
+            if ((searchBase === suffix || searchBase.endsWith("," + suffix))
+                    && suffix.length > baseDN.length) {
                 baseDN = suffix;
-                break;
             }
         }
+        if (!baseDN && suffixList.length > 0) {
+            baseDN = suffixList[0];
+        }
         this.setState({
-            searchBase: searchBase || (suffixList.length > 0 ? suffixList[0] : ""),
-            searchSuffix: this.props.suffixList.length > 0 ? this.props.suffixList[0] : "",
+            searchBase: searchBase || baseDN,
+            searchSuffix: baseDN,
             baseDN
         });
     }
@@ -538,12 +753,12 @@ export class SearchDatabase extends React.Component {
         });
     }
 
-    handleSuffixChange (e) {
-        const value = e.target.value;
+    handleSuffixChange (e, value) {
+        const suffix = (typeof value === "string" && value !== "") ? value : e.target.value;
         this.setState({
-            searchSuffix: value,
-            searchBase: value,
-            baseDN: value,
+            searchSuffix: suffix,
+            searchBase: suffix,
+            baseDN: suffix,
         });
     }
 
@@ -593,7 +808,11 @@ export class SearchDatabase extends React.Component {
                         entryMenuIsOpen: !this.state.entryMenuIsOpen,
                         refreshEntryTime: Date.now()
                     }, () => {
-                        this.handleSearch();
+                        if (this.state.tableMode === "report") {
+                            this.handleGenerateReport();
+                        } else {
+                            this.handleSearch();
+                        }
                         this.handleConfirmModalToggle();
                     });
                 })
@@ -612,7 +831,11 @@ export class SearchDatabase extends React.Component {
                         entryMenuIsOpen: !this.state.entryMenuIsOpen,
                         refreshEntryTime: Date.now()
                     }, () => {
-                        this.handleSearch();
+                        if (this.state.tableMode === "report") {
+                            this.handleGenerateReport();
+                        } else {
+                            this.handleSearch();
+                        }
                         this.handleConfirmModalToggle();
                     });
                 });
@@ -776,7 +999,9 @@ export class SearchDatabase extends React.Component {
 
         if (pagedRows.length === 0) {
             columns = [' '];
-            pagedRows = [{ cells: [_("No Search Results")] }];
+            pagedRows = [{
+                cells: [this.state.tableMode === "report" ? _("No matching accounts") : _("No Search Results")]
+            }];
         }
 
         const treeItemsProps = wizardName === 'acis'
@@ -794,7 +1019,7 @@ export class SearchDatabase extends React.Component {
                         editorLdapServer={this.props.serverId}
                         {...treeItemsProps}
                         setWizardOperationInfo={this.setWizardOperationInfo}
-                        onReload={this.handleSearch}
+                        onReload={this.state.tableMode === "report" ? this.handleGenerateReport : this.handleSearch}
                         allObjectclasses={this.props.allObjectclasses}
                     />
                 )}
@@ -807,6 +1032,7 @@ export class SearchDatabase extends React.Component {
                     userType={this.state.pwpModalUserType}
                     selector={this.state.pwpModalSelector}
                 />
+                {this.props.view !== "reports" &&
                 <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                     <Grid className="ds-margin-left">
                         <div className="ds-container">
@@ -821,7 +1047,7 @@ export class SearchDatabase extends React.Component {
                                         id="searchSuffix"
                                         value={baseDN}
                                         onChange={(event, value) => {
-                                            this.handleSuffixChange(event);
+                                            this.handleSuffixChange(event, value);
                                         }}
                                         aria-label="FormSelect Input"
                                         className="ds-instance-select ds-raise-field"
@@ -1128,12 +1354,109 @@ export class SearchDatabase extends React.Component {
                             </div>
                         </div>
                     </ExpandableSection>
-                </Form>
+                </Form>}
+                {this.props.view === "reports" &&
+                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                            <Grid className="ds-margin-left">
+                                <GridItem span={2}>
+                                    <b>{_("Suffix")}</b>
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <FormSelect
+                                        id="reportSuffix"
+                                        value={baseDN}
+                                        onChange={(event, value) => {
+                                            this.handleSuffixChange(event, value);
+                                        }}
+                                        aria-label={_("Suffix")}
+                                        className="ds-instance-select ds-raise-field"
+                                        isDisabled={suffixList.length === 0}
+                                        title={_("Suffix used as the base for dsidm account list.")}
+                                    >
+                                        {suffixList.map((suffix) => (
+                                            <FormSelectOption key={suffix} value={suffix} label={suffix} />
+                                        ))}
+                                        {suffixList.length === 0 &&
+                                            <FormSelectOption isDisabled key="No database" value="" label={_("No databases")} />}
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                className="ds-margin-left ds-margin-top"
+                                title={_("Select which dsidm account list report to generate.")}
+                            >
+                                <GridItem span={2}>
+                                    <b>{_("Report Type")}</b>
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <FormSelect
+                                        id="reportType"
+                                        value={this.state.reportType}
+                                        onChange={this.handleReportTypeChange}
+                                        aria-label={_("Report type")}
+                                    >
+                                        <FormSelectOption value="locked" label={_("Locked accounts")} />
+                                        <FormSelectOption value="expired-password" label={_("Expired passwords")} />
+                                        <FormSelectOption value="expiring-password" label={_("Expiring passwords")} />
+                                        <FormSelectOption value="inactive" label={_("Inactive accounts")} />
+                                        <FormSelectOption value="must-reset-password" label={_("Must reset password")} />
+                                        <FormSelectOption value="never-logged-in" label={_("Never logged in")} />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            {this.state.reportType === "expiring-password" &&
+                                <Grid
+                                    className="ds-margin-left ds-margin-top"
+                                    title={_("List accounts whose password expires within this many days.")}
+                                >
+                                    <GridItem span={2}>
+                                        <b>{_("Expires Within (days)")}</b>
+                                    </GridItem>
+                                    <GridItem span={10}>
+                                        <NumberInput
+                                            value={this.state.expiringDays}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinus("expiringDays") }}
+                                            onChange={(e) => { this.onNumberChange(e, "expiringDays", 1) }}
+                                            onPlus={() => { this.onPlus("expiringDays") }}
+                                            inputName="expiringDays"
+                                            inputAriaLabel={_("Days until password expiration")}
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>}
+                            <Grid className="ds-margin-left">
+                                <GridItem span={10} offset={2}>
+                                    <FormHelperText>
+                                        {this.getReportHelpText()}
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-left ds-margin-top">
+                                <GridItem span={4}>
+                                    <Button
+                                        variant="primary"
+                                        onClick={this.handleGenerateReport}
+                                        isLoading={this.state.searching}
+                                        isDisabled={!this.state.baseDN || this.state.searching || (this.state.reportType === "expiring-password" && this.state.expiringDays < 1)}
+                                        spinnerAriaValueText={this.state.searching ? _("Generating") : undefined}
+                                        title={_("Run dsidm account list for the selected report type.")}
+                                    >
+                                        {this.state.searching ? _("Generating ...") : _("Generate Report")}
+                                    </Button>
+                                </GridItem>
+                            </Grid>
+                        </Form>}
                 <div className="ds-indent">
                     <div className={this.state.searching ? "ds-margin-top-lg ds-center" : "ds-hidden"}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                {_("Searching")} <i>{this.state.searchBase}</i> ...
+                                {this.state.tableMode === "report"
+                                    ? _("Generating account report ...")
+                                    : <>{_("Searching")} <i>{this.state.searchBase}</i> ...</>}
                             </Text>
                         </TextContent>
                         <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1213,9 +1536,22 @@ export class SearchDatabase extends React.Component {
 SearchDatabase.propTypes = {
     attributes: PropTypes.array,
     searchBase: PropTypes.string,
+    serverId: PropTypes.string,
+    suffixList: PropTypes.array,
+    allObjectclasses: PropTypes.array,
+    addNotification: PropTypes.func,
+    view: PropTypes.string,
 };
 
 SearchDatabase.defaultProps = {
     attributes: [],
     searchBase: "",
+    serverId: "",
+    suffixList: [],
+    allObjectclasses: [],
+    view: "search",
 };
+
+export const AccountReports = (props) => (
+    <SearchDatabase {...props} view="reports" />
+);

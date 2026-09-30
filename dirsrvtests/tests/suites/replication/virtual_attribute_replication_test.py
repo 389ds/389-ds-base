@@ -142,7 +142,7 @@ def test_vattr_on_filtered_role_with_replication(topo, request):
     assert c.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
     c.stop()
-    assert c.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert c.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     def fin():
         s.restart()
@@ -200,7 +200,7 @@ def test_vattr_on_managed_role_replication(topo, request):
     assert c.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
     c.stop()
-    assert c.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert c.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     def fin():
         s.restart()

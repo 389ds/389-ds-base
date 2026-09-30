@@ -2383,6 +2383,10 @@ int dbmdb_cursor_get_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
         }
         memcpy(dbmdb_data->mv_data, &rce->recno, dbmdb_data->mv_size);
     }
+    if (newcur) {
+        MDB_CURSOR_CLOSE(newcur);
+    }
+    slapi_ch_free(&cache_key.mv_data);
     slapi_ch_free((void**)&rce);
     return rc;
 }
@@ -2423,6 +2427,7 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
         DBG_LOG(DBGMDB_LEVEL_VLV, "FAILURE: rc=%d dbmdb_data->mv_size=%d rce->data.mv_size=%d", rc, dbmdb_data->mv_size, rce->data.mv_size);
     }
 
+    slapi_ch_free(&cache_key.mv_data);
     slapi_ch_free((void**)&rce);
     return rc;
 }

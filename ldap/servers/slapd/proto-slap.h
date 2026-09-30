@@ -89,7 +89,9 @@ void attr_syntax_read_lock(void);
 void attr_syntax_write_lock(void);
 void attr_syntax_unlock_read(void);
 void attr_syntax_unlock_write(void);
-int attr_syntax_exists(const char *attr_name);
+void attr_syntax_global_read_lock(void);
+void attr_syntax_global_unlock_read(void);
+int attr_syntax_exists(const char *attr_name, PRUint32 schema_flags);
 int32_t attr_syntax_exist_by_name_nolock(char *name);
 void attr_syntax_delete(struct asyntaxinfo *asip, PRUint32 schema_flags);
 #define SLAPI_SYNTAXLENGTH_NONE (-1) /* for syntaxlength parameter */
@@ -110,6 +112,11 @@ struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo
 void attr_syntax_swap_ht(void);
 int attr_syntax_init_tmp(void);
 void attr_syntax_destroy_tmp(void);
+uint64_t attr_syntax_copy_ht(PLHashTable **new_name2asi, PLHashTable **new_oid2asi, struct asyntaxinfo **free_list);
+int attr_syntax_free_ht(PLHashTable *ht);
+uint64_t attr_syntax_get_version(void);
+void attr_syntax_bump_version(void);
+
 /*
  * Call attr_syntax_return(void) when you are done using a value returned
  * by attr_syntax_get_by_oid(void) or attr_syntax_get_by_name(void).
@@ -952,7 +959,10 @@ void replace_char(char *name, char c, char c2);
 char *split_string_at_delim(char *str, char delim);
 char *tokenize_string(char **str, const char *delim);
 void slapd_cert_not_found_error_help(char *cert_name);
-
+uint64_t init_td_attr_syntax_ht(PLHashTable **name2asi_ht, PLHashTable **oid2asi_ht, struct asyntaxinfo **free_list);
+uint64_t update_td_attr_syntax_ht(uint64_t attr_syntax_version, PLHashTable **name2asi_ht,
+                                  PLHashTable **oid2asi_ht, struct asyntaxinfo **free_list);
+void cleanup_td_attr_syntax_ht(PLHashTable *name2asi_ht, PLHashTable *oid2asi_ht, struct asyntaxinfo *free_list);
 
 /*
  * modify.c
@@ -1687,5 +1697,9 @@ int subentries_parse_request_control(struct berval *subentries_spec_ber);
  */
 Slapi_Backend *dyncert_init_be(void);
 void dyncerts_register_socket(int sock, PRFileDesc *pr_sock);
+void dyncerts_invalidate_cache(void);
+void dyncert_prepare_certs_refresh(void);
+void dyncerts_register_server_cert(PRFileDesc *fd, CERTCertificate *cert);
+void dyncert_finalize_certs_refresh(void);
 
 #endif /* _PROTO_SLAP */

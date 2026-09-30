@@ -63,8 +63,14 @@ def remove_ds_instance(dirsrv, force=False):
     remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
     remove_paths['etc_sysconfig'] = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
     remove_paths['ldapi'] = dirsrv.ds_paths.ldapi
+    remove_paths['monitor_dir'] = "%s/slapd-%s.monitor" % (dirsrv.ds_paths.run_dir, dirsrv.serverid)
 
-    tmpfiles_d_path = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
+    tmpfiles_d_paths = []
+    for tmpfiles_d in (dirsrv.ds_paths.runtime_tmpfiles_d, dirsrv.ds_paths.tmpfiles_d):
+        if tmpfiles_d:
+            tmpfile_path = f"{tmpfiles_d}/dirsrv-{dirsrv.serverid}.conf"
+            if tmpfile_path not in tmpfiles_d_paths:
+                tmpfiles_d_paths.append(tmpfile_path)
 
     # These are handled in a special way.
     dse_ldif_path = os.path.join(dirsrv.ds_paths.config_dir, 'dse.ldif')
@@ -99,7 +105,7 @@ def remove_ds_instance(dirsrv, force=False):
     # Remove parent (/var/lib/dirsrv/slapd-INST)
     shutil.rmtree(remove_paths['db_dir'].replace('db', ''), ignore_errors=True)
 
-    # Remove /run/slapd-isntance
+    # Remove /run/slapd-instance
     try:
         os.remove(f'/run/slapd-{dirsrv.serverid}.socket')
     except OSError as e:
@@ -117,11 +123,12 @@ def remove_ds_instance(dirsrv, force=False):
         stderr = ensure_str(result.stderr)
         _log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
 
-        _log.debug("Removing %s" % tmpfiles_d_path)
-        try:
-            os.remove(tmpfiles_d_path)
-        except OSError as e:
-            _log.debug("Failed to remove tmpfile: " + str(e))
+        for tmpfiles_d_path in tmpfiles_d_paths:
+            _log.debug(f"Removing {tmpfiles_d_path}")
+            try:
+                os.remove(tmpfiles_d_path)
+            except OSError as e:
+                _log.debug(f"Failed to remove tmpfile: {e}")
 
     # Nor can we assume we have SELinux.
     if dirsrv.ds_paths.with_selinux:

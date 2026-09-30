@@ -57,7 +57,8 @@ def test_basic(topology_st, simple_allocate):
              inst.get_changelog_dir(),
              inst.ds_paths.ldif_dir,
              inst.ds_paths.lock_dir,
-             inst.ds_paths.log_dir]
+             inst.ds_paths.log_dir,
+             os.path.join(inst.ds_paths.run_dir, f"slapd-{inst.serverid}.monitor")]
     for path in paths:
         assert not os.path.exists(path)
 

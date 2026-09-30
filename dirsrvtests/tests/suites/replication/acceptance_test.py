@@ -846,7 +846,7 @@ def test_urp_trigger_substring_search(topo_m2):
 
     # check that M2 access logs does not "(&(objectclass=nstombstone)(nscpentrydn=uid=asterisk_*_in_value,dc=example,dc=com))"
     log.info('Check that on M2, URP as not triggered such internal search')
-    pattern = ".*\(Internal\).*SRCH.*\(&\(objectclass=nstombstone\)\(nscpentrydn=uid=asterisk_\*_in_value,dc=example,dc=com.*"
+    pattern = r".*\(Internal\).*SRCH.*\(&\(objectclass=nstombstone\)\(nscpentrydn=uid=asterisk_\*_in_value,dc=example,dc=com.*"
     found = m2.ds_access_log.match(pattern)
     log.info("found line: %s" % found)
     assert not found

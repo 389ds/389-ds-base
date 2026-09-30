@@ -161,7 +161,7 @@ def test_monitor_backend(topo):
 
 
 def test_num_subordinates_with_monitor_suffix(topo):
-    """This test is to compare the numSubordinates value on the root entry with the actual number of direct subordinate(s).
+    r"""This test is to compare the numSubordinates value on the root entry with the actual number of direct subordinate(s).
 
     :id: fdcfe0ac-33c3-4252-bf38-79819ec58a51
     :setup: Single instance

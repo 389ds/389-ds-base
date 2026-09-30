@@ -11,6 +11,7 @@ import logging
 import pytest
 import os
 from lib389._constants import *
+from lib389.backend import Backends
 from test389.topologies import topology_st as topo
 from lib389.mappingTree import MappingTrees
 
@@ -57,6 +58,34 @@ def test_invalid_mt(topo):
     }
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         mts.create(properties=properties)
+
+
+def test_backend_state_toggle(topo):
+    """Backend state helpers update the mapping tree state attribute.
+
+    :id: 0e0f8c2d-0dbd-4dc3-8f7b-8fa0e5a4a5f7
+    :setup: Standalone instance
+    :steps:
+        1. Disable the default userRoot backend through its lib389 helper.
+        2. Read the mapping tree entry and verify its state is disabled.
+        3. Enable the backend through its lib389 helper.
+        4. Read the mapping tree entry and verify its state is backend.
+    :expectedresults:
+        1. The helper succeeds.
+        2. The mapping tree reports the disabled state.
+        3. The helper succeeds.
+        4. The mapping tree reports the backend state.
+    """
+    backend = Backends(topo.standalone).get(DEFAULT_BENAME)
+    backend.disable()
+    try:
+        mapping_tree = backend.get_mapping_tree()
+        assert mapping_tree.get_attr_val_utf8('nsslapd-state') == 'disabled'
+    finally:
+        backend.enable()
+
+    mapping_tree = backend.get_mapping_tree()
+    assert mapping_tree.get_attr_val_utf8('nsslapd-state') == 'backend'
 
 
 if __name__ == '__main__':
