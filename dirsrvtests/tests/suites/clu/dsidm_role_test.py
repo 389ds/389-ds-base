@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import argparse
 import pytest
 import json
 import logging
@@ -15,7 +16,8 @@ from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.role import (
     list, get, get_dn,
     create_managed, create_filtered, create_nested,
-    delete, modify, rename, entry_status, subtree_status, lock, unlock
+    delete, modify, rename, entry_status, subtree_status, lock, unlock,
+    create_parser
     )
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
@@ -188,6 +190,62 @@ def test_dsidm_role_create_filtered(topology_st):
 
     log.info('Clean up for next test')
     new_filtered_role.delete()
+
+
+@pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
+def test_dsidm_role_create_filtered_nsrolefilter_arg(topology_st):
+    """ Test that dsidm role create-filtered accepts --nsrolefilter on the command line
+
+    :id: 2f3d9c8a-6b1e-4c0a-9d5f-7a2b6e4c1d80
+    :setup: Standalone instance
+    :steps:
+        1. Build the dsidm 'role' argument parser
+        2. Parse "create-filtered --cn <name> --nsrolefilter <filter>"
+        3. Check the parser accepts --nsrolefilter and stores its value
+        4. Create the filtered role with the parsed arguments
+        5. Check the created role has the expected nsRoleFilter value
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    standalone = topology_st.standalone
+    role_name = 'test_filtered_role_arg'
+    role_filter = '(objectClass=nsPerson)'
+
+    # Exercise the real 'role' parser so the create-filtered argument
+    # registration is covered. The handler-only tests build FakeArgs and never
+    # go through create_parser(), which is why this bug went unnoticed.
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    create_parser(subparsers)
+
+    log.info('Test that create-filtered accepts --nsrolefilter on the command line')
+    # Before the fix, --nsrolefilter was not registered for create-filtered and
+    # argparse rejected it with SystemExit ("unrecognized arguments").
+    args = parser.parse_args(
+        ['role', 'create-filtered', '--cn', role_name, '--nsrolefilter', role_filter])
+    assert args.nsrolefilter == role_filter
+
+    filtered_roles = FilteredRoles(standalone, DEFAULT_SUFFIX)
+    if filtered_roles.exists(role_name):
+        filtered_roles.get(role_name).delete()
+
+    try:
+        log.info('Create the filtered role from the parsed arguments')
+        create_filtered(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+
+        log.info('Check the filtered role exists and carries the given nsRoleFilter')
+        new_filtered_role = filtered_roles.get(role_name)
+        assert new_filtered_role.exists()
+        assert new_filtered_role.present('nsRoleFilter', role_filter)
+    finally:
+        log.info('Clean up for next test')
+        if filtered_roles.exists(role_name):
+            filtered_roles.get(role_name).delete()
 
 
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
