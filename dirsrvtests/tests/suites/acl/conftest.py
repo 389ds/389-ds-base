@@ -11,6 +11,8 @@ This is the config file for keywords test scripts.
 
 """
 
+import socket
+
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
@@ -18,6 +20,47 @@ from lib389.idm.user import  UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits
 from lib389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
+
+
+@pytest.fixture(scope="module", autouse=True)
+def configure_ipv4_mapped_hosts(request, topo):
+    """Register the IPv4-mapped IPv6 address in /etc/hosts and remove it on teardown.
+
+    When DS binds on :: (dual-stack), IPv4 clients appear as ::ffff:x.x.x.x
+    at the socket layer. NSPR's PR_GetHostByAddr calls gethostbyaddr_r with
+    AF_INET6, and glibc-2.34 (RHEL 9.x) does not auto-unmap IPv4-mapped
+    addresses, so the plain IPv4 entry in /etc/hosts is not found and the
+    DNS keyword ACI evaluation fails with INSUFFICIENT_ACCESS.
+    Adding the ::ffff:<ip> form ensures the reverse lookup succeeds.
+    """
+    host = topo.standalone.host
+    ip = socket.gethostbyname(host)
+    mapped = f"::ffff:{ip}"
+
+    with open("/etc/hosts") as f:
+        already_present = any(
+            line.split()[0] == mapped and host in line.split()
+            for line in f
+            if line.split() and not line.startswith('#')
+        )
+
+    if already_present:
+        yield
+        return
+
+    entry = f"{mapped}   {host}\n"
+    with open("/etc/hosts", "a") as f:
+        f.write(entry)
+
+    def remove_entry():
+        with open("/etc/hosts") as f:
+            lines = f.readlines()
+        with open("/etc/hosts", "w") as f:
+            f.writelines(line for line in lines if line != entry)
+
+    request.addfinalizer(remove_entry)
+
+    yield
 
 
 @pytest.fixture(scope="function")
