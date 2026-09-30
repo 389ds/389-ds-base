@@ -30,7 +30,7 @@ def open_firewall(inst, log, args):
 
     OPEN_CMD = ['sudo', 'firewall-cmd', '--add-service=cockpit', '--permanent']
     if args.zone is not None:
-        OPEN_CMD.append(f' --zone={args.zone}')
+        OPEN_CMD.append(f'--zone={args.zone}')
     try:
         subprocess.run(OPEN_CMD)
     except subprocess.CalledProcessError as e:
