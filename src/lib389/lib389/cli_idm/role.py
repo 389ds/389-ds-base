@@ -168,7 +168,7 @@ def create_parser(subparsers):
 
     create_filtered_parser = subcommands.add_parser('create-filtered', help='create', formatter_class=CustomHelpFormatter)
     create_filtered_parser.set_defaults(func=create_filtered)
-    populate_attr_arguments(create_filtered_parser, MUST_ATTRIBUTES)
+    populate_attr_arguments(create_filtered_parser, MUST_ATTRIBUTES_FILTERED)
 
     create_nested_parser = subcommands.add_parser('create-nested', help='create', formatter_class=CustomHelpFormatter)
     create_nested_parser.set_defaults(func=create_nested)
