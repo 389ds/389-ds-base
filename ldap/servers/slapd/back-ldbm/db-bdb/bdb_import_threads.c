@@ -1106,16 +1106,10 @@ bdb_index_producer(void *param)
         slapi_ch_free(&(data.data));
 
         if (NULL == e) {
-            if (job->task) {
-                slapi_task_log_notice(job->task,
-                                      "%s: WARNING: skipping badly formatted entry (id %lu)",
-                                      inst->inst_name, (u_long)temp_id);
-            }
-            slapi_log_err(SLAPI_LOG_WARNING, "bdb_index_producer",
-                          "%s: Skipping badly formatted entry (id %lu)\n",
-                          inst->inst_name, (u_long)temp_id);
-            job->skipped++;
-            continue;
+            import_log_notice(job, SLAPI_LOG_CRIT, "bdb_index_producer",
+                              "Failed to decode id2entry record (id %lu); database may be corrupt",
+                              (u_long)temp_id);
+            goto error;
         }
 
         rc = bdb_index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
