@@ -1006,7 +1006,7 @@ bdb_index_producer(void *param)
         if (rc) {
             /* data.dptr may not include rdn: ..., try "dn: ..." */
             e = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
-            if (job->flags & FLAG_DN2RDN) {
+            if (e && (job->flags & FLAG_DN2RDN)) {
                 int len = 0;
                 int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID |
                               SLAPI_DUMP_RDN_ENTRY;
@@ -1104,6 +1104,13 @@ bdb_index_producer(void *param)
 
         slapi_ch_free(&(key.data));
         slapi_ch_free(&(data.data));
+
+        if (NULL == e) {
+            import_log_notice(job, SLAPI_LOG_CRIT, "bdb_index_producer",
+                              "Failed to decode id2entry record (id %lu); database may be corrupt",
+                              (u_long)temp_id);
+            goto error;
+        }
 
         rc = bdb_index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
         if (rc) {
