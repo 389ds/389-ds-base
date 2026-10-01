@@ -1228,6 +1228,20 @@ conn_buffered_data_avail_nolock(Connection *conn, int *conn_closed)
 static void
 normalize_IPv4(const PRNetAddr *addr, char *normalizedAddr, size_t normalizedAddrSize, char *originalAddr, size_t originalAddrSize)
 {
+    /*
+     * conn->cin_addr is NULL whenever the peer address could not be resolved
+     * when the connection was reset: connection_reset() frees it up front and
+     * its final else-branch only re-allocates when c_prfd is NULL, so a TCP
+     * client that aborts right after connecting is logged as "unknown" and
+     * keeps a NULL cin_addr for the life of the connection.
+     * PR_NetAddrToString() would dereference it.
+     */
+    if (addr == NULL) {
+        PL_strncpyz(originalAddr, "unknown", originalAddrSize);
+        PL_strncpyz(normalizedAddr, "unknown", normalizedAddrSize);
+        return;
+    }
+
     /* Keep the original address string */
     PR_NetAddrToString(addr, originalAddr, originalAddrSize);
 
