@@ -37,7 +37,6 @@ export class Backups extends React.Component {
             showConfirmRestoreReplace: false,
             showConfirmLDIFReplace: false,
             showBackupModal: false,
-            backupSpinning: false,
             backupName: "",
             deleteBackup: "",
             backupBuffer: "",
@@ -53,7 +52,6 @@ export class Backups extends React.Component {
             showConfirmLDIFImport: false,
             showConfirmRestore: false,
             showExportModal: false,
-            exportSpinner: false,
             includeReplData: false,
             ldifName: "",
             ldifSuffix: "",
@@ -106,7 +104,7 @@ export class Backups extends React.Component {
     handleShowExportModal () {
         this.setState({
             showExportModal: true,
-            exportSpinner: false,
+            modalSpinning: false,
             ldifName: "",
             ldifSuffix: this.props.suffixes[0],
             includeReplData: false,
@@ -133,7 +131,7 @@ export class Backups extends React.Component {
     handleShowBackupModal () {
         this.setState({
             showBackupModal: true,
-            backupSpinning: false,
+            modalSpinning: false,
             backupName: "",
             backupCompleted: false,
         });
@@ -585,7 +583,7 @@ export class Backups extends React.Component {
         }
 
         this.setState({
-            exportSpinner: true,
+            modalSpinning: true,
             exportBuffer: "",
         });
 
@@ -596,7 +594,7 @@ export class Backups extends React.Component {
                 .done(content => {
                     this.props.handleReload();
                     this.setState({
-                        exportSpinner: false,
+                        modalSpinning: false,
                         exportCompleted: true,
                     });
                     const cmd = [
@@ -630,7 +628,7 @@ export class Backups extends React.Component {
                     const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.setState({
-                        exportSpinner: false,
+                        modalSpinning: false,
                         exportCompleted: true,
                     });
                     this.props.addNotification(
@@ -775,7 +773,7 @@ export class Backups extends React.Component {
                     closeHandler={this.closeExportModal}
                     handleChange={this.onChange}
                     saveHandler={this.validateLDIF}
-                    spinning={this.state.exportSpinner}
+                    spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
                     includeReplData={this.state.includeReplData}
@@ -789,7 +787,7 @@ export class Backups extends React.Component {
                     closeHandler={this.closeBackupModal}
                     handleChange={this.onChange}
                     saveHandler={this.validateBackup}
-                    spinning={this.state.backupSpinning}
+                    spinning={this.state.modalSpinning}
                     watchBuffer={backupBufferItem}
                     error={this.state.errObj}
                     backupCompleted={this.state.backupCompleted}
