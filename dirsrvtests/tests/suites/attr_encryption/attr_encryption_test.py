@@ -16,7 +16,9 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
+from lib389.dseldif import DSEldif
 from lib389.encrypted_attributes import EncryptedAttrs
+from lib389.cli_ctl.dblib import DbscanHelper
 
 pytestmark = pytest.mark.tier1
 
@@ -450,6 +452,141 @@ def test_attr_encryption_backends(topo, enable_user_attr_encryption):
     log.info("Delete test backends")
     test_backend1.delete()
     test_backend2.delete()
+
+
+def test_attr_encryption_compare_values(topo, enable_user_attr_encryption):
+    """Tests that different attributes have different encrypted values
+       even if the clear values are the same.
+
+    :id: f91d9d10-89a5-11f1-8476-c85309d5c3e3
+    :setup: Standalone instance
+            SSL Enabled
+    :steps:
+         1. Add a test backends
+         2. Configure attribute encryption for telephoneNumber
+         3. Configure attribute encryption for employeenumber
+         4. Add a test user with encrypted attributes having same values
+         5. Export data as ciphertext and as cleartext
+         6. Check that telephoneNumber and employeeNumber are present in the ciphertext test entry
+         7. Check that telephoneNumber and employeeNumber values are encrypted
+         8. Check that telephoneNumber and employeeNumber values are different
+         9. Check that telephoneNumber and employeeNumber are present in the cleartext test entry
+         10. Check that telephoneNumber and employeeNumber values are the expected one
+         11. Check that telephoneNumber and employeeNumber index keys for the user test entry are different
+         12. Delete test backend
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+         6. This should be successful
+         7. This should be successful
+         8. This should be successful
+         9. This should be successful
+         10. This should be successful
+         11. This should be successful
+         12. This should be successful
+    """
+    inst = topo.standalone
+    log.info("Add test backend")
+    test_dc = 'test'
+    test_suffix = f'dc={test_dc},dc=com'
+    test_db = 'test_db'
+    test_value = '1234'
+
+    # Create backends
+    backends = Backends(inst)
+    test_backend = backends.create(properties={'cn': test_db,
+                                                'nsslapd-suffix': test_suffix})
+
+    # Create the top of the tree
+    suffix1 = Domain(inst, test_suffix)
+    test1 = suffix1.create(properties={'dc': test_dc})
+    # Add employeeNumber index
+    test_backend.add_index('employeeNumber', [ 'eq', ])
+    # Backend contains only the suffix entry
+    # So we can avoid reindexing but still need to restart to initialize the lmdb dbis
+    # (Note: using reindex=True in add_index leads to a race condition )
+    inst.restart()
+
+    log.info("Enables attribute encryption for telephoneNumber in test_backend1")
+    backend1_encrypt_attrs = EncryptedAttrs(inst, basedn='cn=encrypted attributes,{}'.format(test_backend.dn))
+    backend1_encrypt_attrs.create(properties={'cn': 'telephoneNumber',
+                                              'nsEncryptionAlgorithm': 'AES'})
+    backend1_encrypt_attrs.create(properties={'cn': 'employeeNumber',
+                                              'nsEncryptionAlgorithm': 'AES'})
+
+    log.info("Add a test user with both encrypted attributes having same value")
+    users = UserAccounts(inst, test1.dn, None)
+    test_user = users.create(properties=TEST_USER_PROPERTIES)
+    test_user.replace('telephoneNumber', test_value)
+    test_user.replace('employeeNumber', test_value)
+
+    log.info("Export data as ciphertext")
+    export_db_ciphertext = os.path.join(inst.ds_paths.ldif_dir, "export_db_ciphertext.ldif")
+    export_db_cleartext = os.path.join(inst.ds_paths.ldif_dir, "export_db_cleartext.ldif")
+
+    # Offline export
+    inst.stop()
+    if not inst.db2ldif(bename=test_db, suffixes=(test_suffix,),
+                                   excludeSuffixes=None, encrypt=False, repl_data=None, outputfile=export_db_ciphertext):
+        log.fatal('Failed to run offline db2ldif (ciphertext)')
+        assert False
+    if not inst.db2ldif(bename=test_db, suffixes=(test_suffix,),
+                                   excludeSuffixes=None, encrypt=True, repl_data=None, outputfile=export_db_cleartext):
+        log.fatal('Failed to run offline db2ldif (cleartext)')
+        assert False
+    inst.start()
+
+    ldif = DSEldif(inst, path=export_db_ciphertext)
+
+    log.info("Check that the attributes are present in the ciphertext exported file")
+    telephoneNumber = ldif.get(test_user.dn, 'telephoneNumber', single=True)
+    employeeNumber = ldif.get(test_user.dn, 'employeeNumber', single=True)
+    assert telephoneNumber is not None
+    assert employeeNumber is not None
+    log.info("Check that the encrypted value of attribute is not present in the exported file")
+    assert telephoneNumber != test_value
+    assert employeeNumber  != test_value
+    log.info("Check that the encrypted values of attributes are not the same")
+    assert telephoneNumber != employeeNumber
+
+    ldif = DSEldif(inst, path=export_db_cleartext)
+    log.info("Check that the attributes are present in the cleartext exported file")
+    telephoneNumber = ldif.get(test_user.dn, 'telephoneNumber', single=True)
+    employeeNumber = ldif.get(test_user.dn, 'employeeNumber', single=True)
+    assert telephoneNumber is not None
+    assert employeeNumber is not None
+    log.info("Check that the decrypted value of attribute are the expected one")
+    assert telephoneNumber == test_value
+    assert employeeNumber  == test_value
+
+    log.info('Check that telephoneNumber and employeeNumber index keys for the user test entry are different')
+    dbsh = DbscanHelper(inst)
+    db_telephoneNumber = dbsh.get_dbi('telephoneNumber', backend=test_db)
+    db_employeeNumber = dbsh.get_dbi('employeeNumber', backend=test_db)
+    # Dumps the indexes as dict
+    data_telephoneNumber = dbsh.list_dbi_data(db_telephoneNumber)
+    data_employeeNumber = dbsh.list_dbi_data(db_employeeNumber)
+    id = test_user.get_attr_val_int('entryid')
+    dbid = id.to_bytes( 4, 'little').hex()
+    log.info(f'data_telephoneNumber: {data_telephoneNumber}')
+    log.info(f'data_employeeNumber: {data_employeeNumber}')
+    log.info(f'Test user entryid is {id} aka {dbid}')
+    # Restrict to the equality keys matching the entryid
+    keys_telephoneNumber = [ k for k,v in data_telephoneNumber.items() if dbid in v and k.startswith('3d')]
+    keys_employeeNumber = [ k for k,v in data_employeeNumber.items() if dbid in v and k.startswith('3d')]
+    log.info(f'keys_telephoneNumber: {keys_telephoneNumber}')
+    log.info(f'keys_employeeNumber: {keys_employeeNumber}')
+    # Should only have one value for the entry on each attribute
+    assert len(keys_telephoneNumber) == 1
+    assert len(keys_employeeNumber) == 1
+    # And the keys should be different
+    assert keys_telephoneNumber != keys_employeeNumber
+
+    log.info("Delete test backend")
+    test_backend.delete()
 
 
 if __name__ == '__main__':

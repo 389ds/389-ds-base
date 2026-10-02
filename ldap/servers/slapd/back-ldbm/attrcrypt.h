@@ -19,6 +19,7 @@
 struct attrcrypt_private
 {
     int attrcrypt_cipher;
+    struct berval *iv;
 };
 
 typedef struct _attrcrypt_cipher_entry

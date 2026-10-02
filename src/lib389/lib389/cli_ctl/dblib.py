@@ -20,6 +20,7 @@ import shutil
 import subprocess
 from enum import Enum
 from errno import ENOSPC
+from tempfile import NamedTemporaryFile
 from lib389.cli_base import CustomHelpFormatter
 from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG, DBSCAN
 from lib389.dseldif import DSEldif
@@ -126,6 +127,31 @@ class DbscanHelper:
         if expected_rc is not None and expected_rc != output.returncode:
             raise CalledProcessUnexpectedReturnCode(output, expected_rc)
         return output
+
+    def list_dbi_data(self, dbi):
+        # return a dict of key set of values (stored as hexadecimal string)
+        self._init2()
+        with NamedTemporaryFile(mode='w+') as tmpfile:
+            # Extract the db instance in hexa decimal
+            self.dbscan(['-D', self.dblib, '-f', dbi, '-X', tmpfile.name])
+            # Then parse the file to generate the result dict
+            key = None
+            result = {}
+            tmpfile.seek(0)
+            for line in tmpfile:
+                items = line.split()
+                if len(items) != 2:
+                    continue
+                if items[0] == 'k:':
+                    assert key is None
+                    key = items[1]
+                    if not key in result:
+                        result[key] = []
+                if items[0] == 'v:':
+                    assert key is not None
+                    result[key].append(items[1])
+                    key = None
+        return result
 
     def __repr__(self):
         if self.inst is None:

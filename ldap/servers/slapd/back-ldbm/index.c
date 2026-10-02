@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include "back-ldbm.h"
+#include "attrcrypt.h"
 
 static const char *errmsg = "database index operation failed";
 #define NASTY_MSG(n) ((char*)(#n " - database index operation failed"))
@@ -906,7 +907,7 @@ prepare_key(backend *be, struct attrinfo *a, char **buf, size_t *buflen,
     }
 
     /* Encrypt the index key if necessary */
-    if (rc == 0 && a->ai_attrcrypt && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
+    if (rc == 0 && a->ai_attrcrypt && a->ai_attrcrypt->attrcrypt_cipher && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
         rc = attrcrypt_encrypt_index_key(be, a, bvp, &encrypted_bvp);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "addordel_values_sv",
