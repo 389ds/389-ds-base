@@ -212,6 +212,13 @@ connection_table_new(int table_size)
                 exit(1);
             }
 
+
+            ct->c[ct_list][i].c_readmutex = PR_NewLock();
+            if (ct->c[ct_list][i].c_readmutex == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewLock failed for connection read lock\n");
+                exit(1);
+            }
+
             ct->c[ct_list][i].c_pdumutex = PR_NewLock();
             if (ct->c[ct_list][i].c_pdumutex == NULL) {
                 slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewLock failed\n");
