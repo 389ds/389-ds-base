@@ -206,7 +206,7 @@ clcache_get_buffer(Replica *replica, CLC_Buffer **buf, dbi_db_t *db, ReplicaId c
     int need_new;
     static const dbi_cursor_t cursor0 = {0};
 
-    if (buf == NULL)
+    if (buf == NULL || _pool == NULL)
         return CL5_BAD_DATA;
 
     *buf = NULL;
