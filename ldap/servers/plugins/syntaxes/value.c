@@ -75,6 +75,38 @@ trim_spaces_to_mask(int trim_spaces)
  * alt stores the normalized value in case the normalized value is longer
  * than the original value.  It may happen the value is DN.
  */
+/*
+ * ldap_utf8prev() reads the byte before its argument and then keeps walking
+ * back for as long as it sees UTF-8 continuation bytes, so testing the pointer
+ * it returns cannot keep it inside the value: with 'd' one past the start and a
+ * stray continuation byte at the start, the walk crosses it on its own.
+ *
+ * Return the character preceding 's', or NULL when 's' is already at 'head',
+ * without reading anything below 'head'.
+ */
+static char *
+value_utf8prev(char *s, char *head)
+{
+    unsigned char *prev = (unsigned char *)s;
+    unsigned char *floor = (unsigned char *)head;
+    unsigned char *limit;
+
+    if (prev <= floor) {
+        return NULL;
+    }
+    /*
+     * ldap_utf8prev() walks back at most six bytes; keep that bound, but
+     * never form a pointer below the value: computing prev - 6 when fewer
+     * than six bytes precede 's' is undefined behaviour in itself, even
+     * though the byte there is never read.
+     */
+    limit = ((prev - floor) > 6) ? prev - 6 : floor;
+    while ((--prev > floor) && ((*prev & 0xC0) == 0x80) && (prev != limit)) {
+        ;
+    }
+    return (char *)prev;
+}
+
 void
 value_normalize_ext(
     char *s,
@@ -210,14 +242,11 @@ value_normalize_ext(
     if (prevspace && (trim_spaces & SHRINK_TRAILING_BLANK)) {
         char *nd;
 
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && utf8isspace_fast(nd)) {
+        nd = value_utf8prev(d, head);
+        while (nd && utf8isspace_fast(nd)) {
             d = nd;
-            if (d <= head) {
-                break;
-            }
-            nd = ldap_utf8prev(d);
-            if (nd && nd >= head && utf8isspace_fast(nd)) {
+            nd = value_utf8prev(d, head);
+            if (nd && utf8isspace_fast(nd)) {
                 /* consum the space referred by 'd' */
                 *d = '\0';
             } else {
@@ -230,14 +259,11 @@ value_normalize_ext(
     if (prevspace && (trim_spaces & TRIM_TRAILING_BLANK)) {
         char *nd;
 
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && utf8isspace_fast(nd)) {
+        nd = value_utf8prev(d, head);
+        while (nd && utf8isspace_fast(nd)) {
             d = nd;
             *d = '\0';
-            if (d <= head) {
-                break;
-            }
-            nd = ldap_utf8prev(d);
+            nd = value_utf8prev(d, head);
         }
     }
 }
