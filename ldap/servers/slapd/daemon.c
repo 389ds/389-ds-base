@@ -120,6 +120,9 @@ typedef struct listener_info
 #define CONN_EPOLL_EVENTS (EPOLL_EVENTS | EPOLLONESHOT)
 /* Use a smaller fixed batch size. */
 #define EPOLL_MAX_EVENTS 32
+/* Bound connections checked per reap. */
+#define REAP_MAX_CHECK_EVENT 64
+#define REAP_MAX_CHECK_TIMEOUT 1024
 
 static void
 epoll_ctl_del_fd(int efd, int fd)
@@ -201,7 +204,7 @@ static volatile sig_atomic_t lsan_check_in_progress = 0;
 static void setup_pr_ct_firsttime_pds(Connection_Table *ct);
 #ifdef ENABLE_EPOLL
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, int epoll_fd);
-static void reap_closing_connections(Connection_Table *ct, int list_num);
+static void reap_closing_connections(Connection_Table *ct, int list_num, int max_to_check);
 #else
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, struct POLL_STRUCT **fds);
 static PRIntn setup_pr_read_pds(Connection_Table *ct, int num_ct_lists);
@@ -1622,19 +1625,47 @@ ct_thread_cleanup(void)
 
 #ifdef ENABLE_EPOLL
 /*
+ * Resume point for a bounded reap of this ct-list.
+ *
+ * The conn pointer is still on the active list if it is not
+ * FREE, c_ct_list matches this list, and c_prev is set.
+ * Otherwise start at the active list head.
+ */
+static Connection *
+reap_cursor_start(Connection_Table *ct, int list_num)
+{
+    Connection *c = ct->reap_cursor[list_num];
+
+    if (c != NULL &&
+        c->c_state != CONN_STATE_FREE &&
+        c->c_ct_list == list_num &&
+        c->c_prev != NULL) {
+        return c;
+    }
+    return connection_table_get_first_active_connection(ct, list_num);
+}
+
+/*
  * PR_Poll returns connections to the freelist in setup_pr_read_pds. Epoll never
  * calls this, so there is no poll array to rebuild. We need a way to detect
  * closing connections and unlink them from the active list. The worker threads
  * mark the connection as closing when its finished with it.
+ *
+ * Walk at most max_to_check active conns and resume via reap_cursor_start.
  */
 static void
-reap_closing_connections(Connection_Table *ct, int list_num)
+reap_closing_connections(Connection_Table *ct, int list_num, int max_to_check)
 {
     Connection *c;
     Connection *next;
+    int checked = 0;
 
-    c = connection_table_get_first_active_connection(ct, list_num);
-    while (c != NULL) {
+    if (max_to_check <= 0) {
+        return;
+    }
+
+    c = reap_cursor_start(ct, list_num);
+    while (c != NULL && checked < max_to_check) {
         next = connection_table_get_next_active_connection(ct, c);
         if (c->c_state == CONN_STATE_FREE) {
             connection_table_move_connection_out_of_active_list(ct, c);
@@ -1644,8 +1675,11 @@ reap_closing_connections(Connection_Table *ct, int list_num)
             }
             pthread_mutex_unlock(&(c->c_mutex));
         }
+        checked++;
         c = next;
     }
+    /* Next reap starts at the reap_cursor. */
+    ct->reap_cursor[list_num] = c;
 }
 #endif /* ENABLE_EPOLL */
 
@@ -1676,8 +1710,8 @@ ct_list_thread(uint64_t threadnum)
          switch (select_return) {
              case 0: /* Timeout */
 #ifdef ENABLE_EPOLL
-            /* No fds ready. Scan for closing conns the pipe missed. */
-             reap_closing_connections(the_connection_table, (int)threadid);
+            /* No fds ready. Catch up on closing conns the pipe missed. */
+             reap_closing_connections(the_connection_table, (int)threadid, REAP_MAX_CHECK_TIMEOUT);
 #endif /* ENABLE_EPOLL */
                 break;
              case -1: /* Error */
@@ -2057,7 +2091,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                 /* Drain */
             }
 
-            reap_closing_connections(ct, list_num);
+            reap_closing_connections(ct, list_num, REAP_MAX_CHECK_EVENT);
             continue;
         }
         /*
@@ -2154,20 +2188,22 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
 #endif /* ENABLE_EPOLL */
             if (connection_is_active_nolock(c) && c->c_gettingber == 0) {
 #ifdef ENABLE_EPOLL
-                uint32_t readready = (events[i].events & EPOLL_EVENTS);
+                uint32_t ev = events[i].events;
+                uint32_t readready = (ev & EPOLLIN);
+                uint32_t hangup = (ev & (EPOLLERR | EPOLLHUP | EPOLLRDHUP));
 
                 /* Check to see if the idle timer fd has fired */
-                if (c->c_idle_tfd != -1 && c->c_idle_tfd >= 0) {
+                if (c->c_idle_tfd >= 0) {
                     uint64_t expirations;
                     if (read(c->c_idle_tfd, &expirations, sizeof(expirations)) > 0) {
-                        slapi_log_err(SLAPI_LOG_CONNS,
-                                      "handle_pr_read_ready", "idle timer for connection %d expired %" PRIu64 " times\n",
-                                      c->c_ci, expirations);
-                        readready = 0; /* idle timer expired, no read activity */
+                        /* Hangup flags mean this event is the socket, not the timer. */
+                        if (!hangup) {
+                            readready = 0; /* idle timer expired, no read activity */
+                        }
                     }
                 }
 
-                if (readready && (events[i].events & EPOLLERR)) {
+                if (!readready && hangup) {
                     /* some error occured */
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "handle_pr_read_ready", "epoll_wait() says connection on sd %d is bad "

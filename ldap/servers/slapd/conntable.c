@@ -150,6 +150,7 @@ connection_table_new(int table_size)
         slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll fds\n");
         exit(1);
     }
+    ct->reap_cursor = (Connection **)slapi_ch_calloc(1, ct->list_num * sizeof(Connection *));
     for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
         ct->epoll_fd[ct_list] = epoll_create1(EPOLL_CLOEXEC);
         if (ct->epoll_fd[ct_list] < 0) {
@@ -276,6 +277,9 @@ connection_table_free(Connection_Table *ct)
     }
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
+#ifdef ENABLE_EPOLL
+    slapi_ch_free((void **)&ct->reap_cursor);
+#endif /* ENABLE_EPOLL */
     PR_DestroyLock(ct->table_mutex);
     slapi_ch_free((void *)&ct->num_active);
     slapi_ch_free((void **)&ct);
