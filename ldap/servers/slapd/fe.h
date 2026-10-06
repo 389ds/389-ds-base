@@ -92,7 +92,8 @@ struct connection_table
     size_t conn_next_offset;
     struct POLL_STRUCT **fd;
 #ifdef ENABLE_EPOLL
-    int *epoll_fd;  /* epoll file descriptor for each connection table list */
+    int *epoll_fd;              /* epoll file descriptor for each connection table list */
+    Connection **reap_cursor;   /* Per list cursor for reap_closing_connections. */
 #endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
