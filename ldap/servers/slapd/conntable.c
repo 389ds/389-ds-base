@@ -186,6 +186,12 @@ connection_table_new(int table_size)
             exit(1);
         }
 
+        ct->c[i].c_pdu_writer_cv = PR_NewCondVar(ct->c[i].c_pdumutex);
+        if (ct->c[i].c_pdu_writer_cv == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewCondVar failed for connection PDU writer\n");
+            exit(1);
+        }
+
         /* Ready to rock, mark as such. */
         ct->c[i].c_state = CONN_STATE_INIT;
         /* Prepare the connection into the freelist. */
