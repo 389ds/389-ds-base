@@ -2084,7 +2084,10 @@ connection_threadmain(void *arg)
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
+<<<<<<< HEAD
                 read_handed_off = true;
+=======
+>>>>>>> 216e502d0 (Issue 7921 - Fix StartTLS plaintext buffer handling (#7922))
             } else if (connection_is_start_tls(op)) {
                 /*
                 * The StartTLS PDU has already been read into op->o_ber, but there is more data
