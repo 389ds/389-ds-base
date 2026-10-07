@@ -37,6 +37,7 @@ static void connection_add_operation(Connection *conn, Operation *op);
 static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
 static void connection_set_ssl_ssf(Connection *conn);
+static bool connection_is_start_tls(Operation *op);
 static int is_ber_too_big(const Connection *conn, ber_len_t ber_len);
 static void log_ber_too_big_error(const Connection *conn,
                                   ber_len_t ber_len,
@@ -1106,6 +1107,33 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
 
 #include "openldapber.h"
 
+/*
+ * Check whether the extended operation is StartTLS.
+ */
+static bool
+connection_is_start_tls(Operation *op)
+{
+    BerElement *ber = NULL;
+    char *oid = NULL;
+    int is_starttls = 0;
+
+    if (op == NULL || op->o_ber == NULL || op->o_tag != LDAP_REQ_EXTENDED) {
+        return 0;
+    }
+
+    ber = ber_dup(op->o_ber);
+    if (ber == NULL) {
+        return 0;
+    }
+    if (ber_scanf(ber, "{a", &oid) != LBER_ERROR && oid != NULL) {
+        is_starttls = (strcmp(oid, START_TLS_OID) == 0);
+    }
+    slapi_ch_free_string(&oid);
+    /* Free the dup, not the riginal ber. */
+    ber_free(ber, 0);
+    return is_starttls;
+}
+
 static ber_tag_t
 _ber_get_len(BerElement *ber, ber_len_t *lenp)
 {
@@ -2011,6 +2039,16 @@ connection_threadmain(void *arg)
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
+            } else if (connection_is_start_tls(op)) {
+                /*
+                * The StartTLS PDU has already been read into op->o_ber, but there is more data
+                * in c_buffer. Previously we continued, but now we do not requeue this connection
+                * as another worker could read the extra data as a separate op while this thread
+                * continues into start_tls().
+                */
+                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
+                              "conn %" PRIu64 " has buffered data following StartTLS request\n",
+                              conn->c_connid);
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
@@ -2779,6 +2817,35 @@ connection_abandon_operations(Connection *c)
             op->o_status = SLAPI_OP_STATUS_ABANDONED;
         }
     }
+}
+
+/*
+ * Return the number of bytes remaining in the read buffer.
+ * Must be called within c->c_mutex.
+ */
+size_t
+connection_read_buffer_data_len(Connection *c)
+{
+    int conn_closed = 0;
+
+    if (c == NULL || c->c_private == NULL) {
+        return 0;
+    }
+    return conn_buffered_data_avail_nolock(c, &conn_closed);
+}
+
+/*
+ * Clear any data left in c_buffer.
+ * Must be called within c->c_mutex.
+ */
+void
+connection_reset_read_buffer(Connection *c)
+{
+    if (c == NULL || c->c_private == NULL) {
+        return;
+    }
+    c->c_private->c_buffer_bytes = 0;
+    c->c_private->c_buffer_offset = 0;
 }
 
 /* must be called within c->c_mutex */
