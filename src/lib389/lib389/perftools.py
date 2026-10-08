@@ -494,7 +494,7 @@ class PerformanceTools:
 
     def mesure_export_import(self, nbMes=10):
         self._instance.stop()
-        self._ldif = self.getFilePath("db.ldif");
+        self._ldif = self._instance.ds_paths.ldif_dir + "/db.ldif"
         self._nbEntries = None
         res = [ self._do_measure("export", self.offline_export, nbMes), self._do_measure("import", self.offline_import, nbMes) ]
         self._instance.start()
