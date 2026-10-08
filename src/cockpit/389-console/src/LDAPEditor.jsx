@@ -45,6 +45,7 @@ import EditorTreeView from './lib/ldap_editor/treeView.jsx';
 import { SearchDatabase, AccountReports } from './lib/ldap_editor/search.jsx';
 import GenericWizard from './lib/ldap_editor/wizards/genericWizard.jsx';
 import { EffectivePwpModal } from './lib/ldap_editor/effectivePwpModal.jsx';
+import { ViewEntryModal } from './lib/ldap_editor/viewEntryModal.jsx';
 import { SyncAltIcon } from '@patternfly/react-icons';
 import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 
@@ -113,6 +114,23 @@ export class LDAPEditor extends React.Component {
             pwpModalEntryDn: '',
             pwpModalUserType: '',
             pwpModalSelector: '',
+            showViewEntryModal: false,
+            viewEntryDn: '',
+        };
+
+        this.handleViewEntryModalClose = () => {
+            this.setState({
+                showViewEntryModal: false,
+                viewEntryDn: '',
+            });
+        };
+
+        this.openViewEntryModal = (entryDn) => {
+            this.setState({
+                showViewEntryModal: true,
+                viewEntryDn: entryDn,
+                entryMenuIsOpen: false,
+            });
         };
 
         this.handlePwpModalClose = () => {
@@ -206,6 +224,10 @@ export class LDAPEditor extends React.Component {
                     operationType: "unlock",
                     isTreeViewAction: true
                 }, () => { this.handleConfirmModalToggle() });
+                return;
+            }
+            if (aTarget.name === ENTRY_MENU.view) {
+                this.openViewEntryModal(aTarget.value);
                 return;
             }
             if (aTarget.name === ENTRY_MENU.getPwp) {
@@ -1040,6 +1062,13 @@ export class LDAPEditor extends React.Component {
         const keyIndex = this.state.keyIndex + 1;
         const updateActions =
             [{
+                title: _("View ..."),
+                onClick:
+                () => {
+                    this.openViewEntryModal(rowData.rawdn);
+                }
+            },
+            {
                 title: _("Search ..."),
                 onClick:
                 () => {
@@ -1308,6 +1337,12 @@ export class LDAPEditor extends React.Component {
                     entryDn={this.state.pwpModalEntryDn}
                     userType={this.state.pwpModalUserType}
                     selector={this.state.pwpModalSelector}
+                />
+                <ViewEntryModal
+                    isOpen={this.state.showViewEntryModal}
+                    onClose={this.handleViewEntryModalClose}
+                    serverId={this.props.serverId}
+                    entryDn={this.state.viewEntryDn}
                 />
                 <Modal
                     // TODO: Fix confirmation modal formatting and size; add operation to the tables
