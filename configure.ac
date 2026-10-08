@@ -424,7 +424,7 @@ fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
 
 if test -z "$enable_epoll" ; then
-  enable_epoll=no
+  enable_epoll=yes
 fi
 
 AC_MSG_CHECKING(for --enable-epoll)
