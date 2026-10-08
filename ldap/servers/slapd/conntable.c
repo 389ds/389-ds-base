@@ -212,9 +212,15 @@ connection_table_new(int table_size)
                 exit(1);
             }
 
+
             ct->c[ct_list][i].c_pdumutex = PR_NewLock();
             if (ct->c[ct_list][i].c_pdumutex == NULL) {
                 slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewLock failed\n");
+                exit(1);
+            }
+            ct->c[ct_list][i].c_pdu_writer_cv = PR_NewCondVar(ct->c[ct_list][i].c_pdumutex);
+            if (ct->c[ct_list][i].c_pdu_writer_cv == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewCondVar failed for connection PDU writer\n");
                 exit(1);
             }
 
