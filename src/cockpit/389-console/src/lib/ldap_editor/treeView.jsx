@@ -566,6 +566,14 @@ class EditorTreeView extends React.Component {
 
         const dropdownItems = [
             <DropdownItem
+                key="tree-view-view"
+                component="button"
+                name={ENTRY_MENU.view}
+                value={entryDn}
+            >
+                {_("View ...")}
+            </DropdownItem>,
+            <DropdownItem
                 key="tree-view-search"
                 component="button"
                 name={ENTRY_MENU.search}
