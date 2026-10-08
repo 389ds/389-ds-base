@@ -115,42 +115,48 @@ def signal_handler(signal, frame):
     print('\n\nExiting...')
     sys.exit(0)
 
-warningAboutUser="Note that this command creates new 389ds instances cwand must be run by an user having the permission to do so."
+warningAboutUser="Note that this command creates new 389ds instances and must be run by an user having the permission to do so."
 
-# create the top-level parser
-parser = argparse.ArgumentParser(epilog=warningAboutUser)
-subparsers = parser.add_subparsers(help='sub-command help')
-prefix = os.path.join(os.environ.get('PREFIX', ""))
-perfdir= f"{prefix}/var/log/dirsrv/perfdir"
-parser.add_argument('--resultDir', '-r',  type=pathlib.Path, default=perfdir, help=f'results directory (default is {perfdir})')
 
-# create the parser for the "csv" command
-parser_csv = subparsers.add_parser('csv', help=csv_description, description=csv_description)
-parser_csv.set_defaults(func=csvSubCmd)
-parser_csv.add_argument('--out', '-o', type=pathlib.Path, default=None, help='csv file (default is stdout)')
+def main():
+    # create the top-level parser
+    parser = argparse.ArgumentParser(epilog=warningAboutUser)
+    subparsers = parser.add_subparsers(help='sub-command help')
+    prefix = os.path.join(os.environ.get('PREFIX', ""))
+    perfdir= f"{prefix}/var/log/dirsrv/perfdir"
+    parser.add_argument('--resultDir', '-r',  type=pathlib.Path, default=perfdir, help=f'results directory (default is {perfdir})')
 
-# create the parser for the "list" command
-parser_list = subparsers.add_parser('list', help=list_description, description=list_description)
-parser_list.set_defaults(func=listSubCmd)
+    # create the parser for the "csv" command
+    parser_csv = subparsers.add_parser('csv', help=csv_description, description=csv_description)
+    parser_csv.set_defaults(func=csvSubCmd)
+    parser_csv.add_argument('--out', '-o', type=pathlib.Path, default=None, help='csv file (default is stdout)')
 
-testnames = ( tests.keys() )
+    # create the parser for the "list" command
+    parser_list = subparsers.add_parser('list', help=list_description, description=list_description)
+    parser_list.set_defaults(func=listSubCmd)
 
-# create the parser for the "run" command
-parser_run = subparsers.add_parser('run', help=run_description, description=run_description, epilog=warningAboutUser)
-parser_run.set_defaults(func=runSubCmd)
-parser_run.add_argument('--db', '-d', choices=['bdb','mdb'], default='mdb', help='db library (default is mdb)')
-parser_run.add_argument('--users', '-u', type=int, default=10000, help='number of users in test instance')
-parser_run.add_argument('--threads', '-t', type=int, default=1, help='number of threads in client tester')
-parser_run.add_argument('test', nargs='+', choices=testnames, help='test(s) to run')
+    testnames = ( tests.keys() )
 
-parser_run = subparsers.add_parser('runall', help=runall_description, description=runall_description, epilog=warningAboutUser)
-parser_run.set_defaults(func=runallSubCmd)
+    # create the parser for the "run" command
+    parser_run = subparsers.add_parser('run', help=run_description, description=run_description, epilog=warningAboutUser)
+    parser_run.set_defaults(func=runSubCmd)
+    parser_run.add_argument('--db', '-d', choices=['bdb','mdb'], default='mdb', help='db library (default is mdb)')
+    parser_run.add_argument('--users', '-u', type=int, default=10000, help='number of users in test instance')
+    parser_run.add_argument('--threads', '-t', type=int, default=1, help='number of threads in client tester')
+    parser_run.add_argument('test', nargs='+', choices=testnames, help='test(s) to run')
 
-signal.signal(signal.SIGINT, signal_handler)
-argcomplete.autocomplete(parser)
-args = parser.parse_args()
-#print(f"DBG args = {args}")
-if 'func' in args:
-    args.func(args)
-else:
-    parser.print_help()
+    parser_runall = subparsers.add_parser('runall', help=runall_description, description=runall_description, epilog=warningAboutUser)
+    parser_runall.set_defaults(func=runallSubCmd)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+    #print(f"DBG args = {args}")
+    if 'func' in args:
+        args.func(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    main()
