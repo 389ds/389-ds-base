@@ -68,6 +68,8 @@ void connection_cleanup(Connection *conn);
 void connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen, int is_SSL);
 void connection_set_io_layer_cb(Connection *c, Conn_IO_Layer_cb push_cb, Conn_IO_Layer_cb pop_cb, void *cb_data);
 int connection_call_io_layer_callbacks(Connection *c);
+size_t connection_read_buffer_data_len(Connection *c);
+void connection_reset_read_buffer(Connection *c);
 
 /*
  * conntable.c
