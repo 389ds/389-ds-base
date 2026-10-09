@@ -2162,7 +2162,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         }
         r->updatedn_group_check_interval = interval;
     } else {
-        r->updatedn_group_check_interval = -1;
+        r->updatedn_group_check_interval = 0;
     }
 
     /* get replica name */
