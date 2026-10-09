@@ -17,6 +17,8 @@ from test389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 
+pytestmark = pytest.mark.tier1
+
 SUFFIX = "dc=Example,DC=COM"
 SUBTREE = "ou=People,dc=Example,DC=COM"
 NEW_SUBTREE = "ou=humans,dc=Example,DC=COM"
@@ -36,6 +38,122 @@ def _import_user_dns():
         f"uid={IMPORT_ENTRY_NAME}{get_index(i, NUM_IMPORT_ENTRIES)},{IMPORT_PARENT}"
         for i in range(1, NUM_IMPORT_ENTRIES + 1)
     ]
+
+
+def test_dsentrydn_preserved_on_modify(topo):
+    """Test that dsEntryDN is not corrupted when an entry is modified
+
+    :id: 7a3b9c1e-4f2d-4e8a-b5c6-9d0e1f2a3b4c
+    :setup: Standalone
+    :steps:
+        1. Enable nsslapd-return-original-entrydn
+        2. Create a user with mixed-case suffix in the DN
+        3. Verify dsEntryDN preserves the original case
+        4. Disable nsslapd-return-original-entrydn and restart
+        5. Modify a non-DN attribute (description)
+        6. Re-enable nsslapd-return-original-entrydn and restart
+        7. Verify dsEntryDN still has the original case
+    :expectedresults:
+        1. Success
+        2. Success
+        3. dsEntryDN matches the DN used at creation time
+        4. Success
+        5. Success
+        6. Success
+        7. dsEntryDN is unchanged
+    """
+
+    inst = topo.standalone
+    inst.config.replace('nsslapd-return-original-entrydn', 'on')
+
+    users = UserAccounts(inst, SUFFIX)
+    user_properties = {
+        'uid': 'modUser',
+        'givenname': 'Modify',
+        'cn': 'Modify User',
+        'sn': 'User',
+        'userpassword': 'password',
+        'uidNumber': '1001',
+        'gidNumber': '1001',
+        'homeDirectory': '/home/modUser'
+    }
+    user = users.create(properties=user_properties)
+    user_dn = user.dn
+    log.info(f"Created user with DN: {user_dn}")
+
+    orig_dsentrydn = user.get_attr_val_utf8('dsentrydn')
+    log.info(f"dsEntryDN after creation: {orig_dsentrydn}")
+    assert orig_dsentrydn == user_dn
+
+    inst.config.replace('nsslapd-return-original-entrydn', 'off')
+    inst.restart()
+
+    user = UserAccount(inst, user_dn)
+    user.replace('description', 'modified while return-original-entrydn is off')
+
+    inst.restart()
+    user = UserAccount(inst, user_dn)
+    stored_dsentrydn = user.get_attr_val_utf8('dsentrydn')
+    log.info(f"dsEntryDN stored on disk (return-orig off): {stored_dsentrydn}")
+
+    inst.config.replace('nsslapd-return-original-entrydn', 'on')
+    inst.restart()
+
+    user = UserAccount(inst, user_dn)
+    current_dsentrydn = user.get_attr_val_utf8('dsentrydn')
+    log.info(f"dsEntryDN after modify + restart: {current_dsentrydn}")
+    assert current_dsentrydn == orig_dsentrydn, \
+        f"dsEntryDN was corrupted: expected '{orig_dsentrydn}' but got '{current_dsentrydn}'"
+
+
+def test_dsentrydn_case_only_rename(topo):
+    """Test that dsEntryDN is updated on a case-only MODRDN
+
+    :id: b2c4d6e8-1a3b-4c5d-9e7f-0a1b2c3d4e5f
+    :setup: Standalone
+    :steps:
+        1. Enable nsslapd-return-original-entrydn
+        2. Create a user uid=caseRenameUser
+        3. Rename to uid=CaseRenameUser (case-only change)
+        4. Restart the server
+        5. Verify dsEntryDN reflects the new case
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. dsEntryDN shows uid=CaseRenameUser, not uid=caseRenameUser
+    """
+
+    inst = topo.standalone
+    inst.config.replace('nsslapd-return-original-entrydn', 'on')
+
+    users = UserAccounts(inst, SUFFIX)
+    user = users.create(properties={
+        'uid': 'caseRenameUser',
+        'givenname': 'Case',
+        'cn': 'Case Rename User',
+        'sn': 'User',
+        'userpassword': 'password',
+        'uidNumber': '1002',
+        'gidNumber': '1002',
+        'homeDirectory': '/home/caseRenameUser'
+    })
+    orig_dn = user.dn
+    log.info(f"Created user with DN: {orig_dn}")
+    assert user.get_attr_val_utf8('dsentrydn') == orig_dn
+
+    user.rename("uid=CaseRenameUser")
+    new_dn = f"uid=CaseRenameUser,ou=People,{SUFFIX}"
+    user = UserAccount(inst, new_dn)
+    log.info(f"After rename: dn={user.dn} dsEntryDN={user.get_attr_val_utf8('dsentrydn')}")
+
+    inst.restart()
+    user = UserAccount(inst, new_dn)
+    current_dsentrydn = user.get_attr_val_utf8('dsentrydn')
+    log.info(f"After restart: dsEntryDN={current_dsentrydn}")
+    assert current_dsentrydn == new_dn, \
+        f"dsEntryDN not updated on case-only rename: expected '{new_dn}' got '{current_dsentrydn}'"
 
 
 def test_dsentrydn(topo):
@@ -145,4 +263,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
