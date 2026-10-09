@@ -1169,8 +1169,22 @@ dse_write_file_nolock(struct dse *pdse)
                               pdse->dse_tmpfile, rc, slapd_system_strerror(rc));
                 (void)PR_Close(fpw.fpw_prfd);
                 fpw.fpw_prfd = NULL;
-            } else {
+            } else if (PR_Sync(fpw.fpw_prfd) != PR_SUCCESS) {
+                /* Data not on stable storage: keep the current dse.ldif intact */
+                rc = PR_GetOSError();
+                slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot sync "
+                                                                      "temporary DSE file \"%s\": OS error %d (%s)\n",
+                              pdse->dse_tmpfile, rc, slapd_system_strerror(rc));
                 (void)PR_Close(fpw.fpw_prfd);
+                fpw.fpw_prfd = NULL;
+            } else if (PR_Close(fpw.fpw_prfd) != PR_SUCCESS) {
+                /* PR_Close releases the fd even on failure; do not close it again */
+                fpw.fpw_prfd = NULL;
+                rc = PR_GetOSError();
+                slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot close "
+                                                                      "temporary DSE file \"%s\": OS error %d (%s)\n",
+                              pdse->dse_tmpfile, rc, slapd_system_strerror(rc));
+            } else {
                 fpw.fpw_prfd = NULL;
                 if (pdse->dse_fileback != NULL) {
                     rc = slapi_destructive_rename(pdse->dse_filename, pdse->dse_fileback);
@@ -1192,13 +1206,16 @@ dse_write_file_nolock(struct dse *pdse)
                 /*
                  * We have now written to the tmp location, and renamed it
                  * we need to open and fsync the dir to make the rename stick.
+                 * If the rename into place failed there is nothing to make durable.
                  */
-                int err = slapi_fsync_dir(pdse->dse_configdir);
-                if (err != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
-                                  "Cannot fsync directory \"%s\":"
-                                  " OS error %d (%s)\n",
-                                  pdse->dse_configdir, err, slapd_system_strerror(err));
+                if (rc == 0) {
+                    int err = slapi_fsync_dir(pdse->dse_configdir);
+                    if (err != 0) {
+                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                      "Cannot fsync directory \"%s\":"
+                                      " OS error %d (%s)\n",
+                                      pdse->dse_configdir, err, slapd_system_strerror(err));
+                    }
                 }
             }
         }
