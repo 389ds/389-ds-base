@@ -1895,6 +1895,9 @@ connection_threadmain(void *arg)
                                                              pb_conn->c_idletimeout_handle,
                                                              &idletimeout) == SLAPI_RESLIMIT_STATUS_SUCCESS) {
                             pb_conn->c_idletimeout = idletimeout;
+#ifdef ENABLE_EPOLL
+                            connection_idle_timer_arm(pb_conn);
+#endif
                         }
                     }
                     slapi_ch_free_string(&anon_dn);
@@ -2046,16 +2049,7 @@ connection_threadmain(void *arg)
                not idle */
             conn->c_idlesince = curtime;
 #ifdef ENABLE_EPOLL
-            if (conn->c_idle_tfd != -1) {
-                /* Reset the idle timer */
-                slapi_log_err(SLAPI_LOG_DEBUG,
-                              "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
-                timerfd_settime(conn->c_idle_tfd, 0,
-                                &(struct itimerspec) {
-                                    .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
-                                    .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
-                                }, NULL);
-            }
+            connection_idle_timer_arm(conn);
 #endif /* ENABLE_EPOLL */
         }
 
@@ -2100,16 +2094,7 @@ connection_threadmain(void *arg)
                      */
                     conn->c_idlesince = curtime;
 #ifdef ENABLE_EPOLL
-                    if (conn->c_idle_tfd != -1) {
-                        /* Reset the idle timer */
-                        slapi_log_err(SLAPI_LOG_DEBUG,
-                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
-                        timerfd_settime(conn->c_idle_tfd, 0,
-                                        &(struct itimerspec) {
-                                            .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
-                                            .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
-                                        }, NULL);
-                    }
+                    connection_idle_timer_arm(conn);
 #endif /* ENABLE_EPOLL */
                     connection_activity(conn, maxthreads);
                     slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",

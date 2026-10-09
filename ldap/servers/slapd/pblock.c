@@ -6810,6 +6810,23 @@ slapi_pblock_set_result_text_if_empty(Slapi_PBlock *pb, char *text) {
  * This function might better belong on bind.c or perhaps connection.c but
  * it needs to be in libslapd because FE code and libslapd code calls it.
  */
+#ifdef ENABLE_EPOLL
+void
+connection_idle_timer_arm(Connection *conn)
+{
+    struct itimerspec ts = {0};
+
+    if (conn == NULL || conn->c_idle_tfd < 0) {
+        return;
+    }
+    if (conn->c_idletimeout > 0) {
+        ts.it_value.tv_sec = conn->c_idletimeout;
+        ts.it_interval.tv_sec = conn->c_idletimeout;
+    }
+    (void)timerfd_settime(conn->c_idle_tfd, 0, &ts, NULL);
+}
+#endif /* ENABLE_EPOLL */
+
 void
 bind_credentials_set(Connection *conn, char *authtype, char *normdn, char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry *bind_target_entry)
 {
@@ -6877,6 +6894,9 @@ bind_credentials_set_nolock(Connection *conn, char *authtype, char *normdn, char
         reslimit_update_from_entry(conn, NULL);
         conn->c_idletimeout = 0;
     }
+#ifdef ENABLE_EPOLL
+    connection_idle_timer_arm(conn);
+#endif
 }
 
 /*

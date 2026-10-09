@@ -993,6 +993,8 @@ accept_thread(void *vports)
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
+    int32_t last_refresh_cert_count = 0;
+    int32_t cur_refresh_cert_count = 0;
     n_tcps = ports->n_socket;
     s_tcps = ports->s_socket;
 #if defined(ENABLE_LDAPI)
@@ -1005,6 +1007,8 @@ accept_thread(void *vports)
     }
     slapi_log_err(SLAPI_LOG_DEBUG, "epoll_accept_thread", "epoll_create1() created epoll fd %d\n",
                   epoll_fd);
+
+    last_refresh_cert_count = slapi_atomic_load_32(&refresh_cert_count, __ATOMIC_RELAXED);
     num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, epoll_fd);
 
     events = (struct epoll_event *)slapi_ch_calloc(num_poll, sizeof(struct epoll_event));
@@ -1028,8 +1032,28 @@ accept_thread(void *vports)
                               "Listening for new connections again\n");
             }
         }
+        wait4certs_refresh(ports);
+        cur_refresh_cert_count = slapi_atomic_load_32(&refresh_cert_count, __ATOMIC_RELAXED);
 
-        select_return = epoll_wait(epoll_fd, events, listeners, slapd_wakeup_timer);
+        if (cur_refresh_cert_count != last_refresh_cert_count) {
+            /*
+             * refresh_cert() has been called so the PR_FileDesc may
+             * have changed ==> Recreate the epoll instance to register the updated listeners.
+             */
+            close(epoll_fd);
+
+            epoll_fd = epoll_create1(0);
+            if (epoll_fd == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
+                            "epoll_create1() failed after certificate refresh\n");
+                exit(1);
+            }
+
+            num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, epoll_fd);
+            last_refresh_cert_count = cur_refresh_cert_count;
+        }
+
+        select_return = epoll_wait(epoll_fd, events, num_poll, slapd_wakeup_timer);
         switch (select_return) {
         case 0: /* Timeout */
             break;
@@ -1667,17 +1691,38 @@ reap_closing_connections(Connection_Table *ct, int list_num, int max_to_check)
     c = reap_cursor_start(ct, list_num);
     while (c != NULL && checked < max_to_check) {
         next = connection_table_get_next_active_connection(ct, c);
+
         if (c->c_state == CONN_STATE_FREE) {
             connection_table_move_connection_out_of_active_list(ct, c);
-        } else if (pthread_mutex_trylock(&(c->c_mutex)) != EBUSY) {
-            if ((c->c_flags & CONN_FLAG_CLOSING) || c->c_sd == SLAPD_INVALID_SOCKET) {
-                connection_table_move_connection_out_of_active_list(ct, c);
+        } else {
+            /* Check for expired paged results */
+            if (pagedresults_is_timedout_nolock(c)) {
+                pthread_mutex_t *pr_mutex = pageresult_lock_get_addr(c);
+
+                if (pthread_mutex_trylock(pr_mutex) == 0) {
+                    if (pagedresults_is_timedout_nolock(c)) {
+                        pthread_mutex_unlock(pr_mutex);
+                        disconnect_server(c, c->c_connid, -1,
+                                          SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT, 0);
+                    } else {
+                        pthread_mutex_unlock(pr_mutex);
+                    }
+                }
             }
-            pthread_mutex_unlock(&(c->c_mutex));
+
+            if (pthread_mutex_trylock(&(c->c_mutex)) != EBUSY) {
+                if ((c->c_flags & CONN_FLAG_CLOSING) ||
+                    c->c_sd == SLAPD_INVALID_SOCKET) {
+                    connection_table_move_connection_out_of_active_list(ct, c);
+                }
+                pthread_mutex_unlock(&(c->c_mutex));
+            }
         }
+
         checked++;
         c = next;
     }
+
     /* Next reap starts at the reap_cursor. */
     ct->reap_cursor[list_num] = c;
 }
@@ -2238,17 +2283,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                                   "handle_pr_read_ready", "read activity on %d\n", c->c_ci);
                     c->c_idlesince = curtime;
 #ifdef ENABLE_EPOLL
-                    if (c->c_idle_tfd != -1) {
-                        /* Reset the idle timer */
-                        slapi_log_err(SLAPI_LOG_DEBUG,
-                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n",
-                                      c->c_ci, c->c_idletimeout);
-                        timerfd_settime(c->c_idle_tfd, 0,
-                                        &(struct itimerspec) {
-                                            .it_value = { .tv_sec = c->c_idletimeout, .tv_nsec = 0 },
-                                            .it_interval = { .tv_sec = c->c_idletimeout, .tv_nsec = 0 }
-                                        }, NULL);
-                    }
+                    connection_idle_timer_arm(c);
 #endif /* ENABLE_EPOLL */
                     /* This is where the work happens ! */
                     /* MAB: 25 jan 01, error handling added */
@@ -2647,6 +2682,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
                   "Added idle timer fd %d for connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d\n",
                   conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci,
                   the_connection_table->epoll_fd[conn->c_ct_list]);
+    connection_idle_timer_arm(conn);
 #endif /* ENABLE_EPOLL */
 
     pthread_mutex_unlock(&(conn->c_mutex));

@@ -1346,6 +1346,9 @@ void bind_credentials_set_nolock(Connection *conn,
                                  CERTCertificate *clientcert,
                                  Slapi_Entry *binded);
 void bind_credentials_clear(Connection *conn, PRBool lock_conn, PRBool clear_externalcreds);
+#ifdef ENABLE_EPOLL
+void connection_idle_timer_arm(Connection *conn);
+#endif
 
 
 /*
