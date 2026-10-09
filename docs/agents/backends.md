@@ -34,6 +34,7 @@ Above the abstraction, code speaks only the opaque `dbi_*` types from `dbimpl.h`
 
 | Site | Test | Effect |
 |---|---|---|
+| `dblayer.c (dblayer_lock_inside_txn)` | `li_flags & LI_LMDB_IMPL` | `dblayer_txn_begin/commit/abort` take the backend lock inside the transaction, after the lmdb writer mutex, so betxn plugins writing to another backend cannot deadlock (Issue 6652) |
 | `ldbm_modrdn.c (ldbm_back_modrdn)` | `li_flags & LI_LMDB_IMPL` | clears entry + DN caches after every modrdn |
 | `index.c (index_range_read_ext)` | `(li_flags & (LI_LMDB_IMPL\|LI_BDB_IMPL)) == LI_BDB_IMPL` | `idl_new_range_fetch` vs `idl_lmdb_range_fetch` |
 | `vlv_srch.c (vlvIndex_checkforindex)` | `li_flags & LI_LMDB_IMPL` | lmdb always opens the dbi |

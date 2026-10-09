@@ -761,12 +761,27 @@ dblayer_read_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn)
     return (dblayer_txn_begin_ext(li, parent_txn, txn, PR_FALSE));
 }
 
+/*
+ * With lmdb, a write transaction holds the env-wide writer mutex from
+ * mdb_txn_begin() until it commits or aborts, and a betxn plugin that writes
+ * to another backend (e.g. the retro changelog) takes that backend's lock
+ * while holding it. So with lmdb the backend lock must always be taken inside
+ * the transaction: a thread that takes the backend lock first and then waits
+ * for the writer mutex (e.g. the retro changelog trimming thread) deadlocks
+ * with it (Issue 6652).
+ */
+static int
+dblayer_lock_inside_txn(struct ldbminfo *li)
+{
+    return DBLOCK_INSIDE_TXN(li) || (li->li_flags & LI_LMDB_IMPL);
+}
+
 int
 dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc = 0;
-    if (DBLOCK_INSIDE_TXN(li)) {
+    if (dblayer_lock_inside_txn(li)) {
         rc = dblayer_txn_begin_ext(li, parent_txn, txn, PR_TRUE);
         if (!rc && SERIALLOCK(li)) {
             dblayer_lock_backend(be);
@@ -808,7 +823,7 @@ dblayer_txn_commit(backend *be, back_txn *txn)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc;
-    if (DBLOCK_INSIDE_TXN(li)) {
+    if (dblayer_lock_inside_txn(li)) {
         if (SERIALLOCK(li)) {
             dblayer_unlock_backend(be);
         }
@@ -847,7 +862,7 @@ dblayer_txn_abort(backend *be, back_txn *txn)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc;
-    if (DBLOCK_INSIDE_TXN(li)) {
+    if (dblayer_lock_inside_txn(li)) {
         if (SERIALLOCK(li)) {
             dblayer_unlock_backend(be);
         }
