@@ -1187,16 +1187,61 @@ dse_write_file_nolock(struct dse *pdse)
             } else {
                 fpw.fpw_prfd = NULL;
                 if (pdse->dse_fileback != NULL) {
-                    rc = slapi_destructive_rename(pdse->dse_filename, pdse->dse_fileback);
-                    if (rc != 0) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot backup"
-                                                                              " DSE file \"%s\" to \"%s\": OS error %d (%s)\n",
-                                      pdse->dse_filename, pdse->dse_fileback,
-                                      rc, slapd_system_strerror(rc));
+                    /*
+                     * Refresh the backup without ever removing dse.ldif: make
+                     * the current file durable (it may come from an older
+                     * version or lib389), hard link it to a temporary name and
+                     * rename that over the backup. A failure here is logged
+                     * but does not prevent the new file from being installed.
+                     */
+                    char *bak_tmp = slapi_ch_smprintf("%s.tmp", pdse->dse_fileback);
+                    int cur_fd = open(pdse->dse_filename, O_RDONLY);
+                    if (cur_fd == -1) {
+                        if (errno != ENOENT) { /* ENOENT: first write, nothing to back up */
+                            int err = errno;
+                            slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                          "Cannot open DSE file \"%s\" to sync it:"
+                                          " OS error %d (%s)\n",
+                                          pdse->dse_filename, err, slapd_system_strerror(err));
+                        }
+                    } else {
+                        if (fsync(cur_fd) != 0) {
+                            int err = errno;
+                            slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                          "Cannot fsync DSE file \"%s\":"
+                                          " OS error %d (%s)\n",
+                                          pdse->dse_filename, err, slapd_system_strerror(err));
+                        }
+                        close(cur_fd);
                     }
+                    if (unlink(bak_tmp) != 0 && errno != ENOENT) {
+                        int err = errno;
+                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                      "Cannot remove stale file \"%s\":"
+                                      " OS error %d (%s)\n",
+                                      bak_tmp, err, slapd_system_strerror(err));
+                    }
+                    if (link(pdse->dse_filename, bak_tmp) != 0) {
+                        if (errno != ENOENT) {
+                            int err = errno;
+                            slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                          "Cannot backup DSE file \"%s\" to \"%s\":"
+                                          " OS error %d (%s)\n",
+                                          pdse->dse_filename, bak_tmp, err, slapd_system_strerror(err));
+                        }
+                    } else if (rename(bak_tmp, pdse->dse_fileback) != 0) {
+                        int err = errno;
+                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                      "Cannot rename \"%s\" to \"%s\":"
+                                      " OS error %d (%s)\n",
+                                      bak_tmp, pdse->dse_fileback, err, slapd_system_strerror(err));
+                        (void)unlink(bak_tmp);
+                    }
+                    slapi_ch_free_string(&bak_tmp);
                 }
-                rc = slapi_destructive_rename(pdse->dse_tmpfile, pdse->dse_filename);
-                if (rc != 0) {
+                /* rename() atomically replaces dse.ldif if it exists */
+                if (rename(pdse->dse_tmpfile, pdse->dse_filename) != 0) {
+                    rc = errno;
                     slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot rename"
                                                                           " temporary DSE file \"%s\" to \"%s\":"
                                                                           " OS error %d (%s)\n",
@@ -1205,7 +1250,7 @@ dse_write_file_nolock(struct dse *pdse)
                 }
                 /*
                  * We have now written to the tmp location, and renamed it
-                 * we need to open and fsync the dir to make the rename stick.
+                 * we need to open and fsync the dir to make the renames stick.
                  * If the rename into place failed there is nothing to make durable.
                  */
                 if (rc == 0) {
