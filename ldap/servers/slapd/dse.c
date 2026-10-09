@@ -1193,16 +1193,12 @@ dse_write_file_nolock(struct dse *pdse)
                  * We have now written to the tmp location, and renamed it
                  * we need to open and fsync the dir to make the rename stick.
                  */
-                int fp_configdir =
-#ifdef O_PATH
-                    open(pdse->dse_configdir, O_PATH | O_DIRECTORY)
-#else
-                    open(pdse->dse_configdir, O_RDONLY | O_DIRECTORY)
-#endif
-                    ;
-                if (fp_configdir != -1) {
-                    fsync(fp_configdir);
-                    close(fp_configdir);
+                int err = slapi_fsync_dir(pdse->dse_configdir);
+                if (err != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                  "Cannot fsync directory \"%s\":"
+                                  " OS error %d (%s)\n",
+                                  pdse->dse_configdir, err, slapd_system_strerror(err));
                 }
             }
         }
