@@ -239,3 +239,8 @@ Workflow: see the add-config-attribute skill (.agents/skills/add-config-attribut
 - `cn=config` itself is served by DSE callbacks registered in `setup_internal_backends()`: `read_config_dse` (search preop), `modify_config_dse` (modify preop/postop pair), and a delete refusal (`fedse.c (setup_internal_backends)`, `configdse.c`). Two pseudo-operations exist beyond the SLAPI ones: `DSE_OPERATION_READ` (dse.ldif parse at startup) and `DSE_OPERATION_WRITE` (dse.ldif write).
 - MODRDN and abandon under `cn=config` are hard-wired to unwilling-to-perform in the internal DSE backend — a rename there can never work (`backend_manager.c (be_new_internal)`).
 - Modifying an entry under `cn=plugins,cn=config` takes live effect only when `nsslapd-dynamic-plugins` is on; otherwise the server logs a notice and the change needs a restart (`dse.c (dse_modify)`).
+
+## DSE file durability
+
+- `dse.c (dse_write_file_nolock)` writes `dse.ldif.tmp`, `PR_Sync`s it, fsyncs the current `dse.ldif`, links it to `dse.ldif.bak` (via `<bak>.tmp` + rename), renames the tmp over `dse.ldif`, then, if that rename succeeded, fsyncs the config directory once with `fileio.c (slapi_fsync_dir)`. A failure before the final rename leaves the old `dse.ldif` untouched.
+- Rule: never rename a file into place without fsyncing it first, and never fsync an `O_PATH` fd (it fails with EBADF, so the call is a silent no-op).
