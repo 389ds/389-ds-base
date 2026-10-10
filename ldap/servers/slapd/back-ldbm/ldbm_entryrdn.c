@@ -18,6 +18,7 @@
 /* ldbm_entryrdn.c - module to access entry rdn index */
 
 #include "back-ldbm.h"
+#include "attrcrypt.h"
 
 #if LDAP_DEBUG_ENTRYRDN
 /* Lets use SLAPI_LOG_BACKLDBM which is less verbose than DEBUG or TRACE */
@@ -1350,7 +1351,7 @@ _entryrdn_open_index(entryrdn_db_ctx_t *ctx)
         _ENTRYRDN_DEBUG_GOTO_BAIL();
         goto bail;
     }
-    if (ctx->ai->ai_attrcrypt && entryrdn_warning_on_encryption) {
+    if (ctx->ai->ai_attrcrypt && ctx->ai->ai_attrcrypt->attrcrypt_cipher && entryrdn_warning_on_encryption) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_open_index",
                       "Encrypting entryrdn is not supported.  "
                       "Ignoring the configuration entry \"dn: "

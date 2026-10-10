@@ -845,7 +845,7 @@ attrcrypt_decrypt_entry(backend *be, struct backentry *e)
         slapi_attr_get_type(attr, &type);
         ainfo_get(be, type, &ai);
 
-        if (ai && ai->ai_attrcrypt) {
+        if (ai && ai->ai_attrcrypt && ai->ai_attrcrypt->attrcrypt_cipher) {
             i = slapi_attr_first_value(attr, &value);
             while (NULL != value && i != -1) {
                 /* Now decrypt the attribute values in place on the original entry */
@@ -904,7 +904,7 @@ attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout)
 
         ainfo_get(be, type, &ai);
 
-        if (ai && ai->ai_attrcrypt) {
+        if (ai && ai->ai_attrcrypt && ai->ai_attrcrypt->attrcrypt_cipher) {
             svals = attr_get_present_values(attr);
             if (svals) {
                 /* Now encrypt the attribute values in place on the new entry */
@@ -950,7 +950,7 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 
         ainfo_get(be, type, &ai);
 
-        if (ai && ai->ai_attrcrypt) {
+        if (ai && ai->ai_attrcrypt && ai->ai_attrcrypt->attrcrypt_cipher) {
             Slapi_Value **svals = attr_get_present_values(attr);
             if (svals) {
                 Slapi_Value **new_vals = NULL;
@@ -998,7 +998,7 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
         return ret;
     }
 
-    if (ai->ai_attrcrypt) {
+    if (ai->ai_attrcrypt && ai->ai_attrcrypt->attrcrypt_cipher) {
         slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_encrypt_index_key", "->\n");
         ret = attrcrypt_crypto_op(ai->ai_attrcrypt, be, ai, in_data, in_size, &out_data, &out_size, 1);
         if (0 == ret) {
@@ -1035,7 +1035,7 @@ attrcrypt_decrypt_index_key(backend *be,
         return rc;
     }
 
-    if (ai->ai_attrcrypt) {
+    if (ai->ai_attrcrypt && ai->ai_attrcrypt->attrcrypt_cipher) {
         Slapi_Value *value = NULL;
         rc = -1;
         if (NULL == in || NULL == out) {
@@ -1591,7 +1591,7 @@ _back_crypt_crypto_op(attrcrypt_private *priv __attribute__((unused)),
                       size_t *out_size,
                       int encrypt,
                       backend *be __attribute__((unused)),
-                      struct attrinfo *ai __attribute__((unused)) /* just for debugging */)
+                      struct attrinfo *ai)
 {
     int rc = -1;
     SECStatus secret = 0;
@@ -1619,9 +1619,19 @@ _back_crypt_crypto_op(attrcrypt_private *priv __attribute__((unused)),
     output_buffer_length = in_size + BACK_CRYPT_OUTBUFF_EXTLEN;
     output_buffer = (unsigned char *)slapi_ch_malloc(output_buffer_length);
     /* Now call NSS to do the cipher op */
-    iv_item.data = (unsigned char *)"aaaaaaaaaaaaaaaa"; /* ptr to an array
-                                                           of IV bytes */
-    iv_item.len = acs->ace->iv_length;                  /* length of the array of IV bytes */
+    iv_item.len = acs->ace->iv_length;           /* length of the array of IV bytes */
+    if (ai && ai->ai_attrcrypt && ai->ai_attrcrypt->iv) {
+        iv_item.data = ai->ai_attrcrypt->iv->bv_val;
+        if (ai->ai_attrcrypt->iv->bv_len < iv_item.len) {
+            iv_item.len = ai->ai_attrcrypt->iv->bv_len;
+            slapi_log_err(SLAPI_LOG_WARNING, "_back_crypt_crypto_op",
+                          "Encryption Initialization Vector for attribute %s is too small: %d/%d\n",
+                          ai->ai_type, (int)ai->ai_attrcrypt->iv->bv_len, (int)acs->ace->iv_length);
+        }
+    } else {
+        /* Changelog or legacy */
+        iv_item.data = (unsigned char*) "aaaaaaaaaaaaaaaa";
+    }
     security_parameter = slapd_pk11_ParamFromIV(acs->ace->cipher_mechanism,
                                                 &iv_item);
     if (NULL == security_parameter) {
