@@ -2078,8 +2078,14 @@ connection_threadmain(void *arg)
                               conn->c_connid);
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 pthread_mutex_lock(&(conn->c_mutex));
-                /* don't do this if it would put us over the max threads per conn */
-                if (conn->c_threadnumber < maxthreads) {
+                if (conn->c_flags & CONN_FLAG_CLOSING) {
+                    /* The connection is being closed (a client that sent pipelined
+                     * requests and went away): nothing reads the buffered requests,
+                     * and acquiring it would only fail */
+                    slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " closing, buffered requests not queued\n",
+                                  conn->c_connid);
+                } else if (conn->c_threadnumber < maxthreads) {
+                    /* don't do this if it would put us over the max threads per conn */
                     /* for turbo, c_idlesince is set above - for !turbo and
                      * !more_data, we put the conn back in the poll loop and
                      * c_idlesince is set in handle_pr_read_ready - since we
@@ -2098,9 +2104,10 @@ connection_threadmain(void *arg)
                                         }, NULL);
                     }
 #endif /* ENABLE_EPOLL */
-                    connection_activity(conn, maxthreads);
-                    slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
-                                  conn->c_connid);
+                    if (connection_activity(conn, maxthreads) == 0) {
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
+                                      conn->c_connid);
+                    }
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
