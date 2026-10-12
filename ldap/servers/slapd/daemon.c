@@ -44,9 +44,6 @@
 #if defined(HAVE_SYS_EPOLL_H)
 #include <sys/epoll.h>
 #endif /* NEED SYS_EPOLL */
-#if defined(HAVE_SYS_TIMERFD_H)
-#include <sys/timerfd.h>
-#endif /* NEED TIMERFD */
 /* for some reason, linux tty stuff defines CTIME */
 #include <stdio.h>
 #if defined(LINUX) || defined(__FreeBSD__)
@@ -116,6 +113,19 @@ typedef struct listener_info
 #ifdef ENABLE_EPOLL
 /* Don't be tempted to use EPOLLEXCLUSIVE, it will not wake the correct threads */
 #define EPOLL_EVENTS (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR)
+/* Connection sockets are one shot: an event disarms the socket until the
+ * connection is made readable again, as poll leaves out connections that a
+ * worker owns (c_gettingber).
+ */
+#define EPOLL_CONN_EVENTS (EPOLL_EVENTS | EPOLLONESHOT)
+/* Most events one epoll_wait() of a connection table list returns.  Every
+ * event becomes a work queue item, so scale it on the worker threads this
+ * list feeds: SLAPD_EPOLL_EVENTS_PER_THREAD per thread, at least
+ * SLAPD_EPOLL_MIN_EVENTS.  SLAPD_EPOLL_MAX_EVENTS in the environment
+ * overrides it, 0 for up to the list size.
+ */
+#define SLAPD_EPOLL_EVENTS_PER_THREAD 4
+#define SLAPD_EPOLL_MIN_EVENTS 16
 #endif /* ENABLE_EPOLL */
 
 static size_t listeners = 0;                /* number of listener sockets */
@@ -150,6 +160,7 @@ static volatile sig_atomic_t lsan_check_in_progress = 0;
 static void setup_pr_ct_firsttime_pds(Connection_Table *ct);
 #ifdef ENABLE_EPOLL
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, int epoll_fd);
+static void check_active_connections(Connection_Table *ct, int listnum);
 #else
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, struct POLL_STRUCT **fds);
 #endif /* ENABLE_EPOLL */
@@ -197,7 +208,21 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *listenfd, PRNetA
  */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int secure, int local, Connection **newconn);
 #ifdef ENABLE_EPOLL
-static void handle_pr_read_ready(Connection_Table *ct, int list_num, struct epoll_event *events, int num_poll);
+/* epoll events whose connection mutex was busy, kept by ct_list_thread to retry */
+typedef struct epoll_retry_event
+{
+    Connection *c;
+    uint64_t connid;
+    uint32_t events;
+} epoll_retry_event;
+typedef struct epoll_retry
+{
+    epoll_retry_event *ev;
+    size_t count;
+    size_t size;
+} epoll_retry;
+static void handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int num_events, epoll_retry *retry);
+static void epoll_retry_events(epoll_retry *retry);
 #else /* !ENABLE_EPOLL */
 static void handle_pr_read_ready(Connection_Table *ct, int list_id, PRIntn num_poll);
 #endif /* ENABLE_EPOLL */
@@ -933,6 +958,8 @@ accept_thread(void *vports)
     int select_return = 0;
     PRErrorCode prerr;
     int last_accept_new_connections = -1;
+    int32_t last_refresh_cert_count = 0;
+    int32_t cur_refresh_cert_count = 0;
     PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
@@ -950,10 +977,30 @@ accept_thread(void *vports)
     slapi_log_err(SLAPI_LOG_DEBUG, "epoll_accept_thread", "epoll_create1() created epoll fd %d\n",
                   epoll_fd);
     num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, epoll_fd);
+    last_refresh_cert_count = slapi_atomic_load_32(&refresh_cert_count, __ATOMIC_RELAXED);
 
     events = (struct epoll_event *)slapi_ch_calloc(num_poll, sizeof(struct epoll_event));
 
     while (!g_get_shutdown()) {
+        /* Before the capacity check: the list threads waiting in a refresh
+         * are the ones that release closed connections */
+        wait4certs_refresh(ports);
+        cur_refresh_cert_count = slapi_atomic_load_32(&refresh_cert_count, __ATOMIC_RELAXED);
+        if (cur_refresh_cert_count != last_refresh_cert_count) {
+            last_refresh_cert_count = cur_refresh_cert_count;
+            /*
+             * refresh_cert() has been called so the PR_FileDesc may
+             * have changed ==> Lets recreate the listener epoll set
+             */
+            close(epoll_fd);
+            if ((epoll_fd = epoll_create1(0)) == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "epoll_accept_thread", "epoll_create1() failed\n");
+                exit(1);
+            }
+            num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, epoll_fd);
+            slapi_ch_free((void **)&events);
+            events = (struct epoll_event *)slapi_ch_calloc(num_poll, sizeof(struct epoll_event));
+        }
         /* Do we need to accept new connections, account for ct->size including list heads. */
         int accept_new_connections = ((ct->size - ct->list_num) > ct->conn_next_offset);
         if (!accept_new_connections) {
@@ -988,6 +1035,17 @@ accept_thread(void *vports)
         }
         last_accept_new_connections = accept_new_connections;
     }
+
+    /*
+     * A certificate refresh asked just before shutdown is never done now:
+     * release the list threads waiting for it, or shutdown waits on them.
+     * The list threads are only woken by their epoll_wait() timeout, so
+     * they can still enter wait4certs_refresh() after this thread left.
+     */
+    pthread_mutex_lock(&cert_refresh_mutex);
+    set_cert_refresh_asked(false);
+    pthread_cond_broadcast(&cert_refresh_cv);
+    pthread_mutex_unlock(&cert_refresh_mutex);
 
     /* free the listener indexes */
     slapi_ch_free((void **)&events);
@@ -1139,7 +1197,6 @@ has_idletimeout_expired(Connection *c, time_t curtime)
             curtime - c->c_idlesince >= c->c_idletimeout);
 }
 
-#ifndef ENABLE_EPOLL
 /*
  * slapi_eq_repeat_rel callback that checks that idletimeout has not expired.
  */
@@ -1170,7 +1227,6 @@ check_idletimeout(time_t when __attribute__((unused)), void *arg __attribute__((
         }
     }
 }
-#endif /* !ENABLE_EPOLL */
 
 void
 slapd_daemon(daemon_ports_t *ports)
@@ -1384,11 +1440,9 @@ slapd_daemon(daemon_ports_t *ports)
                   "MAINPID=%lu",
                   (unsigned long)getpid());
 #endif
-#ifndef ENABLE_EPOLL
     slapi_eq_repeat_rel(check_idletimeout, NULL,
                         slapi_current_rel_time_t(),
                         MILLISECONDS_PER_SECOND);
-#endif /* !ENABLE_EPOLL */
     /* The meat of the operation is in a loop on a call to select */
     while (!g_get_shutdown()) {
         if (lsan_check_requested) {
@@ -1574,6 +1628,35 @@ ct_list_thread(uint64_t threadnum)
     char tname[16];
     snprintf(tname, sizeof(tname), "ct-list-%lu", (unsigned long)threadid);
     slapi_set_thread_name(tname);
+#ifdef ENABLE_EPOLL
+    struct timespec last_check = {0};
+    int max_events = SLAPD_EPOLL_EVENTS_PER_THREAD * config_get_threadnumber() / config_get_num_listeners();
+    char *m = getenv("SLAPD_EPOLL_MAX_EVENTS");
+
+    if (max_events < SLAPD_EPOLL_MIN_EVENTS) {
+        max_events = SLAPD_EPOLL_MIN_EVENTS;
+    }
+    if (m) {
+        char *endp = NULL;
+        long val;
+
+        errno = 0;
+        val = strtol(m, &endp, 10);
+        if (errno || endp == m || *endp != '\0' || val < 0 || val > INT_MAX) {
+            slapi_log_err(SLAPI_LOG_WARNING, "ct_list_thread",
+                          "Ignoring invalid SLAPD_EPOLL_MAX_EVENTS \"%s\"\n", m);
+        } else {
+            max_events = (int)val;
+        }
+    }
+    if (max_events == 0 || max_events > the_connection_table->list_size) {
+        max_events = the_connection_table->list_size;
+    }
+    slapi_log_err(SLAPI_LOG_INFO, "ct_list_thread", "ct-list-%lu: up to %d events per epoll_wait\n",
+                  (unsigned long)threadid, max_events);
+    struct epoll_event *events = (struct epoll_event *)slapi_ch_calloc(max_events, sizeof(struct epoll_event));
+    epoll_retry retry = {0};
+#endif /* ENABLE_EPOLL */
 
     while (!slapi_is_shutting_down()) {
          int select_return = 0;
@@ -1583,8 +1666,24 @@ ct_list_thread(uint64_t threadnum)
 
          wait4certs_refresh(NULL);
 #ifdef ENABLE_EPOLL
-            struct epoll_event events[the_connection_table->list_size];
-            select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, the_connection_table->list_size, pr_timeout);
+            /* Under load epoll_wait() rarely times out, so run the active
+             * list housekeeping at most once per wakeup interval by time.
+             */
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            if ((now.tv_sec - last_check.tv_sec) * 1000 +
+                (now.tv_nsec - last_check.tv_nsec) / 1000000 >= slapd_ct_thread_wakeup_timer) {
+                check_active_connections(the_connection_table, threadid);
+                last_check = now;
+            }
+            /* Retry the events whose connection mutex was busy, and come
+             * back soon for those still busy.
+             */
+            if (retry.count) {
+                epoll_retry_events(&retry);
+            }
+            select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, max_events,
+                                       retry.count ? 1 : pr_timeout);
 #else /* !ENABLE_EPOLL */
          num_poll = setup_pr_read_pds(the_connection_table, threadid);
          select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
@@ -1601,14 +1700,23 @@ ct_list_thread(uint64_t threadnum)
                 /* handle new data ready */
 #ifdef ENABLE_EPOLL
                 slapi_log_err(SLAPI_LOG_DEBUG, "ct_list_thread", "ct_list_thread: select_return %d\n", select_return);
-                handle_pr_read_ready(the_connection_table, threadid, events, select_return);
+                handle_epoll_read_ready(the_connection_table, events, select_return, &retry);
 #else
                 handle_pr_read_ready(the_connection_table, threadid, 0);
-#endif /* ENABLE_EPOLL */
                 clear_signal(the_connection_table->fd[threadid], threadid);
+#endif /* ENABLE_EPOLL */
                 break;
          }
     }
+#ifdef ENABLE_EPOLL
+    slapi_ch_free((void **)&events);
+    slapi_ch_free((void **)&retry.ev);
+    /* The accept thread may be waiting for this thread in
+     * wait4certs_refresh(), let it see the shutdown */
+    pthread_mutex_lock(&cert_refresh_mutex);
+    pthread_cond_broadcast(&cert_refresh_cv);
+    pthread_mutex_unlock(&cert_refresh_mutex);
+#endif /* ENABLE_EPOLL */
     g_decr_active_threadcnt();
 }
 
@@ -1643,6 +1751,12 @@ init_ct_list_threads(void)
 int
 signal_listner(int list_num)
 {
+#ifdef ENABLE_EPOLL
+    /* epoll listeners are not woken through the signal pipe, connections are
+     * re-armed with connection_epoll_rearm_nolock() instead.
+     */
+    (void)list_num;
+#else /* !ENABLE_EPOLL */
     /* Replaces previous macro---called to bump the thread out of select */
     if (write(signalpipes[list_num].writesignalpipe, "", 1) != 1) {
         /* this now means that the pipe is full
@@ -1652,8 +1766,112 @@ signal_listner(int list_num)
                     "signal_listner", "Listener could not write to signal pipe %d\n",
                     errno);
     }
+#endif /* ENABLE_EPOLL */
     return (0);
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Register the one shot epoll event of a connection again.  The caller holds
+ * c_mutex.  The descriptor can change after registration: StartTLS may move
+ * it above nsslapd-reservedescriptors (configure_pr_socket()), and the
+ * registration stays with the old descriptor, so register the current one if
+ * it isn't.  A live connection must not be left unmonitored.
+ */
+static void
+connection_epoll_register_nolock(Connection *c)
+{
+    struct epoll_event ev = {0};
+    int epfd = c->c_ct->epoll_fd[c->c_ct_list];
+    int err;
+
+    ev.events = EPOLL_CONN_EVENTS;
+    ev.data.ptr = c;
+    if (epoll_ctl(epfd, EPOLL_CTL_MOD, c->c_sd, &ev) == 0) {
+        return;
+    }
+    err = errno;
+    if (err == ENOENT) {
+        if (epoll_ctl(epfd, EPOLL_CTL_ADD, c->c_sd, &ev) == 0) {
+            return;
+        }
+        err = errno;
+    }
+    slapi_log_err(SLAPI_LOG_ERR, "connection_epoll_register_nolock",
+                  "Failed to re-arm conn %" PRIu64 " fd=%d in epoll_fd %d - %s (closing)\n",
+                  c->c_connid, c->c_sd, epfd, strerror(err));
+    disconnect_server_nomutex(c, c->c_connid, -1, SLAPD_DISCONNECT_ABORT, err);
+}
+
+/*
+ * Decide whether a connection being made readable needs its one shot epoll
+ * registration re-armed, so the listener is told about its next request.
+ * The caller holds c_mutex.  A closing connection is left alone, its
+ * descriptor may be closed and reused once it is released.  Returns 1, with
+ * the descriptors to use, when EPOLL_CTL_MOD is needed.
+ */
+int
+connection_epoll_rearm_prepare_nolock(Connection *c, int *epfd, int *fd)
+{
+    c->c_epoll_blocked = 0;
+    if ((c->c_flags & CONN_FLAG_CLOSING) || c->c_sd == SLAPD_INVALID_SOCKET || c->c_ct_list < 0) {
+        return 0;
+    }
+    if ((c->c_flags & CONN_FLAG_SSL) && SSL_DataPending(c->c_prfd) > 0) {
+        /* NSS already holds decrypted data, the descriptor won't become
+         * readable for it (PR_Poll() reports it, epoll can't).  Hand the
+         * connection to a worker now, as the listener would.
+         */
+        if (c->c_threadnumber < c->c_max_threads_per_conn) {
+            c->c_idlesince = slapi_current_rel_time_t();
+            connection_activity(c, c->c_max_threads_per_conn);
+        } else {
+            c->c_epoll_blocked = 1;
+        }
+        return 0;
+    }
+    *epfd = c->c_ct->epoll_fd[c->c_ct_list];
+    *fd = c->c_sd;
+    return 1;
+}
+
+/* Re-arm a connection, the caller holds c_mutex */
+void
+connection_epoll_rearm_nolock(Connection *c)
+{
+    int epfd, fd;
+
+    if (connection_epoll_rearm_prepare_nolock(c, &epfd, &fd)) {
+        connection_epoll_register_nolock(c);
+    }
+}
+
+/*
+ * Re-arm a connection without holding c_mutex, after
+ * connection_epoll_rearm_prepare_nolock() returned 1 under it.  epoll_ctl()
+ * serializes on the epoll instance, keeping that out of c_mutex shortens its
+ * hold time.  Only for a thread that holds a reference on the connection, so
+ * it can't be released and its descriptor reused meanwhile.  If the
+ * connection was disconnected or its descriptor changed in between, sort it
+ * out under c_mutex.
+ */
+void
+connection_epoll_rearm_unlocked(Connection *c, int epfd, int fd)
+{
+    struct epoll_event ev = {0};
+
+    ev.events = EPOLL_CONN_EVENTS;
+    ev.data.ptr = c;
+    if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == 0) {
+        return;
+    }
+    pthread_mutex_lock(&(c->c_mutex));
+    if (!(c->c_flags & CONN_FLAG_CLOSING) && c->c_sd != SLAPD_INVALID_SOCKET && c->c_gettingber == 0) {
+        connection_epoll_register_nolock(c);
+    }
+    pthread_mutex_unlock(&(c->c_mutex));
+}
+#endif /* ENABLE_EPOLL */
 
 static int
 clear_signal(struct POLL_STRUCT *fds, int list_num)
@@ -1724,7 +1942,12 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
 #ifdef ENABLE_EPOLL
             event.events = EPOLL_EVENTS;
             event.data.ptr = &listener_idxs[n_listeners];
-            epoll_ctl(epoll_fd, EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(*fdesc), &event);
+            if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(*fdesc), &event) == -1) {
+                slapi_log_err(SLAPI_LOG_EMERG, "setup_pr_accept_pds",
+                              "Failed to add listener fd %d to epoll_fd %d - %s - Shutting down\n",
+                              PR_FileDesc2NativeHandle(*fdesc), epoll_fd, strerror(errno));
+                g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+            }
 #endif /* ENABLE_EPOLL */
             n_listeners++;
             slapi_log_err(SLAPI_LOG_HOUSE,
@@ -1752,7 +1975,12 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
 #ifdef ENABLE_EPOLL
             event.events = EPOLL_EVENTS;
             event.data.ptr = &listener_idxs[n_listeners];
-            epoll_ctl(epoll_fd, EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(*fdesc), &event);
+            if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(*fdesc), &event) == -1) {
+                slapi_log_err(SLAPI_LOG_EMERG, "setup_pr_accept_pds",
+                              "Failed to add listener fd %d to epoll_fd %d - %s - Shutting down\n",
+                              PR_FileDesc2NativeHandle(*fdesc), epoll_fd, strerror(errno));
+                g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+            }
 #endif /* ENABLE_EPOLL */
             n_listeners++;
             slapi_log_err(SLAPI_LOG_HOUSE,
@@ -1775,7 +2003,12 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
 #ifdef ENABLE_EPOLL
             event.events = EPOLL_EVENTS;
             event.data.ptr = &listener_idxs[n_listeners];
-            epoll_ctl(epoll_fd, EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(*fdesc), &event);
+            if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(*fdesc), &event) == -1) {
+                slapi_log_err(SLAPI_LOG_EMERG, "setup_pr_accept_pds",
+                              "Failed to add listener fd %d to epoll_fd %d - %s - Shutting down\n",
+                              PR_FileDesc2NativeHandle(*fdesc), epoll_fd, strerror(errno));
+                g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+            }
 #endif /* ENABLE_EPOLL */
             n_listeners++;
             slapi_log_err(SLAPI_LOG_HOUSE,
@@ -1898,6 +2131,73 @@ setup_pr_read_pds(Connection_Table *ct, int listnum)
 
     return count;
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * epoll has no poll set to rebuild, but the active list still needs the
+ * housekeeping setup_pr_read_pds() does on each pass: release closed and
+ * free connections and enforce the paged results time limit.  Called from
+ * the list's own ct_list_thread, so the list is only modified by that thread
+ * as in the poll case.
+ */
+static void
+check_active_connections(Connection_Table *ct, int listnum)
+{
+    Connection *c = NULL;
+    Connection *next = NULL;
+
+    c = connection_table_get_first_active_connection(ct, listnum);
+    while (c) {
+        next = connection_table_get_next_active_connection(ct, c);
+        if (c->c_state == CONN_STATE_FREE) {
+            connection_table_move_connection_out_of_active_list(ct, c);
+        } else {
+            /*
+             * we try to acquire the connection mutex, if it is already
+             * acquired by another thread, don't wait.  This thread is the
+             * listener of the list, waiting here would stall all its
+             * connections, so a busy connection waits for the next pass.
+             */
+            if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+                c = next;
+                continue;
+            }
+            /* Check for a timeout for PAGED RESULTS */
+            if (pagedresults_is_timedout_nolock(c)) {
+                /*
+                 * There could be a race condition so lets try again with the
+                 * right lock
+                 */
+                pthread_mutex_t *pr_mutex = pageresult_lock_get_addr(c);
+                if (pthread_mutex_trylock(pr_mutex) == 0) {
+                    if (pagedresults_is_timedout_nolock(c)) {
+                        pthread_mutex_unlock(pr_mutex);
+                        disconnect_server_nomutex(c, c->c_connid, -1,
+                                                  SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT,
+                                                  0);
+                    } else {
+                        pthread_mutex_unlock(pr_mutex);
+                    }
+                }
+            }
+            if (c->c_flags & CONN_FLAG_CLOSING) {
+                /*
+                 * A worker thread, or paged result timeout, has marked that
+                 * this connection should be closed by calling
+                 * disconnect_server(). Move this connection out of the active
+                 * list then the last thread to use the connection will close
+                 * it.
+                 */
+                connection_table_move_connection_out_of_active_list(ct, c);
+            } else if (c->c_sd == SLAPD_INVALID_SOCKET) {
+                connection_table_move_connection_out_of_active_list(ct, c);
+            }
+            pthread_mutex_unlock(&(c->c_mutex));
+        }
+        c = next;
+    }
+}
+#endif /* ENABLE_EPOLL */
 
 static int idletimeout_reslimit_handle = -1;
 
@@ -1912,12 +2212,160 @@ daemon_register_reslimits(void)
                                     &idletimeout_reslimit_handle));
 }
 
-static void
 #ifdef ENABLE_EPOLL
-handle_pr_read_ready(Connection_Table *ct, int list_num, struct epoll_event *events, int num_poll)
+/*
+ * Is there something to read on a connection whose event was retried?  The
+ * request may have been read meanwhile, dispatching it again would leave a
+ * worker waiting for data that isn't coming.
+ */
+static int
+epoll_conn_readable(Connection *c)
+{
+    struct pollfd pfd = {0};
+
+    pfd.fd = c->c_sd;
+    pfd.events = POLLIN | POLLRDHUP;
+    if ((c->c_flags & CONN_FLAG_SSL) && SSL_DataPending(c->c_prfd) > 0) {
+        return 1;
+    }
+    return poll(&pfd, 1, 0) != 0;
+}
+
+/*
+ * Handle an epoll event of a connection.  The event is one shot and is not
+ * reported again, so it can't be dropped when the connection mutex is busy,
+ * and waiting for the mutex would stall every connection of this listener.
+ * Return 1 in that case so the caller retries the event later.  A retried
+ * event carries the connid it was received for: it is dropped if the slot
+ * has been reused, and only dispatched if there is still something to read.
+ */
+static int
+handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t curtime)
+{
+    if (c->c_state == CONN_STATE_FREE) {
+        return 0;
+    }
+    if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+        return 1;
+    }
+    if (connid && c->c_connid != connid) {
+        /* Released and reused while the event was waiting */
+        pthread_mutex_unlock(&(c->c_mutex));
+        return 0;
+    }
+    /* If a worker owns the connection (c_gettingber), it re-arms it when done */
+    if (connection_is_active_nolock(c) && c->c_gettingber == 0) {
+        if (c->c_threadnumber >= c->c_max_threads_per_conn) {
+            /* As in setup_pr_read_pds(), don't read from a connection that
+             * already has its maximum number of threads.  Leave it disarmed,
+             * the thread completing an operation re-arms it.  Count each
+             * blocked period once.
+             */
+            c->c_epoll_blocked = 1;
+            if (!c->c_flagblocked) {
+                c->c_maxthreadsblocked++;
+                c->c_flagblocked = true;
+                if (c->c_maxthreadsblocked == 1 && connection_has_psearch(c)) {
+                    slapi_log_err(SLAPI_LOG_NOTICE, "handle_epoll_conn_event",
+                            "Connection (conn=%" PRIu64 ") has a running persistent search "
+                            "that has exceeded the maximum allowed threads per connection. "
+                            "New operations will be blocked.\n",
+                            c->c_connid);
+                }
+            }
+        } else if (connid && !epoll_conn_readable(c)) {
+            /* Stale retried event, wait for the next request */
+            connection_epoll_rearm_nolock(c);
+        } else if (events & EPOLLERR) {
+            /* some error occured */
+            slapi_log_err(SLAPI_LOG_CONNS,
+                          "handle_epoll_conn_event", "epoll_wait() says connection on sd %d is bad "
+                                                     "(closing)\n",
+                          c->c_sd);
+            disconnect_server_nomutex(c, c->c_connid, -1,
+                                      SLAPD_DISCONNECT_POLL, EPIPE);
+        } else {
+            /* read activity */
+            slapi_log_err(SLAPI_LOG_CONNS,
+                          "handle_epoll_conn_event", "read activity on %d\n", c->c_ci);
+            c->c_idlesince = curtime;
+            /* This is where the work happens ! */
+            if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
+                /* This might happen as a result of
+                 * trying to acquire a closing connection
+                 */
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "handle_epoll_conn_event", "connection_activity: abandoning conn %" PRIu64 " as "
+                                                         "fd=%d is already closing\n",
+                              c->c_connid, c->c_sd);
+                /* The call disconnect_server should do nothing,
+                 * as the connection c should be already set to CLOSING */
+                disconnect_server_nomutex(c, c->c_connid, -1,
+                                          SLAPD_DISCONNECT_POLL, EPIPE);
+            }
+        }
+    }
+    pthread_mutex_unlock(&(c->c_mutex));
+    return 0;
+}
+
+/* Keep an event whose connection mutex was busy, to retry it */
+static void
+epoll_retry_add(epoll_retry *retry, Connection *c, uint32_t events)
+{
+    if (retry->count == retry->size) {
+        retry->size = retry->size ? retry->size * 2 : 64;
+        retry->ev = (epoll_retry_event *)slapi_ch_realloc((char *)retry->ev,
+                                                          retry->size * sizeof(epoll_retry_event));
+    }
+    retry->ev[retry->count].c = c;
+    retry->ev[retry->count].connid = c->c_connid;
+    retry->ev[retry->count].events = events;
+    retry->count++;
+}
+
+/* Retry the kept events, keep those whose mutex is still busy */
+static void
+epoll_retry_events(epoll_retry *retry)
+{
+    time_t curtime = slapi_current_rel_time_t();
+    size_t keep = 0;
+
+    for (size_t i = 0; i < retry->count; i++) {
+        epoll_retry_event *ev = &(retry->ev[i]);
+        if (handle_epoll_conn_event(ev->c, ev->events, ev->connid, curtime)) {
+            retry->ev[keep++] = *ev;
+        }
+    }
+    retry->count = keep;
+}
+
+static void
+handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int num_events, epoll_retry *retry)
+{
+    time_t curtime = slapi_current_rel_time_t();
+
+#if LDAP_ERROR_LOGGING
+    if (slapd_ldap_debug & LDAP_DEBUG_CONNS) {
+        connection_table_dump_activity_to_errors_log(ct);
+    }
+#endif /* LDAP_ERROR_LOGGING */
+
+    slapi_log_err(SLAPI_LOG_DEBUG,
+                  "handle_epoll_read_ready", "epoll_wait returned %d events\n", num_events);
+    for (int i = 0; i < num_events; i++) {
+        Connection *c = (Connection *)events[i].data.ptr;
+        slapi_log_err(SLAPI_LOG_DEBUG,
+                      "handle_epoll_read_ready", "epoll event %d for connection on sd %d events (%d) %s\n",
+                      i + 1, c->c_sd, events[i].events, epoll_event_flags_to_string(events[i].events));
+        if (handle_epoll_conn_event(c, events[i].events, 0, curtime)) {
+            epoll_retry_add(retry, c, events[i].events);
+        }
+    }
+}
 #else /* !ENABLE_EPOLL */
+static void
 handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attribute__((unused)))
-#endif /* ENABLE_EPOLL */
 {
     Connection *c;
     time_t curtime = slapi_current_rel_time_t();
@@ -1929,27 +2377,12 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
 #endif /* LDAP_ERROR_LOGGING */
 
 
-#ifdef ENABLE_EPOLL
-    /*
-     * This function is called for each epoll event, so that we traverse only
-     * connections that have events to process.
-     */
-    slapi_log_err(SLAPI_LOG_DEBUG,
-                  "handle_pr_read_ready", "epoll_wait returned %d events, events ptr %p\n", num_poll, events);
-    for (int i = 0; i < num_poll; i++) {
-        slapi_log_err(SLAPI_LOG_DEBUG,
-                      "handle_pr_read_ready", "epoll event %d for connection on sd %d events (%d) %s event ptr %p\n",
-                      i+1, events[i].data.ptr ? ((Connection *)events[i].data.ptr)->c_sd : -1,
-                      events[i].events, epoll_event_flags_to_string(events[i].events), events[i].data.ptr);
-        c = (Connection *)events[i].data.ptr;
-#else /* !ENABLE_EPOLL */
     /*
      * This function is called for all connections, so we traverse the entire
      * active connection list to find any errors, activity, etc.
      */
     for (c = connection_table_get_first_active_connection(ct, list_num); c != NULL;
          c = connection_table_get_next_active_connection(ct, c)) {
-#endif /* ENABLE_EPOLL */
         if (c->c_state != CONN_STATE_FREE) {
             /* this check can be done without acquiring the mutex */
             if (c->c_gettingber) {
@@ -1964,36 +2397,6 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                 continue;
             }
             if (connection_is_active_nolock(c) && c->c_gettingber == 0) {
-#ifdef ENABLE_EPOLL
-                uint32_t out_flags;
-                uint32_t readready;
-                if (c->c_fdi != SLAPD_INVALID_SOCKET_INDEX) {
-                    out_flags = events[i].events;
-                } else {
-                    out_flags = 0;
-                }
-                readready = (events[i].events & EPOLL_EVENTS);
-
-                /* Check to see if the idle timer fd has fired */
-                if (c->c_idle_tfd != -1 && c->c_idle_tfd >= 0) {
-                    uint64_t expirations;
-                    if (read(c->c_idle_tfd, &expirations, sizeof(expirations)) > 0) {
-                        slapi_log_err(SLAPI_LOG_CONNS,
-                                      "handle_pr_read_ready", "idle timer for connection %d expired %llu times\n",
-                                      c->c_ci, expirations);
-                        readready = 0; /* idle timer expired, no read activity */
-                    }
-                }
-
-                if (readready && (events[i].events & EPOLLERR)) {
-                    /* some error occured */
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "handle_pr_read_ready", "epoll_wait() says connection on sd %d is bad "
-                                                          "(closing)\n",
-                                  c->c_sd);
-                    disconnect_server_nomutex(c, c->c_connid, -1,
-                                              SLAPD_DISCONNECT_POLL, EPIPE);
-#else /* !ENABLE_EPOLL */
                 PRInt16 out_flags;
                 short readready;
 
@@ -2013,25 +2416,11 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                                   c->c_sd);
                     disconnect_server_nomutex(c, c->c_connid, -1,
                                               SLAPD_DISCONNECT_POLL, EPIPE);
-#endif /* ENABLE_EPOLL */
                 } else if (readready) {
                     /* read activity */
                     slapi_log_err(SLAPI_LOG_CONNS,
                                   "handle_pr_read_ready", "read activity on %d\n", c->c_ci);
                     c->c_idlesince = curtime;
-#ifdef ENABLE_EPOLL
-                    if (c->c_idle_tfd != -1) {
-                        /* Reset the idle timer */
-                        slapi_log_err(SLAPI_LOG_DEBUG,
-                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n",
-                                      c->c_ci, c->c_idletimeout);
-                        timerfd_settime(c->c_idle_tfd, 0,
-                                        &(struct itimerspec) {
-                                            .it_value = { .tv_sec = c->c_idletimeout, .tv_nsec = 0 },
-                                            .it_interval = { .tv_sec = c->c_idletimeout, .tv_nsec = 0 }
-                                        }, NULL);
-                    }
-#endif /* ENABLE_EPOLL */
                     /* This is where the work happens ! */
                     /* MAB: 25 jan 01, error handling added */
                     if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
@@ -2048,9 +2437,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                                                   SLAPD_DISCONNECT_POLL, EPIPE);
                     }
                 } else if (has_idletimeout_expired(c, curtime)) {
-                    /* This is handled earlier now with the read to c->c_idle_tfd but I've
-                     * left the code here just in case.
-                     */
+                    /* idle timeout */
                     disconnect_server_nomutex(c, c->c_connid, -1,
                                               SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
                 }
@@ -2059,6 +2446,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
         }
     }
 }
+#endif /* ENABLE_EPOLL */
 
 /*
  * wrapper functions required so we can implement ioblock_timeout and
@@ -2282,55 +2670,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
         return -1;
     }
 
-#ifdef ENABLE_EPOLL
-    /* Set up the epoll event for this connection */
-    conn->c_event->events = EPOLL_EVENTS;
-    conn->c_event->data.ptr = conn;
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Adding connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
-                  conn, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_ct_list, conn->c_ci,
-                  the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_event->events));
-
-    /* Add the connection to the epoll instance */
-    if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "Adding connection to epoll_ctl() failed: %s\n",
-                      strerror(errno));
-        PR_Close(pr_accepted_fd);
-        return -1;
-    }
-
-    if ((conn->c_idle_tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK)) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "timerfd_create() failed: %s\n",
-                      strerror(errno));
-        epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event);
-        PR_Close(pr_accepted_fd);
-        return -1;
-    }
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Created idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
-                  conn->c_idle_tfd, conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci);
-    /* Add the idle timer to the epoll instance */
-    conn->c_idle_event->events = EPOLL_EVENTS;
-    conn->c_idle_event->data.ptr = conn;
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Adding idle timer %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
-                  conn->c_idle_event, conn->c_idle_tfd, conn->c_ct_list, conn->c_ci,
-                  the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_idle_event->events));
-    if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, conn->c_idle_tfd, conn->c_idle_event) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "Adding idle timer to epoll_ctl() failed: %s\n",
-                      strerror(errno));
-        PR_Close(pr_accepted_fd);
-        close(conn->c_idle_tfd);
-        conn->c_idle_tfd = -1;
-        epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event);
-        return -1;
-    }
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Added idle timer fd %d for connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d\n",
-                  conn->c_idle_tfd, conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci,
-                  the_connection_table->epoll_fd[conn->c_ct_list]);
-#endif /* ENABLE_EPOLL */
-
     pthread_mutex_lock(&(conn->c_mutex));
 
     /*
@@ -2418,6 +2757,26 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
         /* Now give the new connection to the connection code*/
         connection_table_move_connection_on_to_active_list(the_connection_table, conn);
     }
+#ifdef ENABLE_EPOLL
+
+    /* Register the connection with the epoll instance of its connection table
+     * list.  This must come after the move onto the active list, which sets
+     * c_ct_list.  The connection is live now, so on failure disconnect it and
+     * let the listener thread release it.
+     */
+    if (conn->c_ct_list >= 0) {
+        conn->c_epoll_blocked = 0;
+        conn->c_event->events = EPOLL_CONN_EVENTS;
+        conn->c_event->data.ptr = conn;
+        if (epoll_ctl(ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, conn->c_sd, conn->c_event) == -1) {
+            int err = errno;
+            slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection",
+                          "Adding conn %" PRIu64 " fd=%d to epoll_fd %d failed: %s\n",
+                          conn->c_connid, conn->c_sd, ct->epoll_fd[conn->c_ct_list], strerror(err));
+            disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_ABORT, err);
+        }
+    }
+#endif /* ENABLE_EPOLL */
 
     pthread_mutex_unlock(&(conn->c_mutex));
 
@@ -3093,15 +3452,22 @@ get_connection_table_size(void)
     }
 
 #ifdef ENABLE_EPOLL
-    /* We need to account for the additional timer file descriptor per connection,
-    * which is used for the idle timeout, the listener file descriptors, the epoll
-    * file descriptors in the accept threads and connection table.
+    /* We need to account for the listener file descriptors and the epoll file
+    * descriptors in the accept threads and connection table.
     *
     * Then round the size down to the nearest multiple of the number of connection
     * table lists, so that we can use the same number of connections per list.
     */
     size = size - (config_get_num_listeners() * 2); /* One listener per table, one epoll fd per table */
-    size = (size / 2) - ((size / 2) % config_get_num_listeners()); /* One fd for the connection, one for the timerfd */
+    size = size - (size % config_get_num_listeners());
+    if (size < config_get_num_listeners()) {
+        slapi_log_err(SLAPI_LOG_EMERG, "get_configured_connection_table_size",
+                      "Not enough descriptors for any connection: nsslapd-maxdescriptors %d, "
+                      "nsslapd-reservedescriptors %d, nsslapd-numlisteners %d.  Increase "
+                      "nsslapd-maxdescriptors or reduce nsslapd-reservedescriptors.\n",
+                      maxdesc, resrvdesc, config_get_num_listeners());
+        exit(1);
+    }
 #endif /* ENABLE_EPOLL */
 
     return size;
@@ -3299,6 +3665,13 @@ wait4certs_refresh(daemon_ports_t *ports)
         /* Avoid taking a mutex in the usual case */
         return;
     }
+#ifdef ENABLE_EPOLL
+    /* Once shutting down the accept thread may be gone and some list
+     * threads may never come: no refresh */
+    if (g_get_shutdown()) {
+        return;
+    }
+#endif /* ENABLE_EPOLL */
     pthread_mutex_lock(&cert_refresh_mutex);
     refcnt ++;
     /* accept thread may be waiting, so lets wake it up */
@@ -3306,6 +3679,11 @@ wait4certs_refresh(daemon_ports_t *ports)
     /* Break the condition loop once refresh is done */
     need_refresh = get_cert_refresh_asked();
     for (; need_refresh; need_refresh = get_cert_refresh_asked()) {
+#ifdef ENABLE_EPOLL
+        if (g_get_shutdown()) {
+            break;
+        }
+#endif /* ENABLE_EPOLL */
         /* Lets block the listening threads and
          *  also block accept thread until all listening threads are
          *  blocked

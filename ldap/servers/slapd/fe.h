@@ -93,6 +93,7 @@ struct connection_table
     struct POLL_STRUCT **fd;
 #ifdef ENABLE_EPOLL
     int *epoll_fd;  /* epoll file descriptor for each connection table list */
+    int32_t epoll_active; /* active connections on all lists, atomic, for the turbo mode cut-off */
 #endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
@@ -121,11 +122,19 @@ Connection *connection_table_get_next_active_connection(Connection_Table *ct, Co
 typedef int (*Connection_Table_Iterate_Function)(Connection *c, void *arg);
 int connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Connection_Table_Iterate_Function f);
 int connection_table_get_list(Connection_Table *ct);
+#ifdef ENABLE_EPOLL
+int connection_table_active_count(Connection_Table *ct);
+#endif /* ENABLE_EPOLL */
 
 /*
  * daemon.c
  */
 int signal_listner(int listnum);
+#ifdef ENABLE_EPOLL
+void connection_epoll_rearm_nolock(Connection *c);
+int connection_epoll_rearm_prepare_nolock(Connection *c, int *epfd, int *fd);
+void connection_epoll_rearm_unlocked(Connection *c, int epfd, int fd);
+#endif /* ENABLE_EPOLL */
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_sockets_ports_free(daemon_ports_t *ports_info);
 void slapd_daemon(daemon_ports_t *ports);
