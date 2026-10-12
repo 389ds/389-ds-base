@@ -2263,8 +2263,13 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t 
         return 0;
     }
     if (pb) {
-        /* A worker has nothing else to do, it can wait */
+        /* A worker has nothing else to do, it can wait.  Read the time once
+         * it holds the connection: the slot may have been closed and reused
+         * meanwhile, and an older time would make the new connection look idle
+         * for longer than it has been.
+         */
         pthread_mutex_lock(&(c->c_mutex));
+        curtime = slapi_current_rel_time_t();
     } else if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
         return 1;
     }
@@ -2350,7 +2355,8 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t 
 int
 connection_epoll_worker_event(Connection *c, uint32_t events, Slapi_PBlock *pb)
 {
-    return handle_epoll_conn_event(c, events, 0, slapi_current_rel_time_t(), pb) == EPOLL_CONN_TAKEN;
+    /* handle_epoll_conn_event() reads the time once it holds c_mutex */
+    return handle_epoll_conn_event(c, events, 0, 0, pb) == EPOLL_CONN_TAKEN;
 }
 
 /* Keep an event whose connection mutex was busy, to retry it */

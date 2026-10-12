@@ -1077,6 +1077,7 @@ connection_free_private_buffer(Connection *conn)
 #ifdef ENABLE_EPOLL
 #define CONN_EPOLL_WAIT_TIMEOUT 500      /* milliseconds, an idle worker re-checks for shutdown */
 #define CONN_EPOLL_REPL_READS_MAX 16     /* replication requests a worker reads in a row before re-arming */
+#define CONN_EPOLL_QUEUE_RUN_MAX 8       /* queued items a worker takes in a row before checking epoll first */
 #endif /* ENABLE_EPOLL */
 
 void
@@ -1186,10 +1187,14 @@ connection_epoll_signal_workers(void)
  * add_work_q() signals queued work through the eventfds, and
  * op_thread_cleanup() the shutdown.  Reading an eventfd clears it, so a
  * worker taking queued work passes the signal on while work is left.
+ * After CONN_EPOLL_QUEUE_RUN_MAX queued items in a row (*queue_run), the
+ * worker checks epoll first, without waiting, so connections that are ready
+ * on their sockets get a turn while queued work keeps arriving (TLS data
+ * held by NSS can requeue a connection after every request).
  * Returns CONN_FOUND_WORK_TO_DO or CONN_SHUTDOWN.
  */
 static int
-connection_wait_for_epoll_work(Slapi_PBlock *pb, int listnum)
+connection_wait_for_epoll_work(Slapi_PBlock *pb, int listnum, int *queue_run)
 {
     int epfd = the_connection_table->epoll_fd[listnum];
     int evfd = the_connection_table->event_fd[listnum];
@@ -1197,15 +1202,18 @@ connection_wait_for_epoll_work(Slapi_PBlock *pb, int listnum)
     while (!op_shutdown) {
         struct epoll_event ev = {0};
         eventfd_t count;
+        int poll_first = (*queue_run >= CONN_EPOLL_QUEUE_RUN_MAX);
         int n;
 
-        if (!WORK_Q_EMPTY && connection_wait_for_new_work(pb, -1) == CONN_FOUND_WORK_TO_DO) {
+        if (!poll_first && !WORK_Q_EMPTY && connection_wait_for_new_work(pb, -1) == CONN_FOUND_WORK_TO_DO) {
             if (!WORK_Q_EMPTY) {
                 connection_epoll_signal_workers();
             }
+            (*queue_run)++;
             return CONN_FOUND_WORK_TO_DO;
         }
-        n = epoll_wait(epfd, &ev, 1, CONN_EPOLL_WAIT_TIMEOUT);
+        *queue_run = 0;
+        n = epoll_wait(epfd, &ev, 1, poll_first ? 0 : CONN_EPOLL_WAIT_TIMEOUT);
         if (n <= 0 || op_shutdown) {
             if (n < 0 && errno != EINTR) {
                 slapi_log_err(SLAPI_LOG_ERR, "connection_wait_for_epoll_work",
@@ -1964,6 +1972,7 @@ connection_threadmain(void *arg)
      */
     int epoll_list = (PR_AtomicIncrement(&epoll_workers_started) - 1) % the_connection_table->list_num;
     int epoll_repl_reads = 0; /* replication requests read in a row, see CONN_EPOLL_REPL_READS_MAX */
+    int epoll_queue_run = 0;  /* queued items taken in a row, see CONN_EPOLL_QUEUE_RUN_MAX */
 #endif /* ENABLE_EPOLL */
 
     /* initialize attr syntax hash tables */
@@ -2008,7 +2017,7 @@ connection_threadmain(void *arg)
 #endif
 #ifdef ENABLE_EPOLL
             if (the_connection_table->epoll_workers) {
-                ret = connection_wait_for_epoll_work(pb, epoll_list);
+                ret = connection_wait_for_epoll_work(pb, epoll_list, &epoll_queue_run);
             } else {
                 ret = connection_wait_for_new_work(pb, interval);
             }
