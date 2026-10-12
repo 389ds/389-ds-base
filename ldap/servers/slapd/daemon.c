@@ -1666,6 +1666,14 @@ ct_list_thread(uint64_t threadnum)
 
          wait4certs_refresh(NULL);
 #ifdef ENABLE_EPOLL
+            if (the_connection_table->epoll_workers) {
+                /* Worker mode: the worker threads wait on the epoll fd and read
+                 * the connections themselves, only the housekeeping is left.
+                 */
+                check_active_connections(the_connection_table, threadid);
+                DS_Sleep(PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer));
+                continue;
+            }
             /* Under load epoll_wait() rarely times out, so run the active
              * list housekeeping at most once per wakeup interval by time.
              */
@@ -2216,9 +2224,10 @@ daemon_register_reslimits(void)
 /*
  * Is there something to read on a connection whose event was retried?  The
  * request may have been read meanwhile, dispatching it again would leave a
- * worker waiting for data that isn't coming.
+ * worker waiting for data that isn't coming.  Also used by a worker to check
+ * for the next request of a replication session.  The caller holds c_mutex.
  */
-static int
+int
 epoll_conn_readable(Connection *c)
 {
     struct pollfd pfd = {0};
@@ -2231,6 +2240,9 @@ epoll_conn_readable(Connection *c)
     return poll(&pfd, 1, 0) != 0;
 }
 
+/* handle_epoll_conn_event() returns it when a worker took the operation */
+#define EPOLL_CONN_TAKEN 2
+
 /*
  * Handle an epoll event of a connection.  The event is one shot and is not
  * reported again, so it can't be dropped when the connection mutex is busy,
@@ -2238,14 +2250,22 @@ epoll_conn_readable(Connection *c)
  * Return 1 in that case so the caller retries the event later.  A retried
  * event carries the connid it was received for: it is dropped if the slot
  * has been reused, and only dispatched if there is still something to read.
+ * In worker mode the caller is a worker thread (pb is set): it waits for the
+ * mutex, and takes the connection's next operation into pb instead of
+ * queueing it, returning EPOLL_CONN_TAKEN.
  */
 static int
-handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t curtime)
+handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t curtime, Slapi_PBlock *pb)
 {
+    int rc = 0;
+
     if (c->c_state == CONN_STATE_FREE) {
         return 0;
     }
-    if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+    if (pb) {
+        /* A worker has nothing else to do, it can wait */
+        pthread_mutex_lock(&(c->c_mutex));
+    } else if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
         return 1;
     }
     if (connid && c->c_connid != connid) {
@@ -2276,8 +2296,12 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t 
         } else if (connid && !epoll_conn_readable(c)) {
             /* Stale retried event, wait for the next request */
             connection_epoll_rearm_nolock(c);
-        } else if (events & EPOLLERR) {
-            /* some error occured */
+        } else if ((events & EPOLLERR) && !pb) {
+            /* some error occured.  Not for a worker: the event may be stale,
+             * the worker may have waited for the mutex while the connection
+             * was closed and its slot reused.  It reads instead, and the read
+             * fails on the bad socket.
+             */
             slapi_log_err(SLAPI_LOG_CONNS,
                           "handle_epoll_conn_event", "epoll_wait() says connection on sd %d is bad "
                                                      "(closing)\n",
@@ -2290,7 +2314,16 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t 
                           "handle_epoll_conn_event", "read activity on %d\n", c->c_ci);
             c->c_idlesince = curtime;
             /* This is where the work happens ! */
-            if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
+            int ret;
+            if (pb) {
+                ret = connection_epoll_take_nolock(c, c->c_max_threads_per_conn, pb);
+                if (ret == 0) {
+                    rc = EPOLL_CONN_TAKEN;
+                }
+            } else {
+                ret = connection_activity(c, c->c_max_threads_per_conn);
+            }
+            if (ret == -1) {
                 /* This might happen as a result of
                  * trying to acquire a closing connection
                  */
@@ -2306,7 +2339,18 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t 
         }
     }
     pthread_mutex_unlock(&(c->c_mutex));
-    return 0;
+    return rc;
+}
+
+/*
+ * Worker mode: a worker thread waiting on the epoll fd of its list got an
+ * event of a connection.  Returns 1 when the worker took the connection's
+ * next operation into pb, it then reads and runs it.
+ */
+int
+connection_epoll_worker_event(Connection *c, uint32_t events, Slapi_PBlock *pb)
+{
+    return handle_epoll_conn_event(c, events, 0, slapi_current_rel_time_t(), pb) == EPOLL_CONN_TAKEN;
 }
 
 /* Keep an event whose connection mutex was busy, to retry it */
@@ -2333,7 +2377,7 @@ epoll_retry_events(epoll_retry *retry)
 
     for (size_t i = 0; i < retry->count; i++) {
         epoll_retry_event *ev = &(retry->ev[i]);
-        if (handle_epoll_conn_event(ev->c, ev->events, ev->connid, curtime)) {
+        if (handle_epoll_conn_event(ev->c, ev->events, ev->connid, curtime, NULL)) {
             retry->ev[keep++] = *ev;
         }
     }
@@ -2358,7 +2402,7 @@ handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int nu
         slapi_log_err(SLAPI_LOG_DEBUG,
                       "handle_epoll_read_ready", "epoll event %d for connection on sd %d events (%d) %s\n",
                       i + 1, c->c_sd, events[i].events, epoll_event_flags_to_string(events[i].events));
-        if (handle_epoll_conn_event(c, events[i].events, 0, curtime)) {
+        if (handle_epoll_conn_event(c, events[i].events, 0, curtime, NULL)) {
             epoll_retry_add(retry, c, events[i].events);
         }
     }

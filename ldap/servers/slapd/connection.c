@@ -34,6 +34,9 @@
 #ifdef USDT
 #include <sys/sdt.h>
 #endif
+#ifdef ENABLE_EPOLL
+#include <sys/eventfd.h>
+#endif /* ENABLE_EPOLL */
 
 typedef Connection work_q_item;
 static void connection_threadmain(void *arg);
@@ -86,6 +89,9 @@ static PRStack *work_q_stack;         /* stack of work_q structs so we don't hav
 static PRInt32 work_q_stack_size;     /* size of work_q_stack */
 static PRInt32 work_q_stack_size_max; /* max size of work_q_stack */
 static PRInt32 op_shutdown = 0;       /* if non-zero, server is shutting down */
+#ifdef ENABLE_EPOLL
+static PRInt32 epoll_workers_started = 0; /* worker mode: assigns the workers to the lists */
+#endif /* ENABLE_EPOLL */
 static int32_t current_busy_workers = 0;   /* workers currently processing ops */
 static int32_t max_busy_workers = 0;       /* high water mark of busy workers */
 
@@ -506,6 +512,9 @@ init_op_threads(int32_t threadnumber)
         threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
     }
 
+#ifdef ENABLE_EPOLL
+    int32_t failed = 0;
+#endif /* ENABLE_EPOLL */
     /* start the operation threads */
     for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
@@ -518,10 +527,21 @@ init_op_threads(int32_t threadnumber)
             slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
                           "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr));
+#ifdef ENABLE_EPOLL
+            failed++;
+#endif /* ENABLE_EPOLL */
         } else {
             g_incr_active_threadcnt();
         }
     }
+#ifdef ENABLE_EPOLL
+    if (the_connection_table->epoll_workers && max_threads - failed < the_connection_table->list_num) {
+        /* In worker mode a list without workers is never read */
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Only %d worker threads for %d connection table lists, the connections of some lists will not be read\n",
+                      max_threads - failed, the_connection_table->list_num);
+    }
+#endif /* ENABLE_EPOLL */
     /* We will free threads_indexes at the very end of slapd_daemon() */
 }
 
@@ -1054,6 +1074,10 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_TURBO_CHECK_INTERVAL 5      /* seconds */
 #define CONN_TURBO_PERCENTILE 50         /* proportion of threads allowed to be in turbo mode */
 #define CONN_TURBO_HYSTERESIS 0          /* avoid flip flopping in and out of turbo mode */
+#ifdef ENABLE_EPOLL
+#define CONN_EPOLL_WAIT_TIMEOUT 500      /* milliseconds, an idle worker re-checks for shutdown */
+#define CONN_EPOLL_REPL_READS_MAX 16     /* replication requests a worker reads in a row before re-arming */
+#endif /* ENABLE_EPOLL */
 
 void
 connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
@@ -1081,6 +1105,12 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
     pthread_mutex_lock(&work_q_lock);
 
     while (!op_shutdown && WORK_Q_EMPTY) {
+#ifdef ENABLE_EPOLL
+        if (interval < 0) {
+            /* Worker mode: don't wait, the worker waits on epoll */
+            break;
+        }
+#endif /* ENABLE_EPOLL */
         if (interval == 0 ) {
             pthread_cond_wait(&work_q_cv, &work_q_lock);
         } else {
@@ -1131,6 +1161,83 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
 #endif
     return ret;
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Worker mode: tell the workers waiting on epoll that there is queued work.
+ * The queue is global and the workers of one list may all be busy, so
+ * signal every list.
+ */
+static void
+connection_epoll_signal_workers(void)
+{
+    for (int i = 0; i < the_connection_table->list_num; i++) {
+        if (eventfd_write(the_connection_table->event_fd[i], 1) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_epoll_signal_workers",
+                          "Failed to signal the workers of list %d - %s\n", i, strerror(errno));
+        }
+    }
+}
+
+/*
+ * Worker mode: wait for work on the epoll fd of connection table list
+ * listnum.  Queued work comes first, then a ready connection of the list,
+ * whose next operation this worker takes (connection_epoll_worker_event()).
+ * add_work_q() signals queued work through the eventfds, and
+ * op_thread_cleanup() the shutdown.  Reading an eventfd clears it, so a
+ * worker taking queued work passes the signal on while work is left.
+ * Returns CONN_FOUND_WORK_TO_DO or CONN_SHUTDOWN.
+ */
+static int
+connection_wait_for_epoll_work(Slapi_PBlock *pb, int listnum)
+{
+    int epfd = the_connection_table->epoll_fd[listnum];
+    int evfd = the_connection_table->event_fd[listnum];
+
+    while (!op_shutdown) {
+        struct epoll_event ev = {0};
+        eventfd_t count;
+        int n;
+
+        if (!WORK_Q_EMPTY && connection_wait_for_new_work(pb, -1) == CONN_FOUND_WORK_TO_DO) {
+            if (!WORK_Q_EMPTY) {
+                connection_epoll_signal_workers();
+            }
+            return CONN_FOUND_WORK_TO_DO;
+        }
+        n = epoll_wait(epfd, &ev, 1, CONN_EPOLL_WAIT_TIMEOUT);
+        if (n <= 0 || op_shutdown) {
+            if (n < 0 && errno != EINTR) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_wait_for_epoll_work",
+                              "epoll_wait on epoll fd %d failed - %s\n", epfd, strerror(errno));
+            }
+            continue;
+        }
+        if (ev.data.ptr == NULL) {
+            /* Work was queued: clear the signal, another worker may have
+             * cleared it first.  The queue is checked on the next pass.
+             */
+            (void)eventfd_read(evfd, &count);
+            if (op_shutdown) {
+                /* It may have been the shutdown signal, pass it on */
+                connection_epoll_signal_workers();
+            }
+            continue;
+        }
+        if (slapi_is_shutting_down()) {
+            /* As the list threads in listener mode, read no new requests
+             * once shutting down, queued work is still done.
+             */
+            continue;
+        }
+        if (connection_epoll_worker_event((Connection *)ev.data.ptr, ev.events, pb)) {
+            return CONN_FOUND_WORK_TO_DO;
+        }
+    }
+    slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_epoll_work", "shutdown\n");
+    return CONN_SHUTDOWN;
+}
+#endif /* ENABLE_EPOLL */
 
 #include "openldapber.h"
 
@@ -1844,6 +1951,20 @@ connection_threadmain(void *arg)
     PLHashTable *oid2asi_ht = NULL;
     PLHashTable *name2asi_ht = NULL;
     struct asyntaxinfo *free_list = NULL;
+#ifdef ENABLE_EPOLL
+    /* Worker mode: the i-th worker to start waits on connection table list
+     * i mod list_num.  Counting started workers, rather than using the
+     * worker index, covers every list as long as at least list_num workers
+     * started (init_op_threads() logs it otherwise).
+     * With several lists (nsslapd-numlisteners), the ready connections of a
+     * list are only read by its own workers: they wait while those are busy,
+     * even if the workers of other lists are idle.  One epoll instance per
+     * list keeps the re-arms (EPOLL_CTL_MOD) of different lists from
+     * contending on one instance lock; queued work is shared by all lists.
+     */
+    int epoll_list = (PR_AtomicIncrement(&epoll_workers_started) - 1) % the_connection_table->list_num;
+    int epoll_repl_reads = 0; /* replication requests read in a row, see CONN_EPOLL_REPL_READS_MAX */
+#endif /* ENABLE_EPOLL */
 
     /* initialize attr syntax hash tables */
     worker_asi_version = init_td_attr_syntax_ht(&name2asi_ht, &oid2asi_ht, &free_list);
@@ -1874,6 +1995,9 @@ connection_threadmain(void *arg)
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
             tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
+#ifdef ENABLE_EPOLL
+            epoll_repl_reads = 0;
+#endif /* ENABLE_EPOLL */
 
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
@@ -1882,7 +2006,15 @@ connection_threadmain(void *arg)
 #ifdef USDT
             STAP_PROBE1(ns-slapd, worker__idle, *snmp_vars_idx);
 #endif
+#ifdef ENABLE_EPOLL
+            if (the_connection_table->epoll_workers) {
+                ret = connection_wait_for_epoll_work(pb, epoll_list);
+            } else {
+                ret = connection_wait_for_new_work(pb, interval);
+            }
+#else /* !ENABLE_EPOLL */
             ret = connection_wait_for_new_work(pb, interval);
+#endif /* ENABLE_EPOLL */
 
             switch (ret) {
             case CONN_NOWORK:
@@ -2022,8 +2154,10 @@ connection_threadmain(void *arg)
         if (curtime - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
 #ifdef ENABLE_EPOLL
             if (config_get_enable_turbo_mode() &&
-                connection_table_active_count(the_connection_table) > epoll_turbo_max_conns) {
-                /* Too many connections for turbo mode. Keep sampling the
+                (the_connection_table->epoll_workers ||
+                 connection_table_active_count(the_connection_table) > epoll_turbo_max_conns)) {
+                /* Too many connections for turbo mode, or worker mode, where
+                 * the workers wait on epoll. Keep sampling the
                  * activity, so this runs once per interval, and refresh
                  * c_idlesince as a turbo read would (see below) */
                 connection_check_activity_level(conn);
@@ -2298,6 +2432,27 @@ connection_threadmain(void *arg)
                 /* normal connection or already established replication connection */
                 more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
             }
+#ifdef ENABLE_EPOLL
+            /* Worker mode: a replication session is only re-armed once its
+             * operation is done, and its supplier has usually sent the next
+             * request by then.  If there is something to read, keep the
+             * connection and read it now, as with buffered data, rather than
+             * re-arming it for another worker.  If the read finds nothing it
+             * times out at once and the connection is re-armed then.  Up to
+             * CONN_EPOLL_REPL_READS_MAX in a row, then this worker goes back
+             * to epoll so that a steady stream doesn't starve the others.  Not
+             * once shutting down, no new request is read then.
+             */
+            if (!more_data && replication_connection && !is_timedout && !thread_turbo_flag &&
+                the_connection_table->epoll_workers && epoll_repl_reads < CONN_EPOLL_REPL_READS_MAX &&
+                !conn_closed && !slapi_is_shutting_down() &&
+                connection_is_active_nolock(conn) && epoll_conn_readable(conn)) {
+                more_data = 1;
+                epoll_repl_reads++;
+                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " replication session, reading next request\n",
+                              conn->c_connid);
+            }
+#endif /* ENABLE_EPOLL */
             if (!more_data) {
                 if (!thread_turbo_flag) {
                     int32_t need_wakeup = 0;
@@ -2394,6 +2549,61 @@ connection_activity(Connection *conn, int maxthreads)
     }
     return 0;
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Worker mode: like connection_activity(), but the calling worker takes the
+ * operation into its pb, as connection_wait_for_new_work() would, instead of
+ * queueing it.  The caller holds c_mutex.
+ */
+int
+connection_epoll_take_nolock(Connection *conn, int maxthreads, Slapi_PBlock *pb)
+{
+    struct Slapi_op_stack *op_stack_obj;
+
+    if (connection_acquire_nolock(conn) == -1) {
+        slapi_log_err(SLAPI_LOG_CONNS,
+                      "connection_epoll_take_nolock", "Could not acquire conn %" PRIu64 " closing fd=%d\n",
+                      conn->c_connid, conn->c_sd);
+        return (-1);
+    }
+
+    /* set these here so the connection isn't read by another thread */
+    conn->c_gettingber = 1;
+    conn->c_threadnumber++;
+    if (conn->c_threadnumber == maxthreads) {
+        conn->c_flags |= CONN_FLAG_MAX_THREADS;
+        conn->c_maxthreadscount++;
+        slapi_counter_increment(max_threads_count);
+        slapi_counter_increment(conns_in_maxthreads);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsMaxThreadsHits);
+    }
+    op_stack_obj = connection_get_operation();
+    connection_add_operation(conn, op_stack_obj->op);
+    slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
+    slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
+    slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
+    if (conn->c_flagblocked) {
+        /* flag this new operation that it was blocked by maxthreadperconn */
+        slapi_pblock_set_operation_notes(pb, SLAPI_OP_NOTE_ASYNCH_BLOCKED);
+        conn->c_flagblocked = false;
+    }
+    /* Thread pool state for STAT logging, as get_work_q() does */
+    if (LDAP_STAT_THREAD_POOL & config_get_statlog_level()) {
+        Operation *op = op_stack_obj->op;
+        op->o_wbusy = get_busy_worker_count();
+        op->o_wmax = config_get_threadnumber();
+        op->o_wqdepth = get_work_q_size();
+    }
+
+    if (!config_check_referral_mode()) {
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
+    }
+    return 0;
+}
+#endif /* ENABLE_EPOLL */
 
 /* add_work_q():  will add a work_q_item to the end of the global work queue. The work queue
     is implemented as a single link list. */
@@ -2431,6 +2641,11 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     int32_t probe_depth = work_q_size;
 #endif
     pthread_mutex_unlock(&work_q_lock);
+#ifdef ENABLE_EPOLL
+    if (the_connection_table->epoll_workers) {
+        connection_epoll_signal_workers();
+    }
+#endif /* ENABLE_EPOLL */
 
 #ifdef USDT
     STAP_PROBE3(ns-slapd, work_q__enqueue, probe_connid, probe_opid, probe_depth);
@@ -2531,6 +2746,14 @@ op_thread_cleanup()
     pthread_mutex_lock(&work_q_lock);
     pthread_cond_broadcast(&work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
     pthread_mutex_unlock(&work_q_lock);
+#ifdef ENABLE_EPOLL
+    if (the_connection_table && the_connection_table->epoll_workers) {
+        /* Wake the workers waiting on epoll.  They don't read the eventfd
+         * once op_shutdown is set, so it wakes all of them.
+         */
+        connection_epoll_signal_workers();
+    }
+#endif /* ENABLE_EPOLL */
 }
 
 /* do this after all worker threads have terminated */

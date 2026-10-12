@@ -111,6 +111,7 @@
 #include "fe.h"
 #ifdef ENABLE_EPOLL
 #include <unistd.h>
+#include <sys/eventfd.h>
 #endif /* ENABLE_EPOLL */
 
 Connection_Table *
@@ -145,16 +146,60 @@ connection_table_new(int table_size)
         ct->list_num, ct->list_size);
 
 #ifdef ENABLE_EPOLL
+    /*
+     * Worker mode, SLAPD_EPOLL_WORKERS in the environment: idle worker threads
+     * wait on the epoll fd of a list themselves and read the ready connection,
+     * instead of the list's thread handing it to them through the work queue.
+     * Read once at startup.  Each list needs at least one worker.
+     */
+    char *w = getenv("SLAPD_EPOLL_WORKERS");
+    if (w && atoi(w) > 0) {
+        if (config_get_threadnumber() < ct->list_num) {
+            slapi_log_err(SLAPI_LOG_WARNING, "connection_table_new",
+                          "SLAPD_EPOLL_WORKERS ignored, fewer worker threads (%d) than connection table lists (%d)\n",
+                          config_get_threadnumber(), ct->list_num);
+        } else {
+            ct->epoll_workers = 1;
+            slapi_log_err(SLAPI_LOG_INFO, "connection_table_new",
+                          "epoll worker mode on, worker threads wait on the connection table lists\n");
+            if (config_get_enable_turbo_mode()) {
+                slapi_log_err(SLAPI_LOG_INFO, "connection_table_new",
+                              "nsslapd-enable-turbo-mode is ignored in epoll worker mode\n");
+            }
+        }
+    }
     ct->epoll_fd = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     if (ct->epoll_fd == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll fds\n");
         exit(1);
     }
+    ct->event_fd = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
         ct->epoll_fd[ct_list] = epoll_create1(EPOLL_CLOEXEC);
         if (ct->epoll_fd[ct_list] < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create epoll fd for connection table list %zu\n", ct_list);
             exit(1);
+        }
+        ct->event_fd[ct_list] = -1;
+        if (ct->epoll_workers) {
+            struct epoll_event ev = {0};
+
+            /* Signals queued work to the workers waiting on this list.  Level
+             * triggered: it stays ready until a worker reads it.
+             */
+            ct->event_fd[ct_list] = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+            if (ct->event_fd[ct_list] < 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create eventfd for connection table list %zu - %s\n",
+                              ct_list, strerror(errno));
+                exit(1);
+            }
+            ev.events = EPOLLIN;
+            ev.data.ptr = NULL;
+            if (epoll_ctl(ct->epoll_fd[ct_list], EPOLL_CTL_ADD, ct->event_fd[ct_list], &ev) == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to add eventfd to epoll fd for connection table list %zu - %s\n",
+                              ct_list, strerror(errno));
+                exit(1);
+            }
         }
     }
 #endif /* ENABLE_EPOLL */
@@ -267,10 +312,14 @@ connection_table_free(Connection_Table *ct)
         if (ct->epoll_fd[ct_list] >= 0) {
             close(ct->epoll_fd[ct_list]);
         }
+        if (ct->event_fd[ct_list] >= 0) {
+            close(ct->event_fd[ct_list]);
+        }
 #endif /* ENABLE_EPOLL */
     }
 #ifdef ENABLE_EPOLL
     slapi_ch_free((void **)&ct->epoll_fd);
+    slapi_ch_free((void **)&ct->event_fd);
 #endif /* ENABLE_EPOLL */
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
