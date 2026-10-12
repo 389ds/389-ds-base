@@ -70,6 +70,7 @@ def test_pipelined_requests_on_closed_connection(topology_st):
     """
     inst = topology_st.standalone
     before = len(inst.ds_error_log.match(CLOSING_ERR))
+    conns_before = int(inst.monitor.get_attr_val_utf8("currentconnections"))
 
     for _ in range(10):
         socks = []
@@ -86,7 +87,17 @@ def test_pipelined_requests_on_closed_connection(topology_st):
         for s in socks:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b"\x01\x00\x00\x00\x00\x00\x00\x00")
             s.close()
+
+    # The error is logged while a reset connection is still held, so wait until
+    # the server has released them before reading the log (at least 5 seconds,
+    # at most 60: an epoll build without #7983 never releases closed connections)
     time.sleep(5)
+    deadline = time.time() + 55
+    conns = int(inst.monitor.get_attr_val_utf8("currentconnections"))
+    while conns > conns_before and time.time() < deadline:
+        time.sleep(1)
+        conns = int(inst.monitor.get_attr_val_utf8("currentconnections"))
+    log.info(f"currentconnections before={conns_before} now={conns}")
 
     after = len(inst.ds_error_log.match(CLOSING_ERR))
     log.info(f"closing-state errors before={before} after={after}")
