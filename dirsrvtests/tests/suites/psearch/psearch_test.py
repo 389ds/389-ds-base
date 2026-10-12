@@ -8,8 +8,9 @@
 #
 import ldap
 import os
+import time
 import pytest
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 from test389.topologies import topology_st
 from lib389.idm.group import Groups
 from ldap.controls.psearch import PersistentSearchControl,EntryChangeNotificationControl
@@ -66,6 +67,49 @@ def test_psearch(topology_st):
     results = _run_psearch(topology_st.standalone, msg_id)
     # assert our group is in the changeset.
     assert(group.dn == results[0])
+
+
+def test_psearch_gives_back_thread_slot(topology_st, request):
+    """Check that ended persistent searches don't leave their connection blocked
+
+    :id: b32fb822-dd05-49c7-a583-6666fc617930
+    :setup: Standalone instance
+    :steps:
+        1. Set nsslapd-maxthreadsperconn to 2 and restart
+        2. On one connection, start a persistent search, then abandon it
+        3. Run a normal search on the same connection
+        4. Repeat steps 2 and 3 four times
+    :expectedresults:
+        1. Success
+        2. Success
+        3. The search succeeds: the ended persistent search gave back its
+           max threads per connection slot
+        4. Success every time
+    """
+    inst = topology_st.standalone
+    orig = inst.config.get_attr_val_utf8("nsslapd-maxthreadsperconn")
+    inst.config.replace("nsslapd-maxthreadsperconn", "2")
+    inst.restart()
+
+    def fin():
+        inst.config.replace("nsslapd-maxthreadsperconn", orig)
+        inst.restart()
+
+    request.addfinalizer(fin)
+
+    conn = ldap.initialize(f"ldap://{inst.host}:{inst.port}")
+    conn.simple_bind_s(DN_DM, PW_DM)
+    for i in range(4):
+        msgid = conn.search_ext(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectClass=*)", ["dn"],
+                                serverctrls=[PersistentSearchControl(changesOnly=True)])
+        # Let the persistent search thread start before abandoning it
+        time.sleep(1)
+        conn.abandon(msgid)
+        time.sleep(1)
+        # A leaked slot leaves the connection at its limit: this read never happens
+        res = conn.search_ext_s("", ldap.SCOPE_BASE, "(objectClass=*)", ["dn"], timeout=10)
+        assert len(res) == 1, f"round {i}: root DSE search failed"
+    conn.unbind_s()
 
 
 if __name__ == '__main__':

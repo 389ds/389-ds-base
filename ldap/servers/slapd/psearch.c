@@ -157,6 +157,7 @@ ps_add(Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls)
 {
     PSearch *ps;
     PRThread *ps_tid;
+    Operation *pb_op = NULL;
 
     if (PS_IS_INITIALIZED() && NULL != pb) {
         /* Create the new node */
@@ -186,6 +187,15 @@ ps_add(Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls)
             slapi_log_err(SLAPI_LOG_ERR, "ps_add", "PR_CreateThread()failed in the "
                                                    "ps_add function: " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr));
+
+            /* No thread will end this search: mark the operation as not
+             * persistent, like search.c does when a persistent search fails,
+             * so the worker finishes it as an ordinary operation and gives
+             * back its max threads per connection slot */
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+            if (pb_op != NULL) {
+                pb_op->o_flags &= ~OP_FLAG_PS;
+            }
 
             /* Now remove the ps from the list so call the function ps_remove */
             ps_remove(ps);
@@ -415,8 +425,10 @@ ps_send_results(void *arg)
     /* Delete this op from the connection's list */
     connection_remove_operation_ext(ps->ps_pblock, conn, pb_op);
 
-    /* Decrement the connection refcnt */
+    /* Give back the max threads per connection slot this search held, and
+     * decrement the connection refcnt */
     if (conn_acq_flag == 0) { /* we acquired it, so release it */
+        connection_ps_slot_nolock(conn, 0);
         connection_release_nolock(conn);
     }
     pthread_mutex_unlock(&(conn->c_mutex));
