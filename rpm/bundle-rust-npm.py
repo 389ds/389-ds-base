@@ -191,19 +191,33 @@ def write_provides_bundled(provides_lines: List[str], spec_file: str, cleaned: b
     """Writes bundled package information to the spec file.
     Includes generated 'Provides' lines and marks the section for easy future modification.
     """
-    # Find a line index where 'Provides' ends
+    # Find a line index where 'Provides' ends in the main package section
+    # (before the first %description). If no Provides: line exists,
+    # fall back to inserting right before the first %description.
     with open(spec_file, "r") as file:
         spec_file_lines = file.readlines()
     last_provides = -1
+    first_description = -1
     for i in range(0, len(spec_file_lines)):
         if spec_file_lines[i].startswith("%description"):
+            first_description = i
             break
         if spec_file_lines[i].startswith("Provides:"):
             last_provides = i
 
+    if last_provides >= 0:
+        # Insert after the last existing Provides line (plus one blank line)
+        insert_at = last_provides + 2
+    elif first_description >= 0:
+        # No Provides found, insert before first %description
+        insert_at = first_description
+    else:
+        log.error("Could not find %description in the spec file")
+        sys.exit(1)
+
     # Insert the generated 'Provides' to the specfile
     log.info(f"Add the fresh '{SPECFILE_COMMENT_LINE}' content to {spec_file}")
-    i = last_provides + 2
+    i = insert_at
     spec_file_lines.insert(i, START_LINE)
     for line in sorted(provides_lines):
         i = i + 1

@@ -111,12 +111,12 @@ ifeq ($(COCKPIT_ON), 1)
 endif
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
-	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ] && [ ! -f $(JEMALLOC_TARBALL) ]; then \
 		curl -LO $(JEMALLOC_URL) ; \
 	fi ; \
-	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+	if [ ! -f $(LIBDB_TARBALL) ]; then \
 		curl -LO $(LIBDB_URL) ; \
-	fi ;
+	fi
 
 rpmroot:
 	rm -rf $(RPMBUILD)
@@ -147,9 +147,7 @@ rpmbuildprep:
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
-	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
-		cp dist/sources/$(LIBDB_TARBALL) $(RPMBUILD)/SOURCES/ ; \
-	fi
+	cp dist/sources/$(LIBDB_TARBALL) $(RPMBUILD)/SOURCES/
 
 srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
 	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(RPMBUILD)/SPECS/$(PACKAGE).spec -f
