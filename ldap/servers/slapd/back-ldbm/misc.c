@@ -478,7 +478,10 @@ get_value_from_string(const char *string, char *type, char **value)
             rc = -1; /* set non-0 to rc */
             goto bail;
         }
-        if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
+        /* Compare the base type name only, ignoring any CSN state info suffix:
+           "dsEntryDN;vucsn-..." should match "dsEntryDN"
+         */
+        if (0 != PL_strncasecmp(type, tmptype.bv_val, typelen)) {
             slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
                           "type does not match: %s != %s\n", type, tmptype.bv_val);
             if (freeval) {
