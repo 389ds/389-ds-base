@@ -151,7 +151,7 @@ sync_update_persist_betxn_pre_op(Slapi_PBlock *pb)
         PR_ASSERT(current_op);
         PR_ASSERT(current_op->op == op);
         PR_ASSERT(current_op->flags == OPERATION_PL_PENDING);
-        slapi_log_err(SLAPI_LOG_WARNING, SYNC_PLUGIN_SUBSYSTEM, "sync_update_persist_betxn_pre_op - DB retried operation targets "
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_update_persist_betxn_pre_op - DB retried operation targets "
                       "\"%s\" (op=0x%lx idx_pl=%d) => op not changed in PL\n",
                       slapi_sdn_get_dn(sdn), (ulong) op, idx_pl);
         return 0;
