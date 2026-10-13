@@ -1984,6 +1984,7 @@ FrontendConfig_init(void)
     cfg->accesslog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
     cfg->accesslog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->accesslog_log_format_type = LOG_FORMAT_DEFAULT;
     cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_ACCESS_LOG_TIME_FORMAT);
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
@@ -2501,9 +2502,17 @@ config_set_accesslog_log_format(const char *attrname, char *value, char *errorbu
     }
 
     if (apply) {
+        int32_t log_format = LOG_FORMAT_JSON_PRETTY;
+
+        if (strcasecmp(value, "default") == 0) {
+            log_format = LOG_FORMAT_DEFAULT;
+        } else if (strcasecmp(value, "json") == 0) {
+            log_format = LOG_FORMAT_JSON;
+        }
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->accesslog_log_format);
         slapdFrontendConfig->accesslog_log_format = slapi_ch_strdup(value);
+        slapi_atomic_store_32(&(slapdFrontendConfig->accesslog_log_format_type), log_format, __ATOMIC_RELEASE);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
@@ -7686,22 +7695,12 @@ int
 config_get_accesslog_log_format()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    char *value;
-    int retVal;
 
-    /* map string value to int to avoid excessive freeing and duping */
-    CFG_LOCK_READ(slapdFrontendConfig);
-    value = slapdFrontendConfig->accesslog_log_format;
-    if (strcasecmp(value, "default") == 0) {
-        retVal = LOG_FORMAT_DEFAULT;
-    } else if (strcasecmp(value, "json") == 0) {
-        retVal = LOG_FORMAT_JSON;
-    } else {
-        retVal = LOG_FORMAT_JSON_PRETTY;
-    }
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    /*
+     * This is called for every access log line, so the format is kept as an
+     * int by config_set_accesslog_log_format() and read without the config lock.
+     */
+    return slapi_atomic_load_32(&(slapdFrontendConfig->accesslog_log_format_type), __ATOMIC_ACQUIRE);
 }
 
 char *
