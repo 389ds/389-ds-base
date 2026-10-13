@@ -1236,6 +1236,9 @@ slapd_daemon(daemon_ports_t *ports)
         exit(1);
     }
 
+    /* Hand full access log buffers to a writer thread from now on */
+    logs_access_writer_start();
+
     init_ct_list_threads();
     tp_stats_init(threadnumber > 0 ? (uint32_t)threadnumber : 0);
     init_op_threads(threadnumber);
@@ -1532,6 +1535,7 @@ slapd_daemon(daemon_ports_t *ports)
      * access & security logs when we can guarantee that the buffered content
      * is "complete".
      */
+    logs_access_writer_shutdown();
     logs_maintenance_shutdown();
     logs_flush();
 

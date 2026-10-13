@@ -136,8 +136,10 @@ static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
 static void log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
-static void log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
-static void log_append_access_json_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
+static void log_access_writer_init(void);
+static void log_access_flush(int sync_now);
+static void log_append_access_buffer(time_t tnl, char *msg1, size_t size1, char *msg2, size_t size2);
+static void log_append_access_json_buffer(time_t tnl, char *msg, size_t size);
 static void log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, int locked);
@@ -964,9 +966,10 @@ g_log_init()
     if (loginfo.log_access_buffer == NULL) {
         exit(-1);
     }
-    if ((loginfo.log_access_buffer->lock = PR_NewLock()) == NULL) {
+    if ((loginfo.log_access_lock = PR_NewLock()) == NULL) {
         exit(-1);
     }
+    log_access_writer_init();
     loginfo.log_access_stat_level = cfg->statloglevel;
 
     /* SECURITY LOG */
@@ -2009,7 +2012,8 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
         fe_cfg->accesslog_rotationsync_enabled = v;
-        loginfo.log_access_rotationsync_enabled = v;
+        /* Read without this lock in log_access_reserve() */
+        slapi_atomic_store_32((int32_t *)&(loginfo.log_access_rotationsync_enabled), v, __ATOMIC_RELEASE);
         LOG_ACCESS_UNLOCK_WRITE();
         break;
     case SLAPD_SECURITY_LOG:
@@ -2076,7 +2080,8 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
         loginfo.log_access_rotationsynchour = rhour;
-        loginfo.log_access_rotationsyncclock = log_get_rotationsyncclock(rhour, loginfo.log_access_rotationsyncmin);
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)log_get_rotationsyncclock(rhour, loginfo.log_access_rotationsyncmin), __ATOMIC_RELEASE);
         fe_cfg->accesslog_rotationsynchour = rhour;
         LOG_ACCESS_UNLOCK_WRITE();
         break;
@@ -2150,7 +2155,8 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
         LOG_ACCESS_LOCK_WRITE();
         loginfo.log_access_rotationsyncmin = rmin;
         fe_cfg->accesslog_rotationsyncmin = rmin;
-        loginfo.log_access_rotationsyncclock = log_get_rotationsyncclock(loginfo.log_access_rotationsynchour, rmin);
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)log_get_rotationsyncclock(loginfo.log_access_rotationsynchour, rmin), __ATOMIC_RELEASE);
         LOG_ACCESS_UNLOCK_WRITE();
         break;
     case SLAPD_SECURITY_LOG:
@@ -3867,7 +3873,7 @@ vslapd_log_access(const char *fmt, va_list ap)
     STAP_PROBE(ns-slapd, vslapd_log_access__prepared);
 #endif
 
-    log_append_access_buffer(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
+    log_append_access_buffer(tnl, buffer, blen, vbuf, vlen);
 
 #ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__buffer);
@@ -3905,7 +3911,7 @@ slapd_log_access_json(char *buffer)
         } else {
             PR_snprintf(log_buffer, sizeof(log_buffer), "%s\n", buffer);
         }
-        log_append_access_json_buffer(tnl, loginfo.log_access_buffer, log_buffer, buffer_len);
+        log_append_access_json_buffer(tnl, log_buffer, buffer_len);
     }
 
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
@@ -5621,7 +5627,7 @@ log__delete_rotated_logs()
                                 &loginfo.log_numof_access_logs,
                                 loginfo.log_access_file,
                                 SLAPD_ACCESS_LOG);
-    PR_Unlock(loginfo.log_access_buffer->lock);
+    PR_Unlock(loginfo.log_access_lock);
 
     LOG_SECURITY_LOCK_WRITE();
     log__purge_rotated_logchain(&loginfo.log_security_logchain,
@@ -5912,7 +5918,9 @@ log__access_rotationinfof(char *pathname)
         loginfo.log_access_rotationunit != LOG_UNIT_HOURS &&
         loginfo.log_access_rotationunit != LOG_UNIT_MINS &&
         loginfo.log_access_ctime < loginfo.log_access_rotationsyncclock - PR_ABS(loginfo.log_access_rotationtime_secs)) {
-        loginfo.log_access_rotationsyncclock -= PR_ABS(loginfo.log_access_rotationtime_secs);
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)(loginfo.log_access_rotationsyncclock - PR_ABS(loginfo.log_access_rotationtime_secs)),
+                              __ATOMIC_RELEASE);
     }
     return logfile_type;
 }
@@ -7657,14 +7665,260 @@ log_create_buffer(size_t sz)
     lbi->top = (char *)slapi_ch_malloc(sz);
     lbi->current = lbi->top;
     lbi->maxsize = sz;
+    lbi->lock = NULL;
+    lbi->next = NULL;
+    lbi->sync_now = 0;
     slapi_atomic_store_64(&(lbi->refcount), 0, __ATOMIC_RELEASE);
+    return lbi;
+}
+
+/*
+ * Access log writer
+ *
+ * Logging threads reserve space in the active access log buffer under
+ * log_access_writer.lock and copy their message after releasing it. When the
+ * active buffer is full, or a flush is due, the thread holding the lock queues
+ * it for the access log writer thread and makes a free buffer active. The
+ * writer writes the queued buffers in order under the access log lock
+ * (LOG_ACCESS_LOCK_WRITE), which also covers rotation, so logging threads never
+ * wait on a disk write unless every buffer is queued. Until the writer is
+ * started, and once it has stopped, the thread that would have queued a buffer
+ * writes it itself, as before.
+ */
+#define LOG_ACCESS_NUM_BUFFERS 4
+
+typedef struct {
+    PRLock *lock;              /* active buffer, queue and free list */
+    PRCondVar *queue_cvar;     /* a buffer was queued, or shutdown */
+    PRCondVar *done_cvar;      /* a queued buffer was written */
+    LogBufferInfo *queue_head; /* buffers waiting to be written */
+    LogBufferInfo *queue_tail;
+    LogBufferInfo *free_list;  /* spare buffers */
+    uint64_t queued;           /* number of buffers queued so far */
+    uint64_t written;          /* number of queued buffers written so far */
+    PRThread *worker;
+    bool running;
+    bool shutdown;
+} LogAccessWriter;
+
+static LogAccessWriter log_access_writer;
+
+/*
+ * Create the spare access log buffers and the buffer lock.
+ * Called from g_log_init().
+ */
+static void
+log_access_writer_init(void)
+{
+    if ((log_access_writer.lock = PR_NewLock()) == NULL) {
+        exit(-1);
+    }
+    log_access_writer.queue_cvar = PR_NewCondVar(log_access_writer.lock);
+    log_access_writer.done_cvar = PR_NewCondVar(log_access_writer.lock);
+    if (log_access_writer.queue_cvar == NULL || log_access_writer.done_cvar == NULL) {
+        exit(-1);
+    }
+    for (size_t i = 1; i < LOG_ACCESS_NUM_BUFFERS; i++) {
+        LogBufferInfo *lbi = log_create_buffer(LOG_BUFFER_MAXSIZE);
+
+        lbi->next = log_access_writer.free_list;
+        log_access_writer.free_list = lbi;
+    }
+}
+
+/*
+ * Queue the active access log buffer for the writer thread and make a spare
+ * buffer active. Caller must hold log_access_writer.lock.
+ *
+ * If the writer is not running, the active buffer is written directly instead.
+ * Returns PR_FALSE if there was no spare buffer: the lock was released while
+ * waiting for the writer, so the caller must look at the active buffer again.
+ */
+static PRBool
+log_access_queue_buffer(int sync_now)
+{
+    LogBufferInfo *lbi = loginfo.log_access_buffer;
+
+    if (!log_access_writer.running) {
+        LOG_ACCESS_LOCK_WRITE();
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, sync_now, 1);
+        LOG_ACCESS_UNLOCK_WRITE();
+        return PR_TRUE;
+    }
+    if (log_access_writer.free_list == NULL) {
+        PR_WaitCondVar(log_access_writer.done_cvar, PR_INTERVAL_NO_TIMEOUT);
+        return PR_FALSE;
+    }
+
+    loginfo.log_access_buffer = log_access_writer.free_list;
+    log_access_writer.free_list = loginfo.log_access_buffer->next;
+    loginfo.log_access_buffer->next = NULL;
+
+    lbi->sync_now = sync_now;
+    if (log_access_writer.queue_tail != NULL) {
+        log_access_writer.queue_tail->next = lbi;
+    } else {
+        log_access_writer.queue_head = lbi;
+    }
+    log_access_writer.queue_tail = lbi;
+    log_access_writer.queued++;
+    PR_NotifyCondVar(log_access_writer.queue_cvar);
+    return PR_TRUE;
+}
+
+/*
+ * Access log writer thread: write the queued buffers in order. On shutdown it
+ * only exits once the queue is empty.
+ */
+static void
+log_access_writer_main(void *arg __attribute__((unused)))
+{
+    LogBufferInfo *lbi = NULL;
+
+    slapi_set_thread_name("log_access");
+
+    PR_Lock(log_access_writer.lock);
+    while (1) {
+        while (log_access_writer.queue_head == NULL && !log_access_writer.shutdown) {
+            PR_WaitCondVar(log_access_writer.queue_cvar, PR_INTERVAL_NO_TIMEOUT);
+        }
+        if (log_access_writer.queue_head == NULL) {
+            break;
+        }
+        lbi = log_access_writer.queue_head;
+        log_access_writer.queue_head = lbi->next;
+        if (log_access_writer.queue_head == NULL) {
+            log_access_writer.queue_tail = NULL;
+        }
+        PR_Unlock(log_access_writer.lock);
+
+        LOG_ACCESS_LOCK_WRITE();
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, lbi->sync_now, 1);
+        LOG_ACCESS_UNLOCK_WRITE();
+
+        PR_Lock(log_access_writer.lock);
+        lbi->next = log_access_writer.free_list;
+        log_access_writer.free_list = lbi;
+        log_access_writer.written++;
+        PR_NotifyAllCondVar(log_access_writer.done_cvar);
+    }
+    /* From now on the logging threads write the buffers themselves */
+    log_access_writer.running = false;
+    PR_NotifyAllCondVar(log_access_writer.done_cvar);
+    PR_Unlock(log_access_writer.lock);
+}
+
+/*
+ * Start the access log writer thread. Called from slapd_daemon().
+ */
+void
+logs_access_writer_start(void)
+{
+    PR_Lock(log_access_writer.lock);
+    log_access_writer.shutdown = false;
+    log_access_writer.worker = PR_CreateThread(PR_USER_THREAD,
+                                               log_access_writer_main,
+                                               NULL,
+                                               PR_PRIORITY_NORMAL,
+                                               PR_GLOBAL_THREAD,
+                                               PR_JOINABLE_THREAD,
+                                               SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (log_access_writer.worker != NULL) {
+        log_access_writer.running = true;
+    }
+    PR_Unlock(log_access_writer.lock);
+
+    if (log_access_writer.worker == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "logs_access_writer_start",
+                      "Failed to create the access log writer thread, "
+                      "access log buffers will be written by the logging threads\n");
+    }
+}
+
+/*
+ * Stop the access log writer thread once every queued buffer is written.
+ * Called from slapd_daemon() before the final logs_flush().
+ */
+void
+logs_access_writer_shutdown(void)
+{
+    PRThread *worker = NULL;
+
+    PR_Lock(log_access_writer.lock);
+    worker = log_access_writer.worker;
+    log_access_writer.worker = NULL;
+    log_access_writer.shutdown = true;
+    PR_NotifyCondVar(log_access_writer.queue_cvar);
+    PR_Unlock(log_access_writer.lock);
+
+    if (worker != NULL) {
+        (void)PR_JoinThread(worker);
+    }
+}
+
+/*
+ * Queue the active access log buffer, if it is not empty, and wait until it
+ * and every buffer queued before it have been written.
+ */
+static void
+log_access_flush(int sync_now)
+{
+    uint64_t target;
+
+    PR_Lock(log_access_writer.lock);
+    while (loginfo.log_access_buffer->current != loginfo.log_access_buffer->top &&
+           !log_access_queue_buffer(sync_now)) {
+        /* We waited for a spare buffer, look at the active buffer again */
+    }
+    target = log_access_writer.queued;
+    while (log_access_writer.written < target) {
+        PR_WaitCondVar(log_access_writer.done_cvar, PR_INTERVAL_NO_TIMEOUT);
+    }
+    PR_Unlock(log_access_writer.lock);
+}
+
+/*
+ * Reserve size bytes in the active access log buffer and take a copy
+ * reference on it. The buffer is queued first if the message does not fit,
+ * or if a rotation sync is due. Returns the buffer the space was reserved in.
+ */
+static LogBufferInfo *
+log_access_reserve(time_t tnl, size_t size, char **insert_point)
+{
+    LogBufferInfo *lbi = NULL;
+
+    PR_Lock(log_access_writer.lock);
+    while (1) {
+        lbi = loginfo.log_access_buffer;
+        /* An empty buffer has nothing to flush */
+        if (lbi->current == lbi->top) {
+            break;
+        }
+        /*
+         * The rotation sync settings are written under the access log lock,
+         * which is not held here, so read them atomically.  A value that is
+         * one update old only moves the flush to an earlier or later line.
+         */
+        if ((lbi->current - lbi->top) + size <= lbi->maxsize &&
+            !(tnl >= (time_t)slapi_atomic_load_64((uint64_t *)&(loginfo.log_access_rotationsyncclock), __ATOMIC_ACQUIRE) &&
+              slapi_atomic_load_32((int32_t *)&(loginfo.log_access_rotationsync_enabled), __ATOMIC_ACQUIRE))) {
+            break;
+        }
+        (void)log_access_queue_buffer(0 /* do not sync to disk right now */);
+    }
+    *insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(log_access_writer.lock);
+
     return lbi;
 }
 
 /*
  * Some notes about this function. It is written the way it is for performance
  * reasons. Tests showed that on 4 processor systems, there is significant
- * contention for the lbi->lock. This is because the lock was held for the
+ * contention for the buffer lock. This is because the lock was held for the
  * duration of the copy of the log message into the buffer. Therefore the
  * routine was re-written to avoid holding the lock for that time. Instead we
  * gain the lock, take a copy of the buffer pointer where we need to copy our
@@ -7679,28 +7933,14 @@ log_create_buffer(size_t sz)
  * systems.
  */
 static void
-log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2)
+log_append_access_buffer(time_t tnl, char *msg1, size_t size1, char *msg2, size_t size2)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     size_t size = size1 + size2;
+    LogBufferInfo *lbi = NULL;
     char *insert_point = NULL;
 
-    /* While holding the lock, we determine if there is space in the buffer for our payload,
-       and if we need to flush.
-     */
-    PR_Lock(lbi->lock);
-    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
-        (tnl >= loginfo.log_access_rotationsyncclock &&
-         loginfo.log_access_rotationsync_enabled)) {
-
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG,
-                         0 /* do not sync to disk right now */, 1);
-    }
-    insert_point = lbi->current;
-    lbi->current += size;
-    /* Increment the copy refcount */
-    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
-    LOG_ACCESS_UNLOCK_WRITE();
+    lbi = log_access_reserve(tnl, size, &insert_point);
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg1, size1);
@@ -7711,34 +7951,18 @@ log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size
 
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->accesslogbuffering) {
-        LOG_ACCESS_LOCK_WRITE();
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, 1 /* sync to disk now */, 1);
-        LOG_ACCESS_UNLOCK_WRITE();
+        log_access_flush(1 /* sync to disk now */);
     }
 }
 
 static void
-log_append_access_json_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
+log_append_access_json_buffer(time_t tnl, char *msg, size_t size)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    LogBufferInfo *lbi = NULL;
     char *insert_point = NULL;
 
-    /* While holding the lock, we determine if there is space in the buffer for our payload,
-       and if we need to flush.
-     */
-    PR_Lock(lbi->lock);
-    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
-        (tnl >= loginfo.log_access_rotationsyncclock &&
-         loginfo.log_access_rotationsync_enabled))
-    {
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG,
-                         0 /* do not sync to disk right now */, 1);
-    }
-    insert_point = lbi->current;
-    lbi->current += size;
-    /* Increment the copy refcount */
-    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
-    LOG_ACCESS_UNLOCK_WRITE();
+    lbi = log_access_reserve(tnl, size, &insert_point);
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg, size);
@@ -7748,9 +7972,7 @@ log_append_access_json_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t 
 
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->accesslogbuffering) {
-        LOG_ACCESS_LOCK_WRITE();
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, 1 /* sync to disk now */, 1);
-        LOG_ACCESS_UNLOCK_WRITE();
+        log_access_flush(1 /* sync to disk now */);
     }
 }
 
@@ -7759,7 +7981,9 @@ log_update_sync_clock(int32_t log_type, int32_t secs)
 {
     switch (log_type) {
     case SLAPD_ACCESS_LOG:
-        loginfo.log_access_rotationsyncclock += PR_ABS(secs);
+        /* Read without the access log lock in log_access_reserve() */
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)(loginfo.log_access_rotationsyncclock + PR_ABS(secs)), __ATOMIC_RELEASE);
         return loginfo.log_access_rotationsyncclock;
     case SLAPD_SECURITY_LOG:
         loginfo.log_security_rotationsyncclock += PR_ABS(secs);
@@ -7988,10 +8212,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
 void
 logs_flush()
 {
-    LOG_ACCESS_LOCK_WRITE();
-    log_flush_buffer(loginfo.log_access_buffer, SLAPD_ACCESS_LOG,
-                     1 /* sync to disk now */, 1 /* locked*/);
-    LOG_ACCESS_UNLOCK_WRITE();
+    log_access_flush(1 /* sync to disk now */);
     LOG_SECURITY_LOCK_WRITE();
     log_flush_buffer(loginfo.log_security_buffer, SLAPD_SECURITY_LOG,
                      1 /* sync to disk now */, 1 /* locked*/);
