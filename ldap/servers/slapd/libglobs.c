@@ -1847,20 +1847,23 @@ FrontendConfig_init(void)
     char epoll_max_user_watches_s[32];
     epoll_max_user_watches_s[sizeof(epoll_max_user_watches_s) - 1] = '\0';
 
+    /* Not being able to read it (e.g. denied by SELinux) is not fatal, the
+     * limit is then not applied.
+     */
     if ((f = fopen("/proc/sys/fs/epoll/max_user_watches", "r")) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+        slapi_log_err(SLAPI_LOG_WARNING, "Frontend_config_init",
                       "Unable to open file \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
-        exit(-1);
+        epoll_max_user_watches = 0;
     } else {
         if (fgets(epoll_max_user_watches_s, sizeof(epoll_max_user_watches_s) - 1, f) == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+            slapi_log_err(SLAPI_LOG_WARNING, "Frontend_config_init",
                           "Unable to get value from \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
-            exit(-1);
+            epoll_max_user_watches = 0;
         } else {
             epoll_max_user_watches = atoll(epoll_max_user_watches_s);
         }
+        fclose(f);
     }
-    fclose(f);
     if (epoll_max_user_watches > 0 && epoll_max_user_watches < maxdescriptors) {
         maxdescriptors = epoll_max_user_watches;
         slapi_log_err(SLAPI_LOG_INFO, "Frontend_config_init",
