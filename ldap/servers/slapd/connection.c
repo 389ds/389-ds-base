@@ -160,6 +160,9 @@ connection_done(Connection *conn)
     if (NULL != conn->c_sb) {
         ber_sockbuf_free(conn->c_sb);
     }
+    if (NULL != conn->c_pdu_writer_cv) {
+        PR_DestroyCondVar(conn->c_pdu_writer_cv);
+    }
     if (NULL != conn->c_pdumutex) {
         PR_DestroyLock(conn->c_pdumutex);
     }
@@ -190,8 +193,9 @@ connection_cleanup(Connection *conn)
     /*
      * We hang onto these, since we can reuse them.
      * Sockbuf *c_sb;
-     * PRLock *c_mutex;
+     * pthread_mutex_t c_mutex;
      * PRLock *c_pdumutex;
+     * PRCondVar *c_pdu_writer_cv;
      * Conn_private *c_private;
      */
     if (conn->c_prfd) {
@@ -1306,7 +1310,6 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     int32_t waits_done = 0;
     ber_int_t msgid;
     int new_operation = 1; /* Are we doing the first I/O read for a new operation ? */
-    char *buffer = conn->c_private->c_buffer;
     PRErrorCode err = 0;
     PRInt32 syserr = 0;
     size_t buffer_data_avail;
@@ -1340,7 +1343,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     /* First check to see if we have buffered data from "before" */
     if ((buffer_data_avail = conn_buffered_data_avail_nolock(conn, &conn_closed))) {
         /* If so, use that data first */
-        if (0 != get_next_from_buffer(buffer + conn->c_private->c_buffer_offset,
+        if (0 != get_next_from_buffer(conn->c_private->c_buffer + conn->c_private->c_buffer_offset,
                                       buffer_data_avail,
                                       &len, tag, op->o_ber, conn)) {
             ret = CONN_DONE;
@@ -1501,9 +1504,71 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
                 pr_pd.in_flags = PR_POLL_READ;
                 pr_pd.out_flags = 0;
+                /*
+                 * To avoid deadlocks and allow other worker threads to flush
+                 * results for this connection, we must yield c_mutex while
+                 * waiting for I/O.
+                 *
+                 * Lock Hierarchy: c_mutex -> c_pdumutex
+                 *
+                 * We acquire c_pdumutex while holding c_mutex to ensure no other
+                 * thread begins a read/write operation during the transition.
+                 * We then release c_mutex to allow other threads to access
+                 * connection metadata (e.g., for logging or result flushing).
+                 */
                 PR_Lock(conn->c_pdumutex);
+                pthread_mutex_unlock(&(conn->c_mutex));
+
+                /* Admit a pending result writer before polling again. */
+                if (slapi_atomic_load_32(&conn->c_pdu_writers_waiting, __ATOMIC_ACQUIRE) > 0) {
+                    conn->c_pdu_handoff_pending = PR_TRUE;
+                    while (conn->c_pdu_handoff_pending) {
+                        if (PR_WaitCondVar(conn->c_pdu_writer_cv, PR_INTERVAL_NO_TIMEOUT) != PR_SUCCESS) {
+                            err = PR_GetError();
+                            syserr = PR_GetOSError();
+                            conn->c_pdu_handoff_pending = PR_FALSE;
+                            PR_Unlock(conn->c_pdumutex);
+                            pthread_mutex_lock(&(conn->c_mutex));
+                            slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
+                                          "PDU writer wait for connection %" PRIu64 " failed: %d (%s)\n",
+                                          conn->c_connid, err, slapd_pr_strerror(err));
+                            disconnect_server_nomutex(conn, conn->c_connid, -1, err, syserr);
+                            ret = CONN_DONE;
+                            goto done;
+                        }
+                    }
+                    /* Recheck the connection after the writer has run. */
+                    PR_Unlock(conn->c_pdumutex);
+                    pthread_mutex_lock(&(conn->c_mutex));
+                    if ((conn->c_sd == SLAPD_INVALID_SOCKET) ||
+                        (conn->c_flags & CONN_FLAG_CLOSING)) {
+                        ret = CONN_DONE;
+                        goto done;
+                    }
+                    pr_pd.fd = (PRFileDesc *)conn->c_prfd;
+                    PR_Lock(conn->c_pdumutex);
+                    pthread_mutex_unlock(&(conn->c_mutex));
+                }
+
                 ret = PR_Poll(&pr_pd, 1, timeout);
+
+                /*
+                 * DEADLOCK AVOIDANCE: We MUST release c_pdumutex BEFORE
+                 * re-acquiring c_mutex.
+                 *
+                 * If we held c_pdumutex while waiting for c_mutex, we could
+                 * deadlock with a thread that holds c_mutex and is waiting
+                 * for c_pdumutex (e.g., in flush_ber() called from a SASL bind).
+                 */
                 PR_Unlock(conn->c_pdumutex);
+                pthread_mutex_lock(&(conn->c_mutex));
+
+                /* check if the connection was closed while we were waiting */
+                if ((conn->c_sd == SLAPD_INVALID_SOCKET) ||
+                    (conn->c_flags & CONN_FLAG_CLOSING)) {
+                    ret = CONN_DONE;
+                    goto done;
+                }
                 waits_done++;
                 /* Did we time out ? */
                 if (0 == ret) {
@@ -1559,7 +1624,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 conn->c_private->c_buffer_bytes = ret;
                 conn->c_private->c_buffer_offset = 0;
 
-                if (get_next_from_buffer(buffer,
+                if (get_next_from_buffer(conn->c_private->c_buffer,
                                          conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset,
                                          &len, tag, op->o_ber, conn) != 0) {
                     ret = CONN_DONE;
@@ -1804,6 +1869,7 @@ connection_threadmain(void *arg)
     while (1) {
         int is_timedout = 0;
         time_t curtime = 0;
+        bool read_handed_off = false;
 
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -2066,6 +2132,7 @@ connection_threadmain(void *arg)
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
+                read_handed_off = true;
             } else if (connection_is_start_tls(op)) {
                 /*
                 * The StartTLS PDU has already been read into op->o_ber, but there is more data
@@ -2098,9 +2165,11 @@ connection_threadmain(void *arg)
                                         }, NULL);
                     }
 #endif /* ENABLE_EPOLL */
-                    connection_activity(conn, maxthreads);
-                    slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
-                                  conn->c_connid);
+                    if (connection_activity(conn, maxthreads) == 0) {
+                        read_handed_off = true;
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
+                                      conn->c_connid);
+                    }
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
@@ -2207,6 +2276,9 @@ connection_threadmain(void *arg)
         /* total number of ops for the server */
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
         tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
+        if (read_handed_off) {
+            more_data = 0;
+        }
         /* If this op isn't a persistent search, remove it */
         if (op->o_flags & OP_FLAG_PS) {
             /* Release the connection (i.e. decrease refcnt) at the condition
@@ -2240,12 +2312,14 @@ connection_threadmain(void *arg)
                           "repl_conn_bef %d, repl_conn_now %d\n",
                           conn->c_connid, more_data, thread_turbo_flag,
                           replication_connection, conn->c_isreplication_session);
-            if (!replication_connection &&  conn->c_isreplication_session) {
-                /* it a connection that was just flagged as replication connection */
-                more_data = 0;
-            } else {
-                /* normal connection or already established replication connection */
-                more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
+            if (!read_handed_off) {
+                if (!replication_connection &&  conn->c_isreplication_session) {
+                    /* it a connection that was just flagged as replication connection */
+                    more_data = 0;
+                } else {
+                    /* normal connection or already established replication connection */
+                    more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
+                }
             }
             if (!more_data) {
                 if (!thread_turbo_flag) {
