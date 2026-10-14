@@ -1749,6 +1749,7 @@ typedef struct conn
     PRInt32 c_opscompleted;          /* # ops completed          */
     uint64_t c_anonlimits_set;       /* default anon limits are set */
     PRInt32 c_threadnumber;          /* # threads used in this conn    */
+    int32_t c_ps_slots;              /* persistent search slot hand-over, see connection_ps_slot_nolock() */
     int c_refcnt;                    /* # ops refering to this conn    */
     pthread_mutex_t c_mutex;         /* protect each conn structure; need to be re-entrant */
     PRLock *c_pdumutex;              /* only write one pdu at a time   */

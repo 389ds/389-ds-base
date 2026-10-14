@@ -229,6 +229,7 @@ connection_cleanup(Connection *conn)
     conn->c_opscompleted = 0;
     conn->c_anonlimits_set = 0;
     conn->c_threadnumber = 0;
+    conn->c_ps_slots = 0;
     conn->c_refcnt = 0;
     conn->c_idlesince = 0;
     conn->c_flags = 0;
@@ -1770,6 +1771,32 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
     *new_turbo_flag = new_mode;
 }
 
+/*
+ * A persistent search holds one max threads per connection slot while it
+ * runs, so the connection keeps counting it against
+ * nsslapd-maxthreadsperconn.  The worker that dispatched it hands the slot
+ * over (start = 1) and ps_send_results() gives it back when the search ends
+ * (start = 0).  The search can end, for example on an abandon read by another
+ * worker, before the dispatching worker gets here, so whichever of the two
+ * comes second gives the slot back.  Caller holds c_mutex.
+ */
+void
+connection_ps_slot_nolock(Connection *conn, int start)
+{
+    if (start ? ++conn->c_ps_slots > 0 : --conn->c_ps_slots < 0) {
+        return;
+    }
+    if (conn->c_threadnumber == conn->c_max_threads_per_conn) {
+        conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+        slapi_counter_decrement(conns_in_maxthreads);
+        slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+        conn->c_threadnumber--;
+        signal_listner(conn->c_ct_list);
+    } else {
+        conn->c_threadnumber--;
+    }
+}
+
 static void
 connection_threadmain(void *arg)
 {
@@ -2215,11 +2242,27 @@ connection_threadmain(void *arg)
              * more_data (continue reading buffered req) this thread
              * continues to hold the connection
              */
-            if (!thread_turbo_flag && !more_data) {
-                pthread_mutex_lock(&(conn->c_mutex));
-                connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
-                pthread_mutex_unlock(&(conn->c_mutex));
+            pthread_mutex_lock(&(conn->c_mutex));
+            if (thread_turbo_flag || more_data) {
+                /* This worker keeps the connection and its own slot, so the
+                 * persistent search takes one of its own */
+                conn->c_threadnumber++;
+                if (conn->c_threadnumber == maxthreads) {
+                    conn->c_flags |= CONN_FLAG_MAX_THREADS;
+                    conn->c_maxthreadscount++;
+                    slapi_counter_increment(max_threads_count);
+                    slapi_counter_increment(conns_in_maxthreads);
+                    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+                    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsMaxThreadsHits);
+                }
             }
+            /* The persistent search holds this max threads per connection
+             * slot until it ends; ps_send_results() gives it back */
+            connection_ps_slot_nolock(conn, 1);
+            if (!thread_turbo_flag && !more_data) {
+                connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
+            }
+            pthread_mutex_unlock(&(conn->c_mutex));
             /* ps_add makes a shallow copy of the pb - so we
              * can't free it or init it here - just set operation to NULL.
              * ps_send_results will call connection_remove_operation_ext to free it
