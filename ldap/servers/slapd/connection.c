@@ -2115,11 +2115,13 @@ connection_threadmain(void *arg)
         replication_connection = conn->c_isreplication_session;
         if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
             if (!more_data) {
-                conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
 #ifdef ENABLE_EPOLL
                 int rearm_epfd = -1;
                 int rearm_fd = -1;
                 pthread_mutex_lock(&(conn->c_mutex));
+                /* c_flags is written under c_mutex: clearing it unlocked could
+                 * lose a concurrent CONN_FLAG_CLOSING */
+                conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                 int rearm = connection_make_readable_defer_rearm_nolock(conn, &rearm_epfd, &rearm_fd);
                 pthread_mutex_unlock(&(conn->c_mutex));
                 /* This thread still holds its reference on the connection, so
@@ -2129,6 +2131,7 @@ connection_threadmain(void *arg)
                 }
 #else /* !ENABLE_EPOLL */
                 pthread_mutex_lock(&(conn->c_mutex));
+                conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                 connection_make_readable_nolock(conn);
                 pthread_mutex_unlock(&(conn->c_mutex));
 #endif /* ENABLE_EPOLL */
