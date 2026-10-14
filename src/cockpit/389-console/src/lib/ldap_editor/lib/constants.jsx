@@ -3,6 +3,7 @@
 // Entry menu
 export const ENTRY_MENU = {
     search: 'search',
+    view: 'view',
     edit: 'edit',
     new: 'new',
     rename: 'rename',

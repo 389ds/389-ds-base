@@ -47,6 +47,7 @@ import EditorTableView from './tableView.jsx';
 import { getApiErrorMessage, log_cmd, valid_dn } from '../tools.jsx';
 import GenericWizard from './wizards/genericWizard.jsx';
 import { EffectivePwpModal } from './effectivePwpModal.jsx';
+import { ViewEntryModal } from './viewEntryModal.jsx';
 
 const _ = cockpit.gettext;
 
@@ -125,6 +126,22 @@ export class SearchDatabase extends React.Component {
             pwpModalEntryDn: '',
             pwpModalUserType: '',
             pwpModalSelector: '',
+            showViewEntryModal: false,
+            viewEntryDn: '',
+        };
+
+        this.handleViewEntryModalClose = () => {
+            this.setState({
+                showViewEntryModal: false,
+                viewEntryDn: '',
+            });
+        };
+
+        this.openViewEntryModal = (entryDn) => {
+            this.setState({
+                showViewEntryModal: true,
+                viewEntryDn: entryDn,
+            });
         };
 
         this.handlePwpModalClose = () => {
@@ -894,6 +911,13 @@ export class SearchDatabase extends React.Component {
         }
         const updateActions =
             [{
+                title: _("View ..."),
+                onClick:
+                () => {
+                    this.openViewEntryModal(rowData.rawdn);
+                }
+            },
+            {
                 title: _("Search ..."),
                 onClick:
                 () => {
@@ -1031,6 +1055,12 @@ export class SearchDatabase extends React.Component {
                     entryDn={this.state.pwpModalEntryDn}
                     userType={this.state.pwpModalUserType}
                     selector={this.state.pwpModalSelector}
+                />
+                <ViewEntryModal
+                    isOpen={this.state.showViewEntryModal}
+                    onClose={this.handleViewEntryModalClose}
+                    serverId={this.props.serverId}
+                    entryDn={this.state.viewEntryDn}
                 />
                 {this.props.view !== "reports" &&
                 <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
