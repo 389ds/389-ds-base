@@ -67,9 +67,9 @@
 #include <ssl.h>
 #include "fe.h"
 
-#if defined(LDAP_IOCP)
-#define SLAPD_WAKEUP_TIMER 250
-#define SLAPD_ACCEPT_WAKEUP_TIMER 250
+#ifdef ENABLE_EPOLL
+#define SLAPD_WAKEUP_TIMER 500
+#define SLAPD_ACCEPT_WAKEUP_TIMER 500
 #else
 #define SLAPD_WAKEUP_TIMER 250
 #define SLAPD_ACCEPT_WAKEUP_TIMER 250
@@ -80,6 +80,7 @@
 int slapd_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
 int slapd_accept_wakeup_timer = SLAPD_ACCEPT_WAKEUP_TIMER; /* time in ms to wakeup */
 int slapd_ct_thread_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
+
 #ifdef notdef                                /* GGOODREPL */
 /*
  * time in secs to do housekeeping:
@@ -1578,17 +1579,20 @@ ct_list_thread(uint64_t threadnum)
     while (!slapi_is_shutting_down()) {
          int select_return = 0;
          PRIntn num_poll = 0;
-         PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
          PRErrorCode prerr;
 
          wait4certs_refresh(NULL);
+
 #ifdef ENABLE_EPOLL
-            struct epoll_event events[the_connection_table->list_size];
-            select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, the_connection_table->list_size, pr_timeout);
+         struct epoll_event events[the_connection_table->list_size];
+         select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, the_connection_table->list_size, slapd_ct_thread_wakeup_timer);
 #else /* !ENABLE_EPOLL */
+         PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
+
          num_poll = setup_pr_read_pds(the_connection_table, threadid);
          select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
 #endif /* ENABLE_EPOLL */
+
          switch (select_return) {
              case 0: /* Timeout */
                 break;
