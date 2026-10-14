@@ -19,9 +19,6 @@
 #include "sys/epoll.h"
 #undef CTIME /* avoid conflict with portable.h */
 #endif /* HAVE_SYS_EPOLL_H */
-#ifdef HAVE_SYS_TIMERFD_H
-#include "sys/timerfd.h"
-#endif /* HAVE_SYS_TIMERFD_H */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -1724,8 +1721,9 @@ typedef struct conn
     int c_sd;                        /* the actual socket descriptor      */
 #ifdef ENABLE_EPOLL
     struct epoll_event *c_event;     /* epoll event for this connection */
-    struct epoll_event *c_idle_event;/* epoll event for timerfd */
-    int c_idle_tfd;                  /* timerfd for this connection */
+    int c_epoll_blocked;             /* left disarmed at max threads per conn */
+    struct conn *c_reap_next;        /* next on its list's closing queue */
+    int c_reap_queued;               /* on a closing queue, under c_mutex */
 #endif /* ENABLE_EPOLL */
     int c_ldapversion;               /* version of LDAP protocol       */
     char *c_dn;                      /* current DN bound to this conn  */
