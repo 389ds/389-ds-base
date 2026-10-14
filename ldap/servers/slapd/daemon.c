@@ -221,8 +221,10 @@ typedef struct epoll_retry
     size_t count;
     size_t size;
 } epoll_retry;
-static void handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int num_events, epoll_retry *retry);
+static void handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int num_events, epoll_retry *retry, int *reap);
 static void epoll_retry_events(epoll_retry *retry);
+static Connection *epoll_reap_list(Connection_Table *ct, int listnum, Connection *c, Connection *busy);
+static Connection *epoll_reap_closing(Connection_Table *ct, int listnum, Connection *busy);
 #else /* !ENABLE_EPOLL */
 static void handle_pr_read_ready(Connection_Table *ct, int list_id, PRIntn num_poll);
 #endif /* ENABLE_EPOLL */
@@ -1656,6 +1658,7 @@ ct_list_thread(uint64_t threadnum)
                   (unsigned long)threadid, max_events);
     struct epoll_event *events = (struct epoll_event *)slapi_ch_calloc(max_events, sizeof(struct epoll_event));
     epoll_retry retry = {0};
+    Connection *reap_busy = NULL; /* closing connections whose mutex was busy */
 #endif /* ENABLE_EPOLL */
 
     while (!slapi_is_shutting_down()) {
@@ -1670,6 +1673,7 @@ ct_list_thread(uint64_t threadnum)
              * list housekeeping at most once per wakeup interval by time.
              */
             struct timespec now;
+            int reap = 0;
             clock_gettime(CLOCK_MONOTONIC, &now);
             if ((now.tv_sec - last_check.tv_sec) * 1000 +
                 (now.tv_nsec - last_check.tv_nsec) / 1000000 >= slapd_ct_thread_wakeup_timer) {
@@ -1682,8 +1686,11 @@ ct_list_thread(uint64_t threadnum)
             if (retry.count) {
                 epoll_retry_events(&retry);
             }
+            if (reap_busy) {
+                reap_busy = epoll_reap_list(the_connection_table, threadid, reap_busy, NULL);
+            }
             select_return = epoll_wait(the_connection_table->epoll_fd[threadid], events, max_events,
-                                       retry.count ? 1 : pr_timeout);
+                                       (retry.count || reap_busy) ? 1 : pr_timeout);
 #else /* !ENABLE_EPOLL */
          num_poll = setup_pr_read_pds(the_connection_table, threadid);
          select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
@@ -1700,7 +1707,11 @@ ct_list_thread(uint64_t threadnum)
                 /* handle new data ready */
 #ifdef ENABLE_EPOLL
                 slapi_log_err(SLAPI_LOG_DEBUG, "ct_list_thread", "ct_list_thread: select_return %d\n", select_return);
-                handle_epoll_read_ready(the_connection_table, events, select_return, &retry);
+                handle_epoll_read_ready(the_connection_table, events, select_return, &retry, &reap);
+                /* After the events: they may be for the connections moved out */
+                if (reap) {
+                    reap_busy = epoll_reap_closing(the_connection_table, threadid, reap_busy);
+                }
 #else
                 handle_pr_read_ready(the_connection_table, threadid, 0);
                 clear_signal(the_connection_table->fd[threadid], threadid);
@@ -1870,6 +1881,40 @@ connection_epoll_rearm_unlocked(Connection *c, int epfd, int fd)
         connection_epoll_register_nolock(c);
     }
     pthread_mutex_unlock(&(c->c_mutex));
+}
+
+/*
+ * Queue a closing connection for its list thread to move out of the active
+ * list now, instead of on its next check_active_connections() pass.  The
+ * caller holds c_mutex.  Only once the list thread holds the last reference,
+ * before that the move would fail: the release that leaves it queues it.
+ * The eventfd is only written when the queue was empty, the list thread
+ * takes the whole queue.
+ */
+void
+connection_epoll_reap_nolock(Connection *c)
+{
+    epoll_reap_queue *q = NULL;
+    uint64_t one = 1;
+    int was_empty;
+
+    if (c->c_reap_queued || c->c_ct_list < 0 || c->c_refcnt > 1 ||
+        !(c->c_flags & CONN_FLAG_CLOSING)) {
+        return;
+    }
+    q = &(c->c_ct->epoll_reap[c->c_ct_list]);
+    c->c_reap_queued = 1;
+    pthread_mutex_lock(&(q->lock));
+    was_empty = (q->head == NULL);
+    c->c_reap_next = q->head;
+    q->head = c;
+    pthread_mutex_unlock(&(q->lock));
+    if (was_empty && write(q->fd, &one, sizeof(one)) != sizeof(one)) {
+        /* The check pass will move it out */
+        slapi_log_err(SLAPI_LOG_CONNS, "connection_epoll_reap_nolock",
+                      "Could not write to closing queue eventfd %d - %s\n",
+                      q->fd, strerror(errno));
+    }
 }
 #endif /* ENABLE_EPOLL */
 
@@ -2197,6 +2242,94 @@ check_active_connections(Connection_Table *ct, int listnum)
         c = next;
     }
 }
+
+/*
+ * Move a batch of closing connections out of the active list, taking
+ * table_mutex twice for the whole batch instead of once per connection: the
+ * accept thread needs that lock for every new connection.  The caller holds
+ * c_mutex of each, released here.
+ */
+#define EPOLL_REAP_BATCH 64
+static void
+epoll_reap_batch(Connection_Table *ct, Connection **batch, int n)
+{
+    Connection *held[EPOLL_REAP_BATCH];
+
+    /* The move compacts the array to the connections it moved, keep all to unlock */
+    memcpy(held, batch, n * sizeof(Connection *));
+    connection_table_move_connections_out_of_active_list(ct, batch, n);
+    for (int i = 0; i < n; i++) {
+        pthread_mutex_unlock(&(held[i]->c_mutex));
+    }
+}
+
+/*
+ * Move queued closing connections out of the active list, as
+ * check_active_connections() does, from the list's own thread.  A queued
+ * slot may have been moved out by a check pass and reused since, so its
+ * state is checked under c_mutex: it is only moved out while it is closing
+ * on this list and this thread holds its last reference.  Otherwise it is
+ * queued again if it is closing on another list.  A connection whose mutex
+ * is busy stays queued on the returned busy chain to retry, its holder may
+ * be the thread that queued it.  Returns the busy chain.
+ */
+static Connection *
+epoll_reap_list(Connection_Table *ct, int listnum, Connection *c, Connection *busy)
+{
+    Connection *batch[EPOLL_REAP_BATCH];
+    Connection *next = NULL;
+    int n = 0;
+
+    while (c) {
+        next = c->c_reap_next;
+        if (pthread_mutex_trylock(&(c->c_mutex)) != 0) {
+            c->c_reap_next = busy;
+            busy = c;
+            c = next;
+            continue;
+        }
+        c->c_reap_queued = 0;
+        c->c_reap_next = NULL;
+        if (c->c_ct_list == listnum && (c->c_flags & CONN_FLAG_CLOSING) && c->c_refcnt <= 1) {
+            /* Keep its c_mutex until the batch is moved out */
+            batch[n++] = c;
+            if (n == EPOLL_REAP_BATCH) {
+                epoll_reap_batch(ct, batch, n);
+                n = 0;
+            }
+        } else {
+            connection_epoll_reap_nolock(c);
+            pthread_mutex_unlock(&(c->c_mutex));
+        }
+        c = next;
+    }
+    if (n) {
+        epoll_reap_batch(ct, batch, n);
+    }
+    return busy;
+}
+
+/* The closing queue eventfd of the list is readable: take the queue */
+static Connection *
+epoll_reap_closing(Connection_Table *ct, int listnum, Connection *busy)
+{
+    epoll_reap_queue *q = &(ct->epoll_reap[listnum]);
+    Connection *c = NULL;
+    uint64_t count;
+
+    /* Clear the eventfd before taking the queue, a connection queued after
+     * that writes it again */
+    if (read(q->fd, &count, sizeof(count)) < 0 && errno != EAGAIN) {
+        slapi_log_err(SLAPI_LOG_ERR, "epoll_reap_closing",
+                      "Could not read closing queue eventfd %d - %s\n",
+                      q->fd, strerror(errno));
+    }
+    pthread_mutex_lock(&(q->lock));
+    c = q->head;
+    q->head = NULL;
+    pthread_mutex_unlock(&(q->lock));
+    return epoll_reap_list(ct, listnum, c, busy);
+}
 #endif /* ENABLE_EPOLL */
 
 static int idletimeout_reslimit_handle = -1;
@@ -2341,7 +2474,7 @@ epoll_retry_events(epoll_retry *retry)
 }
 
 static void
-handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int num_events, epoll_retry *retry)
+handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int num_events, epoll_retry *retry, int *reap)
 {
     time_t curtime = slapi_current_rel_time_t();
 
@@ -2354,6 +2487,11 @@ handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int nu
     slapi_log_err(SLAPI_LOG_DEBUG,
                   "handle_epoll_read_ready", "epoll_wait returned %d events\n", num_events);
     for (int i = 0; i < num_events; i++) {
+        if (events[i].data.ptr == (void *)ct->epoll_reap) {
+            /* The list's closing queue eventfd, the caller takes the queue */
+            *reap = 1;
+            continue;
+        }
         Connection *c = (Connection *)events[i].data.ptr;
         slapi_log_err(SLAPI_LOG_DEBUG,
                       "handle_epoll_read_ready", "epoll event %d for connection on sd %d events (%d) %s\n",
@@ -3452,13 +3590,14 @@ get_connection_table_size(void)
     }
 
 #ifdef ENABLE_EPOLL
-    /* We need to account for the listener file descriptors and the epoll file
-    * descriptors in the accept threads and connection table.
+    /* We need to account for the listener file descriptors, and the epoll and
+    * closing queue eventfd descriptors in the accept threads and connection
+    * table.
     *
     * Then round the size down to the nearest multiple of the number of connection
     * table lists, so that we can use the same number of connections per list.
     */
-    size = size - (config_get_num_listeners() * 2); /* One listener per table, one epoll fd per table */
+    size = size - (config_get_num_listeners() * 3); /* One listener, one epoll fd and one eventfd per table */
     size = size - (size % config_get_num_listeners());
     if (size < config_get_num_listeners()) {
         slapi_log_err(SLAPI_LOG_EMERG, "get_configured_connection_table_size",

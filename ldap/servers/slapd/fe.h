@@ -75,6 +75,21 @@ void connection_reset_read_buffer(Connection *c);
  * conntable.c
  */
 
+#ifdef ENABLE_EPOLL
+/*
+ * Connections of a connection table list that were marked closing and can
+ * be moved out of its active list, waiting for the list thread.  Chained
+ * through c_reap_next, a connection is on at most one queue (c_reap_queued).
+ * The queue lock is taken under c_mutex, never with table_mutex.
+ */
+typedef struct epoll_reap_queue
+{
+    pthread_mutex_t lock;
+    Connection *head;
+    int fd; /* eventfd in the list's epoll set, written when head is set */
+} epoll_reap_queue;
+#endif /* ENABLE_EPOLL */
+
 /*
  * Note: the correct order to use when acquiring multiple locks is
  * c[i]->c_mutex followed by table_mutex.
@@ -94,6 +109,7 @@ struct connection_table
 #ifdef ENABLE_EPOLL
     int *epoll_fd;  /* epoll file descriptor for each connection table list */
     int32_t epoll_active; /* active connections on all lists, atomic, for the turbo mode cut-off */
+    epoll_reap_queue *epoll_reap; /* closing queue for each connection table list */
 #endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
@@ -114,6 +130,9 @@ void connection_table_abandon_all_operations(Connection_Table *ct);
 void connection_table_disconnect_all(Connection_Table *ct);
 Connection *connection_table_get_connection(Connection_Table *ct, int sd);
 int connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c);
+#ifdef ENABLE_EPOLL
+int connection_table_move_connections_out_of_active_list(Connection_Table *ct, Connection **conns, int count);
+#endif
 void connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connection *c);
 void connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e);
 void connection_table_dump_activity_to_errors_log(Connection_Table *ct);
@@ -134,6 +153,7 @@ int signal_listner(int listnum);
 void connection_epoll_rearm_nolock(Connection *c);
 int connection_epoll_rearm_prepare_nolock(Connection *c, int *epfd, int *fd);
 void connection_epoll_rearm_unlocked(Connection *c, int epfd, int fd);
+void connection_epoll_reap_nolock(Connection *c);
 #endif /* ENABLE_EPOLL */
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_sockets_ports_free(daemon_ports_t *ports_info);

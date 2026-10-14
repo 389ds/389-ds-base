@@ -111,6 +111,7 @@
 #include "fe.h"
 #ifdef ENABLE_EPOLL
 #include <unistd.h>
+#include <sys/eventfd.h>
 #endif /* ENABLE_EPOLL */
 
 Connection_Table *
@@ -154,6 +155,24 @@ connection_table_new(int table_size)
         ct->epoll_fd[ct_list] = epoll_create1(EPOLL_CLOEXEC);
         if (ct->epoll_fd[ct_list] < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create epoll fd for connection table list %zu\n", ct_list);
+            exit(1);
+        }
+    }
+    /* The closing queue eventfd of a list is in its epoll set.  Its event
+     * points to the queue array, which no Connection can be confused with.
+     */
+    ct->epoll_reap = (epoll_reap_queue *)slapi_ch_calloc(1, ct->list_num * sizeof(epoll_reap_queue));
+    for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        struct epoll_event ev = {0};
+
+        pthread_mutex_init(&(ct->epoll_reap[ct_list].lock), NULL);
+        ct->epoll_reap[ct_list].fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        ev.events = EPOLLIN;
+        ev.data.ptr = ct->epoll_reap;
+        if (ct->epoll_reap[ct_list].fd < 0 ||
+            epoll_ctl(ct->epoll_fd[ct_list], EPOLL_CTL_ADD, ct->epoll_reap[ct_list].fd, &ev) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to set up the closing queue eventfd for connection table list %zu - %s\n",
+                          ct_list, strerror(errno));
             exit(1);
         }
     }
@@ -267,10 +286,13 @@ connection_table_free(Connection_Table *ct)
         if (ct->epoll_fd[ct_list] >= 0) {
             close(ct->epoll_fd[ct_list]);
         }
+        close(ct->epoll_reap[ct_list].fd);
+        pthread_mutex_destroy(&(ct->epoll_reap[ct_list].lock));
 #endif /* ENABLE_EPOLL */
     }
 #ifdef ENABLE_EPOLL
     slapi_ch_free((void **)&ct->epoll_fd);
+    slapi_ch_free((void **)&ct->epoll_reap);
 #endif /* ENABLE_EPOLL */
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
@@ -529,6 +551,67 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
 #endif
     return 0; /* success */
 }
+
+#ifdef ENABLE_EPOLL
+/*
+ * Move several closing connections out of the active list at once, for the
+ * epoll closing queue.  The caller holds c_mutex of every connection, and
+ * each has a refcnt of 1 or less.  Unlike moving one connection out, only the
+ * list and free list updates are made under table_mutex, and only twice for
+ * the whole batch: the cleanup (extension destructors, closing the socket) is
+ * done in between, without it.  Between the two the slots are on neither the
+ * active list nor the free list, so no allocation or active list walk can
+ * reach them; walks of the table array, such as the monitor and shutdown,
+ * wait for each connection's c_mutex, which the caller holds.
+ * Returns the number moved out.
+ */
+int
+connection_table_move_connections_out_of_active_list(Connection_Table *ct, Connection **conns, int count)
+{
+    int moved = 0;
+
+    PR_Lock(ct->table_mutex);
+    for (int i = 0; i < count; i++) {
+        Connection *c = conns[i];
+
+        if (c->c_prev == NULL || c->c_refcnt > 1) {
+            /* Already out, or held again: leave it to the check pass */
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_table_move_connections_out_of_active_list",
+                          "Not moving conn %d out of active list (refcnt %d, %s)\n",
+                          c->c_sd, c->c_refcnt, c->c_prev ? "on the list" : "already out");
+            continue;
+        }
+        (*(ct->num_active + c->c_ct_list))--;
+        slapi_atomic_decr_32(&(ct->epoll_active), __ATOMIC_RELAXED);
+        c->c_ct_list = -1;
+        c->c_prev->c_next = c->c_next;
+        if (c->c_next) {
+            c->c_next->c_prev = c->c_prev;
+        }
+        conns[moved++] = c;
+    }
+    PR_Unlock(ct->table_mutex);
+
+    for (int i = 0; i < moved; i++) {
+        connection_release_nolock(conns[i]);
+        connection_cleanup(conns[i]);
+    }
+
+    PR_Lock(ct->table_mutex);
+    for (int i = 0; i < moved; i++) {
+        PR_ASSERT(conns[i]->c_refcnt == 0);
+        PR_ASSERT(ct->conn_next_offset != 0);
+        ct->conn_next_offset--;
+        PR_ASSERT(ct->c_freelist[ct->conn_next_offset] == NULL);
+        ct->c_freelist[ct->conn_next_offset] = conns[i];
+    }
+    PR_Unlock(ct->table_mutex);
+
+    slapi_log_err(SLAPI_LOG_CONNS, "connection_table_move_connections_out_of_active_list",
+                  "Moved %d of %d closing connections out of active list and freed\n", moved, count);
+    return moved;
+}
+#endif /* ENABLE_EPOLL */
 
 /*
  * There's a double linked list of active connections running through the array

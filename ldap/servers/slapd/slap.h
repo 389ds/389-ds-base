@@ -1722,6 +1722,8 @@ typedef struct conn
 #ifdef ENABLE_EPOLL
     struct epoll_event *c_event;     /* epoll event for this connection */
     int c_epoll_blocked;             /* left disarmed at max threads per conn */
+    struct conn *c_reap_next;        /* next on its list's closing queue */
+    int c_reap_queued;               /* on a closing queue, under c_mutex */
 #endif /* ENABLE_EPOLL */
     int c_ldapversion;               /* version of LDAP protocol       */
     char *c_dn;                      /* current DN bound to this conn  */

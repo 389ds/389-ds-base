@@ -821,6 +821,12 @@ connection_release_nolock_ext(Connection *conn, int release_only)
         return -1;
     } else {
         conn->c_refcnt--;
+#ifdef ENABLE_EPOLL
+        if (conn->c_refcnt == 1 && (conn->c_flags & CONN_FLAG_CLOSING)) {
+            /* Only the list thread holds it now, it can move it out */
+            connection_epoll_reap_nolock(conn);
+        }
+#endif /* ENABLE_EPOLL */
 
         return 0;
     }
@@ -2813,6 +2819,9 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                         "epoll_ctl failed to remove connection %d from epoll_fd %d - %s\n",
                         conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list], strerror(errno));
         }
+        /* If no other thread holds it, the list thread can move it out of
+         * the active list now, else the last release queues it */
+        connection_epoll_reap_nolock(conn);
 #endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();
 
