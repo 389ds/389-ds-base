@@ -351,22 +351,28 @@ factory_destroy_extension(int type, void *object, void *parent, void **extension
         struct factory_type *ft = factory_type_store_get_factory_type(type);
         if (ft != NULL) {
             int i, n;
+            slapi_extension_destructor_fnptr destructors[MAX_EXTENSIONS] = {0};
 
+            /*
+             * Only snapshot the destructors under the lock, then call them
+             * unlocked (as factory_create_extension does for constructors),
+             * so a long destructor does not block every other create/destroy.
+             */
             PR_Lock(ft->extension_lock);
             factory_type_decrement_existence(ft);
             n = OBJECT_EXT_SIZE(*extension);
             for (i = 0; i < n; i++) {
-                slapi_extension_destructor_fnptr destructor;
-
                 if (ft->extensions[i] == NULL) {
                     continue;
                 }
-                destructor = ft->extensions[i]->destructor;
-                if (destructor != NULL) {
-                    (*destructor)(OBJECT_EXT_DATA(*extension,i), object, parent);
-                }
+                destructors[i] = ft->extensions[i]->destructor;
             }
             PR_Unlock(ft->extension_lock);
+            for (i = 0; i < n; i++) {
+                if (destructors[i] != NULL) {
+                    (*destructors[i])(OBJECT_EXT_DATA(*extension,i), object, parent);
+                }
+            }
         } else {
             /* The type wasn't registered. Programming error? */
             slapi_log_err(SLAPI_LOG_ERR, "factory_destroy_extension",

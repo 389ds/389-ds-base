@@ -216,35 +216,48 @@ format_localTime_log(time_t t, int initsize __attribute__((unused)), char *buf, 
 int
 format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)), char *buf, int *bufsize)
 {
-
+    /*
+     * localtime_r() takes the glibc time zone lock, and this is called for
+     * every log line. Each thread keeps the date and offset it converted for
+     * the last second and only converts again when the second changes, so a
+     * time zone change is seen from the next second on.
+     */
+    static __thread time_t last_t = 0;
+    static __thread long last_tz = 0;
+    static __thread char last_tbuf[64] = "";
     long tz;
     struct tm *tmsp, tms = {0};
-    char tbuf[*bufsize];
     char sign;
     /* make sure our buffer will be big enough. Need at least 39 */
     if (*bufsize < 39) {
         /* Should this set the buffer to be something? */
         return 1;
     }
-    (void)localtime_r(&t, &tms);
-    tmsp = &tms;
+    if (t != last_t || last_tbuf[0] == '\0') {
+        (void)localtime_r(&t, &tms);
+        tmsp = &tms;
 
 #ifdef BSD_TIME
-    tz = tmsp->tm_gmtoff;
+        tz = tmsp->tm_gmtoff;
 #else  /* BSD_TIME */
-    tz = -timezone;
-    if (tmsp->tm_isdst) {
-        tz += 3600;
-    }
+        tz = -timezone;
+        if (tmsp->tm_isdst) {
+            tz += 3600;
+        }
 #endif /* BSD_TIME */
+        if (strftime(last_tbuf, sizeof(last_tbuf), "%d/%b/%Y:%H:%M:%S", tmsp) == 0) {
+            last_tbuf[0] = '\0';
+            return 1;
+        }
+        last_t = t;
+        last_tz = tz;
+    }
+    tz = last_tz;
     sign = (tz >= 0 ? '+' : '-');
     if (tz < 0) {
         tz = -tz;
     }
-    if (strftime(tbuf, (size_t)*bufsize, "%d/%b/%Y:%H:%M:%S", tmsp) == 0) {
-        return 1;
-    }
-    if (PR_snprintf(buf, *bufsize, "[%s.%09ld %c%02d%02d] ", tbuf, nsec, sign,
+    if (PR_snprintf(buf, *bufsize, "[%s.%09ld %c%02d%02d] ", last_tbuf, nsec, sign,
                     (int)(tz / 3600), (int)(tz % 3600 / 60)) == (PRUint32)-1) {
         return 1;
     }

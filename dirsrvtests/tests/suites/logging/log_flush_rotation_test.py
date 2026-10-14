@@ -9,9 +9,13 @@
 import glob
 import os
 import logging
+import re
+import threading
 import time
+import uuid
+import ldap
 import pytest
-from lib389._constants import DEFAULT_SUFFIX, PW_DM
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 from lib389.tasks import ImportTask
 from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
@@ -75,6 +79,73 @@ def count_access_logs(log_dir, compressed_only=False):
         pattern = f'{log_dir}/access.2*'
     log_files = glob.glob(pattern)
     return len(log_files)
+
+
+def run_marked_searches(inst, threads, searches):
+    """
+    Run searches from several connections at once, one connection per thread.
+    Each search filter carries a marker naming the run, the thread and the
+    search number, so the SRCH lines can be found in the access log.
+    Returns the run marker.
+    """
+    run = uuid.uuid4().hex[:8]
+    errors = []
+
+    def worker(t):
+        try:
+            conn = ldap.initialize(inst.toLDAPURL())
+            conn.simple_bind_s(DN_DM, PW_DM)
+            for i in range(searches):
+                conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                              f'(uid=al-{run}-{t}-{i})', ['1.1'])
+            conn.unbind_s()
+        except ldap.LDAPError as e:
+            errors.append(e)
+
+    workers = [threading.Thread(target=worker, args=(t,)) for t in range(threads)]
+    for w in workers:
+        w.start()
+    for w in workers:
+        w.join()
+    assert not errors, f"Searches failed: {errors}"
+    return run
+
+
+def read_marked_searches(inst, run):
+    """
+    Read the access log, rotated logs first, and return the SRCH lines of a
+    run of run_marked_searches() in file order, as (conn, op, thread, search)
+    tuples.
+    """
+    log_dir = inst.get_log_dir()
+    srch = re.compile(r'conn=(\d+) op=(\d+) SRCH .*filter="\(uid=al-' + run + r'-(\d+)-(\d+)\)"')
+    found = []
+    rotated = sorted(f for f in glob.glob(f'{log_dir}/access.2*') if not f.endswith('.gz'))
+    for log_file in rotated + [f'{log_dir}/access']:
+        with open(log_file, errors='replace') as f:
+            for line in f:
+                m = srch.search(line)
+                if m:
+                    found.append(tuple(int(g) for g in m.groups()))
+    return found
+
+
+def check_marked_searches(found, threads, searches):
+    """
+    Check that every search of a run is logged exactly once, and that each
+    connection's searches are logged in the order they were sent.
+    """
+    assert len(found) == threads * searches, (
+        f"Expected {threads * searches} SRCH lines, found {len(found)}")
+    assert len(set((t, i) for (_, _, t, i) in found)) == threads * searches, \
+        "Some SRCH lines are duplicated"
+    for t in range(threads):
+        mine = [(conn, op, i) for (conn, op, tt, i) in found if tt == t]
+        assert len(set(conn for (conn, _, _) in mine)) == 1
+        assert [i for (_, _, i) in mine] == list(range(searches)), \
+            f"Searches of thread {t} are out of order"
+        ops = [op for (_, op, _) in mine]
+        assert ops == sorted(ops), f"Operations of thread {t} are out of order"
 
 
 def test_log_pileup_with_compression(topo):
@@ -355,6 +426,131 @@ def test_accesslog_list_mixed_compression(topo):
         )
 
     log.info("Mixed compression test completed successfully")
+
+
+def test_accesslog_buffer_written_at_shutdown(topo):
+    """Check that every buffered access log line is written when the server stops
+
+    :id: a0e62477-4391-440d-bbe9-cc45512a38a4
+    :setup: Standalone Instance
+    :steps:
+        1. Reset the access log configuration, with log buffering on
+        2. Run searches from several connections at once
+        3. Stop the server right away
+        4. Check that every search is in the access log exactly once
+        5. Start the server
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    inst = topo.standalone
+    threads = 4
+    searches = 500
+
+    remove_rotated_access_logs(inst)
+    reset_access_log_config(inst)
+    inst.restart()
+
+    run = run_marked_searches(inst, threads, searches)
+    inst.stop()
+    try:
+        found = read_marked_searches(inst, run)
+        check_marked_searches(found, threads, searches)
+    finally:
+        inst.start()
+
+
+def test_accesslog_rotation_under_load(topo):
+    """Check that no access log line is lost or duplicated when the log
+    rotates while several connections are logging
+
+    :id: 4fdd09e1-8a22-4cda-8383-651dd2668d81
+    :setup: Standalone Instance
+    :steps:
+        1. Reset the access log configuration, with log buffering on
+        2. Set a 1MB maximum log size so the log rotates under load
+        3. Run searches from several connections at once
+        4. Stop the server
+        5. Check that the log rotated
+        6. Check that every search is in the access logs exactly once,
+           and in order for each connection
+        7. Reset the access log configuration
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+    """
+
+    inst = topo.standalone
+    threads = 8
+    searches = 2500
+
+    remove_rotated_access_logs(inst)
+    reset_access_log_config(inst)
+    inst.config.set('nsslapd-accesslog-maxlogsize', '1')
+    inst.config.set('nsslapd-accesslog-maxlogsperdir', '50')
+    inst.restart()
+
+    run = run_marked_searches(inst, threads, searches)
+    inst.stop()
+    try:
+        rotated = count_access_logs(inst.get_log_dir())
+        log.info(f"Rotated access logs: {rotated}")
+        assert rotated >= 2
+        found = read_marked_searches(inst, run)
+        check_marked_searches(found, threads, searches)
+    finally:
+        inst.start()
+        remove_rotated_access_logs(inst)
+        reset_access_log_config(inst)
+
+
+@pytest.mark.parametrize("buffering", ["on", "off"])
+def test_accesslog_connection_order(topo, buffering):
+    """Check that the operations of each connection are logged in order
+
+    :id: 6917dd4b-cdf0-4a22-a57a-a0a20c160138
+    :parametrized: yes
+    :setup: Standalone Instance
+    :steps:
+        1. Reset the access log configuration, with log buffering on or off
+        2. Run searches from several connections at once
+        3. Check that every search is in the access log exactly once,
+           and that each connection's operations are in order
+        4. Reset the access log configuration
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    inst = topo.standalone
+    threads = 8
+    searches = 300
+
+    remove_rotated_access_logs(inst)
+    reset_access_log_config(inst)
+    inst.config.set('nsslapd-accesslog-logbuffering', buffering)
+
+    try:
+        run = run_marked_searches(inst, threads, searches)
+        if buffering == "on":
+            # Stopping the server flushes the buffered lines
+            inst.stop()
+            inst.start()
+        found = read_marked_searches(inst, run)
+        check_marked_searches(found, threads, searches)
+    finally:
+        reset_access_log_config(inst)
 
 
 def test_log_flush_and_rotation_crash(topo):
