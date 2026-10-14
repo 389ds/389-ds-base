@@ -21,6 +21,8 @@ from lib389.utils import get_default_db_lib
 
 log = logging.getLogger(__name__)
 
+pytestmark = pytest.mark.tier1
+
 SUFFIX = "dc=Example,DC=COM"
 SUBTREE = "ou=People,dc=Example,DC=COM"
 NEW_SUBTREE = "ou=humans,dc=Example,DC=COM"
@@ -358,4 +360,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
