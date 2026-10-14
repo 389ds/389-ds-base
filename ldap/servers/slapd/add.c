@@ -1053,7 +1053,11 @@ handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "param error", 0, NULL);
         return;
     }
-    be = pb_conn->c_bi_backend;
+    /* do_add() saw CONN_FLAG_IMPORT without c_mutex: take the import state
+     * under c_mutex, as a failed import clears it under c_mutex */
+    pthread_mutex_lock(&(pb_conn->c_mutex));
+    be = (pb_conn->c_flags & CONN_FLAG_IMPORT) ? pb_conn->c_bi_backend : NULL;
+    pthread_mutex_unlock(&(pb_conn->c_mutex));
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
