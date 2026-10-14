@@ -322,7 +322,9 @@ do_bind(Slapi_PBlock *pb)
          * RFC2251: client may abort a sasl bind negotiation by sending
          * an authentication choice other than sasl.
          */
+        pthread_mutex_lock(&(pb_conn->c_mutex));
         pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE;
+        pthread_mutex_unlock(&(pb_conn->c_mutex));
     }
 
     switch (method) {

@@ -1113,8 +1113,10 @@ handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
         slapi_entry_free(entry);
 
         /* turn off fast replica init -- import is now aborted */
+        pthread_mutex_lock(&(pb_conn->c_mutex));
         pb_conn->c_bi_backend = NULL;
         pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
+        pthread_mutex_unlock(&(pb_conn->c_mutex));
 
         return;
     }
