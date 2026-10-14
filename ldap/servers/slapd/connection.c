@@ -1811,6 +1811,21 @@ connection_threadmain(void *arg)
             if (is_busy) {
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
+            if (conn && (thread_turbo_flag || more_data)) {
+                /* This thread kept the connection it was reading from (turbo
+                 * mode or buffered data): give it back so its refcnt can
+                 * drop and the shutdown is not left waiting on it */
+                pthread_mutex_lock(&(conn->c_mutex));
+                connection_make_readable_nolock(conn);
+                if (conn->c_threadnumber == maxthreads) {
+                    conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+                    slapi_counter_decrement(conns_in_maxthreads);
+                    slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+                }
+                conn->c_threadnumber--;
+                connection_release_nolock(conn);
+                pthread_mutex_unlock(&(conn->c_mutex));
+            }
             tp_stats_worker_exited((uint32_t)*snmp_vars_idx);
             slapi_pblock_destroy(pb);
             goto cleanup;
