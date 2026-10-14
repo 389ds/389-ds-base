@@ -92,7 +92,8 @@ struct connection_table
     size_t conn_next_offset;
     struct POLL_STRUCT **fd;
 #ifdef ENABLE_EPOLL
-    int *epoll_fd;  /* epoll file descriptor for each connection table list */
+    int *epoll_fd;              /* epoll file descriptor for each connection table list */
+    Connection **reap_cursor;   /* Per list cursor for reap_closing_connections. */
 #endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
@@ -126,6 +127,9 @@ int connection_table_get_list(Connection_Table *ct);
  * daemon.c
  */
 int signal_listner(int listnum);
+#ifdef ENABLE_EPOLL
+void connection_epoll_add_socket(Connection *conn);
+#endif
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_sockets_ports_free(daemon_ports_t *ports_info);
 void slapd_daemon(daemon_ports_t *ports);
