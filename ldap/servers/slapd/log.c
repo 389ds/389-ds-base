@@ -7684,6 +7684,10 @@ log_create_buffer(size_t sz)
  * wait on a disk write unless every buffer is queued. Until the writer is
  * started, and once it has stopped, the thread that would have queued a buffer
  * writes it itself, as before.
+ *
+ * Lock order: never log an access message while holding the access log lock
+ * (LOG_ACCESS_LOCK_WRITE). If every buffer is queued, the logging thread waits
+ * for the writer, and the writer needs that lock to write.
  */
 #define LOG_ACCESS_NUM_BUFFERS 4
 
