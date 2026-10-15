@@ -81,6 +81,17 @@ bdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     PR_snprintf(buf, sizeof(buf), "%d", inst->inst_be->be_readonly);
     MSET("readOnly");
 
+    /* total number of entries in this backend.  Use the fast-stat variant
+     * so this doesn't walk the whole id2entry btree on every monitor
+     * request - see bdb_get_entries_count_fast() for why that's safe. */
+    if (inst->inst_id2entry) {
+        int total_entries = 0;
+        if (bdb_get_entries_count_fast(inst->inst_id2entry, &total_entries) == 0) {
+            PR_snprintf(buf, sizeof(buf), "%d", total_entries);
+            MSET("totalEntryCount");
+        }
+    }
+
     /* fetch cache statistics */
     cache_get_stats(&(inst->inst_cache), &cstats);
     sprintf(buf, "%" PRIu64, cstats.hits);

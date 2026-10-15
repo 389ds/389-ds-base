@@ -1827,6 +1827,10 @@ bdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst)
         size_t cachesize = DEFAULT_DBCACHE_SIZE;
 
         return_value = bdb_make_env(&mypEnv, li);
+        if (return_value != 0 || !mypEnv) {
+            /* bdb_make_env() leaves *env untouched on failure */
+            return 0;
+        }
         mypEnv->bdb_DB_ENV->set_cachesize(mypEnv->bdb_DB_ENV,
                                           cachesize / GIGABYTE,
                                           cachesize % GIGABYTE,
@@ -1839,9 +1843,17 @@ bdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst)
         inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
         if (inst_dirp && *inst_dirp) {
             if (bdb_grok_directory(inst_dirp, DBLAYER_DIRECTORY_READWRITE_ACCESS)) {
+                bdb_free_env((void **)&mypEnv);
+                if (inst_dirp != inst_dir) {
+                    slapi_ch_free_string(&inst_dirp);
+                }
                 return 0;
             }
         } else {
+            bdb_free_env((void **)&mypEnv);
+            if (inst_dirp && inst_dirp != inst_dir) {
+                slapi_ch_free_string(&inst_dirp);
+            }
             return 0;
         }
 
@@ -1866,6 +1878,9 @@ bdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst)
         {
             mypEnv->bdb_DB_ENV->close(mypEnv->bdb_DB_ENV, 0);
             bdb_free_env((void **)&mypEnv);
+            if (inst_dirp != inst_dir) {
+                slapi_ch_free_string(&inst_dirp);
+            }
             return 0;
         }
         id2entry_file = slapi_ch_smprintf("%s/%s", inst->inst_dir_name,
@@ -7110,13 +7125,13 @@ bdb_dbi_txn_abort(dbi_txn_t *txn)
     return TXN_ABORT(txn);
 }
 
-int
-bdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
+static int
+bdb_get_entries_count_ext(dbi_db_t *db, dbi_txn_t *txn, int *count, uint32_t flags)
 {
     DB_BTREE_STAT *stats = NULL;
     int rc;
 
-    rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, 0);
+    rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, flags);
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "bdb_get_entries_count",
                       "Failed to get db statistics: db error - %d %s\n",
@@ -7132,6 +7147,51 @@ bdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
     }
     slapi_ch_free((void **)&stats);
     return rc;
+}
+
+int
+bdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
+{
+    return bdb_get_entries_count_ext(db, txn, count, 0);
+}
+
+/*
+ * Fast variant for callers that may run repeatedly (e.g. the monitor DSE
+ * callback) and don't need a page-accurate stat: DB_FAST_STAT skips the
+ * full on-disk B-tree walk that plain stat() does.  Per the Berkeley DB
+ * C API reference for DB->stat()/DB_FAST_STAT, bt_ndata (the only field
+ * read here) is maintained incrementally as the database is modified and
+ * is not affected by this flag - only the unused page/free-space fields
+ * become approximate.
+ */
+int
+bdb_get_entries_count_fast(dbi_db_t *db, int *count)
+{
+    return bdb_get_entries_count_ext(db, NULL, count, DB_FAST_STAT);
+}
+
+/*
+ * Get the entry count for this backend instance
+ * If any error occurs just return 0
+ */
+int
+bdb_get_inst_entries_count(struct ldbminfo *li __attribute__((unused)), ldbm_instance *inst)
+{
+    int entry_count = 0;
+
+    if (!inst->inst_id2entry) {
+        /* The backend isn't started yet.  Callers (dblayer_instance_start(),
+         * the monitor DSE callbacks) only ask for the entry count once the
+         * backend is already up, so this should not normally happen.  Just
+         * report 0, as for any other error. */
+        slapi_log_err(SLAPI_LOG_WARNING, "bdb_get_inst_entries_count",
+                      "%s: backend not started, returning 0\n",
+                      inst->inst_name);
+        return 0;
+    }
+
+    bdb_get_entries_count(inst->inst_id2entry, NULL, &entry_count);
+    return entry_count;
 }
 
 int
