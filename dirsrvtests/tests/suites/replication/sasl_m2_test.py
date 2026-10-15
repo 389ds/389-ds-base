@@ -10,6 +10,8 @@ import logging
 import os
 import pytest
 import ldap
+import signal
+import time
 import uuid
 from lib389.utils import ds_is_older, valgrind_enable, valgrind_disable, valgrind_get_results_file, valgrind_check_file
 
@@ -125,6 +127,67 @@ def test_repl_sasl_md5_auth(topo_m2):
 
     m1.restart()
     m2.restart()
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.test_replication_topology(topo_m2)
+
+
+def test_repl_sasl_bind_timeout(topo_m2):
+    """Test that a SASL replication bind to an unresponsive server times out
+
+    :id: 72cdd0a1-3cdf-4b9f-bbdb-89783b66ba25
+    :setup: Two supplier replication
+    :steps:
+        1. Set sasl digest-md5 on both suppliers and restart them
+        2. Set a short timeout on the supplier1 agreement and pause it
+        3. Suspend supplier2 with SIGSTOP, so it accepts connections but never answers
+        4. Resume the agreement and perform a change on supplier1
+        5. Check the supplier1 errors log for the bind timeout
+        6. Resume supplier2 with SIGCONT and restart the agreement
+        7. Check that replication works
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. The DIGEST-MD5 bind fails with LDAP error -5 (Timed out) instead of hanging
+        6. Success
+        7. Replication works
+    """
+
+    repl_timeout = 5
+    m1 = topo_m2.ms['supplier1']
+    m2 = topo_m2.ms['supplier2']
+
+    set_sasl_md5_client_auth(m1, m2)
+    set_sasl_md5_client_auth(m2, m1)
+    m1.restart()
+    m2.restart()
+
+    agmt = Replicas(m1).get(DEFAULT_SUFFIX).get_agreements().list()[0]
+    # The server refuses to delete nsds5ReplicaTimeout, so restore the old
+    # value afterwards, or the 120 second default when it was not set
+    orig_timeout = agmt.get_attr_val_utf8('nsds5ReplicaTimeout') or '120'
+    agmt.replace('nsds5ReplicaTimeout', str(repl_timeout))
+    agmt.pause()
+
+    pid = m2.get_pid()
+    os.kill(pid, signal.SIGSTOP)
+    try:
+        agmt.resume()
+        group = Groups(m1, basedn=DEFAULT_SUFFIX, rdn=None).get('replication_managers')
+        group.replace('description', str(uuid.uuid4()))
+
+        timed_out = False
+        deadline = time.time() + repl_timeout * 6
+        while not timed_out and time.time() < deadline:
+            timed_out = m1.searchErrorsLog('Replication bind with DIGEST-MD5 auth failed: LDAP error -5 ')
+        assert timed_out, 'SASL bind to the suspended supplier did not time out'
+    finally:
+        os.kill(pid, signal.SIGCONT)
+        agmt.replace('nsds5ReplicaTimeout', orig_timeout)
+        agmt.pause()
+        agmt.resume()
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.test_replication_topology(topo_m2)
