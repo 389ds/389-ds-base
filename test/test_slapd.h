@@ -82,6 +82,10 @@ void test_hibp_parse_response(void **state);
 void test_hibp_buffer_handling(void **state);
 void test_hibp_api_integration(void **state);
 void test_hibp_concurrent_requests(void **state);
+void test_hibp_cache_basic(void **state);
+void test_hibp_cache_eviction(void **state);
+void test_hibp_cache_ttl(void **state);
+void test_hibp_cache_lru_reorder(void **state);
 #endif
 
 /* plugins */
