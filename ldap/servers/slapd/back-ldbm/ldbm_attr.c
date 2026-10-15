@@ -14,6 +14,7 @@
 /* attr.c - backend routines for dealing with attributes */
 
 #include "back-ldbm.h"
+#include "attrcrypt.h"
 
 static void
 attr_index_idlistsize_done(struct index_idlistsizeinfo *idlinfo)
@@ -55,6 +56,9 @@ attrinfo_delete(struct attrinfo **pp)
         (*pp)->ai_key_cmp_fn = NULL;
         slapi_ch_free((void **)&((*pp)->ai_type));
         charray_free((*pp)->ai_index_rules);
+        if ((*pp)->ai_attrcrypt) {
+            slapi_ch_bvfree(&(*pp)->ai_attrcrypt->iv);
+        }
         slapi_ch_free((void **)&((*pp)->ai_attrcrypt));
         attr_done(&((*pp)->ai_sattr));
         attrinfo_delete_idlistinfo(&(*pp)->ai_idlistinfo);
