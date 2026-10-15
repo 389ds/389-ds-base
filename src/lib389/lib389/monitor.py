@@ -384,6 +384,7 @@ class MonitorBackend(DSLdapObject):
         if db_lib == "bdb":
             self._backend_keys = [
                 'readonly',
+                'totalentrycount',
                 'entrycachehits',
                 'entrycachetries',
                 'entrycachehitratio',
@@ -412,6 +413,7 @@ class MonitorBackend(DSLdapObject):
         if db_lib == "mdb":
             self._backend_keys = [
                 'readonly',
+                'totalentrycount',
                 'entrycachehits',
                 'entrycachetries',
                 'entrycachehitratio',

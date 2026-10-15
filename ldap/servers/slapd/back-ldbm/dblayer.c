@@ -332,7 +332,17 @@ dblayer_instance_start(backend *be, int mode)
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    return priv->dblayer_instance_start_fn(be, mode);
+    int rc = priv->dblayer_instance_start_fn(be, mode);
+    if (rc == 0) {
+        /* Log this after the real start so the entry count is read from the
+         * now-open instance - avoids any backend needing to open (and then
+         * close) its own throwaway handle just to answer this. */
+        int nbentries = dblayer_get_inst_entries_count(be);
+        slapi_log_err(SLAPI_LOG_INFO, "dblayer_instance_start",
+            "%s: %d entries\n", be->be_name, nbentries);
+    }
+
+    return rc;
 }
 
 
