@@ -69,6 +69,8 @@ export class SuffixMonitor extends React.Component {
     resetChartData() {
         this.setState({
             data: {
+                // Backend
+                totalentrycount: [0],
                 // Entry cache
                 entrycachehitratio: [0],
                 entrycachetries: [0],
@@ -400,6 +402,15 @@ export class SuffixMonitor extends React.Component {
                                 </Grid>
                             </div>
                             <Grid hasGutter className="ds-margin-top-xlg">
+                                <GridItem span={3} title={_("The total number of entries stored in this backend (totalentrycount)")}>
+                                    {_("Total Entries:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.totalentrycount[0])}</b>
+                                </GridItem>
+                                {/* Spacers: fill out the row so "Entry Cache Hit Ratio:" starts a new row */}
+                                <GridItem span={3} />
+                                <GridItem span={2} />
                                 <GridItem span={3}>
                                     {_("Entry Cache Hit Ratio:")}
                                 </GridItem>
@@ -666,6 +677,8 @@ export class SuffixMonitorMDB extends React.Component {
     resetChartData() {
         this.setState({
             data: {
+                // Backend
+                totalentrycount: [0],
                 // Entry cache
                 entrycachehitratio: [0],
                 entrycachetries: [0],
@@ -911,6 +924,15 @@ export class SuffixMonitorMDB extends React.Component {
                                 </Grid>
                             </div>
                             <Grid hasGutter className="ds-margin-top-xlg">
+                                <GridItem span={3} title={_("The total number of entries stored in this backend (totalentrycount)")}>
+                                    {_("Total Entries:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.totalentrycount[0])}</b>
+                                </GridItem>
+                                {/* Spacers: fill out the row so "Entry Cache Hit Ratio:" starts a new row */}
+                                <GridItem span={3} />
+                                <GridItem span={2} />
                                 <GridItem span={3}>
                                     {_("Entry Cache Hit Ratio:")}
                                 </GridItem>
