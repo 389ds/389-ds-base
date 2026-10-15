@@ -16,6 +16,12 @@
 #include <db.h>
 #endif
 
+#ifndef DB_FAST_STAT
+/* The read-only BDB reader shim (bdb_bdbreader_db.h, used when built
+ * --with-libbdb-ro) doesn't define this flag. Fall back to 0 (full stat)
+ * for that build - callers that pass this flag only use it best-effort. */
+#define DB_FAST_STAT 0
+#endif
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
 
@@ -155,6 +161,8 @@ dblayer_dbi_txn_begin_fn_t bdb_dbi_txn_begin;
 dblayer_dbi_txn_commit_fn_t bdb_dbi_txn_commit;
 dblayer_dbi_txn_abort_fn_t bdb_dbi_txn_abort;
 dblayer_get_entries_count_fn_t bdb_get_entries_count;
+int bdb_get_entries_count_fast(dbi_db_t *db, int *count);
+dblayer_get_inst_entries_count_fn_t bdb_get_inst_entries_count;
 dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
 dblayer_private_open_fn_t bdb_public_private_open;
 dblayer_private_close_fn_t bdb_public_private_close;
