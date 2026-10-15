@@ -595,6 +595,15 @@ slapi_valueset_isempty(const Slapi_ValueSet *vs)
 }
 
 int
+slapi_valueset_is_sorted(const Slapi_ValueSet *vs)
+{
+    if (NULL != vs) {
+        return (vs->sorted != NULL);
+    }
+    return 0;
+}
+
+int
 valueset_isempty(const Slapi_ValueSet *vs)
 {
     if (NULL == vs) {
