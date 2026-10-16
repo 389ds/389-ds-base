@@ -4775,6 +4775,146 @@ bdb_delete_instance_dir(backend *be)
     }
 }
 
+#define BDB_IMPORT_BACKUP_SUFFIX ".importbak"
+
+/* Sibling path of the instance directory used to stash a pre-import
+ * backup, e.g. ".../userroot" -> ".../userroot.importbak". Takes the
+ * already-resolved instance directory rather than recomputing it via
+ * dblayer_get_full_inst_dir() itself, since every caller already has it.
+ * Returns NULL if 'inst_dirp' is NULL or empty. Caller frees the result. */
+static char *
+bdb_import_backup_path(const char *inst_dirp)
+{
+    if (!inst_dirp || !*inst_dirp) {
+        return NULL;
+    }
+    return slapi_ch_smprintf("%s%s", inst_dirp, BDB_IMPORT_BACKUP_SUFFIX);
+}
+
+/*
+ * Quick binary backup of a single backend instance, meant to be taken
+ * right before an online (bulk) import wipes it, so the pre-import data
+ * can be put back if the import fails. Each bdb instance already owns
+ * its own directory of files, so the "backup" is just a rename of that
+ * directory to a ".importbak" sibling -- no file content is copied, and
+ * no other backend (each with its own directory) is touched.
+ *
+ * Must be called after the instance has been closed
+ * (dblayer_instance_close()) and before bdb_delete_instance_dir() runs.
+ * Returns 0 if a backup is now in place. Returns non-zero if no usable
+ * backup could be made (nothing to back up yet, or the rename failed,
+ * e.g. because the backup sibling is on a different filesystem) --
+ * callers must treat that as "proceed without a backup", exactly like
+ * today's behavior, not as a hard error.
+ */
+int
+bdb_import_backup_create(backend *be)
+{
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst, inst_dir, MAXPATHLEN);
+    char *backup_dir = NULL;
+    struct stat sbuf;
+    int rc = -1;
+
+    if (!inst_dirp || !*inst_dirp || stat(inst_dirp, &sbuf) != 0) {
+        /* Nothing on disk yet to back up. */
+        goto done;
+    }
+    backup_dir = bdb_import_backup_path(inst_dirp);
+    if (!backup_dir) {
+        goto done;
+    }
+    if (stat(backup_dir, &sbuf) == 0) {
+        /* Stale backup left over from a previous failed attempt -- it's
+         * about to be superseded, so it's safe to drop. */
+        ldbm_delete_dirs(backup_dir);
+    }
+    if (rename(inst_dirp, backup_dir) != 0) {
+        slapi_log_err(SLAPI_LOG_WARNING, "bdb_import_backup_create",
+                      "Could not rename %s to %s (errno=%d: %s). "
+                      "Continuing the import of '%s' without a pre-import backup.\n",
+                      inst_dirp, backup_dir, errno, strerror(errno), inst->inst_name);
+        goto done;
+    }
+    rc = 0;
+
+done:
+    slapi_ch_free_string(&backup_dir);
+    if (inst_dirp != inst_dir) {
+        slapi_ch_free_string(&inst_dirp);
+    }
+    return rc;
+}
+
+/* Drop a backup created by bdb_import_backup_create() -- call once the
+ * import that superseded it has completed successfully and the backup
+ * is no longer needed. */
+int
+bdb_import_backup_discard(backend *be)
+{
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst, inst_dir, MAXPATHLEN);
+    char *backup_dir = bdb_import_backup_path(inst_dirp);
+    int rc = 0;
+
+    if (backup_dir) {
+        rc = ldbm_delete_dirs(backup_dir);
+        slapi_ch_free_string(&backup_dir);
+    }
+    if (inst_dirp != inst_dir) {
+        slapi_ch_free_string(&inst_dirp);
+    }
+    return rc;
+}
+
+/*
+ * Restore a backend instance from the backup created by
+ * bdb_import_backup_create(), after a failed online import. The caller
+ * must have already closed the (half-imported) instance and is
+ * responsible for calling bdb_instance_start(be, DBLAYER_NORMAL_MODE)
+ * afterward to bring it back online, exactly like the normal
+ * (non-failure) import completion path does.
+ * Returns 0 if the pre-import data was put back in place (the backup is
+ * consumed). Returns non-zero -- leaving the backup untouched -- if
+ * there was no backup to restore from, or the rename back failed.
+ */
+int
+bdb_import_backup_restore(backend *be)
+{
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst, inst_dir, MAXPATHLEN);
+    char *backup_dir = bdb_import_backup_path(inst_dirp);
+    struct stat sbuf;
+    int rc = -1;
+
+    if (!inst_dirp || !*inst_dirp || !backup_dir || stat(backup_dir, &sbuf) != 0) {
+        goto done;
+    }
+    /* Discard whatever the failed import left behind. */
+    if (stat(inst_dirp, &sbuf) == 0) {
+        ldbm_delete_dirs(inst_dirp);
+    }
+    if (rename(backup_dir, inst_dirp) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_import_backup_restore",
+                      "Could not rename backup %s back to %s (errno=%d: %s). "
+                      "Backend '%s' could not be restored to its pre-import "
+                      "state and is left empty; it must be re-imported.\n",
+                      backup_dir, inst_dirp, errno, strerror(errno), inst->inst_name);
+        goto done;
+    }
+    rc = 0;
+
+done:
+    slapi_ch_free_string(&backup_dir);
+    if (inst_dirp != inst_dir) {
+        slapi_ch_free_string(&inst_dirp);
+    }
+    return rc;
+}
+
 
 static int
 bdb_delete_database_ex(struct ldbminfo *li, char *cldir)
