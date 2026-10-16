@@ -97,8 +97,16 @@ process_bulk_import_op(Slapi_PBlock *pb, int state, Slapi_Entry *e)
         } else {
             slapi_pblock_get(pb, SLAPI_TARGET_SDN, &target_sdn);
             if (NULL == target_sdn) {
-                slapi_log_err(SLAPI_LOG_ERR, "process_bulk_import_op",
-                              "NULL target sdn\n");
+                if (state != SLAPI_BI_STATE_DONE) {
+                    /* Only report an error if we are not "done" -- a stop
+                     * with no backend/target_sdn to look up happens on
+                     * normal cleanup paths (e.g. aborting an already
+                     * failed/abandoned import), where the real error was
+                     * already logged elsewhere; logging again here would
+                     * just be redundant noise, not a new problem. */
+                    slapi_log_err(SLAPI_LOG_ERR, "process_bulk_import_op",
+                                  "NULL target sdn (state: %d)\n", state);
+                }
                 return LDAP_OPERATIONS_ERROR;
             }
         }

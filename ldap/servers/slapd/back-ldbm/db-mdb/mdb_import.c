@@ -648,7 +648,7 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
         for (current_worker = job->worker_list; current_worker != NULL;
              current_worker = current_worker->next) {
             if ((current_worker->state & ABORTED) && !(job->flags & FLAG_ABORT)) {
-                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads", "thread %s aborted ==> Aborting %s.\n", current_worker->name, dbmdb_import_role(job));
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads", "thread %s aborted ==> Aborting %s.", current_worker->name, dbmdb_import_role(job));
                 job->flags |= FLAG_ABORT;
             }
             if ((current_worker->state & FINISHED) == 0) {
@@ -699,7 +699,7 @@ dbmdb_import_run_pass(ImportJob *job, int *status)
     /* Start the threads startcfg */
     ret = dbmdb_import_start_threads(job);
     if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Starting threads failed: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Starting threads failed: %d", ret);
         goto error;
     }
 
@@ -707,10 +707,10 @@ dbmdb_import_run_pass(ImportJob *job, int *status)
     ret = dbmdb_import_monitor_threads(job, status);
     if ((ret == ERR_IMPORT_ABORTED) || (ret == NEED_DN_NORM) ||
         (ret == NEED_DN_NORM_SP) || (ret == NEED_DN_NORM_BT)) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring returned: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring returned: %d", ret);
         goto error;
     } else if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring aborted: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring aborted: %d", ret);
         goto error;
     }
 
@@ -1045,11 +1045,31 @@ error:
             if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
                 /* Not dryrun nor upgradedn - delete the half-imported db */
                 dbmdb_delete_instance_dir(be);
+                if (job->has_backup) {
+                    /* This was an online (bulk) import and we kept a
+                     * pre-import backup -- restore it instead of
+                     * leaving the backend empty. */
+                    if (dbmdb_import_backup_restore(be) == 0 &&
+                        dbmdb_instance_start(be, DBLAYER_NORMAL_MODE) == 0) {
+                        import_reenable_backend_after_restore(job, be);
+                        import_log_notice(job, SLAPI_LOG_NOTICE, "dbmdb_public_dbmdb_import_main",
+                                          "Online import failed; restored '%s' to its "
+                                          "pre-import state.", inst->inst_name);
+                    } else {
+                        import_log_notice(job, SLAPI_LOG_CRIT, "dbmdb_public_dbmdb_import_main",
+                                          "Online import failed and the pre-import backup "
+                                          "for '%s' could not be restored; the backend is "
+                                          "empty and must be re-imported.", inst->inst_name);
+                    }
+                }
             }
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {
             import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_public_dbmdb_import_main", "Failed to close database");
+        }
+        if (job->has_backup) {
+            dbmdb_import_backup_discard(be);
         }
     }
     end = slapi_current_rel_time_t();
@@ -1561,6 +1581,12 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
     dblayer_instance_close(be);
 
+    /* Try to keep a quick binary backup of the pre-import data so this
+     * online import can be undone if it fails. If we can't (e.g. first
+     * import ever, or not enough mapsize/dbi headroom), just proceed
+     * exactly like before -- job->has_backup stays 0. */
+    job->has_backup = (dbmdb_import_backup_create(be) == 0);
+
     /* Delete old database files */
     dbmdb_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
@@ -1652,6 +1678,24 @@ fail:
             }
         }
         job->nosync_set = 0;
+    }
+    if (job->has_backup) {
+        /* We already wiped the original data before hitting this
+         * failure (e.g. dbmdb_instance_start() or the thread create
+         * failed) -- try to put it back rather than leave the backend
+         * empty. */
+        if (dbmdb_import_backup_restore(be) == 0 &&
+            dbmdb_instance_start(be, DBLAYER_NORMAL_MODE) == 0) {
+            import_reenable_backend_after_restore(job, be);
+            slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_bulk_import_start",
+                          "Restored '%s' to its pre-import state after a failed start.\n",
+                          job->inst->inst_name);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_start",
+                          "Could not restore '%s' to its pre-import state; "
+                          "it may need to be re-imported.\n",
+                          job->inst->inst_name);
+        }
     }
     PR_Lock(job->inst->inst_config_mutex);
     job->inst->inst_flags &= ~INST_FLAG_BUSY;

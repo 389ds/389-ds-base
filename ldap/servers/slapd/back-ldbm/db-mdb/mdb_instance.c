@@ -39,6 +39,8 @@
 #define PAGE_MASK        ((size_t)(ctx->info.pagesize)-1)
 #define PAGE_ALIGN(size)   (((size)+PAGE_MASK)&~PAGE_MASK)
 
+#define TXN_COMMIT_INTERVAL 5000
+
 
 /* Helper to read/write info file */
 typedef struct {
@@ -1106,6 +1108,690 @@ int dbmdb_dbi_rmdir(backend *be)
     octx.be = be;
     octx.deletion_flags = 1;
     return dbmdb_map_error(__FUNCTION__, dbi_remove(&octx));
+}
+
+
+/* ======================================================================
+ * Pre-import backup/restore for a single backend (online bulk import).
+ *
+ * All backends in db-mdb share ONE environment, so there is no way to
+ * snapshot/restore just one backend's data at the file level (that's
+ * what mdb_env_copy()-based dbmdb_backup()/dbmdb_restore() do, and they
+ * are whole-environment / whole-server-offline operations). Instead, a
+ * backend's data is cloned at the dbi (named sub-database) level: every
+ * dbi currently open for the backend is cursor-copied -- raw MDB_val
+ * key/value pairs, no LDIF, no entry decode -- into a shadow-named
+ * sibling dbi inside the SAME environment. LMDB has no "rename a
+ * database" primitive, so restoring means cursor-copying the data back
+ * out of the shadow and into a freshly (re)created real-named dbi; it
+ * is not free, but it is far cheaper than re-running a full LDIF import.
+ *
+ * The shadow names are built by inserting DBMDB_IMPORT_BACKUP_MARKER
+ * right before the "<be_name>/" separator (e.g. "userroot/id2entry.db"
+ * -> "userroot~ibak/id2entry.db"). Because the marker sits BEFORE the
+ * '/', the result deliberately falls outside the "<be_name>/" prefix
+ * that dbi_list()/dbmdb_dbi_rmdir() use to find a backend's real dbis,
+ * so the "delete old database files" step that normally follows a
+ * backup never touches it, and other backends (matched the same way by
+ * their own name) can never collide with it either.
+ *
+ * None of this requires any other backend to be offline:
+ *  - creating/dropping the shadow dbis goes through the same
+ *    add_dbi()/dbi_remove1() calls, under the same ctx->dbis_lock, that
+ *    every other dbi-open in this file already uses -- the lock (not
+ *    this code) is what satisfies LMDB's "mdb_dbi_open must not run
+ *    concurrently with another dbi-open in the process" rule, env-wide.
+ *  - the copy itself is ordinary mdb reads/writes inside one
+ *    transaction; sibling backends' reads are unaffected (MVCC) and
+ *    their writes simply queue behind it like any other mdb writer.
+ *
+ * What IS shared and can make this fail (not corrupt, just fail) is
+ * capacity: mapsize and max_dbs are fixed per-environment ceilings, and
+ * cloning temporarily ~doubles this backend's footprint in both. The
+ * largest dbi (id2entry.db) is cloned in TXN_COMMIT_INTERVAL-sized
+ * chunks rather than one transaction (see dbmdb_copy_dbi_content()), so
+ * a failure partway through can leave part of the clone durably
+ * committed; dbmdb_import_backup_create() explicitly drops any such
+ * partial clone before returning, so callers can still always treat a
+ * non-zero return as "proceed without a backup", exactly like today's
+ * behavior -- there is just no longer a single enclosing transaction
+ * providing that guarantee for free.
+ * ====================================================================== */
+
+#define DBMDB_IMPORT_BACKUP_MARKER "~ibak"
+
+typedef struct {
+    const char *prefix;
+    int prefixlen;
+    dbmdb_dbi_t **list;
+    int count;
+    int maxcount;
+} dbmdb_prefix_collect_t;
+
+static void
+dbmdb_collect_by_prefix_cb(const void *nodep, VISIT which, void *closure)
+{
+    dbmdb_prefix_collect_t *pc = closure;
+    dbmdb_dbi_t *dbi = *(dbmdb_dbi_t **)nodep;
+
+    if (which != postorder && which != leaf) {
+        return;
+    }
+    if (pc->count >= pc->maxcount) {
+        return;
+    }
+    if (strncasecmp(dbi->dbname, pc->prefix, pc->prefixlen) == 0) {
+        pc->list[pc->count++] = dbi;
+    }
+}
+
+/* Collect every currently-open dbi whose name starts with 'prefix'
+ * (e.g. "userroot/" for be's real dbis, or "userroot~ibak/" for its
+ * shadow backup dbis). Caller must hold ctx->dbis_lock, and must free
+ * the (NULL-terminated) result with slapi_ch_free((void**)&list). */
+static dbmdb_dbi_t **
+dbmdb_collect_by_prefix(dbmdb_ctx_t *ctx, const char *prefix)
+{
+    dbmdb_prefix_collect_t pc = {0};
+
+    pc.prefix = prefix;
+    pc.prefixlen = strlen(prefix);
+    pc.maxcount = ctx->startcfg.max_dbs;
+    pc.list = (dbmdb_dbi_t **)slapi_ch_calloc(pc.maxcount + 1, sizeof(dbmdb_dbi_t *));
+    twalk_r(ctx->dbis_treeroot, dbmdb_collect_by_prefix_cb, &pc);
+    return pc.list;
+}
+
+/* "userroot/id2entry.db" -> "userroot~ibak/id2entry.db". NULL if dbname
+ * has no '/' (should not happen for a backend dbi). Caller frees. */
+static char *
+dbmdb_shadow_dbname(const char *dbname)
+{
+    const char *slash = strchr(dbname, '/');
+    if (!slash) {
+        return NULL;
+    }
+    return slapi_ch_smprintf("%.*s" DBMDB_IMPORT_BACKUP_MARKER "%s",
+                              (int)(slash - dbname), dbname, slash);
+}
+
+/* Reverse of dbmdb_shadow_dbname(). NULL if 'shadowname' does not carry
+ * the marker. Caller frees. */
+static char *
+dbmdb_unshadow_dbname(const char *shadowname)
+{
+    const char *marker = strstr(shadowname, DBMDB_IMPORT_BACKUP_MARKER "/");
+    if (!marker) {
+        return NULL;
+    }
+    return slapi_ch_smprintf("%.*s%s", (int)(marker - shadowname), shadowname,
+                              marker + strlen(DBMDB_IMPORT_BACKUP_MARKER));
+}
+
+/* Forward declaration -- defined further down with the rest of the
+ * add_dbi()-bookkeeping helpers it belongs with; dbmdb_copy_dbi_content()
+ * below needs to call it at each chunk-commit boundary. */
+static int *dbmdb_snapshot_valid_slots(dbmdb_ctx_t *ctx);
+
+/* Cursor-copy every key/value pair of 'srcdbi' into 'dstdbi'. Raw
+ * MDB_val copy -- no LDIF, no entry decode.
+ *
+ * To avoid holding one write transaction open for as long as it takes
+ * to copy a potentially huge dbi (id2entry.db can hold millions of
+ * entries, and LMDB serializes write transactions environment-wide --
+ * one long writer blocks every other backend's writes too), the copy
+ * commits '*txn' and starts a fresh one once at least TXN_COMMIT_INTERVAL
+ * records have been copied since the last commit. LMDB cursors do not
+ * survive their transaction, so each restart closes and reopens a
+ * cursor on 'srcdbi' and resumes right after the last key copied.
+ *
+ * This chunking only ever applies to dbis that cannot have MDB_DUPSORT
+ * duplicate values -- in practice that means id2entry.db, which is by
+ * far the largest dbi and the only reason this chunking exists in the
+ * first place (it stores one record per entry, so every key is used
+ * exactly once). Index dbis use MDB_DUPSORT, where a single key can
+ * carry an arbitrarily large run of duplicate values (e.g. a common or
+ * padded attribute value shared by many entries); resuming a cursor
+ * mid-duplicate-run after a transaction restart needs the exact
+ * (key, value) position, not just the key. Rather than keep chasing
+ * that across LMDB op semantics, index dbis are simply copied in a single,
+ * uninterrupted transaction, exactly like before this chunking was
+ * added -- they are also, in practice, far smaller to copy than
+ * id2entry.db, so there is little to gain by chunking them anyway. Index
+ * dbis do not use MDB_DUPSORT, so every key is used exactly once --
+ * donekeybuf (the previous record copied) is therefore always fully
+ * done the moment the key changes.
+ * */
+static int
+dbmdb_copy_dbi_content(dbmdb_ctx_t *ctx, dbi_txn_t **txn, int **valid_slots,
+                        const char *be_name, MDB_dbi srcdbi, MDB_dbi dstdbi)
+{
+    MDB_cursor *srccur = NULL;
+    MDB_val key = {0};
+    MDB_val data = {0};
+    void *donekeybuf = NULL;
+    size_t donekeysize = 0;
+    int have_donekey = 0;
+    size_t nbcopied = 0;
+    size_t nbsincecommit = 0;
+    unsigned int dbiflags = 0;
+    int chunk;
+    int rc;
+    int gc;
+
+    rc = MDB_CURSOR_OPEN(TXN(*txn), srcdbi, &srccur);
+    if (rc) {
+        return rc;
+    }
+    rc = mdb_dbi_flags(TXN(*txn), srcdbi, &dbiflags);
+    if (rc) {
+        MDB_CURSOR_CLOSE(srccur);
+        return rc;
+    }
+    chunk = (dbiflags & MDB_DUPSORT) == 0;
+
+    gc = MDB_CURSOR_GET(srccur, &key, &data, MDB_FIRST);
+    while (gc == 0) {
+        if (chunk && nbsincecommit >= TXN_COMMIT_INTERVAL && have_donekey &&
+            (key.mv_size != donekeysize ||
+             memcmp(key.mv_data, donekeybuf, donekeysize) != 0)) {
+            /* Not MDB_DUPSORT, so every key is used exactly once --
+             * donekeybuf (the previous record copied) is therefore
+             * always fully done the moment the key changes. Commit now,
+             * before copying anything for the new key. */
+            MDB_CURSOR_CLOSE(srccur);
+            srccur = NULL;
+
+            rc = END_TXN(txn, 0);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_copy_dbi_content",
+                              "Failed to commit after %lu records for backend "
+                              "'%s' (error %d: %s).\n",
+                              (unsigned long)nbcopied, be_name, rc, mdb_strerror(rc));
+                goto done;
+            }
+            /* Everything up to and including donekeybuf is now durably
+             * committed -- refresh the bookkeeping snapshot so a later
+             * failure can't make the caller forget it ever happened. */
+            slapi_ch_free((void **)valid_slots);
+            *valid_slots = dbmdb_snapshot_valid_slots(ctx);
+
+            rc = START_TXN(txn, NULL, TXNFL_DBI);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_copy_dbi_content",
+                              "Failed to start a new transaction after %lu "
+                              "records for backend '%s' (error %d: %s).\n",
+                              (unsigned long)nbcopied, be_name, rc, mdb_strerror(rc));
+                goto done;
+            }
+            rc = MDB_CURSOR_OPEN(TXN(*txn), srcdbi, &srccur);
+            if (rc) {
+                goto done;
+            }
+            key.mv_data = donekeybuf;
+            key.mv_size = donekeysize;
+            gc = MDB_CURSOR_GET(srccur, &key, &data, MDB_SET_RANGE);
+            if (gc == 0 && key.mv_size == donekeysize &&
+                memcmp(key.mv_data, donekeybuf, donekeysize) == 0) {
+                /* Landed back exactly on the previously-copied key --
+                 * move to the one record right after it. */
+                gc = MDB_CURSOR_GET(srccur, &key, &data, MDB_NEXT);
+            }
+            nbsincecommit = 0;
+            continue;
+        }
+
+        rc = MDB_PUT(TXN(*txn), dstdbi, &key, &data, 0);
+        if (rc) {
+            break;
+        }
+        nbcopied++;
+        if (chunk) {
+            nbsincecommit++;
+            donekeybuf = slapi_ch_realloc(donekeybuf, key.mv_size);
+            memcpy(donekeybuf, key.mv_data, key.mv_size);
+            donekeysize = key.mv_size;
+            have_donekey = 1;
+        }
+        gc = MDB_CURSOR_GET(srccur, &key, &data, MDB_NEXT);
+    }
+    if (rc == 0 && gc != MDB_NOTFOUND) {
+        rc = gc;
+    }
+done:
+    if (srccur) {
+        MDB_CURSOR_CLOSE(srccur);
+    }
+    slapi_ch_free(&donekeybuf);
+    return rc;
+}
+
+/*
+ * Best-effort check for whether there is likely enough headroom in
+ * max_dbs and mapsize (both fixed, environment-wide ceilings shared by
+ * every backend) to clone 'dbilist' -- the real dbis
+ * dbmdb_import_backup_create() is about to shadow -- without pushing
+ * either ceiling over. This is an estimate, not a guarantee (other
+ * backends keep writing concurrently), but it lets the caller bail out
+ * up front instead of discovering MDB_DBS_FULL or MDB_MAP_FULL midway
+ * through the clone transaction, which would abort it anyway -- this
+ * just makes the "proceed without a backup" outcome cheaper and gives
+ * an error log that actually explains why. Caller must hold
+ * ctx->dbis_lock and already be inside 'txn'. Returns 0 if there
+ * appears to be room, non-zero otherwise (ctx->startcfg.max_dbs /
+ * max_size exceeded or about to be).
+ */
+static int
+dbmdb_import_backup_check_room(dbmdb_ctx_t *ctx, MDB_txn *txn, dbmdb_dbi_t **dbilist)
+{
+    MDB_envinfo info = {0};
+    MDB_stat mainst = {0};
+    long nb_open_dbis;
+    long nb_real_dbis = 0;
+    long backend_pages = 0;
+    long available_pages;
+    size_t i;
+
+    if (mdb_env_info(ctx->env, &info) != 0 ||
+        mdb_stat(txn, 1 /* Main db, see dbmdb_show_stat() */, &mainst) != 0) {
+        /* Can't tell -- let the clone attempt itself be the judge, as
+         * before this check existed. */
+        return 0;
+    }
+    /* Cast once to a signed type so the arithmetic/comparisons below
+     * never mix signed and unsigned operands (ms_entries is size_t,
+     * max_dbs is int, nb_real_dbis is long). */
+    nb_open_dbis = (long)mainst.ms_entries;
+
+    for (i = 0; dbilist[i]; i++) {
+        nb_real_dbis++;
+    }
+
+    /* max_dbs headroom: dbi 1 (the "Main db") carries one entry per
+     * currently-open named database (see dbmdb_show_stat()); cloning
+     * adds one shadow dbi per real dbi this backend has. */
+    if (nb_open_dbis + nb_real_dbis > (long)ctx->startcfg.max_dbs) {
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_import_backup_check_room",
+                      "Not enough free database slots to clone %ld dbis "
+                      "for a pre-import backup (%ld of %d already in use). "
+                      "Increase nsslapd-mdb-max-dbs to enable backup.\n",
+                      nb_real_dbis, nb_open_dbis, ctx->startcfg.max_dbs);
+        return MDB_DBS_FULL;
+    }
+
+    /* mapsize headroom: conservatively assume none of the cloned pages
+     * can reuse space already freed within the current high-water mark
+     * -- i.e. require as much untouched map space as the backend's own
+     * current footprint, the same way dbmdb_show_stat() reports usage. */
+    for (i = 0; dbilist[i]; i++) {
+        MDB_stat dstat = {0};
+        if (mdb_stat(txn, dbilist[i]->dbi, &dstat) == 0) {
+            backend_pages += dstat.ms_branch_pages + dstat.ms_leaf_pages +
+                              dstat.ms_overflow_pages;
+        }
+    }
+    available_pages = (long)(info.me_mapsize / mainst.ms_psize) - (long)info.me_last_pgno;
+    if (available_pages < backend_pages) {
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_import_backup_check_room",
+                      "Not enough free map space for a pre-import backup "
+                      "(need roughly %ld pages, only %ld available before "
+                      "the mapsize ceiling). Increase nsslapd-mdb-max-size "
+                      "to enable backup\n",
+                      backend_pages, available_pages);
+        return MDB_MAP_FULL;
+    }
+    return 0;
+}
+
+/* Snapshot which ctx->dbi_slots[] entries are already registered before
+ * a sequence of add_dbi() calls that happen inside a single TXNFL_DBI
+ * transaction which might end up aborting partway through. add_dbi()
+ * registers a new dbi in ctx->dbis_treeroot/dbi_slots[] the moment it is
+ * called, not on commit -- but per LMDB's mdb_dbi_open() contract "If
+ * the transaction is aborted the handle will be closed automatically",
+ * so an add_dbi() whose enclosing transaction later aborts leaves a
+ * closed/invalid handle registered under that name unless the caller
+ * rolls it back (see dbmdb_rollback_new_slots()). This mirrors the
+ * identical hazard already handled in dbmdb_open_all_files().
+ * Caller must hold ctx->dbis_lock, and must free the result with
+ * slapi_ch_free((void**)&valid_slots). */
+static int *
+dbmdb_snapshot_valid_slots(dbmdb_ctx_t *ctx)
+{
+    int *valid_slots = (int *)slapi_ch_calloc(ctx->startcfg.max_dbs, sizeof(int));
+    size_t i;
+
+    for (i = 0; i < (size_t)ctx->startcfg.max_dbs; i++) {
+        valid_slots[i] = (ctx->dbi_slots[i].dbname != NULL);
+    }
+    return valid_slots;
+}
+
+/* Undo any add_dbi() registration performed since 'valid_slots' was
+ * captured by dbmdb_snapshot_valid_slots() -- call this once a
+ * transaction that may have called add_dbi() ends up aborting (txn
+ * commit rc != 0). Rebuilds ctx->dbis_treeroot from scratch, keeping
+ * only the slots that were already valid beforehand and freeing the
+ * dbname of any slot the aborted transaction had newly populated.
+ * Caller must hold ctx->dbis_lock. */
+static void
+dbmdb_rollback_new_slots(dbmdb_ctx_t *ctx, const int *valid_slots)
+{
+    size_t i;
+
+    tdestroy(ctx->dbis_treeroot, free_dbi_node);
+    ctx->dbis_treeroot = NULL;
+    for (i = 0; i < (size_t)ctx->startcfg.max_dbs; i++) {
+        if (ctx->dbi_slots[i].dbname) {
+            if (valid_slots[i]) {
+                tsearch(&ctx->dbi_slots[i], &ctx->dbis_treeroot, cmp_dbi_names);
+            } else {
+                slapi_ch_free((void **)&ctx->dbi_slots[i].dbname);
+            }
+        }
+    }
+}
+
+/* Drop every currently-registered dbi whose name starts with 'prefix'
+ * (e.g. a backup's "<be_name>" DBMDB_IMPORT_BACKUP_MARKER "/" shadow
+ * dbis), in its own TXNFL_DBI transaction, and update
+ * ctx->dbis_treeroot/dbi_slots[] to match once the drop is committed.
+ * Caller must hold ctx->dbis_lock. Shared by dbmdb_import_backup_discard()
+ * and by dbmdb_import_backup_create()'s own cleanup when a chunked
+ * clone fails after an earlier chunk already committed part of it. */
+static int
+dbmdb_discard_dbis_by_prefix(dbmdb_ctx_t *ctx, const char *prefix)
+{
+    dbmdb_dbi_t **dbilist = dbmdb_collect_by_prefix(ctx, prefix);
+    dbi_txn_t *txn = NULL;
+    int rc;
+    size_t i;
+
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    if (rc) {
+        slapi_ch_free((void **)&dbilist);
+        return rc;
+    }
+    for (i = 0; !rc && dbilist[i]; i++) {
+        rc = dbi_remove1(ctx, TXN(txn), dbilist[i], 1);
+    }
+    rc = END_TXN(&txn, rc);
+    if (rc == 0) {
+        for (i = 0; dbilist[i]; i++) {
+            dbmdb_dbi_t treekey = {0};
+            treekey.dbname = dbilist[i]->dbname;
+            tdelete(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
+            slapi_ch_free((void **)&dbilist[i]->dbname);
+        }
+    }
+    slapi_ch_free((void **)&dbilist);
+    return rc;
+}
+
+/*
+ * Quick binary backup of a single backend, meant to be taken right
+ * before an online (bulk) import wipes it, so the pre-import data can
+ * be put back if the import fails. See the block comment above for the
+ * design. Returns 0 if a full backup is now in place (as a shadow dbi
+ * clone). On any failure -- including not enough max_dbs/mapsize
+ * headroom, see dbmdb_import_backup_check_room() -- callers must treat
+ * a non-zero return as "proceed without a backup", exactly like
+ * today's behavior; any shadow dbi content a chunk committed before
+ * the failure (see dbmdb_copy_dbi_content()) is explicitly dropped
+ * below so nothing partial is left behind despite the chunked commits.
+ */
+int
+dbmdb_import_backup_create(backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = (dbmdb_ctx_t *)li->li_dblayer_config;
+    char *prefix = slapi_ch_smprintf("%s/", be->be_name);
+    char *shadow_prefix = NULL;
+    dbmdb_dbi_t **dbilist = NULL;
+    int *valid_slots = NULL;
+    dbi_txn_t *txn = NULL;
+    int rc;
+
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    if (rc) {
+        slapi_ch_free_string(&prefix);
+        return rc;
+    }
+
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_backup_create",
+                  "Starting backup for backend '%s'...\n", be->be_name);
+
+    pthread_mutex_lock(&ctx->dbis_lock);
+    valid_slots = dbmdb_snapshot_valid_slots(ctx);
+    dbilist = dbmdb_collect_by_prefix(ctx, prefix);
+    rc = dbmdb_import_backup_check_room(ctx, TXN(txn), dbilist);
+
+    for (size_t i = 0; !rc && dbilist[i]; i++) {
+        dbmdb_dbi_t *src = dbilist[i];
+        dbi_open_ctx_t cctx = {0};
+        char *shadowname = dbmdb_shadow_dbname(src->dbname);
+
+        if (!shadowname) {
+            /* Should not happen -- every name in dbilist matched the
+             * "<be_name>/" prefix so it must contain a '/'; the only
+             * realistic cause is an allocation failure. Fail the whole
+             * backup rather than silently skipping this dbi, so a
+             * partial clone is never reported as a complete backup. */
+            rc = -1;
+            break;
+        }
+
+        cctx.func = __FUNCTION__;
+        cctx.ctx = ctx;
+        cctx.txn = TXN(txn);
+        rc = add_dbi(&cctx, NULL, shadowname, src->state.flags | MDB_CREATE);
+        if (rc == 0) {
+            /* add_dbi() reuses an already-registered dbi as-is if the
+             * name is already known -- make sure the shadow starts
+             * empty, whether it was just (re)created above or is a
+             * stale leftover from a previous failed backup/restore
+             * attempt, since dbmdb_copy_dbi_content() only upserts and
+             * would otherwise let old keys survive into this backup. */
+            rc = MDB_DROP(TXN(txn), cctx.dbi->dbi, 0);
+        }
+        if (rc == 0 && src->cmp_fn) {
+            rc = dbmdb_update_dbi_cmp_fn(ctx, cctx.dbi, src->cmp_fn, TXN(txn));
+        }
+        if (rc == 0) {
+            /* May commit '&txn' and restart it one or more times
+             * internally if src is large -- see the function's
+             * own comment. */
+            rc = dbmdb_copy_dbi_content(ctx, &txn, &valid_slots, be->be_name,
+                                         src->dbi, cctx.dbi->dbi);
+        }
+        slapi_ch_free_string(&shadowname);
+    }
+
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_import_backup_create",
+                      "Failed to build a pre-import backup for backend '%s' "
+                      "(error %d: %s). Continuing the import without a backup.\n",
+                      be->be_name, rc, mdb_strerror(rc));
+    }
+    rc = END_TXN(&txn, rc);
+    if (rc) {
+        /* Either the last (still-open) sub-transaction aborted, or
+         * dbmdb_copy_dbi_content() already ended the last one itself
+         * -- END_TXN() is a safe no-op when '*txn' is already NULL.
+         * Either way, forget any add_dbi() registration that is not
+         * yet durably committed. */
+        dbmdb_rollback_new_slots(ctx, valid_slots);
+    }
+
+    if (rc) {
+        /* Chunked commits mean the clone is no longer all-or-nothing
+         * by construction: an earlier chunk may already have
+         * committed part of it before this one failed. Explicitly
+         * drop whatever shadow dbis exist for this backend so a
+         * half-finished backup is never left behind -- job->has_backup
+         * is about to become false, and nothing else will ever clean
+         * these up. */
+        shadow_prefix = slapi_ch_smprintf("%s" DBMDB_IMPORT_BACKUP_MARKER "/", be->be_name);
+        if (dbmdb_discard_dbis_by_prefix(ctx, shadow_prefix)) {
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_import_backup_create",
+                          "Failed to clean up a partial pre-import backup for "
+                          "backend '%s'; stale backup dbis may remain.\n",
+                          be->be_name);
+        }
+    }
+
+    pthread_mutex_unlock(&ctx->dbis_lock);
+
+    if (rc == 0){
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_backup_create",
+                      "Finished creating backup for backend '%s'.\n", be->be_name);
+    }
+    slapi_ch_free((void **)&valid_slots);
+    slapi_ch_free((void **)&dbilist);
+    slapi_ch_free_string(&prefix);
+    slapi_ch_free_string(&shadow_prefix);
+    return rc;
+}
+
+/* Drop the shadow backup created by dbmdb_import_backup_create() for
+ * 'be' -- call once the import that superseded it has completed
+ * successfully and the backup is no longer needed. */
+int
+dbmdb_import_backup_discard(backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = (dbmdb_ctx_t *)li->li_dblayer_config;
+    char *prefix = slapi_ch_smprintf("%s" DBMDB_IMPORT_BACKUP_MARKER "/", be->be_name);
+    int rc;
+
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_backup_discard",
+                  "Removing backup for backend '%s'...\n", be->be_name);
+
+    pthread_mutex_lock(&ctx->dbis_lock);
+    rc = dbmdb_discard_dbis_by_prefix(ctx, prefix);
+    pthread_mutex_unlock(&ctx->dbis_lock);
+
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_backup_discard",
+                  "Finished removing backup for backend '%s'.\n", be->be_name);
+    slapi_ch_free_string(&prefix);
+    return rc;
+}
+
+/*
+ * Restore 'be' from the shadow backup created by
+ * dbmdb_import_backup_create(), after a failed online import. The
+ * caller must have already closed the half-imported instance and
+ * removed its (broken) real dbis -- exactly what the existing
+ * dbmdb_delete_instance_dir() error-path call already does -- and is
+ * responsible for calling dbmdb_instance_start(be, DBLAYER_NORMAL_MODE)
+ * afterward to finish bringing the instance back online, exactly like
+ * the normal (non-failure) import completion path does.
+ * Returns 0 if the pre-import data was fully restored (the backup is
+ * consumed). On any failure, returns non-zero and leaves the shadow
+ * backup untouched (so a retry is possible); the real dbis may be left
+ * partially repopulated.
+ */
+int
+dbmdb_import_backup_restore(backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = (dbmdb_ctx_t *)li->li_dblayer_config;
+    char *prefix = slapi_ch_smprintf("%s" DBMDB_IMPORT_BACKUP_MARKER "/", be->be_name);
+    dbmdb_dbi_t **dbilist = NULL;
+    int *valid_slots = NULL;
+    dbi_txn_t *txn = NULL;
+    int rc;
+    size_t i;
+
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    if (rc) {
+        slapi_ch_free_string(&prefix);
+        return rc;
+    }
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_backup_restore",
+                  "Restore backup for backend '%s'...\n", be->be_name);
+    pthread_mutex_lock(&ctx->dbis_lock);
+    valid_slots = dbmdb_snapshot_valid_slots(ctx);
+    dbilist = dbmdb_collect_by_prefix(ctx, prefix);
+    if (!dbilist[0]) {
+        /* Nothing was backed up for this backend -- nothing to restore. */
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_backup_restore",
+                      "No pre-import backup found for backend '%s'.\n", be->be_name);
+        rc = -1;
+        goto out;
+    }
+    for (i = 0; !rc && dbilist[i]; i++) {
+        dbmdb_dbi_t *shadow = dbilist[i];
+        dbi_open_ctx_t cctx = {0};
+        char *realname = dbmdb_unshadow_dbname(shadow->dbname);
+
+        if (!realname) {
+            /* Should not happen -- every name in dbilist matched the
+             * "<be_name>" DBMDB_IMPORT_BACKUP_MARKER "/" prefix, so the
+             * marker must be present; the only realistic cause is an
+             * allocation failure. Fail the whole restore rather than
+             * silently skipping this dbi, so a partial restore is never
+             * reported as fully successful. */
+            rc = -1;
+            break;
+        }
+        cctx.func = __FUNCTION__;
+        cctx.ctx = ctx;
+        cctx.txn = TXN(txn);
+        rc = add_dbi(&cctx, NULL, realname, shadow->state.flags | MDB_CREATE);
+        if (rc == 0) {
+            /* Make sure we start from an empty real dbi, whether it was
+             * just (re)created above or already existed from a
+             * previous attempt. */
+            rc = MDB_DROP(TXN(txn), cctx.dbi->dbi, 0);
+        }
+        if (rc == 0 && shadow->cmp_fn) {
+            rc = dbmdb_update_dbi_cmp_fn(ctx, cctx.dbi, shadow->cmp_fn, TXN(txn));
+        }
+        if (rc == 0) {
+            /* May commit '&txn' and restart it one or more times
+             * internally if shadow is large -- see the
+             * function's own comment. */
+            rc = dbmdb_copy_dbi_content(ctx, &txn, &valid_slots, be->be_name,
+                                         shadow->dbi, cctx.dbi->dbi);
+        }
+        if (rc == 0) {
+            rc = dbi_remove1(ctx, TXN(txn), shadow, 1);
+        }
+        slapi_ch_free_string(&realname);
+    }
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_backup_restore",
+                      "Failed to restore backend '%s' from its pre-import "
+                      "backup (error %d: %s). The backup is left in place.\n",
+                      be->be_name, rc, mdb_strerror(rc));
+    }
+out:
+    rc = END_TXN(&txn, rc);
+    if (rc == 0) {
+        for (i = 0; dbilist[i]; i++) {
+            dbmdb_dbi_t treekey = {0};
+            treekey.dbname = dbilist[i]->dbname;
+            tdelete(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
+            slapi_ch_free((void **)&dbilist[i]->dbname);
+        }
+    } else {
+        /* The transaction aborted (or there was never a backup to
+         * restore) -- any real dbi that add_dbi() already registered
+         * above is now a closed/invalid handle; undo the registration
+         * so ctx->dbis_treeroot/dbi_slots[] don't keep pointing at it. */
+        dbmdb_rollback_new_slots(ctx, valid_slots);
+    }
+    pthread_mutex_unlock(&ctx->dbis_lock);
+    if (rc == 0) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_backup_restore",
+                      "Finished restoring backup for backend '%s'.\n",
+                      be->be_name);
+    }
+    slapi_ch_free((void **)&valid_slots);
+    slapi_ch_free((void **)&dbilist);
+    slapi_ch_free_string(&prefix);
+    return rc;
 }
 
 
