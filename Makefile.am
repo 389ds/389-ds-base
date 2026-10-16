@@ -522,6 +522,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/uuid.h \
 	ldap/servers/slapd/vattr_spi.h \
 	ldap/servers/slapd/views.h \
+	ldap/servers/slapd/wthreads.h \
 	ldap/servers/slapd/back-ldbm/attrcrypt.h \
 	ldap/servers/slapd/back-ldbm/back-ldbm.h \
 	ldap/servers/slapd/back-ldbm/dbimpl.h \

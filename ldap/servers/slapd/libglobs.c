@@ -137,6 +137,8 @@
 #endif
 #include <sys/resource.h>
 #include <rust-slapi-private.h>
+#include "snmp_collator.h"
+#include "wthreads.h"
 
 
 #define REMOVE_CHANGELOG_CMD "remove"
@@ -2161,94 +2163,21 @@ g_get_slapd_security_on(void)
     return config_get_security();
 }
 
-static struct snmp_vars_t global_snmp_vars;
-static PRUintn thread_private_snmp_vars_idx;
-/*
- * https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR/Reference/PR_NewThreadPrivateIndex
- * It is called each time:
- *  - PR_SetThreadPrivate is called with a not NULL private value
- *  - on thread exit
- */
-static void
-snmp_vars_idx_free(void *ptr)
+
+/* Worker thread framework (is needed for get snmp per thread counters) */
+pc_t g_pc;                                  /* Worker thread framework context */
+static struct snmp_vars_t global_snmp_vars; /* snmp var used if not a worker thread */
+
+/* Get worker thread context from thread specific data */
+pc_tinfo_t *
+g_get_thread_info()
 {
-    int *idx = ptr;
-    if (idx) {
-        slapi_ch_free((void **)&idx);
+    if (g_pc.snmp.threads) {
+        return pthread_getspecific(g_pc.tinfo_key);
     }
-}
-/* Define a per thread private area that is used to store
- * in the (workers) thread the index in per_thread_snmp_vars
- * of the set of counters
- */
-void
-init_thread_private_snmp_vars()
-{
-    if (PR_NewThreadPrivateIndex(&thread_private_snmp_vars_idx, snmp_vars_idx_free) != PR_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ALERT,
-              "init_thread_private_snmp_vars", "Failure to per thread snmp counters !\n");
-        PR_ASSERT(0);
-    }
-}
-int
-thread_private_snmp_vars_get_idx(void)
-{
-    int *idx;
-    idx = (int *) PR_GetThreadPrivate(thread_private_snmp_vars_idx);
-    if (idx == NULL) {
-        /* if it was not initialized set it to zero */
-        return 0;
-    }
-    return *idx;
-}
-void
-thread_private_snmp_vars_set_idx(int32_t idx)
-{
-    int *val;
-    val = (int32_t *) PR_GetThreadPrivate(thread_private_snmp_vars_idx);
-    if (val == NULL) {
-        /* if it was not initialized set it to zero */
-        val = (int *) slapi_ch_calloc(1, sizeof(int32_t));
-        PR_SetThreadPrivate(thread_private_snmp_vars_idx, (void *) val);
-    }
-    *val = idx;
+    return NULL;
 }
 
-static struct snmp_vars_t *per_thread_snmp_vars = NULL; /* array of counters */
-static int max_slots_snmp_vars = 0;                     /* no slots array of counters */
-struct snmp_vars_t *
-g_get_per_thread_snmp_vars(void)
-{
-    int thread_vars = thread_private_snmp_vars_get_idx();
-    if (thread_vars < 0 || thread_vars >= max_slots_snmp_vars) {
-        /* fallback to the global one */
-        thread_vars = 0;
-    }
-    return &per_thread_snmp_vars[thread_vars];
-}
-
-
-struct snmp_vars_t *
-g_get_first_thread_snmp_vars(int *cookie)
-{
-    *cookie = 0;
-    if (max_slots_snmp_vars == 0) {
-        /* not yet initialized */
-        return NULL;
-    }
-    return &per_thread_snmp_vars[0];
-}
-
-struct snmp_vars_t *
-g_get_next_thread_snmp_vars(int *cookie)
-{
-    int index = *cookie;
-    if (index < 0 || index >= (max_slots_snmp_vars - 1)) {
-        return NULL;
-    }
-    *cookie = index + 1;
-    return &per_thread_snmp_vars[index + 1];
-}
 
 /* Allocated the first slot of arrays of counters
  * The first slot contains counters that are not specific to counters
@@ -2256,40 +2185,51 @@ g_get_next_thread_snmp_vars(int *cookie)
 void
 alloc_global_snmp_vars()
 {
-    PR_ASSERT(max_slots_snmp_vars == 0);
-    if (max_slots_snmp_vars == 0) {
-        max_slots_snmp_vars = 1;
-        per_thread_snmp_vars = (struct snmp_vars_t *) slapi_ch_calloc(max_slots_snmp_vars, sizeof(struct snmp_vars_t));
-    }
-
+    snmp_thread_counters_init(&global_snmp_vars);
 }
 
-/* Allocated the next slots of the arrays of counters
- * with a slot per worker thread
- *
- * Must complete before any reader of per_thread_snmp_vars starts (worker
- * threads, snmp collator, thread-pool stats heartbeat): the slot count and
- * the array pointer are published without synchronization, and the realloc
- * frees the old array under a concurrent reader.
- */
 void
-alloc_per_thread_snmp_vars(int32_t maxthread)
+free_global_snmp_vars()
 {
-    PR_ASSERT(max_slots_snmp_vars == 1);
-    if (max_slots_snmp_vars == 1) {
-        max_slots_snmp_vars += maxthread; /* one extra slot for the global counters */
-        per_thread_snmp_vars = (struct snmp_vars_t *) slapi_ch_realloc((char *) per_thread_snmp_vars,
-                                                                       max_slots_snmp_vars * sizeof (struct snmp_vars_t));
-
-        /* make sure to zeroed the new alloacted counters */
-        memset(&per_thread_snmp_vars[1], 0, (max_slots_snmp_vars - 1) * sizeof (struct snmp_vars_t));
-    }
+    snmp_thread_counters_cleanup(&global_snmp_vars);
 }
 
 struct snmp_vars_t *
-g_get_global_snmp_vars(void)
+g_get_first_thread_snmp_vars(int *cookie)
 {
+    *cookie = 1;
     return &global_snmp_vars;
+}
+
+struct snmp_vars_t *
+g_get_next_thread_snmp_vars(int *cookie)
+{
+    /* Caller should held g_pc.snmp.mutex */
+    int index = *cookie;
+
+    if (index < 1 || g_pc.snmp.threads == NULL) {
+        return NULL;
+    }
+    /* Skip the slots of the worker threads that are not running */
+    while (index <= g_pc.snmp.nbthreads && g_pc.snmp.threads[index] == NULL) {
+        index++;
+    }
+    if (index > g_pc.snmp.nbthreads) {
+        return NULL;
+    }
+    *cookie = index+1;
+    return &g_pc.snmp.threads[index]->snmp_vars;
+}
+
+struct snmp_vars_t *
+g_get_per_thread_snmp_vars(void)
+{
+    pc_tinfo_t *tinfo = g_get_thread_info();
+    if (tinfo) {
+        return &tinfo->snmp_vars;
+    } else {
+        return &global_snmp_vars;
+    }
 }
 
 static slapdEntryPoints *sep = NULL;
@@ -5558,7 +5498,7 @@ config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int a
                     "set it to \"-1\" and the server will tune it according to the "
                     "system hardware\n",
                     threadnum, hw_threadnum);
-            }
+        }
     }
 
     if (*endp != '\0' || errno == ERANGE || threadnum < 1 || threadnum > 65535) {
@@ -5568,6 +5508,9 @@ config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int a
     }
     if (apply) {
         slapi_atomic_store_32(&(slapdFrontendConfig->threadnumber), threadnum, __ATOMIC_RELAXED);
+        if (g_pc.threadnumber_cb) {
+            g_pc.threadnumber_cb(threadnum);
+        }
     }
     return retVal;
 }
