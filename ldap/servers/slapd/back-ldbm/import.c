@@ -180,6 +180,28 @@ import_abort_all(ImportJob *job, int wait_for_them)
     pthread_mutex_unlock(&import_ctx_mutex);
 }
 
+/* After <backend>_import_backup_restore() has put a backend's pre-import
+ * data back and <backend>_instance_start() has reopened it, finish
+ * bringing it back online: clear the INDEX_OFFLINE flag online import
+ * leaves set on freshly (re)built indexes, and re-enable the mapping
+ * tree node that <backend>_bulk_import_start() disabled. This mirrors
+ * the online bring-up half of <backend>_import_all_done(), deliberately
+ * without its task-finish side effect -- the caller is on a failure
+ * path and must still report the import itself as failed to job->task.
+ * Shared by both backends since none of this touches backend-specific
+ * state. */
+void
+import_reenable_backend_after_restore(ImportJob *job, backend *be)
+{
+    IndexInfo *index = job->index_list;
+
+    while (index != NULL) {
+        index->ai->ai_indexmask &= ~INDEX_OFFLINE;
+        index = index->next;
+    }
+    slapi_mtn_be_enable(be);
+}
+
 
 void *
 factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
