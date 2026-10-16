@@ -55,6 +55,9 @@ MISSING_PARENT_UUID = "44444444-44444444-44444444-44444444"
 ORPHAN_UUID = "33333333-33333333-33333333-33333333"
 ORPHAN_DN = f"nsuniqueid={ORPHAN_UUID},uid=stranded-orphan,{DEFAULT_SUFFIX}"
 
+MARKER_UUID = "55555555-55555555-55555555-55555555"
+MARKER_DN = f"ou=pre-abort-marker,{DEFAULT_SUFFIX}"
+
 
 # Minimal DER encoders for the total update payloads.  The grammar matches
 # the consumer's decoders in repl_extop.c (start/end) and repl5_total.c (entry).
@@ -147,10 +150,42 @@ def _supplier_connection(inst):
     """Connection acting as the total update supplier.
 
     Only the entry extop lets the test choose nsuniqueid values (a plain
-    add discards them), and the bug needs exact uuid pairing."""
+    add discards them), and the bug needs exact uuid pairing. An explicit
+    timeout keeps a synchronous call like simple_bind_s()/extop_s() from
+    blocking forever if the server ever dies or wedges mid-test."""
     conn = ldap.initialize(f"ldap://{inst.host}:{inst.port}")
+    conn.set_option(ldap.OPT_NETWORK_TIMEOUT, 10)
+    conn.set_option(ldap.OPT_TIMEOUT, 60)
     conn.simple_bind_s(REPL_MANAGER_DN, REPL_MANAGER_PW)
     return conn
+
+
+def _successful_total_update(inst, extra=()):
+    """Drive one full, successful total update session: start, suffix,
+    any extra entries, end. This is the one thing that fails outright if
+    the backend/replica is not actually online -- and, unlike a plain
+    write, it is something the replication manager bind DN is actually
+    entitled to do on a fresh connection: SLAPI_CONN_IS_REPLICATION_SESSION
+    (the ACI bypass) is only granted for the duration of a session that
+    itself began with a successful StartNSDS50ReplicationRequest on that
+    connection (repl_extop.c), not merely by virtue of the bind DN."""
+    conn = _supplier_connection(inst)
+    try:
+        _, raw = conn.extop_s(ExtendedRequest(START_OID, _start_payload()))
+        code = _response_code(raw)
+        assert code == REPLICA_READY, f"start response {code}"
+
+        _send_suffix(conn)
+        for uniqueid, dn, attrs in extra:
+            _send_entry(conn, uniqueid, dn, attrs)
+
+        _, raw = conn.extop_s(ExtendedRequest(END_OID, _end_payload()))
+        code = _response_code(raw)
+        assert code == RELEASE_SUCCEEDED, f"end response {code}"
+    except ldap.LDAPError as exc:
+        raise AssertionError(f"replication is not working: {exc}") from exc
+    finally:
+        conn.unbind_s()
 
 
 def test_lmdb_bulk_import_tombstone_released_by_live_parent(repl_consumer):
@@ -243,32 +278,46 @@ def test_lmdb_bulk_import_aborts_on_stranded_tombstone(repl_consumer, request):
     :id: b7f2a9c1-4d3e-4f5a-9b8c-2e6d7a1f0c43
     :setup: Standalone instance using the LMDB backend, configured as a replica
     :steps:
-        1. Start a total update session and send the suffix entry
-        2. Send a tombstone whose nsparentuniqueid never appears in the stream
-        3. Finish the session
-        4. Check the error log
+        1. Run a normal, successful total update establishing a marker entry
+        2. Start a new total update session and send the suffix entry
+        3. Send a tombstone whose nsparentuniqueid never appears in the stream
+        4. Finish the session
+        5. Check the error log
+        6. Confirm the marker entry survived and the stranded orphan did not
+        7. Run another normal, successful total update
     :expectedresults:
-        1. The consumer answers REPLICA_READY
-        2. The tombstone parks on the waiting queue
-        3. The session ends
-        4. The stranded entry is named in the error log and the import aborts
+        1. The consumer answers REPLICA_READY, then RELEASE_SUCCEEDED
+        2. The consumer answers REPLICA_READY
+        3. The tombstone parks on the waiting queue
+        4. The session ends
+        5. The stranded entry is named in the error log and the import aborts
+        6. The backup made before the aborted import was restored (the
+           marker is back), not the half-built aborted import (no orphan)
+        7. Replication itself (not just the restored data) still works
+           after the abort/restore: the consumer answers REPLICA_READY,
+           then RELEASE_SUCCEEDED again
     """
     inst = repl_consumer
 
     def fin():
-        # The abort leaves the backend wiped and offline; restore it
-        # with a minimal successful import.
-        conn = _supplier_connection(inst)
+        # dbmdb_import_backup_create()/_restore() already put the backend
+        # back online (see the assertions below); this is just a defensive
+        # safety net in case that ever regresses.
         try:
-            conn.extop_s(ExtendedRequest(START_OID, _start_payload()))
-            _send_suffix(conn)
-            conn.extop_s(ExtendedRequest(END_OID, _end_payload()))
-        except ldap.LDAPError as exc:
+            _successful_total_update(inst)
+        except AssertionError as exc:
             log.warning("restore import failed: %s", exc)
-        finally:
-            conn.unbind_s()
 
     request.addfinalizer(fin)
+
+    # Step 1: a normal, successful total update both proves replication
+    # works before we deliberately break it, and establishes a marker
+    # entry this test owns (decoupled from the previous test's data).
+    _successful_total_update(inst, extra=[(MARKER_UUID, MARKER_DN, {
+        'objectClass': ['top', 'organizationalUnit'],
+        'ou': ['pre-abort-marker'],
+    })])
+    assert OrganizationalUnits(inst, DEFAULT_SUFFIX).get('pre-abort-marker') is not None
 
     supplier = _supplier_connection(inst)
     try:
@@ -298,6 +347,22 @@ def test_lmdb_bulk_import_aborts_on_stranded_tombstone(repl_consumer, request):
     assert len(detail) == 1
     assert inst.ds_error_log.match(
         '.*Aborting bulk import: 1 entries had no parent in the import stream.*')
+
+    # The abort wipes the backend before restoring it from the pre-import
+    # backup -- confirm step 1's marker came back and the backend answers
+    # searches again (dbmdb_import_backup_restore() +
+    # dbmdb_reenable_backend_after_restore() both ran).
+    assert inst.ds_error_log.match(
+        ".*Online import failed; restored '.*' to its pre-import state.*")
+    assert OrganizationalUnits(inst, DEFAULT_SUFFIX).get('pre-abort-marker') is not None
+    # The stranded orphan belongs to the aborted import and must not
+    # have survived the restore.
+    assert not Tombstones(inst, DEFAULT_SUFFIX).filter(f'(nsUniqueId={ORPHAN_UUID})')
+
+    # Step 7: replication itself (not just the restored data) must still
+    # work: dbmdb_reenable_backend_after_restore() re-enabled the mapping
+    # tree node, so a fresh total update must succeed end to end again.
+    _successful_total_update(inst)
 
 
 if __name__ == '__main__':

@@ -3025,6 +3025,12 @@ bdb_bulk_import_start(Slapi_PBlock *pb)
     cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
     dblayer_instance_close(be);
 
+    /* Try to keep a quick binary backup of the pre-import data so this
+     * online import can be undone if it fails. If we can't (e.g. first
+     * import ever, or the rename failed), just proceed exactly like
+     * before -- job->has_backup stays 0. */
+    job->has_backup = (bdb_import_backup_create(be) == 0);
+
     /* Delete old database files */
     bdb_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
@@ -3072,6 +3078,24 @@ bdb_bulk_import_start(Slapi_PBlock *pb)
     return 0;
 
 fail:
+    if (job->has_backup) {
+        /* We already wiped the original data before hitting this
+         * failure (e.g. bdb_instance_start() or the thread create
+         * failed) -- try to put it back rather than leave the backend
+         * empty. */
+        if (bdb_import_backup_restore(be) == 0 &&
+            bdb_instance_start(be, DBLAYER_NORMAL_MODE) == 0) {
+            import_reenable_backend_after_restore(job, be);
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_bulk_import_start",
+                          "Restored '%s' to its pre-import state after a failed start.\n",
+                          job->inst->inst_name);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_bulk_import_start",
+                          "Could not restore '%s' to its pre-import state; "
+                          "it may need to be re-imported.\n",
+                          job->inst->inst_name);
+        }
+    }
     PR_Lock(job->inst->inst_config_mutex);
     job->inst->inst_flags &= ~INST_FLAG_BUSY;
     PR_Unlock(job->inst->inst_config_mutex);
