@@ -651,7 +651,9 @@ retrocl_stop(Slapi_PBlock *pb __attribute__((unused)))
 
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, "",
                                  LDAP_SCOPE_BASE, "(objectclass=*)", retrocl_rootdse_search);
-
+    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
+                                 RETROCL_PLUGIN_DN, LDAP_SCOPE_BASE,
+                                 "(objectclass=*)", retrocl_config_modify);
     return rc;
 }
 
