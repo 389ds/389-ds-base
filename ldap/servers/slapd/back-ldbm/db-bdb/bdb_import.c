@@ -2462,11 +2462,31 @@ error:
             if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
                 /* Not dryrun nor upgradedn - delete the half-imported db */
                 bdb_delete_instance_dir(be);
+                if (job->has_backup) {
+                    /* This was an online (bulk) import and we kept a
+                     * pre-import backup -- restore it instead of
+                     * leaving the backend empty. */
+                    if (bdb_import_backup_restore(be) == 0 &&
+                        bdb_instance_start(be, DBLAYER_NORMAL_MODE) == 0) {
+                        import_reenable_backend_after_restore(job, be);
+                        import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
+                                          "Online import failed; restored '%s' to its "
+                                          "pre-import state.", inst->inst_name);
+                    } else {
+                        import_log_notice(job, SLAPI_LOG_CRIT, "bdb_public_bdb_import_main",
+                                          "Online import failed and the pre-import backup "
+                                          "for '%s' could not be restored; the backend is "
+                                          "empty and must be re-imported.", inst->inst_name);
+                    }
+                }
             }
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {
             import_log_notice(job, SLAPI_LOG_WARNING, "bdb_public_bdb_import_main", "Failed to close database");
+        }
+        if (job->has_backup) {
+            bdb_import_backup_discard(be);
         }
     }
     end = slapi_current_rel_time_t();
