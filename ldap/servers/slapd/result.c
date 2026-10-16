@@ -26,6 +26,7 @@
 #include "pratom.h"
 #include "fe.h"
 #include "vattr_spi.h"
+#include "wthreads.h"
 #include "slapi-plugin.h"
 #include <ssl.h>
 
@@ -56,11 +57,15 @@ g_get_num_ops_initiated()
     int cookie;
     struct snmp_vars_t *snmp_vars;
     PRUint64 total;
+
+    /* The lock keeps a worker thread from freeing its counters under us */
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         if (snmp_vars->server_tbl.dsOpInitiated) {
             total += slapi_counter_get_value(snmp_vars->server_tbl.dsOpInitiated);
         }
     }
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
     return (total);
 }
 
@@ -70,11 +75,15 @@ g_get_num_ops_completed()
     int cookie;
     struct snmp_vars_t *snmp_vars;
     PRUint64 total;
+
+    /* The lock keeps a worker thread from freeing its counters under us */
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         if (snmp_vars->server_tbl.dsOpCompleted) {
             total += slapi_counter_get_value(snmp_vars->server_tbl.dsOpCompleted);
         }
     }
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
     return (total);
 }
 
@@ -84,11 +93,15 @@ g_get_num_entries_sent()
     int cookie;
     struct snmp_vars_t *snmp_vars;
     PRUint64 total;
+
+    /* The lock keeps a worker thread from freeing its counters under us */
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         if (snmp_vars->server_tbl.dsEntriesSent) {
             total += slapi_counter_get_value(snmp_vars->server_tbl.dsEntriesSent);
         }
     }
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
     return (total);
 }
 
@@ -98,11 +111,15 @@ g_get_num_bytes_sent()
     int cookie;
     struct snmp_vars_t *snmp_vars;
     PRUint64 total;
+
+    /* The lock keeps a worker thread from freeing its counters under us */
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         if (snmp_vars->server_tbl.dsBytesSent) {
             total += slapi_counter_get_value(snmp_vars->server_tbl.dsBytesSent);
         }
     }
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
     return (total);
 }
 

@@ -88,6 +88,45 @@ static sem_t *stats_sem = NULL;
 *
 ************************************************************************************/
 
+/*
+ * Add every counter of one table into the matching counter of another.
+ * snmp_ops_tbl_t, snmp_entries_tbl_t and snmp_server_tbl_t hold nothing but
+ * Slapi_Counter pointers, so they can be walked as arrays: that way a counter
+ * added to the tables later is merged without having to touch this code.
+ */
+static void
+snmp_counters_tbl_merge(Slapi_Counter **dst, Slapi_Counter **src, size_t nbcounters)
+{
+    for (size_t i = 0; i < nbcounters; i++) {
+        if (dst[i] && src[i]) {
+            slapi_counter_add(dst[i], slapi_counter_get_value(src[i]));
+        }
+    }
+}
+
+/*
+ * Hand over the counters of a worker thread that is going away to 'dst'
+ * (the global set).  Published values are the sum of the global set and of
+ * every running worker set, so moving the values keeps that sum - and hence
+ * the counters reported over SNMP and cn=monitor - unchanged when the number
+ * of worker threads is decreased.
+ * The caller must exclude the readers that walk the worker sets, i.e. hold
+ * g_pc.snmp.mutex.
+ */
+void
+snmp_thread_counters_merge(struct snmp_vars_t *dst, struct snmp_vars_t *src)
+{
+    snmp_counters_tbl_merge((Slapi_Counter **)&dst->ops_tbl,
+                            (Slapi_Counter **)&src->ops_tbl,
+                            sizeof(src->ops_tbl) / sizeof(Slapi_Counter *));
+    snmp_counters_tbl_merge((Slapi_Counter **)&dst->entries_tbl,
+                            (Slapi_Counter **)&src->entries_tbl,
+                            sizeof(src->entries_tbl) / sizeof(Slapi_Counter *));
+    snmp_counters_tbl_merge((Slapi_Counter **)&dst->server_tbl,
+                            (Slapi_Counter **)&src->server_tbl,
+                            sizeof(src->server_tbl) / sizeof(Slapi_Counter *));
+}
+
 void
 snmp_thread_counters_cleanup(struct snmp_vars_t *snmp_vars)
 {

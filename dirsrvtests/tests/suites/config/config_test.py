@@ -10,6 +10,7 @@
 import logging
 import pytest
 import os
+import threading
 import ldap
 from lib389 import DirSrv, pid_from_file
 from lib389.dseldif import DSEldif
@@ -949,6 +950,86 @@ def test_changing_threadnumber(topo):
     config.replace(cfgattr, cfgnbthreads);
     time.sleep(3)
     check_number_of_threads(int(cfgnbthreads), monitor, pid)
+
+
+def test_counters_survive_threadnumber_decrease(topo):
+    """Server counters must not go backwards when worker threads are removed
+
+    The counters are kept per worker thread and the published value is their
+    sum, so removing a worker thread must hand its counters over rather than
+    drop them.
+
+    :id: 91c439b3-78f8-4a81-966f-5a571e655fa2
+    :setup: Standalone instance
+    :steps:
+        1. Check that feature is supported
+        2. Raise nsslapd-threadnumber and spread a search load over the workers
+        3. Read the operation counters from cn=monitor
+        4. Lower nsslapd-threadnumber
+        5. Read the operation counters again
+    :expectedresults:
+        1. Skip the test if monitoring result does not have the new attributes.
+        2. Success
+        3. Success
+        4. Success
+        5. No counter is lower than it was before the threads were removed
+    """
+    COUNTERS = ('opsinitiated', 'opscompleted', 'entriessent', 'bytessent')
+    NUM_CLIENTS = 10
+    SEARCHES_PER_CLIENT = 50
+
+    inst = topo.standalone
+    config = Config(inst)
+    monitor = Monitor(inst)
+    cfgattr = 'nsslapd-threadnumber'
+
+    if len(monitor.get_threads()) < 5:
+        pytest.skip("This version does not support dynamic change of nsslapd-threadnumber without restart.")
+
+    cfgnbthreads = config.get_attr_vals_utf8(cfgattr)[0]
+
+    def read_counters():
+        return {attr: int(monitor.get_attr_val_utf8(attr)) for attr in COUNTERS}
+
+    errors = []
+
+    def search_worker():
+        """Keep a worker thread busy so that its counters get used"""
+        try:
+            conn = ldap.initialize(inst.ldapuri)
+            conn.simple_bind_s(DN_DM, PW_DM)
+            for _ in range(SEARCHES_PER_CLIENT):
+                conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=*)')
+            conn.unbind_s()
+        except Exception as e:
+            errors.append(str(e))
+
+    try:
+        config.replace(cfgattr, '32')
+        time.sleep(3)
+
+        threads = [threading.Thread(target=search_worker) for _ in range(NUM_CLIENTS)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert not errors, f"Failed to generate the search load: {errors}"
+
+        before = read_counters()
+        log.info(f'Counters with 32 worker threads: {before}')
+
+        # No need to wait here (threads are closed before config change result is returned)
+        config.replace(cfgattr, '4')
+        after = read_counters()
+        log.info(f'Counters with 4 worker threads: {after}')
+
+        for attr, value in before.items():
+            assert after[attr] >= value, (
+                f'{attr} went backwards ({value} -> {after[attr]}) after decreasing '
+                f'{cfgattr}: the counters of the removed worker threads were lost')
+    finally:
+        config.replace(cfgattr, cfgnbthreads)
+        time.sleep(3)
 
 
 @pytest.fixture(scope="module")

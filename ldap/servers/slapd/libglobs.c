@@ -2164,8 +2164,15 @@ g_get_slapd_security_on(void)
 }
 
 
-/* Worker thread framework (is needed for get snmp per thread counters) */
-pc_t g_pc;                                  /* Worker thread framework context */
+/*
+ * Worker thread framework (is needed for get snmp per thread counters).
+ * The mutexes are initialized statically because the snmp counters are read
+ * (and g_pc.snmp.mutex taken) before init_op_threads() gets a chance to run.
+ */
+pc_t g_pc = {
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
+    .snmp = { .mutex = PTHREAD_MUTEX_INITIALIZER },
+};
 static struct snmp_vars_t global_snmp_vars; /* snmp var used if not a worker thread */
 
 /* Get worker thread context from thread specific data */
@@ -2230,6 +2237,17 @@ g_get_per_thread_snmp_vars(void)
     } else {
         return &global_snmp_vars;
     }
+}
+
+/*
+ * The set of counters that does not belong to a worker thread.  It is always
+ * summed with the worker thread sets, and it is where the counters of a
+ * worker thread are moved when that thread goes away.
+ */
+struct snmp_vars_t *
+g_get_global_snmp_vars(void)
+{
+    return &global_snmp_vars;
 }
 
 static slapdEntryPoints *sep = NULL;

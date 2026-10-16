@@ -70,6 +70,8 @@ typedef struct {
     ll_head_t busy_threads;
     ll_head_t waiting_jobs;
     ll_head_t jobs_free_list;
+    pthread_cond_t jobs_free_cv; /* Signalled when a job slot is released */
+    int jobs_free_waiters;       /* Listener threads waiting for a job slot */
     int shutdown;
     int nbcpus;
     pthread_key_t tinfo_key;

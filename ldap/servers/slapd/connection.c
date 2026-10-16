@@ -68,7 +68,7 @@ static time_t conn_next_warning_time;
  * (because we need to read the ber)
  */
 #define OPS_RATE_MAX	    100    /* Maximum number of kilo operations per seconds */
-#define FLOW_CONTROL_DELAY	20        /* sleep delay in ms */
+#define FLOW_CONTROL_DELAY	20        /* max delay in ms a listener is held back */
 #define MAX_QUEUED_JOBS     min(the_connection_table->size, OPS_RATE_MAX*FLOW_CONTROL_DELAY)
 
 #define CONN_FLOW_CONTROL_MSG_TIMEOUT 60  /* Delay between warning message */
@@ -498,12 +498,20 @@ op_thread_tinfo_free(pc_tinfo_t *tinfo)
 static void
 op_thread_tinfo_destroy(pc_tinfo_t *tinfo)
 {
-    /* Removing context from snmp slot */
+    /*
+     * Removing context from snmp slot, and moving its counters to the global
+     * set in the same critical section: the readers walking the worker sets
+     * hold g_pc.snmp.mutex too, so they see this thread counters either in
+     * the slot or in the global set, never twice and never not at all.
+     * Without this the totals would go backwards whenever the number of
+     * worker threads is decreased.
+     */
     pthread_mutex_lock(&g_pc.snmp.mutex);
-    if (tinfo->idx <= g_pc.snmp.nbthreads &&
+    if (g_pc.snmp.threads != NULL && tinfo->idx <= g_pc.snmp.nbthreads &&
         g_pc.snmp.threads[tinfo->idx] == tinfo) {
         g_pc.snmp.threads[tinfo->idx] = NULL;
     }
+    snmp_thread_counters_merge(g_get_global_snmp_vars(), &tinfo->snmp_vars);
     pthread_mutex_unlock(&g_pc.snmp.mutex);
     /* Unqueing context from waiting/busy queues (may never have been queued) */
     pthread_mutex_lock(&g_pc.mutex);
@@ -649,17 +657,31 @@ void
 init_op_threads(int32_t threadnumber)
 {
     size_t nb_free_slots = MAX_QUEUED_JOBS;
+    pthread_condattr_t condAttr;
     job_t *free_slots;
     int32_t rc;
 
-    /* Initialize the locks and cv */
-    if ((rc = pthread_mutex_init(&g_pc.mutex, NULL)) != 0 ||
-        (rc = pthread_mutex_init(&g_pc.snmp.mutex, NULL)) != 0) {
+    /* g_pc.mutex and g_pc.snmp.mutex are statically initialized in libglobs.c */
+
+    /* The job slot condition variable must use the same clock as add_work_q */
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
-                      "Failed to initialize a lock. error %d (%s)\n",
+                      "Cannot create new condition attribute variable.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot set condition attr clock.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_cond_init(&g_pc.jobs_free_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition variable.  error %d (%s)\n",
                       rc, strerror(rc));
         exit(-1);
     }
+    pthread_condattr_destroy(&condAttr); /* no longer needed */
+
     op_stack = PR_CreateStack("connection_operation");
     ll_headinit(&g_pc.waiting_threads);
     ll_headinit(&g_pc.busy_threads);
@@ -1310,6 +1332,10 @@ connection_wait_for_new_work(Slapi_PBlock *pb, pc_tinfo_t *tinfo)
         ((job_t *)job)->op_stack = NULL;
         ll_unlink(job);
         ll_link_after(&g_pc.jobs_free_list.h, job);
+        if (g_pc.jobs_free_waiters > 0) {
+            /* A listener thread is held back waiting for this slot */
+            pthread_cond_signal(&g_pc.jobs_free_cv);
+        }
         pthread_mutex_unlock(&g_pc.mutex);
         pthread_mutex_lock(&(conn->c_mutex));
         connection_set_new_op_in_pb(pb, conn, op_stack_obj);
@@ -2613,6 +2639,7 @@ connection_activity(Connection *conn, int maxthreads)
 static void
 add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
 {
+    struct timespec timeout = {0};
     ll_list_t *elmt = NULL;
     pc_tinfo_t *tinfo = NULL;
     time_t curtime = 0;
@@ -2676,7 +2703,7 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
 #endif
             return;
         }
-        /* Job queue is full ==> wait a bit */
+        /* Job queue is full ==> hold the listener thread back */
         curtime = slapi_current_rel_time_t();
         if (curtime > conn_next_warning_time) {
             conn_next_warning_time = curtime + CONN_FLOW_CONTROL_MSG_TIMEOUT;
@@ -2684,9 +2711,21 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
                           "Warning: server may be unresponsive because the threads "
                           "are exhausted and too many operations have been queued.\n");
         }
-        pthread_mutex_unlock(&g_pc.mutex);
-        usleep(1000*FLOW_CONTROL_DELAY);
-        pthread_mutex_lock(&g_pc.mutex);
+        /*
+         * A worker signals jobs_free_cv as soon as it takes a job off the
+         * queue, so the listener resumes as soon as a slot is really
+         * available instead of always paying a fixed delay.  The timeout is
+         * only a safety net bounding the wait the way the former sleep did.
+         */
+        clock_gettime(CLOCK_MONOTONIC, &timeout);
+        timeout.tv_nsec += FLOW_CONTROL_DELAY * 1000000L;
+        if (timeout.tv_nsec >= 1000000000L) {
+            timeout.tv_nsec -= 1000000000L;
+            timeout.tv_sec++;
+        }
+        g_pc.jobs_free_waiters++;
+        pthread_cond_timedwait(&g_pc.jobs_free_cv, &g_pc.mutex, &timeout);
+        g_pc.jobs_free_waiters--;
     }
 }
 
