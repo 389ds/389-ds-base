@@ -611,6 +611,7 @@ int ldbm_ancestorid_move_subtree(
  */
 int ldbm_back_wire_import(Slapi_PBlock *pb);
 void import_abort_all(struct _ImportJob *job, int wait_for_them);
+void import_reenable_backend_after_restore(struct _ImportJob *job, backend *be);
 void *factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)));
 void factory_destructor(void *extension, void *object, void *parent __attribute__((unused)));
 uint64_t wait_for_ref_count(Slapi_Counter *inst_ref_count);

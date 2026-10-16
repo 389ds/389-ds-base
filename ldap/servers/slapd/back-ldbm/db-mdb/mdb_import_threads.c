@@ -3993,9 +3993,14 @@ dbmdb_import_writer(void*param)
                     slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
                                   "Failed to write record in dbi %s. Error is 0x%x: %s.\n",
                                   slot->dbi->dbname, rc, mdb_strerror(rc));
-                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:key", 
+                    /* The failure itself is always reported above at ERR;
+                     * the raw key/value bytes are large/binary and only
+                     * useful for low-level debugging, so keep them out of
+                     * the default-level error log and gate them behind
+                     * SLAPI_LOG_DEBUG instead. */
+                    slapi_log_hexadump(SLAPI_LOG_DEBUG, "dbmdb_import_writer:key",
                                        slot->key.mv_data, slot->key.mv_size);
-                    slapi_log_hexadump(SLAPI_LOG_ERR, "dbmdb_import_writer:data", 
+                    slapi_log_hexadump(SLAPI_LOG_DEBUG, "dbmdb_import_writer:data",
                                        slot->data.mv_data, slot->data.mv_size);
                 }
             }
