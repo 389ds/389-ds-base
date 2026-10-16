@@ -141,6 +141,10 @@ typedef struct _ImportJob
     int all_vlv_init;        /* Tells if can bypass vlv initialization */
     void *writer_ctx;        /* Context used to push data in worker thread */
     int nosync_set;          /* Track whether we set MDB_NOSYNC during online import */
+    int has_backup;          /* Set if a pre-import backup of the backend was
+                              * taken (bdb_import_backup_create()/
+                              * dbmdb_import_backup_create()) and is still
+                              * available to restore from on failure */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS 0x01         /* should we index the attributes? */
