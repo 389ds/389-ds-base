@@ -22,7 +22,9 @@ import time
 import ldap
 import pytest
 
-from lib389._constants import DEFAULT_SUFFIX, DN_CONFIG, DN_DM, PW_DM
+from lib389._constants import (DB_IMPL_MDB, DEFAULT_SUFFIX, DN_CONFIG, DN_DM,
+                               PW_DM)
+from lib389.backend import DatabaseConfig
 from lib389.cli_ctl.threadpool import (HEADER_FORMAT, TP_STATS_HEADER_SIZE,
                                        TP_STATS_MAGIC, TP_STATS_WORKER_SLOT_SIZE)
 from lib389.dseldif import DSEldif
@@ -793,6 +795,59 @@ def test_dsctl_file_option(topo):
         _run_dsctl_threadpool(inst, json_output=True, extra_args=["--file", path])
     )
     assert data["pool"]["max_workers"] >= 1
+
+
+def test_lmdb_max_readers_warning(topo):
+    """dsctl warns when the worker threads outnumber the lmdb reader slots
+
+    nsslapd-threadnumber is applied to a running server but the lmdb reader
+    slots are sized when the environment is created, so raising the worker
+    count far enough leaves the server short of reader slots.
+
+    :id: b9d1d55e-3762-4599-a408-710c4ea28931
+    :setup: Standalone instance
+    :steps:
+        1. Check that the backend is lmdb and the thread number is dynamic
+        2. Run dsctl thread-pool status with the original thread number
+        3. Raise nsslapd-threadnumber well above the reader slots and rerun it
+        4. Restore nsslapd-threadnumber and rerun it
+    :expectedresults:
+        1. Skip the test otherwise
+        2. No reader slot warning is reported
+        3. A warning naming the reader slots is reported
+        4. The warning is gone
+    """
+    READERS_MARKER = "concurrent readers"
+    # Above the 126 reader slots lmdb is given by default
+    BIG_THREADNUMBER = 150
+
+    inst = topo.standalone
+    if DatabaseConfig(inst).get_db_lib() != DB_IMPL_MDB:
+        pytest.skip("This test only applies to the lmdb backend")
+
+    monitor = Monitor(inst)
+    if len(monitor.get_threads()) < 5:
+        pytest.skip("This version does not support dynamic change of nsslapd-threadnumber without restart.")
+
+    _wait_threadpool_file(inst)
+    threadnumber = inst.config.get_attr_val_utf8("nsslapd-threadnumber")
+
+    def readers_warnings():
+        data = _json_result(_run_dsctl_threadpool(inst, json_output=True))
+        return [w for w in data["warnings"] if READERS_MARKER in w]
+
+    assert not readers_warnings(), "Unexpected reader slot warning before the change"
+
+    try:
+        inst.config.replace("nsslapd-threadnumber", str(BIG_THREADNUMBER))
+        warnings = readers_warnings()
+        log.info(f"Reader slot warnings: {warnings}")
+        assert warnings, f"dsctl did not warn about the lmdb reader slots with {BIG_THREADNUMBER} workers"
+        assert str(BIG_THREADNUMBER) in warnings[0]
+    finally:
+        inst.config.replace("nsslapd-threadnumber", threadnumber)
+
+    assert not readers_warnings(), "The reader slot warning outlived the thread number change"
 
 
 if __name__ == "__main__":

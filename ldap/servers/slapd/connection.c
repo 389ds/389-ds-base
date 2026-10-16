@@ -611,7 +611,16 @@ op_thread_set_threads_number(int threadsnumber)
         for (int i=threadsnumber+1; i<=oldnbthreads; i++) {
             pc_tinfo_t *tinfo = oldthreads[i];
             if (tinfo) {
-                tids[nbtids++] = tinfo->tid;
+                /*
+                 * nsslapd-threadnumber is applied by the worker thread that
+                 * handles the modify, so this thread may be one of those
+                 * being removed: flag it like the others, but do not try to
+                 * join ourself.  It leaves the pool once the current
+                 * operation is completed.
+                 */
+                if (!pthread_equal(tinfo->tid, pthread_self())) {
+                    tids[nbtids++] = tinfo->tid;
+                }
                 pthread_mutex_lock(&tinfo->mutex);
                 tinfo->closing = 1;
                 pthread_cond_signal(&tinfo->cv);
@@ -2071,6 +2080,32 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
     *new_turbo_flag = new_mode;
 }
 
+/*
+ * Hand back a connection that this worker thread still owns.
+ *
+ * In turbo mode, or while data read from the client is still buffered, the
+ * connection is deliberately kept out of the poll set and the worker holds a
+ * reference on it: the worker reads the next request from the socket itself.
+ * A worker that stops in that state without calling this strands the
+ * connection - no thread owns it and the listener never polls it again, so
+ * the client waits for a reply forever.
+ */
+static void
+connection_release_owned(Connection *conn, int maxthreads)
+{
+    pthread_mutex_lock(&(conn->c_mutex));
+    connection_make_readable_nolock(conn);
+    if (conn->c_threadnumber == maxthreads) {
+        conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+        slapi_counter_decrement(conns_in_maxthreads);
+        slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+    }
+    conn->c_threadnumber--;
+    connection_release_nolock(conn);
+    pthread_mutex_unlock(&(conn->c_mutex));
+    signal_listner(conn->c_ct_list);
+}
+
 static void *
 connection_threadmain(void *arg)
 {
@@ -2117,6 +2152,18 @@ connection_threadmain(void *arg)
         if (tinfo->closing) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                           "op_thread received shutdown signal\n");
+            if (thread_turbo_flag || more_data) {
+                /*
+                 * This thread is still the owner of 'conn': give it back to
+                 * the listener before leaving, otherwise nobody would ever
+                 * read from that connection again.
+                 */
+                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
+                              "conn %" PRIu64 " released by a closing worker thread - "
+                              "thread_turbo_flag %d more_data %d\n",
+                              conn->c_connid, thread_turbo_flag, more_data);
+                connection_release_owned(conn, maxthreads);
+            }
             tp_stats_worker_exited(widx);
             slapi_pblock_destroy(pb);
             goto cleanup;
