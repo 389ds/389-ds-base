@@ -360,7 +360,6 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
             Slapi_RDN *srdn = NULL;
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
             if (bdn) {
-                normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
                 if (config_get_return_orig_dn() &&
                     !get_value_from_string((const char *)data.dptr, SLAPI_ATTR_DS_ENTRYDN, &normdn))
                 {
