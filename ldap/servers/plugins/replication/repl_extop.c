@@ -1966,6 +1966,7 @@ multisupplier_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
     char *payload = NULL;
     char *maxcsn = NULL;
     char *iter = NULL;
+    char *rid_str = NULL;
     int rid = 0;
     int rc = LDAP_OPERATIONS_ERROR;
 
@@ -1988,7 +1989,12 @@ multisupplier_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv_get_maxcsn - CleanAllRUV Task - Get MaxCSN Task: failed to decode payload.  Aborting ext op\n");
         goto free_and_return;
     }
-    rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
+    rid_str = ldap_utf8strtok_r(payload, ":", &iter);
+    if (rid_str == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv_get_maxcsn - CleanAllRUV Task - Get MaxCSN Task: malformed payload.  Aborting ext op\n");
+        goto free_and_return;
+    }
+    rid = atoi(rid_str);
     base_dn = ldap_utf8strtok_r(iter, ":", &iter);
     maxcsn = replica_cleanallruv_get_local_maxcsn(rid, base_dn);
     if (maxcsn == NULL) {
