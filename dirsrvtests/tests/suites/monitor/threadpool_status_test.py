@@ -826,7 +826,7 @@ def test_lmdb_max_readers_warning(topo):
         pytest.skip("This test only applies to the lmdb backend")
 
     monitor = Monitor(inst)
-    if len(monitor.get_threads()) < 5:
+    if not monitor.get_threads_dict().get('waitingthreads'):
         pytest.skip("This version does not support dynamic change of nsslapd-threadnumber without restart.")
 
     _wait_threadpool_file(inst)

@@ -886,13 +886,13 @@ def get_pstack(pid):
     return str(res.stdout)
 
 def check_number_of_threads(cfgnbthreads, monitor, pid):
-    monresults = monitor.get_threads()
+    monresults = monitor.get_threads_dict()
     # Add waitingthreads and busythreads
-    waiting = int(monresults[3][0])
-    busy = int(monresults[4][0])
-    log.info('Number of threads: configured={cfgnbthreads} waiting={waiting} busy={busy}')
+    waiting = int(monresults['waitingthreads'][0])
+    busy = int(monresults['busythreads'][0])
+    log.info(f'Number of threads: configured={cfgnbthreads} waiting={waiting} busy={busy}')
 
-    monnbthreads = int(monresults[3][0]) + int(monresults[4][0]);
+    monnbthreads = waiting + busy
     assert monnbthreads == cfgnbthreads
     if os.path.isfile(PSTACK_CMD):
         pstackresult = get_pstack(pid)
@@ -935,8 +935,7 @@ def test_changing_threadnumber(topo):
     cfgnbthreads = config.get_attr_vals_utf8(cfgattr)[0]
 
     monitor = Monitor(inst)
-    monresults = monitor.get_threads()
-    if len(monresults) < 5:
+    if not monitor.get_threads_dict().get('waitingthreads'):
         pytest.skip("This version does not support dynamic change of nsslapd-threadnumber without restart.")
 
     config.replace(cfgattr, '40');
@@ -983,7 +982,7 @@ def test_counters_survive_threadnumber_decrease(topo):
     monitor = Monitor(inst)
     cfgattr = 'nsslapd-threadnumber'
 
-    if len(monitor.get_threads()) < 5:
+    if not monitor.get_threads_dict().get('waitingthreads'):
         pytest.skip("This version does not support dynamic change of nsslapd-threadnumber without restart.")
 
     cfgnbthreads = config.get_attr_vals_utf8(cfgattr)[0]

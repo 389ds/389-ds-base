@@ -48,17 +48,30 @@ class Monitor(DSLdapObject):
     def get_threads(self):
         """Get thread related attributes value for cn=monitor
 
-        :returns: Values of following attributes of cn=monitor:
-            threads,
-            currentconnectionsatmaxthreads,
-            maxthreadsperconnhits,
-            waitingthreads,
-            busythreads,
-            maxbusythreads,
-            waitingjobs,
-            maxwaitingjobs
+        :returns: Values of threads, currentconnectionsatmaxthreads, and
+                  maxthreadsperconnhits attributes of cn=monitor
         """
-        attrnames = (
+        threads = self.get_attr_vals_utf8('threads')
+        currentconnectionsatmaxthreads = self.get_attr_vals_utf8('currentconnectionsatmaxthreads')
+        maxthreadsperconnhits = self.get_attr_vals_utf8('maxthreadsperconnhits')
+        return (threads, currentconnectionsatmaxthreads, maxthreadsperconnhits)
+
+    def get_threads_dict(self):
+        """Get the thread related attributes of cn=monitor, keyed by attribute
+
+        Unlike :meth:`get_threads`, which returns a fixed length tuple, this
+        reports every worker thread statistic by name so that attributes can
+        be added without changing the signature.
+
+        The worker thread attributes (waitingthreads, busythreads,
+        maxbusythreads, waitingjobs and maxwaitingjobs) are only published by
+        the servers that manage the worker threads dynamically: on the older
+        ones their value is an empty list.
+
+        :returns: A dict of cn=monitor attribute name to list of values
+        :rtype: dict
+        """
+        return self.get_attrs_vals_utf8([
             'threads',
             'currentconnectionsatmaxthreads',
             'maxthreadsperconnhits',
@@ -67,8 +80,7 @@ class Monitor(DSLdapObject):
             'maxbusythreads',
             'waitingjobs',
             'maxwaitingjobs',
-        )
-        return tuple(self.get_attr_vals_utf8(attr) for attr in attrnames)
+        ])
 
     def get_work_queue(self):
         """Get work queue related attributes value for cn=monitor
