@@ -234,7 +234,7 @@ def test_schema_replication_one(topology_m1c1, schema_replication_init):
     _header(topology_m1c1, "Extra OC Schema is pushed - no error")
 
     log.debug(f"test_schema_replication_one topology_m1c1 {topology_m1c1} "
-              f"(supplier {topology_m1c1.ms["supplier1"]}, consumer {topology_m1c1.cs["consumer1"]}")
+              f"(supplier {topology_m1c1.ms['supplier1']}, consumer {topology_m1c1.cs['consumer1']}")
     # update the schema of the supplier so that it is a superset of consumer. Schema should be pushed
     add_OC(topology_m1c1.ms["supplier1"], 2, 'supplierNewOCA')
 
@@ -744,7 +744,7 @@ def test_move_must_attribute_to_may(topology_m1c1, schema_replication_init):
             10. Operation should be successful
     """
     log.debug(f"test_move_must_attribute_to_may topology_m1c1 {topology_m1c1} "
-              f"(supplier {topology_m1c1.ms["supplier1"]}, consumer {topology_m1c1.cs["consumer1"]}")
+              f"(supplier {topology_m1c1.ms['supplier1']}, consumer {topology_m1c1.cs['consumer1']}")
 
     # update the schema of the supplier so that it is a superset of consumer. Schema should be pushed
     add_OC(topology_m1c1.ms["supplier1"], 5, 'OCwithMayAttr',
