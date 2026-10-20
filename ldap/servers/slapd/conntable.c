@@ -109,6 +109,10 @@
  */
 
 #include "fe.h"
+#ifdef ENABLE_EPOLL
+#include <unistd.h>
+#include <sys/eventfd.h>
+#endif /* ENABLE_EPOLL */
 
 Connection_Table *
 connection_table_new(int table_size)
@@ -142,16 +146,60 @@ connection_table_new(int table_size)
         ct->list_num, ct->list_size);
 
 #ifdef ENABLE_EPOLL
+    /*
+     * Worker mode, SLAPD_EPOLL_WORKERS in the environment: idle worker threads
+     * wait on the epoll fd of a list themselves and read the ready connection,
+     * instead of the list's thread handing it to them through the work queue.
+     * Read once at startup.  Each list needs at least one worker.
+     */
+    char *w = getenv("SLAPD_EPOLL_WORKERS");
+    if (w && atoi(w) > 0) {
+        if (config_get_threadnumber() < ct->list_num) {
+            slapi_log_err(SLAPI_LOG_WARNING, "connection_table_new",
+                          "SLAPD_EPOLL_WORKERS ignored, fewer worker threads (%d) than connection table lists (%d)\n",
+                          config_get_threadnumber(), ct->list_num);
+        } else {
+            ct->epoll_workers = 1;
+            slapi_log_err(SLAPI_LOG_INFO, "connection_table_new",
+                          "epoll worker mode on, worker threads wait on the connection table lists\n");
+            if (config_get_enable_turbo_mode()) {
+                slapi_log_err(SLAPI_LOG_INFO, "connection_table_new",
+                              "nsslapd-enable-turbo-mode is ignored in epoll worker mode\n");
+            }
+        }
+    }
     ct->epoll_fd = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     if (ct->epoll_fd == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll fds\n");
         exit(1);
     }
+    ct->event_fd = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
         ct->epoll_fd[ct_list] = epoll_create1(EPOLL_CLOEXEC);
         if (ct->epoll_fd[ct_list] < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create epoll fd for connection table list %zu\n", ct_list);
             exit(1);
+        }
+        ct->event_fd[ct_list] = -1;
+        if (ct->epoll_workers) {
+            struct epoll_event ev = {0};
+
+            /* Signals queued work to the workers waiting on this list.  Level
+             * triggered: it stays ready until a worker reads it.
+             */
+            ct->event_fd[ct_list] = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+            if (ct->event_fd[ct_list] < 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create eventfd for connection table list %zu - %s\n",
+                              ct_list, strerror(errno));
+                exit(1);
+            }
+            ev.events = EPOLLIN;
+            ev.data.ptr = NULL;
+            if (epoll_ctl(ct->epoll_fd[ct_list], EPOLL_CTL_ADD, ct->event_fd[ct_list], &ev) == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to add eventfd to epoll fd for connection table list %zu - %s\n",
+                              ct_list, strerror(errno));
+                exit(1);
+            }
         }
     }
 #endif /* ENABLE_EPOLL */
@@ -179,12 +227,6 @@ connection_table_new(int table_size)
                 slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll event for connection %zu\n", i);
                 exit(1);
             }
-            ct->c[ct_list][i].c_idle_event = (struct epoll_event *)slapi_ch_calloc(1, sizeof(struct epoll_event));
-            if (ct->c[ct_list][i].c_idle_event == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for idle event for connection %zu\n", i);
-                exit(1);
-            }
-            ct->c[ct_list][i].c_idle_tfd = -1;
 #endif
 
             LBER_SOCKET invalid_socket;
@@ -261,15 +303,24 @@ connection_table_free(Connection_Table *ct)
             if (c->c_event) {
                 slapi_ch_free((void **)&c->c_event);
             }
-            if (c->c_idle_event) {
-                slapi_ch_free((void **)&c->c_idle_event);
-            }
 #endif /* ENABLE_EPOLL */
         }
 
         slapi_ch_free((void **)&ct->c[ct_list]);
         slapi_ch_free((void **)&ct->fd[ct_list]);
+#ifdef ENABLE_EPOLL
+        if (ct->epoll_fd[ct_list] >= 0) {
+            close(ct->epoll_fd[ct_list]);
+        }
+        if (ct->event_fd[ct_list] >= 0) {
+            close(ct->event_fd[ct_list]);
+        }
+#endif /* ENABLE_EPOLL */
     }
+#ifdef ENABLE_EPOLL
+    slapi_ch_free((void **)&ct->epoll_fd);
+    slapi_ch_free((void **)&ct->event_fd);
+#endif /* ENABLE_EPOLL */
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
     PR_DestroyLock(ct->table_mutex);
@@ -494,6 +545,9 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
 
     /* Decrement the number of active connections on the ct list this connection was assigned. */
     (*(ct->num_active + c->c_ct_list))--;
+#ifdef ENABLE_EPOLL
+    slapi_atomic_decr_32(&(ct->epoll_active), __ATOMIC_RELAXED);
+#endif /* ENABLE_EPOLL */
     c->c_ct_list = -1;
 
     c->c_prev->c_next = c->c_next;
@@ -552,6 +606,9 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connect
     /* Get the least used ct list and incremant its number of active connections. */
     c->c_ct_list = connection_table_get_list(ct);
     (*(ct->num_active + c->c_ct_list))++;
+#ifdef ENABLE_EPOLL
+    slapi_atomic_incr_32(&(ct->epoll_active), __ATOMIC_RELAXED);
+#endif /* ENABLE_EPOLL */
 
     c->c_next = ct->c[c->c_ct_list][0].c_next;
     if (c->c_next != NULL) {
@@ -568,6 +625,18 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connect
 }
 
 /* Find a connection table list with the lowest number of connections. */
+#ifdef ENABLE_EPOLL
+/*
+ * Number of active connections on all lists, kept atomically beside the
+ * per-list counts so it can be read without the table lock.
+ */
+int
+connection_table_active_count(Connection_Table *ct)
+{
+    return slapi_atomic_load_32(&(ct->epoll_active), __ATOMIC_RELAXED);
+}
+
+#endif /* ENABLE_EPOLL */
 int
 connection_table_get_list(Connection_Table *ct)
 {

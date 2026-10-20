@@ -58,6 +58,9 @@ void connection_post_shutdown_cleanup(void);
  */
 void connection_abandon_operations(Connection *conn);
 int connection_activity(Connection *conn, int maxthreads);
+#ifdef ENABLE_EPOLL
+int connection_epoll_take_nolock(Connection *conn, int maxthreads, Slapi_PBlock *pb);
+#endif /* ENABLE_EPOLL */
 void init_op_threads(int32_t threadnumber);
 int connection_new_private(Connection *conn);
 void connection_remove_operation(Connection *conn, Operation *op);
@@ -93,6 +96,9 @@ struct connection_table
     struct POLL_STRUCT **fd;
 #ifdef ENABLE_EPOLL
     int *epoll_fd;  /* epoll file descriptor for each connection table list */
+    int32_t epoll_active; /* active connections on all lists, atomic, for the turbo mode cut-off */
+    int *event_fd;  /* worker mode: eventfd in each list's epoll set, signals queued work */
+    int epoll_workers; /* worker mode: worker threads wait on the epoll fds */
 #endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
@@ -121,11 +127,21 @@ Connection *connection_table_get_next_active_connection(Connection_Table *ct, Co
 typedef int (*Connection_Table_Iterate_Function)(Connection *c, void *arg);
 int connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Connection_Table_Iterate_Function f);
 int connection_table_get_list(Connection_Table *ct);
+#ifdef ENABLE_EPOLL
+int connection_table_active_count(Connection_Table *ct);
+#endif /* ENABLE_EPOLL */
 
 /*
  * daemon.c
  */
 int signal_listner(int listnum);
+#ifdef ENABLE_EPOLL
+void connection_epoll_rearm_nolock(Connection *c);
+int connection_epoll_rearm_prepare_nolock(Connection *c, int *epfd, int *fd);
+void connection_epoll_rearm_unlocked(Connection *c, int epfd, int fd);
+int connection_epoll_worker_event(Connection *c, uint32_t events, Slapi_PBlock *pb);
+int epoll_conn_readable(Connection *c);
+#endif /* ENABLE_EPOLL */
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_sockets_ports_free(daemon_ports_t *ports_info);
 void slapd_daemon(daemon_ports_t *ports);

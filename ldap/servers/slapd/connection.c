@@ -25,12 +25,18 @@
 #include "threadpool_stats.h"
 #include <sasl/sasl.h>
 #include <stdbool.h>
+#ifdef ENABLE_EPOLL
+#include <limits.h>
+#endif /* ENABLE_EPOLL */
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif
 #ifdef USDT
 #include <sys/sdt.h>
 #endif
+#ifdef ENABLE_EPOLL
+#include <sys/eventfd.h>
+#endif /* ENABLE_EPOLL */
 
 typedef Connection work_q_item;
 static void connection_threadmain(void *arg);
@@ -83,6 +89,9 @@ static PRStack *work_q_stack;         /* stack of work_q structs so we don't hav
 static PRInt32 work_q_stack_size;     /* size of work_q_stack */
 static PRInt32 work_q_stack_size_max; /* max size of work_q_stack */
 static PRInt32 op_shutdown = 0;       /* if non-zero, server is shutting down */
+#ifdef ENABLE_EPOLL
+static PRInt32 epoll_workers_started = 0; /* worker mode: assigns the workers to the lists */
+#endif /* ENABLE_EPOLL */
 static int32_t current_busy_workers = 0;   /* workers currently processing ops */
 static int32_t max_busy_workers = 0;       /* high water mark of busy workers */
 
@@ -197,15 +206,6 @@ connection_cleanup(Connection *conn)
     if (conn->c_prfd) {
         PR_Close(conn->c_prfd);
     }
-#ifdef ENABLE_EPOLL
-    if (conn->c_idle_tfd != -1) {
-        /* Close the idle timer */
-        epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
-        timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
-        close(conn->c_idle_tfd);
-        conn->c_idle_tfd = -1;
-    }
-#endif /* ENABLE_EPOLL */
 
     conn->c_sd = SLAPD_INVALID_SOCKET;
     conn->c_ldapversion = 0;
@@ -437,12 +437,44 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     }
 }
 
+#ifdef ENABLE_EPOLL
+/*
+ * With epoll, turbo mode is only used up to this many active connections
+ * (SLAPD_EPOLL_TURBO_MAX_CONNS in the environment overrides it). Above it,
+ * the turbo ranking, which walks every active connection under the table
+ * lock, costs more than turbo mode saves.
+ */
+#define SLAPD_EPOLL_TURBO_MAX_CONNS 2048
+static int epoll_turbo_max_conns = SLAPD_EPOLL_TURBO_MAX_CONNS;
+
+#endif /* ENABLE_EPOLL */
 /* Create a pool of threads for handling the operations */
 void
 init_op_threads(int32_t threadnumber)
 {
     pthread_condattr_t condAttr;
     int32_t rc;
+#ifdef ENABLE_EPOLL
+    char *m = getenv("SLAPD_EPOLL_TURBO_MAX_CONNS");
+
+    if (m) {
+        char *endp = NULL;
+        long val;
+
+        errno = 0;
+        val = strtol(m, &endp, 10);
+        if (errno || endp == m || *endp != '\0' || val < 0 || val > INT_MAX) {
+            slapi_log_err(SLAPI_LOG_WARNING, "init_op_threads",
+                          "Ignoring invalid SLAPD_EPOLL_TURBO_MAX_CONNS \"%s\"\n", m);
+        } else {
+            epoll_turbo_max_conns = (int)val;
+        }
+    }
+    if (config_get_enable_turbo_mode()) {
+        slapi_log_err(SLAPI_LOG_INFO, "init_op_threads",
+                      "Turbo mode is used up to %d active connections\n", epoll_turbo_max_conns);
+    }
+#endif /* ENABLE_EPOLL */
 
     /* Initialize the locks and cv */
     if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
@@ -480,6 +512,9 @@ init_op_threads(int32_t threadnumber)
         threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
     }
 
+#ifdef ENABLE_EPOLL
+    int32_t failed = 0;
+#endif /* ENABLE_EPOLL */
     /* start the operation threads */
     for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
@@ -492,10 +527,21 @@ init_op_threads(int32_t threadnumber)
             slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
                           "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr));
+#ifdef ENABLE_EPOLL
+            failed++;
+#endif /* ENABLE_EPOLL */
         } else {
             g_incr_active_threadcnt();
         }
     }
+#ifdef ENABLE_EPOLL
+    if (the_connection_table->epoll_workers && max_threads - failed < the_connection_table->list_num) {
+        /* In worker mode a list without workers is never read */
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Only %d worker threads for %d connection table lists, the connections of some lists will not be read\n",
+                      max_threads - failed, the_connection_table->list_num);
+    }
+#endif /* ENABLE_EPOLL */
     /* We will free threads_indexes at the very end of slapd_daemon() */
 }
 
@@ -1028,6 +1074,11 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_TURBO_CHECK_INTERVAL 5      /* seconds */
 #define CONN_TURBO_PERCENTILE 50         /* proportion of threads allowed to be in turbo mode */
 #define CONN_TURBO_HYSTERESIS 0          /* avoid flip flopping in and out of turbo mode */
+#ifdef ENABLE_EPOLL
+#define CONN_EPOLL_WAIT_TIMEOUT 500      /* milliseconds, an idle worker re-checks for shutdown */
+#define CONN_EPOLL_REPL_READS_MAX 16     /* replication requests a worker reads in a row before re-arming */
+#define CONN_EPOLL_QUEUE_RUN_MAX 8       /* queued items a worker takes in a row before checking epoll first */
+#endif /* ENABLE_EPOLL */
 
 void
 connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
@@ -1055,6 +1106,12 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
     pthread_mutex_lock(&work_q_lock);
 
     while (!op_shutdown && WORK_Q_EMPTY) {
+#ifdef ENABLE_EPOLL
+        if (interval < 0) {
+            /* Worker mode: don't wait, the worker waits on epoll */
+            break;
+        }
+#endif /* ENABLE_EPOLL */
         if (interval == 0 ) {
             pthread_cond_wait(&work_q_cv, &work_q_lock);
         } else {
@@ -1105,6 +1162,90 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
 #endif
     return ret;
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Worker mode: tell the workers waiting on epoll that there is queued work.
+ * The queue is global and the workers of one list may all be busy, so
+ * signal every list.
+ */
+static void
+connection_epoll_signal_workers(void)
+{
+    for (int i = 0; i < the_connection_table->list_num; i++) {
+        if (eventfd_write(the_connection_table->event_fd[i], 1) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_epoll_signal_workers",
+                          "Failed to signal the workers of list %d - %s\n", i, strerror(errno));
+        }
+    }
+}
+
+/*
+ * Worker mode: wait for work on the epoll fd of connection table list
+ * listnum.  Queued work comes first, then a ready connection of the list,
+ * whose next operation this worker takes (connection_epoll_worker_event()).
+ * add_work_q() signals queued work through the eventfds, and
+ * op_thread_cleanup() the shutdown.  Reading an eventfd clears it, so a
+ * worker taking queued work passes the signal on while work is left.
+ * After CONN_EPOLL_QUEUE_RUN_MAX queued items in a row (*queue_run), the
+ * worker checks epoll first, without waiting, so connections that are ready
+ * on their sockets get a turn while queued work keeps arriving (TLS data
+ * held by NSS can requeue a connection after every request).
+ * Returns CONN_FOUND_WORK_TO_DO or CONN_SHUTDOWN.
+ */
+static int
+connection_wait_for_epoll_work(Slapi_PBlock *pb, int listnum, int *queue_run)
+{
+    int epfd = the_connection_table->epoll_fd[listnum];
+    int evfd = the_connection_table->event_fd[listnum];
+
+    while (!op_shutdown) {
+        struct epoll_event ev = {0};
+        eventfd_t count;
+        int poll_first = (*queue_run >= CONN_EPOLL_QUEUE_RUN_MAX);
+        int n;
+
+        if (!poll_first && !WORK_Q_EMPTY && connection_wait_for_new_work(pb, -1) == CONN_FOUND_WORK_TO_DO) {
+            if (!WORK_Q_EMPTY) {
+                connection_epoll_signal_workers();
+            }
+            (*queue_run)++;
+            return CONN_FOUND_WORK_TO_DO;
+        }
+        *queue_run = 0;
+        n = epoll_wait(epfd, &ev, 1, poll_first ? 0 : CONN_EPOLL_WAIT_TIMEOUT);
+        if (n <= 0 || op_shutdown) {
+            if (n < 0 && errno != EINTR) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_wait_for_epoll_work",
+                              "epoll_wait on epoll fd %d failed - %s\n", epfd, strerror(errno));
+            }
+            continue;
+        }
+        if (ev.data.ptr == NULL) {
+            /* Work was queued: clear the signal, another worker may have
+             * cleared it first.  The queue is checked on the next pass.
+             */
+            (void)eventfd_read(evfd, &count);
+            if (op_shutdown) {
+                /* It may have been the shutdown signal, pass it on */
+                connection_epoll_signal_workers();
+            }
+            continue;
+        }
+        if (slapi_is_shutting_down()) {
+            /* As the list threads in listener mode, read no new requests
+             * once shutting down, queued work is still done.
+             */
+            continue;
+        }
+        if (connection_epoll_worker_event((Connection *)ev.data.ptr, ev.events, pb)) {
+            return CONN_FOUND_WORK_TO_DO;
+        }
+    }
+    slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_epoll_work", "shutdown\n");
+    return CONN_SHUTDOWN;
+}
+#endif /* ENABLE_EPOLL */
 
 #include "openldapber.h"
 
@@ -1635,6 +1776,9 @@ connection_make_readable(Connection *conn)
 {
     pthread_mutex_lock(&(conn->c_mutex));
     conn->c_gettingber = 0;
+#ifdef ENABLE_EPOLL
+    connection_epoll_rearm_nolock(conn);
+#endif /* ENABLE_EPOLL */
     pthread_mutex_unlock(&(conn->c_mutex));
     signal_listner(conn->c_ct_list);
 }
@@ -1643,9 +1787,29 @@ void
 connection_make_readable_nolock(Connection *conn)
 {
     conn->c_gettingber = 0;
+#ifdef ENABLE_EPOLL
+    connection_epoll_rearm_nolock(conn);
+#endif /* ENABLE_EPOLL */
     slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" PRIu64 " fd=%d\n",
                   conn->c_connid, conn->c_sd);
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Like connection_make_readable_nolock(), but leave the epoll re-arm to the
+ * caller: returns 1 when it must call connection_epoll_rearm_unlocked() with
+ * epfd and fd after releasing c_mutex.  Only for a thread that holds a
+ * reference on the connection.
+ */
+static int
+connection_make_readable_defer_rearm_nolock(Connection *conn, int *epfd, int *fd)
+{
+    conn->c_gettingber = 0;
+    slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_defer_rearm_nolock", "making readable conn %" PRIu64 " fd=%d\n",
+                  conn->c_connid, conn->c_sd);
+    return connection_epoll_rearm_prepare_nolock(conn, epfd, fd);
+}
+#endif /* ENABLE_EPOLL */
 
 /*
  * Figure out the operation completion rate for this connection
@@ -1795,6 +1959,21 @@ connection_threadmain(void *arg)
     PLHashTable *oid2asi_ht = NULL;
     PLHashTable *name2asi_ht = NULL;
     struct asyntaxinfo *free_list = NULL;
+#ifdef ENABLE_EPOLL
+    /* Worker mode: the i-th worker to start waits on connection table list
+     * i mod list_num.  Counting started workers, rather than using the
+     * worker index, covers every list as long as at least list_num workers
+     * started (init_op_threads() logs it otherwise).
+     * With several lists (nsslapd-numlisteners), the ready connections of a
+     * list are only read by its own workers: they wait while those are busy,
+     * even if the workers of other lists are idle.  One epoll instance per
+     * list keeps the re-arms (EPOLL_CTL_MOD) of different lists from
+     * contending on one instance lock; queued work is shared by all lists.
+     */
+    int epoll_list = (PR_AtomicIncrement(&epoll_workers_started) - 1) % the_connection_table->list_num;
+    int epoll_repl_reads = 0; /* replication requests read in a row, see CONN_EPOLL_REPL_READS_MAX */
+    int epoll_queue_run = 0;  /* queued items taken in a row, see CONN_EPOLL_QUEUE_RUN_MAX */
+#endif /* ENABLE_EPOLL */
 
     /* initialize attr syntax hash tables */
     worker_asi_version = init_td_attr_syntax_ht(&name2asi_ht, &oid2asi_ht, &free_list);
@@ -1825,6 +2004,9 @@ connection_threadmain(void *arg)
                 slapi_atomic_decr_32(&current_busy_workers, __ATOMIC_ACQ_REL);
             }
             tp_stats_worker_idle((uint32_t)*snmp_vars_idx);
+#ifdef ENABLE_EPOLL
+            epoll_repl_reads = 0;
+#endif /* ENABLE_EPOLL */
 
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
@@ -1833,7 +2015,15 @@ connection_threadmain(void *arg)
 #ifdef USDT
             STAP_PROBE1(ns-slapd, worker__idle, *snmp_vars_idx);
 #endif
+#ifdef ENABLE_EPOLL
+            if (the_connection_table->epoll_workers) {
+                ret = connection_wait_for_epoll_work(pb, epoll_list, &epoll_queue_run);
+            } else {
+                ret = connection_wait_for_new_work(pb, interval);
+            }
+#else /* !ENABLE_EPOLL */
             ret = connection_wait_for_new_work(pb, interval);
+#endif /* ENABLE_EPOLL */
 
             switch (ret) {
             case CONN_NOWORK:
@@ -1971,6 +2161,21 @@ connection_threadmain(void *arg)
 #if defined(DB_PERF_TURBO)
         /* If it's been a while since we last did it ... */
         if (curtime - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
+#ifdef ENABLE_EPOLL
+            if (config_get_enable_turbo_mode() &&
+                (the_connection_table->epoll_workers ||
+                 connection_table_active_count(the_connection_table) > epoll_turbo_max_conns)) {
+                /* Too many connections for turbo mode, or worker mode, where
+                 * the workers wait on epoll. Keep sampling the
+                 * activity, so this runs once per interval, and refresh
+                 * c_idlesince as a turbo read would (see below) */
+                connection_check_activity_level(conn);
+                if (thread_turbo_flag) {
+                    conn->c_idlesince = curtime;
+                }
+                thread_turbo_flag = 0;
+            } else
+#endif /* ENABLE_EPOLL */
             if (config_get_enable_turbo_mode()) {
                 int new_turbo_flag = 0;
                 /* Check the connection's activity level */
@@ -2032,18 +2237,6 @@ connection_threadmain(void *arg)
                update c_idlesince here since, if we got some read activity, we are
                not idle */
             conn->c_idlesince = curtime;
-#ifdef ENABLE_EPOLL
-            if (conn->c_idle_tfd != -1) {
-                /* Reset the idle timer */
-                slapi_log_err(SLAPI_LOG_DEBUG,
-                              "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
-                timerfd_settime(conn->c_idle_tfd, 0,
-                                &(struct itimerspec) {
-                                    .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
-                                    .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
-                                }, NULL);
-            }
-#endif /* ENABLE_EPOLL */
         }
 
         /*
@@ -2060,9 +2253,22 @@ connection_threadmain(void *arg)
         if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
             if (!more_data) {
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+#ifdef ENABLE_EPOLL
+                int rearm_epfd = -1;
+                int rearm_fd = -1;
+                pthread_mutex_lock(&(conn->c_mutex));
+                int rearm = connection_make_readable_defer_rearm_nolock(conn, &rearm_epfd, &rearm_fd);
+                pthread_mutex_unlock(&(conn->c_mutex));
+                /* This thread still holds its reference on the connection, so
+                 * the descriptor can't be reused before it is re-armed */
+                if (rearm) {
+                    connection_epoll_rearm_unlocked(conn, rearm_epfd, rearm_fd);
+                }
+#else /* !ENABLE_EPOLL */
                 pthread_mutex_lock(&(conn->c_mutex));
                 connection_make_readable_nolock(conn);
                 pthread_mutex_unlock(&(conn->c_mutex));
+#endif /* ENABLE_EPOLL */
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
@@ -2086,18 +2292,6 @@ connection_threadmain(void *arg)
                      * are bypassing both of those, we set idlesince here
                      */
                     conn->c_idlesince = curtime;
-#ifdef ENABLE_EPOLL
-                    if (conn->c_idle_tfd != -1) {
-                        /* Reset the idle timer */
-                        slapi_log_err(SLAPI_LOG_DEBUG,
-                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
-                        timerfd_settime(conn->c_idle_tfd, 0,
-                                        &(struct itimerspec) {
-                                            .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
-                                            .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
-                                        }, NULL);
-                    }
-#endif /* ENABLE_EPOLL */
                     connection_activity(conn, maxthreads);
                     slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
                                   conn->c_connid);
@@ -2247,6 +2441,27 @@ connection_threadmain(void *arg)
                 /* normal connection or already established replication connection */
                 more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
             }
+#ifdef ENABLE_EPOLL
+            /* Worker mode: a replication session is only re-armed once its
+             * operation is done, and its supplier has usually sent the next
+             * request by then.  If there is something to read, keep the
+             * connection and read it now, as with buffered data, rather than
+             * re-arming it for another worker.  If the read finds nothing it
+             * times out at once and the connection is re-armed then.  Up to
+             * CONN_EPOLL_REPL_READS_MAX in a row, then this worker goes back
+             * to epoll so that a steady stream doesn't starve the others.  Not
+             * once shutting down, no new request is read then.
+             */
+            if (!more_data && replication_connection && !is_timedout && !thread_turbo_flag &&
+                the_connection_table->epoll_workers && epoll_repl_reads < CONN_EPOLL_REPL_READS_MAX &&
+                !conn_closed && !slapi_is_shutting_down() &&
+                connection_is_active_nolock(conn) && epoll_conn_readable(conn)) {
+                more_data = 1;
+                epoll_repl_reads++;
+                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " replication session, reading next request\n",
+                              conn->c_connid);
+            }
+#endif /* ENABLE_EPOLL */
             if (!more_data) {
                 if (!thread_turbo_flag) {
                     int32_t need_wakeup = 0;
@@ -2279,6 +2494,15 @@ connection_threadmain(void *arg)
                      * before that call.
                      */
                     if (need_wakeup) {
+#ifdef ENABLE_EPOLL
+                        /* The listener left this connection disarmed while it
+                         * was at its max threads, re-arm it now that it is not.
+                         * If a worker owns it, that worker re-arms it.
+                         */
+                        if (conn->c_epoll_blocked && !conn->c_gettingber) {
+                            connection_epoll_rearm_nolock(conn);
+                        }
+#endif /* ENABLE_EPOLL */
                         signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
@@ -2334,6 +2558,61 @@ connection_activity(Connection *conn, int maxthreads)
     }
     return 0;
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Worker mode: like connection_activity(), but the calling worker takes the
+ * operation into its pb, as connection_wait_for_new_work() would, instead of
+ * queueing it.  The caller holds c_mutex.
+ */
+int
+connection_epoll_take_nolock(Connection *conn, int maxthreads, Slapi_PBlock *pb)
+{
+    struct Slapi_op_stack *op_stack_obj;
+
+    if (connection_acquire_nolock(conn) == -1) {
+        slapi_log_err(SLAPI_LOG_CONNS,
+                      "connection_epoll_take_nolock", "Could not acquire conn %" PRIu64 " closing fd=%d\n",
+                      conn->c_connid, conn->c_sd);
+        return (-1);
+    }
+
+    /* set these here so the connection isn't read by another thread */
+    conn->c_gettingber = 1;
+    conn->c_threadnumber++;
+    if (conn->c_threadnumber == maxthreads) {
+        conn->c_flags |= CONN_FLAG_MAX_THREADS;
+        conn->c_maxthreadscount++;
+        slapi_counter_increment(max_threads_count);
+        slapi_counter_increment(conns_in_maxthreads);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsMaxThreadsHits);
+    }
+    op_stack_obj = connection_get_operation();
+    connection_add_operation(conn, op_stack_obj->op);
+    slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
+    slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
+    slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
+    if (conn->c_flagblocked) {
+        /* flag this new operation that it was blocked by maxthreadperconn */
+        slapi_pblock_set_operation_notes(pb, SLAPI_OP_NOTE_ASYNCH_BLOCKED);
+        conn->c_flagblocked = false;
+    }
+    /* Thread pool state for STAT logging, as get_work_q() does */
+    if (LDAP_STAT_THREAD_POOL & config_get_statlog_level()) {
+        Operation *op = op_stack_obj->op;
+        op->o_wbusy = get_busy_worker_count();
+        op->o_wmax = config_get_threadnumber();
+        op->o_wqdepth = get_work_q_size();
+    }
+
+    if (!config_check_referral_mode()) {
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
+    }
+    return 0;
+}
+#endif /* ENABLE_EPOLL */
 
 /* add_work_q():  will add a work_q_item to the end of the global work queue. The work queue
     is implemented as a single link list. */
@@ -2371,6 +2650,11 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     int32_t probe_depth = work_q_size;
 #endif
     pthread_mutex_unlock(&work_q_lock);
+#ifdef ENABLE_EPOLL
+    if (the_connection_table->epoll_workers) {
+        connection_epoll_signal_workers();
+    }
+#endif /* ENABLE_EPOLL */
 
 #ifdef USDT
     STAP_PROBE3(ns-slapd, work_q__enqueue, probe_connid, probe_opid, probe_depth);
@@ -2471,6 +2755,14 @@ op_thread_cleanup()
     pthread_mutex_lock(&work_q_lock);
     pthread_cond_broadcast(&work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
     pthread_mutex_unlock(&work_q_lock);
+#ifdef ENABLE_EPOLL
+    if (the_connection_table && the_connection_table->epoll_workers) {
+        /* Wake the workers waiting on epoll.  They don't read the eventfd
+         * once op_shutdown is set, so it wakes all of them.
+         */
+        connection_epoll_signal_workers();
+    }
+#endif /* ENABLE_EPOLL */
 }
 
 /* do this after all worker threads have terminated */
@@ -2750,20 +3042,8 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                   conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list]);
         if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_sd, NULL) == -1) {
             slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
-                        "epoll_ctl failed to remove connection %d from epoll_fd %d\n",
-                        conn->c_sd, conn->c_ct->epoll_fd);
-        }
-        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
-                  conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
-        /* Remove the idle timer if it exists */
-        if (conn->c_idle_tfd != -1) {
-            if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1) {
-                slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext", "Failed to remove idle timer fd %d for connection %d - %s\n",
-                              conn->c_idle_tfd, conn->c_sd, strerror(errno));
-            }
-            /* Close the idle timer */
-            close(conn->c_idle_tfd);
-            conn->c_idle_tfd = -1;
+                        "epoll_ctl failed to remove connection %d from epoll_fd %d - %s\n",
+                        conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list], strerror(errno));
         }
 #endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();
