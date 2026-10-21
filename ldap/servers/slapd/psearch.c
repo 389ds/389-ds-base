@@ -163,6 +163,14 @@ ps_add(Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls)
         /* Create the new node */
         ps = psearch_alloc();
         if (!ps) {
+            /* No persistent search will run: mark the operation as not
+             * persistent, like the thread-create failure path below, so the
+             * worker finishes it as an ordinary operation and gives back its
+             * max threads per connection slot */
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+            if (pb_op != NULL) {
+                pb_op->o_flags &= ~OP_FLAG_PS;
+            }
             return; /* Error is logged by psearch_alloc */
         }
         ps->ps_pblock = slapi_pblock_clone(pb);
