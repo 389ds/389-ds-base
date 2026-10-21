@@ -88,6 +88,12 @@ dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     PR_snprintf(buf, sizeof(buf), "%d", inst->inst_be->be_readonly);
     MSET("readOnly");
 
+    /* total number of entries in this backend - mdb_stat is a cheap
+     * metadata-only lookup (no database traversal), safe to call on
+     * every monitor request. */
+    PR_snprintf(buf, sizeof(buf), "%d", dblayer_get_inst_entries_count(inst->inst_be));
+    MSET("totalEntryCount");
+
     /* fetch cache statistics */
     cache_get_stats(&(inst->inst_cache), &cstats);
     sprintf(buf, "%" PRIu64, cstats.hits);
