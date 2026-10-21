@@ -55,6 +55,11 @@ bdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     DB_MPOOL_FSTAT **mpfstat = NULL;
     int i, j;
     char *absolute_pathname = NULL;
+<<<<<<< HEAD
+=======
+    struct cache_stats cstats = {0};
+    int total_entries = 0;
+>>>>>>> 96f6aaec3 (Issue 8001 - RFE - log total number of entries in each backend)
 
     /* Get the LDBM Info structure for the ldbm backend */
     if (inst->inst_be->be_database == NULL) {
@@ -83,6 +88,18 @@ bdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     /* read-only status */
     PR_snprintf(buf, sizeof(buf), "%d", inst->inst_be->be_readonly);
     MSET("readOnly");
+
+    /* total number of entries in this backend.  Use the fast-stat variant
+     * so this doesn't walk the whole id2entry btree on every monitor
+     * request - see bdb_get_entries_count_fast() for why that's safe. */
+    if (inst->inst_id2entry) {
+        if (bdb_get_entries_count_fast(inst->inst_id2entry, &total_entries) != 0) {
+            /* error - just make sure total entries is set to zero */
+            total_entries = 0;
+        }
+    }
+    PR_snprintf(buf, sizeof(buf), "%d", total_entries);
+    MSET("totalEntryCount");
 
     /* fetch cache statistics */
     cache_get_stats(&(inst->inst_cache), &hits, &tries,

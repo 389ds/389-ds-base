@@ -2689,6 +2689,29 @@ dbmdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
+int
+dbmdb_get_inst_entries_count(struct ldbminfo *li __attribute__((unused)), ldbm_instance *inst)
+{
+    int entry_count = 0;
+
+    if (!inst->inst_id2entry) {
+        /* The backend isn't started yet.  Callers (dblayer_instance_start(),
+         * the monitor DSE callbacks) only ask for the entry count once the
+         * backend is already up, so this should not normally happen.  Avoid
+         * starting (and then immediately stopping) the real backend just to
+         * answer this - that would be a full, redundant open/close cycle of
+         * every index file.  Just report 0, as for any other error. */
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_get_inst_entries_count",
+                      "%s: backend not started, returning 0\n",
+                      inst->inst_name);
+        return 0;
+    }
+
+    dbmdb_get_entries_count(inst->inst_id2entry, NULL, &entry_count);
+    return entry_count;
+}
+
+
 static int
 dbmdb_get_page_count(dbi_db_t *db, uint32_t *count)
 {
