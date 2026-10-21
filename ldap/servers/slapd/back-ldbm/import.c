@@ -170,8 +170,7 @@ import_abort_all(ImportJob *job, int wait_for_them)
         /* Having done that, wait for them to say that they've stopped */
         for (worker = job->worker_list; worker != NULL;) {
             DS_Sleep(PR_MillisecondsToInterval(100));
-            if ((worker->state != FINISHED) && (worker->state != ABORTED) &&
-                (worker->state != QUIT)) {
+            if (!(worker->state & (FINISHED | ABORTED | QUIT))) {
                 continue;
             } else {
                 worker = worker->next;
