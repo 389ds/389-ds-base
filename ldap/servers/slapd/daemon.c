@@ -2373,7 +2373,7 @@ epoll_conn_readable(Connection *c)
  * has been reused, and only dispatched if there is still something to read.
  */
 static int
-handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t curtime)
+handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, bool is_retry, time_t curtime)
 {
     if (c->c_state == CONN_STATE_FREE) {
         return 0;
@@ -2406,7 +2406,7 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, time_t 
                             c->c_connid);
                 }
             }
-        } else if (connid && !epoll_conn_readable(c)) {
+        } else if (is_retry && !epoll_conn_readable(c)) {
             /* Stale retried event, wait for the next request */
             connection_epoll_rearm_nolock(c);
         } else if (events & EPOLLERR) {
@@ -2466,7 +2466,7 @@ epoll_retry_events(epoll_retry *retry)
 
     for (size_t i = 0; i < retry->count; i++) {
         epoll_retry_event *ev = &(retry->ev[i]);
-        if (handle_epoll_conn_event(ev->c, ev->events, ev->connid, curtime)) {
+        if (handle_epoll_conn_event(ev->c, ev->events, ev->connid, true, curtime)) {
             retry->ev[keep++] = *ev;
         }
     }
@@ -2496,7 +2496,7 @@ handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int nu
         slapi_log_err(SLAPI_LOG_DEBUG,
                       "handle_epoll_read_ready", "epoll event %d for connection on sd %d events (%d) %s\n",
                       i + 1, c->c_sd, events[i].events, epoll_event_flags_to_string(events[i].events));
-        if (handle_epoll_conn_event(c, events[i].events, 0, curtime)) {
+        if (handle_epoll_conn_event(c, events[i].events, 0, false, curtime)) {
             epoll_retry_add(retry, c, events[i].events);
         }
     }
