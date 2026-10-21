@@ -216,6 +216,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_dbi_txn_commit_fn = &dbmdb_dbi_txn_commit;
     priv->dblayer_dbi_txn_abort_fn = &dbmdb_dbi_txn_abort;
     priv->dblayer_get_entries_count_fn = &dbmdb_get_entries_count;
+    priv->dblayer_get_inst_entries_count_fn = &dbmdb_get_inst_entries_count;
     priv->dblayer_cursor_get_count_fn = &dbmdb_public_cursor_get_count;
     priv->dblayer_private_open_fn = &dbmdb_public_private_open;
     priv->dblayer_private_close_fn = &dbmdb_public_private_close;
