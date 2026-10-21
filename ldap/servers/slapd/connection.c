@@ -1642,6 +1642,14 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     /* If there is remaining buffered data, set the flag to tell the caller */
     if (conn_buffered_data_avail_nolock(conn, &conn_closed)) {
         *remaining_data = 1;
+    } else if (!conn_closed && conn->c_sb &&
+               ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_DATA_READY, NULL)) {
+        /*
+         * When connection buffering is disabled, additional PDUs may remain
+         * in the socket buffer instead of c_buffer. Check the socket for
+         * pending data so StartTLS can detect a protocol violation.
+         */
+        *remaining_data = 1;
     } else if (conn_closed) {
         /* connection closed */
         ret = CONN_DONE;
@@ -1870,6 +1878,7 @@ connection_threadmain(void *arg)
         int is_timedout = 0;
         time_t curtime = 0;
         bool read_handed_off = false;
+        bool starttls_in_progress = false;
 
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -2123,7 +2132,21 @@ connection_threadmain(void *arg)
          * they are received off the wire.
          */
         replication_connection = conn->c_isreplication_session;
-        if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
+
+        /*
+         * For StartTLS, we exit turbo mode and do not make the connection
+         * readable until start_tls() has finished.
+         */
+        if (connection_is_start_tls(op)) {
+            starttls_in_progress = true;
+            thread_turbo_flag = 0;
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
+                          "conn %" PRIu64 " deferring readability for StartTLS"
+                          " (more_data=%d)\n",
+                          conn->c_connid, more_data);
+        }
+
+        if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection && !starttls_in_progress) {
             if (!more_data) {
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                 pthread_mutex_lock(&(conn->c_mutex));
@@ -2133,16 +2156,6 @@ connection_threadmain(void *arg)
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
                 read_handed_off = true;
-            } else if (connection_is_start_tls(op)) {
-                /*
-                * The StartTLS PDU has already been read into op->o_ber, but there is more data
-                * in c_buffer. Previously we continued, but now we do not requeue this connection
-                * as another worker could read the extra data as a separate op while this thread
-                * continues into start_tls().
-                */
-                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                              "conn %" PRIu64 " has buffered data following StartTLS request\n",
-                              conn->c_connid);
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
@@ -2276,7 +2289,11 @@ connection_threadmain(void *arg)
         /* total number of ops for the server */
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
         tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
-        if (read_handed_off) {
+        /*
+         * Do not loop on buffered data after work has been queued or
+         * StartTLS is in progress.
+         */
+        if (read_handed_off || starttls_in_progress) {
             more_data = 0;
         }
         /* If this op isn't a persistent search, remove it */
@@ -2313,8 +2330,10 @@ connection_threadmain(void *arg)
                           conn->c_connid, more_data, thread_turbo_flag,
                           replication_connection, conn->c_isreplication_session);
             if (!read_handed_off) {
-                if (!replication_connection &&  conn->c_isreplication_session) {
-                    /* it a connection that was just flagged as replication connection */
+                if (starttls_in_progress ||
+                    (!replication_connection && conn->c_isreplication_session)) {
+                    /* Do not continue processing buffered data after StartTLS
+                     * or when the connection becomes a replication session. */
                     more_data = 0;
                 } else {
                     /* normal connection or already established replication connection */
@@ -2329,7 +2348,8 @@ connection_threadmain(void *arg)
                      * Don't release the connection now.
                      * But note down what to do.
                      */
-                    if (replication_connection || (1 == is_timedout)) {
+                    if (replication_connection || (1 == is_timedout) ||
+                        starttls_in_progress) {
                         connection_make_readable_nolock(conn);
                         need_wakeup = 1;
                     }
@@ -2941,22 +2961,31 @@ connection_abandon_operations(Connection *c)
 }
 
 /*
- * Return the number of bytes remaining in the read buffer.
+ * Return whether unread data remains after the current PDU, in
+ * c_buffer or the socket buffer.
  * Must be called within c->c_mutex.
  */
 size_t
 connection_read_buffer_data_len(Connection *c)
 {
     int conn_closed = 0;
+    size_t n;
 
     if (c == NULL || c->c_private == NULL) {
         return 0;
     }
-    return conn_buffered_data_avail_nolock(c, &conn_closed);
+    n = conn_buffered_data_avail_nolock(c, &conn_closed);
+    if (n > 0 || conn_closed) {
+        return n;
+    }
+    if (c->c_sb && ber_sockbuf_ctrl(c->c_sb, LBER_SB_OPT_DATA_READY, NULL)) {
+        return 1;
+    }
+    return 0;
 }
 
 /*
- * Clear any data left in c_buffer.
+ * Clear any data left in c_buffer and drain the socket buffer.
  * Must be called within c->c_mutex.
  */
 void
@@ -2967,6 +2996,9 @@ connection_reset_read_buffer(Connection *c)
     }
     c->c_private->c_buffer_bytes = 0;
     c->c_private->c_buffer_offset = 0;
+    if (c->c_sb) {
+        ber_sockbuf_ctrl(c->c_sb, LBER_SB_OPT_DRAIN, NULL);
+    }
 }
 
 /* must be called within c->c_mutex */
