@@ -30,6 +30,7 @@
 #include "prerror.h"
 #include "prcvar.h"
 #include "plstr.h"
+#include "wthreads.h"
 
 #ifdef HPUX
 /* HP-UX doesn't define SEM_FAILED like other platforms, so
@@ -87,71 +88,149 @@ static sem_t *stats_sem = NULL;
 *
 ************************************************************************************/
 
+/*
+ * Add every counter of one table into the matching counter of another.
+ * snmp_ops_tbl_t, snmp_entries_tbl_t and snmp_server_tbl_t hold nothing but
+ * Slapi_Counter pointers, so they can be walked as arrays: that way a counter
+ * added to the tables later is merged without having to touch this code.
+ */
+static void
+snmp_counters_tbl_merge(Slapi_Counter **dst, Slapi_Counter **src, size_t nbcounters)
+{
+    for (size_t i = 0; i < nbcounters; i++) {
+        if (dst[i] && src[i]) {
+            slapi_counter_add(dst[i], slapi_counter_get_value(src[i]));
+        }
+    }
+}
+
+/*
+ * Hand over the counters of a worker thread that is going away to 'dst'
+ * (the global set).  Published values are the sum of the global set and of
+ * every running worker set, so moving the values keeps that sum - and hence
+ * the counters reported over SNMP and cn=monitor - unchanged when the number
+ * of worker threads is decreased.
+ * The caller must exclude the readers that walk the worker sets, i.e. hold
+ * g_pc.snmp.mutex.
+ */
+void
+snmp_thread_counters_merge(struct snmp_vars_t *dst, struct snmp_vars_t *src)
+{
+    snmp_counters_tbl_merge((Slapi_Counter **)&dst->ops_tbl,
+                            (Slapi_Counter **)&src->ops_tbl,
+                            sizeof(src->ops_tbl) / sizeof(Slapi_Counter *));
+    snmp_counters_tbl_merge((Slapi_Counter **)&dst->entries_tbl,
+                            (Slapi_Counter **)&src->entries_tbl,
+                            sizeof(src->entries_tbl) / sizeof(Slapi_Counter *));
+    snmp_counters_tbl_merge((Slapi_Counter **)&dst->server_tbl,
+                            (Slapi_Counter **)&src->server_tbl,
+                            sizeof(src->server_tbl) / sizeof(Slapi_Counter *));
+}
+
+void
+snmp_thread_counters_cleanup(struct snmp_vars_t *snmp_vars)
+{
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsAnonymousBinds);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsUnAuthBinds);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsSimpleAuthBinds);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsStrongAuthBinds);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsBindSecurityErrors);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsInOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsReadOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsCompareOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsAddEntryOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsRemoveEntryOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsModifyEntryOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsModifyRDNOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsListOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsSearchOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsOneLevelSearchOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsWholeSubtreeSearchOps);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsReferrals);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsChainings);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsSecurityErrors);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsErrors);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsConnections);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsConnectionSeq);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsBytesRecv);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsBytesSent);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsEntriesReturned);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsReferralsReturned);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsConnectionsInMaxThreads);
+    slapi_counter_destroy(&snmp_vars->ops_tbl.dsMaxThreadsHits);
+    slapi_counter_destroy(&snmp_vars->entries_tbl.dsSupplierEntries);
+    slapi_counter_destroy(&snmp_vars->entries_tbl.dsCopyEntries);
+    slapi_counter_destroy(&snmp_vars->entries_tbl.dsCacheEntries);
+    slapi_counter_destroy(&snmp_vars->entries_tbl.dsCacheHits);
+    slapi_counter_destroy(&snmp_vars->entries_tbl.dsConsumerHits);
+    slapi_counter_destroy(&snmp_vars->server_tbl.dsOpInitiated);
+    slapi_counter_destroy(&snmp_vars->server_tbl.dsOpCompleted);
+    slapi_counter_destroy(&snmp_vars->server_tbl.dsEntriesSent);
+    slapi_counter_destroy(&snmp_vars->server_tbl.dsBytesSent);
+}
+
+void
+snmp_thread_counters_init(struct snmp_vars_t *snmp_vars)
+{
+    snmp_vars->ops_tbl.dsAnonymousBinds = slapi_counter_new();
+    snmp_vars->ops_tbl.dsUnAuthBinds = slapi_counter_new();
+    snmp_vars->ops_tbl.dsSimpleAuthBinds = slapi_counter_new();
+    snmp_vars->ops_tbl.dsStrongAuthBinds = slapi_counter_new();
+    snmp_vars->ops_tbl.dsBindSecurityErrors = slapi_counter_new();
+    snmp_vars->ops_tbl.dsInOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsReadOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsCompareOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsAddEntryOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsRemoveEntryOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsModifyEntryOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsModifyRDNOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsListOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsSearchOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsOneLevelSearchOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsWholeSubtreeSearchOps = slapi_counter_new();
+    snmp_vars->ops_tbl.dsReferrals = slapi_counter_new();
+    snmp_vars->ops_tbl.dsChainings = slapi_counter_new();
+    snmp_vars->ops_tbl.dsSecurityErrors = slapi_counter_new();
+    snmp_vars->ops_tbl.dsErrors = slapi_counter_new();
+    snmp_vars->ops_tbl.dsConnections = slapi_counter_new();
+    snmp_vars->ops_tbl.dsConnectionSeq = slapi_counter_new();
+    snmp_vars->ops_tbl.dsBytesRecv = slapi_counter_new();
+    snmp_vars->ops_tbl.dsBytesSent = slapi_counter_new();
+    snmp_vars->ops_tbl.dsEntriesReturned = slapi_counter_new();
+    snmp_vars->ops_tbl.dsReferralsReturned = slapi_counter_new();
+    snmp_vars->ops_tbl.dsConnectionsInMaxThreads = slapi_counter_new();
+    snmp_vars->ops_tbl.dsMaxThreadsHits = slapi_counter_new();
+    snmp_vars->entries_tbl.dsSupplierEntries = slapi_counter_new();
+    snmp_vars->entries_tbl.dsCopyEntries = slapi_counter_new();
+    snmp_vars->entries_tbl.dsCacheEntries = slapi_counter_new();
+    snmp_vars->entries_tbl.dsCacheHits = slapi_counter_new();
+    snmp_vars->entries_tbl.dsConsumerHits = slapi_counter_new();
+    snmp_vars->server_tbl.dsOpInitiated = slapi_counter_new();
+    snmp_vars->server_tbl.dsOpCompleted = slapi_counter_new();
+    snmp_vars->server_tbl.dsEntriesSent = slapi_counter_new();
+    snmp_vars->server_tbl.dsBytesSent = slapi_counter_new();
+
+    /* Initialize the global interaction table */
+    for (size_t i = 0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
+        snmp_vars->int_tbl[i].dsIntIndex = i + 1;
+        PL_strncpyz(snmp_vars->int_tbl[i].dsName, "Not Available",
+                sizeof (snmp_vars->int_tbl[i].dsName));
+        snmp_vars->int_tbl[i].dsTimeOfCreation = 0;
+        snmp_vars->int_tbl[i].dsTimeOfLastAttempt = 0;
+        snmp_vars->int_tbl[i].dsTimeOfLastSuccess = 0;
+        snmp_vars->int_tbl[i].dsFailuresSinceLastSuccess = 0;
+        snmp_vars->int_tbl[i].dsFailures = 0;
+        snmp_vars->int_tbl[i].dsSuccesses = 0;
+        PL_strncpyz(snmp_vars->int_tbl[i].dsURL, "Not Available",
+                sizeof (snmp_vars->int_tbl[i].dsURL));
+    }
+}
+
+
+
 static int
 snmp_collator_init(void)
 {
-    int i;
-    int cookie;
-    struct snmp_vars_t *snmp_vars;
-
-    /*
-     * Create the per threads SNMP counters
-     */
-    for (snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
-        snmp_vars->ops_tbl.dsAnonymousBinds = slapi_counter_new();
-        snmp_vars->ops_tbl.dsUnAuthBinds = slapi_counter_new();
-        snmp_vars->ops_tbl.dsSimpleAuthBinds = slapi_counter_new();
-        snmp_vars->ops_tbl.dsStrongAuthBinds = slapi_counter_new();
-        snmp_vars->ops_tbl.dsBindSecurityErrors = slapi_counter_new();
-        snmp_vars->ops_tbl.dsInOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsReadOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsCompareOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsAddEntryOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsRemoveEntryOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsModifyEntryOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsModifyRDNOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsListOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsSearchOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsOneLevelSearchOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsWholeSubtreeSearchOps = slapi_counter_new();
-        snmp_vars->ops_tbl.dsReferrals = slapi_counter_new();
-        snmp_vars->ops_tbl.dsChainings = slapi_counter_new();
-        snmp_vars->ops_tbl.dsSecurityErrors = slapi_counter_new();
-        snmp_vars->ops_tbl.dsErrors = slapi_counter_new();
-        snmp_vars->ops_tbl.dsConnections = slapi_counter_new();
-        snmp_vars->ops_tbl.dsConnectionSeq = slapi_counter_new();
-        snmp_vars->ops_tbl.dsBytesRecv = slapi_counter_new();
-        snmp_vars->ops_tbl.dsBytesSent = slapi_counter_new();
-        snmp_vars->ops_tbl.dsEntriesReturned = slapi_counter_new();
-        snmp_vars->ops_tbl.dsReferralsReturned = slapi_counter_new();
-        snmp_vars->ops_tbl.dsConnectionsInMaxThreads = slapi_counter_new();
-        snmp_vars->ops_tbl.dsMaxThreadsHits = slapi_counter_new();
-        snmp_vars->entries_tbl.dsSupplierEntries = slapi_counter_new();
-        snmp_vars->entries_tbl.dsCopyEntries = slapi_counter_new();
-        snmp_vars->entries_tbl.dsCacheEntries = slapi_counter_new();
-        snmp_vars->entries_tbl.dsCacheHits = slapi_counter_new();
-        snmp_vars->entries_tbl.dsConsumerHits = slapi_counter_new();
-        snmp_vars->server_tbl.dsOpInitiated = slapi_counter_new();
-        snmp_vars->server_tbl.dsOpCompleted = slapi_counter_new();
-        snmp_vars->server_tbl.dsEntriesSent = slapi_counter_new();
-        snmp_vars->server_tbl.dsBytesSent = slapi_counter_new();
-
-        /* Initialize the global interaction table */
-        for (i = 0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
-            snmp_vars->int_tbl[i].dsIntIndex = i + 1;
-            PL_strncpyz(snmp_vars->int_tbl[i].dsName, "Not Available",
-                    sizeof (snmp_vars->int_tbl[i].dsName));
-            snmp_vars->int_tbl[i].dsTimeOfCreation = 0;
-            snmp_vars->int_tbl[i].dsTimeOfLastAttempt = 0;
-            snmp_vars->int_tbl[i].dsTimeOfLastSuccess = 0;
-            snmp_vars->int_tbl[i].dsFailuresSinceLastSuccess = 0;
-            snmp_vars->int_tbl[i].dsFailures = 0;
-            snmp_vars->int_tbl[i].dsSuccesses = 0;
-            PL_strncpyz(snmp_vars->int_tbl[i].dsURL, "Not Available",
-                    sizeof (snmp_vars->int_tbl[i].dsURL));
-        }
-    }
-
     /* Get the semaphore */
     snmp_collator_sem_wait();
 
@@ -596,6 +675,7 @@ snmp_update_ops_table(void)
     struct snmp_vars_t *snmp_vars;
     int32_t total;
 
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         total += slapi_counter_get_value(snmp_vars->ops_tbl.dsAnonymousBinds);
     }
@@ -735,6 +815,7 @@ snmp_update_ops_table(void)
         total += slapi_counter_get_value(snmp_vars->ops_tbl.dsReferralsReturned);
     }
     stats->ops_stats.dsReferralsReturned = total;
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
 }
 
 /*
@@ -750,6 +831,7 @@ snmp_update_entries_table(void)
     struct snmp_vars_t *snmp_vars;
     int32_t total;
 
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         total += slapi_counter_get_value(snmp_vars->entries_tbl.dsSupplierEntries);
     }
@@ -774,6 +856,7 @@ snmp_update_entries_table(void)
         total += slapi_counter_get_value(snmp_vars->entries_tbl.dsConsumerHits);
     }
     stats->entries_stats.dsConsumerHits = total;
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
 }
 
 /*
@@ -889,7 +972,8 @@ snmp_as_entry(Slapi_Entry *e)
     int cookie;
     uint64_t total;
     struct snmp_vars_t *snmp_vars;
-    
+
+    pthread_mutex_lock(&g_pc.snmp.mutex);
     for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
         total += slapi_counter_get_value(snmp_vars->ops_tbl.dsAnonymousBinds);
     }
@@ -1054,6 +1138,7 @@ snmp_as_entry(Slapi_Entry *e)
         total += slapi_counter_get_value(snmp_vars->entries_tbl.dsConsumerHits);
     }
     add_counter_to_value(e, "ConsumerHits", total);
+    pthread_mutex_unlock(&g_pc.snmp.mutex);
 }
 
 /*

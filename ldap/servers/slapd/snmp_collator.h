@@ -33,3 +33,6 @@ int snmp_collator_start(void);
 int snmp_collator_stop(void);
 void set_snmp_interaction_row(char *host, int port, int error);
 void snmp_collator_update(time_t, void *);
+void snmp_thread_counters_cleanup(struct snmp_vars_t *);
+void snmp_thread_counters_init(struct snmp_vars_t *);
+void snmp_thread_counters_merge(struct snmp_vars_t *dst, struct snmp_vars_t *src);

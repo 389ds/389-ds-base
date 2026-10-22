@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import errno
+import fnmatch
 import json
 import mmap
 import os
@@ -17,7 +18,12 @@ import time
 
 import psutil
 
-from lib389._constants import DN_CONFIG
+from lib389._constants import (
+    DB_IMPL_MDB,
+    DN_CONFIG,
+    DN_CONFIG_LDBM,
+    DN_CONFIG_LDBM_LMDB,
+)
 from lib389.cli_base import CustomHelpFormatter
 from lib389.dseldif import DSEldif
 
@@ -28,6 +34,11 @@ TP_STATS_MAGIC = 0x54504f4f4c535431  # "TPOOLST1"
 TP_STATS_VER_MAJOR = 1
 TP_STATS_HEADER_SIZE = 4096
 TP_STATS_WORKER_SLOT_SIZE = 64
+
+# Mirror of DBMDB_READERS_DEFAULT and DBMDB_READERS_MARGIN in
+# ldap/servers/slapd/back-ldbm/db-mdb/mdb_layer.h; they must stay in sync.
+DBMDB_READERS_DEFAULT = 126
+DBMDB_READERS_MARGIN = 10
 
 # Byte-for-byte mirror of tp_stats_header_t. Each entry is
 # (field name, struct format char); "4x" skips the C struct's pad0 field.
@@ -131,6 +142,80 @@ def _config_tp_stats_enabled(dse):
     if value is None:
         return True
     return value.lower() != "off"
+
+
+def _config_int(dse, dn, attr):
+    value = dse.get(dn, attr, single=True, lower=True)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _lmdb_readers_warning(dse, configured_threads, startup_threads):
+    """Warn when the worker threads can exhaust the lmdb reader slots.
+
+    Every worker thread holding a read transaction takes a reader slot, so
+    the server sizes the lmdb environment for
+    'nsslapd-threadnumber + replication agreements + DBMDB_READERS_MARGIN'
+    readers - see dbmdb_compute_limits() and
+    dbmdb_ctx_t_db_max_readers_set() in
+    ldap/servers/slapd/back-ldbm/db-mdb/mdb_config.c, which this mirrors.
+
+    That sizing only happens when the environment is created, while
+    nsslapd-threadnumber is applied to a running server, so raising it can
+    leave more workers than reader slots until the next restart and searches
+    then fail with MDB_READERS_FULL.
+
+    'startup_threads' is the worker count the running server started with
+    (the mmap header max_workers); it tells us the floor the server applied
+    to max_readers when it created the environment, so that an instance
+    started with many threads is not reported as misconfigured.
+    """
+    if configured_threads is None:
+        return None
+    db_lib = dse.get(DN_CONFIG_LDBM, "nsslapd-backend-implement", single=True, lower=True)
+    if db_lib is None or db_lib.lower() != DB_IMPL_MDB:
+        return None
+
+    max_readers = _config_int(dse, DN_CONFIG_LDBM_LMDB, "nsslapd-mdb-max-readers")
+    if max_readers is None:
+        return None
+    if max_readers == 0:
+        # The server substitutes its own default for an unset value
+        max_readers = DBMDB_READERS_DEFAULT
+
+    nbagmt = _count_replication_agreements(dse)
+    if startup_threads:
+        # The server raises max_readers to its own floor when it creates the
+        # environment, so the slots really available can be above the configured value
+        max_readers = max(max_readers, startup_threads + nbagmt + DBMDB_READERS_MARGIN)
+
+    needed = configured_threads + nbagmt + DBMDB_READERS_MARGIN
+    if needed <= max_readers:
+        return None
+    return (
+        f"nsslapd-threadnumber is {configured_threads} but the lmdb environment "
+        f"was sized for {max_readers} concurrent readers when the server started; "
+        f"{needed} are needed (one per worker thread and per replication agreement, "
+        f"plus a margin of {DBMDB_READERS_MARGIN}). Raise nsslapd-mdb-max-readers "
+        "and restart the server, or lower nsslapd-threadnumber; otherwise "
+        "operations can fail once the reader slots are exhausted"
+    )
+
+
+def _count_replication_agreements(dse):
+    """Count the replication agreements declared in dse.ldif.
+
+    Each one holds a read transaction, so they count against the reader
+    slots the same way worker threads do.  DSEldif lower cases the 'dn:'
+    lines it keeps in _contents, so the match below is already case
+    insensitive.
+    """
+    return sum(1 for entry in dse._contents
+               if fnmatch.fnmatch(entry, "dn: cn=*,cn=replica,cn=*,cn=mapping tree,cn=config*"))
 
 
 def _open_threadpool_file(path, inst, tp_stats_enabled, explicit=False):
@@ -329,6 +414,11 @@ def _read_threadpool_status(inst, file_path=None):
                     f"dse.ldif nsslapd-threadnumber is {configured_threads}, "
                     f"but status file was sized for {header['max_workers']} workers"
                 )
+            if file_path is None:
+                readers_warning = _lmdb_readers_warning(dse, configured_threads,
+                                                        header["max_workers"])
+                if readers_warning is not None:
+                    warnings.append(readers_warning)
 
             workers = _unpack_workers(mm, header, now_ns)
     finally:

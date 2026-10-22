@@ -1240,7 +1240,7 @@ slapd_daemon(daemon_ports_t *ports)
     tp_stats_init(threadnumber > 0 ? (uint32_t)threadnumber : 0);
     init_op_threads(threadnumber);
     /* Heartbeat must not start before init_op_threads: its callback reads
-     * per_thread_snmp_vars, which alloc_per_thread_snmp_vars reallocates. */
+     * the worker thread pool counters set up there. */
     tp_stats_start_heartbeat();
 
     /* Start the SNMP collator if counters are enabled. */
@@ -1554,7 +1554,6 @@ slapd_daemon(daemon_ports_t *ports)
 
     /* final cleanup for ASAN and other analyzers */
     PR_JoinThread(accept_thread_p);
-    free_worker_thread_indexes();
     free_server_dataversion();
 }
 

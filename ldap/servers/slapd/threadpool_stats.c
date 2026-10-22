@@ -575,9 +575,9 @@ tp_stats_init(uint32_t max_workers)
 
 /*
  * Register the periodic heartbeat. Must run only after init_op_threads():
- * the callback reads per_thread_snmp_vars through g_get_num_ops_initiated(),
- * and alloc_per_thread_snmp_vars() reallocates that array with no
- * synchronization against readers.
+ * the callback reads the per worker thread counters through
+ * g_get_num_ops_initiated(), and init_op_threads() is what publishes the
+ * worker thread contexts those counters live in.
  */
 void
 tp_stats_start_heartbeat(void)
