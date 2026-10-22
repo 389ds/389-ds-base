@@ -280,12 +280,16 @@ entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, 
 
         /* Check if the RDN value exists */
         if ((slapi_entry_attr_find(entry, type, &attr) != 0) ||
-            (slapi_attr_value_find(attr, &bv))) {
+            (attr && slapi_attr_value_find(attr, &bv))) {
             const CSN *csn_rdn_add;
-            const CSN *adcsn = attr_get_deletion_csn(attr);
+            const CSN *adcsn = NULL;
+
+            if (attr) {
+                adcsn = attr_get_deletion_csn(attr);
+            }
 
             /* It is missing => adds it */
-            if (slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE)) {
+            if (attr && slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE)) {
                 if (csn_compare(adcsn, csn) >= 0) {
                     /* this is a single valued attribute and the current value
                      * (that is different from RDN value) is more recent than
@@ -313,8 +317,10 @@ entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, 
                 return -1;
             }
             /* Make the RDN value a distinguished value */
-            attr_value_find_wsi(attr, &bv, &value);
-            value_update_csn(value, CSN_TYPE_VALUE_DISTINGUISHED, csn_rdn_add);
+            if (attr) {
+                attr_value_find_wsi(attr, &bv, &value);
+                value_update_csn(value, CSN_TYPE_VALUE_DISTINGUISHED, csn_rdn_add);
+            }
         }
     }
     slapi_ldap_value_free(rdns);
