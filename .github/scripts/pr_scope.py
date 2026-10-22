@@ -6,6 +6,7 @@ import urllib.request
 # Print "webui" when the PR only touches the Cockpit UI, so the matrix
 # shrinks to that suite. On any doubt, print nothing (full matrix).
 UI_PREFIX = "src/cockpit/389-console/"
+UI_TEST_PREFIX = "dirsrvtests/tests/suites/webui/"
 PER_PAGE = 100
 MAX_PAGES = 3
 
@@ -43,7 +44,7 @@ def main():
         files = changed_files(repo, sys.argv[1], token)
     except Exception:
         return 0
-    if files and all(name.startswith(UI_PREFIX) for name in files):
+    if files and all((name.startswith(UI_PREFIX) or name.startswith(UI_TEST_PREFIX)) for name in files):
         print("webui")
     return 0
 
