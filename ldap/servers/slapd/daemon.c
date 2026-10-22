@@ -2207,6 +2207,19 @@ check_active_connections(Connection_Table *ct, int listnum)
                 c = next;
                 continue;
             }
+            if (c->c_reap_queued) {
+                /*
+                 * Already queued for this list thread's reap pass by
+                 * connection_epoll_reap_nolock().  Leave it for epoll_reap_list()
+                 * to move out and clear the queue fields: moving it out here as
+                 * well would move it twice (CRIT "already OUT of the active
+                 * list") and leave c_reap_queued set on the slot when it is
+                 * recycled.
+                 */
+                pthread_mutex_unlock(&(c->c_mutex));
+                c = next;
+                continue;
+            }
             /* Check for a timeout for PAGED RESULTS */
             if (pagedresults_is_timedout_nolock(c)) {
                 /*
