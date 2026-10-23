@@ -1587,6 +1587,7 @@ int mapping_tree_get_extension_type(void);
 int connection_acquire_nolock(Connection *conn);
 int connection_acquire_nolock_ext(Connection *conn, int allow_when_closing);
 int connection_release_nolock(Connection *conn);
+void connection_ps_slot_nolock(Connection *conn, int start);
 int connection_release_nolock_ext(Connection *conn, int release_only);
 int connection_is_free(Connection *conn, int user_lock);
 int connection_is_active_nolock(Connection *conn);
