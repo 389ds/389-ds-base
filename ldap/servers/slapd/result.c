@@ -1926,7 +1926,19 @@ flush_ber(
     } else {
         ber_get_option(ber, LBER_OPT_BYTES_TO_WRITE, &bytes);
 
+<<<<<<< HEAD
+=======
+        fgot_start(op, FGOT_WRITE);
+        /* After publishing intent, this path must reach admission or resolve
+         * a reader's pending handoff before it can exit. */
+        slapi_atomic_incr_32(&conn->c_pdu_writers_waiting, __ATOMIC_ACQ_REL);
+>>>>>>> cb5e57766 (Issue 7919 - Coordinate PDU writer handoff and buffered reads)
         PR_Lock(conn->c_pdumutex);
+        slapi_atomic_decr_32(&conn->c_pdu_writers_waiting, __ATOMIC_ACQ_REL);
+        if (conn->c_pdu_handoff_pending) {
+            conn->c_pdu_handoff_pending = PR_FALSE;
+            PR_NotifyCondVar(conn->c_pdu_writer_cv);
+        }
         rc = ber_flush(conn->c_sb, ber, 1);
         PR_Unlock(conn->c_pdumutex);
 
