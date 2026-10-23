@@ -18,6 +18,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.nscontainer import nsContainers
 from .. import setup_page, check_frame_assignment, setup_login, create_entry, delete_entry, load_ldap_browser_tab
+from playwright.sync_api import expect
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
 pytest.importorskip('playwright')
@@ -488,7 +489,7 @@ def test_entry_with_shell_metacharacters_in_dn(topology_st, page, browser_name):
 
     log.info('Verify entry attributes are displayed.')
     frame.get_by_role('columnheader', name='Attribute').wait_for()
-    assert frame.get_by_role('columnheader', name='Attribute').is_visible()
+    expect(frame.get_by_role('columnheader', name='Attribute')).to_be_visible()
     time.sleep(2)  # give any injected command time to execute
 
     log.info('Assert the canary file was NOT created (no command injection).')

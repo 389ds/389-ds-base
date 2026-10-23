@@ -132,6 +132,8 @@ int slapi_destructive_rename(const char *srcfilename,
                              const char *destfilename);
 /* make a copy of a file */
 int slapi_copy(const char *srcfilename, const char *destfile);
+/* fsync a directory so renames/links in it are durable; returns 0 or errno */
+int slapi_fsync_dir(const char *dirpath);
 
 /* CSN */
 

@@ -360,6 +360,14 @@ int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, dbi_txn_t *txn, i
     return priv->dblayer_get_entries_count_fn(db, txn, count);
 }
 
+int dblayer_get_inst_entries_count(Slapi_Backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_get_inst_entries_count_fn(li, inst);
+}
+
 const char *dblayer_op2str(dbi_op_t op)
 {
     static const char *str[] = {
