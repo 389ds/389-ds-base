@@ -25,6 +25,9 @@
 #include "threadpool_stats.h"
 #include <sasl/sasl.h>
 #include <stdbool.h>
+#ifdef ENABLE_EPOLL
+#include <limits.h>
+#endif /* ENABLE_EPOLL */
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif
@@ -201,15 +204,6 @@ connection_cleanup(Connection *conn)
     if (conn->c_prfd) {
         PR_Close(conn->c_prfd);
     }
-#ifdef ENABLE_EPOLL
-    if (conn->c_idle_tfd != -1) {
-        /* Close the idle timer */
-        epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
-        timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
-        close(conn->c_idle_tfd);
-        conn->c_idle_tfd = -1;
-    }
-#endif /* ENABLE_EPOLL */
 
     conn->c_sd = SLAPD_INVALID_SOCKET;
     conn->c_ldapversion = 0;
@@ -441,12 +435,44 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     }
 }
 
+#ifdef ENABLE_EPOLL
+/*
+ * With epoll, turbo mode is only used up to this many active connections
+ * (SLAPD_EPOLL_TURBO_MAX_CONNS in the environment overrides it). Above it,
+ * the turbo ranking, which walks every active connection under the table
+ * lock, costs more than turbo mode saves.
+ */
+#define SLAPD_EPOLL_TURBO_MAX_CONNS 2048
+static int epoll_turbo_max_conns = SLAPD_EPOLL_TURBO_MAX_CONNS;
+
+#endif /* ENABLE_EPOLL */
 /* Create a pool of threads for handling the operations */
 void
 init_op_threads(int32_t threadnumber)
 {
     pthread_condattr_t condAttr;
     int32_t rc;
+#ifdef ENABLE_EPOLL
+    char *m = getenv("SLAPD_EPOLL_TURBO_MAX_CONNS");
+
+    if (m) {
+        char *endp = NULL;
+        long val;
+
+        errno = 0;
+        val = strtol(m, &endp, 10);
+        if (errno || endp == m || *endp != '\0' || val < 0 || val > INT_MAX) {
+            slapi_log_err(SLAPI_LOG_WARNING, "init_op_threads",
+                          "Ignoring invalid SLAPD_EPOLL_TURBO_MAX_CONNS \"%s\"\n", m);
+        } else {
+            epoll_turbo_max_conns = (int)val;
+        }
+    }
+    if (config_get_enable_turbo_mode()) {
+        slapi_log_err(SLAPI_LOG_INFO, "init_op_threads",
+                      "Turbo mode is used up to %d active connections\n", epoll_turbo_max_conns);
+    }
+#endif /* ENABLE_EPOLL */
 
     /* Initialize the locks and cv */
     if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
@@ -799,6 +825,12 @@ connection_release_nolock_ext(Connection *conn, int release_only)
         return -1;
     } else {
         conn->c_refcnt--;
+#ifdef ENABLE_EPOLL
+        if (conn->c_refcnt == 1 && (conn->c_flags & CONN_FLAG_CLOSING)) {
+            /* Only the list thread holds it now, it can move it out */
+            connection_epoll_reap_nolock(conn);
+        }
+#endif /* ENABLE_EPOLL */
 
         return 0;
     }
@@ -1700,6 +1732,9 @@ connection_make_readable(Connection *conn)
 {
     pthread_mutex_lock(&(conn->c_mutex));
     conn->c_gettingber = 0;
+#ifdef ENABLE_EPOLL
+    connection_epoll_rearm_nolock(conn);
+#endif /* ENABLE_EPOLL */
     pthread_mutex_unlock(&(conn->c_mutex));
     signal_listner(conn->c_ct_list);
 }
@@ -1708,9 +1743,29 @@ void
 connection_make_readable_nolock(Connection *conn)
 {
     conn->c_gettingber = 0;
+#ifdef ENABLE_EPOLL
+    connection_epoll_rearm_nolock(conn);
+#endif /* ENABLE_EPOLL */
     slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" PRIu64 " fd=%d\n",
                   conn->c_connid, conn->c_sd);
 }
+#ifdef ENABLE_EPOLL
+
+/*
+ * Like connection_make_readable_nolock(), but leave the epoll re-arm to the
+ * caller: returns 1 when it must call connection_epoll_rearm_unlocked() with
+ * epfd and fd after releasing c_mutex.  Only for a thread that holds a
+ * reference on the connection.
+ */
+static int
+connection_make_readable_defer_rearm_nolock(Connection *conn, int *epfd, int *fd)
+{
+    conn->c_gettingber = 0;
+    slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_defer_rearm_nolock", "making readable conn %" PRIu64 " fd=%d\n",
+                  conn->c_connid, conn->c_sd);
+    return connection_epoll_rearm_prepare_nolock(conn, epfd, fd);
+}
+#endif /* ENABLE_EPOLL */
 
 /*
  * Figure out the operation completion rate for this connection
@@ -2052,6 +2107,19 @@ connection_threadmain(void *arg)
 #if defined(DB_PERF_TURBO)
         /* If it's been a while since we last did it ... */
         if (curtime - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
+#ifdef ENABLE_EPOLL
+            if (config_get_enable_turbo_mode() &&
+                connection_table_active_count(the_connection_table) > epoll_turbo_max_conns) {
+                /* Too many connections for turbo mode. Keep sampling the
+                 * activity, so this runs once per interval, and refresh
+                 * c_idlesince as a turbo read would (see below) */
+                connection_check_activity_level(conn);
+                if (thread_turbo_flag) {
+                    conn->c_idlesince = curtime;
+                }
+                thread_turbo_flag = 0;
+            } else
+#endif /* ENABLE_EPOLL */
             if (config_get_enable_turbo_mode()) {
                 int new_turbo_flag = 0;
                 /* Check the connection's activity level */
@@ -2113,18 +2181,6 @@ connection_threadmain(void *arg)
                update c_idlesince here since, if we got some read activity, we are
                not idle */
             conn->c_idlesince = curtime;
-#ifdef ENABLE_EPOLL
-            if (conn->c_idle_tfd != -1) {
-                /* Reset the idle timer */
-                slapi_log_err(SLAPI_LOG_DEBUG,
-                              "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
-                timerfd_settime(conn->c_idle_tfd, 0,
-                                &(struct itimerspec) {
-                                    .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
-                                    .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
-                                }, NULL);
-            }
-#endif /* ENABLE_EPOLL */
         }
 
         /*
@@ -2140,10 +2196,26 @@ connection_threadmain(void *arg)
         replication_connection = conn->c_isreplication_session;
         if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
             if (!more_data) {
-                conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+#ifdef ENABLE_EPOLL
+                int rearm_epfd = -1;
+                int rearm_fd = -1;
                 pthread_mutex_lock(&(conn->c_mutex));
+                /* c_flags is written under c_mutex: clearing it unlocked could
+                 * lose a concurrent CONN_FLAG_CLOSING */
+                conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+                int rearm = connection_make_readable_defer_rearm_nolock(conn, &rearm_epfd, &rearm_fd);
+                pthread_mutex_unlock(&(conn->c_mutex));
+                /* This thread still holds its reference on the connection, so
+                 * the descriptor can't be reused before it is re-armed */
+                if (rearm) {
+                    connection_epoll_rearm_unlocked(conn, rearm_epfd, rearm_fd);
+                }
+#else /* !ENABLE_EPOLL */
+                pthread_mutex_lock(&(conn->c_mutex));
+                conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                 connection_make_readable_nolock(conn);
                 pthread_mutex_unlock(&(conn->c_mutex));
+#endif /* ENABLE_EPOLL */
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
@@ -2168,23 +2240,9 @@ connection_threadmain(void *arg)
                      * are bypassing both of those, we set idlesince here
                      */
                     conn->c_idlesince = curtime;
-#ifdef ENABLE_EPOLL
-                    if (conn->c_idle_tfd != -1) {
-                        /* Reset the idle timer */
-                        slapi_log_err(SLAPI_LOG_DEBUG,
-                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
-                        timerfd_settime(conn->c_idle_tfd, 0,
-                                        &(struct itimerspec) {
-                                            .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
-                                            .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
-                                        }, NULL);
-                    }
-#endif /* ENABLE_EPOLL */
-                    if (connection_activity(conn, maxthreads) == 0) {
-                        read_handed_off = true;
-                        slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
-                                      conn->c_connid);
-                    }
+                    connection_activity(conn, maxthreads);
+                    slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
+                                  conn->c_connid);
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
@@ -2368,6 +2426,15 @@ connection_threadmain(void *arg)
                      * before that call.
                      */
                     if (need_wakeup) {
+#ifdef ENABLE_EPOLL
+                        /* The listener left this connection disarmed while it
+                         * was at its max threads, re-arm it now that it is not.
+                         * If a worker owns it, that worker re-arms it.
+                         */
+                        if (conn->c_epoll_blocked && !conn->c_gettingber) {
+                            connection_epoll_rearm_nolock(conn);
+                        }
+#endif /* ENABLE_EPOLL */
                         signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
@@ -2839,21 +2906,12 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                   conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list]);
         if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_sd, NULL) == -1) {
             slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
-                        "epoll_ctl failed to remove connection %d from epoll_fd %d\n",
-                        conn->c_sd, conn->c_ct->epoll_fd);
+                        "epoll_ctl failed to remove connection %d from epoll_fd %d - %s\n",
+                        conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list], strerror(errno));
         }
-        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
-                  conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
-        /* Remove the idle timer if it exists */
-        if (conn->c_idle_tfd != -1) {
-            if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1) {
-                slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext", "Failed to remove idle timer fd %d for connection %d - %s\n",
-                              conn->c_idle_tfd, conn->c_sd, strerror(errno));
-            }
-            /* Close the idle timer */
-            close(conn->c_idle_tfd);
-            conn->c_idle_tfd = -1;
-        }
+        /* If no other thread holds it, the list thread can move it out of
+         * the active list now, else the last release queues it */
+        connection_epoll_reap_nolock(conn);
 #endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();
 
