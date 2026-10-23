@@ -2623,6 +2623,7 @@ typedef struct _slapdFrontendConfig
     char *accesslog_exptimeunit;
     int accessloglevel;
     char *accesslog_log_format;
+    int32_t accesslog_log_format_type; /* LOG_FORMAT_* value of accesslog_log_format */
     char *accesslog_time_format;
     slapi_onoff_t accesslogbuffering;
     slapi_onoff_t csnlogging;

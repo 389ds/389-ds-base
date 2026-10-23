@@ -106,6 +106,8 @@ struct logbufinfo
     size_t maxsize;    /* size of buffer */
     PRLock *lock;      /* lock for access logging */
     uint64_t refcount; /* Reference count for buffer copies */
+    struct logbufinfo *next; /* access log writer queue or free list */
+    int sync_now;            /* access log writer: sync to disk after the write */
 };
 typedef struct logbufinfo LogBufferInfo;
 
@@ -135,7 +137,8 @@ struct logging_opts
     time_t log_access_ctime;             /* log creation time */
     LogFileInfo *log_access_logchain;    /* all the logs info */
     char *log_accessinfo_file;           /* access log rotation info file */
-    LogBufferInfo *log_access_buffer;    /* buffer for access log */
+    LogBufferInfo *log_access_buffer;    /* active buffer for access log */
+    PRLock *log_access_lock;             /* access log file and rotation lock */
     int log_access_compress;             /* Compress rotated logs */
     int log_access_stat_level;           /* statistics level in access log file */
 
@@ -256,11 +259,11 @@ struct logging_opts
 void logs_maintenance_shutdown(void);
 void log_maint_submit_pending(int logtype);
 
-#define LOG_ACCESS_LOCK_READ()    PR_Lock(loginfo.log_access_buffer->lock)
-#define LOG_ACCESS_UNLOCK_READ()  PR_Unlock(loginfo.log_access_buffer->lock)
-#define LOG_ACCESS_LOCK_WRITE()   PR_Lock(loginfo.log_access_buffer->lock)
+#define LOG_ACCESS_LOCK_READ()    PR_Lock(loginfo.log_access_lock)
+#define LOG_ACCESS_UNLOCK_READ()  PR_Unlock(loginfo.log_access_lock)
+#define LOG_ACCESS_LOCK_WRITE()   PR_Lock(loginfo.log_access_lock)
 #define LOG_ACCESS_UNLOCK_WRITE() do { \
-        PR_Unlock(loginfo.log_access_buffer->lock); \
+        PR_Unlock(loginfo.log_access_lock); \
         log_maint_submit_pending(SLAPD_ACCESS_LOG); \
     } while (0)
 

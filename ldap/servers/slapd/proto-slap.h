@@ -899,6 +899,8 @@ int32_t slapd_log_access_json(char *buffer);
 void logs_flush(void);
 void logs_maintenance_init(void);
 void logs_maintenance_shutdown(void);
+void logs_access_writer_start(void);
+void logs_access_writer_shutdown(void);
 
 int access_log_openf(char *pathname, int locked);
 int security_log_openf(char *pathname, int locked);
