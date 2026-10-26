@@ -44,7 +44,7 @@
     "po2json": "^1.0.0-alpha",
     "qunit": "2.26.0",
     "qunit-tap": "1.5.1",
-    "sass": "1.105.2",
+    "sass": "1.106.1",
     "sizzle": "2.3.10",
     "stylelint": "17.16.0",
     "stylelint-config-recommended-scss": "17.0.1",
