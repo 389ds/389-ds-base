@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH NS-SLAPD 8 "March 31, 2017"
+.TH NS-SLAPD 8 "October 26, 2026"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -37,7 +37,65 @@ Specifies the configuration directory pointing at the instance
 to be started (e.g. /etc/dirsrv/slapd\(hylocalhost)
 .TP
 .B \-d debuglevel
-Specifies the debuglevel to be used 
+Specifies the debug level to be used. The value is a bitmask: add
+(or bitwise\-OR) the levels you want. The same bit values are used by
+.B nsslapd\-errorlog\-level
+(error log) and, for the levels noted below,
+.B nsslapd\-accesslog\-level
+(access log).
+.sp
+.B Configurable logging levels
+(these select extra messages for a given area):
+.sp
+.nf
+     1  (0x00000001)  Trace function calls
+     2  (0x00000002)  Packet handling / packet dump
+     4  (0x00000004)  Heavy trace debugging (args)
+     8  (0x00000008)  Connection management
+    16  (0x00000010)  Packets sent and received (BER)
+    32  (0x00000020)  Search filter processing
+    64  (0x00000040)  Config file processing
+   128  (0x00000080)  Access control list processing
+   256  (0x00000100)  Stats log connections/operations (access log)
+   512  (0x00000200)  Stats log entries sent (access log)
+  1024  (0x00000400)  Shell database tracing
+  2048  (0x00000800)  Entry parsing
+  4096  (0x00001000)  Housekeeping / housekeeping thread
+  8192  (0x00002000)  Replication
+ 16384  (0x00004000)  Default / summary error messages (ALWAYS)
+ 32768  (0x00008000)  Entry cache debugging
+ 65536  (0x00010000)  Plugin debugging
+131072  (0x00020000)  Timing (unused; retained for compatibility)
+262144  (0x00040000)  Access control summary
+524288  (0x00080000)  Database (ldbm) debugging
+1048576 (0x00100000)  Password policy debugging
+.fi
+.sp
+Levels
+.B 256
+and
+.B 512
+apply to the access log
+.RB ( nsslapd\-accesslog\-level ),
+not the error log.
+.sp
+.B Severity levels
+(EMERG, ALERT, CRIT, ERR, WARNING, NOTICE, INFO, DEBUG) refine the
+meaning of default error messages. They are
+.B not
+administrator\-configurable log filters; do not set
+.B nsslapd\-errorlog\-level
+to only one of these values expecting to filter by severity.
+.sp
+Example: enable default messages plus ACL and replication debugging:
+.sp
+.nf
+  16384 + 128 + 8192 = 24704
+.fi
+.sp
+See also the error log levels and format documentation:
+.br
+https://www.port389.org/docs/389ds/design/errorlog\-format\-design.html
 .TP
 .B \-i pidlogfile
 Specifies file where the pid of the process will be stored
