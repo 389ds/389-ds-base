@@ -4,6 +4,11 @@ Commit shape, copyright headers, formatting, and PR rules for 389-ds-base.
 Build and CI mechanics: [building.md](building.md). Test requirements:
 [testing.md](testing.md). Cockpit UI conventions: [ui.md](ui.md).
 
+## Branch names
+
+Use a short issue description, such as `fix-connection-timeout`.
+Do not add `codex/` or similar prefixes.
+
 ## Commit message format
 
 Subject: `Issue NNNN - short summary` — the GitHub issue number, a spaced
@@ -14,14 +19,21 @@ Body: a `Bug Description:` paragraph (what is broken and why) followed by a
 `Fix Description:` paragraph (what the change does). A simple change may use a
 single `Description:` paragraph instead.
 
-Trailers, each on its own line after the body:
+Use standard [Git trailers](https://git-scm.com/docs/git-interpret-trailers),
+each on its own line after a blank line separating them from the body:
 
 | Trailer | Rule |
 |---|---|
-| `Fixes: <full issue URL>` | use when the commit fully resolves the issue |
-| `Relates: <full issue URL>` | use when the issue stays open |
-| `Reviewed by:` | added by humans at merge time — do not write it yourself |
-| `Assisted by: <tool name>` | the established AI-attribution trailer |
+| `Fixes: <full issue URL>` | use when the commit fully resolves the issue; GitHub closes it when the commit reaches the default branch |
+| `Relates: <full issue URL>` | use for related or partial work that leaves the issue open; this is not a GitHub closing keyword |
+| `Reviewed-by: Name <email>` | reviewers or maintainers add this at merge time for a completed human review, using the reviewer's actual name and email; never invent review credit or add placeholders |
+
+Choose `Fixes:` or `Relates:` by whether the issue is resolved, including
+for test-only or documentation-only commits. Always use the full issue URL,
+not just `#NNNN`, so the reference remains useful in `git log` outside GitHub.
+See [GitHub's closing keyword rules](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue).
+
+Do not add AI attribution trailers.
 
 `Signed-off-by:` (DCO) is not the convention in this repo — do not add it.
 
