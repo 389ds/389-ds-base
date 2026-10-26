@@ -3163,7 +3163,7 @@ process_regular_index(backentry *ep, ImportWorkerInfo *info)
             const CSN *tomb_csn = entry_get_deletion_csn(ep->ep_entry);
             if (tomb_csn) {
                 csn_as_string(tomb_csn, PR_FALSE, tomb_csnstr);
-                slapi_value_set_string_passin(&val, tomb_csnstr);
+                slapi_value_set_string(&val, tomb_csnstr);
             } else {
                 /* No deletion csn in objectclass so lets use the nstombstonecsn value */
                 svals = attr_get_present_values(attr);
