@@ -530,6 +530,26 @@ vattr_context_is_loop_msg_displayed(vattr_context **c)
 }
 
 /*
+ * Whether any virtual-attribute service provider serves "type" for this
+ * entry's namespace - the same lookup vattr_test_filter performs per
+ * component.  The OR lookup fast path declines such types so CoS and
+ * Roles keep the classic evaluation.
+ */
+int32_t
+vattr_type_sp_registered(Slapi_Entry *e, const char *type)
+{
+    Slapi_DN *sdn;
+    Slapi_Backend *be;
+    Slapi_DN *namespace_dn;
+
+    sdn = slapi_entry_get_sdn(e);
+    be = slapi_be_select(sdn);
+    namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be, 0);
+
+    return (vattr_map_namespace_sp_getlist(namespace_dn, type) != NULL);
+}
+
+/*
  * vattr_test_filter:
  *
  * . tests an ava, presence or substring filter against e.
