@@ -94,6 +94,7 @@ make lib389
 ```
 
 - `make lib389` is not a plain Python build: it first copies `dirsrvtests/lib/test389/topologies.py` over `src/lib389/lib389/tests/topologies.py`, then runs `validate_version.py` and `python3 -m build`; `make lib389-install` follows with `pip3 install . --no-deps --force-reinstall` (`Makefile.am` (`lib389`, `lib389-install`)).
+- Direct `python3 -m build` also copies the topology fixtures automatically: `src/lib389/build_hooks.py` (`egg_info.run`, `build_py.run`, `prepare_topologies`) refreshes them before source-file collection and Python-module copying. `src/lib389/MANIFEST.in` explicitly includes the generated copy, so a wheel built from the standalone lib389 source archive uses its bundled fixtures without requiring the full repository. A missing source and bundled copy fails the build.
 - The recommended full-fidelity route is the RPM path CI uses: `SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms`, then install `dist/rpms/*.rpm` in the container, exactly as the pytest workflows do.
 
 ## Generated files — never hand-edit
@@ -106,7 +107,7 @@ make lib389
 | `ldap/ldif/template-*.ldif`, `ldap/admin/src/defaults.inf`, `wrappers/*` | the `fixupcmd` sed via the `%: %.in` pattern rule (`Makefile.am`) | the matching `*.in` file |
 | `dberrstrs.h` | `ldap/servers/slapd/mkDBErrStrs.py` | `ldap/servers/slapd/back-ldbm/dbimpl.h` |
 | `rust-slapi-private.h`, `rust-nsslapd-private.h` | cbindgen via the crate `build.rs` | the Rust crate sources ([rust.md](rust.md)) |
-| `src/lib389/lib389/tests/topologies.py` | `cp` prerequisite of `make lib389` | `dirsrvtests/lib/test389/topologies.py` |
+| `src/lib389/lib389/tests/topologies.py` | Python packaging hooks, also the `cp` prerequisite of `make lib389` | `dirsrvtests/lib/test389/topologies.py` |
 | `src/lib389/man/*.8` | ignored outputs of the argparse-manpage command in `src/lib389/build_hooks.py` (`build_manpages`), wired by `src/lib389/pyproject.toml` (`[tool.setuptools.cmdclass]`, `[tool.build_manpages]`); the directory is ignored by `.gitignore` | the argparse `help=` text under `src/lib389/cli*` |
 | `src/cockpit/389-console/cockpit_dist/`, `node_modules/` | `./build.js` (esbuild) via `rpm.mk` (`build-cockpit`) | `src/cockpit/389-console/src/` ([ui.md](ui.md)) |
 | `.cargo/config.toml`, `src/pkgconfig/*.pc` | `AC_CONFIG_FILES` (`configure.ac`) | the matching `*.in` file |
