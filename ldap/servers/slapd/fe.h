@@ -86,7 +86,7 @@ typedef struct epoll_reap_queue
 {
     pthread_mutex_t lock;
     Connection *head;
-    int fd; /* eventfd in the list's epoll set, written when head is set */
+    int32_t fd; /* eventfd in the list's epoll set, written when head is set */
 } epoll_reap_queue;
 #endif /* ENABLE_EPOLL */
 
@@ -131,7 +131,7 @@ void connection_table_disconnect_all(Connection_Table *ct);
 Connection *connection_table_get_connection(Connection_Table *ct, int sd);
 int connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c);
 #ifdef ENABLE_EPOLL
-int connection_table_move_connections_out_of_active_list(Connection_Table *ct, Connection **conns, int count);
+size_t connection_table_move_connections_out_of_active_list(Connection_Table *ct, Connection **conns, size_t count);
 #endif
 void connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connection *c);
 void connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e);

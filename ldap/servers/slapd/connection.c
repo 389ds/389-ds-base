@@ -2197,13 +2197,13 @@ connection_threadmain(void *arg)
         if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
             if (!more_data) {
 #ifdef ENABLE_EPOLL
-                int rearm_epfd = -1;
-                int rearm_fd = -1;
+                int32_t rearm_epfd = -1;
+                int32_t rearm_fd = -1;
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* c_flags is written under c_mutex: clearing it unlocked could
                  * lose a concurrent CONN_FLAG_CLOSING */
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
-                int rearm = connection_make_readable_defer_rearm_nolock(conn, &rearm_epfd, &rearm_fd);
+                int32_t rearm = connection_make_readable_defer_rearm_nolock(conn, &rearm_epfd, &rearm_fd);
                 pthread_mutex_unlock(&(conn->c_mutex));
                 /* This thread still holds its reference on the connection, so
                  * the descriptor can't be reused before it is re-armed */

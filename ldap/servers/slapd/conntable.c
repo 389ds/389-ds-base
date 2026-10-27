@@ -571,20 +571,24 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
  * wait for each connection's c_mutex, which the caller holds.
  * Returns the number moved out.
  */
-int
-connection_table_move_connections_out_of_active_list(Connection_Table *ct, Connection **conns, int count)
+size_t
+connection_table_move_connections_out_of_active_list(Connection_Table *ct, Connection **conns, size_t count)
 {
-    int moved = 0;
+    size_t moved = 0;
 
     PR_Lock(ct->table_mutex);
-    for (int i = 0; i < count; i++) {
+    for (size_t i = 0; i < count; i++) {
         Connection *c = conns[i];
 
         if (c->c_prev == NULL || c->c_refcnt > 1) {
             /* Already out, or held again: leave it to the check pass */
+            const char *where = "already out";
+            if (c->c_prev) {
+                where = "on the list";
+            }
             slapi_log_err(SLAPI_LOG_CONNS, "connection_table_move_connections_out_of_active_list",
                           "Not moving conn %d out of active list (refcnt %d, %s)\n",
-                          c->c_sd, c->c_refcnt, c->c_prev ? "on the list" : "already out");
+                          c->c_sd, c->c_refcnt, where);
             continue;
         }
         (*(ct->num_active + c->c_ct_list))--;
@@ -598,13 +602,13 @@ connection_table_move_connections_out_of_active_list(Connection_Table *ct, Conne
     }
     PR_Unlock(ct->table_mutex);
 
-    for (int i = 0; i < moved; i++) {
+    for (size_t i = 0; i < moved; i++) {
         connection_release_nolock(conns[i]);
         connection_cleanup(conns[i]);
     }
 
     PR_Lock(ct->table_mutex);
-    for (int i = 0; i < moved; i++) {
+    for (size_t i = 0; i < moved; i++) {
         PR_ASSERT(conns[i]->c_refcnt == 0);
         PR_ASSERT(ct->conn_next_offset != 0);
         ct->conn_next_offset--;
@@ -614,7 +618,7 @@ connection_table_move_connections_out_of_active_list(Connection_Table *ct, Conne
     PR_Unlock(ct->table_mutex);
 
     slapi_log_err(SLAPI_LOG_CONNS, "connection_table_move_connections_out_of_active_list",
-                  "Moved %d of %d closing connections out of active list and freed\n", moved, count);
+                  "Moved %zu of %zu closing connections out of active list and freed\n", moved, count);
     return moved;
 }
 #endif /* ENABLE_EPOLL */
