@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -318,7 +318,9 @@ def ldif_search(LDIF, dn):
     found_glue = False
     found = False
     count = 0
-    ignore_list = ['conflictcsn', 'modifytimestamp', 'modifiersname']
+    ignore_list = ['conflictcsn', 'modifytimestamp', 'modifiersname',
+                   'shadowmin', 'shadowmax', 'shadowwarning',
+                   'shadowwarningmax', 'shadowflag']
     val = ""
     attr = ""
     state_attr = ""
@@ -1473,7 +1475,9 @@ def online_report(args):
     opts['starttime'] = int(time.time())
     opts['pagesize'] = int(args.pagesize)
     opts['conflicts'] = args.conflicts
-    opts['ignore'] = ['createtimestamp', 'nscpentrywsi']
+    opts['ignore'] = ['createtimestamp', 'nscpentrywsi', 'shadowlastchange',
+                      'shadowmin', 'shadowmax', 'shadowwarning',
+                      'shadowwarningmax', 'shadowflag']
     if args.ignore:
         opts['ignore'] = opts['ignore'] + args.ignore.split(',')
     opts['lag'] = int(args.lag)
@@ -1514,7 +1518,9 @@ def offline_report(args):
     opts['rldif'] = args.rldif
     opts['conflicts'] = args.conflicts
     opts['lag'] = 0
-    opts['ignore'] = ['createtimestamp', 'nscpentrywsi']
+    opts['ignore'] = ['createtimestamp', 'nscpentrywsi', 'shadowlastchange',
+                      'shadowmin', 'shadowmax', 'shadowwarning',
+                      'shadowwarningmax', 'shadowflag']
     if args.ignore:
         opts['ignore'] = opts['ignore'] + args.ignore.split(',')
 
