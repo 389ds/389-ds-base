@@ -472,6 +472,66 @@ def test_check_missing_tombstones(topo_tls_ldapi):
         topo_tls_ldapi.resume_all_replicas()
 
 
+def test_check_shadow_account_password_policy_attrs(topo_tls_ldapi):
+    """Check that differing password policy derived shadowAccount attributes
+    (shadowMin, shadowMax, shadowWarning, etc) are not reported as
+    missing/inconsistent attributes, even when the two suppliers have
+    different password policy configurations.
+
+    :id: fc0f588a-973c-40f3-a843-9ab7bf9b1ca8
+    :customerscenario: True
+    :setup: Two supplier replication
+    :steps:
+        1. Configure password policy min and max age on supplier1 only
+        2. Add a user with the "shadowAccount" objectclass
+        3. Wait for the entry to replicate to supplier2
+        4. Generate the report
+        5. Check that shadowMin, shadowMax, and shadowWarning are not
+           reported as missing or inconsistent attributes
+    :expectedresults:
+        1. It should be successful
+        2. It should be successful
+        3. It should be successful
+        4. It should be successful
+        5. shadowMin, shadowMax, and shadowWarning should not be mentioned
+           as missing or inconsistent in the report
+    """
+
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    try:
+        # Configure password expiration policy (min/max age) on supplier1
+        # only.  Supplier2 is left with the default policy (password
+        # expiration disabled, min age 0).  This causes the server to
+        # compute different (or absent) shadowMin/shadowMax/shadowWarning
+        # values on search results between the two suppliers, since these
+        # are derived from the local password policy and are not actually
+        # stored attributes.
+        m1.config.replace('passwordexp', 'on')
+        m1.config.replace('passwordminage', '3600')
+
+        # Add a user that has the shadowAccount objectclass
+        users_m1 = UserAccounts(m1, DEFAULT_SUFFIX)
+        user_m1 = users_m1.create(properties=TEST_USER_PROPERTIES)
+        user_m1.add('objectclass', 'shadowAccount')
+
+        repl.wait_for_replication(m1, m2)
+
+        for tool_cmd in replcheck_cmd_list(topo_tls_ldapi):
+            result = subprocess.check_output(tool_cmd, encoding='utf-8').lower()
+            assert 'shadowmin' not in result
+            assert 'shadowmax' not in result
+            assert 'shadowwarning' not in result
+    finally:
+        user_m1.delete()
+        m1.config.replace('passwordexp', 'off')
+        m1.config.replace('passwordminage', '0')
+        repl.wait_for_replication(m1, m2)
+
+
 def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
     """Check ds-replcheck works if password file is provided
     with -y option.
