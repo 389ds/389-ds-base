@@ -2518,6 +2518,10 @@ handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int nu
 {
     time_t curtime = slapi_current_rel_time_t();
 
+    /* With connection-level debugging on, dump the whole table's activity once
+     * per wakeup. The poll loop does the same; keeping it here keeps
+     * LDAP_DEBUG_CONNS output identical on both event paths. Guarded by the
+     * debug flag, so nothing on the normal path. */
 #if LDAP_ERROR_LOGGING
     if (slapd_ldap_debug & LDAP_DEBUG_CONNS) {
         connection_table_dump_activity_to_errors_log(ct);
