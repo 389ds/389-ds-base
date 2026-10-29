@@ -274,18 +274,41 @@ entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, 
     bvp[0] = &bv;
     bvp[1] = NULL;
     for (size_t rdns_count = 0; rdns[rdns_count]; rdns_count++) {
-        Slapi_Value *value;
+        Slapi_Value *value = NULL;
+        char *normtype = NULL;
+        const char *attrtype;
+
         attr = NULL;
         slapi_rdn2typeval(rdns[rdns_count], &type, &bv);
+        attrtype = type;
+
+        /*
+         * The entry holds its attributes under their canonical name while the
+         * RDN may spell the type with one of its schema aliases (i.e.
+         * "commonName" rather than "cn").  The RDN type is already the
+         * canonical name in most cases, so try a direct lookup first and only
+         * pay for resolving the alias if it fails.
+         */
+        if (slapi_entry_attr_find(entry, attrtype, &attr) != 0) {
+            attr = NULL;
+            normtype = slapi_attr_syntax_normalize(type);
+            if (normtype != NULL && strcasecmp(normtype, type) != 0) {
+                attrtype = normtype;
+                if (slapi_entry_attr_find(entry, attrtype, &attr) != 0) {
+                    attr = NULL;
+                }
+            } else {
+                slapi_ch_free_string(&normtype);
+            }
+        }
 
         /* Check if the RDN value exists */
-        if ((slapi_entry_attr_find(entry, type, &attr) != 0) ||
-            (slapi_attr_value_find(attr, &bv))) {
+        if ((attr == NULL) || (slapi_attr_value_find(attr, &bv))) {
             const CSN *csn_rdn_add;
-            const CSN *adcsn = attr_get_deletion_csn(attr);
+            const CSN *adcsn = (attr == NULL) ? NULL : attr_get_deletion_csn(attr);
 
             /* It is missing => adds it */
-            if (slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE)) {
+            if (attr != NULL && slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE)) {
                 if (csn_compare(adcsn, csn) >= 0) {
                     /* this is a single valued attribute and the current value
                      * (that is different from RDN value) is more recent than
@@ -298,24 +321,35 @@ entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, 
                     bv.bv_len = strlen(bv.bv_val);
                     slapi_entry_add_string(entry, type, bv.bv_val);
                     slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, type, bvp);
+                    slapi_ch_free_string(&normtype);
                     continue;
                 }
             }
             /* if a RDN value needs to be forced, make sure it csn is ahead */
-            slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, type, bvp);
+            slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, attrtype, bvp);
             csn_rdn_add = csn_max(adcsn, csn);
 
             if (entry_apply_mods_wsi(entry, smods, csn_rdn_add, repl_op)) {
                 slapi_log_err(SLAPI_LOG_ERR, "entry_get_rdn_mods",
-                              "Fails to set \"%s\" in  \"%s\"\n", type, slapi_entry_get_dn_const(entry));
+                              "Fails to set \"%s\" in  \"%s\"\n", attrtype, slapi_entry_get_dn_const(entry));
+                slapi_ch_free_string(&normtype);
                 slapi_ldap_value_free(rdns);
                 slapi_mods_free(&smods);
                 return -1;
             }
+            if (attr == NULL) {
+                /* The attribute was just created by the mod applied above */
+                if (slapi_entry_attr_find(entry, attrtype, &attr) != 0) {
+                    attr = NULL;
+                }
+            }
             /* Make the RDN value a distinguished value */
-            attr_value_find_wsi(attr, &bv, &value);
-            value_update_csn(value, CSN_TYPE_VALUE_DISTINGUISHED, csn_rdn_add);
+            if (attr != NULL) {
+                attr_value_find_wsi(attr, &bv, &value);
+                value_update_csn(value, CSN_TYPE_VALUE_DISTINGUISHED, csn_rdn_add);
+            }
         }
+        slapi_ch_free_string(&normtype);
     }
     slapi_ldap_value_free(rdns);
     if (smods->num_mods == 0) {
