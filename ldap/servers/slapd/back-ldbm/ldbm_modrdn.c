@@ -1776,6 +1776,9 @@ moddn_unlock_and_return_entry(
  *
  * For example, suppose you rename cn=a to cn=a+sn=b.  The cn=a value
  * is removed from the entry and then readded.
+ *
+ * *normtype is set as described in entry_rdn_find_attr() and must be freed by
+ * the caller.
  */
 
 static int
@@ -1784,14 +1787,19 @@ moddn_rdn_add_needed(
     char *type,
     struct berval *bvp,
     int deleteoldrdn,
-    Slapi_Mods *smods_wsi)
+    Slapi_Mods *smods_wsi,
+    char **normtype)
 {
     Slapi_Attr *attr;
     LDAPMod *mod;
 
-    if (slapi_entry_attr_find(ec->ep_entry, type, &attr) != 0 ||
-        slapi_attr_value_find(attr, bvp) != 0) {
+    attr = entry_rdn_find_attr(ec->ep_entry, type, normtype);
+    if (attr == NULL || slapi_attr_value_find(attr, bvp) != 0) {
         return 1;
+    }
+    if (*normtype != NULL) {
+        /* The entry holds the attribute under its canonical name */
+        type = *normtype;
     }
 
     if (deleteoldrdn == 0)
@@ -1831,6 +1839,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     char **dns = NULL;
     int deleteoldrdn;
     char *type = NULL;
+    char *normtype = NULL;
     char *dn = NULL;
     char *newrdn = NULL;
     int i;
@@ -1859,6 +1868,16 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
                 for (i = 0; rdns[i] != NULL; i++) {
                     /* delete from entry attributes */
                     if (deleteoldrdn && slapi_rdn2typeval(rdns[i], &type, &bv) == 0) {
+                        /* The old RDN may spell the type with a schema alias
+                         * while the entry holds the attribute under its
+                         * canonical name: delete it under the name it is
+                         * stored with, otherwise the mod would not match any
+                         * attribute of the entry.
+                         */
+                        (void)entry_rdn_find_attr(ec->ep_entry, type, &normtype);
+                        if (normtype != NULL) {
+                            type = normtype;
+                        }
                         /* check if user is allowed to modify the specified attribute */
                         /*
                      * It would be better to do this check in the front end
@@ -1866,6 +1885,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
                      * don't have access to the target entry there.
                      */
                         if (!op_shared_is_allowed_attr(type, is_repl_op)) {
+                            slapi_ch_free_string(&normtype);
                             slapi_ldap_value_free(rdns);
                             slapi_ldap_value_free(dns);
                             slapi_ch_free_string(&dn);
@@ -1873,6 +1893,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
                         }
                         if (strcasecmp(type, SLAPI_ATTR_UNIQUEID) != 0)
                             slapi_mods_add_modbvps(smods_wsi, LDAP_MOD_DELETE, type, bvps);
+                        slapi_ch_free_string(&normtype);
                     }
                 }
                 slapi_ldap_value_free(rdns);
@@ -1906,9 +1927,11 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
              */
             if (moddn_rdn_add_needed(ec, type, &bv,
                                      deleteoldrdn,
-                                     smods_wsi) == 1) {
-                slapi_mods_add_modbvps(smods_wsi, LDAP_MOD_ADD, type, bvps);
+                                     smods_wsi, &normtype) == 1) {
+                slapi_mods_add_modbvps(smods_wsi, LDAP_MOD_ADD,
+                                       normtype ? normtype : type, bvps);
             }
+            slapi_ch_free_string(&normtype);
         }
         slapi_ldap_value_free(rdns);
     } else {
