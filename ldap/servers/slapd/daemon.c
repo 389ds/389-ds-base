@@ -116,8 +116,46 @@ typedef struct listener_info
 /* Connection sockets are one shot: an event disarms the socket until the
  * connection is made readable again, as poll leaves out connections that a
  * worker owns (c_gettingber).
+ *
+ * A/B/C test scaffold - all behind -D defines; with none defined the build is
+ * byte-for-byte the current one-shot + retry behavior (A):
+ *   EPOLL_CONN_LEVEL  (B) - level-triggered connection arm, no one-shot;
+ *                           EBUSY is skipped, the kernel re-reports.
+ *   EPOLL_REARM_ONLY  (C) - one-shot kept, but EBUSY is re-armed and dropped
+ *                           instead of queued for retry (Firstyear's 2495).
+ *   EPOLL_ABC_STATS       - shared counters read off the error log.
  */
+#ifdef EPOLL_CONN_LEVEL
+#define EPOLL_CONN_EVENTS (EPOLL_EVENTS)
+#else
 #define EPOLL_CONN_EVENTS (EPOLL_EVENTS | EPOLLONESHOT)
+#endif
+
+#ifdef EPOLL_ABC_STATS
+#include <stdatomic.h>
+static struct {
+    _Atomic uint64_t events;         /* epoll events dequeued from epoll_wait */
+    _Atomic uint64_t dispatched;     /* events that reached connection_activity */
+    _Atomic uint64_t ebusy;          /* trylock EBUSY seen by the listener */
+    _Atomic uint64_t rearm_on_ebusy; /* C: bare re-arm issued on EBUSY */
+    _Atomic uint64_t retry_queued;   /* A: events returned for the retry queue */
+} epoll_abc = {0};
+#define EPOLL_ABC_INC(f) atomic_fetch_add_explicit(&epoll_abc.f, 1, memory_order_relaxed)
+static void
+epoll_abc_report(void)
+{
+    slapi_log_err(SLAPI_LOG_NOTICE, "epoll_abc_report",
+                  "ABC events=%lu dispatched=%lu ebusy=%lu rearm_on_ebusy=%lu retry_queued=%lu "
+                  "(events/dispatched amplification = the B/C signal)\n",
+                  (unsigned long)atomic_load(&epoll_abc.events),
+                  (unsigned long)atomic_load(&epoll_abc.dispatched),
+                  (unsigned long)atomic_load(&epoll_abc.ebusy),
+                  (unsigned long)atomic_load(&epoll_abc.rearm_on_ebusy),
+                  (unsigned long)atomic_load(&epoll_abc.retry_queued));
+}
+#else
+#define EPOLL_ABC_INC(f) ((void)0)
+#endif
 /* Most events one epoll_wait() of a connection table list returns.  Every
  * event becomes a work queue item, so scale it on the worker threads this
  * list feeds: SLAPD_EPOLL_EVENTS_PER_THREAD per thread, at least
@@ -1847,6 +1885,11 @@ connection_epoll_rearm_prepare_nolock(Connection *c, int *epfd, int *fd)
         }
         return 0;
     }
+#ifdef EPOLL_CONN_LEVEL
+    /* B: a level-triggered arm never disarms, so there is no per-op re-arm MOD
+     * (as in main).  The state work above still runs; only the re-arm is cut. */
+    return 0;
+#endif
     *epfd = c->c_ct->epoll_fd[c->c_ct_list];
     *fd = c->c_sd;
     return 1;
@@ -2415,7 +2458,29 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, bool is
         return 0;
     }
     if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+        EPOLL_ABC_INC(ebusy);
+#if defined(EPOLL_CONN_LEVEL)
+        /* B: level-triggered, the kernel re-reports a still-readable fd, so the
+         * busy event needs no retry - just skip it (as the poll path does). */
+        return 0;
+#elif defined(EPOLL_REARM_ONLY)
+        /* C: one-shot kept, but instead of queuing the event we re-arm the fd
+         * and drop it (Firstyear's "re-arm and it re-triggers").  The listener
+         * holds no mutex here, so this is a bare MOD with no connid guard - the
+         * known hazard the retry queue exists to avoid. */
+        {
+            struct epoll_event ev = {0};
+            ev.events = EPOLL_CONN_EVENTS; /* still one-shot */
+            ev.data.ptr = c;
+            (void)epoll_ctl(c->c_ct->epoll_fd[c->c_ct_list], EPOLL_CTL_MOD, c->c_sd, &ev);
+            EPOLL_ABC_INC(rearm_on_ebusy);
+        }
+        return 0;
+#else
+        /* A: queue the one-shot event for retry (current behavior). */
+        EPOLL_ABC_INC(retry_queued);
         return 1;
+#endif
     }
     if (connid && c->c_connid != connid) {
         /* Released and reused while the event was waiting */
@@ -2458,6 +2523,7 @@ handle_epoll_conn_event(Connection *c, uint32_t events, uint64_t connid, bool is
             slapi_log_err(SLAPI_LOG_CONNS,
                           "handle_epoll_conn_event", "read activity on %d\n", c->c_ci);
             c->c_idlesince = curtime;
+            EPOLL_ABC_INC(dispatched);
             /* This is where the work happens ! */
             if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
                 /* This might happen as a result of
@@ -2537,6 +2603,11 @@ handle_epoll_read_ready(Connection_Table *ct, struct epoll_event *events, int nu
             continue;
         }
         Connection *c = (Connection *)events[i].data.ptr;
+#ifdef EPOLL_ABC_STATS
+        if ((atomic_fetch_add_explicit(&epoll_abc.events, 1, memory_order_relaxed) % 500000) == 0) {
+            epoll_abc_report();
+        }
+#endif
         slapi_log_err(SLAPI_LOG_DEBUG,
                       "handle_epoll_read_ready", "epoll event %d for connection on sd %d events (%d) %s\n",
                       i + 1, c->c_sd, events[i].events, epoll_event_flags_to_string(events[i].events));
