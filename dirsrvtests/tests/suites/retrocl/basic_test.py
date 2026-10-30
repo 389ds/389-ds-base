@@ -13,13 +13,13 @@ import ldap
 import pytest
 from test389.topologies import topology_st
 from lib389.plugins import RetroChangelogPlugin
-from lib389._constants import DEFAULT_SUFFIX, RETROCL_SUFFIX, DN_DM, PW_DM
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 from lib389.cli_base import FakeArgs, connect_instance, disconnect_instance
 from lib389.cli_base.dsrc import dsrc_arg_concat
 from lib389.cli_conf.plugins.retrochangelog import retrochangelog_add
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.domain import Domain
-from lib389._mapped_object import DSLdapObjects
+from lib389.retrochangelog import RetroChangelogEntries
 
 pytestmark = pytest.mark.tier1
 
@@ -97,7 +97,7 @@ def test_retrocl_exclude_attr_add(topology_st):
 
     log.info('Verify homePhone and carLicense attrs are in the changelog changestring')
     try:
-        retro_changelog_suffix = DSLdapObjects(st, basedn=RETROCL_SUFFIX)
+        retro_changelog_suffix = RetroChangelogEntries(st)
         cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
     except ldap.LDAPError as e:
         log.fatal("Changelog search failed, error: " + str(e))
@@ -231,7 +231,7 @@ def test_retrocl_exclude_attr_mod(topology_st):
 
     log.info('Verify homePhone and carLicense attrs are in the changelog changestring')
     try:
-        retro_changelog_suffix = DSLdapObjects(st, basedn=RETROCL_SUFFIX)
+        retro_changelog_suffix = RetroChangelogEntries(st)
         cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
     except ldap.LDAPError as e:
         log.fatal("Changelog search failed, error: " + str(e))
@@ -381,7 +381,7 @@ def test_retrocl_trimming_interval(topology_st, request):
     # retrieve the index of the update in retroCL as
     # starting point for the extra updates
     try:
-        retro_changelog_suffix = DSLdapObjects(inst, basedn=RETROCL_SUFFIX)
+        retro_changelog_suffix = RetroChangelogEntries(inst)
         cl_index = int(str(retro_changelog_suffix.filter(f'(targetDn={DEFAULT_SUFFIX})')[0].get_attr_vals_utf8('changeNumber')[0]))
     except ldap.LDAPError as e:
         log.fatal("Changelog search failed, error: " + str(e))
@@ -454,7 +454,7 @@ def test_retrocl_trimming_entries(topology_st):
     inst.restart()
 
     log.info('Count existing changelog entries before test')
-    retro_changelog = DSLdapObjects(inst, basedn=RETROCL_SUFFIX)
+    retro_changelog = RetroChangelogEntries(inst)
     initial_entries = retro_changelog.filter('(changenumber=*)')
     initial_count = len(initial_entries)
     log.info(f'Found {initial_count} existing changelog entries')
