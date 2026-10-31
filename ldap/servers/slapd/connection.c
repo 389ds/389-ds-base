@@ -2243,9 +2243,9 @@ connection_threadmain(void *arg)
         }
 
         /* if this is a bulk import, only "add" and "import done"
-         * are allowed */
+         * are allowed, and "unbind" so the connection is closed */
         if (conn->c_flags & CONN_FLAG_IMPORT) {
-            if ((tag != LDAP_REQ_ADD) && (tag != LDAP_REQ_EXTENDED)) {
+            if ((tag != LDAP_REQ_ADD) && (tag != LDAP_REQ_EXTENDED) && (tag != LDAP_REQ_UNBIND)) {
                 /* no cookie for you. */
                 slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "Attempted operation %lu "
                                                                       "from within bulk import\n",
