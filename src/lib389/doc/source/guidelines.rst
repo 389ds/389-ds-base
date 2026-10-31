@@ -21,10 +21,11 @@ Basic workflow
        git remote add myfork git@github.com:USERNAME/389-ds-base.git
 
 2. Go to the cloned directory
-3. Create a new branch for your work:
+3. Create a new branch for your work. Use a short issue description, such
+   as ``expand-replication-tests``. Do not add ``codex/`` or similar prefixes:
    ::
 
-       git checkout -b new_test_suite
+       git checkout -b expand-replication-tests
 
 4. Check out PEP8 cheat sheet:
     + https://gist.github.com/RichardBronosky/454964087739a449da04
@@ -121,21 +122,27 @@ Basic workflow
     + Use the imperative mood in the subject line
     + Wrap the body at 72 characters
     + Use the body to explain *what* and *why* vs. *how*
-    + In the end, put a link to the ticket
-    + Add "Reviewed by: ?" line. Example:
+    + End the body with a blank line followed by Git trailers, one per line.
+      Use ``Fixes: <full issue URL>`` when the commit fully resolves the issue;
+      GitHub closes it when the commit reaches the default branch. Use
+      ``Relates: <full issue URL>`` for related or partial work that leaves the
+      issue open. Choose by outcome, including for test-only commits.
+    + Always use full issue URLs so references remain useful in ``git log``
+      outside GitHub.
+    + Reviewers or maintainers record completed human reviews at merge time
+      with ``Reviewed-by: Name <email>``, using the reviewer's actual name and
+      email. Do not invent review credit or add placeholders. Example:
 
       ::
 
-        Issue 48085 - Expand the repl acceptance test suite
+        Issue 1416 - Expand the repl acceptance test suite
 
         Description: Add 6 more test cases to the replication
         test suite as a part of the TET to
         pytest porting initiative.
         Increase the number of seconds we wait before the results check.
 
-        https://github.com/389ds/389-ds-base/issues/1416
-
-        Reviewed by: ?
+        Relates: https://github.com/389ds/389-ds-base/issues/1416
 
 10. Test your script:
 
@@ -156,7 +163,7 @@ Basic workflow
 
         git checkout master
         git pull
-        git checkout new_test_suite
+        git checkout expand-replication-tests
         git rebase master
 
 
@@ -180,7 +187,7 @@ Basic workflow
       ::
 
         # If you're not already in that branch
-        git checkout new_test_suite
+        git checkout expand-replication-tests
         # Make changes to some file
         # Add changes to your commit and fix the commit message if necessary
         git commit -a --amend
