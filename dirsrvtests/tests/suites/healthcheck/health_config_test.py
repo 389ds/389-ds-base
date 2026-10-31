@@ -859,6 +859,48 @@ def test_healthcheck_auditlog_buffering(topology_st):
     inst.config.set('nsslapd-auditlog-logging-enabled', enabled)
 
 
+def test_healthcheck_localuser_invalid(topology_st):
+    """Check if HealthCheck returns DSCLE0007 code when nsslapd-localuser
+    points to a non-existent system user
+
+    :id: 420c64ef-ebfb-47ae-bed7-3b2a845870b3
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-localuser to a non-existent system user
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+        5. Reset nsslapd-localuser to its original value
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSCLE0007
+        4. Healthcheck reports DSCLE0007
+        5. Success
+    """
+
+    RET_CODE = 'DSCLE0007'
+
+    inst = topology_st.standalone
+    inst.config.set("nsslapd-accesslog-logbuffering", "on")
+
+    # Save the valid value so we can restore it. A bad nsslapd-localuser
+    # stops the server from starting, so this test keeps the server online:
+    # config_set_localuser accepts the value into cn=config and it is not
+    # used to drop privileges until a restart.
+    original = inst.config.get_attr_val_utf8('nsslapd-localuser')
+
+    log.info('Set nsslapd-localuser to a non-existent system user')
+    inst.config.set('nsslapd-localuser', 'ds_no_such_user_2314')
+
+    try:
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+    finally:
+        log.info('Reset nsslapd-localuser to its original value')
+        inst.config.set('nsslapd-localuser', original)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
