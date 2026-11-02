@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
@@ -6,7 +7,6 @@ import {
 	Button,
 	Checkbox,
 	ExpandableSection,
-	Form,
 	Grid,
 	GridItem,
 	Modal,
@@ -1788,7 +1788,9 @@ export class ChainControlsModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form
+                    {...modalFormEnterSubmit("ds-chaincontrolsmodal-form", saveHandler, spinning)}
+                    isHorizontal>
                     <TextContent title={_("A list of LDAP control OIDs to be forwarded through chaining")}>
                         <Text component={TextVariants.h3}>
                             {_("Available LDAP Controls")}
@@ -1848,7 +1850,9 @@ export class ChainCompsModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form
+                    {...modalFormEnterSubmit("ds-chaincompsmodal-form", saveHandler, spinning)}
+                    isHorizontal>
                     <TextContent title={_("A list of LDAP control components")}>
                         <Text component={TextVariants.h3}>
                             {_("Available Components")}

@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
     Checkbox,
-    Form,
     FormHelperText,
     FormSelect,
     FormSelectOption,
@@ -23,6 +23,11 @@ import { valid_dn } from "../tools.jsx";
 
 
 const _ = cockpit.gettext;
+
+const CREATE_LINK_MODAL_FORM_ID = "ds-create-link-modal-form";
+const CREATE_SUB_SUFFIX_MODAL_FORM_ID = "ds-create-sub-suffix-modal-form";
+const DATABASE_EXPORT_MODAL_FORM_ID = "ds-database-export-modal-form";
+const SHADOW_FIXUP_MODAL_FORM_ID = "ds-shadow-fixup-modal-form";
 
 class CreateLinkModal extends React.Component {
     render() {
@@ -46,6 +51,8 @@ class CreateLinkModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
+        const submitDisabled = this.props.saveBtnDisabled || saving;
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -56,11 +63,11 @@ class CreateLinkModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? _("Creating Link") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled || saving}
+                        isDisabled={submitDisabled}
+                        {...modalPrimaryEnterSubmit(CREATE_LINK_MODAL_FORM_ID, submitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -69,7 +76,11 @@ class CreateLinkModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit(CREATE_LINK_MODAL_FORM_ID, saveHandler, submitDisabled)}
+                    isHorizontal
+                    autoComplete="off"
+                >
                     <Grid className="ds-margin-top" title={_("The RDN of the link suffix.")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Link Sub-Suffix")}
@@ -264,6 +275,8 @@ class CreateSubSuffixModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
+        const submitDisabled = this.props.saveBtnDisabled || saving;
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -274,11 +287,11 @@ class CreateSubSuffixModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? _("Creating Suffix") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled || saving}
+                        isDisabled={submitDisabled}
+                        {...modalPrimaryEnterSubmit(CREATE_SUB_SUFFIX_MODAL_FORM_ID, submitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -287,7 +300,11 @@ class CreateSubSuffixModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit(CREATE_SUB_SUFFIX_MODAL_FORM_ID, saveHandler, submitDisabled)}
+                    isHorizontal
+                    autoComplete="off"
+                >
                     <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distinguished Name (DN)")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Sub-Suffix DN")}
@@ -376,24 +393,34 @@ class ExportModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Exporting");
         }
 
+        const exportSubmitDisabled = this.props.saveBtnDisabled || spinning;
+        const formSubmitHandler = exportCompleted ? closeHandler : saveHandler;
+        const formSubmitDisabled = exportCompleted ? false : exportSubmitDisabled;
+
         const actions = [];
         if (!exportCompleted) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={saveHandler}
-                    isDisabled={this.props.saveBtnDisabled || spinning}
+                    isDisabled={exportSubmitDisabled}
                     isLoading={spinning}
                     spinnerAriaValueText={spinning ? _("Exporting ...") : undefined}
                     {...extraPrimaryProps}
+                    {...modalPrimaryEnterSubmit(DATABASE_EXPORT_MODAL_FORM_ID, exportSubmitDisabled)}
                 >
                     {saveBtnName}
                 </Button>
             );
         }
         actions.push(
-            <Button key="close" variant="link" onClick={closeHandler}>
+            <Button
+                key="close"
+                variant="link"
+                {...(exportCompleted
+                    ? modalPrimaryEnterSubmit(DATABASE_EXPORT_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {_("Close")}
             </Button>
         );
@@ -406,7 +433,15 @@ class ExportModal extends React.Component {
                 onClose={closeHandler}
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit(
+                        DATABASE_EXPORT_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        formSubmitDisabled
+                    )}
+                    isHorizontal
+                    autoComplete="off"
+                >
                     <Grid title={_("Name of exported LDIF file.")}>
                         <GridItem className="ds-label" span={3}>
                             {_("LDIF File Name")}
@@ -540,24 +575,35 @@ class ShadowFixupModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Fixing");
         }
 
+        const fixupSubmitDisabled =
+            suffix === "" || !valid_dn(suffix) || spinning || fixupCompleted;
+        const formSubmitHandler = fixupCompleted ? closeHandler : saveHandler;
+        const formSubmitDisabled = fixupCompleted ? false : fixupSubmitDisabled;
+
         const actions = [];
         if (!fixupCompleted) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={saveHandler}
                     isLoading={spinning}
                     spinnerAriaValueText={spinning ? _("Fixing ...") : undefined}
-                    isDisabled={suffix === ""  || !valid_dn(suffix) || spinning || fixupCompleted}
+                    isDisabled={fixupSubmitDisabled}
                     {...extraPrimaryProps}
+                    {...modalPrimaryEnterSubmit(SHADOW_FIXUP_MODAL_FORM_ID, fixupSubmitDisabled)}
                 >
                     {saveBtnName}
                 </Button>
             );
         }
         actions.push(
-            <Button key="close" variant="link" onClick={closeHandler}>
+            <Button
+                key="close"
+                variant="link"
+                {...(fixupCompleted
+                    ? modalPrimaryEnterSubmit(SHADOW_FIXUP_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {_("Close")}
             </Button>
         );
@@ -575,7 +621,15 @@ class ShadowFixupModal extends React.Component {
                 onClose={closeHandler}
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        SHADOW_FIXUP_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        formSubmitDisabled
+                    )}
+                >
                     <Grid className="ds-margin-top-lg" title={_("Suffix to run the fix-up task on.")}>
                         <GridItem className="ds-label" span={1}>
                             {_("Suffix")}

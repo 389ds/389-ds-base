@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../../dsForm.jsx";
 import React from 'react';
 import {
     Alert,
@@ -46,6 +47,10 @@ import { file_is_path } from "../../tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+const DN_RENAME_INFO_MODAL_FORM_ID = "ds-dn-rename-info-modal-form";
+const SET_PASSWORD_MODAL_FORM_ID = "ds-set-password-modal-form";
+const FILE_URI_MODAL_FORM_ID = "ds-file-uri-modal-form";
 
 const buttonGroupStyles = {
     display: 'flex',
@@ -884,14 +889,28 @@ class EditableTable extends React.Component {
                         isOpen={this.state.isDnModalOpen}
                         onClose={this.handleDnModalToggle}
                         actions={[
-                            <Button key="close" variant="primary" onClick={this.handleDnModalToggle}>
+                            <Button
+                                key="close"
+                                variant="primary"
+                                {...modalPrimaryEnterSubmit(DN_RENAME_INFO_MODAL_FORM_ID, false)}
+                            >
                                 {_("Close")}
                             </Button>
                         ]}
                     >
+                        <Form
+                            isHorizontal
+                            autoComplete="off"
+                            {...modalFormEnterSubmit(
+                                DN_RENAME_INFO_MODAL_FORM_ID,
+                                this.handleDnModalToggle,
+                                false
+                            )}
+                        >
                         {_("You cannot modify the RDN ( Relative Distinguished Name ) in the edit mode.")}
                         <br />
                         {_("If you want to modify the RDN, please use the Rename action option")}
+                        </Form>
                     </Modal>}
 
                 {isPasswordField &&
@@ -903,19 +922,31 @@ class EditableTable extends React.Component {
                         onClose={this.handlePasswordToggle}
                         actions={[
                             <Button
-                                key="confirm" variant="primary" name="confirm"
-                                onClick={this.handlePwdSave}
+                                key="confirm"
+                                variant="primary"
+                                name="confirm"
+                                {...modalPrimaryEnterSubmit(SET_PASSWORD_MODAL_FORM_ID, false)}
                             >
                                 {_("Confirm")}
                             </Button>,
                             <Button
-                                key="cancel" variant="link"
+                                key="cancel"
+                                variant="link"
                                 onClick={this.handlePasswordToggle}
                             >
                                 {_("Cancel")}
                             </Button>
                         ]}
                     >
+                        <Form
+                            isHorizontal
+                            autoComplete="off"
+                            {...modalFormEnterSubmit(
+                                SET_PASSWORD_MODAL_FORM_ID,
+                                this.handlePwdSave,
+                                false
+                            )}
+                        >
                         <InputGroup>
                             <InputGroupItem isFill ><TextInput
                                 name={_("passwordField")}
@@ -931,6 +962,7 @@ class EditableTable extends React.Component {
                                 icon={showPassword ? <EyeSlashIcon /> : <EyeIcon />}
                             /></InputGroupItem>
                         </InputGroup>
+                        </Form>
                     </Modal>}
 
                 { showFileUri &&
@@ -944,7 +976,10 @@ class EditableTable extends React.Component {
                                 key="confirm"
                                 variant="primary"
                                 isDisabled={encodedValueIsEmpty && strPathValueIsEmpty}
-                                onClick={this.handleToggleUri}
+                                {...modalPrimaryEnterSubmit(
+                                    FILE_URI_MODAL_FORM_ID,
+                                    encodedValueIsEmpty && strPathValueIsEmpty
+                                )}
                             >
                                 {_("Confirm")}
                             </Button>,
@@ -953,6 +988,15 @@ class EditableTable extends React.Component {
                             </Button>
                         ]}
                     >
+                        <Form
+                            isHorizontal
+                            autoComplete="off"
+                            {...modalFormEnterSubmit(
+                                FILE_URI_MODAL_FORM_ID,
+                                this.handleToggleUri,
+                                encodedValueIsEmpty && strPathValueIsEmpty
+                            )}
+                        >
                         <Radio
                             value="Upload"
                             className="ds-margin-top"
@@ -1008,6 +1052,7 @@ class EditableTable extends React.Component {
                                 type="text"
                                 aria-label="File input for a binary attribute."
                             />}
+                        </Form>
                     </Modal>}
                 <Table aria-label="Editable Rows Table" variant="compact">
                     <Thead>

@@ -1,9 +1,9 @@
 import React from "react";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import cockpit from "cockpit";
 import {
 	Button,
 	Checkbox,
-	Form,
 	FormHelperText,
 	FormSelect,
 	FormSelectOption,
@@ -342,8 +342,8 @@ export class WinsyncAgmtModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
+                        {...modalPrimaryEnterSubmit("ds-winsyncagmtmodal-form", saveDisabled || spinning)}
                         isDisabled={saveDisabled || spinning}
-                        onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
@@ -356,7 +356,7 @@ export class WinsyncAgmtModal extends React.Component {
                 ]}
             >
                 <div className={spinning ? "ds-disabled" : ""}>
-                    <Form isHorizontal autoComplete="off">
+                    <Form isHorizontal autoComplete="off" {...modalFormEnterSubmit("ds-winsyncagmtmodal-form", saveHandler, saveDisabled || spinning)} >
                         <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>{_("Main Settings")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top">
@@ -1107,8 +1107,8 @@ export class ReplAgmtModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
+                        {...modalPrimaryEnterSubmit("ds-replagmtmodal-form", saveDisabled || spinning)}
                         isDisabled={saveDisabled || spinning}
-                        onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
@@ -1121,7 +1121,7 @@ export class ReplAgmtModal extends React.Component {
                 ]}
             >
                 <div className={spinning ? "ds-disabled" : ""}>
-                    <Form isHorizontal autoComplete="off">
+                    <Form isHorizontal autoComplete="off" {...modalFormEnterSubmit("ds-replagmtmodal-form", saveHandler, saveDisabled || spinning)} >
                         <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>{_("Main Settings")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top">
@@ -1480,6 +1480,10 @@ export class ChangeReplRoleModal extends React.Component {
             saveDisabled = true;
         }
 
+        const roleSubmitHandler = () => {
+            saveHandler(changeType);
+        };
+
         return (
             <Modal
                 variant={ModalVariant.small}
@@ -1491,9 +1495,7 @@ export class ChangeReplRoleModal extends React.Component {
                     <Button
                         key="change"
                         variant="primary"
-                        onClick={() => {
-                            saveHandler(changeType);
-                        }}
+                        {...modalPrimaryEnterSubmit("ds-changereplrolemodal-form", saveDisabled)}
                         isDisabled={saveDisabled}
                     >
                         {_("Change Role")}
@@ -1503,7 +1505,11 @@ export class ChangeReplRoleModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit("ds-changereplrolemodal-form", roleSubmitHandler, saveDisabled)}
+                >
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Please choose the new replication role you would like for this suffix")}
@@ -1579,7 +1585,7 @@ export class AddEditManagerModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
+                        {...modalPrimaryEnterSubmit("ds-addeditmanagermodal-form", error.manager || error.manager_passwd || error.manager_passwd_confirm || spinning)}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
@@ -1592,7 +1598,7 @@ export class AddEditManagerModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off" {...modalFormEnterSubmit("ds-addeditmanagermodal-form", saveHandler, error.manager || error.manager_passwd || error.manager_passwd_confirm || spinning)} >
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {this.props.edit ?
@@ -1724,7 +1730,7 @@ export class EnableReplModal extends React.Component {
                     <Button
                         key="enable"
                         variant="primary"
-                        onClick={saveHandler}
+                        {...modalPrimaryEnterSubmit("ds-enablereplmodal-form", this.props.disabled || spinning)}
                         isDisabled={this.props.disabled || spinning}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
@@ -1737,7 +1743,7 @@ export class EnableReplModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off" {...modalFormEnterSubmit("ds-enablereplmodal-form", saveHandler, this.props.disabled || spinning)} >
                     <TextContent>
                         <Text component={TextVariants.h6}>
                             {_("Choose the replication role for this suffix.  If it is a Supplier replica then you must pick a unique ID to identify it among the other Supplier replicas in your environment.  The replication changelog will also automatically be created for you.")}
@@ -1954,7 +1960,7 @@ export class ExportCLModal extends React.Component {
                     <Button
                         key="export"
                         variant="primary"
-                        onClick={saveHandler}
+                        {...modalPrimaryEnterSubmit("ds-exportclmodal-form", !saveOK || spinning)}
                         isDisabled={!saveOK || spinning}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
@@ -1967,7 +1973,7 @@ export class ExportCLModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off" {...modalFormEnterSubmit("ds-exportclmodal-form", saveHandler, !saveOK || spinning)} >
                     <Grid className="ds-indent ds-margin-top">
                         <Radio
                             isChecked={defaultCL}

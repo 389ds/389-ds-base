@@ -1,10 +1,10 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReferralTable } from "./databaseTables.jsx";
 import {
     Button,
-    Form,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -355,7 +355,8 @@ class AddReferralModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form className="ds-margin-top" isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit("ds-addreferralmodal-form", saveHandler, saveBtnDisabled || saving)} className="ds-margin-top" isHorizontal autoComplete="off">
                     <Grid>
                         <GridItem className="ds-label" span={3}>
                             {_("Protocol")}
