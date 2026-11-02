@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form } from "../../dsForm.jsx";
 import React from "react";
 import PropTypes from "prop-types";
 import {
     Button,
-    Form,
     Grid,
     GridItem,
     Text,
