@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
-    Form,
     Grid,
     GridItem,
     Modal,
@@ -957,7 +957,9 @@ function EncryptionModuleModal({
                 </Button>,
             ]}
         >
-            <Form isHorizontal autoComplete="off">
+            <Form
+                    {...modalFormEnterSubmit("ds-crltable-form", onSave, saving || saveDisabled)}
+                    isHorizontal autoComplete="off">
                 <Grid className="ds-margin-top">
                     <GridItem className="ds-label" span={4}>{_("Module Name")}</GridItem>
                     <GridItem span={8}>

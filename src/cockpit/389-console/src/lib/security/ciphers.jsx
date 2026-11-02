@@ -1,8 +1,8 @@
 import React from "react";
+import { DsForm as Form } from "../../dsForm.jsx";
 import cockpit from "cockpit";
 import {
 	Button,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	FormHelperText,

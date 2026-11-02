@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
-	Form,
 	FormGroup,
 	FormSelect,
 	FormSelectOption,
@@ -1024,7 +1024,8 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-managedentries-form", newDefEntry ? this.addDefConfig : this.editDefConfig, false)} className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                         <FormGroup
                             label={_("Definition Name")}
                             fieldId="configName"
@@ -1295,6 +1296,7 @@ class ManagedEntries extends React.Component {
                         <Button
                             key="saveshared"
                             variant="primary"
+                        {...modalPrimaryEnterSubmit("ds-managedentries-form", !this.state.staticAttr.length || this.state.staticValue === "")}
                             onClick={this.handleAddStaticAttrToList}
                             isDisabled={!this.state.staticAttr.length || this.state.staticValue === ""}
                         >
@@ -1305,7 +1307,7 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top" autoComplete="off">
+                    <Form className="ds-margin-top" autoComplete="off" {...modalFormEnterSubmit("ds-managedentries-form", this.handleAddStaticAttrToList, !this.state.staticAttr.length || this.state.staticValue === "")} >
                         <FormGroup
                             label={_("Static Attribute")}
                             fieldId="staticAttr"
@@ -1352,6 +1354,7 @@ class ManagedEntries extends React.Component {
                         <Button
                             key="savemapped"
                             variant="primary"
+                        {...modalPrimaryEnterSubmit("ds-managedentries-form", !this.state.mappedAttr.length || this.state.mappedValue === "")}
                             onClick={this.handleAddMappedAttrToList}
                             isDisabled={!this.state.mappedAttr.length || this.state.mappedValue === ""}
                         >
@@ -1362,7 +1365,7 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top" autoComplete="off">
+                    <Form className="ds-margin-top" autoComplete="off" {...modalFormEnterSubmit("ds-managedentries-form", this.handleAddMappedAttrToList, !this.state.mappedAttr.length || this.state.mappedValue === "")} >
                         <FormGroup
                             label={_("Mapped Attribute")}
                             fieldId="mappedAttr"

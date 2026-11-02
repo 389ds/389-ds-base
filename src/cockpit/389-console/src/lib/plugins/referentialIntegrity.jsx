@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
-	Form,
 	FormHelperText,
 	Grid,
 	GridItem,
@@ -19,6 +19,8 @@ import { listsEqual, log_cmd, valid_dn, file_is_path, getApiErrorMessage } from 
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
+
+const REFINT_CONFIG_MODAL_FORM_ID = "ds-refint-config-modal-form";
 
 class ReferentialIntegrity extends React.Component {
     componentDidMount(prevProps) {
@@ -798,15 +800,16 @@ class ReferentialIntegrity extends React.Component {
                 </Button>
             ];
         } else {
+            const addSubmitDisabled = saveBtnDisabledModal || addSpinning;
             modalButtons = [
                 <Button
                     key="add"
                     variant="primary"
-                    onClick={this.handleAddConfig}
-                    isDisabled={saveBtnDisabledModal || addSpinning}
+                    isDisabled={addSubmitDisabled}
                     isLoading={addSpinning}
                     spinnerAriaValueText={addSpinning ? _("Saving") : undefined}
                     {...extraPrimaryProps}
+                    {...modalPrimaryEnterSubmit(REFINT_CONFIG_MODAL_FORM_ID, addSubmitDisabled)}
                 >
                     {addBtnText}
                 </Button>,
@@ -826,7 +829,17 @@ class ReferentialIntegrity extends React.Component {
                     onClose={this.handleCloseModal}
                     actions={modalButtons}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...(newEntry
+                            ? modalFormEnterSubmit(
+                                REFINT_CONFIG_MODAL_FORM_ID,
+                                this.handleAddConfig,
+                                saveBtnDisabledModal || addSpinning
+                            )
+                            : {})}
+                    >
                         <Grid className="ds-margin-top" title={_("The config entry full DN")}>
                             <GridItem span={3} className="ds-label">
                                 {_("Config DN")}

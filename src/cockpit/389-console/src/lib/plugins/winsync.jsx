@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
     Checkbox,
-    Form,
     FormHelperText,
     Grid,
     GridItem,
@@ -327,7 +327,9 @@ class WinSync extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-winsync-form", this.handleRunFixup, saveBtnDisabledModal || savingModal)}
+                    isHorizontal autoComplete="off">
                         <Grid title={_("Base DN that contains entries to fix up")}>
                             <GridItem className="ds-label" span={3}>
                                 {_("Base DN")}

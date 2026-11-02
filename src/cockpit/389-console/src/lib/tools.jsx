@@ -335,11 +335,16 @@ export function valid_dn(dn) {
     if (dn.includes("\\+")) {
         dn = dn.replace("\\+","ZZ");
     }
+    // One LDAP "name component" may join several attribute=value AVAs with '+' (multi-valued RDN).
     const dn_regex = /^([A-Za-z])+=([A-Za-z0-9 _\-$^*!~.])+$/;
     const parts = dn.split(",");
     for (const part of parts) {
-        if (!dn_regex.test(part)) {
-            return false;
+        const avas = part.split("+");
+        for (const ava of avas) {
+            const trimmed = ava.trim();
+            if (trimmed === "" || !dn_regex.test(trimmed)) {
+                return false;
+            }
         }
     }
     return true;

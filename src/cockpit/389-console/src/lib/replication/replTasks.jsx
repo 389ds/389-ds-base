@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form } from "../../dsForm.jsx";
 import React from "react";
 import { log_cmd, bad_file_name, getApiErrorMessage } from "../tools.jsx";
 import { RUVTable } from "./replTables.jsx";
@@ -7,7 +8,6 @@ import { DoubleConfirmModal } from "../notifications.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
-    Form,
     Grid,
     GridItem,
     Text,

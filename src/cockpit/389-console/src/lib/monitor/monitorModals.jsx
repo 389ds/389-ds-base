@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
@@ -10,7 +11,6 @@ import {
     EmptyStateBody,
     Grid,
     GridItem,
-    Form,
     Label,
     Modal,
     ModalVariant,
@@ -73,6 +73,17 @@ import { getResizeObserver } from "@patternfly/react-core";
 
 const _ = cockpit.gettext;
 
+const TASK_LOG_MODAL_FORM_ID = "ds-task-log-modal-form";
+const AGMT_DETAILS_MODAL_FORM_ID = "ds-agmt-details-modal-form";
+const CONFLICT_COMPARE_MODAL_FORM_ID = "ds-conflict-compare-modal-form";
+const REPORT_CREDENTIALS_MODAL_FORM_ID = "ds-report-credentials-modal-form";
+const REPORT_CONNECTION_MODAL_FORM_ID = "ds-report-connection-modal-form";
+const REPORT_ALIASES_MODAL_FORM_ID = "ds-report-aliases-modal-form";
+const REPORT_LOGIN_MODAL_FORM_ID = "ds-report-login-modal-form";
+const CSN_DETAIL_MODAL_FORM_ID = "ds-csn-detail-modal-form";
+const LAG_REPORT_MODAL_FORM_ID = "ds-lag-report-modal-form";
+const CHOOSE_LAG_REPORT_MODAL_FORM_ID = "ds-choose-lag-report-modal-form";
+
 // Cockpit's default file read limit is 16 MiB. Replication reports can easily exceed that,
 // especially when running in "full precision" mode. Allow substantially larger payloads.
 const MAX_REPORT_JSON_SIZE = 64 * 1024 * 1024; // 64 MiB
@@ -107,12 +118,20 @@ class TaskLogModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                    <Button
+                        key="cancel"
+                        variant="link"
+                        {...modalPrimaryEnterSubmit(TASK_LOG_MODAL_FORM_ID, false)}
+                    >
                         {_("Close")}
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(TASK_LOG_MODAL_FORM_ID, closeHandler, false)}
+                >
                     <TextArea
                         resizeOrientation="vertical"
                         className="ds-logarea"
@@ -146,7 +165,11 @@ class AgmtDetailsModal extends React.Component {
         }
 
         const btnList = [
-            <Button key="cancel" variant="link" onClick={closeHandler}>
+            <Button
+                key="cancel"
+                variant="link"
+                {...modalPrimaryEnterSubmit(AGMT_DETAILS_MODAL_FORM_ID, false)}
+            >
                 {_("Cancel")}
             </Button>
         ];
@@ -161,7 +184,10 @@ class AgmtDetailsModal extends React.Component {
                 onClose={closeHandler}
                 actions={btnList}
             >
-                <Form isHorizontal>
+                <Form
+                    isHorizontal
+                    {...modalFormEnterSubmit(AGMT_DETAILS_MODAL_FORM_ID, closeHandler, false)}
+                >
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
                             <b>{_("Replica")}</b>
@@ -307,6 +333,10 @@ class ConflictCompareModal extends React.Component {
             }
         }
 
+        const conflictSubmitHandler = () => {
+            saveHandler(conflictEntry.dn);
+        };
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -314,7 +344,11 @@ class ConflictCompareModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={() => saveHandler(conflictEntry.dn)}>
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        {...modalPrimaryEnterSubmit(CONFLICT_COMPARE_MODAL_FORM_ID, false)}
+                    >
                         {_("Resolve Conflict")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
@@ -322,7 +356,11 @@ class ConflictCompareModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(CONFLICT_COMPARE_MODAL_FORM_ID, conflictSubmitHandler, false)}
+                >
                     <Grid>
                         <GridItem span={6}>
                             <TextContent>
@@ -458,6 +496,10 @@ class ReportCredentialsModal extends React.Component {
 
         const value = (newEntry ? _("Add") : _("Edit"));
         const title = cockpit.format(_("$0 Report Credentials"), value);
+        const credsSubmitHandler = newEntry ? addConfig : editConfig;
+        const credsSubmitDisabled =
+            hostname === "" || binddn === "" ||
+            (bindpw === "" && !pwInputInteractive);
 
         return (
             <Modal
@@ -469,11 +511,8 @@ class ReportCredentialsModal extends React.Component {
                     <Button
                         key="save"
                         variant="primary"
-                        onClick={newEntry ? addConfig : editConfig}
-                        isDisabled={
-                            hostname === "" || binddn === "" ||
-                            (bindpw === "" && !pwInputInteractive)
-                        }
+                        isDisabled={credsSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(REPORT_CREDENTIALS_MODAL_FORM_ID, credsSubmitDisabled)}
                     >
                         {_("Save")}
                     </Button>,
@@ -484,7 +523,15 @@ class ReportCredentialsModal extends React.Component {
             >
                 <Grid>
                     <GridItem span={12}>
-                        <Form isHorizontal autoComplete="off">
+                        <Form
+                            isHorizontal
+                            autoComplete="off"
+                            {...modalFormEnterSubmit(
+                                REPORT_CREDENTIALS_MODAL_FORM_ID,
+                                credsSubmitHandler,
+                                credsSubmitDisabled
+                            )}
+                        >
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
                                     {_("Hostname")}
@@ -597,6 +644,10 @@ class ReportConnectionModal extends React.Component {
             onConfigChange,
         } = this.props;
 
+        const connSubmitDisabled =
+            name === "" || hostname === "" || port === "" ||
+            binddn === "" || (bindpw === "" && !pwInputInteractive);
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -607,11 +658,8 @@ class ReportConnectionModal extends React.Component {
                     <Button
                         key="save"
                         variant="primary"
-                        onClick={addConn}
-                        isDisabled={
-                            name === "" || hostname === "" || port === "" ||
-                            binddn === "" || (bindpw === "" && !pwInputInteractive)
-                        }
+                        isDisabled={connSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(REPORT_CONNECTION_MODAL_FORM_ID, connSubmitDisabled)}
                     >
                         {_("Save")}
                     </Button>,
@@ -622,7 +670,15 @@ class ReportConnectionModal extends React.Component {
             >
                 <Grid>
                     <GridItem span={12}>
-                        <Form isHorizontal autoComplete="off">
+                        <Form
+                            isHorizontal
+                            autoComplete="off"
+                            {...modalFormEnterSubmit(
+                                REPORT_CONNECTION_MODAL_FORM_ID,
+                                addConn,
+                                connSubmitDisabled
+                            )}
+                        >
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
                                     {_("Connection Name")}
@@ -753,6 +809,8 @@ class ReportAliasesModal extends React.Component {
 
         const value = (newEntry ? _("Add") : _("Edit"));
         const title = cockpit.format(_("$0 Report Alias"), value);
+        const aliasSubmitHandler = newEntry ? addConfig : editConfig;
+        const aliasSubmitDisabled = alias === "" || hostname === "";
 
         return (
             <Modal
@@ -764,8 +822,8 @@ class ReportAliasesModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={newEntry ? addConfig : editConfig}
-                        isDisabled={alias === "" || hostname === ""}
+                        isDisabled={aliasSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(REPORT_ALIASES_MODAL_FORM_ID, aliasSubmitDisabled)}
                     >
                         {_("Save")}
                     </Button>,
@@ -776,7 +834,15 @@ class ReportAliasesModal extends React.Component {
             >
                 <Grid>
                     <GridItem span={12}>
-                        <Form isHorizontal autoComplete="off">
+                        <Form
+                            isHorizontal
+                            autoComplete="off"
+                            {...modalFormEnterSubmit(
+                                REPORT_ALIASES_MODAL_FORM_ID,
+                                aliasSubmitHandler,
+                                aliasSubmitDisabled
+                            )}
+                        >
                             <Grid title={_("Alias name for the instance")}>
                                 <GridItem className="ds-label" span={3}>
                                     {_("Alias")}
@@ -853,6 +919,7 @@ class ReportLoginModal extends React.Component {
         } = this.props;
 
         const title = cockpit.format(_("Replication Login Credentials for $0"), instanceName);
+        const loginSubmitDisabled = loginBinddn === "" || loginBindpw === "";
 
         return (
             <Modal
@@ -864,8 +931,8 @@ class ReportLoginModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        isDisabled={loginBinddn === "" || loginBindpw === ""}
-                        onClick={processCredsInput}
+                        isDisabled={loginSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(REPORT_LOGIN_MODAL_FORM_ID, loginSubmitDisabled)}
                     >
                         {_("Confirm Credentials Input")}
                     </Button>,
@@ -874,7 +941,15 @@ class ReportLoginModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        REPORT_LOGIN_MODAL_FORM_ID,
+                        processCredsInput,
+                        loginSubmitDisabled
+                    )}
+                >
                     <TextContent>
                         <Text component={TextVariants.h5}>
                             {_("In order to get the replication agreement lag times and state, the authentication credentials to the remote replicas must be provided.")}
@@ -1631,11 +1706,20 @@ class CSNDetailModal extends React.Component {
                 onClose={onClose}
                 aria-label={_("CSN propagation details")}
                 actions={[
-                    <Button key="close" variant="primary" onClick={onClose}>
+                    <Button
+                        key="close"
+                        variant="primary"
+                        {...modalPrimaryEnterSubmit(CSN_DETAIL_MODAL_FORM_ID, false)}
+                    >
                         {_("Close")}
                     </Button>
                 ]}
             >
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(CSN_DETAIL_MODAL_FORM_ID, onClose, false)}
+                >
                         {/* CSN Summary Information */}
                         <Card isFlat className="ds-margin-bottom-md">
                             <CardBody>
@@ -1862,6 +1946,7 @@ class CSNDetailModal extends React.Component {
                                 </ClipboardCopy>
                             </SplitItem>
                         </Split>
+                </Form>
             </Modal>
         );
     }
@@ -2948,13 +3033,22 @@ class LagReportModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="close" variant="primary" onClick={closeHandler}>
+                    <Button
+                        key="close"
+                        variant="primary"
+                        {...modalPrimaryEnterSubmit(LAG_REPORT_MODAL_FORM_ID, false)}
+                    >
                         {_("Close")}
                     </Button>
                 ]}
                 position="top"
                 aria-label={_("Replication Report Modal")}
             >
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(LAG_REPORT_MODAL_FORM_ID, closeHandler, false)}
+                >
                 <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
                     <div>
                         <Tabs
@@ -3003,6 +3097,7 @@ class LagReportModal extends React.Component {
                         {activeTabKey === 4 && this.renderReportFilesTab()}
                     </div>
                 </div>
+                </Form>
             </Modal>
         );
     }
@@ -3246,11 +3341,20 @@ class ChooseLagReportModal extends React.Component {
                     isOpen={showing}
                     onClose={onClose}
                     actions={[
-                        <Button key="close" variant="primary" onClick={onClose}>
+                        <Button
+                            key="close"
+                            variant="primary"
+                            {...modalPrimaryEnterSubmit(CHOOSE_LAG_REPORT_MODAL_FORM_ID, false)}
+                        >
                             {_("Close")}
                         </Button>
                     ]}
                 >
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(CHOOSE_LAG_REPORT_MODAL_FORM_ID, onClose, false)}
+                    >
                     <div>
                         <Card isFullHeight>
                             <CardBody>
@@ -3279,6 +3383,7 @@ class ChooseLagReportModal extends React.Component {
                             </CardBody>
                         </Card>
                     </div>
+                    </Form>
                 </Modal>
 
                 {showLagReportModal && (

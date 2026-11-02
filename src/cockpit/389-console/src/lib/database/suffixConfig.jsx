@@ -1,10 +1,10 @@
 import React from "react";
+import { DsForm as Form } from "../../dsForm.jsx";
 import cockpit from "cockpit";
 import PropTypes from "prop-types";
 import {
     Button,
     Checkbox,
-    Form,
     FormSelect,
     FormSelectOption,
     Grid,

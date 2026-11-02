@@ -1,10 +1,10 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../dsForm.jsx";
 import React from "react";
 import PropTypes from "prop-types";
 import {
     Button,
     Checkbox,
-    Form,
     Grid,
     GridItem,
     Modal,
@@ -15,6 +15,10 @@ import {
 } from "@patternfly/react-core";
 
 const _ = cockpit.gettext;
+
+const DOUBLE_CONFIRM_MODAL_FORM_ID = "ds-double-confirm-modal-form";
+const WARNING_MODAL_FORM_ID = "ds-warning-modal-form";
+
 export class DoubleConfirmModal extends React.Component {
     render() {
         const {
@@ -43,15 +47,16 @@ export class DoubleConfirmModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = btnName;
         }
 
+        const submitDisabled = saveDisabled || spinning;
         const actions = [];
         if (btnName) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={actionHandler}
-                    isDisabled={saveDisabled || spinning}
+                    isDisabled={submitDisabled}
                     isLoading={spinning}
+                    {...modalPrimaryEnterSubmit(DOUBLE_CONFIRM_MODAL_FORM_ID, submitDisabled)}
                     {...extraPrimaryProps}
                 >
                     {btnName}
@@ -59,10 +64,17 @@ export class DoubleConfirmModal extends React.Component {
             );
         }
         actions.push(
-            <Button key="close" variant="link" onClick={closeHandler}>
+            <Button
+                key="close"
+                variant="link"
+                {...(!btnName
+                    ? modalPrimaryEnterSubmit(DOUBLE_CONFIRM_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {_("Close")}
             </Button>
         );
+        const formSubmitHandler = btnName ? actionHandler : closeHandler;
         return (
             <Modal
                 variant={ModalVariant.small}
@@ -73,7 +85,15 @@ export class DoubleConfirmModal extends React.Component {
                 onClose={closeHandler}
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        DOUBLE_CONFIRM_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        btnName ? submitDisabled : false
+                    )}
+                >
                     <TextContent>
                         <Text className="ds-margin-top" component={TextVariants.h3}>
                             {mMsg}
@@ -123,12 +143,20 @@ export class WarningModal extends React.Component {
                 aria-labelledby="warning-modal"
                 onClose={closeHandler}
                 actions={[
-                    <Button key="ok" variant="primary" onClick={closeHandler}>
+                    <Button
+                        key="ok"
+                        variant="primary"
+                        {...modalPrimaryEnterSubmit(WARNING_MODAL_FORM_ID, false)}
+                    >
                         {_("Okay")}
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(WARNING_MODAL_FORM_ID, closeHandler, false)}
+                >
                     <TextContent>
                         <Text className="ds-margin-top ds-margin-bottom" component={TextVariants.h3}>
                             {mMsg}

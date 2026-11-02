@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
@@ -8,7 +9,6 @@ import {
 	Divider,
 	ExpandableSection,
 	FileUpload,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -33,6 +33,14 @@ import { bad_file_name, validHostname, file_is_path } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
+const EXPORT_CERT_MODAL_FORM_ID = "ds-export-cert-modal-form";
+const SECURITY_ADD_CERT_MODAL_FORM_ID = "ds-security-add-cert-modal-form";
+const SECURITY_ADD_CA_CERT_MODAL_FORM_ID = "ds-security-add-ca-cert-modal-form";
+const SECURITY_ADD_CSR_MODAL_FORM_ID = "ds-security-add-csr-modal-form";
+const SECURITY_VIEW_CSR_MODAL_FORM_ID = "ds-security-view-csr-modal-form";
+const SECURITY_ENABLE_MODAL_FORM_ID = "ds-security-enable-modal-form";
+const EDIT_CERT_MODAL_FORM_ID = "ds-edit-cert-modal-form";
+
 export class ExportCertModal extends React.Component {
     render() {
         const {
@@ -56,6 +64,7 @@ export class ExportCertModal extends React.Component {
 
         const title = <>{_("Export Certificate:")} &nbsp;&nbsp;<i>{nickName}</i></>;
         const desc = <>{_("Enter the full path and file name, if the path portion is omitted the certificate is written to the server's certificate directory ")}<i>{certDir}</i></>;
+        const submitDisabled = fileName === "" || spinning;
 
         return (
             <Modal
@@ -68,11 +77,11 @@ export class ExportCertModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Exporting") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={fileName === "" || spinning}
+                        isDisabled={submitDisabled}
+                        {...modalPrimaryEnterSubmit(EXPORT_CERT_MODAL_FORM_ID, submitDisabled)}
                     >
                         {exportBtnName}
                     </Button>,
@@ -81,7 +90,12 @@ export class ExportCertModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off" className="ds-margin-top-lg">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    className="ds-margin-top-lg"
+                    {...modalFormEnterSubmit(EXPORT_CERT_MODAL_FORM_ID, saveHandler, submitDisabled)}
+                >
                     <Grid>
                         <GridItem className="ds-label" span={12}>
                             {desc}
@@ -211,6 +225,18 @@ export class SecurityAddCertModal extends React.Component {
             selectValidated = ValidatedOptions.error;
         }
 
+        const addCertSubmitDisabled =
+            certName === "" || (certRadioFile && certFile === "") ||
+            (certRadioUpload && (uploadValue === "" || badCertText)) ||
+            (certRadioSelect && certNames.length === 0) ||
+            (pkcs12PinMethod === "file" && (pkcs12PinFile === "" || !file_is_path(pkcs12PinFile))) ||
+            (pkcs12PinMethod === "stdin" && pkcs12PinText === "") ||
+            certNicknames.includes(certName) ||
+            CACertNicknames.includes(certName);
+        const addCertSubmitHandler = () => {
+            saveHandler(false);
+        };
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -222,21 +248,11 @@ export class SecurityAddCertModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={() => {
-                            saveHandler(false);
-                        }}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={
-                            certName === "" || (certRadioFile && certFile === "") ||
-                            (certRadioUpload && (uploadValue === "" || badCertText)) ||
-                            (certRadioSelect && certNames.length === 0) ||
-                            (pkcs12PinMethod === "file" && (pkcs12PinFile === "" || !file_is_path(pkcs12PinFile))) ||
-                            (pkcs12PinMethod === "stdin" && pkcs12PinText === "") ||
-                            certNicknames.includes(certName) ||
-                            CACertNicknames.includes(certName)
-                        }
+                        isDisabled={addCertSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(SECURITY_ADD_CERT_MODAL_FORM_ID, addCertSubmitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -245,7 +261,15 @@ export class SecurityAddCertModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        SECURITY_ADD_CERT_MODAL_FORM_ID,
+                        addCertSubmitHandler,
+                        addCertSubmitDisabled
+                    )}
+                >
                     <TextContent>
                         <Text component={TextVariants.h4}>
                             {desc}
@@ -562,6 +586,16 @@ export class SecurityAddCACertModal extends React.Component {
             selectValidated = ValidatedOptions.error;
         }
 
+        const addCaCertSubmitDisabled =
+            certName === "" || (certRadioFile && certFile === "") ||
+            (certRadioUpload && (uploadValue === "" || badCertText)) ||
+            (certRadioSelect && certNames.length === 0) ||
+            certNicknames.includes(certName) ||
+            CACertNicknames.includes(certName);
+        const addCaCertSubmitHandler = () => {
+            saveHandler(true);
+        };
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -573,19 +607,11 @@ export class SecurityAddCACertModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={() => {
-                            saveHandler(true);
-                        }}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={
-                            certName === "" || (certRadioFile && certFile === "") ||
-                            (certRadioUpload && (uploadValue === "" || badCertText)) ||
-                            (certRadioSelect && certNames.length === 0) ||
-                            certNicknames.includes(certName) ||
-                            CACertNicknames.includes(certName)
-                        }
+                        isDisabled={addCaCertSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(SECURITY_ADD_CA_CERT_MODAL_FORM_ID, addCaCertSubmitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -594,7 +620,15 @@ export class SecurityAddCACertModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        SECURITY_ADD_CA_CERT_MODAL_FORM_ID,
+                        addCaCertSubmitHandler,
+                        addCaCertSubmitDisabled
+                    )}
+                >
                     <TextContent>
                         <Text component={TextVariants.h4}>
                             {desc}
@@ -780,6 +814,9 @@ export class SecurityAddCSRModal extends React.Component {
             }
         }
 
+        const csrSubmitDisabled =
+            error.csrName || bad_file_name(csrName) || error.csrSubjectCommonName || spinning || !validAltNames;
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -791,11 +828,11 @@ export class SecurityAddCSRModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.csrName || bad_file_name(csrName) || error.csrSubjectCommonName || spinning || !validAltNames}
+                        isDisabled={csrSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(SECURITY_ADD_CSR_MODAL_FORM_ID, csrSubmitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -804,7 +841,12 @@ export class SecurityAddCSRModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form className="ds-margin-top" isHorizontal autoComplete="off">
+                <Form
+                    className="ds-margin-top"
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(SECURITY_ADD_CSR_MODAL_FORM_ID, saveHandler, csrSubmitDisabled)}
+                >
                     <Grid title={_("CSR Name")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Name")}
@@ -1001,12 +1043,21 @@ export class SecurityViewCSRModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                    <Button
+                        key="cancel"
+                        variant="link"
+                        {...modalPrimaryEnterSubmit(SECURITY_VIEW_CSR_MODAL_FORM_ID, false)}
+                    >
                         {_("Cancel")}
                     </Button>
                 ]}
             >
-                <TextContent title={_("CSR content")}>
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(SECURITY_VIEW_CSR_MODAL_FORM_ID, closeHandler, false)}
+                >
+                    <TextContent title={_("CSR content")}>
                     <Text component={TextVariants.pre}>
                         <Text component={TextVariants.small}>
                             <ClipboardCopy hoverTip={_("Copy to clipboard")} clickTip="Copied" variant={ClipboardCopyVariant.expansion} isBlock>
@@ -1015,6 +1066,7 @@ export class SecurityViewCSRModal extends React.Component {
                         </Text>
                     </Text>
                 </TextContent>
+                </Form>
             </Modal>
         );
     }
@@ -1045,6 +1097,8 @@ export class SecurityEnableModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
+        const enableSubmitDisabled = spinning;
+
         return (
             <Modal
                 variant={ModalVariant.small}
@@ -1056,11 +1110,11 @@ export class SecurityEnableModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={spinning}
+                        isDisabled={enableSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(SECURITY_ENABLE_MODAL_FORM_ID, enableSubmitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -1069,7 +1123,11 @@ export class SecurityEnableModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(SECURITY_ENABLE_MODAL_FORM_ID, saveHandler, enableSubmitDisabled)}
+                >
                     <TextContent>
                         <Text component={TextVariants.h4}>
                             {_("You are choosing to enable security for the Directory Server which allows the server to accept incoming client TLS connections.  Please select which certificate the server should use.")}
@@ -1201,6 +1259,7 @@ export class EditCertModal extends React.Component {
         }
 
         const title = _("Edit Certificate Trust Flags (") + this.props.flags + ")";
+        const editCertSubmitDisabled = this.props.disableSaveBtn || spinning;
 
         return (
             <Modal
@@ -1213,11 +1272,11 @@ export class EditCertModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.disableSaveBtn || spinning}
+                        isDisabled={editCertSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(EDIT_CERT_MODAL_FORM_ID, editCertSubmitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -1226,6 +1285,11 @@ export class EditCertModal extends React.Component {
                     </Button>
                 ]}
             >
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(EDIT_CERT_MODAL_FORM_ID, saveHandler, editCertSubmitDisabled)}
+                >
                 <Grid className="ds-margin-top">
                     <GridItem span={6}>
                         {_("Flags")}
@@ -1420,6 +1484,7 @@ export class EditCertModal extends React.Component {
                         />
                     </GridItem>
                 </Grid>
+                </Form>
             </Modal>
         );
     }
