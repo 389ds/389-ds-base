@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
-    Form,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -266,7 +266,9 @@ class USNPlugin extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-usnplugin-form", this.handleRunCleanup, false)}
+                    isHorizontal autoComplete="off">
                         <Grid title={_("Gives the suffix in the Directory Server to run the cleanup operation against")}>
                             <GridItem span={4}>
                                 {_("Cleanup Suffix")}

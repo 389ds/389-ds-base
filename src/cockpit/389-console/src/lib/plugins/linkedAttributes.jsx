@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
-	Form,
 	Grid,
 	GridItem,
 	Modal,
@@ -126,6 +126,14 @@ class LinkedAttributes extends React.Component {
 
         if (this.state.configName === "") {
             errObj.configName = true;
+            all_good = false;
+        }
+        if (this.state.managedType.length === 0) {
+            errObj.managedType = true;
+            all_good = false;
+        }
+        if (this.state.linkType.length === 0) {
+            errObj.linkType = true;
             all_good = false;
         }
         if (this.state.linkScope === "" || !valid_dn(this.state.linkScope)) {
@@ -437,7 +445,9 @@ class LinkedAttributes extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-linkedattributes-form", newEntry ? this.addConfig : this.editConfig, saveBtnDisabled || saving)}
+                    isHorizontal autoComplete="off">
                         <Grid title={_("The Linked Attributes configuration name")}>
                             <GridItem className="ds-label" span={3}>
                                 {_("Config Name")}

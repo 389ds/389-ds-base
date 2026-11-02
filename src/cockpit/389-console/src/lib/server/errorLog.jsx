@@ -1,11 +1,11 @@
 import cockpit from "cockpit";
+import { DsForm as Form } from "../../dsForm.jsx";
 import React from "react";
 import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     Button,
     Checkbox,
     ExpandableSection,
-    Form,
     FormSelect,
     FormSelectOption,
     Grid,

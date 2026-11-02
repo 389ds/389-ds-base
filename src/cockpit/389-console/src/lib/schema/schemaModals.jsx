@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
 	Checkbox,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -17,6 +17,9 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+const OBJECTCLASS_MODAL_FORM_ID = "ds-objectclass-modal-form";
+const ATTRIBUTE_MODAL_FORM_ID = "ds-attribute-modal-form";
 
 class ObjectClassModal extends React.Component {
     render() {
@@ -77,20 +80,34 @@ class ObjectClassModal extends React.Component {
                 btnText = _("Saving...");
                 extraPrimaryProps.spinnerAriaValueText = _("Loading");
             }
+            const submitDisabled = saveBtnDisabled || loading;
             btnList.unshift(
                 <Button
                     key="oc"
                     isLoading={loading}
                     spinnerAriaValueText={loading ? _("Loading") : undefined}
                     variant="primary"
-                    onClick={newOcEntry ? addHandler : editHandler}
                     {...extraPrimaryProps}
-                    isDisabled={saveBtnDisabled || loading}
+                    isDisabled={submitDisabled}
+                    {...modalPrimaryEnterSubmit(OBJECTCLASS_MODAL_FORM_ID, submitDisabled)}
                 >
                     {btnText}
                 </Button>
             );
+        } else {
+            btnList[0] = (
+                <Button
+                    key="cancel"
+                    variant="link"
+                    {...modalPrimaryEnterSubmit(OBJECTCLASS_MODAL_FORM_ID, false)}
+                >
+                    {_("Close")}
+                </Button>
+            );
         }
+
+        const ocFormHandler = ocModalViewOnly ? closeModal : (newOcEntry ? addHandler : editHandler);
+        const ocFormDisabled = ocModalViewOnly ? false : (saveBtnDisabled || loading);
 
         return (
             <div>
@@ -102,7 +119,11 @@ class ObjectClassModal extends React.Component {
                     onClose={closeModal}
                     actions={btnList}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(OBJECTCLASS_MODAL_FORM_ID, ocFormHandler, ocFormDisabled)}
+                    >
                         <Grid title={_("Name of the objectClass")}>
                             <GridItem className="ds-label" span={3}>
                                 {_("Objectclass Name")}
@@ -349,20 +370,34 @@ class AttributeTypeModal extends React.Component {
                 btnText = _("Saving...");
                 extraPrimaryProps.spinnerAriaValueText = _("Loading");
             }
+            const submitDisabled = saveBtnDisabled || loading;
             btnList.unshift(
                 <Button
                     key="at"
                     isLoading={loading}
                     spinnerAriaValueText={loading ? _("Loading") : undefined}
                     variant="primary"
-                    onClick={newAtEntry ? addHandler : editHandler}
                     {...extraPrimaryProps}
-                    isDisabled={saveBtnDisabled || loading}
+                    isDisabled={submitDisabled}
+                    {...modalPrimaryEnterSubmit(ATTRIBUTE_MODAL_FORM_ID, submitDisabled)}
                 >
                     {btnText}
                 </Button>
             );
+        } else {
+            btnList[0] = (
+                <Button
+                    key="cancel"
+                    variant="link"
+                    {...modalPrimaryEnterSubmit(ATTRIBUTE_MODAL_FORM_ID, false)}
+                >
+                    {_("Close")}
+                </Button>
+            );
         }
+
+        const atFormHandler = atModalViewOnly ? closeModal : (newAtEntry ? addHandler : editHandler);
+        const atFormDisabled = atModalViewOnly ? false : (saveBtnDisabled || loading);
 
         return (
             <div>
@@ -374,7 +409,11 @@ class AttributeTypeModal extends React.Component {
                     onClose={closeModal}
                     actions={btnList}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(ATTRIBUTE_MODAL_FORM_ID, atFormHandler, atFormDisabled)}
+                    >
                         <Grid title={_("Name of the attribute")}>
                             <GridItem className="ds-label" span={3}>
                                 {_("Attribute Name")}

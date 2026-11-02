@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import PropTypes from "prop-types";
 import {
@@ -21,6 +22,8 @@ import {
 import { getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
+
+const EFFECTIVE_PWP_MODAL_FORM_ID = "ds-effective-pwp-modal-form";
 
 function formatPolicyAttributes(attrs) {
     const local = [];
@@ -133,11 +136,20 @@ export class EffectivePwpModal extends React.Component {
                 isOpen={isOpen}
                 onClose={onClose}
                 actions={[
-                    <Button key="close" variant="primary" onClick={onClose}>
+                    <Button
+                        key="close"
+                        variant="primary"
+                        {...modalPrimaryEnterSubmit(EFFECTIVE_PWP_MODAL_FORM_ID, false)}
+                    >
                         {_("Close")}
                     </Button>
                 ]}
             >
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(EFFECTIVE_PWP_MODAL_FORM_ID, onClose, false)}
+                >
                 {loading &&
                     <div className="ds-center ds-margin-top-xlg ds-margin-bottom-md">
                         <Spinner size="xl" />
@@ -187,6 +199,7 @@ export class EffectivePwpModal extends React.Component {
                             ))}
                         </DescriptionList>
                     </>}
+                </Form>
             </Modal>
         );
     }

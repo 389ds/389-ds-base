@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { VLVTable } from "./databaseTables.jsx";
@@ -6,7 +7,6 @@ import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -23,6 +23,9 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+const ADD_VLV_SORT_INDEX_MODAL_FORM_ID = "ds-add-vlv-sort-index-modal-form";
+const ADD_VLV_SEARCH_INDEX_MODAL_FORM_ID = "ds-add-vlv-search-index-modal-form";
 
 export class VLVIndexes extends React.Component {
     constructor (props) {
@@ -546,6 +549,11 @@ class AddVLVIndexModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
+        const submitDisabled = this.state.sortValue.length === 0 || saving;
+        const submitHandler = () => {
+            saveHandler(this.state.sortValue);
+        };
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -558,13 +566,11 @@ class AddVLVIndexModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={() => {
-                            saveHandler(this.state.sortValue);
-                        }}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.state.sortValue.length === 0 || saving}
+                        isDisabled={submitDisabled}
+                        {...modalPrimaryEnterSubmit(ADD_VLV_SORT_INDEX_MODAL_FORM_ID, submitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -573,7 +579,15 @@ class AddVLVIndexModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit(
+                        ADD_VLV_SORT_INDEX_MODAL_FORM_ID,
+                        submitHandler,
+                        submitDisabled
+                    )}
+                    isHorizontal
+                    autoComplete="off"
+                >
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={12}>
                             {_("Build a list of attributes to form the \"Sort\" index")}
@@ -627,6 +641,8 @@ class AddVLVModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
+        const submitDisabled = this.props.saveBtnDisabled || saving;
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -638,11 +654,11 @@ class AddVLVModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled || saving}
+                        isDisabled={submitDisabled}
+                        {...modalPrimaryEnterSubmit(ADD_VLV_SEARCH_INDEX_MODAL_FORM_ID, submitDisabled)}
                     >
                         {saveBtnName}
                     </Button>,
@@ -651,7 +667,15 @@ class AddVLVModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form
+                    {...modalFormEnterSubmit(
+                        ADD_VLV_SEARCH_INDEX_MODAL_FORM_ID,
+                        saveHandler,
+                        submitDisabled
+                    )}
+                    isHorizontal
+                    autoComplete="off"
+                >
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={2}>
                             {_("VLV Index Name")}

@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import { LogViewer } from '@patternfly/react-log-viewer';
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -7,7 +8,6 @@ import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
-	Form,
 	Grid,
 	GridItem,
 	Modal,
@@ -23,6 +23,9 @@ import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+const ADD_INDEX_MODAL_FORM_ID = "ds-add-index-modal-form";
+const EDIT_INDEX_MODAL_FORM_ID = "ds-edit-index-modal-form";
 
 function IndexTaskLog(props) {
     const buffer = props.buffer || "";
@@ -885,23 +888,32 @@ class AddIndexModal extends React.Component {
         }
 
         const actions = [];
+        const submitDisabled = saveBtnDisabled || saving;
+        const formSubmitHandler = reindexCompleted ? closeHandler : saveHandler;
+        const formSubmitDisabled = reindexCompleted ? false : submitDisabled;
         if (!reindexCompleted) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={saveHandler}
                     isLoading={saving}
                     spinnerAriaValueText={saving ? saveBtnName : undefined}
                     {...extraPrimaryProps}
-                    isDisabled={saveBtnDisabled || saving}
+                    isDisabled={submitDisabled}
+                    {...modalPrimaryEnterSubmit(ADD_INDEX_MODAL_FORM_ID, submitDisabled)}
                 >
                     {saveBtnName}
                 </Button>
             );
         }
         actions.push(
-            <Button key="cancel" variant="link" onClick={closeHandler}>
+            <Button
+                key="cancel"
+                variant="link"
+                {...(reindexCompleted
+                    ? modalPrimaryEnterSubmit(ADD_INDEX_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {reindexCompleted ? _("Close") : _("Cancel")}
             </Button>
         );
@@ -915,7 +927,15 @@ class AddIndexModal extends React.Component {
                 aria-labelledby="ds-modal"
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        ADD_INDEX_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        formSubmitDisabled
+                    )}
+                >
                     <TextContent title={_("Select an attribute to index")}>
                         <Text component={TextVariants.h4}>
                             {_("Select An Attribute")}
@@ -1188,23 +1208,32 @@ class EditIndexModal extends React.Component {
         const title = <div>{_("Edit Database Index (")}<b>{indexName[0]}</b>)</div>;
 
         const actions = [];
+        const submitDisabled = saveBtnDisabled || saving;
+        const formSubmitHandler = reindexCompleted ? closeHandler : saveHandler;
+        const formSubmitDisabled = reindexCompleted ? false : submitDisabled;
         if (!reindexCompleted) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={saveHandler}
                     isLoading={saving}
                     spinnerAriaValueText={saving ? saveBtnName : undefined}
                     {...extraPrimaryProps}
-                    isDisabled={saveBtnDisabled || saving}
+                    isDisabled={submitDisabled}
+                    {...modalPrimaryEnterSubmit(EDIT_INDEX_MODAL_FORM_ID, submitDisabled)}
                 >
                     {saveBtnName}
                 </Button>
             );
         }
         actions.push(
-            <Button key="cancel" variant="link" onClick={closeHandler}>
+            <Button
+                key="cancel"
+                variant="link"
+                {...(reindexCompleted
+                    ? modalPrimaryEnterSubmit(EDIT_INDEX_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {reindexCompleted ? _("Close") : _("Cancel")}
             </Button>
         );
@@ -1218,7 +1247,15 @@ class EditIndexModal extends React.Component {
                 onClose={closeHandler}
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        EDIT_INDEX_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        formSubmitDisabled
+                    )}
+                >
                     <TextContent>
                         <Text className="ds-margin-top" component={TextVariants.h4}>
                             {_("Index Types")}

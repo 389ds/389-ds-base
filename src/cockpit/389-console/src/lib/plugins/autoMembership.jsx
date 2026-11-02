@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -1226,7 +1226,9 @@ class AutoMembership extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-automembership-form", newRegexEntry ? this.addRegex : this.editRegex, saveRegexBtnDisabled)}
+                    isHorizontal autoComplete="off">
                         <Grid>
                             <GridItem className="ds-label" span={3}>
                                 {_("Regex Name")}

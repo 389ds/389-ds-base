@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "./dsForm.jsx";
 import React from "react";
 import PropTypes from "prop-types";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
@@ -16,7 +17,6 @@ import {
 import {
     Button,
     Checkbox,
-    Form,
     FormHelperText,
     FormSelect,
     FormSelectOption,
@@ -34,6 +34,10 @@ import {
 import { LogViewer } from '@patternfly/react-log-viewer';
 
 const _ = cockpit.gettext;
+
+const CREATE_INSTANCE_MODAL_FORM_ID = "ds-create-instance-modal-form";
+const SCHEMA_RELOAD_MODAL_FORM_ID = "ds-schema-reload-modal-form";
+const MANAGE_BACKUPS_MODAL_FORM_ID = "ds-manage-backups-modal-form";
 
 export class CreateInstanceModal extends React.Component {
     constructor(props) {
@@ -404,6 +408,8 @@ export class CreateInstanceModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
+        const submitDisabled = !createOK || loadingCreate;
+
         let createBufferItem = null;
         if (createBuffer !== "") {
             createBufferItem = <LogViewer
@@ -425,10 +431,10 @@ export class CreateInstanceModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={this.handleCreateInstance}
-                        isDisabled={!createOK || loadingCreate}
+                        isDisabled={submitDisabled}
                         isLoading={loadingCreate}
                         spinnerAriaValueText={loadingCreate ? "Saving" : undefined}
+                        {...modalPrimaryEnterSubmit(CREATE_INSTANCE_MODAL_FORM_ID, submitDisabled)}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
@@ -444,7 +450,15 @@ export class CreateInstanceModal extends React.Component {
                 ]}
             >
                 <div className={loadingCreate ? "ds-disabled" : ""}>
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(
+                            CREATE_INSTANCE_MODAL_FORM_ID,
+                            this.handleCreateInstance,
+                            submitDisabled
+                        )}
+                    >
                         <Grid className="ds-margin-top"
                             title={_("The instance name, this is what gets appended to 'slapd-'. The instance name can only contain letters, numbers, and: # % @ : - _")}
                         >
@@ -786,7 +800,12 @@ export class SchemaReloadModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={this.handleReloadSchema}>
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        {...modalPrimaryEnterSubmit(SCHEMA_RELOAD_MODAL_FORM_ID, loadingSchemaTask)}
+                        isDisabled={loadingSchemaTask}
+                    >
                         {_("Reload Schema")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
@@ -794,7 +813,15 @@ export class SchemaReloadModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        SCHEMA_RELOAD_MODAL_FORM_ID,
+                        this.handleReloadSchema,
+                        loadingSchemaTask
+                    )}
+                >
                     <Grid title={_("The name of the database link.")}>
                         <GridItem className="ds-label" span={3}>
                             Schema File Directory
@@ -1262,18 +1289,32 @@ export class ManageBackupsModal extends React.Component {
                     isOpen={showModal}
                     onClose={closeHandler}
                     actions={[
-                        <Button key="confirm" variant="primary" onClick={this.handleShowBackupModal}>
+                        <Button
+                            key="confirm"
+                            variant="primary"
+                            {...modalPrimaryEnterSubmit(MANAGE_BACKUPS_MODAL_FORM_ID, false)}
+                        >
                             {_("Create Backup")}
                         </Button>,
                     ]}
                 >
-                    <BackupTable
-                        className="ds-margin-top-xlg"
-                        rows={backups}
-                        key={backups}
-                        confirmRestore={this.showConfirmRestore}
-                        confirmDelete={this.showConfirmBackupDelete}
-                    />
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(
+                            MANAGE_BACKUPS_MODAL_FORM_ID,
+                            this.handleShowBackupModal,
+                            false
+                        )}
+                    >
+                        <BackupTable
+                            className="ds-margin-top-xlg"
+                            rows={backups}
+                            key={backups}
+                            confirmRestore={this.showConfirmRestore}
+                            confirmDelete={this.showConfirmBackupDelete}
+                        />
+                    </Form>
                 </Modal>
                 <BackupModal
                     showModal={this.state.showBackupModal}

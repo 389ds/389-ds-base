@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form } from "../../dsForm.jsx";
 import React from "react";
 import { log_cmd, valid_dn, callCmdStreamPassword, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -8,7 +9,6 @@ import {
     Button,
     Checkbox,
     ExpandableSection,
-    Form,
     Grid,
     GridItem,
     NumberInput,
