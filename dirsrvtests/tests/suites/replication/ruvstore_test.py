@@ -20,7 +20,7 @@ from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts, nsUserAccounts
 from lib389.idm.group import Groups
 from lib389.tasks import ImportTask
-from test389.topologies import create_topology, topology_m3
+from test389.topologies import create_topology, topology_m1h1c1, topology_m3
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin
 
@@ -391,6 +391,50 @@ def test_ruv_after_aborted_plugin_operation(topology_m3):
 
     # The key assertion: RUV should not have advanced due to the failed memberOf operation
     assert ruv_before == ruv_after, f"RUV advanced after failed operation: before={ruv_before}, after={ruv_after}"
+
+
+def _assert_first_ruv_replica(replica, rid):
+    """Verify that the first replica RUV element has the expected RID."""
+    replica_ruvs = [value for value in replica.get_attr_vals_utf8('nsds50ruv')
+                    if value.startswith('{replica ')]
+    assert replica_ruvs
+    assert replica_ruvs[0].split()[1] == str(rid)
+
+
+def test_ruv_order_after_replica_promotion(topology_m1h1c1):
+    """Test promoted replicas are placed first in the RUV
+
+    :id: 3eeae3a2-7437-4193-8834-d4b6e102218a
+    :setup: One supplier, one hub, and one consumer replication topology
+    :steps:
+        1. Promote the consumer to a supplier and inspect its RUV
+        2. Verify replication from the original supplier to the promoted consumer
+        3. Promote the hub to a supplier and inspect its RUV
+        4. Verify replication from the original supplier to the promoted hub
+    :expectedresults:
+        1. The consumer's new supplier RID is the first replica RUV element
+        2. Replication succeeds through the promoted consumer
+        3. The hub's new supplier RID is the first replica RUV element
+        4. Replication succeeds with the promoted hub
+    """
+    supplier = topology_m1h1c1.ms['supplier1']
+    hub = topology_m1h1c1.hs['hub1']
+    consumer = topology_m1h1c1.cs['consumer1']
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    consumer_replica = Replicas(consumer).get(DEFAULT_SUFFIX)
+    bind_dn_group = consumer_replica.get_attr_val_utf8('nsDS5ReplicaBindDNGroup')
+    assert bind_dn_group
+    consumer_replica.promote(ReplicaRole.SUPPLIER, binddn_group=bind_dn_group, rid='1234')
+    _assert_first_ruv_replica(consumer_replica, '1234')
+    repl.test_replication(supplier, consumer)
+
+    hub_replica = Replicas(hub).get(DEFAULT_SUFFIX)
+    bind_dn_group = hub_replica.get_attr_val_utf8('nsDS5ReplicaBindDNGroup')
+    assert bind_dn_group
+    hub_replica.promote(ReplicaRole.SUPPLIER, binddn_group=bind_dn_group, rid='5678')
+    _assert_first_ruv_replica(hub_replica, '5678')
+    repl.test_replication(supplier, hub)
 
 
 if __name__ == '__main__':
