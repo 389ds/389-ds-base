@@ -22,7 +22,7 @@ pytestmark = pytest.mark.tier2
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-MAX_TEST_USERS = 4
+MAX_TEST_USERS = 5
 
 
 def create_custom_attributetype(name='testAT', num=1):
@@ -330,6 +330,51 @@ def test_schema_supplier1_to_supplier2_replication(topology_m2, schema_csn_setup
 
     log.info('Verify schema CSNs synchronize after schema push')
     wait_for_schema_csn_sync(supplier1, supplier2)
+
+
+def test_schema_csn_stable_after_bidirectional_data_replication(topology_m2, schema_csn_setup):
+    """Test synchronized schema CSNs remain unchanged during data replication
+
+    :id: 21fff288-407c-4a52-85ce-9de4ca65e02c
+    :setup: Two supplier replication topology
+    :steps:
+        1. Add schema definitions to supplier1 and replicate them to supplier2
+        2. Record the synchronized schema CSNs
+        3. Replicate data updates from supplier1 to supplier2 and back
+        4. Compare the schema CSNs after the data updates
+    :expectedresults:
+        1. The schema definitions replicate successfully
+        2. Both suppliers have the same schema CSN
+        3. Both data updates replicate successfully
+        4. The synchronized schema CSNs remain unchanged
+    """
+    supplier1 = topology_m2.ms["supplier1"]
+    supplier2 = topology_m2.ms["supplier2"]
+    test_user = schema_csn_setup[4]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    schema1 = Schema(supplier1)
+    schema1.add_attributetype(create_custom_attributetype('stableDataAttr', 6))
+    schema1.add_objectclass(create_custom_objectclass('stableDataClass', 6))
+
+    repl.wait_for_replication(supplier1, supplier2)
+    wait_for_schema_csn_sync(supplier1, supplier2)
+    synchronized_csn = schema1.get_schema_csn()
+    assert synchronized_csn
+
+    test_user.replace('description', 'supplier1 data update')
+    repl.wait_for_replication(supplier1, supplier2)
+
+    users2 = UserAccounts(supplier2, DEFAULT_SUFFIX)
+    user_on_s2 = users2.get(test_user.get_attr_val_utf8('uid'))
+    user_on_s2.replace('description', 'supplier2 data update')
+    repl.wait_for_replication(supplier2, supplier1)
+
+    users1 = UserAccounts(supplier1, DEFAULT_SUFFIX)
+    user_on_s1 = users1.get(test_user.get_attr_val_utf8('uid'))
+    assert user_on_s1.get_attr_val_utf8('description') == 'supplier2 data update'
+    assert schema1.get_schema_csn() == synchronized_csn
+    assert Schema(supplier2).get_schema_csn() == synchronized_csn
 
 
 if __name__ == '__main__':
