@@ -15,7 +15,6 @@ import argcomplete
 import json
 import signal
 import sys
-from lib389 import DirSrv
 from lib389.cli_base import (
     connect_instance,
     disconnect_instance,
@@ -28,6 +27,13 @@ from lib389._constants import DSRC_HOME
 from lib389.migrate.openldap.config import olConfig, olOverlayType_from_str
 from lib389.migrate.ldif import LdifMetadata
 from lib389.migrate.plan import Migration
+from lib389.migrate.openldap.schema import (
+    DEFAULT_SCHEMADIR_FILENAME,
+    apply_schema_ldif_online,
+    convert_openldap_schema_files,
+    install_schema_ldif_to_schemadir,
+    write_schema_ldif,
+)
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -101,15 +107,46 @@ sure the process and changes are understood.
 
 This only needs to be run on the first-instance in a 389 Directory Server topology. All
 other replicas should be configured from this instance post migration.
+
+Legacy OpenLDAP slapd.conf-style ``*.schema`` files (for example from sendmail-cf) can be
+converted to 389-ds schema LDIF with ``--convert-schema`` without running a full slapd.d
+migration. Use ``-o`` to write LDIF, ``--apply-online`` to add over LDAP, or
+``--copy-to-schemadir`` to install under the instance schemadir and reload schema.
 """)
 parser.add_argument('-v', '--verbose',
                     help="Display verbose operation tracing during command execution",
                     action='store_true', default=False, dest='verbose')
 
-parser.add_argument('instance',
+schema_group = parser.add_argument_group(
+    'OpenLDAP .schema conversion',
+    'Convert legacy slapd.conf-style *.schema files to 389-ds schema LDIF. '
+    'When --convert-schema is used, the slapd_config and database ldif '
+    'positional arguments are not required.',
+)
+schema_group.add_argument(
+    '--convert-schema', nargs='+', metavar='SCHEMA',
+    help="Convert OpenLDAP .schema file(s) or a directory containing *.schema files",
+)
+schema_group.add_argument(
+    '-o', '--output',
+    help="Write converted schema LDIF to this file (human-oriented output with comments; "
+         "not the same normalized file written by --copy-to-schemadir). Default: stdout",
+)
+schema_group.add_argument(
+    '--apply-online', default=False, action='store_true',
+    help="Apply converted schema to the 389-ds instance over LDAP (requires instance)",
+)
+schema_group.add_argument(
+    '--copy-to-schemadir', nargs='?', const=DEFAULT_SCHEMADIR_FILENAME,
+    metavar='FILENAME',
+    help="Write converted schema LDIF into the instance schema directory and "
+         "trigger a schema reload. Optional basename (default: %s)" % DEFAULT_SCHEMADIR_FILENAME,
+)
+
+parser.add_argument('instance', nargs='?',
         help="The name of the 389-ds instance to have openldap data migrated into",
     )
-parser.add_argument('slapd_config',
+parser.add_argument('slapd_config', nargs='?',
         help="The path to the openldap slapd.d configuration that will be migrated",
     )
 parser.add_argument('slapd_ldif', nargs='*',
@@ -166,6 +203,34 @@ parser.add_argument('-j', '--json',
 def signal_handler(signal, frame):
     print('\n\nExiting...')
     sys.exit(0)
+
+def do_schema_convert(inst, log, args):
+    if args.apply_online and args.copy_to_schemadir is not None:
+        raise ValueError(
+            "Use only one of --apply-online or --copy-to-schemadir, not both")
+    if (args.apply_online or args.copy_to_schemadir is not None) and inst is None:
+        raise ValueError(
+            "The instance name is required when applying schema to 389-ds")
+
+    ldif_text = convert_openldap_schema_files(args.convert_schema)
+
+    if args.output:
+        write_schema_ldif(args.output, ldif_text)
+        log.info("Wrote converted schema LDIF to %s", args.output)
+    elif not args.apply_online and args.copy_to_schemadir is None:
+        sys.stdout.write(ldif_text)
+
+    if args.apply_online:
+        apply_schema_ldif_online(inst, ldif_text, log)
+        log.info("Schema elements added over LDAP")
+
+    if args.copy_to_schemadir is not None:
+        install_schema_ldif_to_schemadir(
+            inst, ldif_text, filename=args.copy_to_schemadir, log=log)
+        log.info("Schema file installed under %s", inst.schemadir)
+
+    return True
+
 
 def do_migration(inst, log, args, skip_overlays):
     log.debug("do_migration -- begin preparation --")
@@ -229,6 +294,16 @@ if __name__ == '__main__':
     log.debug("Inspired by works of: ITS, The University of Adelaide")
     log.debug("Called with: %s", args)
 
+    schema_convert = bool(args.convert_schema)
+    if schema_convert:
+        if args.slapd_config or args.slapd_ldif:
+            log.warning(
+                "Ignoring slapd_config and database ldif arguments in --convert-schema mode")
+    else:
+        if not args.instance or not args.slapd_config:
+            parser.error(
+                "instance and slapd_config are required unless --convert-schema is used")
+
     # Do some initial parsing. Matters for overlays.
     skip_overlays = [
         olOverlayType_from_str(x)
@@ -236,20 +311,27 @@ if __name__ == '__main__':
         if olOverlayType_from_str(x)
     ]
 
-    # Now that we have our args, see how they relate with our instance.
-    dsrc_inst = dsrc_to_ldap(DSRC_HOME, args.instance, log.getChild('dsrc'))
-
-    # Now combine this with our arguments
-    dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
-
-    log.debug("Instance details: %s" % dsrc_inst)
-
     inst = None
     result = False
 
     try:
-        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
-        result = do_migration(inst, log, args, skip_overlays)
+        if args.instance:
+            dsrc_inst = dsrc_to_ldap(DSRC_HOME, args.instance, log.getChild('dsrc'))
+            dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
+            log.debug("Instance details: %s" % dsrc_inst)
+            need_ldap = (
+                not schema_convert
+                or args.apply_online
+                or args.copy_to_schemadir is not None
+            )
+            if need_ldap:
+                inst = connect_instance(
+                    dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
+
+        if schema_convert:
+            result = do_schema_convert(inst, log, args)
+        else:
+            result = do_migration(inst, log, args, skip_overlays)
     except Exception as e:
         log.debug(e, exc_info=True)
         msg = format_error_to_dict(e)
