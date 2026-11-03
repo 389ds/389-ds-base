@@ -2,8 +2,8 @@
 name: commit-and-pr
 description: >-
   Commit and open a PR the 389-ds-base way — "Issue NNNN - summary" subject,
-  Bug Description/Fix Description body, Fixes:/Relates: trailer, AI-attribution
-  trailer, and squash-merge etiquette. Use for ANY commit, amend, or pull
+  Bug Description/Fix Description body, issue and review trailers, branch
+  names, and squash-merge etiquette. Use for ANY commit, amend, or pull
   request in this repo. Also guards the repo's working-tree traps — *.patch
   files are gitignored and vanish from git status, CLAUDE.md/GEMINI.md are
   symlinks that must never be replaced with regular files, and generated files
@@ -25,6 +25,9 @@ working-tree traps that silently eat files. Follow the steps in order.
    about patches: **`.gitignore` ignores `*.patch`, so any .patch file you created
    is invisible to git status and will not be committed.** Use a different
    extension, or `git add -f` it only as a deliberate act.
+   - **Branch name**: use a short issue description, such as
+     `fix-connection-timeout`.
+     Do not add `codex/` or similar prefixes.
 
 2. **Never commit generated artifacts.** The common offenders:
    - `configure`, `Makefile.in`, `Makefile` (autotools outputs)
@@ -65,11 +68,19 @@ working-tree traps that silently eat files. Follow the steps in order.
    ```
 
 6. **Trailers**:
+   - Separate the trailer block from the body with a blank line and put
+     each trailer on its own line, using standard Git trailer syntax.
    - `Fixes: <full GitHub issue URL>` when the commit fully resolves the
-     issue; `Relates: <URL>` when the issue stays open (test-only commits
-     use `Relates:`).
-   - Add `Assisted by: <tool>` (e.g. `Assisted by: Claude`) when AI-assisted.
-   - **Never add `Reviewed by:` yourself** — reviewers add it at merge time.
+     issue, so GitHub closes it when the commit reaches the default branch.
+     Use `Relates: <full GitHub issue URL>` for related or partial work that
+     leaves the issue open; it does not close the issue. Choose by outcome,
+     including for test-only or documentation-only commits.
+   - Always use full issue URLs, not bare `#NNNN` references, so the links
+     remain useful in `git log` outside GitHub.
+   - Use `Reviewed-by: Name <email>` for completed human reviews. Reviewers
+     or maintainers add it at merge time with the reviewer's actual name
+     and email; never invent review credit or add placeholders.
+   - Do not add AI attribution trailers.
    - `Signed-off-by:`/DCO is not this repo's convention; skip it.
 
 7. **One logical commit per PR.** The repo squash-merges, so amend
