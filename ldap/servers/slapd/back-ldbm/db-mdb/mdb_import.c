@@ -167,7 +167,7 @@ dbmdb_open_subcount_cursor(backend *be, const char *attrname, dbi_txn_t *txn, su
     if ((ret = dblayer_get_index_file(be, info->ai, &info->db, 0)) != 0) {
         if (ret == DBI_RC_NOTFOUND) {
             dbmdb_close_subcount_cursor(info);
-            return 0;
+            return ret;
         }
         ldbm_nasty(errfunc, sourcefile, 70, ret);
         dbmdb_close_subcount_cursor(info);
@@ -180,7 +180,7 @@ dbmdb_open_subcount_cursor(backend *be, const char *attrname, dbi_txn_t *txn, su
         dbmdb_close_subcount_cursor(info);
         ret = dbmdb_map_error(__FUNCTION__, ret);
     }
-    return 0;
+    return ret;
 }
 
 static bool
@@ -240,6 +240,8 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
         if (ret != DBI_RC_NOTFOUND) {
             /* No database ==> There is nothing to do. */
             ldbm_nasty((char*)__FUNCTION__, sourcefile, 61, ret);
+        } else {
+            ret = 0;
         }
         return END_TXN(&txn, ret);
     }
