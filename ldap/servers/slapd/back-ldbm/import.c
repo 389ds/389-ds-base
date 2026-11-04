@@ -359,7 +359,10 @@ db2ldif_read_ldif_line(FILE *fd, struct silctx *ctx)
             ctx->linebuff[ctx->linebuffpos++] = c;
         }
     }
-    return c!= EOF;
+    if (ctx->linebuffpos < ctx->linebuffsize) {
+        ctx->linebuff[ctx->linebuffpos] = 0;
+    }
+    return c != EOF || ctx->linebuffpos > 0;
 }
 
 static bool
