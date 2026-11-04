@@ -333,6 +333,7 @@ test_ava_filter(
         for (; a != NULL; a = a->a_next) {
             if (slapi_attr_type_cmp(ava->ava_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
                 if ((ftype == LDAP_FILTER_EQUALITY) &&
+                    (slapi_valueset_is_sorted(&a->a_present_values)) &&
                     (slapi_attr_is_dn_syntax_type(a->a_type))) {
                     /* This path is for a performance improvement */
 
@@ -340,6 +341,8 @@ test_ava_filter(
                      * sorted valuearray (from valueset).
                      * This improvement is limited to DN syntax attributes for
                      * which the sorted valueset was designed.
+                     * Only use it when there are enough values and the valueset is sorted
+                     * to be cheaper than a linear syntax match.
                      */
                     Slapi_Value *sval = NULL;
                     sval = slapi_value_new_berval(&ava->ava_value);
