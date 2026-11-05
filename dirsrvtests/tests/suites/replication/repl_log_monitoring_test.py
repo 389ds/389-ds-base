@@ -298,30 +298,39 @@ def test_replication_log_monitoring_advanced(topo_m4):
     :id: 5bb8fd9f-c3ed-4118-a2f9-fd5d733230c7
     :setup: Four suppliers replication setup
     :steps:
-        1. Test filtering options
-        2. Test time range filtering
-        3. Test anonymization
-        4. Verify lag calculations
+        1. Delay replication while creating test data
+        2. Resume replication and test lag filtering
+        3. Test time range filtering
+        4. Test anonymization
     :expectedresults:
-        1. Filtering should work as expected
-        2. Time range filtering should limit results
-        3. Anonymization should hide server names
-        4. Lag calculations should be accurate
+        1. Test data should have a measurable replication delay
+        2. Filtering should retain only changes with the expected lag
+        3. Time range filtering should limit results
+        4. Anonymization should hide server names
     """
     tmp_dir = tempfile.mkdtemp(prefix='repl_analysis_')
     test_users = []
     suppliers = [topo_m4.ms[f"supplier{i}"] for i in range(1, 5)]
+    paused_agreements = []
 
     try:
         # Clear logs and restart servers
         _clear_access_logs(suppliers)
 
+        # Pause replication before generating the changes so the analyzer sees
+        # a real per-CSN propagation delay, rather than a delay between batches.
+        paused_agreements = _pause_agreements(suppliers[0], DEFAULT_SUFFIX)
+
         # Generate test data
         start_time = datetime.now(timezone.utc)
         test_users = _generate_test_data(suppliers[0], DEFAULT_SUFFIX, 20)
 
-        # Force some lag by delaying operations
+        # Keep the generated changes queued long enough to exceed the filter.
         time.sleep(2)
+
+        _resume_agreements(paused_agreements)
+        paused_agreements = []
+
         for user in test_users[10:]:
             user.replace('description', 'Modified after delay')
 
@@ -410,6 +419,7 @@ def test_replication_log_monitoring_advanced(topo_m4):
             assert 'server_0' in content, "Expected 'server_0' placeholder not found in CSV"
 
     finally:
+        _resume_agreements(paused_agreements)
         _cleanup_test_data(test_users, tmp_dir)
 
 
