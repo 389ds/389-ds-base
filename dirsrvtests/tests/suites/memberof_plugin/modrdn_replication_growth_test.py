@@ -25,7 +25,6 @@ from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnit
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.plugins import MemberOfPlugin, ReferentialIntegrityPlugin
 from lib389.replica import Replicas
-from lib389.utils import get_default_db_lib
 from test389.topologies import topology_m2 as topo_m2, topology_st as topo_st
 
 
@@ -103,7 +102,10 @@ def _configure_supplier(inst):
 
 def _changelog_records(inst):
     """Decode only operation, target DN, and memberOf value count per dbid."""
-    dump = inst.dbscan(DEFAULT_BENAME, "replication_changelog", stopping=False)
+    # BDB dbscan reads the file through a private environment, without the
+    # running server's dirty cache. Stop it to obtain a complete snapshot.
+    dump = inst.dbscan(DEFAULT_BENAME, "replication_changelog",
+                      stopping=inst.get_db_lib() == "bdb")
     records = {}
     for block in re.split(r"(?=^dbid: )", dump.decode("utf-8", errors="replace"),
                           flags=re.MULTILINE):
@@ -119,7 +121,7 @@ def _changelog_records(inst):
             "dn": dn.group(1).lower() if dn else None,
             "memberof_values": len(values),
         }
-    assert records, "MDB changelog dbscan yielded no records"
+    assert records, "Changelog dbscan yielded no records"
     return records
 
 
@@ -171,7 +173,7 @@ def test_modrdn_delivery_memberof_payload(topo_m2):
         1. Configure both suppliers and create indexed memberships
         2. Pause both agreements and move the user with unchanged RDN
         3. Resume delivery and wait for both supplier RUVs
-        4. Check LDAP state on both suppliers and MDB delivery changelog records
+        4. Check LDAP state on both suppliers and delivery changelog records
     :expectedresults:
         1. All memberships converge before the move
         2. The origin has the moved user and updated group references
@@ -212,14 +214,13 @@ def test_modrdn_delivery_memberof_payload(topo_m2):
             assert set(UserAccount(inst, OLD_USER_DN).get_attr_vals_utf8_l("memberOf")) == {
                 dn.lower() for dn in group_dns}
 
-        _pause_agreements(agreements)
         paused = True
+        _pause_agreements(agreements)
         _wait_ruvs(instances)
         user.rename("uid=memberof-growth-user", newsuperior=DISABLED_DN,
                     deloldrdn=False)
         _assert_move_state(instances[0], group_dns)
-        before = {inst.serverid: _changelog_records(inst) for inst in instances} \
-            if get_default_db_lib() == "mdb" else None
+        before = {inst.serverid: _changelog_records(inst) for inst in instances}
 
         for agreement in agreements:
             agreement.resume()
@@ -228,29 +229,31 @@ def test_modrdn_delivery_memberof_payload(topo_m2):
         for inst in instances:
             _assert_move_state(inst, group_dns)
 
-        if before is not None:
-            total = 0
-            seen = 0
-            delivery_records = 0
-            for inst in instances:
-                after = _changelog_records(inst)
-                new_ids = set(after) - set(before[inst.serverid])
-                delivery_records += len(new_ids)
-                user_modifies = [after[dbid] for dbid in new_ids
-                                 if after[dbid]["operation"] == "modify"
-                                 and after[dbid]["dn"] in (OLD_USER_DN.lower(),
-                                                            NEW_USER_DN.lower())]
-                counts = [record["memberof_values"] for record in user_modifies]
-                assert all(count <= 1 for count in counts), (
-                    "Delivery recorded a user MODIFY with multiple memberOf values: "
-                    "max={}, records={}".format(max(counts, default=0), len(counts)))
-                total += sum(counts)
-                seen += len(counts)
-            log.info("Delivery user MODIFYs=%d memberOf values=%d", seen, total)
-            assert delivery_records > 0, "No delivery changelog records were decoded"
-            assert total <= 4 * GROUP_COUNT, (
-                "Delivery recorded {} memberOf values, bound is {}".format(
-                    total, 4 * GROUP_COUNT))
+        # Keep both snapshots quiescent, including while BDB instances restart.
+        paused = True
+        _pause_agreements(agreements)
+        total = 0
+        seen = 0
+        delivery_records = 0
+        for inst in instances:
+            after = _changelog_records(inst)
+            new_ids = set(after) - set(before[inst.serverid])
+            delivery_records += len(new_ids)
+            user_modifies = [after[dbid] for dbid in new_ids
+                             if after[dbid]["operation"] == "modify"
+                             and after[dbid]["dn"] in (OLD_USER_DN.lower(),
+                                                        NEW_USER_DN.lower())]
+            counts = [record["memberof_values"] for record in user_modifies]
+            assert all(count <= 1 for count in counts), (
+                "Delivery recorded a user MODIFY with multiple memberOf values: "
+                "max={}, records={}".format(max(counts, default=0), len(counts)))
+            total += sum(counts)
+            seen += len(counts)
+        log.info("Delivery user MODIFYs=%d memberOf values=%d", seen, total)
+        assert delivery_records > 0, "No delivery changelog records were decoded"
+        assert total <= 4 * GROUP_COUNT, (
+            "Delivery recorded {} memberOf values, bound is {}".format(
+                total, 4 * GROUP_COUNT))
     finally:
         if paused:
             for agreement in agreements:
