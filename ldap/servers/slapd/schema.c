@@ -1104,9 +1104,10 @@ oc_delete_all_nolock(void)
     struct objclass *oc, *pnext;
 
     oc = g_get_global_oc_nolock();
-    for (pnext = oc->oc_next; oc;
-         oc = pnext, pnext = oc ? oc->oc_next : NULL) {
+    while (oc != NULL) {
+        pnext = oc->oc_next;
         oc_free(&oc);
+        oc = pnext;
     }
     g_set_global_oc_nolock(NULL);
 }
