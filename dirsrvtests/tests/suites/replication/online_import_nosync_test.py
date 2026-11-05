@@ -70,26 +70,26 @@ def loaded_m1c1(topology_m1c1):
 
 
 def _do_reinit(agmt, timeout):
-    """Start total init and wait for completion."""
+    """Start total init and return its completion status and elapsed time."""
     prev_end = agmt.get_attr_val_utf8('nsds5replicaLastInitEnd') or ''
+    start_time = time.time()
     agmt.begin_reinit()
 
-    elapsed = 0
-    while elapsed < timeout:
+    while True:
         status = agmt.get_attr_val_utf8('nsds5replicaLastInitStatus') or ''
         cur_end = agmt.get_attr_val_utf8('nsds5replicaLastInitEnd') or ''
+        duration = time.time() - start_time
+        
+        # Timeout check
+        if duration >= timeout:
+            return (False, f"Timeout after {timeout}s, status: {status}", duration)
 
         if 'replica busy' in status:
-            return (False, status)
+            return (False, status, duration)
         if 'Replication error' in status or 'LDAP error' in status:
-            return (False, status)
+            return (False, status, duration)
         if cur_end != prev_end and 'Total update succeeded' in status:
-            return (True, False)
-
-        time.sleep(2)
-        elapsed += 2
-
-    return (False, f"Timeout after {timeout}s, status: {status}")
+            return (True, False, duration)
 
 
 def _create_loaded_topology():
@@ -171,7 +171,7 @@ def test_online_import_nosync_logging(loaded_m1c1):
 
     LMDB_LDBMConfig(consumer).set('nsslapd-mdb-online-import-nosync', 'on')
 
-    (done, error) = _do_reinit(agmt, REINIT_TIMEOUT)
+    (done, error, _) = _do_reinit(agmt, REINIT_TIMEOUT)
     assert done, f"Total init failed: {error}"
 
     # Check that the engage message was logged
@@ -206,9 +206,7 @@ def test_online_import_nosync_throughput():
         LMDB_LDBMConfig(consumer).set('nsslapd-mdb-online-import-nosync', nosync)
 
         log.info(f"Starting total init with nosync={nosync} ...")
-        start = time.time()
-        (done, error) = _do_reinit(agmt, REINIT_TIMEOUT)
-        duration = time.time() - start
+        (done, error, duration) = _do_reinit(agmt, REINIT_TIMEOUT)
         rate = NUM_ENTRIES / duration if duration > 0 else 0
         log.info(f"nosync={nosync}: {duration:.1f}s, {rate:.0f} entries/sec")
 
