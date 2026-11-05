@@ -1953,6 +1953,8 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *
                 }
             }
 
+            /* The callback API returns search setup errors. LDAP search
+             * outcomes are delivered through result_callback, when supplied. */
             search_pb = slapi_pblock_new();
             if (config->entryScopes || config->entryScopeExcludeSubtrees) {
                 entry_info.sdn = base_sdn;
@@ -2963,7 +2965,9 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
         goto bail;
     }
 
-    /* Membership reconciliation and specific-group filters need the full entry. */
+    /* Local internal searches return complete entries before attribute selection,
+     * so requesting all attributes does not add an entry copy. Reconciliation
+     * needs memberOf; specific-group filters can reference arbitrary attributes. */
     slapi_search_get_entry(&entry_pb, op_to_sdn, attrs, &e, memberof_get_plugin_id());
     if (!e) {
         /* In the case of a delete, we need to worry about the
