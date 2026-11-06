@@ -224,6 +224,28 @@ You can use 'dsconf' to set this attribute.  Here is an example:
 """
 }
 
+DSCLE0007 = {
+    'dsle': 'DSCLE0007',
+    'severity': 'HIGH',
+    'description': 'Invalid nsslapd-localuser',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-localuser specifies the system account that the Directory Server
+runs as. It is currently set to 'USER', but that user does not exist on this system.
+The server will fail to start, and depending on the version may not log a useful error
+explaining why.
+""",
+    'fix': """Set nsslapd-localuser to a valid system user that owns the Directory Server
+files (usually 'dirsrv').
+
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-localuser=dirsrv
+
+If the server will not start, edit the nsslapd-localuser value in
+/etc/dirsrv/slapd-YOUR_INSTANCE/dse.ldif while the server is stopped.
+"""
+}
+
 # Security checks
 DSELE0001 = {
     'dsle': 'DSELE0001',

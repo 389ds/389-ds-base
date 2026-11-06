@@ -17,13 +17,14 @@
 """
 
 import copy
+import pwd
 import ldap
 from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import (
-    DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
+    DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSCLE0007, DSELE0001
 )
 from lib389._mapped_object_lint import (
     lint_get_attr_val,
@@ -266,6 +267,20 @@ class Config(DSLdapObject):
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             report['check'] = "config:securitylogbuffering"
             yield report
+
+    def _lint_localuser(self):
+        # nsslapd-localuser must map to a real system account, otherwise the
+        # server fails to start (often without a useful error in the logs).
+        localuser = lint_get_attr_val_utf8(self, 'nsslapd-localuser')
+        if localuser:
+            try:
+                pwd.getpwnam(localuser)
+            except KeyError:
+                report = copy.deepcopy(DSCLE0007)
+                report['detail'] = report['detail'].replace('USER', localuser)
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = "config:localuser"
+                yield report
 
     def disable_plaintext_port(self):
         """
