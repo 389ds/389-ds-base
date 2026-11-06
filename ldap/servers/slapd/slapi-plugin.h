@@ -4977,6 +4977,15 @@ void slapi_ber_bvcpy(struct berval *bvd, const struct berval *bvs);
 #define SLAPI_VALUE_FLAG_DUPCHECK       0x10  /* used in valueset_add... */
 
 /**
+ * ValueSet sticky options for \c slapi_valueset_setoption().
+ *
+ * #SLAPI_VALUESET_NOT_SORTED keeps the valueset as an unsorted array even
+ * when the number of values exceeds the internal sort threshold.  Useful
+ * when many values are stored and sorted lookup is not needed.
+ */
+#define SLAPI_VALUESET_NOT_SORTED 0x1
+
+/**
  * Creates an empty \c Slapi_ValueSet structure.
  *
  * \return Pointer to the newly allocated \c Slapi_ValueSet structure.
@@ -5166,6 +5175,20 @@ void slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod);
  */
 void slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
 void slapi_valueset_join_attr_valueset(const Slapi_Attr *a, Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
+
+/**
+ * Set or clear a sticky option on a \c Slapi_ValueSet.
+ *
+ * \param vs Pointer to the valueset.
+ * \param option Option bit (e.g. #SLAPI_VALUESET_NOT_SORTED).
+ * \param on \c true to set the option, \c false to clear it.
+ * \return 0 on success.
+ * \return -1 if \c vs is NULL, the option is unknown, or the option cannot
+ *         be applied (e.g. enabling #SLAPI_VALUESET_NOT_SORTED when the
+ *         valueset is already sorted).
+ * \see SLAPI_VALUESET_NOT_SORTED
+ */
+int slapi_valueset_setoption(Slapi_ValueSet *vs, unsigned long option, bool on);
 
 /**
  * Finds a requested value in a valueset.

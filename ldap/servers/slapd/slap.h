@@ -658,6 +658,7 @@ struct slapi_value_set
     size_t max;     /* The number of slots in the array */
     size_t *sorted; /* sorted array of indices, if NULL va is not sorted */
     struct slapi_value **va;
+    unsigned long options; /* SLAPI_VALUESET_* sticky options */
 };
 
 struct valuearrayfast

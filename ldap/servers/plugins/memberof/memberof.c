@@ -3459,6 +3459,12 @@ memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn
         slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
     slapi_value_set_flags(memberdn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
+    /* These valuesets are not checked with SLAPI_VALUE_FLAG_DUPCHECK and are
+     * not designed to be in the entry cache, so it is okay to not use sorted
+     * valuesets. */
+    slapi_valueset_setoption(groupvals, SLAPI_VALUESET_NOT_SORTED, true);
+    slapi_valueset_setoption(group_norm_vals, SLAPI_VALUESET_NOT_SORTED, true);
+
     memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals, &already_seen_ndn_vals, PR_TRUE};
 
     memberof_get_groups_r(config, e, member_sdn, &data);
@@ -3681,6 +3687,9 @@ merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memb
 int
 memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn, memberof_get_groups_data *data)
 {
+    /* These valuesets are not checked with SLAPI_VALUE_FLAG_DUPCHECK and are
+     * not designed to be in the entry cache, so it is okay to not use sorted
+     * valuesets. */
     Slapi_ValueSet *groupvals = slapi_valueset_new();
     Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
     Slapi_Value *member_ndn_val =
@@ -3689,6 +3698,8 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_s
     int cached = 0;
 
     slapi_value_set_flags(member_ndn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
+    slapi_valueset_setoption(groupvals, SLAPI_VALUESET_NOT_SORTED, true);
+    slapi_valueset_setoption(group_norm_vals, SLAPI_VALUESET_NOT_SORTED, true);
 
     memberof_get_groups_data member_data = {config, member_ndn_val, &groupvals, &group_norm_vals, data->already_seen_ndn_vals, data->use_cache};
 
