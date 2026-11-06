@@ -573,7 +573,7 @@ done
 popd
 
 # Register CLI tools for bash completion
-for clitool in dsconf dsctl dsidm dscreate ds-replcheck
+for clitool in dsconf dsctl dsidm dscreate ds-replcheck openldap_to_ds
 do
     register-python-argcomplete "${clitool}" > "${clitool}"
     install -p -m 0644 -D -t '%{buildroot}%{bash_completions_dir}' "${clitool}"
@@ -845,6 +845,7 @@ fi
 %{bash_completions_dir}/dsconf
 %{bash_completions_dir}/dscreate
 %{bash_completions_dir}/dsidm
+%{bash_completions_dir}/openldap_to_ds
 
 %if %{with logconvpl}
 %files logconv-perl
