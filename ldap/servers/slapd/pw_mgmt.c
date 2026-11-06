@@ -348,8 +348,6 @@ skip:
 void
 pw_init(void)
 {
-    pw_set_componentID(generate_componentid(NULL, COMPONENT_PWPOLICY));
-
 #if defined(USE_OLD_UNHASHED)
     slapi_add_internal_attr_syntax(PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                    PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID,
