@@ -85,6 +85,7 @@ typedef struct _memberof_get_groups_data
     Slapi_ValueSet **group_norm_vals;
     Slapi_ValueSet **already_seen_ndn_vals;
     PRBool use_cache;
+    int error;
 } memberof_get_groups_data;
 
 struct cache_stat
@@ -154,11 +155,12 @@ static void memberof_set_plugin_id(void *plugin_id);
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
-static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache);
+static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_result_callback result_callback, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn, Slapi_Value *memberdn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
-static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn);
+static int memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn, Slapi_ValueSet **groups);
 static int memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn, memberof_get_groups_data *data);
+static void memberof_get_groups_result_callback(int rc, void *callback_data);
 static int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *group_sdn);
 static int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data);
@@ -171,6 +173,7 @@ static void memberof_task_destructor(Slapi_Task *task);
 static void memberof_fixup_task_thread(void *arg);
 static int memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *td);
 static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
+static int memberof_reconcile_memberof_callback(Slapi_Entry *e, MemberOfConfig *config);
 static int memberof_fixup_memberof_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_entry_in_scope(MemberOfConfig *config, MemberofEntryInfo *entry_info);
 static int memberof_add_objectclass(char *auto_add_oc, const char *dn);
@@ -1857,7 +1860,7 @@ add_ancestors_cbdata(memberof_cached_value *ancestors, void *callback_data)
  * could want type to be either "member" or "memberOf" depending on the case.
  */
 int
-memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache)
+memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_result_callback result_callback, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache)
 {
     Slapi_PBlock *search_pb = NULL;
     Slapi_DN *base_sdn = NULL;
@@ -1950,6 +1953,8 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *
                 }
             }
 
+            /* The callback API returns search setup errors. LDAP search
+             * outcomes are delivered through result_callback, when supplied. */
             search_pb = slapi_pblock_new();
             if (config->entryScopes || config->entryScopeExcludeSubtrees) {
                 entry_info.sdn = base_sdn;
@@ -1964,11 +1969,14 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *
                             slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(config->entryScopes[ii]),
                                                          LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
                                                          memberof_get_plugin_id(), 0);
-                            slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
+                            rc = slapi_search_internal_callback_pb(search_pb, callback_data, result_callback, callback, 0);
                             /* We already did the search for this backend, don't
                              * do it again when we fall through */
                             do_suffix_search = PR_FALSE;
                             slapi_pblock_init(search_pb);
+                            if (rc) {
+                                break;
+                            }
                         }
                     }
                 } else if (!all_backends) {
@@ -1982,12 +1990,16 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *
                 }
             }
 
+            if (rc) {
+                slapi_pblock_destroy(search_pb);
+                break;
+            }
+
             if (do_suffix_search) {
                 slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
                                              LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
                                              memberof_get_plugin_id(), 0);
-                slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
-                slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+                rc = slapi_search_internal_callback_pb(search_pb, callback_data, result_callback, callback, 0);
                 if (rc != LDAP_SUCCESS) {
                     slapi_pblock_destroy(search_pb);
                     break;
@@ -2004,6 +2016,9 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *
         }
         slapi_ch_free((void **)&cookie);
         slapi_ch_free_string(&filter_str);
+        if (rc) {
+            break;
+        }
     }
 
     if (free_it) {
@@ -2222,7 +2237,7 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_
 
         groupattrs[0] = config->groupattrs[i];
 
-        if ((ret = memberof_call_foreach_dn(pb, pre_e, pre_sdn, config, groupattrs,
+        if ((ret = memberof_call_foreach_dn(pb, pre_e, pre_sdn, config, groupattrs, NULL,
                                             memberof_replace_dn_type_callback,
                                             &data, &cached, PR_FALSE))) {
             break;
@@ -2897,6 +2912,7 @@ int
 memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_DN *replace_with_sdn, Slapi_DN *op_to_sdn, memberofstringll *stack)
 {
     Slapi_PBlock *entry_pb = NULL;
+    char *attrs[] = {LDAP_ALL_USER_ATTRS, LDAP_ALL_OPERATIONAL_ATTRS, NULL};
     int rc = 0;
     LDAPMod mod;
     LDAPMod replace_mod;
@@ -2949,8 +2965,10 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
         goto bail;
     }
 
-    /* determine if this is a group op or single entry */
-    slapi_search_get_entry(&entry_pb, op_to_sdn, config->groupattrs, &e, memberof_get_plugin_id());
+    /* Local internal searches return complete entries before attribute selection,
+     * so requesting all attributes does not add an entry copy. Reconciliation
+     * needs memberOf; specific-group filters can reference arbitrary attributes. */
+    slapi_search_get_entry(&entry_pb, op_to_sdn, attrs, &e, memberof_get_plugin_id());
     if (!e) {
         /* In the case of a delete, we need to worry about the
          * missing entry being a nested group.  There's a small
@@ -3121,11 +3139,10 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
             goto bail;
         }
 
-        /* For add and del modify operations, we just regenerate the
-         * memberOf attribute. */
+        /* Group member ADD/DELETE calculates the complete desired set,
+         * then applies a single-value change only when that is sufficient. */
         if (LDAP_MOD_DELETE == mod_op || LDAP_MOD_ADD == mod_op) {
-            /* find parent groups and replace our member attr */
-            rc = memberof_fix_memberof_callback(e, config);
+            rc = memberof_reconcile_memberof_callback(e, config);
         } else {
             /* single entry - do mod */
             mods[0] = &mod;
@@ -3446,11 +3463,11 @@ memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre
  *
  * Gets a list of all groups that an entry is a member of.
  * This is done by looking only at member attribute values.
- * A Slapi_ValueSet* is returned.  It is up to the caller to
- * free it.
+ * The caller owns the returned valueset on success. Never return a partial
+ * set after a search or recursive traversal fails.
  */
-Slapi_ValueSet *
-memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn)
+int
+memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn, Slapi_ValueSet **groups)
 {
     Slapi_ValueSet *groupvals = slapi_valueset_new();
     Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
@@ -3459,15 +3476,22 @@ memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn
         slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
     slapi_value_set_flags(memberdn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
-    memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals, &already_seen_ndn_vals, PR_TRUE};
+    memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals, &already_seen_ndn_vals, PR_TRUE, 0};
+    int rc;
 
-    memberof_get_groups_r(config, e, member_sdn, &data);
+    *groups = NULL;
+    rc = memberof_get_groups_r(config, e, member_sdn, &data);
 
     slapi_value_free(&memberdn_val);
     slapi_valueset_free(group_norm_vals);
     slapi_valueset_free(already_seen_ndn_vals);
 
-    return groupvals;
+    if (rc) {
+        slapi_valueset_free(groupvals);
+    } else {
+        *groups = groupvals;
+    }
+    return rc;
 }
 
 void
@@ -3690,7 +3714,7 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_s
 
     slapi_value_set_flags(member_ndn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
-    memberof_get_groups_data member_data = {config, member_ndn_val, &groupvals, &group_norm_vals, data->already_seen_ndn_vals, data->use_cache};
+    memberof_get_groups_data member_data = {config, member_ndn_val, &groupvals, &group_norm_vals, data->already_seen_ndn_vals, data->use_cache, 0};
 
     /* Search for any grouping attributes that point to memberdn.
      * For each match, add it to the list, recurse and do same search */
@@ -3698,17 +3722,35 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_s
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_get_groups_r: Ancestors of %s\n", slapi_sdn_get_dn(member_sdn));
 #endif
     rc = memberof_call_foreach_dn(NULL, e, member_sdn, config, config->groupattrs,
+                                  memberof_get_groups_result_callback,
                                   memberof_get_groups_callback, &member_data, &cached, member_data.use_cache);
 
-    merge_ancestors(&member_ndn_val, &member_data, data);
-    if (!cached && member_data.use_cache)
-        cache_ancestors(config, &member_ndn_val, &member_data);
+    if (member_data.error) {
+        rc = member_data.error;
+    }
+    if (rc == 0) {
+        merge_ancestors(&member_ndn_val, &member_data, data);
+        if (!cached && member_data.use_cache)
+            cache_ancestors(config, &member_ndn_val, &member_data);
+    }
 
     slapi_value_free(&member_ndn_val);
     slapi_valueset_free(groupvals);
     slapi_valueset_free(group_norm_vals);
 
     return rc;
+}
+
+static void
+memberof_get_groups_result_callback(int rc, void *callback_data)
+{
+    memberof_get_groups_data *data = (memberof_get_groups_data *)callback_data;
+
+    /* A configured search base may not exist yet; it contains no groups.
+     * Other search failures must not turn a partial result into desired state. */
+    if (!data->error && rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
+        data->error = rc;
+    }
 }
 
 /* memberof_get_groups_callback()
@@ -3718,6 +3760,7 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_s
 int
 memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 {
+    memberof_get_groups_data *data = (memberof_get_groups_data *)callback_data;
     Slapi_DN *group_sdn = slapi_entry_get_sdn(e);
     char *group_ndn = slapi_entry_get_ndn(e);
     char *group_dn = slapi_entry_get_dn(e);
@@ -3730,6 +3773,10 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
     MemberOfConfig *config = ((memberof_get_groups_data *)callback_data)->config;
     MemberofEntryInfo entry_info = {0};
     int rc = 0;
+
+    if (data->error) {
+        return data->error;
+    }
 
     if (!config->deferred_update && slapi_is_shutting_down()) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -3795,11 +3842,13 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
     }
     if (!config->skip_nested || config->fixup_task) {
         /* now recurse to find ancestors groups of e */
-        memberof_get_groups_r(((memberof_get_groups_data *)callback_data)->config,
-                              e, group_sdn, callback_data);
+        rc = memberof_get_groups_r(config, e, group_sdn, data);
     }
 
 bail:
+    if (rc) {
+        data->error = rc;
+    }
     return rc;
 }
 
@@ -3882,7 +3931,7 @@ memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *gro
     char *attrs[2] = {config->memberof_attr, 0};
     int cached = 0;
 
-    return memberof_call_foreach_dn(pb, NULL, group_sdn, config, attrs,
+    return memberof_call_foreach_dn(pb, NULL, group_sdn, config, attrs, NULL,
                                     memberof_test_membership_callback, config, &cached, PR_FALSE);
 }
 
@@ -4635,21 +4684,103 @@ memberof_fixup_memberof_callback(Slapi_Entry *e, void *callback_data)
     return memberof_fix_memberof_callback(e, callback_data);
 }
 
-/* memberof_fix_memberof_callback()
- * Add initial and/or fix up broken group list in entry
- *
- * 1. Remove all present memberOf values
- * 2. Add direct group membership memberOf values
- * 3. Add indirect group membership memberOf values
- */
-int
-memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
+/* Compare complete membership sets using the memberOf attribute syntax.
+ * Empty desired sets retain the scope-aware whole-attribute delete path.
+ * Otherwise, apply a single-value change only when it repairs the entire set.
+ * The mod borrows its value until the synchronous internal modify completes. */
+static int
+memberof_reconcile_groups(Slapi_Entry *e, MemberOfConfig *config,
+                          Slapi_ValueSet *groups, bool *full_repair)
+{
+    Slapi_Attr *memberof_attr = NULL;
+    Slapi_ValueSet *current = NULL;
+    Slapi_ValueSet *scan;
+    Slapi_ValueSet *lookup;
+    Slapi_Value *value = NULL;
+    Slapi_Value *change = NULL;
+    LDAPMod mod = {0};
+    LDAPMod *mods[2] = {&mod, NULL};
+    struct berval *values[2] = {NULL, NULL};
+    int hint = 0;
+    int current_count = 0;
+    int desired_count = slapi_valueset_count(groups);
+    int difference;
+    int rc = 0;
+
+    *full_repair = true;
+    slapi_entry_attr_find(e, config->memberof_attr, &memberof_attr);
+    slapi_attr_get_numvalues(memberof_attr, &current_count);
+    if (desired_count == 0) {
+        /* No-op if already empty. Otherwise use memberof_del_dn_type_callback,
+         * which preserves entries excluded by the specific-group filters. */
+        *full_repair = (current_count != 0);
+        return 0;
+    }
+
+    difference = desired_count - current_count;
+    if (difference < -1 || difference > 1) {
+        return 0;
+    }
+
+    if (memberof_attr) {
+        rc = slapi_attr_get_valueset(memberof_attr, &current);
+        if (rc) {
+            goto done;
+        }
+    }
+
+    /* Both sets contain unique DNs: merge_ancestors deduplicates groups.
+     * Equal sizes need only a subset check; sizes differing by one need
+     * exactly one unmatched value in the larger set. */
+    scan = difference >= 0 ? groups : current;
+    lookup = difference >= 0 ? current : groups;
+
+    /* The copied current set has no sorted index. Build only the lookup
+     * set's index, once, so each comparison below is logarithmic. */
+    if (lookup && lookup->num > 1 && !lookup->sorted) {
+        lookup->sorted = (size_t *)slapi_ch_malloc(lookup->max * sizeof(size_t));
+        valueset_array_to_sorted(memberof_attr, lookup);
+    }
+
+    hint = slapi_valueset_first_value(scan, &value);
+    while (value) {
+        if (!slapi_valueset_find(memberof_attr, lookup, value)) {
+            if (difference == 0 || change) {
+                goto done;
+            }
+            change = value;
+        }
+        hint = slapi_valueset_next_value(scan, hint, &value);
+    }
+
+    if (!change) {
+        *full_repair = (difference != 0);
+        goto done;
+    }
+
+    *full_repair = false;
+    mod.mod_op = (difference > 0 ? LDAP_MOD_ADD : LDAP_MOD_DELETE) | LDAP_MOD_BVALUES;
+    mod.mod_type = config->memberof_attr;
+    values[0] = (struct berval *)slapi_value_get_berval(change);
+    mod.mod_bvalues = values;
+    rc = memberof_add_memberof_attr(mods, slapi_entry_get_dn(e), config->auto_add_oc);
+
+done:
+    slapi_valueset_free(current);
+    return rc;
+}
+
+/* Compute all direct and indirect memberships. Explicit fixup keeps the full
+ * repair path; group member ADD/DELETE can use a single-value operation when
+ * the complete desired and current sets differ by exactly one value. */
+static int
+memberof_update_memberof_callback(Slapi_Entry *e, MemberOfConfig *config, bool reconcile)
 {
     int rc = 0;
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
-    MemberOfConfig *config = (MemberOfConfig *)callback_data;
     memberof_del_dn_data del_data = {0, config->memberof_attr, config};
     Slapi_ValueSet *groups = 0;
+    bool full_repair = true;
     const char *ndn;
     char *dn_copy;
 
@@ -4672,7 +4803,10 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     }
 
     /* get a list of all of the groups this user belongs to */
-    groups = memberof_get_groups(config, e, sdn);
+    rc = memberof_get_groups(config, e, sdn, &groups);
+    if (rc) {
+        goto bail;
+    }
 #if MEMBEROF_CACHE_DEBUG
     {
         Slapi_Value *val = 0;
@@ -4725,8 +4859,14 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
             }
         }
     }
-    /* If we found some groups, replace the existing memberOf attribute
-     * with the found values.  */
+    if (reconcile) {
+        rc = memberof_reconcile_groups(e, config, groups, &full_repair);
+        if (rc || !full_repair) {
+            goto update_cache;
+        }
+    }
+
+    /* A larger difference, or an explicit fixup, requires a full repair. */
     if (groups && slapi_valueset_count(groups)) {
         Slapi_Value *val = 0;
         Slapi_Mod *smod;
@@ -4756,10 +4896,14 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     } else {
         /* No groups were found, so remove the memberOf attribute
          * from this entry. */
-        memberof_del_dn_type_callback(e, &del_data);
+        rc = memberof_del_dn_type_callback(e, &del_data);
     }
 
+update_cache:
     slapi_valueset_free(groups);
+    if (rc) {
+        goto bail;
+    }
 
     /* records that this entry has been fixed up */
     if (config->fixup_cache) {
@@ -4797,6 +4941,18 @@ bail:
                       "memberof_fix_memberof_callback failed. rc=%d\n", rc);
     }
     return rc;
+}
+
+static int
+memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
+{
+    return memberof_update_memberof_callback(e, (MemberOfConfig *)callback_data, false);
+}
+
+static int
+memberof_reconcile_memberof_callback(Slapi_Entry *e, MemberOfConfig *config)
+{
+    return memberof_update_memberof_callback(e, config, true);
 }
 
 /*
