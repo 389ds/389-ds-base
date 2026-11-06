@@ -1056,6 +1056,39 @@ check_pw_syntax(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, char 
     return (check_pw_syntax_ext(pb, sdn, vals, old_pw, e, mod_op, NULL));
 }
 
+/*
+ * ldap_utf8prev() reads the byte before its argument and then keeps walking
+ * back for as long as it sees UTF-8 continuation bytes, so it can leave the
+ * value even when the caller has checked that it is not on the first
+ * character: a value whose first byte is a stray continuation byte is walked
+ * straight past.
+ *
+ * Return the character preceding 's', or NULL when 's' is already at 'head',
+ * without reading anything below 'head'.
+ */
+static char *
+pw_utf8prev(char *s, char *head)
+{
+    unsigned char *prev = (unsigned char *)s;
+    unsigned char *floor = (unsigned char *)head;
+    unsigned char *limit;
+
+    if (prev <= floor) {
+        return NULL;
+    }
+    /*
+     * ldap_utf8prev() walks back at most six bytes; keep that bound, but
+     * never form a pointer below the value: computing prev - 6 when fewer
+     * than six bytes precede 's' is undefined behaviour in itself, even
+     * though the byte there is never read.
+     */
+    limit = ((prev - floor) > 6) ? prev - 6 : floor;
+    while ((--prev > floor) && ((*prev & 0xC0) == 0x80) && (prev != limit)) {
+        ;
+    }
+    return (char *)prev;
+}
+
 int
 check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods)
 {
@@ -1246,9 +1279,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                    first char of the password, no need to check */
                 if (pwd != p) {
                     int len = ldap_utf8len(p);
-                    char *prev_p = ldap_utf8prev(p);
+                    char *prev_p = pw_utf8prev(p, pwd);
 
-                    if (len == ldap_utf8len(prev_p)) {
+                    if (prev_p && len == ldap_utf8len(prev_p)) {
                         if (memcmp(p, prev_p, len) == 0) {
                             num_repeated++;
                             if (max_repeated < num_repeated) {
