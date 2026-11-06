@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../../dsForm.jsx";
 import React from 'react';
 import {
     Alert,
@@ -15,6 +16,8 @@ import {
 } from './utils.jsx';
 
 const _ = cockpit.gettext;
+
+const CREATE_ROOT_SUFFIX_MODAL_FORM_ID = "ds-create-root-suffix-modal-form";
 
 class CreateRootSuffix extends React.Component {
     constructor (props) {
@@ -74,6 +77,7 @@ class CreateRootSuffix extends React.Component {
         const { showEmptySuffixModal, handleEmptySuffixToggle } = this.props;
         const { ldifArray } = this.state;
         const ldifOk = ldifArray.length > 1; // ldifArray contains a single item in case of error.
+        const createSubmitDisabled = !ldifOk;
         const ldifItems = ldifOk
             ? ldifArray.map((line, index) => {
                 return (<SimpleListItem key={index}>{line}</SimpleListItem>);
@@ -91,8 +95,8 @@ class CreateRootSuffix extends React.Component {
                     <Button
                         key="create"
                         variant="primary"
-                        isDisabled={!ldifOk}
-                        onClick={this.handleCreateRootEntry} // Calls this.props.handleEmptySuffixToggle()
+                        isDisabled={createSubmitDisabled}
+                        {...modalPrimaryEnterSubmit(CREATE_ROOT_SUFFIX_MODAL_FORM_ID, createSubmitDisabled)}
                     >
                         {_("Create")}
                     </Button>,
@@ -105,6 +109,15 @@ class CreateRootSuffix extends React.Component {
                     </Button>
                 ]}
             >
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        CREATE_ROOT_SUFFIX_MODAL_FORM_ID,
+                        this.handleCreateRootEntry,
+                        createSubmitDisabled
+                    )}
+                >
                 <Alert
                     variant={ ldifOk ? 'info' : 'danger'}
                     isInline
@@ -132,6 +145,7 @@ class CreateRootSuffix extends React.Component {
                     )
                 }
                 <div className="ds-addons-bottom-margin" />
+                </Form>
             </Modal>
         );
     }

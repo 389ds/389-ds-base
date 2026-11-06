@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form } from "../../../../dsForm.jsx";
 import React from 'react';
 import {
 	Alert,
@@ -17,7 +18,6 @@ import {
 	DrawerActions,
 	DrawerCloseButton,
 	DualListSelector,
-	Form,
 	FormHelperText,
 	FormSelect,
 	FormSelectOption,

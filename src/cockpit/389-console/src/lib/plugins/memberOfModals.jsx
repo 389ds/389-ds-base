@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
     Checkbox,
-    Form,
     Grid,
     GridItem,
     HelperText,
@@ -65,7 +65,8 @@ export class MemberOfFixupTaskModal extends React.Component {
             >
                 <Grid>
                     <GridItem span={12}>
-                        <Form isHorizontal autoComplete="off">
+                        <Form
+                    {...modalFormEnterSubmit("ds-memberoffixuptaskmodal-form", handleRunFixup, !valid_dn(fixupDN))} isHorizontal autoComplete="off">
                             <TextContent>
                                 <Text className="ds-margin-top" component={TextVariants.h4}>
                                     {_("This task only needs to be run after enabling the plugin for the first time, or if the plugin configuration has changed in a way that will impact the group memberships.")}
@@ -553,7 +554,8 @@ export class MemberOfSpecificGroupFilterModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit("ds-memberofspecificgroupfiltermodal-form", () => handleAddDelSpecificGroupFilter("add", groupFilter), !validFilterChange(groupFilter))} isHorizontal autoComplete="off">
                     <TextContent>
                         <Text className="ds-margin-top" component={TextVariants.h4}>
                             {_("Enter an LDAP search filter, example: (cn=group)")}

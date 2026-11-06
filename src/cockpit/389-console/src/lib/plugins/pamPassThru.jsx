@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
 	Checkbox,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -648,7 +648,9 @@ class PAMPassthroughAuthentication extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-pampassthroughauthentication-form", newPAMConfigEntry ? this.handleAddPAMConfig : this.handleEditPAMConfig, this.state.saveBtnDisabledPAM || this.state.savingPAM)}
+                    isHorizontal autoComplete="off">
                         <Grid className="ds-margin-top">
                             <GridItem className="ds-label" span={3}>
                                 {_("Config Name")}

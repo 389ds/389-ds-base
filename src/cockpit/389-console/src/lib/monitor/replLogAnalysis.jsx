@@ -1,4 +1,5 @@
 import React from "react";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import cockpit from "cockpit";
 import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
@@ -19,7 +20,6 @@ import {
     DataListItemCells,
     DataListCell,
     DatePicker,
-    Form,
     FormGroup,
     Grid,
     GridItem,

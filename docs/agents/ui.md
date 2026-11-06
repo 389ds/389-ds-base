@@ -80,6 +80,12 @@ Every editable field needs three things in its component:
   deprecated import with the same-named current export. For new typeahead or
   multi-select fields use `TypeaheadSelect`
   (`console/src/dsBasicComponents.jsx`).
+- PatternFly `Form` renders a native `<form>`; implicit submit reloads the
+  Cockpit frame. Import `DsForm as Form` from `console/src/dsForm.jsx`
+  instead of `@patternfly/react-core`. Modals with a single footer action
+  (excluding link Close/Cancel) wire Enter via `modalFormEnterSubmit` and
+  `modalPrimaryEnterSubmit` from the same module (`console/src/lib/notifications.jsx`
+  (`DoubleConfirmModal`) is the reference).
 - `.tsx` files exist and are imported with a `.jsx` extension (esbuild
   rewrites it): `import { PwpFixupTasks } from
   "./lib/database/pwpFixupTasks.jsx"` in `console/src/database.jsx`.

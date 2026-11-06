@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
 	Checkbox,
-	Form,
 	FormHelperText,
 	Grid,
 	GridItem,
@@ -22,6 +22,8 @@ import {
 } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
+
+const ACCOUNT_POLICY_CONFIG_MODAL_FORM_ID = "ds-account-policy-config-modal-form";
 
 // Use default account policy name
 
@@ -817,15 +819,16 @@ class AccountPolicy extends React.Component {
                 </Button>
             ];
         } else {
+            const addSubmitDisabled = saveBtnDisabledModal || addingModal;
             modalButtons = [
                 <Button
                     key="add"
                     variant="primary"
-                    onClick={this.handleAddConfig}
-                    isDisabled={saveBtnDisabledModal || addingModal}
+                    isDisabled={addSubmitDisabled}
                     isLoading={addingModal}
                     spinnerAriaValueText={addingModal ? _("Saving") : undefined}
                     {...extraPrimaryProps}
+                    {...modalPrimaryEnterSubmit(ACCOUNT_POLICY_CONFIG_MODAL_FORM_ID, addSubmitDisabled)}
                 >
                     {addingModal ? _("Adding ...") : _("Add Config")}
                 </Button>,
@@ -845,7 +848,17 @@ class AccountPolicy extends React.Component {
                     onClose={this.handleCloseModal}
                     actions={modalButtons}
                 >
-                    <Form isHorizontal autoComplete="no">
+                    <Form
+                        isHorizontal
+                        autoComplete="no"
+                        {...(newEntry
+                            ? modalFormEnterSubmit(
+                                ACCOUNT_POLICY_CONFIG_MODAL_FORM_ID,
+                                this.handleAddConfig,
+                                saveBtnDisabledModal || addingModal
+                            )
+                            : {})}
+                    >
                         <Grid title={_("DN of the config entry")}>
                             <GridItem span={4} className="ds-label">
                                 {_("Config DN")}

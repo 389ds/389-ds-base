@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
 	Checkbox,
-	Form,
 	FormHelperText,
 	FormSelect,
 	FormSelectOption,
@@ -1018,7 +1018,7 @@ class MemberOf extends React.Component {
                     cmd = [...cmd, value];
                 }
             } else if (action !== "add") {
-                cmd = [...cmd, "--specific-group", "delete"];
+                cmd = [...cmd, "--specific-group-filter", "delete"];
             }
             if (configExcludeSpecificGroup.length !== 0) {
                 cmd = [...cmd, "--exclude-specific-group-filter"];
@@ -1026,7 +1026,7 @@ class MemberOf extends React.Component {
                     cmd = [...cmd, value];
                 }
             } else if (action !== "add") {
-                cmd = [...cmd, "--exclude-specific-group", "delete"];
+                cmd = [...cmd, "--exclude-specific-group-filter", "delete"];
             }
             if (configSpecificGroupOC.length !== 0) {
                 cmd = [...cmd, "--specific-group-oc"];

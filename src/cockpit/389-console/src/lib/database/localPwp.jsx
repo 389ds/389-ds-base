@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -8,7 +9,6 @@ import {
 	Button,
 	Checkbox,
 	Divider,
-	Form,
 	FormAlert,
 	FormHelperText,
 	FormSelect,
@@ -2891,11 +2891,14 @@ export class LocalPwPolicy extends React.Component {
                         <Button
                             key="create"
                             variant="primary"
-                            onClick={this.createPolicy}
                             isDisabled={this.state.createDisabled || this.state.creating}
                             isLoading={this.state.creating}
                             spinnerAriaValueText={this.state.creating ? _("Creating") : undefined}
                             {...createExtraPrimaryProps}
+                            {...modalPrimaryEnterSubmit(
+                                "ds-local-pwp-create-modal-form",
+                                this.state.createDisabled || this.state.creating
+                            )}
                         >
                             {createBtnName}
                         </Button>,
@@ -2904,10 +2907,20 @@ export class LocalPwPolicy extends React.Component {
                         </Button>,
                     ]}
                 >
-                    <CreatePolicy
-                        key={this.state.showCreateModal ? "create-open" : "create-closed"}
-                        {...this.getCreatePolicyProps()}
-                    />
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(
+                            "ds-local-pwp-create-modal-form",
+                            this.createPolicy,
+                            this.state.createDisabled || this.state.creating
+                        )}
+                    >
+                        <CreatePolicy
+                            key={this.state.showCreateModal ? "create-open" : "create-closed"}
+                            {...this.getCreatePolicyProps()}
+                        />
+                    </Form>
                 </Modal>
                 <Modal
                     variant={ModalVariant.large}
@@ -2920,11 +2933,14 @@ export class LocalPwPolicy extends React.Component {
                         <Button
                             key="save"
                             variant="primary"
-                            onClick={this.handleSavePolicy}
                             isDisabled={this.state.saveEditDisabled || this.state.saving}
                             isLoading={this.state.saving}
                             spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                             {...editSaveExtraPrimaryProps}
+                            {...modalPrimaryEnterSubmit(
+                                "ds-local-pwp-edit-modal-form",
+                                this.state.saveEditDisabled || this.state.saving
+                            )}
                         >
                             {editSaveBtnName}
                         </Button>,
@@ -2933,7 +2949,17 @@ export class LocalPwPolicy extends React.Component {
                         </Button>,
                     ]}
                 >
-                    {editPolicyTabs}
+                    <Form
+                        isHorizontal
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(
+                            "ds-local-pwp-edit-modal-form",
+                            this.handleSavePolicy,
+                            this.state.saveEditDisabled || this.state.saving
+                        )}
+                    >
+                        {editPolicyTabs}
+                    </Form>
                 </Modal>
                 <DoubleConfirmModal
                     showModal={this.state.showDeletePolicy}
