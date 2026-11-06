@@ -132,6 +132,27 @@ read_root_dse(Slapi_PBlock *pb,
         sdn = slapi_get_next_suffix(&node, 0);
     }
 
+    /*
+     * cn=config, cn=monitor and the dynamic certificates suffix are internal
+     * (private) mapping tree nodes so the loop above skips them, but they are
+     * roots of subordinate entries and therefore naming contexts per RFC 4512
+     * section 5. Advertise them explicitly so clients can discover them
+     * (Issue 2689). The dynamic certificates suffix is listed unconditionally
+     * so that it is visible as reserved even when dynamic certificates are not
+     * enabled.
+     */
+    val.bv_val = SLAPD_CONFIG_DN; /* "cn=config" */
+    val.bv_len = strlen(val.bv_val);
+    attrlist_merge(&e->e_attrs, "namingcontexts", vals);
+
+    val.bv_val = "cn=monitor";
+    val.bv_len = strlen(val.bv_val);
+    attrlist_merge(&e->e_attrs, "namingcontexts", vals);
+
+    val.bv_val = DYNCERTS_SUFFIX; /* "cn=dynamiccertificates" */
+    val.bv_len = strlen(val.bv_val);
+    attrlist_merge(&e->e_attrs, "namingcontexts", vals);
+
     val.bv_val = config_get_default_naming_context();
     if (val.bv_val) {
         val.bv_len = strlen(val.bv_val);
