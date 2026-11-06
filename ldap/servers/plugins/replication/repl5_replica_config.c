@@ -352,7 +352,7 @@ replica_config_modify(Slapi_PBlock *pb,
                 } else if (strcasecmp(config_attr, attr_replicaBindDnGroup) == 0) {
                     *returncode = replica_config_change_updatedngroup(r, mods[i], errortext, apply_mods);
                 } else if (strcasecmp(config_attr, attr_replicaBindDnGroupCheckInterval) == 0) {
-                    replica_set_groupdn_checkinterval(r, -1);
+                    replica_set_groupdn_checkinterval(r, 0);
                 } else if (strcasecmp(config_attr, attr_replicaReferral) == 0) {
                     if (apply_mods) {
                         replica_set_referrals(r, NULL);
