@@ -57,6 +57,7 @@ Repository = "https://github.com/389ds/389-ds-base"
 Issues = "https://github.com/389ds/389-ds-base/issues"
 
 [tool.setuptools.cmdclass]
+egg_info       = "build_hooks.egg_info"
 build_py       = "build_hooks.build_py"
 install        = "build_hooks.install"
 build_manpages = "build_hooks.build_manpages"
