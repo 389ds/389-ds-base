@@ -38,7 +38,7 @@ jobs:
           ")
           echo "branches=$branches" >> "$GITHUB_OUTPUT"
 
-      - uses: korthout/backport-action@8560fb503c275d433c56f05a2f64850093baa9f7 # v4
+      - uses: korthout/backport-action@0ebd44f9c79a4a0a171200dcdcceec3ed9ca732f # v4
         if: steps.targets.outputs.branches != ''
         with:
           # Labels are resolved in the step above; disable label matching.
