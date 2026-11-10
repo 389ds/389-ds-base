@@ -479,9 +479,9 @@ def dna_small_range_setup(topo_m4, request):
 
     range_configs = [
         {'next': '1000', 'max': '1004', 'threshold': '2', 'remaining': '5'},
-        {'next': '2000', 'max': '2099', 'threshold': '10', 'remaining': '100'},
+        {'next': '2000', 'max': '2004', 'threshold': '2', 'remaining': '5'},
         {'next': '3000', 'max': '3099', 'threshold': '10', 'remaining': '100'},
-        {'next': '4000', 'max': '4099', 'threshold': '10', 'remaining': '100'},
+        {'next': '4000', 'max': '4004', 'threshold': '2', 'remaining': '5'},
     ]
 
     created_objects = {'dna_configs': [], 'shared_configs': []}
@@ -516,6 +516,14 @@ def dna_small_range_setup(topo_m4, request):
     time.sleep(2)
     for supplier in suppliers[1:]:
         repl.wait_for_replication(m1, supplier)
+
+    original_shared_config_uuids = {
+        entry.get_attr_val_utf8('dnaPortNum'): entry.get_attr_val_utf8('entryUUID')
+        for entry in shared_configs.list()
+    }
+    assert len(original_shared_config_uuids) == len(suppliers), (
+        f"Expected {len(suppliers)} initial shared configs, found {original_shared_config_uuids}"
+    )
 
     for idx, supplier in enumerate(suppliers):
         cfg = range_configs[idx]
@@ -578,28 +586,39 @@ def dna_small_range_setup(topo_m4, request):
     return {
         'suppliers': suppliers,
         'range_configs': range_configs,
-        'created_objects': created_objects
+        'created_objects': created_objects,
+        'ou_ranges': ou_ranges,
+        'original_shared_config_uuids': original_shared_config_uuids,
     }
 
 
 def test_dna_range_exhaustion(topo_m4, dna_small_range_setup, request):
-    """Test DNA range exhaustion triggers range request from peer.
+    """Test DNA range exhaustion obtains a range from the best peer.
 
     :id: fb85e3f0-e632-4ec2-bffa-bdbe1daf6fd1
-    :setup: Four suppliers, supplier1 has only 5 values (1000-1004), others have 100 each
+    :setup: Four suppliers with DNA configured; supplier1, supplier2, and supplier4
+            have five values each, and supplier3 has 100 values
     :steps:
         1. Create 5 users on supplier1 to exhaust initial range
         2. Verify the 5 users got uidNumbers from supplier1's initial range (1000-1004)
-        3. Create more users on supplier1 (should trigger range request or fail)
-        4. Verify all allocated uidNumbers are unique
+        3. Create 5 more users on supplier1 to activate the requested range
+        4. Verify the additional users use values transferred from supplier3
+        5. Verify all allocated uidNumbers are unique
     :expectedresults:
         1. 5 users created successfully
         2. uidNumbers are in range 1000-1004
-        3. Additional users get values from extended range or peer transfer
-        4. No duplicate uidNumbers
+        3. 5 additional users are created successfully
+        4. uidNumbers are in supplier3's range 3000-3099
+        5. No duplicate uidNumbers
     """
     suppliers = dna_small_range_setup['suppliers']
     m1 = suppliers[0]
+    ou_ranges_dn = dna_small_range_setup['ou_ranges'].dn
+    expected_remaining = {
+        str(supplier.port): range_config['remaining']
+        for supplier, range_config in zip(suppliers, dna_small_range_setup['range_configs'])
+    }
+    original_shared_config_uuids = dna_small_range_setup['original_shared_config_uuids']
     initial_range_users = []
     additional_users = []
 
@@ -612,26 +631,24 @@ def test_dna_range_exhaustion(topo_m4, dna_small_range_setup, request):
 
     request.addfinalizer(fin)
 
+    _wait_for_shared_config_refresh(m1, ou_ranges_dn, expected_remaining, original_shared_config_uuids)
+
     log.info("Supplier1 has range 1000-1004 (5 values), threshold=2")
 
     for i in range(5):
         user_dn = f'uid=dna_exhaust_{i},{DEFAULT_SUFFIX}'
         user = UserAccount(m1, user_dn)
-        try:
-            user.create(properties={
-                'uid': f'dna_exhaust_{i}',
-                'cn': f'DNA Exhaust {i}',
-                'sn': f'User{i}',
-                'uidNumber': '-1',
-                'gidNumber': '1000',
-                'homeDirectory': f'/home/dna_exhaust_{i}'
-            })
-            uid_num = int(user.get_attr_val_utf8('uidNumber'))
-            initial_range_users.append((user, uid_num))
-            log.info(f"User {i}: uidNumber={uid_num}")
-        except ldap.OPERATIONS_ERROR as e:
-            log.warning(f"User {i} creation failed: {e}")
-            break
+        user.create(properties={
+            'uid': f'dna_exhaust_{i}',
+            'cn': f'DNA Exhaust {i}',
+            'sn': f'User{i}',
+            'uidNumber': '-1',
+            'gidNumber': '1000',
+            'homeDirectory': f'/home/dna_exhaust_{i}'
+        })
+        uid_num = int(user.get_attr_val_utf8('uidNumber'))
+        initial_range_users.append((user, uid_num))
+        log.info(f"User {i}: uidNumber={uid_num}")
 
     initial_uids = [uid for (_, uid) in initial_range_users]
     log.info(f"Initial range uidNumbers: {sorted(initial_uids)}")
@@ -641,45 +658,31 @@ def test_dna_range_exhaustion(topo_m4, dna_small_range_setup, request):
 
     assert len(initial_range_users) == 5, f"Expected 5 users from initial range, got {len(initial_range_users)}"
 
-    # Give DNA time to detect low remaining values
-    time.sleep(2)
-
     for i in range(5, 10):
         user_dn = f'uid=dna_exhaust_{i},{DEFAULT_SUFFIX}'
         user = UserAccount(m1, user_dn)
-        try:
-            user.create(properties={
-                'uid': f'dna_exhaust_{i}',
-                'cn': f'DNA Exhaust {i}',
-                'sn': f'User{i}',
-                'uidNumber': '-1',
-                'gidNumber': '1000',
-                'homeDirectory': f'/home/dna_exhaust_{i}'
-            })
-            uid_num = int(user.get_attr_val_utf8('uidNumber'))
-            additional_users.append((user, uid_num))
-            log.info(f"User {i}: uidNumber={uid_num}")
-        except ldap.OPERATIONS_ERROR as e:
-            log.info(f"User {i} creation failed (expected if no range transfer): {e}")
-            break
+        user.create(properties={
+            'uid': f'dna_exhaust_{i}',
+            'cn': f'DNA Exhaust {i}',
+            'sn': f'User{i}',
+            'uidNumber': '-1',
+            'gidNumber': '1000',
+            'homeDirectory': f'/home/dna_exhaust_{i}'
+        })
+        uid_num = int(user.get_attr_val_utf8('uidNumber'))
+        additional_users.append((user, uid_num))
+        log.info(f"User {i}: uidNumber={uid_num}")
 
     all_uids = initial_uids + [uid for (_, uid) in additional_users]
     uid_set = set(all_uids)
     assert len(uid_set) == len(all_uids), f"Duplicate uidNumbers detected! {all_uids}"
 
-    log.info(f"Total users created: {len(all_uids)}")
-    if additional_users:
-        additional_uids = [uid for (_, uid) in additional_users]
-        log.info(f"Additional uidNumbers (beyond initial 5): {additional_uids}")
-        for uid in additional_uids:
-            if 2000 <= uid <= 2099:
-                log.info(f"  {uid} - from supplier2's range")
-            elif 3000 <= uid <= 3099:
-                log.info(f"  {uid} - from supplier3's range")
-            elif 4000 <= uid <= 4099:
-                log.info(f"  {uid} - from supplier4's range")
-            else:
-                log.info(f"  {uid} - from extended/next range")
+    additional_uids = [uid for (_, uid) in additional_users]
+    assert len(additional_users) == 5, f"Expected 5 users from the transferred range, got {len(additional_users)}"
+    for uid in additional_uids:
+        assert 3000 <= uid <= 3099, (
+            f"uidNumber {uid} should come from supplier3, which has the largest available range"
+        )
 
 
 BIND_METHOD = 'SASL/GSSAPI'
@@ -700,6 +703,38 @@ def _wait_for_shared_config_count(supplier, ou_ranges_dn, expected):
     
     assert len(entries) == expected, (
         f"{supplier}: expected {expected} shared config entries, found {len(entries)}"
+    )
+
+
+def _wait_for_shared_config_refresh(supplier, ou_ranges_dn, expected_remaining, original_uuids):
+    """Wait for the shared-config refresh after all suppliers restart."""
+    entries_by_port = {}
+    entry_uuids_by_port = {}
+    entry_count = 0
+
+    for _ in range(12):
+        entries = DNAPluginSharedConfigs(supplier, ou_ranges_dn).list()
+        entry_count = len(entries)
+        entries_by_port = {
+            entry.get_attr_val_utf8('dnaPortNum'): entry.get_attr_val_utf8('dnaRemainingValues')
+            for entry in entries
+        }
+        entry_uuids_by_port = {
+            entry.get_attr_val_utf8('dnaPortNum'): entry.get_attr_val_utf8('entryUUID')
+            for entry in entries
+        }
+        refresh_complete = all(
+            entry_uuids_by_port.get(port) != uuid
+            for port, uuid in original_uuids.items()
+        )
+        if entry_count == len(expected_remaining) and entries_by_port == expected_remaining and refresh_complete:
+            return
+        time.sleep(5)
+
+    assert entry_count == len(expected_remaining) and entries_by_port == expected_remaining and refresh_complete, (
+        f"{supplier}: shared configs did not refresh after restart: "
+        f"expected {expected_remaining}, found {entries_by_port}; "
+        f"original UUIDs {original_uuids}, found {entry_uuids_by_port}"
     )
 
 
