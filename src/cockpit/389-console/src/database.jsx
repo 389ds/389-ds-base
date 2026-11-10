@@ -1,4 +1,5 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "./dsForm.jsx";
 import React from "react";
 import { log_cmd, valid_dn, valid_db_name, getApiErrorMessage } from "./lib/tools.jsx";
 import {
@@ -16,7 +17,6 @@ import {
     Card,
     ProgressStepper,
     ProgressStep,
-    Form,
     FormGroup,
     FormSelect,
     FormSelectOption,
@@ -1902,7 +1902,9 @@ class CreateSuffixModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    {...modalFormEnterSubmit("ds-createsuffixmodal-form", saveHandler, createNotOK || modalSpinning)}
+                    isHorizontal autoComplete="off">
                     <FormGroup
                         label={_("Suffix DN")}
                         fieldId="createSuffix"

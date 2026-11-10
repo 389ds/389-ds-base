@@ -1,10 +1,10 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Bullseye,
 	Button,
 	Checkbox,
-	Form,
     FormHelperText,
 	FormSelect,
 	FormSelectOption,
@@ -714,7 +714,9 @@ class AttributeUniqueness extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-attributeuniqueness-form", newEntry ? this.addConfig : this.editConfig, this.state.saveBtnDisabled || this.state.saving)}
+                    isHorizontal autoComplete="off">
                         <Grid
                             className="ds-margin-top"
                             title={_("Sets the name of the plug-in configuration record. (cn) You can use any string, but \"attribute_name Attribute Uniqueness\" is recommended.")}

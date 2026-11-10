@@ -1,11 +1,11 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { LDIFManageTable, BackupTable } from "./databaseTables.jsx";
 import {
     Button,
     Checkbox,
-    Form,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -26,6 +26,9 @@ import { log_cmd, bad_file_name, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+const EXPORT_LDIF_MODAL_FORM_ID = "ds-export-ldif-modal-form";
+const BACKUP_MODAL_FORM_ID = "ds-backup-modal-form";
 
 export class Backups extends React.Component {
     constructor (props) {
@@ -910,23 +913,33 @@ class ExportModal extends React.Component {
             <FormSelectOption key={suffix} value={suffix} label={suffix} />
         ));
 
+        const exportSubmitDisabled = spinning || ldifName === "";
+        const formSubmitHandler = exportCompleted ? closeHandler : saveHandler;
+        const formSubmitDisabled = exportCompleted ? false : exportSubmitDisabled;
+
         const actions = [];
         if (!exportCompleted) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={saveHandler}
                     isLoading={spinning}
-                    isDisabled={spinning || ldifName === ""}
+                    isDisabled={exportSubmitDisabled}
                     {...extraPrimaryProps}
+                    {...modalPrimaryEnterSubmit(EXPORT_LDIF_MODAL_FORM_ID, exportSubmitDisabled)}
                 >
                     {createBtnName}
                 </Button>
             );
         }
         actions.push(
-            <Button key="close" variant="link" onClick={closeHandler}>
+            <Button
+                key="close"
+                variant="link"
+                {...(exportCompleted
+                    ? modalPrimaryEnterSubmit(EXPORT_LDIF_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {_("Close")}
             </Button>
         );
@@ -939,7 +952,15 @@ class ExportModal extends React.Component {
                 onClose={closeHandler}
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        EXPORT_LDIF_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        formSubmitDisabled
+                    )}
+                >
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
                             {_("Select Suffix")}
@@ -1021,23 +1042,33 @@ export class BackupModal extends React.Component {
             );
         }
 
+        const backupSubmitDisabled = spinning;
+        const formSubmitHandler = backupCompleted ? closeHandler : saveHandler;
+        const formSubmitDisabled = backupCompleted ? false : backupSubmitDisabled;
+
         const actions = [];
         if (!backupCompleted) {
             actions.push(
                 <Button
                     key="confirm"
                     variant="primary"
-                    onClick={saveHandler}
                     isLoading={spinning}
-                    isDisabled={spinning}
+                    isDisabled={backupSubmitDisabled}
                     {...extraPrimaryProps}
+                    {...modalPrimaryEnterSubmit(BACKUP_MODAL_FORM_ID, backupSubmitDisabled)}
                 >
                     {createBtnName}
                 </Button>
             );
         }
         actions.push(
-            <Button key="close" variant="link" onClick={closeHandler}>
+            <Button
+                key="close"
+                variant="link"
+                {...(backupCompleted
+                    ? modalPrimaryEnterSubmit(BACKUP_MODAL_FORM_ID, false)
+                    : { onClick: closeHandler })}
+            >
                 {_("Close")}
             </Button>
         );
@@ -1050,7 +1081,15 @@ export class BackupModal extends React.Component {
                 onClose={closeHandler}
                 actions={actions}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(
+                        BACKUP_MODAL_FORM_ID,
+                        formSubmitHandler,
+                        formSubmitDisabled
+                    )}
+                >
                     <Grid
                         title={_("Backup name, if left blank the date and time will be used as the name")}
                         className="ds-margin-top"

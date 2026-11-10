@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
-    Form,
     FormHelperText,
     Grid,
     GridItem,
@@ -15,6 +15,8 @@ import PropTypes from "prop-types";
 import { DsNumberInput } from "../dsNumberInput.jsx";
 
 const _ = cockpit.gettext;
+
+const SASL_MAPPING_MODAL_FORM_ID = "ds-sasl-mapping-modal-form";
 
 export class SASLMappingModal extends React.Component {
     render() {
@@ -30,6 +32,11 @@ export class SASLMappingModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
+        const submitDisabled = this.props.saveDisabled || this.props.spinning;
+        const submitHandler = () => {
+            this.props.saveHandler(this.props.name);
+        };
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -40,13 +47,11 @@ export class SASLMappingModal extends React.Component {
                 actions={[
                     <Button
                         key="confirm"
-                        isDisabled={this.props.saveDisabled || this.props.spinning}
+                        isDisabled={submitDisabled}
                         variant="primary"
                         isLoading={this.props.spinning}
                         spinnerAriaValueText={this.props.spinning ? _("Loading") : undefined}
-                        onClick={() => {
-                            this.props.saveHandler(this.props.name);
-                        }}
+                        {...modalPrimaryEnterSubmit(SASL_MAPPING_MODAL_FORM_ID, submitDisabled)}
                         {...extraPrimaryProps}
                     >
                         {btnText}
@@ -56,7 +61,11 @@ export class SASLMappingModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form
+                    isHorizontal
+                    autoComplete="off"
+                    {...modalFormEnterSubmit(SASL_MAPPING_MODAL_FORM_ID, submitHandler, submitDisabled)}
+                >
                     <Grid
                         title={_("SASL Mapping entry name")}
                         className="ds-margin-top"

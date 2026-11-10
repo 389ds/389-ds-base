@@ -1,8 +1,8 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
 	Button,
-	Form,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -1049,7 +1049,8 @@ class DNAPlugin extends React.Component {
                 >
                     <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={1} title={<TabTitleText><b>{_("DNA Configuration")}</b></TabTitleText>}>
-                            <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
+                            <Form
+                    {...modalFormEnterSubmit("ds-dnaplugin-tab-form", newEntry ? this.addConfig : this.editConfig, false)} className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                 <Grid>
                                     <GridItem span={3} className="ds-label">
                                         {_("Config Name")}
@@ -1313,6 +1314,7 @@ class DNAPlugin extends React.Component {
                             key="confirm"
                             isDisabled={sharedResult.saveSharedNotOK || savingShared}
                             variant="primary"
+                        {...modalPrimaryEnterSubmit("ds-dnaplugin-form", sharedResult.saveSharedNotOK || savingShared)}
                             onClick={this.handleEditSharedConfig}
                             isLoading={savingShared}
                             spinnerAriaValueText={savingShared ? _("Saving") : undefined}
@@ -1325,7 +1327,9 @@ class DNAPlugin extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form isHorizontal autoComplete="off" {...modalFormEnterSubmit("ds-dnaplugin-form",
+                                                           this.handleEditSharedConfig,
+                                                           sharedResult.saveSharedNotOK || savingShared)} >
                         <Grid hasGutter className="ds-margin-top-xlg">
                             <GridItem span={3}>
                                 Hostname:

@@ -1,3 +1,4 @@
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "./dsForm.jsx";
 import cockpit from "cockpit";
 import React from 'react';
 import {
@@ -1353,7 +1354,11 @@ export class LDAPEditor extends React.Component {
                     isOpen={this.state.isConfirmModalOpen}
                     onClose={this.handleConfirmModalToggle}
                     actions={[
-                        <Button key="confirm" variant="primary" onClick={this.handleLockUnlockEntry}>
+                        <Button
+                            key="confirm"
+                            variant="primary"
+                            {...modalPrimaryEnterSubmit("ds-ldapeditor-confirm-modal-form", false)}
+                        >
                             {_("Confirm")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
@@ -1361,6 +1366,14 @@ export class LDAPEditor extends React.Component {
                         </Button>
                     ]}
                 >
+                    <Form
+                        autoComplete="off"
+                        {...modalFormEnterSubmit(
+                            "ds-ldapeditor-confirm-modal-form",
+                            this.handleLockUnlockEntry,
+                            false
+                        )}
+                    >
                     <TextContent className="ds-margin-top ds-hide-vertical-scrollbar">
                         <Text>
                             {this.state.entryType === "account" && (() => {
@@ -1395,6 +1408,7 @@ export class LDAPEditor extends React.Component {
                             </Text>
                         </>}
                     </TextContent>
+                    </Form>
                 </Modal>
             </>
         );

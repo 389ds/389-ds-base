@@ -1,9 +1,9 @@
 import cockpit from "cockpit";
+import { DsForm as Form, modalFormEnterSubmit, modalPrimaryEnterSubmit } from "../../dsForm.jsx";
 import React from "react";
 import {
     Button,
     Checkbox,
-    Form,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -487,7 +487,9 @@ class PassthroughAuthentication extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal autoComplete="off">
+                    <Form
+                    {...modalFormEnterSubmit("ds-passthroughauthentication-form", newURLEntry ? this.addURL : this.editURL, this.state.saveBtnDisabledPassthru || this.state.savingPassthru)}
+                    isHorizontal autoComplete="off">
                         <Grid className="ds-margin-top">
                             <GridItem
                                 className="ds-label"
